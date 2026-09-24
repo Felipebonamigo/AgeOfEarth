@@ -1,0 +1,100 @@
+// Definições de edifícios. size = largura/altura em tiles; buildTime em segundos de trabalho de 1 cidadão.
+// territory = raio de influência de fronteira (estilo Rise of Nations).
+const BARMOR = { hack: 0.5, pierce: 0.85, crush: 0 };
+
+export const BUILDINGS = {
+  town_center: {
+    name: 'Centro Cívico', icon: '🏛️', cost: { wood: 300, gold: 150 }, hp: 2400, w: 3, h: 3, buildTime: 90,
+    territory: 12, popCap: 20, los: 10, attack: 8, attackType: 'pierce', range: 7, armor: BARMOR,
+    trains: ['villager', 'kataskopos'], dropoff: ['food', 'wood', 'gold'], age: 0, limit: 'city', hotkey: 'N',
+    desc: 'Coração da cidade. Treina cidadãos, recebe recursos, projeta fronteiras e avança as Idades.',
+  },
+  house: {
+    name: 'Casa', icon: '🏠', cost: { wood: 40 }, hp: 300, w: 2, h: 2, buildTime: 20, popCap: 10, armor: BARMOR,
+    age: 0, limit: 25, hotkey: 'Q', desc: 'Abriga 10 de população.',
+  },
+  farm: {
+    name: 'Fazenda', icon: '🌾', cost: { wood: 60 }, hp: 150, w: 2, h: 2, buildTime: 25, passable: true, armor: BARMOR,
+    age: 0, hotkey: 'W', farm: true, desc: 'Fonte infinita de comida para 1 cidadão. Mais lenta que caça e frutas.',
+  },
+  granary: {
+    name: 'Celeiro', icon: '🧺', cost: { wood: 100 }, hp: 500, w: 2, h: 2, buildTime: 30, armor: BARMOR,
+    dropoff: ['food'], age: 0, hotkey: 'E', desc: 'Ponto de entrega de comida e pesquisas agrícolas.',
+  },
+  lumber_camp: {
+    name: 'Serraria', icon: '🪓', cost: { wood: 100 }, hp: 500, w: 2, h: 2, buildTime: 30, armor: BARMOR,
+    dropoff: ['wood'], age: 0, hotkey: 'R', desc: 'Ponto de entrega de madeira e pesquisas de corte.',
+  },
+  mine: {
+    name: 'Mina', icon: '⛏️', cost: { wood: 100 }, hp: 500, w: 2, h: 2, buildTime: 30, armor: BARMOR,
+    dropoff: ['gold'], age: 0, hotkey: 'T', desc: 'Ponto de entrega de ouro e pesquisas de mineração.',
+  },
+  market: {
+    name: 'Mercado', icon: '⚖️', cost: { wood: 150, gold: 50 }, hp: 800, w: 3, h: 3, buildTime: 45, armor: BARMOR,
+    age: 1, limit: 1, hotkey: 'A', trade: true, desc: 'Compra e venda de recursos por ouro. Preços flutuam com o uso.',
+  },
+  temple: {
+    name: 'Templo', icon: '⚡', cost: { wood: 200, gold: 50 }, hp: 1200, w: 3, h: 3, buildTime: 60, armor: BARMOR,
+    territory: 5, los: 8, trains: ['jason', 'odysseus', 'heracles', 'achilles', 'perseus', 'pegasus', 'minotaur', 'centaur', 'cyclops', 'manticore', 'hydra', 'nemean_lion', 'medusa', 'colossus', 'chimera', 'cerberus'],
+    age: 0, hotkey: 'S', worship: true, desc: 'Cidadãos rezam aqui para gerar Favor. Treina heróis e criaturas míticas. Necessário para a Idade Clássica.',
+  },
+  barracks: {
+    name: 'Quartel', icon: '⚔️', cost: { wood: 150 }, hp: 1000, w: 3, h: 3, buildTime: 45, armor: BARMOR,
+    trains: ['hoplite', 'toxotes', 'peltast', 'hypaspist', 'cretan_archer', 'myrmidon'], age: 0, hotkey: 'D', military: true,
+    desc: 'Treina infantaria e arqueiros.',
+  },
+  stable: {
+    name: 'Estábulo', icon: '🐴', cost: { wood: 150, gold: 50 }, hp: 1000, w: 3, h: 3, buildTime: 45, armor: BARMOR,
+    trains: ['kataskopos', 'hippeus', 'hetairoi'], age: 1, hotkey: 'F', military: true, desc: 'Treina cavalaria.',
+  },
+  siege_workshop: {
+    name: 'Oficina de Cerco', icon: '🪨', cost: { wood: 200, gold: 100 }, hp: 1000, w: 3, h: 3, buildTime: 50, armor: BARMOR,
+    trains: ['petrobolos', 'helepolis'], age: 2, hotkey: 'G', military: true, desc: 'Constrói máquinas de cerco.',
+  },
+  academy: {
+    name: 'Academia', icon: '📚', cost: { wood: 200, gold: 100 }, hp: 1000, w: 3, h: 3, buildTime: 60, armor: BARMOR,
+    age: 1, hotkey: 'Z', scholars: true, limit: 3,
+    desc: 'Contrate filósofos para gerar Conhecimento e pesquise as linhas Cívica, Comercial, Militar e Científica.',
+  },
+  tower: {
+    name: 'Torre de Vigia', icon: '🗼', cost: { wood: 100, gold: 50 }, hp: 700, w: 1, h: 1, buildTime: 35, armor: BARMOR,
+    territory: 3, los: 12, attack: 9, attackType: 'pierce', range: 8, age: 0, hotkey: 'X', limit: 20,
+    desc: 'Defesa à distância que também estende um pouco as fronteiras.',
+  },
+  wall: {
+    name: 'Muralha', icon: '🧱', cost: { wood: 15 }, hp: 600, w: 1, h: 1, buildTime: 6, armor: { hack: 0.7, pierce: 0.95, crush: 0 },
+    age: 0, hotkey: 'C', wall: true, desc: 'Bloqueia a passagem. Clique e arraste para construir em linha.',
+  },
+  fortress: {
+    name: 'Fortaleza', icon: '🏰', cost: { wood: 400, gold: 300 }, hp: 3200, w: 4, h: 4, buildTime: 120, armor: BARMOR,
+    territory: 9, popCap: 15, los: 12, attack: 14, attackType: 'pierce', range: 9,
+    trains: ['hoplite', 'toxotes', 'hypaspist', 'hetairoi', 'myrmidon'], age: 2, hotkey: 'V', limit: 4, military: true,
+    desc: 'Bastião que projeta fronteiras, treina tropas de elite e defende com saraivadas de flechas.',
+  },
+  wonder_zeus: {
+    name: 'Estátua de Zeus', icon: '🗽', cost: { wood: 800, gold: 800, food: 600, favor: 100 }, hp: 4000, w: 4, h: 4, buildTime: 240, armor: BARMOR,
+    age: 3, wonder: true, limit: 'wonder', hotkey: 'M', desc: 'Maravilha. Favor +50%. Manter qualquer maravilha por 6 minutos vence a partida.',
+  },
+  wonder_artemis: {
+    name: 'Templo de Ártemis', icon: '🏛️', cost: { wood: 900, gold: 700, food: 600, knowledge: 200 }, hp: 4000, w: 4, h: 4, buildTime: 240, armor: BARMOR,
+    age: 3, wonder: true, limit: 'wonder', hotkey: 'M', desc: 'Maravilha. Criaturas míticas +25% de vida. Manter por 6 minutos vence a partida.',
+  },
+  wonder_colossus: {
+    name: 'Colosso de Rodes', icon: '🗿', cost: { wood: 700, gold: 1000, food: 600, knowledge: 200 }, hp: 5000, w: 4, h: 4, buildTime: 240, armor: BARMOR,
+    age: 3, wonder: true, limit: 'wonder', territory: 6, hotkey: 'M', desc: 'Maravilha. Fronteiras +4 e edifícios +20% de vida. Manter por 6 minutos vence a partida.',
+  },
+  titan_gate: {
+    name: 'Portal dos Titãs', icon: '🌋', cost: { wood: 600, gold: 600, food: 600, favor: 200 }, hp: 3000, w: 5, h: 5, buildTime: 180, armor: BARMOR,
+    age: 4, limit: 1, hotkey: 'B', titanGate: true, desc: 'Quando concluído, liberta o Titã do seu deus maior. Só pode ser construído uma vez.',
+  },
+  cornucopia: {
+    name: 'Cornucópia', icon: '🌽', cost: {}, hp: 800, w: 2, h: 2, buildTime: 1, armor: BARMOR,
+    age: 0, notBuildable: true, plenty: true, desc: 'Presente de Hefesto: gera comida, madeira e ouro continuamente.',
+  },
+};
+for (const [id, b] of Object.entries(BUILDINGS)) b.id = id;
+
+export const BUILD_MENU = [
+  'house', 'farm', 'granary', 'lumber_camp', 'mine', 'market', 'temple', 'barracks', 'stable', 'siege_workshop',
+  'academy', 'tower', 'wall', 'fortress', 'town_center', 'wonder_zeus', 'wonder_artemis', 'wonder_colossus', 'titan_gate',
+];

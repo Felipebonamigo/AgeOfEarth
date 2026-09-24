@@ -1,0 +1,261 @@
+// Definições de unidades. Valores base; modificadores de idade/tecnologia/deus são aplicados por cima.
+// attackType: hack (corte), pierce (perfuração), crush (esmagamento), divine (divino)
+// armor: fração de redução de dano por tipo.
+// bonus: multiplicador de dano contra alvos com determinada tag.
+
+const H = { hack: 0.1, pierce: 0.1, crush: 0.05 };
+
+export const UNITS = {
+  // ---------------- Civis ----------------
+  villager: {
+    name: 'Cidadão', plural: 'Cidadãos', icon: '👤', cls: 'villager',
+    cost: { food: 50 }, hp: 60, attack: 3, attackType: 'hack', armor: { ...H },
+    range: 0.6, speed: 2.4, los: 8, trainTime: 12, pop: 1, radius: 0.28,
+    tags: ['civilian', 'human'], bonus: {}, building: 'town_center', age: 0,
+    canGather: true, canBuild: true, hotkey: 'Q',
+    desc: 'Coleta recursos, constrói e repara edifícios e reza nos templos para gerar Favor.',
+  },
+  kataskopos: {
+    name: 'Batedor', plural: 'Batedores', icon: '🐎', cls: 'scout',
+    cost: { food: 60 }, hp: 70, attack: 4, attackType: 'hack', armor: { ...H },
+    range: 0.6, speed: 4.3, los: 13, trainTime: 15, pop: 1, radius: 0.3,
+    tags: ['cavalry', 'human', 'scout', 'military'], bonus: {}, building: 'town_center', age: 0, hotkey: 'W',
+    desc: 'Cavaleiro leve e veloz. Excelente para explorar o mapa, fraco em combate.',
+  },
+
+  // ---------------- Militares humanos ----------------
+  hoplite: {
+    name: 'Hoplita', plural: 'Hoplitas', icon: '🛡️', cls: 'infantry',
+    cost: { food: 60, gold: 30 }, hp: 110, attack: 9, attackType: 'hack',
+    armor: { hack: 0.25, pierce: 0.2, crush: 0.1 }, range: 0.6, speed: 2.2, los: 7, trainTime: 14, pop: 2, radius: 0.3,
+    tags: ['infantry', 'human', 'military'], bonus: { cavalry: 1.5 }, building: 'barracks', age: 0, hotkey: 'Q',
+    desc: 'Infantaria de lança e escudo. Forte contra cavalaria, fraca contra arqueiros.',
+  },
+  toxotes: {
+    name: 'Toxota', plural: 'Toxotas', icon: '🏹', cls: 'archer',
+    cost: { wood: 50, gold: 30 }, hp: 75, attack: 7, attackType: 'pierce',
+    armor: { hack: 0.1, pierce: 0.15, crush: 0.05 }, range: 5.5, speed: 2.3, los: 9, trainTime: 14, pop: 2, radius: 0.28,
+    tags: ['archer', 'human', 'military', 'ranged'], bonus: { infantry: 1.5 }, building: 'barracks', age: 0, hotkey: 'W',
+    desc: 'Arqueiro. Forte contra infantaria, fraco contra cavalaria.',
+  },
+  peltast: {
+    name: 'Peltasta', plural: 'Peltastas', icon: '🎯', cls: 'skirmisher',
+    cost: { food: 40, wood: 40 }, hp: 85, attack: 6, attackType: 'pierce',
+    armor: { hack: 0.1, pierce: 0.3, crush: 0.05 }, range: 3.5, speed: 2.6, los: 8, trainTime: 13, pop: 2, radius: 0.28,
+    tags: ['skirmisher', 'human', 'military', 'ranged'], bonus: { archer: 1.8 }, building: 'barracks', age: 1, hotkey: 'E',
+    desc: 'Lançador de dardos. Forte contra arqueiros, fraco contra infantaria e cavalaria.',
+  },
+  hippeus: {
+    name: 'Hipeu', plural: 'Hipeus', icon: '🐴', cls: 'cavalry',
+    cost: { food: 80, gold: 50 }, hp: 140, attack: 10, attackType: 'hack',
+    armor: { hack: 0.2, pierce: 0.25, crush: 0.1 }, range: 0.7, speed: 3.6, los: 8, trainTime: 18, pop: 3, radius: 0.34,
+    tags: ['cavalry', 'human', 'military'], bonus: { archer: 1.5, skirmisher: 1.5, siege: 1.5 }, building: 'stable', age: 1, hotkey: 'Q',
+    desc: 'Cavalaria leve. Forte contra arqueiros e cerco, fraca contra infantaria.',
+  },
+  hypaspist: {
+    name: 'Hipaspista', plural: 'Hipaspistas', icon: '⚔️', cls: 'infantry',
+    cost: { food: 70, gold: 50 }, hp: 150, attack: 13, attackType: 'hack',
+    armor: { hack: 0.3, pierce: 0.3, crush: 0.1 }, range: 0.6, speed: 2.2, los: 7, trainTime: 16, pop: 2, radius: 0.3,
+    tags: ['infantry', 'human', 'military'], bonus: { cavalry: 1.5 }, building: 'barracks', age: 2, hotkey: 'R',
+    desc: 'Infantaria pesada de elite. Forte contra cavalaria.',
+  },
+  cretan_archer: {
+    name: 'Arqueiro Cretense', plural: 'Arqueiros Cretenses', icon: '🏹', cls: 'archer',
+    cost: { wood: 70, gold: 50 }, hp: 90, attack: 11, attackType: 'pierce',
+    armor: { hack: 0.1, pierce: 0.2, crush: 0.05 }, range: 6.5, speed: 2.3, los: 10, trainTime: 16, pop: 2, radius: 0.28,
+    tags: ['archer', 'human', 'military', 'ranged'], bonus: { infantry: 1.5 }, building: 'barracks', age: 2, hotkey: 'T',
+    desc: 'Arqueiro de elite com grande alcance. Forte contra infantaria.',
+  },
+  hetairoi: {
+    name: 'Hetairo', plural: 'Hetairoi', icon: '🐎', cls: 'cavalry',
+    cost: { food: 100, gold: 80 }, hp: 190, attack: 14, attackType: 'hack',
+    armor: { hack: 0.25, pierce: 0.3, crush: 0.1 }, range: 0.7, speed: 3.4, los: 8, trainTime: 22, pop: 3, radius: 0.36,
+    tags: ['cavalry', 'human', 'military'], bonus: { archer: 1.5, skirmisher: 1.5, siege: 1.5 }, building: 'stable', age: 2, hotkey: 'W',
+    desc: 'Cavalaria pesada dos companheiros do rei. Forte contra arqueiros e cerco.',
+  },
+  petrobolos: {
+    name: 'Petróbolo', plural: 'Petróbolos', icon: '🪨', cls: 'siege',
+    cost: { wood: 150, gold: 100 }, hp: 120, attack: 30, attackType: 'crush',
+    armor: { hack: 0.05, pierce: 0.5, crush: 0.1 }, range: 7, speed: 1.4, los: 9, trainTime: 30, pop: 4, radius: 0.4,
+    tags: ['siege', 'military', 'ranged'], bonus: { building: 5 }, building: 'siege_workshop', age: 2, hotkey: 'Q',
+    desc: 'Catapulta. Devastadora contra edifícios, frágil contra cavalaria.',
+  },
+  myrmidon: {
+    name: 'Mirmidão', plural: 'Mirmidões', icon: '🗡️', cls: 'infantry',
+    cost: { food: 90, gold: 70 }, hp: 200, attack: 17, attackType: 'hack',
+    armor: { hack: 0.35, pierce: 0.35, crush: 0.15 }, range: 0.6, speed: 2.4, los: 8, trainTime: 18, pop: 2, radius: 0.3,
+    tags: ['infantry', 'human', 'military'], bonus: { cavalry: 1.5, myth: 1.25 }, building: 'barracks', age: 3, hotkey: 'Y',
+    desc: 'Os guerreiros de Aquiles. Infantaria suprema, com dano extra contra criaturas míticas.',
+  },
+  helepolis: {
+    name: 'Helépole', plural: 'Helépoles', icon: '🏗️', cls: 'siege',
+    cost: { wood: 250, gold: 200 }, hp: 400, attack: 45, attackType: 'crush',
+    armor: { hack: 0.2, pierce: 0.6, crush: 0.1 }, range: 6, speed: 1.2, los: 9, trainTime: 40, pop: 5, radius: 0.5,
+    tags: ['siege', 'military', 'ranged'], bonus: { building: 5 }, building: 'siege_workshop', age: 3, hotkey: 'W',
+    desc: 'Torre de cerco blindada. Derruba muralhas e fortalezas.',
+  },
+  militia: {
+    name: 'Milícia', plural: 'Milícias', icon: '🔨', cls: 'infantry',
+    cost: {}, hp: 80, attack: 7, attackType: 'hack', armor: { ...H },
+    range: 0.6, speed: 2.3, los: 7, trainTime: 0, pop: 0, radius: 0.28,
+    tags: ['infantry', 'human', 'military'], bonus: {}, building: null, age: 0,
+    desc: 'Cidadãos armados às pressas por Poseidon quando um edifício cai.',
+  },
+
+  // ---------------- Heróis ----------------
+  jason: {
+    name: 'Jasão', plural: 'Jasão', icon: '🦁', cls: 'hero', unique: true,
+    cost: { gold: 100, favor: 15 }, hp: 200, attack: 14, attackType: 'divine',
+    armor: { hack: 0.25, pierce: 0.25, crush: 0.2 }, range: 0.7, speed: 2.6, los: 9, trainTime: 20, pop: 2, radius: 0.32,
+    tags: ['hero', 'human', 'military', 'infantry'], bonus: { myth: 3 }, building: 'temple', age: 0, hotkey: 'A',
+    desc: 'Líder dos Argonautas. Heróis causam dano triplo em criaturas míticas.',
+  },
+  odysseus: {
+    name: 'Odisseu', plural: 'Odisseu', icon: '🏹', cls: 'hero', unique: true,
+    cost: { gold: 150, favor: 20 }, hp: 220, attack: 13, attackType: 'divine',
+    armor: { hack: 0.2, pierce: 0.3, crush: 0.2 }, range: 6, speed: 2.6, los: 11, trainTime: 22, pop: 2, radius: 0.32,
+    tags: ['hero', 'human', 'military', 'archer', 'ranged'], bonus: { myth: 3 }, building: 'temple', age: 1, hotkey: 'S',
+    desc: 'O astuto rei de Ítaca e seu arco. Herói à distância.',
+  },
+  heracles: {
+    name: 'Héracles', plural: 'Héracles', icon: '💪', cls: 'hero', unique: true,
+    cost: { gold: 200, favor: 25 }, hp: 350, attack: 22, attackType: 'divine',
+    armor: { hack: 0.3, pierce: 0.3, crush: 0.25 }, range: 0.8, speed: 2.6, los: 9, trainTime: 25, pop: 3, radius: 0.36,
+    tags: ['hero', 'human', 'military', 'infantry'], bonus: { myth: 3, building: 1.5 }, building: 'temple', age: 2, hotkey: 'D',
+    desc: 'O maior dos heróis. Sua clava também derruba edifícios.',
+  },
+  achilles: {
+    name: 'Aquiles', plural: 'Aquiles', icon: '🔥', cls: 'hero', unique: true,
+    cost: { gold: 250, favor: 30 }, hp: 420, attack: 26, attackType: 'divine',
+    armor: { hack: 0.35, pierce: 0.35, crush: 0.3 }, range: 0.8, speed: 3.0, los: 9, trainTime: 28, pop: 3, radius: 0.36,
+    tags: ['hero', 'human', 'military', 'infantry'], bonus: { myth: 3 }, building: 'temple', age: 3, hotkey: 'F',
+    desc: 'Invulnerável exceto pelo calcanhar. Veloz e mortal.',
+  },
+  perseus: {
+    name: 'Perseu', plural: 'Perseu', icon: '🪞', cls: 'hero', unique: true,
+    cost: { gold: 300, favor: 40 }, hp: 450, attack: 28, attackType: 'divine',
+    armor: { hack: 0.35, pierce: 0.4, crush: 0.3 }, range: 0.8, speed: 3.0, los: 10, trainTime: 30, pop: 3, radius: 0.36,
+    tags: ['hero', 'human', 'military', 'infantry'], bonus: { myth: 3, titan: 2.5 }, building: 'temple', age: 4, hotkey: 'G',
+    desc: 'Matador da Medusa. Dano extra contra Titãs.',
+  },
+
+  // ---------------- Unidades míticas ----------------
+  pegasus: {
+    name: 'Pégaso', plural: 'Pégasos', icon: '🕊️', cls: 'myth',
+    cost: { favor: 25 }, hp: 90, attack: 0, attackType: 'hack', armor: { hack: 0.1, pierce: 0.1, crush: 0.1 },
+    range: 0, speed: 5.0, los: 14, trainTime: 20, pop: 1, radius: 0.34, flying: true,
+    tags: ['myth', 'scout', 'flying'], bonus: {}, building: 'temple', age: 0, god: 'zeus', hotkey: 'Z',
+    desc: 'Cavalo alado de Zeus. Voa sobre qualquer terreno e vê muito longe.',
+  },
+  minotaur: {
+    name: 'Minotauro', plural: 'Minotauros', icon: '🐂', cls: 'myth',
+    cost: { food: 150, favor: 20 }, hp: 380, attack: 24, attackType: 'hack',
+    armor: { hack: 0.3, pierce: 0.25, crush: 0.2 }, range: 0.8, speed: 2.6, los: 8, trainTime: 24, pop: 3, radius: 0.42,
+    tags: ['myth', 'military'], bonus: { human: 1.3 }, building: 'temple', age: 1, god: 'athena', hotkey: 'Z',
+    desc: 'A besta do labirinto. Arremessa soldados humanos com suas chifradas.',
+  },
+  centaur: {
+    name: 'Centauro', plural: 'Centauros', icon: '🏹', cls: 'myth',
+    cost: { wood: 120, favor: 18 }, hp: 260, attack: 16, attackType: 'pierce',
+    armor: { hack: 0.2, pierce: 0.2, crush: 0.15 }, range: 6, speed: 3.6, los: 10, trainTime: 22, pop: 3, radius: 0.4,
+    tags: ['myth', 'military', 'ranged'], bonus: { human: 1.3 }, building: 'temple', age: 1, god: 'hermes', hotkey: 'Z',
+    desc: 'Arqueiro veloz meio homem, meio cavalo.',
+  },
+  cyclops: {
+    name: 'Ciclope', plural: 'Ciclopes', icon: '👁️', cls: 'myth',
+    cost: { food: 220, favor: 28 }, hp: 600, attack: 35, attackType: 'hack',
+    armor: { hack: 0.3, pierce: 0.35, crush: 0.2 }, range: 0.9, speed: 2.4, los: 8, trainTime: 30, pop: 4, radius: 0.5,
+    tags: ['myth', 'military'], bonus: { human: 1.3, building: 2 }, building: 'temple', age: 1, god: 'ares', hotkey: 'Z',
+    desc: 'Gigante de um olho só. Esmaga homens e muralhas.',
+  },
+  manticore: {
+    name: 'Mantícora', plural: 'Mantícoras', icon: '🦂', cls: 'myth',
+    cost: { food: 180, favor: 25 }, hp: 420, attack: 20, attackType: 'pierce',
+    armor: { hack: 0.25, pierce: 0.3, crush: 0.2 }, range: 5, speed: 3.2, los: 9, trainTime: 26, pop: 4, radius: 0.44,
+    tags: ['myth', 'military', 'ranged'], bonus: { human: 1.3 }, building: 'temple', age: 2, god: 'apollo', hotkey: 'Z',
+    desc: 'Leão com cauda de escorpião que dispara espinhos venenosos.',
+  },
+  hydra: {
+    name: 'Hidra', plural: 'Hidras', icon: '🐍', cls: 'myth',
+    cost: { food: 280, favor: 32 }, hp: 750, attack: 30, attackType: 'hack',
+    armor: { hack: 0.3, pierce: 0.35, crush: 0.25 }, range: 1.0, speed: 2.0, los: 8, trainTime: 34, pop: 5, radius: 0.55,
+    tags: ['myth', 'military'], bonus: { human: 1.3 }, building: 'temple', age: 2, god: 'dionysus', hotkey: 'Z',
+    special: 'heads', desc: 'A cada 3 abates cresce uma cabeça (até 5), aumentando seu ataque.',
+  },
+  nemean_lion: {
+    name: 'Leão de Nemeia', plural: 'Leões de Nemeia', icon: '🦁', cls: 'myth',
+    cost: { food: 200, favor: 25 }, hp: 480, attack: 26, attackType: 'hack',
+    armor: { hack: 0.4, pierce: 0.4, crush: 0.2 }, range: 0.8, speed: 3.2, los: 9, trainTime: 26, pop: 4, radius: 0.44,
+    tags: ['myth', 'military'], bonus: { human: 1.3 }, building: 'temple', age: 2, god: 'aphrodite', hotkey: 'Z',
+    desc: 'Pele impenetrável: armadura altíssima contra armas comuns.',
+  },
+  medusa: {
+    name: 'Medusa', plural: 'Medusas', icon: '🐍', cls: 'myth',
+    cost: { gold: 200, favor: 30 }, hp: 400, attack: 22, attackType: 'pierce',
+    armor: { hack: 0.25, pierce: 0.3, crush: 0.2 }, range: 6, speed: 2.6, los: 10, trainTime: 30, pop: 4, radius: 0.42,
+    tags: ['myth', 'military', 'ranged'], bonus: { human: 1.3 }, building: 'temple', age: 3, god: 'hera', hotkey: 'Z',
+    special: 'petrify', desc: 'Seu olhar tem 12% de chance de petrificar instantaneamente humanos (exceto heróis).',
+  },
+  colossus: {
+    name: 'Colosso', plural: 'Colossos', icon: '🗿', cls: 'myth',
+    cost: { gold: 400, favor: 40 }, hp: 1600, attack: 60, attackType: 'crush',
+    armor: { hack: 0.5, pierce: 0.6, crush: 0.3 }, range: 1.0, speed: 1.8, los: 9, trainTime: 45, pop: 6, radius: 0.65,
+    tags: ['myth', 'military'], bonus: { building: 3 }, building: 'temple', age: 3, god: 'hephaestus', hotkey: 'Z',
+    desc: 'Estátua de bronze animada por Hefesto. Lento, colossal, arrasa edifícios.',
+  },
+  chimera: {
+    name: 'Quimera', plural: 'Quimeras', icon: '🔥', cls: 'myth',
+    cost: { food: 300, favor: 35 }, hp: 700, attack: 40, attackType: 'hack',
+    armor: { hack: 0.3, pierce: 0.35, crush: 0.25 }, range: 1.2, speed: 3.0, los: 9, trainTime: 36, pop: 5, radius: 0.5, splash: 1.6,
+    tags: ['myth', 'military'], bonus: { human: 1.3 }, building: 'temple', age: 3, god: 'artemis', hotkey: 'Z',
+    desc: 'Cospe fogo em área, atingindo vários inimigos de uma vez.',
+  },
+  cerberus: {
+    name: 'Cérbero', plural: 'Cérberos', icon: '🐕', cls: 'myth',
+    cost: { food: 250, favor: 35 }, hp: 650, attack: 35, attackType: 'hack',
+    armor: { hack: 0.3, pierce: 0.35, crush: 0.25 }, range: 0.9, speed: 3.4, los: 9, trainTime: 32, pop: 5, radius: 0.5,
+    tags: ['myth', 'military'], bonus: { human: 1.3, hero: 1.3 }, building: 'temple', age: 2, god: 'hades', hotkey: 'X',
+    desc: 'Cão de três cabeças de Hades. Caça heróis com voracidade.',
+  },
+  sentinel: {
+    name: 'Sentinela', plural: 'Sentinelas', icon: '🗿', cls: 'myth',
+    cost: {}, hp: 500, attack: 15, attackType: 'pierce', armor: { hack: 0.4, pierce: 0.5, crush: 0.1 },
+    range: 8, speed: 0, los: 10, trainTime: 0, pop: 0, radius: 0.4, immobile: true,
+    tags: ['myth', 'military', 'ranged'], bonus: {}, building: null, age: 0,
+    desc: 'Estátua guardiã invocada por Hades. Imóvel, mas atira de longe.',
+  },
+  shade: {
+    name: 'Sombra', plural: 'Sombras', icon: '👻', cls: 'myth',
+    cost: {}, hp: 60, attack: 8, attackType: 'hack', armor: { hack: 0.2, pierce: 0.4, crush: 0.2 },
+    range: 0.6, speed: 3.0, los: 7, trainTime: 0, pop: 0, radius: 0.28,
+    tags: ['myth', 'military'], bonus: {}, building: null, age: 0,
+    desc: 'Espírito de um guerreiro caído que retorna do submundo para lutar por Hades.',
+  },
+
+  // ---------------- Titãs ----------------
+  prometheus: {
+    name: 'Prometeu', plural: 'Prometeu', icon: '🔥', cls: 'titan', unique: true,
+    cost: {}, hp: 6000, attack: 190, attackType: 'crush', armor: { hack: 0.6, pierce: 0.7, crush: 0.5 },
+    range: 1.5, speed: 2.0, los: 12, trainTime: 0, pop: 0, radius: 1.1, splash: 2.2,
+    tags: ['myth', 'titan', 'military'], bonus: { building: 4 }, building: null, age: 4,
+    desc: 'Titã do fogo, libertado por Zeus. Sua passagem incendeia exércitos e cidades.',
+  },
+  oceanus: {
+    name: 'Oceano', plural: 'Oceano', icon: '🌊', cls: 'titan', unique: true,
+    cost: {}, hp: 6500, attack: 175, attackType: 'crush', armor: { hack: 0.6, pierce: 0.75, crush: 0.5 },
+    range: 1.5, speed: 2.2, los: 12, trainTime: 0, pop: 0, radius: 1.1, splash: 2.2,
+    tags: ['myth', 'titan', 'military'], bonus: { building: 4 }, building: null, age: 4,
+    desc: 'Titã das águas primordiais, invocado por Poseidon.',
+  },
+  cronus: {
+    name: 'Cronos', plural: 'Cronos', icon: '⏳', cls: 'titan', unique: true,
+    cost: {}, hp: 6000, attack: 210, attackType: 'crush', armor: { hack: 0.65, pierce: 0.7, crush: 0.5 },
+    range: 1.5, speed: 1.9, los: 12, trainTime: 0, pop: 0, radius: 1.1, splash: 2.2,
+    tags: ['myth', 'titan', 'military'], bonus: { building: 4 }, building: null, age: 4,
+    desc: 'O rei dos Titãs, arrancado do Tártaro por Hades.',
+  },
+};
+
+for (const [id, u] of Object.entries(UNITS)) u.id = id;
+
+export const UNIT_TAGS = ['infantry', 'archer', 'skirmisher', 'cavalry', 'siege', 'hero', 'myth', 'human', 'titan', 'military', 'civilian', 'ranged', 'scout', 'flying'];

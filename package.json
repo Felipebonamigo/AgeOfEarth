@@ -1,0 +1,12 @@
+{
+  "name": "age-of-earth",
+  "version": "0.1.0",
+  "description": "RTS no estilo Rise of Nations com mitologia grega (Age of Mythology), em HTML5 Canvas e JavaScript puro.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test tests/",
+    "smoke": "node scripts/headless.js"
+  },
+  "license": "MIT"
+}
