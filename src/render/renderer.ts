@@ -6,9 +6,25 @@ import type { Building, GameState, Unit, VisualEffect } from '../core/types';
 import { Camera } from './camera';
 import { TextureCache, darken } from './textures';
 import { getUnitStats, getBuildingStats } from '../core/sim/modifiers';
+import { componentAt } from '../core/map/components';
 import type { EditorUI } from '../editor/types';
+import { terrainColor, regionColor } from './palette';
 
 const CHUNK = 16;
+/** Zoom mínimo padrão da partida; em mapas grandes/telas pequenas cai até enquadrar o mapa inteiro (ver updateMinZoom). */
+const DEFAULT_MIN_ZOOM = 0.35;
+/** Raio (em tiles) do anel de cada início no editor: o gerador limpa esse raio e o kit inicial cabe dentro dele. */
+export const START_RING_RADIUS = 8;
+/** Deslocamentos (em tiles, a partir do centro do CC) onde createGame põe os 5 cidadãos e o batedor do kit inicial. */
+export const KIT_SPOTS: readonly (readonly [number, number])[] = [[-2, 2.5], [-1, 2.5], [0, 2.5], [1, 2.5], [2, 2.5], [3, 1]];
+
+/** Canto (tile superior esquerdo) do footprint de um edifício cujo "centro" está no tile (x, y): equivalente por tile
+ *  da colocação centrada no cursor usada na partida. O editor deve usar a mesma regra ao chamar canPlaceBuilding. */
+export function buildingCorner(type: string, x: number, y: number): { tx: number; ty: number } {
+  const def = BUILDINGS[type];
+  if (!def) return { tx: x, ty: y };
+  return { tx: x - Math.floor(def.w / 2), ty: y - Math.floor(def.h / 2) };
+}
 
 interface EntityView { root: Container; body: Sprite; type: string; color: number; complete: boolean; angle: number; carry: Sprite | null; label?: Text; rank?: Graphics; rankShown?: number }
 
@@ -29,10 +45,19 @@ export class Renderer {
   tex!: TextureCache;
   cam = new Camera();
   world = new Container();
-  layers = { terrain: new Container(), territory: new Container(), ground: new Graphics(), buildings: new Container(), units: new Container(), fx: new Container(), hp: new Graphics(), fog: new Container() };
+  layers = { terrain: new Container(), territory: new Container(), ground: new Graphics(), buildings: new Container(), units: new Container(), fx: new Container(), hp: new Graphics(), editor: new Container(), fog: new Container() };
   overlay = new Graphics();
+  /** Quantos chunks de terreno ficam em cache antes de descartar os fora da tela (60 na partida; no editor, todos). */
+  chunkCacheLimit = 60;
   private chunks = new Map<string, Sprite>();
   private chunkNodeCount = new Map<string, number>();
+  // Sobreposições do editor: texturas w×h de regiões/passabilidade (como a névoa), gráfico por quadro e rótulos dos inícios
+  private edGfx = new Graphics();
+  private edLabels: Text[] = [];
+  private regCanvas!: HTMLCanvasElement; private regTex!: Texture; private regSprite!: Sprite; private regKey = '';
+  private passCanvas!: HTMLCanvasElement; private passTex!: Texture; private passSprite!: Sprite; private passKey = '';
+  /** Versão própria das edições (invalidateRect/setState): as texturas do editor são regeneradas quando ela muda. */
+  private editVersion = 0;
   private views = new Map<number, EntityView>();
   /** Espectador: tudo visível (só na renderização; a simulação não muda). */
   revealAll = false;
@@ -50,7 +75,8 @@ export class Renderer {
     parent.appendChild(this.app.canvas);
     this.tex = new TextureCache(this.app.renderer);
     this.app.stage.addChild(this.world, this.overlay);
-    this.world.addChild(this.layers.terrain, this.layers.territory, this.layers.ground, this.layers.buildings, this.layers.units, this.layers.fx, this.layers.hp, this.layers.fog);
+    this.world.addChild(this.layers.terrain, this.layers.territory, this.layers.ground, this.layers.buildings, this.layers.units, this.layers.fx, this.layers.hp, this.layers.editor, this.layers.fog);
+    this.layers.editor.visible = false;
     this.layers.units.sortableChildren = true;
     this.layers.buildings.sortableChildren = true;
     this.app.stage.eventMode = 'none';
@@ -81,13 +107,72 @@ export class Renderer {
     this.terrTex = Texture.from(this.terrCanvas); this.terrTex.source.scaleMode = 'nearest';
     this.terrSprite = new Sprite(this.terrTex); this.terrSprite.width = w * TILE; this.terrSprite.height = h * TILE; this.terrSprite.alpha = 0.09;
     this.layers.territory.addChild(this.terrSprite, this.borders);
+    // Camada do editor: regiões e passabilidade como texturas w×h (regeneradas só quando algo muda), gráfico e rótulos
+    this.layers.editor.removeChildren();
+    for (const l of this.edLabels) l.destroy(); this.edLabels = [];
+    this.regCanvas = document.createElement('canvas'); this.regCanvas.width = w; this.regCanvas.height = h;
+    this.regTex = Texture.from(this.regCanvas); this.regTex.source.scaleMode = 'nearest';
+    this.regSprite = new Sprite(this.regTex); this.regSprite.width = w * TILE; this.regSprite.height = h * TILE; this.regSprite.visible = false;
+    this.passCanvas = document.createElement('canvas'); this.passCanvas.width = w; this.passCanvas.height = h;
+    this.passTex = Texture.from(this.passCanvas); this.passTex.source.scaleMode = 'nearest';
+    this.passSprite = new Sprite(this.passTex); this.passSprite.width = w * TILE; this.passSprite.height = h * TILE; this.passSprite.visible = false;
+    this.edGfx = new Graphics();
+    this.layers.editor.addChild(this.regSprite, this.passSprite, this.edGfx);
+    this.layers.editor.visible = false;
+    this.regKey = ''; this.passKey = ''; this.editVersion++;
     this.fogVersion = -1; this.terrVersion = -1; this.lastNodeCount = -1; this.revealAll = false;
-    const start = state.map.starts[0];
+    this.updateMinZoom();
+    // Mapa sem inícios (editor, mapa em branco): centra no meio
+    const start = state.map.starts[0] ?? { x: w / 2, y: h / 2 };
     this.cam.zoom = 1.3;
     this.cam.centerOn(start.x, start.y);
   }
 
-  resize(): void { this.cam.resize(this.app.screen.width, this.app.screen.height); }
+  resize(): void { this.cam.resize(this.app.screen.width, this.app.screen.height); this.updateMinZoom(); }
+
+  /** Zoom que enquadra o mapa inteiro na tela atual. */
+  private fitZoom(): number {
+    if (!this.state) return DEFAULT_MIN_ZOOM;
+    const { w, h } = this.state.map;
+    return Math.min(this.app.screen.width / (w * TILE), this.app.screen.height / (h * TILE));
+  }
+  /** minZoom = min(padrão, zoom que enquadra o mapa): nunca mais restritivo que hoje, mas sempre dá para ver o mapa inteiro. */
+  private updateMinZoom(): void {
+    this.cam.minZoom = Math.min(DEFAULT_MIN_ZOOM, this.fitZoom());
+    if (this.cam.zoom < this.cam.minZoom) { this.cam.zoom = this.cam.minZoom; this.cam.clamp(); }
+  }
+  /** Enquadra o mapa inteiro: recalcula minZoom, aplica o zoom de enquadramento e centra a câmera (editor ao abrir). */
+  fitMap(): void {
+    if (!this.state) return;
+    this.cam.resize(this.app.screen.width, this.app.screen.height);
+    this.updateMinZoom();
+    this.cam.zoom = Math.max(this.cam.minZoom, Math.min(this.cam.maxZoom, this.fitZoom()));
+    this.cam.centerOn(this.state.map.w / 2, this.state.map.h / 2);
+  }
+
+  /**
+   * Editor: o terreno/nós mudaram no retângulo de tiles [x0,x1]×[y0,y1] (inclusivo). Destrói só os chunks tocados
+   * (regenerados no próximo quadro se estiverem na tela), atualiza a contagem de nós desses chunks e marca as
+   * texturas do editor (regiões/passabilidade) para regenerar. O resto do mapa não é tocado.
+   */
+  invalidateRect(x0: number, y0: number, x1: number, y1: number): void {
+    const st = this.state; if (!st) return;
+    const map = st.map;
+    const ax0 = Math.max(0, Math.min(x0, x1)), ay0 = Math.max(0, Math.min(y0, y1));
+    const ax1 = Math.min(map.w - 1, Math.max(x0, x1)), ay1 = Math.min(map.h - 1, Math.max(y0, y1));
+    this.editVersion++;
+    if (ax1 < ax0 || ay1 < ay0) return;
+    for (let cy = Math.floor(ay0 / CHUNK); cy <= Math.floor(ay1 / CHUNK); cy++) for (let cx = Math.floor(ax0 / CHUNK); cx <= Math.floor(ax1 / CHUNK); cx++) {
+      const k = this.chunkKey(cx, cy);
+      const sp = this.chunks.get(k);
+      if (sp) { sp.destroy({ texture: true }); this.chunks.delete(k); this.layers.terrain.removeChild(sp); }
+      // Recontagem de nós do chunk: mantém refreshChunksIfNeeded coerente sem regenerar os outros chunks
+      let nodes = 0;
+      for (let y = cy * CHUNK; y < Math.min(map.h, (cy + 1) * CHUNK); y++) for (let x = cx * CHUNK; x < Math.min(map.w, (cx + 1) * CHUNK); x++) if (map.nodeAt[y * map.w + x] !== -1) nodes++;
+      this.chunkNodeCount.set(k, nodes);
+    }
+    this.lastNodeCount = map.nodes.size;
+  }
   /** Qualidade de renderização: fração da resolução nativa (0.5–1). Menos pixels = mais leve em GPUs fracas. */
   setRenderScale(scale: number): void {
     const s = Math.max(0.25, Math.min(1, scale));
@@ -111,7 +196,6 @@ export class Renderer {
     }
     // Transições suaves entre terrenos (areia/grama/água) e espuma nas margens
     const blend = new Graphics();
-    const TCOL: Record<number, number> = { 0: 0x5a9438, 1: 0x2f79b5, 2: 0x7f7e77, 3: 0xdccd93, 4: 0x927346, 5: 0x1f5a8f };
     for (let y = y0; y < Math.min(map.h, y0 + CHUNK); y++) for (let x = x0; x < Math.min(map.w, x0 + CHUNK); x++) {
       const t = map.terrain[y * map.w + x];
       const px = (x - x0) * TILE, py = (y - y0) * TILE;
@@ -123,7 +207,7 @@ export class Renderer {
         const water = t === 1 || t === 5, nwater = nt === 1 || nt === 5;
         if (water && !nwater) { blend.rect(rx, ry, rw, rh).fill({ color: 0xbfe3f7, alpha: 0.35 }); continue; }   // espuma
         if (!water && nwater) { blend.rect(rx, ry, rw, rh).fill({ color: 0xe9dfb0, alpha: 0.25 }); continue; }   // margem
-        blend.rect(rx, ry, rw, rh).fill({ color: TCOL[nt] ?? 0x000000, alpha: 0.28 });
+        blend.rect(rx, ry, rw, rh).fill({ color: terrainColor(nt), alpha: 0.28 });
       }
     }
     c.addChild(blend);
@@ -168,7 +252,7 @@ export class Renderer {
       if (!this.chunks.has(k)) { const sp = this.buildChunk(state, cx, cy); this.chunks.set(k, sp); this.layers.terrain.addChild(sp); }
     }
     // descarta chunks distantes quando há muitos em cache
-    if (this.chunks.size > 60) for (const [k, sp] of this.chunks) if (!wanted.has(k)) { sp.destroy({ texture: true }); this.chunks.delete(k); this.layers.terrain.removeChild(sp); }
+    if (this.chunks.size > this.chunkCacheLimit) for (const [k, sp] of this.chunks) if (!wanted.has(k)) { sp.destroy({ texture: true }); this.chunks.delete(k); this.layers.terrain.removeChild(sp); }
   }
 
   // ---------------- Fronteiras ----------------
@@ -457,6 +541,137 @@ export class Renderer {
     void ui;
   }
 
+  // ---------------- Editor de mapas ----------------
+  /**
+   * Sobreposições do editor, só quando ui.editor existe: regiões/passabilidade (texturas w×h, regeneradas quando a
+   * versão das edições muda), grade da área visível, inícios numerados com anel de raio 8, fantasma do kit inicial,
+   * contorno do pincel, linha de pré-visualização, fantasmas de edifício/unidade, seleção e tile piscando.
+   * Fora das regenerações são algumas dezenas de primitivas (mais as linhas da grade visível) por quadro.
+   */
+  private updateEditor(state: GameState, ui: RenderUI): void {
+    const ed = ui.editor;
+    const layer = this.layers.editor;
+    if (!ed) { if (layer.visible) { layer.visible = false; this.edGfx.clear(); } return; }
+    layer.visible = true;
+    const map = state.map, w = map.w, h = map.h;
+    const now = performance.now();
+    const zoom = this.cam.zoom, lw = 1 / zoom;                       // lw = 1 px de tela em unidades de mundo
+    const mk = Math.min(6, Math.max(1, lw));                          // marcadores com tamanho quase constante na tela
+    // Texturas: a chave muda com invalidateRect/setState, com o nº de edifícios (bloqueio) e de nós
+    const key = `${this.editVersion}:${state.buildings.size}:${map.nodes.size}:${w}x${h}`;
+    this.regSprite.visible = ed.showRegions;
+    if (ed.showRegions && this.regKey !== key) {
+      this.regKey = key;
+      const ctx = this.regCanvas.getContext('2d')!;
+      const img = ctx.createImageData(w, h); const d = img.data;
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const l = componentAt(map, x, y);
+        if (l < 0) continue;
+        const c = regionColor(l), i = (y * w + x) * 4;
+        d[i] = (c >> 16) & 255; d[i + 1] = (c >> 8) & 255; d[i + 2] = c & 255; d[i + 3] = 105;
+      }
+      ctx.putImageData(img, 0, 0); this.regTex.source.update();
+    }
+    this.passSprite.visible = ed.showPassable;
+    if (ed.showPassable && this.passKey !== key) {
+      this.passKey = key;
+      const ctx = this.passCanvas.getContext('2d')!;
+      const img = ctx.createImageData(w, h); const d = img.data;
+      for (let i = 0; i < w * h; i++) {
+        if (map.blocked[i] === 0 || map.gateTeam[i] >= 0) continue;
+        d[i * 4] = 239; d[i * 4 + 1] = 68; d[i * 4 + 2] = 68; d[i * 4 + 3] = 120;
+      }
+      ctx.putImageData(img, 0, 0); this.passTex.source.update();
+    }
+    const g = this.edGfx; g.clear();
+    // Grade: só a área visível da câmera
+    if (ed.showGrid) {
+      const v = this.cam.visibleTiles();
+      const x0 = Math.max(0, v.x0), y0 = Math.max(0, v.y0), x1 = Math.min(w, v.x1), y1 = Math.min(h, v.y1);
+      for (let x = x0; x <= x1; x++) g.moveTo(x * TILE, y0 * TILE).lineTo(x * TILE, y1 * TILE);
+      for (let y = y0; y <= y1; y++) g.moveTo(x0 * TILE, y * TILE).lineTo(x1 * TILE, y * TILE);
+      g.stroke({ width: lw, color: 0xffffff, alpha: 0.2 });
+    }
+    // Inícios: anel de raio 8, disco numerado, destaque do selecionado e fantasma do kit inicial
+    const starts = map.starts;
+    for (let i = 0; i < starts.length; i++) {
+      const s = starts[i];
+      const cx = (s.x + 0.5) * TILE, cy = (s.y + 0.5) * TILE;
+      const color = PLAYER_COLORS[i % PLAYER_COLORS.length].num;
+      const sel = ed.selected?.kind === 'start' && ed.selected.id === i;
+      g.circle(cx, cy, START_RING_RADIUS * TILE).fill({ color, alpha: sel ? 0.08 : 0.04 }).stroke({ width: (sel ? 3 : 1.5) * lw, color, alpha: sel ? 0.95 : 0.7 });
+      if (sel) g.circle(cx, cy, START_RING_RADIUS * TILE + 3 * lw).stroke({ width: 1.5 * lw, color: 0xffffff, alpha: 0.85 });
+      if (ed.showKit) {
+        // CC 3×3 em (x-1, y-1) e os 6 pontos onde createGame põe cidadãos (amarelo) e batedor (azul-claro)
+        g.rect((s.x - 1) * TILE, (s.y - 1) * TILE, 3 * TILE, 3 * TILE).fill({ color, alpha: 0.2 }).stroke({ width: 1.5 * lw, color, alpha: 0.8 });
+        KIT_SPOTS.forEach(([dx, dy], k) => {
+          const px = Math.floor(s.x + 0.5 + dx) + 0.5, py = Math.floor(s.y + 0.5 + dy) + 0.5;
+          g.circle(px * TILE, py * TILE, 5 * Math.min(1.6, mk)).fill({ color: k < 5 ? 0xfde68a : 0x93c5fd, alpha: 0.85 }).stroke({ width: lw, color: 0x000000, alpha: 0.5 });
+        });
+      }
+      g.circle(cx, cy, 11 * mk).fill({ color, alpha: 0.92 }).stroke({ width: 2 * lw, color: 0xffffff, alpha: sel ? 1 : 0.75 });
+      let l = this.edLabels[i];
+      if (!l) {
+        l = new Text({ text: String(i + 1), style: new TextStyle({ fontSize: 14, fontWeight: 'bold', fill: 0xffffff, stroke: { color: 0x000000, width: 3 } }) });
+        l.anchor.set(0.5); layer.addChild(l); this.edLabels[i] = l;
+      }
+      l.visible = true; l.position.set(cx, cy); l.scale.set(mk);
+    }
+    for (let i = starts.length; i < this.edLabels.length; i++) this.edLabels[i].visible = false;
+    // Cursor: pincel, linha, fantasmas
+    const hv = ed.hover;
+    if (hv) {
+      const tool = ed.tool;
+      const cx = (hv.x + 0.5) * TILE, cy = (hv.y + 0.5) * TILE;
+      if (tool === 'terrain' || tool === 'node') {
+        const r = ed.brushRadius, color = tool === 'terrain' ? terrainColor(ed.terrain) : 0xa3e635;
+        if (ed.brushShape === 'circle') g.circle(cx, cy, (r + 0.5) * TILE).fill({ color, alpha: 0.18 }).stroke({ width: 2 * lw, color, alpha: 0.95 });
+        else g.rect((hv.x - r) * TILE, (hv.y - r) * TILE, (2 * r + 1) * TILE, (2 * r + 1) * TILE).fill({ color, alpha: 0.18 }).stroke({ width: 2 * lw, color, alpha: 0.95 });
+        g.rect(hv.x * TILE, hv.y * TILE, TILE, TILE).stroke({ width: lw, color: 0xffffff, alpha: 0.7 });
+        if (ed.lineFrom) {
+          const fx = (ed.lineFrom.x + 0.5) * TILE, fy = (ed.lineFrom.y + 0.5) * TILE;
+          g.moveTo(fx, fy).lineTo(cx, cy).stroke({ width: (2 * r + 1) * TILE, color, alpha: 0.12 });
+          g.moveTo(fx, fy).lineTo(cx, cy).stroke({ width: 2 * lw, color: 0xffffff, alpha: 0.85 });
+          g.circle(fx, fy, 4 * mk).fill({ color: 0xffffff, alpha: 0.9 });
+        }
+      } else if (tool === 'building') {
+        const def = BUILDINGS[ed.buildingType];
+        if (def) {
+          const { tx, ty } = buildingCorner(ed.buildingType, hv.x, hv.y);
+          const c = ed.ghostOk ? 0x4ade80 : 0xef4444;
+          g.rect(tx * TILE, ty * TILE, def.w * TILE, def.h * TILE).fill({ color: c, alpha: 0.35 }).stroke({ width: 1.5 * lw, color: c, alpha: 0.9 });
+        }
+      } else if (tool === 'unit') {
+        const def = UNITS[ed.unitType];
+        const c = ed.ghostOk ? 0x4ade80 : 0xef4444, rr = Math.max(0.35, def?.radius ?? 0.4) * TILE * 1.4;
+        g.circle(cx, cy, rr).fill({ color: c, alpha: 0.35 }).stroke({ width: 1.5 * lw, color: c, alpha: 0.9 });
+        g.rect(hv.x * TILE, hv.y * TILE, TILE, TILE).stroke({ width: lw, color: c, alpha: 0.6 });
+      } else if (tool === 'start') {
+        const idx = ed.selected?.kind === 'start' ? ed.selected.id : starts.length;
+        const c = PLAYER_COLORS[idx % PLAYER_COLORS.length].num;
+        g.circle(cx, cy, START_RING_RADIUS * TILE).stroke({ width: 1.5 * lw, color: c, alpha: 0.5 });
+        g.rect((hv.x - 1) * TILE, (hv.y - 1) * TILE, 3 * TILE, 3 * TILE).fill({ color: c, alpha: 0.25 }).stroke({ width: 1.5 * lw, color: c, alpha: 0.8 });
+      } else {
+        // selecionar / borracha: só o tile sob o cursor
+        g.rect(hv.x * TILE, hv.y * TILE, TILE, TILE).stroke({ width: 1.5 * lw, color: tool === 'erase' ? 0xef4444 : 0xffffff, alpha: 0.8 });
+      }
+    }
+    // Entidade / nó selecionado no inspetor (inícios já foram destacados acima)
+    const sel = ed.selected;
+    if (sel && sel.kind !== 'start') {
+      const c = 0xfde68a;
+      if (sel.kind === 'unit') { const u = state.units.get(sel.id); if (u) { const r = UNITS[u.type].radius * TILE * 1.6; g.ellipse(u.x * TILE, u.y * TILE + r * 0.3, r, r * 0.6).stroke({ width: 2 * lw, color: c, alpha: 0.95 }); } }
+      else if (sel.kind === 'building') { const b = state.buildings.get(sel.id); if (b) g.rect(b.tx * TILE - 2 * lw, b.ty * TILE - 2 * lw, b.w * TILE + 4 * lw, b.h * TILE + 4 * lw).stroke({ width: 2 * lw, color: c, alpha: 0.95 }); }
+      else { const n = map.nodes.get(sel.id); if (n) g.rect(n.x * TILE, n.y * TILE, TILE, TILE).stroke({ width: 2 * lw, color: c, alpha: 0.95 }); }
+    }
+    // "Ir até": tile piscando até flash.until
+    const f = ed.flash;
+    if (f && now < f.until && Math.floor(now / 160) % 2 === 0) {
+      g.rect(f.x * TILE, f.y * TILE, TILE, TILE).fill({ color: 0xffffff, alpha: 0.55 }).stroke({ width: 2 * lw, color: 0xfde047, alpha: 1 });
+      g.circle((f.x + 0.5) * TILE, (f.y + 0.5) * TILE, 1.6 * TILE).stroke({ width: 2 * lw, color: 0xfde047, alpha: 0.8 });
+    }
+  }
+
   // ---------------- Quadro ----------------
   render(state: GameState, alpha: number, ui: RenderUI, dtReal: number): void {
     this.time += dtReal;
@@ -470,6 +685,7 @@ export class Renderer {
     this.updateEntities(state, alpha, ui);
     this.updateGround(state, alpha, ui);
     this.updateEffects(state, ui);
+    this.updateEditor(state, ui);
     this.updateFog(state, ui.localPlayer);
     const o = this.overlay; o.clear();
     if (ui.dragRect) { const r = ui.dragRect; o.rect(Math.min(r.x0, r.x1), Math.min(r.y0, r.y1), Math.abs(r.x1 - r.x0), Math.abs(r.y1 - r.y0)).fill({ color: 0x8ff58f, alpha: 0.12 }).rect(Math.min(r.x0, r.x1), Math.min(r.y0, r.y1), Math.abs(r.x1 - r.x0), Math.abs(r.y1 - r.y0)).stroke({ width: 1, color: 0x8ff58f, alpha: 0.9 }); }
