@@ -10,9 +10,20 @@ export interface FixedMapData {
   w: number; h: number;
   terrain: string;                              // base64 de w*h bytes (TERRAIN.*)
   decor: string;                                // base64 de w*h bytes
-  nodes: [NodeType, number, number, number][];  // tipo, x, y, quantidade
-  starts: [number, number][];                   // posições iniciais (uma por jogador)
+  nodes: [NodeType, number, number, number][];  // tipo, x, y, quantidade (em ordem y, x)
+  starts: [number, number][];                   // posições iniciais (uma por jogador); o CC 3x3 fica em (x-1, y-1)
+  // ---- opcionais (docs/EDITOR.md §2.1); todos com padrão no carregador ----
+  id?: string;                                  // slug estável do mapa (biblioteca/seletor); não muda ao renomear
+  nameEn?: string; author?: string; description?: string;
+  startKit?: boolean;                           // padrão true: CC + cidadãos + batedor em cada início (createGame)
+  entities?: MapEntity[];                       // edifícios e unidades pré-colocados (edifícios antes das unidades, ordem y, x)
+  startTeams?: number[];                        // time sugerido por início (ex.: [0, 0, 1, 1]) para atribuição por time
+  koth?: [number, number];                      // colina do Rei da Colina; padrão: centro do mapa
+  relics?: boolean;                             // padrão true: placeRelics sorteia pela semente; false em cenários
 }
+export type MapEntity =
+  | { kind: 'building'; type: string; owner: number; x: number; y: number; complete?: boolean; tag?: string }   // x, y = canto (tx, ty); complete padrão true
+  | { kind: 'unit'; type: string; owner: number; x: number; y: number; tag?: string };                          // tile; nasce em (x+0.5, y+0.5) ou no tile livre mais próximo
 
 const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 export function bytesToBase64(bytes: Uint8Array): string {

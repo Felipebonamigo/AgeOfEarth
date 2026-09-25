@@ -9,8 +9,9 @@ import { t, getLocale, setLocale, LOCALE_NAMES, type Locale } from '../i18n';
 import { optionsHTML, bindOptions, type OptionsContext } from './options';
 import type { FixedMapData } from '../core/map/fixed';
 import { importText } from '../game/files';
+import { esc } from './html';
 
-const fixedMapLabel = (d: { name?: string; w: number; h: number; starts: number | unknown[] }) => t('main.fixedMapInfo', { name: d.name ?? 'mapa', w: d.w, h: d.h, n: Array.isArray(d.starts) ? d.starts.length : d.starts });
+const fixedMapLabel = (d: { name?: string; w: number; h: number; starts: number | unknown[] }) => t('main.fixedMapInfo', { name: esc(d.name ?? 'mapa'), w: d.w, h: d.h, n: Array.isArray(d.starts) ? d.starts.length : d.starts });
 
 export interface MenuCallbacks { onStart: (config: GameConfig) => void; onLoad: () => void; hasSave: () => boolean; onHelp: () => void; onEncyclopedia: () => void; onMission: (id: string) => void; onNetworkStart: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onNetworkRejoin: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onHorde: (god: string, difficulty: Difficulty) => void; onReplay: () => void; hasReplay: () => boolean; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onHotkeys?: () => void }
 
@@ -45,7 +46,7 @@ export class MainMenu {
     if (!this.roomList) return `<div style="font-size:12px;color:#9aa5b8;margin-top:6px">${t('mp.connecting')}</div>`;
     if (this.roomList.length === 0) return `<div style="font-size:12px;color:#9aa5b8;margin-top:6px">${t('mp.roomsNone')}</div>`;
     const modeName = (m: string) => (m === 'horde' ? t('mp.horde') : t(`mode.${m}`)).split(/[:(]/)[0].trim();
-    return `<div style="font-size:12px;color:#9aa5b8;margin-top:6px">${t('mp.roomsTitle')}</div><table style="width:100%;font-size:13px;border-collapse:collapse">${this.roomList.map((r) => `<tr><td><b>${r.code}</b></td><td style="color:#9aa5b8">${t('mp.roomInfo', { host: r.host, n: r.players, mode: modeName(r.mode), map: r.fixedMap ?? t(`map.${r.mapSize}`) })}</td><td align="right"><button class="btn" data-room="${r.code}" style="padding:2px 10px;font-size:12px">${t('mp.enter')}</button></td></tr>`).join('')}</table>`;
+    return `<div style="font-size:12px;color:#9aa5b8;margin-top:6px">${t('mp.roomsTitle')}</div><table style="width:100%;font-size:13px;border-collapse:collapse">${this.roomList.map((r) => `<tr><td><b>${esc(r.code)}</b></td><td style="color:#9aa5b8">${t('mp.roomInfo', { host: esc(r.host), n: r.players, mode: modeName(r.mode), map: r.fixedMap ? esc(r.fixedMap) : t(`map.${r.mapSize}`) })}</td><td align="right"><button class="btn" data-room="${esc(r.code)}" style="padding:2px 10px;font-size:12px">${t('mp.enter')}</button></td></tr>`).join('')}</table>`;
   }
   private bindRoomList(joinRoom: (room: string) => Promise<void>) {
     this.el.querySelectorAll('[data-room]').forEach((b) => b.addEventListener('click', () => void joinRoom(String((b as HTMLElement).dataset.room))));
@@ -69,7 +70,7 @@ export class MainMenu {
     const json = await importText(); if (!json) return;
     try { const d = JSON.parse(json) as FixedMapData; if (d.v !== 1 || !d.terrain || !d.starts) throw new Error('bad'); this.setFixedMap(d); } catch { alert(t('main.fixedMapBad')); }
   }
-  private renderChatLog() { const log = this.el.querySelector('#mp-chat-log'); if (!log) { this.render(); return; } log.innerHTML = this.chatLog.map((m) => `<div><b>${m.name}:</b> ${m.text}</div>`).join(''); log.scrollTop = log.scrollHeight; }
+  private renderChatLog() { const log = this.el.querySelector('#mp-chat-log'); if (!log) { this.render(); return; } log.innerHTML = this.chatLog.map((m) => `<div><b>${esc(m.name)}:</b> ${esc(m.text)}</div>`).join(''); log.scrollTop = log.scrollHeight; }
   hide() { this.el.classList.add('hidden'); }
 
   private render() {
@@ -101,7 +102,7 @@ export class MainMenu {
           <label>${t('main.difficulty')}</label><select id="m-diff">${Object.keys(DIFFICULTIES).map((k) => `<option value="${k}" ${(saved.diff ?? 'normal') === k ? 'selected' : ''}>${t(`diff.${k}`)}</option>`).join('')}</select>
           <label>${t('main.teams')}</label><select id="m-teams"><option value="ffa" ${(saved.teams ?? 'ffa') === 'ffa' ? 'selected' : ''}>${t('main.teams.ffa')}</option><option value="coop" ${saved.teams === 'coop' ? 'selected' : ''}>${t('main.teams.coop')}</option><option value="alliance" ${saved.teams === 'alliance' ? 'selected' : ''}>${t('main.teams.alliance')}</option></select>
           <label>${t('main.mode')}</label><select id="m-mode">${GAME_MODES.map((m) => `<option value="${m}" ${(saved.mode ?? 'conquest') === m ? 'selected' : ''}>${t(`mode.${m}`)}</option>`).join('')}</select>
-          <label>${t('main.mapType')}</label><select id="m-maptype">${MAP_TYPES.map((m) => `<option value="${m}" ${(saved.mapType ?? 'continental') === m ? 'selected' : ''}>${t(`maptype.${m}`)}</option>`).join('')}</select>
+          <label>${t('main.mapType')}</label><select id="m-maptype" ${this.fixedMap ? 'disabled' : ''}>${MAP_TYPES.map((m) => `<option value="${m}" ${(saved.mapType ?? 'continental') === m ? 'selected' : ''}>${t(`maptype.${m}`)}</option>`).join('')}</select>
           <label>${t('main.aiGods')}</label><select id="m-aigod"><option value="random">${t('main.randomGods')}</option>${MAJOR_GOD_LIST.map((g) => `<option value="${g}">${MAJOR_GODS[g].name}</option>`).join('')}</select>
           <label><input type="checkbox" id="m-reveal"> ${t('main.reveal')}</label>
         </div>
@@ -168,8 +169,8 @@ export class MainMenu {
         <div id="mp-rooms">${this.roomListHTML()}</div>`;
     }
     const me = this.net.slot; const host = lobby.host === me;
-    const rows = lobby.players.map((p) => `<tr><td>${p.slot === lobby.host ? '👑 ' : ''}${p.name}${p.slot === me ? ` ${t('mp.you')}` : ''}</td><td>${MAJOR_GODS[p.god]?.icon ?? ''} ${MAJOR_GODS[p.god]?.name ?? p.god}</td><td>${host ? `<select data-team="${p.slot}">${[0, 1, 2, 3].map((k) => `<option value="${k}" ${p.team === k ? 'selected' : ''}>${t('mp.teamN', { n: k + 1 })}</option>`).join('')}</select>` : t('mp.teamN', { n: p.team + 1 })}</td><td class="ping">${(p.ping ?? -1) >= 0 ? `${p.ping} ms` : '…'}</td><td>${host && p.slot !== me ? `<button class="btn" data-kick="${p.slot}" style="padding:2px 8px;font-size:12px">${t('mp.kick')}</button>` : ''}</td></tr>`).join('');
-    const chat = `<div id="mp-chat" style="margin-top:10px"><div style="font-size:12px;color:#9aa5b8">${t('mp.chat')}</div><div id="mp-chat-log" style="height:96px;overflow:auto;background:#0f1628;border:1px solid var(--border);border-radius:6px;padding:6px;font-size:13px">${this.chatLog.map((m) => `<div><b>${m.name}:</b> ${m.text}</div>`).join('')}</div><div style="display:flex;gap:6px;margin-top:6px"><input id="mp-chat-input" placeholder="${t('mp.chatPlaceholder')}" maxlength="200" style="flex:1"><button class="btn" id="mp-chat-send">${t('mp.send')}</button></div></div>`;
+    const rows = lobby.players.map((p) => `<tr><td>${p.slot === lobby.host ? '👑 ' : ''}${esc(p.name)}${p.slot === me ? ` ${t('mp.you')}` : ''}</td><td>${MAJOR_GODS[p.god]?.icon ?? ''} ${MAJOR_GODS[p.god]?.name ?? p.god}</td><td>${host ? `<select data-team="${p.slot}">${[0, 1, 2, 3].map((k) => `<option value="${k}" ${p.team === k ? 'selected' : ''}>${t('mp.teamN', { n: k + 1 })}</option>`).join('')}</select>` : t('mp.teamN', { n: p.team + 1 })}</td><td class="ping">${(p.ping ?? -1) >= 0 ? `${p.ping} ms` : '…'}</td><td>${host && p.slot !== me ? `<button class="btn" data-kick="${p.slot}" style="padding:2px 8px;font-size:12px">${t('mp.kick')}</button>` : ''}</td></tr>`).join('');
+    const chat = `<div id="mp-chat" style="margin-top:10px"><div style="font-size:12px;color:#9aa5b8">${t('mp.chat')}</div><div id="mp-chat-log" style="height:96px;overflow:auto;background:#0f1628;border:1px solid var(--border);border-radius:6px;padding:6px;font-size:13px">${this.chatLog.map((m) => `<div><b>${esc(m.name)}:</b> ${esc(m.text)}</div>`).join('')}</div><div style="display:flex;gap:6px;margin-top:6px"><input id="mp-chat-input" placeholder="${t('mp.chatPlaceholder')}" maxlength="200" style="flex:1"><button class="btn" id="mp-chat-send">${t('mp.send')}</button></div></div>`;
     const st = lobby.settings;
     return `<h3 style="margin:0;color:#f2c14e">${t('mp.roomTitle', { room: this.net.room })} <small style="color:#9aa5b8;font-weight:normal">${t('mp.connected', { n: lobby.players.length })}</small></h3>
       <table style="width:100%;font-size:13px;margin:8px 0;border-collapse:collapse"><tr style="color:#9aa5b8"><th align="left">${t('mp.player')}</th><th align="left">${t('mp.god')}</th><th align="left">${t('mp.team')}</th><th align="left">${t('mp.ping')}</th><th></th></tr>${rows}</table>
