@@ -221,3 +221,48 @@ body.cur-erase #app canvas { cursor: not-allowed; }
 #menu .mapcard .btn { padding: 3px 7px; font-size: 12px; }
 #menu .ed-inline { display: flex; gap: 8px; }
 #menu .ed-inline > div { flex: 1; }
+
+/* ---------- Controle (Steam Deck / Xbox; src/ui/gamepad.ts) ---------- */
+html.pad-active, html.pad-active * { cursor: none !important; }
+#pad-cursor { position: fixed; left: 0; top: 0; z-index: 60; pointer-events: none; will-change: transform; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8)); }
+#pad-cursor path { fill: var(--gold); }
+#pad-cursor.attack path { fill: #ef4444; }
+#pad-cursor.place path { fill: var(--accent); }
+#pad-cursor.hud path { fill: var(--marble); }
+/* botões do controle: A/B/X/Y nas cores do Xbox, ombros/gatilhos em retângulo, D-pad em cinza */
+.pb { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; font-size: 11px; font-weight: 700; line-height: 1; color: #fff; background: #374151; border: 1px solid rgba(255,255,255,0.3); margin-right: 3px; vertical-align: middle; font-family: var(--font); }
+.pb-a { background: #2e9e4f; } .pb-b { background: #c0392b; } .pb-x { background: #2c6fd1; } .pb-y { background: #d4a72c; color: #1a1204; }
+.pb-sh { border-radius: 5px; background: #1f2937; }
+.pb-sys, .pb-dp { background: #1f2937; }
+.pad-hints { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; background: rgba(8, 12, 24, 0.9); border: 1px solid var(--border); border-radius: 18px; padding: 5px 14px; font-size: 13px; color: var(--text); box-shadow: 0 4px 14px rgba(0,0,0,0.45); pointer-events: none; }
+.pad-hints .ph, #pad-dialog .ph { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
+#pad-hints { position: absolute; left: 50%; bottom: 204px; transform: translateX(-50%); max-width: calc(100% - 420px); }
+#pad-nav-hints { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 45; max-width: 94vw; }
+#pad-banner { position: fixed; left: 50%; top: 14px; transform: translateX(-50%); z-index: 46; background: var(--panel2); border: 1px solid var(--gold); border-radius: 8px; padding: 7px 14px; font-size: 14px; box-shadow: 0 4px 14px rgba(0,0,0,0.5); }
+#pad-dialog { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); }
+#pad-dialog .box { background: var(--panel2); border: 1px solid var(--gold); border-radius: 12px; padding: 18px 22px; max-width: 520px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+#pad-dialog p { margin: 0 0 14px; line-height: 1.4; }
+#pad-dialog .acts { display: flex; gap: 16px; justify-content: flex-end; }
+/* foco navegável pelo D-pad (anel dourado); verde enquanto troca o valor de uma lista */
+.pad-focus { outline: 3px solid var(--gold) !important; outline-offset: 2px; box-shadow: 0 0 0 6px rgba(242,193,78,0.25), 0 0 18px rgba(242,193,78,0.55) !important; border-radius: 6px; }
+.pad-focus.pad-editing { outline-color: var(--ok) !important; box-shadow: 0 0 0 6px rgba(74,222,128,0.25) !important; }
+/* LT segurado: a página atual da grade de comandos ganha as letras A/B/X/Y, o resto esmaece */
+#commands.pad-grid .cmd:not([data-pad]) { opacity: 0.3; }
+.cmd[data-pad]::after { content: attr(data-pad); position: absolute; left: 3px; top: 3px; width: 17px; height: 17px; border-radius: 50%; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; color: #fff; background: #374151; box-shadow: 0 0 0 1px rgba(255,255,255,0.35); }
+.cmd[data-pad="A"]::after { background: #2e9e4f; } .cmd[data-pad="B"]::after { background: #c0392b; } .cmd[data-pad="X"]::after { background: #2c6fd1; } .cmd[data-pad="Y"]::after { background: #d4a72c; color: #1a1204; }
+#commands.pad-grid .cmd[data-pad] { border-color: var(--gold); }
+#modal .pad-table td:first-child { white-space: nowrap; }
+/* barra superior: nada quebra linha; com pouca largura útil (#hud.narrow: 1280×800 a 130 %) fica compacta */
+#speed { display: flex; gap: 3px; flex-shrink: 0; }
+#top .age { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
+#top > .btn, #top .clock { white-space: nowrap; flex-shrink: 0; }
+#hud.narrow #top { gap: 6px; padding: 0 8px; }
+#hud.narrow #top .res { min-width: 58px; padding: 3px 5px; gap: 3px; font-size: 13px; flex-shrink: 0; }
+#hud.narrow #top .age { max-width: 130px; font-size: 13px; }
+#hud.narrow #top .btn { padding: 4px 7px; }
+#hud.narrow #speed .btn { padding: 4px 5px; }
+/* escala da interface: --uiz (zoom) compensa o vh multiplicado pelo zoom; com o controle, sobra espaço para as dicas embaixo */
+#menu .box { max-height: calc(94vh / var(--uiz, 1)); }
+#modal { max-height: calc(88vh / var(--uiz, 1)); }
+html.pad-active #menu .box { max-height: calc(86vh / var(--uiz, 1)); }
+html.pad-active #modal { max-height: calc(82vh / var(--uiz, 1)); }

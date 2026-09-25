@@ -26,11 +26,21 @@ const isOfficialScenario = (id: string) => id === HORDE.id || SCENARIOS.some((s)
 const scenarioOf = (state: GameState): ScenarioDef | undefined => { try { return getScenarioFor(state); } catch { return undefined; } };
 import { t } from '../i18n';
 import { optionsHTML, bindOptions, type OptionsContext } from './options';
+import { padHelpRows } from './gamepad';
 
 export interface HUDCallbacks { onSave: () => void; onLoad: () => void; onQuit: () => void; hasSave: () => boolean; onNextMission?: (currentId: string) => void; onExport?: () => void; onImport?: () => void; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onDiagnostic?: () => void; onExportMap?: () => void; onSaveMapLocal?: () => void }
 
 const el = (tag: string, cls?: string, html?: string): HTMLElement => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const fmtCost = (cost: Record<string, number>, player?: { resources: Record<string, number> }) => Object.entries(cost).filter(([, v]) => v > 0).map(([k, v]) => `<span class="${player && player.resources[k] < v ? 'miss' : ''}">${RESOURCE_ICONS[k as ResourceType]} ${v}</span>`).join('');
+/**
+ * Escala da interface (CSS zoom em #menu/#modal-back) também multiplica `vh`: publica o zoom em --uiz para o CSS
+ * limitar a altura (`calc(94vh / var(--uiz))`) e a caixa caber na tela (Steam Deck 1280×800 a 130 %).
+ */
+export function syncUiZoom(el: HTMLElement): void {
+  const sync = () => { const v = String(parseFloat(el.style.zoom) || 1); if (el.style.getPropertyValue('--uiz') !== v) el.style.setProperty('--uiz', v); };
+  if (typeof MutationObserver !== 'undefined') new MutationObserver(sync).observe(el, { attributes: true, attributeFilter: ['style'] });
+  sync();
+}
 const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 export class HUD {
@@ -41,6 +51,10 @@ export class HUD {
   chatEl!: HTMLInputElement;
   /** Definido pelo boot em partidas online: envia a mensagem para a sala. */
   onChat: ((text: string) => void) | null = null;
+  /** Alerta de ataque ao jogador local (o controle vibra; src/ui/gamepad.ts). */
+  onAlert: (() => void) | null = null;
+  /** Dicas de botões do controle (visíveis só com o controle ativo). */
+  padHintsEl!: HTMLElement;
   private session: Session | null = null;
   private acc = 0; private mmAcc = 0;
   private lastSelKey = '';
@@ -100,6 +114,7 @@ export class HUD {
     hud.appendChild(this.bottom);
 
     this.godsPanel = el('div'); this.godsPanel.id = 'gods'; hud.appendChild(this.godsPanel);
+    this.padHintsEl = el('div', 'pad-hints hidden'); this.padHintsEl.id = 'pad-hints'; hud.appendChild(this.padHintsEl);
     this.msgPanel = el('div'); this.msgPanel.id = 'messages'; hud.appendChild(this.msgPanel);
     this.objPanel = el('div'); this.objPanel.id = 'objectives'; this.objPanel.classList.add('hidden'); hud.appendChild(this.objPanel);
     this.dlgPanel = el('div'); this.dlgPanel.id = 'dialogue'; this.dlgPanel.classList.add('hidden'); this.dlgPanel.addEventListener('click', () => this.dlgPanel.classList.add('hidden')); hud.appendChild(this.dlgPanel);
@@ -113,6 +128,7 @@ export class HUD {
     this.modalBack.addEventListener('mousedown', (e) => { if (e.target === this.modalBack && this.modalDismissable) this.hideModal(); });
     this.root.appendChild(hud);
     this.root.appendChild(this.modalBack);   // fora do #hud: os modais (ajuda, atalhos) também servem ao menu principal
+    syncUiZoom(this.modalBack);
     // tooltips genéricos
     hud.addEventListener('mouseover', (e) => { const t = (e.target as HTMLElement).closest('[data-tip]') as HTMLElement | null; if (t) this.showTooltip(t.dataset.tip!, e.clientX, e.clientY); });
     hud.addEventListener('mousemove', (e) => { const t = (e.target as HTMLElement).closest('[data-tip]') as HTMLElement | null; if (t) this.positionTooltip(e.clientX, e.clientY); else this.tooltip.classList.add('hidden'); });
@@ -165,11 +181,19 @@ export class HUD {
   update(dtReal: number) {
     const s = this.session; if (!s) return;
     this.acc += dtReal; this.mmAcc += dtReal;
+    this.fitLayout();
     this.drainEvents();
     if (this.mmAcc > 0.15) { this.mmAcc = 0; this.minimap.draw(s.state, this.renderer.cam, s.local, { editor: this.editorMode }); }
     if (this.editorMode) return;   // editor: nada de recursos, seleção, poderes, objetivos ou fim de jogo
     if (this.acc > 0.12) { this.acc = 0; this.refreshTop(); this.refreshSelection(false); this.refreshGods(); this.refreshObjectives(false); }
     if (s.state.gameOver && !this.gameOverShown) { this.gameOverShown = true; this.showGameOver(); }
+  }
+
+  /** Largura útil do HUD (janela ÷ escala da interface) abaixo de 1180 px: barra superior compacta (Steam Deck a 130 %). */
+  private fitLayout() {
+    const hud = this.root.querySelector('#hud') as HTMLElement;
+    const narrow = window.innerWidth / (parseFloat(hud.style.zoom) || 1) < 1180;
+    if (hud.classList.contains('narrow') !== narrow) hud.classList.toggle('narrow', narrow);
   }
 
   private drainEvents() {
@@ -188,7 +212,7 @@ export class HUD {
       if (e.type === 'age' || e.type === 'wonder' || e.type === 'titan' || e.type === 'power' || e.type === 'powerUsed') kind = 'gold';
       if (e.x !== undefined && e.y !== undefined) s.lastEvent = { x: e.x, y: e.y };
       if (e.text) this.toast(e.text, kind, e.x !== undefined && e.y !== undefined ? { x: e.x, y: e.y } : undefined);
-      if (e.type === 'underAttack' && mine) { this.audio.play('alert'); if (e.x !== undefined && e.y !== undefined) this.minimap.ping(e.x, e.y); }
+      if (e.type === 'underAttack' && mine) { this.audio.play('alert'); this.onAlert?.(); if (e.x !== undefined && e.y !== undefined) this.minimap.ping(e.x, e.y); }
       else if (e.type === 'age') this.audio.play('age');
       else if (e.type === 'built' || e.type === 'research') this.audio.play('complete');
       else if (e.type === 'powerUsed') this.audio.play('power');
@@ -210,6 +234,7 @@ export class HUD {
     this.popEl.querySelector('b')!.textContent = `${p.pop}/${p.popCap}`; this.popEl.classList.toggle('low', p.pop >= p.popCap);
     const age = AGES[p.age];
     this.ageEl.innerHTML = `${age.icon} ${age.name} · ${MAJOR_GODS[p.god].icon} ${MAJOR_GODS[p.god].name}${p.minorGods.length ? ' · ' + p.minorGods.map((g) => MINOR_GODS[g].icon).join('') : ''}`;
+    this.ageEl.title = this.ageEl.textContent ?? '';   // texto completo quando a barra compacta corta com reticências
     const adv = canAdvanceAge(s.state, p);
     const inProgress = [...s.state.buildings.values()].some((b) => b.owner === p.id && b.queue.some((q) => q.kind === 'age'));
     this.ageBtn.textContent = inProgress ? t('top.advancing') : p.age >= AGES.length - 1 ? t('top.maxAge') : `⬆ ${AGES[p.age + 1].name}`;
@@ -535,6 +560,29 @@ export class HUD {
     this.showMinorGodChoice(adv.minorOptions, (god) => { s.issue({ type: 'advanceAge', player: s.local, buildingId: tc.id, minorGod: god }); this.toast(t('msg.advanceStartedGod', { age: AGES[p.age + 1].name, god: MINOR_GODS[god].name }), 'gold'); });
   }
 
+  // ---------------- Controle (src/ui/gamepad.ts) ----------------
+  /** Botões do painel de comandos na ordem da grade (LT + A/B/X/Y aciona a página atual de 4). */
+  commandButtons(): HTMLButtonElement[] { return [...this.cmdPanel.querySelectorAll<HTMLButtonElement>('button.cmd')]; }
+  /** Marca a página `page` da grade com as letras dos botões do controle (null: tira as marcas). */
+  setPadGrid(page: number | null, labels: string[]) {
+    this.cmdPanel.classList.toggle('pad-grid', page !== null);
+    this.commandButtons().forEach((b, i) => {
+      const slot = page === null ? -1 : i - page * 4;
+      const want = slot >= 0 && slot < labels.length ? labels[slot] : '';
+      if ((b.dataset.pad ?? '') !== want) { if (want) b.dataset.pad = want; else delete b.dataset.pad; }
+    });
+  }
+  /** Dicas de botões no HUD (html pronto; null esconde). */
+  setPadHints(html: string | null) {
+    if (html === null || this.editorMode) { this.padHintsEl.classList.add('hidden'); return; }
+    if (this.padHintsEl.dataset.key !== html) { this.padHintsEl.innerHTML = html; this.padHintsEl.dataset.key = html; }
+    this.padHintsEl.classList.remove('hidden');
+  }
+  /** O modal aberto é o menu da partida (Start/B o fecham despausando como "Continuar"). */
+  get menuIsOpen() { return this.menuOpen && this.modalOpen; }
+  /** O modal aberto pode ser fechado sem escolher nada (Esc/clique fora). */
+  get canDismissModal() { return this.modalDismissable; }
+
   // ---------------- Modais ----------------
   get chatOpen() { return !this.chatEl.classList.contains('hidden'); }
   openChat() { if (!this.onChat) return; this.chatEl.classList.remove('hidden'); this.chatEl.value = ''; this.chatEl.focus(); }
@@ -634,6 +682,7 @@ export class HUD {
       <h3>${t('hk.buildingSel')}</h3><table>${rows(buildingSel)}</table>
       <h3>${t('hk.build')}</h3><table>${buildRows}</table>
       <h3>${t('hk.train')}</h3><table>${trainRows}</table>
+      <h3>${t('hk.pad')}</h3><table class="pad-table">${rows(padHelpRows(this.cb.getOptions?.()?.settings.padScheme ?? 'standard'))}</table>
       <div class="actions"><button class="btn primary" id="m-close">${t('modal.close')}</button></div>`);
     this.modal.querySelector('#m-close')!.addEventListener('click', () => this.hideModal());
   }

@@ -2,6 +2,7 @@
 import { Renderer } from './render/renderer';
 import { HUD } from './ui/hud';
 import { Input } from './ui/input';
+import { GamepadController } from './ui/gamepad';
 import { MainMenu } from './ui/menu';
 import { Audio } from './audio/audio';
 import { Session } from './game/session';
@@ -113,6 +114,7 @@ async function boot() {
     setFullscreen: (v) => { settings.fullscreen = v; saveSettings(settings); setFullscreen(v); },
     onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); if (session) { hud.setSession(session); hud.refreshTop(); } },
     onHotkeys: () => hud.showHotkeys(),
+    setPad: (patch) => { Object.assign(settings, patch); saveSettings(settings); },
   };
   achievements.onUnlock = (a) => { hud.toast(`🏅 Conquista: ${a.icon} ${a.name} — ${a.desc}`, 'gold'); audio.play('complete'); };
   const input: Input = new Input(renderer.canvas, () => session, renderer, hud, audio);
@@ -375,6 +377,8 @@ async function boot() {
 
   const menu = new MainMenu(root, { onStart: (cfg) => { replaySaved = false; startGame(cfg); }, onLoad: loadGame, hasSave, onEditor: startEditor, onHelp: () => hud.showHelp(), onEncyclopedia: () => hud.showEncyclopedia(), onMission: startMission, onScenarioFile: startScenarioFile, onNetworkStart: startNetworkGame, onNetworkRejoin: rejoinNetworkGame, onHorde: startHorde, onReplay: watchReplay, hasReplay, onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); }, getOptions: () => options, onHotkeys: () => hud.showHotkeys() });
   input.edgeScroll = settings.edgeScroll;
+  // Controle (Steam Deck/Xbox): lido a cada quadro no laço; gera as mesmas ações do Input (src/ui/gamepad.ts)
+  const pad = new GamepadController({ input, hud, renderer, menu, settings, getSession: () => session, inEditor: () => inEditor() });
   // Tela, escala e qualidade salvas
   initDisplay((v) => { if (settings.fullscreen !== v) { settings.fullscreen = v; saveSettings(settings); } });
   applyUiScale(settings.uiScale);
@@ -394,6 +398,7 @@ async function boot() {
   const loop = (now: number) => {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     perf.frame(now);
+    pad.update(dt);
     if (session) {
       hostResumeCheck?.();
       const alpha = session.step(dt);
@@ -421,7 +426,7 @@ async function boot() {
   };
   requestAnimationFrame(loop);
   // Expõe para depuração/testes automatizados
-  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, perf, settings, applyQuality, startGame, loadGame, diagnostic, menu, startEditor, exitEditor, testFromEditor, startScenarioFile, get editor() { return editor; }, get editorPanel() { return editorPanel; }, mapData: () => (session ? mapToData(session.state.map) : null), debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; } };
+  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, pad, input, perf, settings, applyQuality, startGame, loadGame, diagnostic, menu, startEditor, exitEditor, testFromEditor, startScenarioFile, get editor() { return editor; }, get editorPanel() { return editorPanel; }, mapData: () => (session ? mapToData(session.state.map) : null), debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; } };
 }
 
 boot().catch((e) => { console.error(e); document.body.innerHTML = `<pre style="color:#f88;padding:20px">Erro ao iniciar: ${(e as Error).stack}</pre>`; });

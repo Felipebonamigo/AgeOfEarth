@@ -16,6 +16,7 @@ import { gameConfigFor } from '../core/scenario/compile';
 import { tx } from '../core/scenario/text';
 import { AUTOSAVE_KEY } from '../editor/panel';
 import { esc } from './html';
+import { syncUiZoom } from './hud';
 
 const fixedMapLabel = (d: { name?: string; nameEn?: string; id?: string; w: number; h: number; starts: number | unknown[]; hash?: number }) => t('main.fixedMapInfo', { name: esc(mapName(d)), w: d.w, h: d.h, n: Array.isArray(d.starts) ? d.starts.length : d.starts }) + (d.hash !== undefined ? ` <span style="color:#6b7690">#${(d.hash >>> 0).toString(16).slice(0, 6)}</span>` : '');
 /** Texto de um problema de validação (código traduzido + posição). */
@@ -42,6 +43,7 @@ export class MainMenu {
   constructor(root: HTMLElement, private cb: MenuCallbacks) {
     this.root = root;
     this.el = document.createElement('div'); this.el.id = 'menu';
+    syncUiZoom(this.el);
     root.appendChild(this.el);
     this.restoreFixedMap();
     this.render();
@@ -171,6 +173,12 @@ export class MainMenu {
   }
   private renderChatLog() { const log = this.el.querySelector('#mp-chat-log'); if (!log) { this.render(); return; } log.innerHTML = this.chatLog.map((m) => `<div><b>${esc(m.name)}:</b> ${esc(m.text)}</div>`).join(''); log.scrollTop = log.scrollHeight; }
   hide() { this.el.classList.add('hidden'); }
+  /** Controle (B): fecha o painel de opções ou volta à aba Partida rápida; devolve false se não havia para onde voltar. */
+  navBack(): boolean {
+    if (this.showOptions) { this.showOptions = false; this.render(); return true; }
+    if (this.tab !== 'skirmish') { this.tab = 'skirmish'; this.render(); return true; }
+    return false;
+  }
 
   private render() {
     if (this.tab !== 'multiplayer' && this.browsing) this.stopBrowsing();
