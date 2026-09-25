@@ -1,0 +1,182 @@
+{
+  "format": "aoe-scenario",
+  "version": 1,
+  "id": "m6_estatua",
+  "icon": "🗽",
+  "title": { "pt": "A Estátua de Zeus", "en": "The Statue of Zeus" },
+  "subtitle": { "pt": "Ato II · Missão 6 · Maravilha", "en": "Act II · Mission 6 · Wonder" },
+  "intro": [
+    { "pt": "Zeus quer bronze. Quer que Poseidon, do alto das ondas, veja o rosto do irmão sobre a Argólida.",
+      "en": "Zeus wants bronze. He wants Poseidon, from atop the waves, to see his brother's face over the Argolid." },
+    { "pt": "Alcance a Idade Mítica, erga a Estátua de Zeus e mantenha-a de pé por seis minutos. Micenas prometeu lanças. A Liga prometeu fogo.",
+      "en": "Reach the Mythic Age, raise the Statue of Zeus and keep it standing for six minutes. Mycenae promised spears. The League promised fire." }
+  ],
+  "outro": [
+    { "pt": "A Estátua brilha sobre a Argólida e Poseidon a vê. Naquela noite, um navio negro ancora na praia do sul: os mirmidões de Aquiles, emprestados pelo mar.",
+      "en": "The Statue gleams over the Argolid, and Poseidon sees it. That night a black ship anchors on the southern beach: Achilles' Myrmidons, on loan from the sea." }
+  ],
+  "hints": [
+    { "pt": "Falta uma pesquisa das linhas da Academia para a Idade Mítica. Filósofos na Academia juntam o Conhecimento.",
+      "en": "One Academy line research is missing for the Mythic Age. Philosophers at the Academy gather the Knowledge." },
+    { "pt": "A Estátua custa 800 de madeira, 800 de ouro, 600 de comida e 100 de Favor. Quanto mais cidadãos na obra, mais depressa ela sobe.",
+      "en": "The Statue costs 800 wood, 800 gold, 600 food and 100 Favor. The more villagers on the site, the faster it rises." },
+    { "pt": "Cidadãos reparam a Maravilha com o botão direito sobre ela. Torres ao redor seguram os desembarques da Frota.",
+      "en": "Villagers repair the Wonder with a right-click on it. Towers around it hold back the Fleet's landings." }
+  ],
+  "map": { "gen": { "mapSize": "medium", "mapType": "continental", "seed": 6606 } },
+  "config": {
+    "players": [
+      { "name": "Argos", "god": "zeus", "isAI": false, "difficulty": "normal", "team": 0 },
+      { "name": "Liga do Istmo", "god": "poseidon", "isAI": true, "difficulty": "normal", "team": 1 },
+      { "name": "Micenas", "god": "zeus", "isAI": true, "difficulty": "easy", "team": 0 },
+      { "name": "Frota de Poseidon", "god": "poseidon", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
+    ],
+    "startingAge": 2,
+    "startingResources": { "food": 1000, "wood": 1000, "gold": 800, "favor": 100, "knowledge": 300 },
+    "startKit": [true, true, true, false]
+  },
+  "vars": { "guarda": 360 },
+  "setup": [
+    { "do": "set", "player": 0, "techs": ["civic1", "science1", "commerce1"] },
+    { "do": "place", "player": 0, "building": "temple", "at": { "tc": 0, "dx": 6 }, "complete": true },
+    { "do": "place", "player": 0, "building": "academy", "at": { "tc": 0, "dx": -6 }, "complete": true },
+    { "do": "place", "player": 0, "building": "house", "at": { "tc": 0, "dx": -4, "dy": 7 }, "complete": true },
+    { "do": "place", "player": 0, "building": "house", "at": { "tc": 0, "dx": 3, "dy": 7 }, "complete": true },
+    { "do": "spawn", "player": 0, "units": ["villager", "villager", "villager", "villager", "villager", "villager", "villager", "villager", "villager", "villager", "villager", "villager"], "at": { "tc": 0, "dy": 4 } },
+    { "do": "spawn", "player": 0, "units": ["jason", "hoplite", "hoplite", "hoplite", "hoplite", "toxotes", "toxotes"], "at": { "tc": 0, "dy": -5 }, "tag": "jasao" },
+    { "do": "place", "player": 1, "building": "barracks", "at": { "tc": 1, "dx": 6 }, "complete": true },
+    { "do": "place", "player": 1, "building": "stable", "at": { "tc": 1, "dx": -6 }, "complete": true },
+    { "do": "spawn", "player": 1, "units": ["villager", "villager", "villager", "villager", "villager", "villager"], "at": { "tc": 1, "dy": 4 } },
+    { "do": "place", "player": 2, "building": "tower", "at": { "tc": 2, "dx": 4, "dy": 4 }, "complete": true },
+    { "do": "spawn", "player": 2, "units": ["villager", "villager", "villager", "villager"], "at": { "tc": 2, "dy": 4 } },
+    { "do": "spawn", "player": 2, "units": ["hoplite", "hoplite", "hoplite", "toxotes", "toxotes"], "at": { "tc": 2, "dy": -5 } }
+  ],
+  "objectives": [
+    { "id": "mitica", "text": { "pt": "Alcance a Idade Mítica", "en": "Reach the Mythic Age" },
+      "done": { "value": { "stat": "age", "player": 0 }, "gte": 3 } },
+    { "id": "estatua", "text": { "pt": "Erga a Estátua de Zeus (Maravilha, tecla M)", "en": "Raise the Statue of Zeus (Wonder, M key)" },
+      "done": { "buildings": { "player": 0, "type": "wonder_zeus", "complete": true }, "gte": 1 } },
+    { "id": "guardar", "text": { "pt": "Mantenha a Estátua de pé por 6 minutos (5 no Fácil)", "en": "Keep the Statue standing for 6 minutes (5 on Easy)" },
+      "done": { "var": "estatua_s", "gte": { "var": "guarda" } } },
+    { "id": "micenas", "optional": true, "text": { "pt": "Não deixe Micenas cair", "en": "Don't let Mycenae fall" },
+      "done": { "var": "estatua_s", "gte": { "var": "guarda" } },
+      "failed": { "all": [ { "time": { "gte": 5 } }, { "buildings": { "player": 2, "type": "town_center" }, "eq": 0 } ] } },
+    { "id": "povo", "optional": true, "text": { "pt": "O povo não é sacrificado à obra: tenha 20 cidadãos ao fim da guarda", "en": "The people are not sacrificed to the work: have 20 villagers when the watch ends" },
+      "done": { "all": [ { "var": "estatua_s", "gte": { "var": "guarda" } }, { "units": { "player": 0, "type": "villager" }, "gte": 20 } ] },
+      "failed": { "all": [ { "var": "estatua_s", "gte": { "var": "guarda" } }, { "units": { "player": 0, "type": "villager" }, "lt": 20 } ] } },
+    { "id": "colossos", "optional": true, "hidden": true, "text": { "pt": "Derrube os dois Colossos de Poseidon", "en": "Topple both of Poseidon's Colossi" },
+      "done": { "all": [ { "fired": "obra" }, { "fired": "colosso2" },
+        { "entity": { "tag": "colosso1", "pick": "alive" }, "exists": false }, { "entity": { "tag": "colosso2", "pick": "alive" }, "exists": false } ] } }
+  ],
+  "triggers": [
+    { "id": "inicio", "when": { "time": { "gte": 1 } }, "then": [
+      { "do": "say", "speaker": "Zeus", "icon": "⚡",
+        "text": { "pt": "Quero bronze, arconte. Quero que Poseidon veja meu rosto do alto das ondas.", "en": "I want bronze, archon. I want Poseidon to see my face from atop the waves." } } ] },
+    { "id": "guarda_5", "when": { "difficulty": "easy" }, "then": [
+      { "do": "setVar", "name": "guarda", "value": 300 } ] },
+    { "id": "guarda_5_fala", "when": { "all": [ { "difficulty": "easy" }, { "time": { "gte": 10 } } ] }, "then": [
+      { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
+        "text": { "pt": "Vejo uma vigília mais curta do que Zeus anunciou: cinco minutos de bronze de pé lhe bastarão.", "en": "I see a shorter watch than Zeus announced: five minutes of standing bronze will satisfy him." } } ] },
+    { "id": "dica_academia", "when": { "all": [ { "time": { "gte": 20 } }, { "objective": "mitica", "is": "pending" } ] }, "then": [
+      { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
+        "text": { "pt": "Vejo três pergaminhos na Academia e um lugar vazio. Uma 4ª pesquisa abre a Idade Mítica; os filósofos pagam o Conhecimento.",
+                  "en": "I see three scrolls in the Academy and one empty place. A 4th research opens the Mythic Age; the philosophers pay for the Knowledge." } } ] },
+    { "id": "mitica_ok", "when": { "objective": "mitica", "is": "done" }, "then": [
+      { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
+        "text": { "pt": "O bronze espera por mãos. Selecione cidadãos e erga a Estátua (tecla M) perto do Centro Cívico: quanto mais mãos, mais depressa ela sobe.",
+                  "en": "The bronze is waiting for hands. Select villagers and raise the Statue (M key) near the Town Center: the more hands, the faster it rises." } } ] },
+    { "id": "estatua_tick", "repeat": true, "when": { "buildings": { "player": 0, "type": "wonder_zeus", "complete": true }, "gte": 1 }, "then": [
+      { "do": "addVar", "name": "estatua_s", "delta": 1 } ] },
+    { "id": "estatua_caiu", "repeat": true, "when": { "all": [
+        { "var": "estatua_s", "gt": 0 }, { "var": "estatua_s", "lt": { "var": "guarda" } },
+        { "buildings": { "player": 0, "type": "wonder_zeus", "complete": true }, "eq": 0 } ] }, "then": [
+      { "do": "setVar", "name": "estatua_s", "value": 0 },
+      { "do": "addVar", "name": "quedas", "delta": 1 } ] },
+    { "id": "queda1", "when": { "all": [ { "difficulty": ["easy", "normal"] }, { "var": "quedas", "eq": 1 } ] }, "then": [
+      { "do": "say", "speaker": "Zeus", "icon": "⚡",
+        "text": { "pt": "Meu rosto no chão, arconte? Erga-o de novo. Não haverá terceira vez.", "en": "My face in the dust, archon? Raise it again. There will be no third time." } } ] },
+    { "id": "zeus_desiste", "when": { "var": "quedas", "gte": 2 }, "then": [
+      { "do": "say", "speaker": "Zeus", "icon": "⚡",
+        "text": { "pt": "Não aceito um deus de bronze que cai duas vezes.", "en": "I will not accept a bronze god that falls twice." } } ] },
+    { "id": "zeus_desiste_dificil", "when": { "all": [ { "difficulty": "hard" }, { "var": "quedas", "gte": 1 } ] }, "then": [
+      { "do": "say", "speaker": "Zeus", "icon": "⚡",
+        "text": { "pt": "Meu rosto no chão? Não aceito um deus de bronze que cai, arconte.", "en": "My face in the dust? I will not accept a bronze god that falls, archon." } } ] },
+    { "id": "obra", "when": { "buildings": { "player": 0, "type": "wonder_zeus", "complete": false }, "gte": 1 }, "then": [
+      { "do": "spawn", "player": 3, "units": ["colossus"], "at": { "start": 1, "dy": 5 }, "tag": "colosso1" },
+      { "do": "order", "units": { "tag": "colosso1" }, "order": { "type": "attackMove", "at": { "entity": { "player": 0, "type": "wonder_zeus" } } } },
+      { "do": "say", "speaker": "Poseidon", "icon": "🔱",
+        "text": { "pt": "Bronze para o meu irmão? Então bronze ele terá.", "en": "Bronze for my brother? Then bronze he shall have." } } ] },
+    { "id": "jasao_torres", "when": { "all": [ { "fired": "obra" }, { "entity": { "player": 0, "type": "wonder_zeus" }, "exists": true, "progress": { "gte": 60 } } ] }, "then": [
+      { "do": "say", "speaker": { "pt": "Jasão", "en": "Jason" }, "icon": "🦁",
+        "text": { "pt": "Torres em volta, cidadãos para reparar. Uma Maravilha é o maior alvo do mundo.", "en": "Towers around it, villagers to repair. A Wonder is the biggest target in the world." } } ] },
+    { "id": "estatua_pronta", "when": { "objective": "estatua", "is": "done" }, "then": [
+      { "do": "spawn", "player": 0, "units": ["hoplite", "hoplite", "hoplite", "hoplite", "hoplite", "hoplite", "hetairoi", "hetairoi"], "at": { "tc": 0, "dy": 6 } },
+      { "do": "say", "speaker": { "pt": "Rei Atreu de Micenas", "en": "King Atreus of Mycenae" }, "icon": "🦅",
+        "text": { "pt": "Micenas lembra quem a salvou de Hades. Estas lanças são tuas, arconte.", "en": "Mycenae remembers who saved it from Hades. These spears are yours, archon." } } ] },
+    { "id": "colosso2", "when": { "all": [ { "difficulty": ["normal", "hard"] }, { "var": "estatua_s", "gte": 180 } ] }, "then": [
+      { "do": "spawn", "player": 3, "units": ["colossus"], "at": { "start": 1, "dy": 5 }, "tag": "colosso2" },
+      { "do": "spawn", "player": 3, "units": ["hoplite", "hoplite", "hoplite"], "at": { "start": 1, "dy": 7 }, "tag": "escolta2", "scaled": true },
+      { "do": "order", "units": { "tag": "colosso2" }, "order": { "type": "attackMove", "at": { "entity": { "player": 0, "type": "wonder_zeus" } } } },
+      { "do": "order", "units": { "tag": "escolta2" }, "order": { "type": "attackMove", "at": { "entity": { "player": 0, "type": "wonder_zeus" } } } },
+      { "do": "say", "speaker": { "pt": "Jasão", "en": "Jason" }, "icon": "🦁",
+        "text": { "pt": "Outro Colosso vem do oeste. Deixe-o comigo: contra bronze vivo, um herói vale dez lanças.", "en": "Another Colossus comes from the west. Leave it to me: against living bronze, one hero is worth ten spears." } } ] },
+    { "id": "colossos_caem", "when": { "all": [ { "fired": "obra" }, { "fired": "colosso2" },
+        { "entity": { "tag": "colosso1", "pick": "alive" }, "exists": false }, { "entity": { "tag": "colosso2", "pick": "alive" }, "exists": false } ] }, "then": [
+      { "do": "give", "player": 0, "resources": { "favor": 100 } },
+      { "do": "say", "speaker": { "pt": "Hefesto", "en": "Hephaestus" }, "icon": "⚒️",
+        "text": { "pt": "Dois Colossos, trinta talentos de bronze cada: eu os fiz, vocês os desfizeram. Zeus paga a diferença em Favor.", "en": "Two Colossi, thirty talents of bronze each: I made them, you unmade them. Zeus pays the difference in Favor." } } ] },
+    { "id": "cerco_estatua", "repeat": true, "when": { "all": [ { "every": { "seconds": 90 } }, { "buildings": { "player": 0, "type": "wonder_zeus" }, "gte": 1 }, { "var": "estatua_s", "lt": { "var": "guarda" } } ] }, "then": [
+      { "do": "raid", "player": 3, "units": ["hoplite", "hoplite", "hippeus", "hippeus", "petrobolos"], "target": { "entity": { "player": 0, "type": "wonder_zeus" } }, "angle": 1 } ] },
+    { "id": "cerco_aviso", "when": { "all": [ { "every": { "seconds": 90 } }, { "buildings": { "player": 0, "type": "wonder_zeus" }, "gte": 1 }, { "var": "estatua_s", "lt": { "var": "guarda" } } ] }, "then": [
+      { "do": "say", "speaker": { "pt": "Batedor", "en": "Scout" }, "icon": "🐎",
+        "text": { "pt": "A Frota de Poseidon desembarca perto da Estátua! Eles voltam a cada minuto e meio, arconte.", "en": "Poseidon's Fleet is landing near the Statue! They come back every minute and a half, archon." } } ] },
+    { "id": "onda1", "when": { "time": { "gte": 300 } }, "then": [
+      { "do": "raid", "player": 3, "units": ["hoplite", "hoplite", "toxotes", "toxotes"], "target": { "tc": 0 }, "angle": 1 },
+      { "do": "say", "speaker": { "pt": "Batedor", "en": "Scout" }, "icon": "🐎",
+        "text": { "pt": "Velas negras na praia do sul! A Frota de Poseidon desembarca hoplitas e arqueiros.", "en": "Black sails on the southern beach! Poseidon's Fleet is landing hoplites and archers." } } ] },
+    { "id": "onda2", "when": { "time": { "gte": 540 } }, "then": [
+      { "do": "raid", "player": 3, "units": ["hoplite", "hoplite", "hippeus", "hippeus", "toxotes", "toxotes"], "target": { "tc": 0 }, "angle": 2 },
+      { "do": "say", "speaker": { "pt": "Batedor", "en": "Scout" }, "icon": "🐎",
+        "text": { "pt": "Cavalaria na praia! Hoplitas na frente, arconte.", "en": "Cavalry on the beach! Hoplites to the front, archon." } } ] },
+    { "id": "micenas_pede", "when": { "units": { "player": 1, "military": true, "near": { "point": { "tc": 2 }, "radius": 14 } }, "gte": 4 }, "then": [
+      { "do": "say", "speaker": { "pt": "Rei Atreu de Micenas", "en": "King Atreus of Mycenae" }, "icon": "🦅",
+        "text": { "pt": "Arconte, o Istmo está às portas de Micenas! Lembre-se de quem prometeu lanças a você.", "en": "Archon, the Isthmus is at the gates of Mycenae! Remember who promised you spears." } } ] },
+    { "id": "micenas_cai", "when": { "objective": "micenas", "is": "failed" }, "then": [
+      { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
+        "text": { "pt": "Micenas arde. Toda obra dos deuses tem um preço, e alguém sempre o paga.", "en": "Mycenae burns. Every work of the gods has a price, and someone always pays it." } } ] },
+    { "id": "portal_liga_fala", "when": { "buildings": { "player": 1, "type": "titan_gate" }, "gte": 1 }, "then": [
+      { "do": "say", "speaker": "Poseidon", "icon": "🔱",
+        "text": { "pt": "Ainda não, Istmo. O velho Oceano dorme, e é melhor para todos nós que continue dormindo.", "en": "Not yet, Isthmus. Old Oceanus sleeps, and it is better for all of us that he keeps sleeping." } } ] },
+    { "id": "portal_liga", "repeat": true, "when": { "buildings": { "player": 1, "type": "titan_gate" }, "gte": 1 }, "then": [
+      { "do": "kill", "entity": { "player": 1, "type": "titan_gate" } } ] },
+    { "id": "portal_micenas_fala", "when": { "buildings": { "player": 2, "type": "titan_gate" }, "gte": 1 }, "then": [
+      { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
+        "text": { "pt": "Micenas ergueu um Portal dos Titãs, e Zeus o derrubou: nenhum Titã desperta por Micenas nesta guerra.", "en": "Mycenae raised a Titans' Gate, and Zeus struck it down: no Titan wakes for Mycenae in this war." } } ] },
+    { "id": "portal_micenas", "repeat": true, "when": { "buildings": { "player": 2, "type": "titan_gate" }, "gte": 1 }, "then": [
+      { "do": "kill", "entity": { "player": 2, "type": "titan_gate" } } ] },
+    { "id": "portal_argos_fala", "when": { "buildings": { "player": 0, "type": "titan_gate" }, "gte": 1 }, "then": [
+      { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
+        "text": { "pt": "Prometeu ainda sangra do Cáucaso: nenhum Titã virá guardar uma estátua. Zeus derruba o teu Portal e devolve o que ele custou.", "en": "Prometheus still bleeds from the Caucasus: no Titan will come to guard a statue. Zeus topples your Gate and returns what it cost." } } ] },
+    { "id": "portal_argos", "repeat": true, "when": { "buildings": { "player": 0, "type": "titan_gate" }, "gte": 1 }, "then": [
+      { "do": "kill", "entity": { "player": 0, "type": "titan_gate" } },
+      { "do": "give", "player": 0, "resources": { "food": 600, "wood": 600, "gold": 600, "favor": 200 } } ] },
+    { "id": "falta4", "when": { "all": [ { "var": "guarda", "gte": 360 }, { "var": "estatua_s", "gte": 120 } ] }, "then": [
+      { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
+        "text": { "pt": "Faltam quatro minutos. Enquanto o bronze sobe, o celeiro desce: os deuses nunca pagam a obra.", "en": "Four minutes left. While the bronze rises, the granary sinks: the gods never pay for the work." } } ] },
+    { "id": "falta2", "when": { "var": "estatua_s", "gte": { "add": [ { "var": "guarda" }, -120 ] } }, "then": [
+      { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
+        "text": { "pt": "Faltam dois minutos. Poseidon também sabe contar, arconte.", "en": "Two minutes left. Poseidon can count too, archon." } } ] },
+    { "id": "falta1", "when": { "var": "estatua_s", "gte": { "add": [ { "var": "guarda" }, -60 ] } }, "then": [
+      { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
+        "text": { "pt": "Falta um minuto. O mar sempre recua antes da onda maior.", "en": "One minute left. The sea always draws back before the greatest wave." } } ] }
+  ],
+  "victory": { "all": [ { "objective": "mitica", "is": "done" }, { "objective": "guardar", "is": "done" } ] },
+  "defeat": { "any": [
+    { "all": [ { "time": { "gte": 5 } }, { "buildings": { "player": 0, "type": "town_center" }, "eq": 0 } ] },
+    { "var": "quedas", "gte": 2 },
+    { "all": [ { "difficulty": "hard" }, { "var": "quedas", "gte": 1 } ] }
+  ] },
+  "hud": [
+    { "type": "progress", "entity": { "player": 0, "type": "wonder_zeus" }, "max": 240, "label": { "pt": "🗽 Obra da Estátua", "en": "🗽 Statue construction" } }
+  ]
+}

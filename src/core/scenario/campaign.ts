@@ -11,6 +11,7 @@ import { count, countBuildings, military, townCenter, raid, give, grantTech, pla
 import { onBuildingComplete } from '../sim/entities';
 import { rectReachable } from '../map/components';
 import type { Unit } from '../types';
+import m6 from './missions/m6_estatua.scenario.json';
 
 const ME = 0;
 
@@ -213,6 +214,7 @@ export const CAMPAIGN: readonly CampaignEntry[] = [
   { act: 1, id: 'm1_despertar', source: 'ts', prologue: true },
   { act: 1, id: 'm2_cerco', source: 'ts', prologue: true },
   { act: 1, id: 'm3_portal', source: 'ts', prologue: true },
+  { act: 2, id: 'm6_estatua', source: 'json', file: m6 as unknown as ScenarioFile },
 ];
 
 /** Entrada do registro por id (undefined = não é missão oficial registrada). */

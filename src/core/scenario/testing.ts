@@ -5,16 +5,17 @@
 //                e, por cima, passos roteirizados { when: Condition, command } aplicados por applyCommand (via tick).
 import { TICK_RATE, type Difficulty, type ResourceType } from '../constants';
 import { BUILDINGS, UNITS } from '../data';
-import type { Command, GameConfig, GameState, Unit } from '../types';
+import type { Building, Command, GameConfig, GameState, Unit } from '../types';
 import { createGame, tick } from '../sim/game';
-import { aiThink } from '../sim/ai';
+import { aiThink, findBuildSpot } from '../sim/ai';
 import { stateHash } from '../net/hash';
 import type { ObjectiveStatus, ScenarioDef } from './types';
 import { validateScenario, type CampaignDifficulty, type Condition, type ScenarioFile } from './schema';
 import { compileCondition, gameConfigFor } from './compile';
 import { campaignMission, isCampaignMission, missionConfig, withCampaignDifficulty, type CampaignEntry } from './campaign';
 import { canTrain } from '../sim/commands';
-import { getUnitStats } from '../sim/modifiers';
+import { getBuildingStats, getUnitStats } from '../sim/modifiers';
+import { canAfford } from '../sim/economy';
 import { isEnemy } from '../sim/queries';
 import { setRaidObserver, type RaidRecord } from './helpers';
 
@@ -40,7 +41,16 @@ export interface ScriptedRunOpts extends MissionRunOpts {
   steps: ScriptStep[];
   /** Enquanto valer, a IA do jogador 0 não lança ondas de ataque (joga na defesa); a defesa de ameaças continua. */
   hold?: Condition;
+  /** Cofre do jogador: enquanto `when` valer, a IA do jogador 0 não enxerga (nem gasta) até `resources` do estoque; os passos veem tudo. */
+  reserve?: ScriptReserve;
 }
+
+/**
+ * Cofre de um roteiro (ex.: juntar o custo de uma Maravilha, como um humano faria): enquanto `when` valer (avaliada uma vez por
+ * segundo), a parte do estoque em `resources` fica escondida da IA do jogador 0 durante o aiThink e volta logo depois. Os
+ * comandos dos passos (aplicados no tick) usam o estoque inteiro. Não mexe no estado fora do aiThink (determinístico).
+ */
+export interface ScriptReserve { when: Condition; resources: Partial<Record<ResourceType, number>> }
 
 export interface MissionChecks {
   /** (a) nenhuma exceção. */
@@ -86,7 +96,7 @@ export function missionRunConfig(src: MissionSource, difficulty: CampaignDifficu
 
 const TITANS = Object.keys(UNITS).filter((k) => UNITS[k].tags.includes('titan'));
 
-function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition }, steps: ScriptStep[] | null): MissionRunResult {
+function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; reserve?: ScriptReserve }, steps: ScriptStep[] | null): MissionRunResult {
   const difficulty = opts.difficulty ?? 'normal';
   const raids: RaidRecord[] = [];
   const checks: MissionChecks = { noException: true, noEarlyObjective: true, oneTitanEach: true, raidsSpawned: true, deterministic: true };
@@ -102,6 +112,8 @@ function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition }
     if (steps) me.ai = { difficulty: opts.playerAi ?? 'hard', nextThink: TICK_RATE * 2, lastAttack: 0, attackTarget: -1, waves: 0, rallyX: 0, rallyY: 0, defending: -1000, builderIds: [], lastExpand: 0, personality: (run.config.seed + 3) % 97 };
     const conds = (steps ?? []).map((s) => compileCondition(s.when));
     const hold = steps && opts.hold ? compileCondition(opts.hold) : null;
+    const reserve = steps && opts.reserve ? { when: compileCondition(opts.reserve.when), resources: opts.reserve.resources } : null;
+    let saving = false;   // cofre ativo (reavaliado uma vez por segundo)
     const next = (steps ?? []).map(() => 0);   // próximo segundo em que o passo pode disparar (-1 = encerrado)
     const total = Math.round(opts.minutes * 60 * TICK_RATE);
     for (let i = 0; i < total && !state.gameOver; i++) {
@@ -115,7 +127,14 @@ function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition }
       });
       tick(state, cmds);
       if (hold && me.ai && state.tick % TICK_RATE === 0 && hold(state)) me.ai.lastAttack = state.tick;   // "segura" as ondas da IA do jogador
-      if (steps && me.alive && !state.gameOver) aiThink(state, me);
+      if (reserve && state.tick % TICK_RATE === 0) saving = reserve.when(state);
+      if (steps && me.alive && !state.gameOver) {
+        // cofre: a IA pensa sem a parte guardada do estoque (não a gasta) e ela volta intacta logo depois
+        const hidden: [ResourceType, number][] = [];
+        if (reserve && saving) for (const [r, v] of Object.entries(reserve.resources) as [ResourceType, number][]) { const h = Math.max(0, Math.min(me.resources[r], v)); me.resources[r] -= h; hidden.push([r, h]); }
+        aiThink(state, me);
+        for (const [r, h] of hidden) me.resources[r] += h;
+      }
       if (state.tick % TICK_RATE === 0) {
         const s = state.scenario;
         if (s && state.tick < 60 * TICK_RATE && Object.values(s.objectives).some((o) => o === 'done')) checks.noEarlyObjective = false;
@@ -145,7 +164,7 @@ function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition }
   };
 }
 
-function withDeterminism(src: MissionSource, opts: MissionRunOpts & { hold?: Condition }, steps: ScriptStep[] | null): MissionRunResult {
+function withDeterminism(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; reserve?: ScriptReserve }, steps: ScriptStep[] | null): MissionRunResult {
   const a = runOnce(src, opts, steps);
   if (opts.deterministic === false || !a.checks.noException) return a;
   const b = runOnce(src, opts, steps);
@@ -322,6 +341,8 @@ export interface MissionScript {
   playerAi?: Difficulty;
   /** Enquanto valer, a IA do jogador não lança ondas de ataque (defesa); os passos continuam valendo. */
   hold?: Condition;
+  /** Cofre: parte do estoque que a IA do jogador não gasta enquanto a condição valer (ScriptReserve). */
+  reserve?: ScriptReserve;
   /** Dificuldades em que a vitória dentro da janela não é exigida, com o motivo (listadas na saída; use só depois de esforço honesto). */
   exceptions?: ScriptExceptions;
 }
@@ -343,7 +364,7 @@ export function scriptVerdict(r: MissionRunResult, script: MissionScript | undef
 /** Roda o roteiro de uma missão (MISSION_SCRIPTS) numa dificuldade, com as opções do roteiro. */
 export function runMissionScript(id: string, difficulty: CampaignDifficulty, deterministic = false): MissionRunResult {
   const sc = MISSION_SCRIPTS[id];
-  return runScripted(id, { minutes: sc?.minutes ?? 30, difficulty, steps: sc?.steps ?? [], deterministic, playerAi: sc?.playerAi, hold: sc?.hold });
+  return runScripted(id, { minutes: sc?.minutes ?? 30, difficulty, steps: sc?.steps ?? [], deterministic, playerAi: sc?.playerAi, hold: sc?.hold, reserve: sc?.reserve });
 }
 
 /**
@@ -397,6 +418,69 @@ function m2Counter(state: GameState): Command | null {
   return ids.length ? { type: 'attackMove', player: 0, ids, x: b.x, y: b.y } : null;
 }
 
+/** Cidadãos vivos do jogador fora de edifícios, do mais perto ao mais longe de (x, y) (desempate por id). */
+function villagersNear(state: GameState, x: number, y: number, player = 0): Unit[] {
+  const out: Unit[] = [];
+  for (const u of state.units.values()) if (u.owner === player && !u.dead && u.inside === -1 && u.type === 'villager') out.push(u);
+  const d = (u: Unit) => (u.x - x) * (u.x - x) + (u.y - y) * (u.y - y);
+  return out.sort((a, b) => d(a) - d(b) || a.id - b.id);
+}
+
+/** Edifício vivo do tipo `type` do jogador (o de menor id, em obra ou não); null se não houver. */
+function firstBuilding(state: GameState, type: string, player = 0): Building | null {
+  let best: Building | null = null;
+  for (const b of state.buildings.values()) if (b.owner === player && !b.dead && b.type === type && (!best || b.id < best.id)) best = b;
+  return best;
+}
+
+/**
+ * m6: ergue a Estátua de Zeus perto do Centro Cívico com `builders` cidadãos quando houver recursos e pelo menos `minArmy`
+ * militares para guardá-la, como um jogador cauteloso (a obra chama o Colosso e a Frota; a IA do jogador só ergueria a
+ * Maravilha da própria "personalidade", e bem mais tarde). null enquanto faltar exército, recurso, local ou Centro Cívico.
+ */
+function m6Statue(state: GameState, builders: number, minArmy: number): Command | null {
+  const p = state.players[0];
+  if (militaryCount(state, 0) < minArmy) return null;
+  const tc = [...state.buildings.values()].find((b) => b.owner === 0 && !b.dead && b.complete && b.type === 'town_center'); if (!tc) return null;
+  if (!canAfford(p, getBuildingStats(state, p, 'wonder_zeus').cost)) return null;
+  const spot = findBuildSpot(state, p, 'wonder_zeus', tc.x, tc.y, 4, 14); if (!spot) return null;
+  const ids = villagersNear(state, spot.x + 2, spot.y + 2).slice(0, builders).map((u) => u.id);
+  return ids.length ? { type: 'build', player: 0, ids, building: 'wonder_zeus', tx: spot.x, ty: spot.y } : null;
+}
+
+/** m6: mantém `n` cidadãos na obra ou no reparo da Estátua enquanto ela estiver em obra ou ferida (os mais perto dela). */
+function m6Repair(state: GameState, n: number): Command | null {
+  const w = firstBuilding(state, 'wonder_zeus'); if (!w || (w.complete && w.hp >= w.maxHp)) return null;
+  const near = villagersNear(state, w.x, w.y);
+  const working = near.filter((u) => u.state === 'build' && u.targetId === w.id).length;
+  if (working >= n) return null;
+  const ids = near.filter((u) => u.targetId !== w.id).slice(0, n - working).map((u) => u.id);
+  return ids.length ? { type: 'repair', player: 0, ids, targetId: w.id } : null;
+}
+
+/** m6: até `n` torres a até 9 tiles da Estátua (lado do mar primeiro: sudeste, sul, leste…), uma por chamada, com recurso de sobra. */
+function m6Towers(state: GameState, n: number): Command | null {
+  const w = firstBuilding(state, 'wonder_zeus'); if (!w) return null;
+  const p = state.players[0];
+  let have = 0;
+  for (const b of state.buildings.values()) if (b.owner === 0 && !b.dead && b.type === 'tower' && (b.x - w.x) * (b.x - w.x) + (b.y - w.y) * (b.y - w.y) <= 81) have++;
+  if (have >= n) return null;
+  const cost = getBuildingStats(state, p, 'tower').cost;
+  if (p.resources.wood < (cost.wood ?? 0) + 150 || p.resources.gold < (cost.gold ?? 0) + 100) return null;
+  const dirs: [number, number][] = [[1, 1], [0, 1], [1, 0], [-1, 1], [1, -1], [-1, 0]];
+  const [dx, dy] = dirs[have % dirs.length];
+  const spot = findBuildSpot(state, p, 'tower', w.x + dx * 5, w.y + dy * 5, 0, 3); if (!spot) return null;
+  const v = villagersNear(state, spot.x, spot.y).find((u) => !(u.state === 'build' && u.targetId === w.id)); if (!v) return null;
+  return { type: 'build', player: 0, ids: [v.id], building: 'tower', tx: spot.x, ty: spot.y };
+}
+
+/** m6: militares a mais de `radius` tiles da Estátua (ou do Centro Cívico, antes dela) voltam a ela em ataque-movimento. */
+function m6Home(state: GameState, radius: number): Command | null {
+  const home = firstBuilding(state, 'wonder_zeus') ?? firstBuilding(state, 'town_center'); if (!home) return null;
+  const ids = armyOf(state).filter((id) => { const u = state.units.get(id)!; const dx = u.x - home.x, dy = u.y - home.y; return dx * dx + dy * dy > radius * radius; });
+  return ids.length ? { type: 'attackMove', player: 0, ids, x: home.x, y: home.y } : null;
+}
+
 /**
  * Roteiros das missões registradas (o jogador 0 é uma IA "difícil"; os passos cobram o objetivo que a IA não faz sozinha).
  * Missão nova: acrescente uma entrada com o id; sem entrada, scripts/missions.ts roda só a IA do jogador.
@@ -445,6 +529,28 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
       { label: 'poderes', when: { time: { gte: 2 } }, every: 3, command: (s) => battlePowers(s) },
       // se Cronos surgir, o exército o enfrenta quando ele chega perto de Argos (Raio: battlePowers)
       { label: 'cronos', when: { fired: 'cronus_rises' }, every: 10, command: (s) => { const c = [...s.units.values()].find((u) => u.owner === 1 && u.type === 'cronus' && !u.dead); const tc = buildingPos(s, 0, 'town_center'); if (!c || !tc) return null; const dx = c.x - tc.x, dy = c.y - tc.y; return dx * dx + dy * dy < 30 * 30 ? { type: 'attack', player: 0, ids: armyOf(s), targetId: c.id } : null; } },
+    ],
+  },
+  m6_estatua: {
+    minutes: 40, expect: [17.5, 39],
+    // guarda da Maravilha: a IA do jogador nunca sai em ondas (o exército defende a Estátua e o Centro Cívico)
+    hold: { time: { gte: 0 } },
+    // na Mítica, junta o custo da Estátua antes de gastar em outra coisa (a IA sozinha gastaria tudo na Idade dos Titãs)
+    reserve: { when: { all: [{ value: { stat: 'age', player: 0 }, gte: 3 }, { buildings: { player: 0, type: 'wonder_zeus' }, eq: 0 }] }, resources: { wood: 800, gold: 800, food: 600, favor: 100 } },
+    steps: [
+      // Idade Mítica (a IA pesquisa a 4ª linha da Academia e avança sozinha); com o custo guardado e 28 militares, a Estátua perto
+      // do Centro Cívico com 6 cidadãos na obra; depois, torres ao redor e 6 cidadãos reparando sempre que ela sofrer dano
+      { label: 'estatua', when: { all: [{ value: { stat: 'age', player: 0 }, gte: 3 }, { buildings: { player: 0, type: 'wonder_zeus' }, eq: 0 }] }, every: 5, command: (s) => m6Statue(s, 6, 28) },
+      { label: 'torres', when: { buildings: { player: 0, type: 'wonder_zeus' }, gte: 1 }, every: 10, command: (s) => m6Towers(s, 4) },
+      { label: 'reparo', when: { buildings: { player: 0, type: 'wonder_zeus' }, gte: 1 }, every: 5, command: (s) => m6Repair(s, 6) },
+      // na Mítica, filas militares cheias só com a sobra acima do custo da Estátua (e, com ela de pé, acima de uma reserva pequena)
+      { label: 'treino', when: { value: { stat: 'age', player: 0 }, gte: 3 }, every: 5, command: (s) => trainArmy(s, 0, { reserve: firstBuilding(s, 'wonder_zeus') ? { food: 200, wood: 150, gold: 100 } : { food: 800, wood: 950, gold: 950, favor: 100 } }) },
+      // o exército não se afasta da Estátua (ou do Centro Cívico, antes dela): quem passou de 28 tiles volta atacando pelo caminho
+      { label: 'casa', when: { time: { gte: 10 } }, every: 5, command: (s) => m6Home(s, 28) },
+      { label: 'tempestade', when: { time: { gte: 1 } }, every: 1, command: (s) => dodgeStorms(s) },
+      { label: 'poderes', when: { time: { gte: 2 } }, every: 3, command: (s) => battlePowers(s) },
+      // Colosso perto da Estátua: todo o exército por perto bate nele (Jasão tem dano triplo em míticas)
+      { label: 'colosso', when: { fired: 'obra' }, every: 3, command: (s) => { const w = firstBuilding(s, 'wonder_zeus'); const c = w ? enemyNear(s, w.x, w.y, 16, (u) => u.type === 'colossus') : null; return c ? focusTarget(s, c.id, 22) : null; } },
     ],
   },
 };
