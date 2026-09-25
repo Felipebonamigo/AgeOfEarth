@@ -42,7 +42,12 @@ export class HUD {
   private audio: Audio;
   private cb: HUDCallbacks;
   private resEls: Record<string, HTMLElement> = {};
-  private popEl!: HTMLElement; private ageEl!: HTMLElement; private clockEl!: HTMLElement; private modeEl!: HTMLElement; private speedEl!: HTMLElement; private ageBtn!: HTMLElement;
+  private popEl!: HTMLElement; private ageEl!: HTMLElement; private clockEl!: HTMLElement; private modeEl!: HTMLElement; private speedEl!: HTMLElement; private ageBtn!: HTMLElement; private testEl!: HTMLElement;
+  /** Editor de mapas: a classe `editor` em #hud esconde recursos/idade/comandos e o minimapa mostra os inícios. */
+  private editorMode = false;
+  /** Partida de teste do editor: o selo no topo e o botão de sair voltam ao editor. */
+  onBackToEditor: (() => void) | null = null;
+  get testMode() { return this.onBackToEditor !== null; }
 
   constructor(root: HTMLElement, renderer: Renderer, audio: Audio, cb: HUDCallbacks) {
     this.root = root; this.renderer = renderer; this.audio = audio; this.cb = cb;
@@ -63,14 +68,16 @@ export class HUD {
     this.popEl = el('div', 'res', `<span>👥</span><b>0/0</b>`); this.popEl.title = t('pop'); this.top.appendChild(this.popEl);
     this.top.appendChild(el('div', 'spacer'));
     this.ageEl = el('div', 'age', ''); this.top.appendChild(this.ageEl);
-    this.ageBtn = el('button', 'btn gold', t('top.advance')); this.ageBtn.addEventListener('click', () => this.tryAdvanceAge()); this.top.appendChild(this.ageBtn);
+    this.ageBtn = el('button', 'btn gold', t('top.advance')); this.ageBtn.id = 'age-btn'; this.ageBtn.addEventListener('click', () => this.tryAdvanceAge()); this.top.appendChild(this.ageBtn);
     this.clockEl = el('div', 'clock', '0:00'); this.top.appendChild(this.clockEl);
     this.modeEl = el('div', 'clock', ''); this.modeEl.style.color = '#f2c14e'; this.top.appendChild(this.modeEl);
-    this.speedEl = el('div', '', ''); this.top.appendChild(this.speedEl);
+    // Selo do modo de teste do editor (partida criada a partir do arquivo): clique volta ao editor
+    this.testEl = el('button', 'btn gold hidden', t('editor.testBadge')); this.testEl.id = 'test-badge'; this.testEl.addEventListener('click', () => this.onBackToEditor?.()); this.top.appendChild(this.testEl);
+    this.speedEl = el('div', '', ''); this.speedEl.id = 'speed'; this.top.appendChild(this.speedEl);
     const speedBtns = [['⏸', 0], ['1×', 1], ['2×', 2], ['3×', 3]] as const;
     for (const [lbl, sp] of speedBtns) { const b = el('button', 'btn', lbl); b.addEventListener('click', () => { if (!this.session) return; if (sp === 0) this.session.paused = !this.session.paused; else { this.session.speed = sp; this.session.paused = false; } this.refreshTop(); }); this.speedEl.appendChild(b); }
     const mute = el('button', 'btn', this.audio.muted ? '🔇' : '🔊'); mute.addEventListener('click', () => { mute.textContent = this.audio.toggleMute() ? '🔇' : '🔊'; }); this.top.appendChild(mute);
-    const menuBtn = el('button', 'btn', t('top.menu')); menuBtn.addEventListener('click', () => this.showMenu()); this.top.appendChild(menuBtn);
+    const menuBtn = el('button', 'btn', t('top.menu')); menuBtn.id = 'top-menu'; menuBtn.addEventListener('click', () => this.showMenu()); this.top.appendChild(menuBtn);
     hud.appendChild(this.top);
 
     this.bottom = el('div'); this.bottom.id = 'bottom';
@@ -120,6 +127,23 @@ export class HUD {
 
   /** Visão de espectador: névoa desligada e todos visíveis no mapa e no minimapa (só renderização). */
   setRevealAll(v: boolean) { this.renderer.revealAll = v; this.minimap.revealAll = v; }
+
+  // ---------------- Editor de mapas ----------------
+  /** Liga/desliga o modo editor: CSS esconde .res, .age, botão de idade, #gods, #objectives, #idle, #selection, #commands; o minimapa é desenhado com { editor: true }. */
+  setEditorMode(on: boolean) {
+    this.editorMode = on;
+    (this.root.querySelector('#hud') as HTMLElement).classList.toggle('editor', on);
+    if (on) { this.objPanel.classList.add('hidden'); this.dlgPanel.classList.add('hidden'); this.hideTooltip(); }
+  }
+  get editorModeOn() { return this.editorMode; }
+  /** Painel do editor no lugar de #selection/#commands (escondidos por CSS). */
+  mountBottom(e: HTMLElement) { this.bottom.appendChild(e); }
+  unmountBottom(e: HTMLElement) { if (e.parentElement === this.bottom) this.bottom.removeChild(e); }
+  /** Barra do editor dentro de #top (antes do botão de som, que continua visível). */
+  mountTop(e: HTMLElement) { this.top.insertBefore(e, this.testEl); }
+  unmountTop(e: HTMLElement) { if (e.parentElement === this.top) this.top.removeChild(e); }
+  /** Selo "Modo de teste · Voltar ao editor" (cb = null esconde). */
+  setTestMode(cb: (() => void) | null) { this.onBackToEditor = cb; this.testEl.classList.toggle('hidden', !cb); }
   toast(text: string, kind: 'info' | 'warn' | 'good' | 'gold' = 'info', pos?: { x: number; y: number }) {
     const t = el('div', `toast ${kind}`, text);
     if (pos) t.addEventListener('click', () => { this.renderer.cam.centerOn(pos.x, pos.y); });
@@ -133,7 +157,8 @@ export class HUD {
     const s = this.session; if (!s) return;
     this.acc += dtReal; this.mmAcc += dtReal;
     this.drainEvents();
-    if (this.mmAcc > 0.15) { this.mmAcc = 0; this.minimap.draw(s.state, this.renderer.cam, s.local); }
+    if (this.mmAcc > 0.15) { this.mmAcc = 0; this.minimap.draw(s.state, this.renderer.cam, s.local, { editor: this.editorMode }); }
+    if (this.editorMode) return;   // editor: nada de recursos, seleção, poderes, objetivos ou fim de jogo
     if (this.acc > 0.12) { this.acc = 0; this.refreshTop(); this.refreshSelection(false); this.refreshGods(); this.refreshObjectives(false); }
     if (s.state.gameOver && !this.gameOverShown) { this.gameOverShown = true; this.showGameOver(); }
   }
@@ -538,7 +563,7 @@ export class HUD {
         <button class="btn" id="m-exportmap">${t('menu.exportMap')}</button>
         <button class="btn" id="m-savemap">${t('menu.saveMapLocal')}</button>
         <button class="btn" id="m-diag">${t('menu.diagnostic')}</button>
-        <button class="btn danger" id="m-quit">${t('menu.quit')}</button>
+        <button class="btn danger" id="m-quit">${this.testMode ? t('editor.backToEditor') : t('menu.quit')}</button>
       </div>`);
     const q = (id: string) => this.modal.querySelector(id) as HTMLElement;
     q('#m-continue').addEventListener('click', () => { this.menuOpen = false; this.hideModal(); s.paused = false; });
@@ -620,7 +645,7 @@ export class HUD {
     const rows = st.players.map((p) => `<tr><td style="color:#${p.color.toString(16).padStart(6, '0')}">${p.name}${st.winner >= 0 && st.players[st.winner].team === p.team ? ' 🏆' : ''}</td><td>${p.team + 1}</td><td>${AGES[p.age].short}</td><td>${p.stats.kills}</td><td>${p.stats.losses}</td><td>${p.stats.razed}</td><td>${p.stats.buildingsBuilt}</td><td>${p.stats.unitsTrained}</td><td>${Math.round(p.stats.gathered.food + p.stats.gathered.wood + p.stats.gathered.gold)}</td><td>${p.techs.length}</td><td>${p.territoryTiles}</td></tr>`).join('');
     this.showModal(`<h2>${won ? t('over.victory') : st.winner === -1 ? t('over.draw') : t('over.defeat')}</h2><p>${st.events.filter((e) => e.type === 'victory').map((e) => e.text).join(' ') || ''} ${t('over.time', { time: fmtTime(st.time) })}</p>
       <table><tr><th>${t('over.player')}</th><th>${t('over.team')}</th><th>${t('over.age')}</th><th>${t('over.kills')}</th><th>${t('over.losses')}</th><th>${t('over.razed')}</th><th>${t('over.built')}</th><th>${t('over.trained')}</th><th>${t('over.gathered')}</th><th>${t('over.techs')}</th><th>${t('over.territory')}</th></tr>${rows}</table>
-      <div class="actions"><button class="btn" id="m-continue">${t('over.watch')}</button><button class="btn primary" id="m-quit">${t('over.menu')}</button></div>`, false);
+      <div class="actions"><button class="btn" id="m-continue">${t('over.watch')}</button><button class="btn primary" id="m-quit">${this.testMode ? t('editor.backToEditor') : t('over.menu')}</button></div>`, false);
     this.modal.querySelector('#m-continue')!.addEventListener('click', () => this.hideModal());
     this.modal.querySelector('#m-quit')!.addEventListener('click', () => { this.hideModal(); this.cb.onQuit(); });
   }

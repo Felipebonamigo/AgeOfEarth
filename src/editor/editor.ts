@@ -10,7 +10,7 @@ import { createGame } from '../core/sim/game';
 import { canPlaceBuilding } from '../core/sim/entities';
 import { recomputeTerritory } from '../core/sim/territory';
 import { serialize } from '../core/serialize';
-import { RNG } from '../core/rng';
+import { RNG, makeNoise } from '../core/rng';
 import { idx, inBounds, isPassable } from '../core/map/grid';
 import { invalidateComponents } from '../core/map/components';
 import { nearestFreeTile } from '../core/map/pathfinding';
@@ -213,6 +213,13 @@ export class MapEditor {
   }
   /** "Ir até": pisca o tile (a câmera é da camada DOM). */
   goTo(x: number, y: number): void { this.ui.flash = { x, y, until: this.now() + FLASH_MS }; }
+  /** "Variar visual": nova decoração (mesmo ruído de generateMap/blankMap com outra semente). Não é desfazível; só muda o visual. */
+  varyDecor(seed: number): void {
+    const map = this.map;
+    const n = makeNoise(seed >>> 0);
+    for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) map.decor[y * map.w + x] = Math.floor(n.noise(x * 0.9, y * 0.9) * 255);
+    this.changed({ x0: 0, y0: 0, x1: map.w - 1, y1: map.h - 1 });
+  }
   /** Só para testes: serialize(state). */
   snapshot(): string { return serialize(this.state); }
 

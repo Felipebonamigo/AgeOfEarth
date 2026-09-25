@@ -143,3 +143,68 @@ body.cur-power #app canvas { cursor: crosshair; }
 #menu .mission small { color: var(--muted); }
 #menu .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
 #menu .tabs .btn.active { border-color: var(--gold); color: var(--gold); }
+
+/* ---------- Editor de mapas ---------- */
+#hud.editor #top .res, #hud.editor #top .age, #hud.editor #age-btn, #hud.editor #top .clock, #hud.editor #speed, #hud.editor #top-menu,
+#hud.editor #gods, #hud.editor #objectives, #hud.editor #idle, #hud.editor #selection, #hud.editor #commands, #hud.editor #dialogue, #hud.editor #top > .spacer { display: none !important; }
+#hud.editor #bottom { grid-template-columns: 204px 1fr; }
+#editor-top { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; font-size: 13px; }
+#editor-top .name { font-weight: 700; color: var(--gold); cursor: pointer; max-width: 220px; min-width: 60px; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#editor-top .name .dirty { color: var(--marble); }
+#editor-top .counters { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#editor-top .status { font-weight: 600; white-space: nowrap; }
+#editor-top .status.ok { color: var(--ok); } #editor-top .status.warn { color: var(--gold); } #editor-top .status.err { color: var(--danger); }
+#editor-top .spacer { flex: 1; }
+#editor-top .btn { padding: 4px 7px; font-size: 12px; white-space: nowrap; flex-shrink: 0; }
+#editor { display: grid; grid-template-columns: 138px 1fr 320px; gap: 8px; min-height: 0; min-width: 0; }
+#editor .col { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; overflow: auto; min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: 5px; font-size: 12px; }
+#editor .col.tools { gap: 3px; padding: 5px; }
+#editor .tool { display: flex; align-items: center; gap: 6px; background: var(--panel2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; font-size: 12px; text-align: left; }
+#editor .tool .ic { font-size: 14px; width: 18px; text-align: center; }
+#editor .tool .lbl { flex: 1; }
+#editor .tool kbd, #editor .chip kbd, #editor .ov kbd { background: #111827; border: 1px solid var(--border); border-radius: 3px; padding: 0 4px; font-family: monospace; font-size: 10px; color: var(--muted); }
+#editor .tool:hover { border-color: var(--accent); }
+#editor .tool.active { border-color: var(--gold); color: var(--gold); background: #2a2f4a; }
+#editor .chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; overflow: auto; flex: 1; min-height: 0; align-content: flex-start; }
+#editor .chip { display: inline-flex; align-items: center; gap: 4px; background: var(--panel2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 2px 7px; font-size: 12px; white-space: nowrap; }
+#editor .chip:hover { border-color: var(--accent); }
+#editor .chip.active { border-color: var(--gold); color: var(--gold); background: #2a2f4a; }
+#editor .chip .sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.5); display: inline-block; }
+#editor .cat { width: 100%; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+#editor .hint { color: var(--muted); font-size: 11px; }
+#editor .amt { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+#editor .amt input { width: 90px; }
+#editor .row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+#editor .row .lbl { color: var(--muted); }
+#editor .sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
+#editor input[type=range] { width: 110px; }
+#editor input, #editor select, #editor textarea { background: #0f1628; color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 2px 5px; font-size: 12px; }
+#editor .btn { padding: 2px 7px; font-size: 12px; }
+#editor .btn.ov.active { border-color: var(--ok); color: var(--ok); }
+#editor .pl { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; color: #fff; font-weight: 700; font-size: 11px; cursor: pointer; text-shadow: 0 1px 2px #000; }
+#editor .pl.active { border-color: #fff; box-shadow: 0 0 0 2px var(--gold); }
+#editor .col.right { gap: 4px; }
+#editor #ed-insp { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+#editor #ed-insp .head { width: 100%; color: var(--gold); font-weight: 600; display: flex; justify-content: space-between; }
+#editor #ed-insp .head .hover { color: var(--muted); font-weight: normal; font-variant-numeric: tabular-nums; }
+#editor #ed-insp .ttl { width: 100%; font-weight: 600; }
+#editor #ed-insp .ttl small { color: var(--muted); font-weight: normal; }
+#editor #ed-insp label { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+#editor #ed-insp input[type=number] { width: 70px; } #editor #ed-insp #ed-tag { width: 90px; }
+#editor .issues-head { color: var(--gold); font-weight: 600; border-top: 1px solid var(--border); padding-top: 4px; }
+#editor .issues { list-style: none; margin: 0; padding: 0; overflow: auto; flex: 1; min-height: 0; }
+#editor .issues li { display: flex; gap: 6px; align-items: center; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+#editor .issues li .tx { flex: 1; line-height: 1.25; }
+#editor .issues li.error { color: var(--danger); } #editor .issues li.warn { color: var(--gold); } #editor .issues li.ok { color: var(--ok); }
+#editor .issues li .btn { padding: 1px 6px; font-size: 11px; color: var(--text); }
+body.cur-brush #app canvas { cursor: crosshair; }
+body.cur-erase #app canvas { cursor: not-allowed; }
+/* aba Editor do menu principal */
+#menu .mapcards { display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow: auto; margin-top: 6px; }
+#menu .mapcard { display: flex; gap: 10px; align-items: center; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; }
+#menu .mapcard .info { flex: 1; min-width: 0; }
+#menu .mapcard b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#menu .mapcard small { color: var(--muted); }
+#menu .mapcard .btn { padding: 3px 7px; font-size: 12px; }
+#menu .ed-inline { display: flex; gap: 8px; }
+#menu .ed-inline > div { flex: 1; }

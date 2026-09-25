@@ -7,8 +7,10 @@ import { SCENARIOS } from '../core/scenario/campaign';
 import { NetClient, type LobbyState, type RoomSummary } from '../net/client';
 import { t, getLocale, setLocale, LOCALE_NAMES, type Locale } from '../i18n';
 import { optionsHTML, bindOptions, type OptionsContext } from './options';
-import { mapHash, validateMap, type FixedMapData, type MapIssue } from '../core/map/fixed';
-import { allMaps, getMap, hasErrors, importMapFile, mapName, putMap, startOrderFor } from '../game/maps';
+import { mapHash, validateMap, blankMap, mapToData, migrateMap, MAP_LIMITS, type FixedMapData, type MapIssue } from '../core/map/fixed';
+import { generateMap } from '../core/map/mapgen';
+import { allMaps, getMap, hasErrors, importMapFile, mapName, putMap, startOrderFor, slugify, duplicateMap, removeMap, exportMapFile } from '../game/maps';
+import { AUTOSAVE_KEY } from '../editor/panel';
 import { esc } from './html';
 
 const fixedMapLabel = (d: { name?: string; nameEn?: string; id?: string; w: number; h: number; starts: number | unknown[]; hash?: number }) => t('main.fixedMapInfo', { name: esc(mapName(d)), w: d.w, h: d.h, n: Array.isArray(d.starts) ? d.starts.length : d.starts }) + (d.hash !== undefined ? ` <span style="color:#6b7690">#${(d.hash >>> 0).toString(16).slice(0, 6)}</span>` : '');
@@ -16,12 +18,12 @@ const fixedMapLabel = (d: { name?: string; nameEn?: string; id?: string; w: numb
 export const issueText = (i: MapIssue) => t(`map.issue.${i.code}`, i.params ?? {}) + (i.x !== undefined && i.y !== undefined ? ' ' + t('map.issues.at', { x: i.x, y: i.y }) : '');
 const issuesSummary = (issues: MapIssue[]) => { const e = issues.filter((i) => i.level === 'error').length, w = issues.length - e; return e === 0 && w === 0 ? t('map.issues.ok') : [e ? t('map.issues.errors', { n: e }) : '', w ? t('map.issues.warnings', { n: w }) : ''].filter(Boolean).join(' · '); };
 
-export interface MenuCallbacks { onStart: (config: GameConfig) => void; onLoad: () => void; hasSave: () => boolean; onHelp: () => void; onEncyclopedia: () => void; onMission: (id: string, difficulty: 'easy' | 'normal' | 'hard') => void; onNetworkStart: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onNetworkRejoin: (client: NetClient, config: GameConfig, slots: number[], delay: number, dropped?: number[]) => void; onHorde: (god: string, difficulty: Difficulty) => void; onReplay: () => void; hasReplay: () => boolean; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onHotkeys?: () => void }
+export interface MenuCallbacks { onStart: (config: GameConfig) => void; onLoad: () => void; hasSave: () => boolean; onHelp: () => void; onEncyclopedia: () => void; onMission: (id: string, difficulty: 'easy' | 'normal' | 'hard') => void; onNetworkStart: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onNetworkRejoin: (client: NetClient, config: GameConfig, slots: number[], delay: number, dropped?: number[]) => void; onHorde: (god: string, difficulty: Difficulty) => void; onReplay: () => void; hasReplay: () => boolean; onEditor: (file: FixedMapData) => void; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onHotkeys?: () => void }
 
 export class MainMenu {
   root: HTMLElement; el: HTMLElement;
   private god = 'zeus';
-  private tab: 'skirmish' | 'campaign' | 'multiplayer' = 'skirmish';
+  private tab: 'skirmish' | 'campaign' | 'multiplayer' | 'editor' = 'skirmish';
   net: NetClient | null = null;
   private netStatus = '';
   private showOptions = false;
@@ -140,9 +142,10 @@ export class MainMenu {
     this.el.innerHTML = `<div class="box">
       <h1>AGE OF EARTH</h1>
       <div class="sub">${t('main.sub')}</div>
-      <div class="tabs"><button class="btn ${this.tab === 'skirmish' ? 'active' : ''}" data-tab="skirmish">${t('main.skirmish')}</button><button class="btn ${this.tab === 'campaign' ? 'active' : ''}" data-tab="campaign">${t('main.campaign')}</button><button class="btn ${this.tab === 'multiplayer' ? 'active' : ''}" data-tab="multiplayer">${t('main.multiplayer')}</button><span style="flex:1"></span><select id="m-locale" class="btn" title="${t('main.language')}">${(Object.keys(LOCALE_NAMES) as Locale[]).map((l) => `<option value="${l}" ${getLocale() === l ? 'selected' : ''}>${LOCALE_NAMES[l]}</option>`).join('')}</select></div>
+      <div class="tabs"><button class="btn ${this.tab === 'skirmish' ? 'active' : ''}" data-tab="skirmish">${t('main.skirmish')}</button><button class="btn ${this.tab === 'campaign' ? 'active' : ''}" data-tab="campaign">${t('main.campaign')}</button><button class="btn ${this.tab === 'multiplayer' ? 'active' : ''}" data-tab="multiplayer">${t('main.multiplayer')}</button><button class="btn ${this.tab === 'editor' ? 'active' : ''}" data-tab="editor">${t('main.editor')}</button><span style="flex:1"></span><select id="m-locale" class="btn" title="${t('main.language')}">${(Object.keys(LOCALE_NAMES) as Locale[]).map((l) => `<option value="${l}" ${getLocale() === l ? 'selected' : ''}>${LOCALE_NAMES[l]}</option>`).join('')}</select></div>
       <div class="${this.tab === 'campaign' ? '' : 'hidden'}">${campaign}</div>
       <div class="${this.tab === 'multiplayer' ? '' : 'hidden'}" id="mp">${this.renderMultiplayer()}</div>
+      <div class="${this.tab === 'editor' ? '' : 'hidden'}" id="ed">${this.tab === 'editor' ? this.renderEditor() : ''}</div>
       <div class="grid ${this.tab === 'skirmish' ? '' : 'hidden'}">
         <div>
           <label>${t('main.name')}</label><input id="m-name" value="${saved.name ?? t('main.player')}" maxlength="18">
@@ -176,8 +179,9 @@ export class MainMenu {
       <div class="credits">${t('main.credits')}</div>
     </div>`;
     (this.el.querySelector('#m-locale') as HTMLSelectElement | null)?.addEventListener('change', (e) => { setLocale((e.target as HTMLSelectElement).value as Locale); this.cb.onLocaleChanged?.(); this.render(); });
-    this.el.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { this.tab = (b as HTMLElement).dataset.tab as 'skirmish' | 'campaign' | 'multiplayer'; this.render(); }));
+    this.el.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { this.tab = (b as HTMLElement).dataset.tab as 'skirmish' | 'campaign' | 'multiplayer' | 'editor'; this.render(); }));
     this.bindMultiplayer();
+    if (this.tab === 'editor') this.bindEditor();
     (this.el.querySelector('#m-cdiff') as HTMLSelectElement | null)?.addEventListener('change', (e) => { try { localStorage.setItem('aoe_campaign_diff', (e.target as HTMLSelectElement).value); } catch { /* ignore */ } });
     this.el.querySelectorAll('.mission').forEach((m) => m.addEventListener('click', () => { if ((m as HTMLElement).classList.contains('locked')) return; this.cb.onMission((m as HTMLElement).dataset.id!, this.campaignDifficulty()); }));
     this.el.querySelectorAll('.god').forEach((g) => g.addEventListener('click', () => { this.god = (g as HTMLElement).dataset.god!; this.el.querySelectorAll('.god').forEach((x) => x.classList.toggle('sel', (x as HTMLElement).dataset.god === this.god)); }));
@@ -215,6 +219,75 @@ export class MainMenu {
     q('#m-enc').addEventListener('click', () => this.cb.onEncyclopedia());
     q('#m-options').addEventListener('click', () => { this.showOptions = !this.showOptions; this.render(); });
     if (opts) bindOptions(this.el, opts, () => this.render());
+  }
+
+
+  // ---------------- Editor de mapas (aba) ----------------
+  /** Rascunho do editor (aoe_editor_autosave), se existir e for um mapa válido. */
+  private draft(): FixedMapData | null {
+    try { const raw = localStorage.getItem(AUTOSAVE_KEY); if (!raw) return null; const d = migrateMap(JSON.parse(raw)); return d.w > 0 && d.h > 0 ? d : null; } catch { return null; }
+  }
+  private renderEditor(): string {
+    const draft = this.draft();
+    const card = (m: { id: string; name: string; nameEn?: string; w: number; h: number; starts: number; builtin?: boolean }) => `<div class="mapcard" data-id="${esc(m.id)}"><div class="info"><b>${esc(mapName(m))}</b><small>${t('editor.cardInfo', { w: m.w, h: m.h, n: m.starts })} · ${esc(m.id)}</small></div>${m.builtin ? `<button class="btn" data-act="copy">${t('editor.editCopy')}</button>` : `<button class="btn primary" data-act="edit">${t('editor.edit')}</button><button class="btn" data-act="dup" title="${t('editor.duplicate')}">⧉</button><button class="btn" data-act="export" title="${t('editor.export')}">📤</button><button class="btn danger" data-act="del" title="${t('editor.delete')}">🗑</button>`}</div>`;
+    const mine = allMaps().filter((m) => !m.builtin), builtin = allMaps().filter((m) => m.builtin);
+    return `<div class="grid">
+      <div>
+        <h3 style="margin:0;color:#f2c14e">${t('editor.new')}</h3>
+        <label>${t('editor.newName')}</label><input id="ed-name" value="Meu mapa" maxlength="60">
+        <label>${t('editor.size')}</label><select id="ed-size">${Object.entries(MAP_SIZES).map(([k, v]) => `<option value="${k}" ${k === 'small' ? 'selected' : ''}>${t(`map.${k}`)} (${v.w}×${v.h})</option>`).join('')}<option value="custom">${t('editor.sizeCustom')} (${MAP_LIMITS.minSide}–${MAP_LIMITS.maxSide})</option></select>
+        <div class="ed-inline hidden" id="ed-custom"><div><label>${t('editor.width')}</label><input type="number" id="ed-w" min="${MAP_LIMITS.minSide}" max="${MAP_LIMITS.maxSide}" value="96"></div><div><label>${t('editor.height')}</label><input type="number" id="ed-h" min="${MAP_LIMITS.minSide}" max="${MAP_LIMITS.maxSide}" value="96"></div></div>
+        <label>${t('editor.starts')}</label><select id="ed-starts"><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
+        <label>${t('editor.base')}</label><select id="ed-base"><option value="blank">${t('editor.baseBlank')}</option><option value="gen" selected>${t('editor.baseGen')}</option></select>
+        <div id="ed-gen"><div class="ed-inline"><div><label>${t('editor.seed')}</label><input id="ed-seed" placeholder="${t('main.random')}"></div><div><label>${t('main.mapType')}</label><select id="ed-maptype">${MAP_TYPES.map((m) => `<option value="${m}">${t(`maptype.${m}`)}</option>`).join('')}</select></div></div></div>
+        <div class="actions" style="margin-top:12px;flex-wrap:wrap"><button class="btn primary" id="ed-create">${t('editor.create')}</button><button class="btn" id="ed-import">${t('editor.import')}</button></div>
+        ${draft ? `<div style="margin-top:10px"><button class="btn gold" id="ed-resume">${t('editor.resume')}</button> <small style="color:#9aa5b8">${t('editor.resumeInfo', { name: esc(mapName(draft)), w: draft.w, h: draft.h, n: draft.starts.length })}</small></div>` : ''}
+      </div>
+      <div>
+        <h3 style="margin:0;color:#f2c14e">${t('editor.myMaps')}</h3>
+        <div class="mapcards" id="ed-mine">${mine.length ? mine.map(card).join('') : `<small style="color:#9aa5b8">${t('editor.noMaps')}</small>`}</div>
+        <h3 style="margin:12px 0 0;color:#f2c14e">${t('editor.gameMaps')}</h3>
+        <div class="mapcards" id="ed-builtin">${builtin.map(card).join('')}</div>
+      </div>
+    </div>`;
+  }
+  private bindEditor() {
+    const q = (id: string) => this.el.querySelector(id) as HTMLInputElement;
+    const syncForm = () => { q('#ed-custom').classList.toggle('hidden', q('#ed-size').value !== 'custom'); q('#ed-gen').classList.toggle('hidden', q('#ed-base').value !== 'gen'); };
+    q('#ed-size').addEventListener('change', syncForm); q('#ed-base').addEventListener('change', syncForm); syncForm();
+    q('#ed-create').addEventListener('click', () => {
+      const name = q('#ed-name').value.trim() || t('editor.untitled');
+      const sizeKey = q('#ed-size').value;
+      const w = sizeKey === 'custom' ? Math.round(Number(q('#ed-w').value)) : MAP_SIZES[sizeKey as MapSize].w;
+      const h = sizeKey === 'custom' ? Math.round(Number(q('#ed-h').value)) : MAP_SIZES[sizeKey as MapSize].h;
+      const ok = (v: number) => Number.isFinite(v) && v >= MAP_LIMITS.minSide && v <= MAP_LIMITS.maxSide;
+      if (!ok(w) || !ok(h) || w * h > MAP_LIMITS.maxTiles) { alert(t('editor.sizeBad', { min: MAP_LIMITS.minSide, max: MAP_LIMITS.maxSide, tiles: MAP_LIMITS.maxTiles })); return; }
+      const n = Math.max(2, Math.min(4, Number(q('#ed-starts').value) || 2));
+      const seedStr = q('#ed-seed').value.trim();
+      const seed = seedStr ? (Number.isFinite(Number(seedStr)) ? Number(seedStr) >>> 0 : hashString(seedStr)) : (Math.floor(Math.random() * 1e9) >>> 0);
+      const base = q('#ed-base').value === 'blank' ? blankMap(w, h, n, seed) : mapToData(generateMap(w, h, seed, n, q('#ed-maptype').value as MapType), name);
+      this.cb.onEditor({ ...base, id: slugify(name), name });
+    });
+    q('#ed-import').addEventListener('click', () => void this.importForEditor());
+    this.el.querySelector('#ed-resume')?.addEventListener('click', () => { const d = this.draft(); if (d) this.cb.onEditor(d); });
+    this.el.querySelectorAll('.mapcard [data-act]').forEach((b) => b.addEventListener('click', () => {
+      const id = (b.closest('.mapcard') as HTMLElement).dataset.id!; const act = (b as HTMLElement).dataset.act;
+      const d = getMap(id); if (!d) { this.render(); return; }
+      if (act === 'edit') this.cb.onEditor(d);
+      else if (act === 'copy') this.cb.onEditor({ ...d, id: `${id}-copia`, name: `${d.name ?? id} (cópia)`, nameEn: d.nameEn ? `${d.nameEn} (copy)` : undefined });
+      else if (act === 'dup') { try { duplicateMap(id); } catch { alert(t('msg.mapQuota')); } this.render(); }
+      else if (act === 'export') void exportMapFile(d);
+      else if (act === 'del') { if (confirm(t('editor.deleteConfirm', { name: mapName(d) }))) { removeMap(id); if (this.fixedMapId === id) this.setFixedMap(null); this.render(); } }
+    }));
+  }
+  /** Importar .map.json para o editor: erros mostram o motivo; avisos abrem mesmo assim. */
+  private async importForEditor() {
+    let res: { data: FixedMapData; issues: MapIssue[] } | null;
+    try { res = await importMapFile(); } catch { alert(t('main.fixedMapBad')); return; }
+    if (!res) return;
+    if (hasErrors(res.issues)) { alert(`${t('editor.importErrors')}\n${res.issues.filter((i) => i.level === 'error').slice(0, 8).map(issueText).join('\n')}`); return; }
+    if (res.issues.length) alert(t('editor.importWarn', { n: res.issues.length }));
+    this.cb.onEditor(res.data);
   }
 
   // ---------------- Multiplayer (lobby via relay WebSocket) ----------------
