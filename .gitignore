@@ -6,3 +6,4 @@ dist/
 *.png
 !docs/screenshot.png
 .claude/worktrees/
+scripts/_tmp-*
