@@ -403,7 +403,8 @@ export class HUD {
     if (def.scholars) stats.push(`${t('sel.scholars')} <b>${b.scholars}/${MAX_SCHOLARS}</b>`);
     if (def.farm) stats.push(`${t('sel.farmers')} <b>${farmGatherers(s.state, b.id)}/1</b>`);
     if (def.garrison) stats.push(`${t('sel.garrison')} <b>${b.garrison.length}/${def.garrison}</b>${b.garrison.length >= 3 ? ` (${t('sel.extraArrows', { n: Math.min(4, Math.floor(b.garrison.length / 3)) })})` : ''}`);
-    if (def.wonder && b.complete && b.wonderStart >= 0) stats.push(`${t('sel.victoryIn')} <b>${fmtTime(Math.max(0, WONDER_VICTORY_SECONDS - (s.state.tick - b.wonderStart) / TICK_RATE))}</b>`);
+    // em cenário a vitória nativa por Maravilha não roda (G2): a guarda, se houver, é do roteiro, e este cronômetro enganaria
+    if (def.wonder && b.complete && b.wonderStart >= 0 && !s.state.scenario) stats.push(`${t('sel.victoryIn')} <b>${fmtTime(Math.max(0, WONDER_VICTORY_SECONDS - (s.state.tick - b.wonderStart) / TICK_RATE))}</b>`);
     if (b.disabledUntil > s.state.tick) stats.push(`<span style="color:#c084fc">${t('sel.pestilence', { n: Math.ceil((b.disabledUntil - s.state.tick) / TICK_RATE) })}</span>`);
     c.appendChild(el('div', 'stats', stats.map((x) => `<span>${x}</span>`).join('')));
     if (b.owner === s.local && b.queue.length > 0) {

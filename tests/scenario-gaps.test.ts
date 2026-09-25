@@ -41,11 +41,13 @@ describe('G0: registro da campanha', () => {
   it('CAMPAIGN começa por m1–m3 (TS, Ato I, selo Prólogo), segue com as missões JSON e campaignMissions devolve os ScenarioDef na ordem', () => {
     expect(CAMPAIGN.slice(0, 3).map((e) => e.id)).toEqual(['m1_despertar', 'm2_cerco', 'm3_portal']);
     for (const e of CAMPAIGN.slice(0, 3)) { expect(e.act).toBe(1); expect(e.source).toBe('ts'); expect(e.prologue).toBe(true); }
-    for (const e of CAMPAIGN.slice(3)) { expect(e.source).toBe('json'); expect(e.prologue).toBeFalsy(); }   // m4…m12: arquivos JSON
+    for (const e of CAMPAIGN.slice(3)) { expect(e.source).toBe('json'); expect(e.file?.id).toBe(e.id); expect(e.prologue).toBeFalsy(); }
     expect(campaignMissions().map((d) => d.id)).toEqual(CAMPAIGN.map((e) => e.id));
     expect(campaignMission('m2_cerco')).toBe(PROLOGUE[1]);
     expect(SCENARIOS).toBe(PROLOGUE);   // alias compatível
-    expect(isCampaignMission('m3_portal')).toBe(true); expect(isCampaignMission('m_inexistente')).toBe(false); expect(isCampaignMission('horde')).toBe(false);
+    expect(isCampaignMission('m3_portal')).toBe(true); expect(isCampaignMission('m99_inexistente')).toBe(false); expect(isCampaignMission('horde')).toBe(false);
+    // id oficial sem arquivo registrado não é missão da campanha (vale para qualquer estado do registro)
+    for (const m of CAMPAIGN_PLAN) expect(isCampaignMission(m.id)).toBe(CAMPAIGN.some((e) => e.id === m.id));
     expect(nextCampaignMission('m1_despertar')?.id).toBe('m2_cerco'); expect(nextCampaignMission('m3_portal')?.id).toBe(CAMPAIGN[3]?.id);
     expect(nextCampaignMission(CAMPAIGN[CAMPAIGN.length - 1].id)).toBeUndefined();
     // todo id registrado está no plano oficial, na mesma ordem relativa

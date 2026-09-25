@@ -82,6 +82,19 @@ describe('harness do jogador roteirizado', () => {
     expect(r.hash).not.toBe(p.hash);
   }, 180_000);
 
+  it('cofre (reserve): a IA do jogador não gasta a parte guardada enquanto a condição vale; cofre que nunca vale não muda nada', () => {
+    const steps = MISSION_SCRIPTS.m1_despertar.steps;
+    const free = runScripted('m1_despertar', { minutes: 3, difficulty: 'normal', steps, deterministic: false });
+    // toda a madeira no cofre desde o início: a IA não constrói nada (casas, celeiro, quartel custam madeira)
+    const saved = runScripted('m1_despertar', { minutes: 3, difficulty: 'normal', steps, reserve: { when: { time: { gte: 0 } }, resources: { wood: 100000 } } });
+    expect(saved.checks.deterministic).toBe(true);
+    expect(free.me.buildings).toBeGreaterThan(1);
+    expect(saved.me.buildings).toBe(1);
+    // cofre que nunca vale: igual a não ter cofre (mesmo stateHash)
+    const never = runScripted('m1_despertar', { minutes: 3, difficulty: 'normal', steps, deterministic: false, reserve: { when: { time: { lt: 0 } }, resources: { wood: 100000 } } });
+    expect(never.hash).toBe(free.hash);
+  }, 180_000);
+
   it('as checagens pegam os defeitos de autoria: objetivo no segundo 1 (tag futura), invasão sem alvo e dois Titãs iguais', () => {
     const file: ScenarioFile = {
       format: 'aoe-scenario', version: 1, id: 'defeitos', title: 'Defeitos', intro: ['x'],

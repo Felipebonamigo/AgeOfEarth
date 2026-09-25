@@ -6,7 +6,7 @@ import { spawnUnit, placeBuilding, canPlaceBuilding, onBuildingComplete, removeB
 import { getBuildingStats } from '../sim/modifiers';
 import { giveOrder } from '../sim/units';
 import { spiralSearch, isPassable, idx, inBounds } from '../map/grid';
-import { rectReachable } from '../map/components';
+import { componentAt, nearestLargeComponentTile, rectReachable } from '../map/components';
 
 /** Há caminho de (a,b) até o ponto (x,y)? Se o ponto estiver sobre um edifício, basta alcançar o anel ao redor dele. */
 function reachesPoint(state: GameState, a: number, b: number, x: number, y: number): boolean {
@@ -89,9 +89,18 @@ export function raid(state: GameState, owner: number, group: string[], targetX: 
     oy = Math.max(2, Math.min(state.map.h - 3, Math.round(targetY + dy * d)));
     origin = spiralSearch(ox, oy, 8, connected);
   }
+  let place = connected;
+  if (!origin) {
+    // alvo selado (ex.: Maravilha cercada de muralha sem portão): ninguém o alcança. O esquadrão nasce na região grande mais
+    // próxima do ponto de origem e ataca-move assim mesmo; quem chega à muralha bate nela (e o cerco a derruba)
+    ox = Math.max(2, Math.min(state.map.w - 3, Math.round(targetX + dx * distance)));
+    oy = Math.max(2, Math.min(state.map.h - 3, Math.round(targetY + dy * distance)));
+    origin = nearestLargeComponentTile(state.map, ox, oy, 64, 10);
+    if (origin) { const region = componentAt(state.map, origin.x, origin.y); place = (a, b) => isPassable(state.map, a, b) && componentAt(state.map, a, b) === region; }
+  }
   let spawned = 0;
   if (origin) types.forEach((t, i) => {
-    const spot = spiralSearch(origin!.x + (i % 4), origin!.y + Math.floor(i / 4), 8, connected);
+    const spot = spiralSearch(origin!.x + (i % 4), origin!.y + Math.floor(i / 4), 8, place);
     if (!spot) return;
     spawned++;
     const u = spawnUnit(state, owner, t, spot.x + 0.5, spot.y + 0.5);
