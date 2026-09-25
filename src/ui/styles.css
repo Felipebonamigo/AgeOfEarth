@@ -158,7 +158,9 @@ body.cur-power #app canvas { cursor: crosshair; }
 /* ---------- Editor de mapas ---------- */
 #hud.editor #top .res, #hud.editor #top .age, #hud.editor #age-btn, #hud.editor #top .clock, #hud.editor #speed, #hud.editor #top-menu,
 #hud.editor #gods, #hud.editor #objectives, #hud.editor #idle, #hud.editor #selection, #hud.editor #commands, #hud.editor #dialogue, #hud.editor #top > .spacer { display: none !important; }
-#hud.editor #bottom { grid-template-columns: 204px 1fr; }
+#hud.editor #bottom { grid-template-columns: 204px 1fr; height: clamp(196px, 30vh, 340px); }
+#test-badge { white-space: nowrap; }
+body.cur-pick canvas { cursor: crosshair; }
 #editor-top { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; font-size: 13px; }
 #editor-top .name { font-weight: 700; color: var(--gold); cursor: pointer; max-width: 220px; min-width: 60px; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #editor-top .name .dirty { color: var(--marble); }

@@ -84,6 +84,9 @@ export class EditorPanel {
   private lastErr = { code: '', at: 0 };
   private pendingPick: ((x: number, y: number) => void) | null = null;
   private destroyed = false;
+  private touched = false;                // houve edição nesta instância: só então o autosave pode substituir o rascunho anterior
+  private quotaWarned = false;
+  private readonly onPageHide = () => { this.autosaveNow(); };
   // modal Gatilhos: rascunho do JSON entre aberturas (Pegar ponto fecha e reabre o modal) e posição do cursor
   private esDraft: string | null = null;
   private esCursor = 0;
@@ -94,6 +97,7 @@ export class EditorPanel {
     this.root = el('div'); this.root.id = 'editor';
     this.build();
     hud.mountTop(this.top); hud.mountBottom(this.root);
+    window.addEventListener('pagehide', this.onPageHide); window.addEventListener('beforeunload', this.onPageHide);   // fechar/recarregar grava o rascunho
     editor.onChange = () => this.onChange();
     editor.onError = (e) => this.onError(e);
     this.issues = editor.validate();
@@ -113,11 +117,12 @@ export class EditorPanel {
     for (const tool of TOOLS) {
       const b = el('button', 'tool', `<span class="ic">${tool.icon}</span><span class="lbl">${t(`editor.tool.${tool.id}`)}</span><kbd>${tool.key}</kbd>`);
       b.dataset.tool = tool.id;
-      b.addEventListener('click', () => { this.editor.ui.tool = tool.id; this.editor.ui.selected = tool.id === 'select' ? this.editor.ui.selected : null; this.renderAll(); });
+      b.addEventListener('click', () => { this.cancelPick(); this.editor.ui.tool = tool.id; this.editor.ui.selected = tool.id === 'select' ? this.editor.ui.selected : null; this.renderAll(); });
       this.toolsEl.appendChild(b);
     }
     // pincel (construído uma vez; valores atualizados em renderBrush para não perder o arraste do controle)
     this.brushEl.innerHTML = `<span class="lbl">${t('editor.brushRadius')}</span><input type="range" id="ed-radius" min="1" max="8" step="1"><b id="ed-radius-v"></b><button class="btn" id="ed-shape"></button><span class="hint" id="ed-hint"></span>`;
+    (this.brushEl.querySelector('#ed-radius') as HTMLInputElement).addEventListener('change', (e) => (e.target as HTMLElement).blur());   // devolve os atalhos ao canvas
     (this.brushEl.querySelector('#ed-radius') as HTMLInputElement).addEventListener('input', (e) => { this.editor.ui.brushRadius = Math.max(1, Math.min(8, Number((e.target as HTMLInputElement).value) || 1)); this.renderBrush(); });
     this.brushEl.querySelector('#ed-shape')!.addEventListener('click', () => { const ui = this.editor.ui; ui.brushShape = ui.brushShape === 'circle' ? 'square' : 'circle'; this.renderBrush(); });
     // jogador ativo + completo/em obra
@@ -202,13 +207,13 @@ export class EditorPanel {
       for (const cat of ['economy', 'military', 'culture', 'special'] as const) {
         const list = ids.filter((id) => buildingCategory(id) === cat); if (!list.length) continue;
         p.appendChild(el('span', 'cat', t(`editor.cat.${cat}`)));
-        for (const id of list) { const d = BUILDINGS[id]; p.appendChild(chip(`${d.icon} ${d.name}`, ui.buildingType === id, `${d.name} (${d.w}×${d.h})<br>${d.desc}`, () => { ui.buildingType = id; this.renderPalette(); }, ['building', id])); }
+        for (const id of list) { const d = BUILDINGS[id]; p.appendChild(chip(`${d.icon} ${d.name}`, ui.buildingType === id, `${d.name} (${d.w}×${d.h})\n${d.desc}`, () => { ui.buildingType = id; this.renderPalette(); }, ['building', id])); }
       }
     } else if (ui.tool === 'unit') {
       for (const cls of UNIT_CLASSES) {
         const list = Object.values(UNITS).filter((u) => u.cls === cls); if (!list.length) continue;
         p.appendChild(el('span', 'cat', t(`editor.cls.${cls}`)));
-        for (const u of list) p.appendChild(chip(`${u.icon} ${u.name}`, ui.unitType === u.id, `${u.name}<br>${u.desc}`, () => { ui.unitType = u.id; this.renderPalette(); }, ['unit', u.id]));
+        for (const u of list) p.appendChild(chip(`${u.icon} ${u.name}`, ui.unitType === u.id, `${u.name}\n${u.desc}`, () => { ui.unitType = u.id; this.renderPalette(); }, ['unit', u.id]));
       }
     } else if (ui.tool === 'start') p.appendChild(el('span', 'hint', t('editor.startsHint')));
     else if (ui.tool === 'select') p.appendChild(el('span', 'hint', t('editor.selectHint')));
@@ -305,6 +310,7 @@ export class EditorPanel {
   // ---------------------------------------------------------------------------------------------------------
   private onChange(): void {
     if (this.destroyed) return;
+    this.touched = true;
     if (this.validateTimer) clearTimeout(this.validateTimer);
     this.validateTimer = setTimeout(() => { this.validateTimer = null; this.validateNow(); }, VALIDATE_MS);
     if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
@@ -318,9 +324,11 @@ export class EditorPanel {
   }
   validateNow(): void { this.issues = this.editor.validate(); this.keys.top = ''; this.renderTop(); this.renderIssues(); }
   /** Rascunho em aoe_editor_autosave (também antes de Testar e ao sair). */
-  autosaveNow(): void {
+  autosaveNow(): boolean {
     if (this.autosaveTimer) { clearTimeout(this.autosaveTimer); this.autosaveTimer = null; }
-    try { localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(this.editor.toFile())); } catch { /* cota cheia: o rascunho fica só em memória */ }
+    if (!this.touched && !this.editor.dirty) return true;   // abrir e fechar sem editar não substitui o rascunho anterior
+    try { localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(this.editor.toFile())); return true; }
+    catch { if (!this.quotaWarned) { this.quotaWarned = true; this.hud.toast(t('editor.autosaveFail'), 'warn'); } return false; }   // cota cheia: avisa uma vez
   }
 
   // ---------------------------------------------------------------------------------------------------------
@@ -404,17 +412,20 @@ export class EditorPanel {
     let koth = meta.koth ? [meta.koth[0], meta.koth[1]] as [number, number] : undefined;
     const apply = () => {
       const teamsRaw = q('#ep-teams').value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => Number(x) - 1);
-      const startTeams = teamsRaw.length && teamsRaw.every((x) => Number.isInteger(x) && x >= 0 && x < MAX_PLAYERS) ? teamsRaw : undefined;
+      const nStarts = ed.map.starts.length;
+      if (teamsRaw.length && !(teamsRaw.length === nStarts && teamsRaw.every((x) => Number.isInteger(x) && x >= 0 && x < MAX_PLAYERS))) { alert(t('editor.propTeamsBad', { max: MAX_PLAYERS, n: nStarts })); return false; }
+      const startTeams = teamsRaw.length ? teamsRaw : undefined;
       const val = (id: string) => q(id).value.trim() || undefined;
       ed.setMeta({ name: val('#ep-name'), nameEn: val('#ep-nameen'), author: val('#ep-author'), description: val('#ep-desc'), startKit: q('#ep-kit').checked ? undefined : false, startTeams, koth, relics: q('#ep-relics').checked ? undefined : false });
+      return true;
     };
     q('#ep-koth-clear').addEventListener('click', () => { koth = undefined; q('#ep-koth').textContent = t('editor.propKothCenter'); });
     q('#ep-koth-pick').addEventListener('click', () => {
-      apply(); this.hud.hideModal(); this.hud.toast(t('editor.propKothHint'), 'gold');
-      this.pendingPick = (x, y) => { ed.setMeta({ koth: [x, y] }); this.hud.toast(t('editor.propKothSet', { x, y }), 'good'); };
+      if (apply() === false) return; this.hud.hideModal(); this.hud.toast(t('editor.propKothHint'), 'gold');
+      this.setPick((x, y) => { ed.setMeta({ koth: [x, y] }); this.hud.toast(t('editor.propKothSet', { x, y }), 'good'); });
     });
     q('#ep-vary').addEventListener('click', () => { ed.varyDecor((Math.floor(Math.random() * 1e9)) >>> 0); this.hud.toast(t('editor.propVaried'), 'good'); });
-    q('#ep-ok').addEventListener('click', () => { apply(); this.hud.hideModal(); });
+    q('#ep-ok').addEventListener('click', () => { if (apply() === false) return; this.hud.hideModal(); });
   }
   // ---------------------------------------------------------------------------------------------------------
   // Modal Gatilhos: cenário JSON embutido (meta.scenario) com validação ao vivo, modelos e "pegar ponto" (§5 Etapa 5)
@@ -481,12 +492,12 @@ export class EditorPanel {
     q('#es-pick').addEventListener('click', () => {
       this.esDraft = ta.value; this.esCursor = ta.selectionStart;
       this.hud.hideModal(); this.hud.toast(t('editor.triggersPickHint'), 'gold');
-      this.pendingPick = (x, y) => {
+      this.setPick((x, y) => {
         const d = this.esDraft ?? ''; const c = Math.max(0, Math.min(d.length, this.esCursor));
         this.esDraft = `${d.slice(0, c)}{ "at": [${x}, ${y}] }${d.slice(c)}`;
         this.hud.toast(t('editor.triggersPickSet', { x, y }), 'good');
         this.showTriggers();
-      };
+      });
     });
     q('#m-cancel').addEventListener('click', () => { this.esDraft = null; this.hud.hideModal(); });
     q('#es-remove')?.addEventListener('click', () => { if (!confirm(t('editor.triggersRemoveConfirm'))) return; ed.setMeta({ scenario: undefined }); this.esDraft = null; this.hud.hideModal(); this.hud.toast(t('editor.triggersRemoved'), 'good'); });
@@ -500,9 +511,17 @@ export class EditorPanel {
     });
   }
   /** "Escolher no mapa": consome o próximo clique esquerdo no canvas (devolve true) — ligado por Input.editorHooks.pickTile. */
-  pickTile(x: number, y: number): boolean { const p = this.pendingPick; if (!p) return false; this.pendingPick = null; p(x, y); return true; }
+  pickTile(x: number, y: number): boolean {
+    const p = this.pendingPick; if (!p) return false;
+    if (!inBounds(this.editor.map, x, y)) { this.hud.toast(t('editor.pickOutside'), 'warn'); return true; }   // continua esperando
+    this.cancelPick(); p(x, y); return true;
+  }
+  /** Liga a espera por um clique no mapa (indicador no corpo da página); Esc/menu/troca de ferramenta cancelam. */
+  private setPick(fn: (x: number, y: number) => void): void { this.pendingPick = fn; document.body.classList.add('cur-pick'); this.hud.toast(t('editor.pickPending'), 'gold'); }
+  cancelPick(): void { this.pendingPick = null; document.body.classList.remove('cur-pick'); }
 
   showMenu(): void {
+    this.cancelPick();
     this.hud.showModal(`<h2>${t('editor.menuTitle')}</h2><p style="color:#f2c14e">${esc(this.mapTitle())}${this.editor.dirty ? ' •' : ''}</p>
       <div class="row" style="flex-direction:column">
         <button class="btn primary" id="em-continue">${t('editor.menuContinue')}</button>
@@ -544,6 +563,8 @@ export class EditorPanel {
     if (this.validateTimer) clearTimeout(this.validateTimer);
     if (this.esTimer) clearTimeout(this.esTimer);
     this.autosaveNow();
+    window.removeEventListener('pagehide', this.onPageHide); window.removeEventListener('beforeunload', this.onPageHide);
+    this.cancelPick();
     this.editor.onChange = undefined; this.editor.onError = undefined;
     this.hud.unmountTop(this.top); this.hud.unmountBottom(this.root);
     if (document.body.className.startsWith('cur-')) document.body.className = '';

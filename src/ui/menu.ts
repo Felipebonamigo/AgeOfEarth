@@ -9,7 +9,7 @@ import { t, getLocale, setLocale, LOCALE_NAMES, type Locale } from '../i18n';
 import { optionsHTML, bindOptions, type OptionsContext } from './options';
 import { mapHash, validateMap, blankMap, mapToData, migrateMap, MAP_LIMITS, type FixedMapData, type MapIssue } from '../core/map/fixed';
 import { generateMap } from '../core/map/mapgen';
-import { allMaps, getMap, hasErrors, importMapFile, parseMapFile, mapName, putMap, startOrderFor, slugify, duplicateMap, removeMap, exportMapFile } from '../game/maps';
+import { allMaps, getMap, hasErrors, importMapFile, parseMapFile, mapName, putMap, startOrderFor, slugify, duplicateMap, removeMap, exportMapFile, uniqueMapId } from '../game/maps';
 import { importText } from '../game/files';
 import { validateScenario, type ScenarioFile } from '../core/scenario/schema';
 import { gameConfigFor } from '../core/scenario/compile';
@@ -281,7 +281,7 @@ export class MainMenu {
     return `<div class="grid">
       <div>
         <h3 style="margin:0;color:#f2c14e">${t('editor.new')}</h3>
-        <label>${t('editor.newName')}</label><input id="ed-name" value="Meu mapa" maxlength="60">
+        <label>${t('editor.newName')}</label><input id="ed-name" value="${esc(t('editor.defaultName'))}" maxlength="60">
         <label>${t('editor.size')}</label><select id="ed-size">${Object.entries(MAP_SIZES).map(([k, v]) => `<option value="${k}" ${k === 'small' ? 'selected' : ''}>${t(`map.${k}`)} (${v.w}×${v.h})</option>`).join('')}<option value="custom">${t('editor.sizeCustom')} (${MAP_LIMITS.minSide}–${MAP_LIMITS.maxSide})</option></select>
         <div class="ed-inline hidden" id="ed-custom"><div><label>${t('editor.width')}</label><input type="number" id="ed-w" min="${MAP_LIMITS.minSide}" max="${MAP_LIMITS.maxSide}" value="96"></div><div><label>${t('editor.height')}</label><input type="number" id="ed-h" min="${MAP_LIMITS.minSide}" max="${MAP_LIMITS.maxSide}" value="96"></div></div>
         <label>${t('editor.starts')}</label><select id="ed-starts"><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
@@ -313,7 +313,7 @@ export class MainMenu {
       const seedStr = q('#ed-seed').value.trim();
       const seed = seedStr ? (Number.isFinite(Number(seedStr)) ? Number(seedStr) >>> 0 : hashString(seedStr)) : (Math.floor(Math.random() * 1e9) >>> 0);
       const base = q('#ed-base').value === 'blank' ? blankMap(w, h, n, seed) : mapToData(generateMap(w, h, seed, n, q('#ed-maptype').value as MapType), name);
-      this.cb.onEditor({ ...base, id: slugify(name), name });
+      this.cb.onEditor({ ...base, id: uniqueMapId(slugify(name)), name });   // id livre: não sobrescreve um mapa salvo com o mesmo nome
     });
     q('#ed-import').addEventListener('click', () => void this.importForEditor());
     this.el.querySelector('#ed-resume')?.addEventListener('click', () => { const d = this.draft(); if (d) this.cb.onEditor(d); });
@@ -321,7 +321,7 @@ export class MainMenu {
       const id = (b.closest('.mapcard') as HTMLElement).dataset.id!; const act = (b as HTMLElement).dataset.act;
       const d = getMap(id); if (!d) { this.render(); return; }
       if (act === 'edit') this.cb.onEditor(d);
-      else if (act === 'copy') this.cb.onEditor({ ...d, id: `${id}-copia`, name: `${d.name ?? id} (cópia)`, nameEn: d.nameEn ? `${d.nameEn} (copy)` : undefined });
+      else if (act === 'copy') this.cb.onEditor({ ...d, id: uniqueMapId(`${id}-copia`), name: `${d.name ?? id} ${t('editor.copySuffix')}`, nameEn: d.nameEn ? `${d.nameEn} (copy)` : undefined });
       else if (act === 'dup') { try { duplicateMap(id); } catch { alert(t('msg.mapQuota')); } this.render(); }
       else if (act === 'export') void exportMapFile(d);
       else if (act === 'del') { if (confirm(t('editor.deleteConfirm', { name: mapName(d) }))) { removeMap(id); if (this.fixedMapId === id) this.setFixedMap(null); this.render(); } }

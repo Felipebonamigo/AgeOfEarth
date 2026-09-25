@@ -27,6 +27,7 @@ export class Input {
   private lastClick = 0; private lastClickId = -1;
   edgeScroll = true;
   private middleDrag: { x: number; y: number } | null = null;
+  private lastEditorTile: { x: number; y: number } | null = null;
   /** Editor de mapas ativo: quando s.ui.mode === 'editor', ponteiro e teclas são delegados a ele (a câmera continua aqui). */
   private editor: MapEditor | null = null;
   private editorHooks: EditorHooks | null = null;
@@ -90,8 +91,12 @@ export class Input {
     const s = this.getSession(); if (!s) return;
     if (this.middleDrag) { this.renderer.cam.pan(-(e.clientX - this.middleDrag.x), -(e.clientY - this.middleDrag.y)); this.middleDrag = { x: e.clientX, y: e.clientY }; return; }
     if (this.inEditor(s)) {
-      if (this.overHudPoint(e)) { this.editor!.setHover(null); this.hud.hideTooltip(); return; }
-      const tile = this.tileAt(e.clientX, e.clientY);
+      if (this.overHudPoint(e)) {
+        // saiu do canvas: encerra o traço em curso (não liga em linha reta ao voltar)
+        if (this.mouse.down && this.lastEditorTile) { this.editor!.pointerUp(this.lastEditorTile.x, this.lastEditorTile.y, this.mouse.button === 2 ? 2 : 0, this.mods(e)); this.mouse.down = false; }
+        this.editor!.setHover(null); this.hud.hideTooltip(); return;
+      }
+      const tile = this.tileAt(e.clientX, e.clientY); this.lastEditorTile = tile;
       this.editor!.pointerMove(tile.x, tile.y, this.mouse.down && this.mouse.button === 2 ? 2 : 0, this.mods(e));
     }
     if (this.mouse.down && this.mouse.button === 0 && s.ui.mode === 'normal') {
@@ -115,7 +120,7 @@ export class Input {
       }
     }
   }
-  private overHudPoint(e: PointerEvent): boolean { const t = document.elementFromPoint(e.clientX, e.clientY); return !!t && t !== this.canvas; }
+  private overHudPoint(e: PointerEvent): boolean { const t = document.elementFromPoint(e.clientX, e.clientY); return !!t && t !== this.canvas && !t.closest('#messages, #tooltip'); }   // avisos e tooltip não contam como HUD
 
   private onUp(e: PointerEvent) {
     const s = this.getSession();
@@ -244,7 +249,8 @@ export class Input {
     const k = e.key.toLowerCase();
     if (this.hud.modalOpen) { if (k === 'escape') { (e.target as HTMLElement).blur?.(); this.hud.hideModal(); } return; }   // também no menu principal e com foco num campo do modal
     const tag = (e.target as HTMLElement).tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    const itype = ((e.target as HTMLInputElement).type ?? '').toLowerCase();
+    if (tag === 'TEXTAREA' || (tag === 'INPUT' && !['range', 'checkbox', 'radio', 'button'].includes(itype)) || (e.target as HTMLElement).isContentEditable) return;   // só campos de texto bloqueiam os atalhos
     const s = this.getSession(); if (!s) return;
     if (this.inEditor(s)) {
       // Editor: nada de pausa, velocidade, grupos, Delete de unidades ou F5; WASD/setas continuam movendo a câmera

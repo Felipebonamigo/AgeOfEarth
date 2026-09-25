@@ -15,6 +15,7 @@ import { MapEditor } from './editor/editor';
 import { EditorPanel, type TestOpts } from './editor/panel';
 import type { EditorView } from './editor/types';
 import { issueText } from './ui/menu';
+import { esc } from './ui/html';
 import type { Difficulty } from './core/constants';
 import { NetworkScheduler, LocalScheduler } from './core/net/lockstep';
 import type { NetClient } from './net/client';
@@ -77,13 +78,13 @@ async function boot() {
 
   const hud: HUD = new HUD(root, renderer, audio, {
     hasSave,
-    onSave: () => { if (!session) return; try { localStorage.setItem(SAVE_KEY, session.save()); hud.toast(t('msg.saved'), 'good'); } catch (e) { hud.toast(t('msg.saveFail', { err: (e as Error).message }), 'warn'); } },
+    onSave: () => { if (!session) return; if (editorOrTest()) { hud.toast(t('editor.noSaveInTest'), 'warn'); return; } try { localStorage.setItem(SAVE_KEY, session.save()); hud.toast(t('msg.saved'), 'good'); } catch (e) { hud.toast(t('msg.saveFail', { err: (e as Error).message }), 'warn'); } },
     onExport: () => { if (!session) return; void exportText(`age-of-earth-${new Date().toISOString().slice(0, 10)}.json`, session.save()).then((ok) => { if (ok) hud.toast(t('msg.saved'), 'good'); }); },
-    onImport: () => { void importText().then((json) => { if (!json) return; try { session = Session.load(json); replaySaved = false; renderer.setState(session.state); hud.setSession(session); hud.setVisible(true); menu.hide(); hud.toast(t('msg.loaded'), 'good'); } catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); } }); },
+    onImport: () => { void importText().then((json) => { if (!json) return; try { if (editorOrTest()) leaveEditorView(); session = Session.load(json); replaySaved = false; renderer.setState(session.state); hud.setSession(session); hud.setVisible(true); menu.hide(); hud.toast(t('msg.loaded'), 'good'); } catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); } }); },
     getOptions: () => options,
     onExportMap: () => { if (!session) return; const data = canonicalize({ ...mapToData(session.state.map, `mapa-${session.state.seed}`), id: `mapa-${session.state.seed}` }); void exportText(`age-of-earth-mapa-${session.state.seed}.map.json`, JSON.stringify(data)).then((ok) => { if (ok) hud.toast(t('msg.mapExported'), 'good'); }); },
     onSaveMapLocal: () => {
-      if (!session) return;
+      if (!session) return; if (editorOrTest()) { hud.toast(t('editor.noSaveInTest'), 'warn'); return; }
       const name = (window.prompt(t('main.fixedMapSel'), session.state.config.map?.name ?? `mapa-${session.state.seed}`) ?? '').trim(); if (!name) return;
       try { const entry = putMap({ ...mapToData(session.state.map, name), id: slugify(name) }); hud.toast(t('msg.mapSaved', { name: entry.name }), 'good'); } catch { hud.toast(t('msg.mapQuota'), 'warn'); }
     },
@@ -118,7 +119,7 @@ async function boot() {
 
   const startGame = (config: GameConfig) => {
     session = Session.newGame(config);
-    achievements.recordGod(config.players[session.local]?.god ?? 'zeus');
+    if (!returnToEditor) achievements.recordGod(config.players[session.local]?.god ?? 'zeus');   // testes do editor não contam
     renderer.setState(session.state);
     const home = [...session.state.buildings.values()].find((b) => b.owner === session!.local && b.type === 'town_center');
     if (home) renderer.cam.centerOn(home.x, home.y);
@@ -298,7 +299,7 @@ async function boot() {
   const leaveEditorView = () => {
     editorPanel?.destroy(); editorPanel = null;
     input.setEditor(null);
-    hud.setEditorMode(false); hud.setTestMode(null);
+    hud.setEditorMode(false); hud.setTestMode(null); hud.setRevealAll(false);
     renderer.chunkCacheLimit = 60;
     returnToEditor = false;
     document.body.className = '';
@@ -310,11 +311,11 @@ async function boot() {
     if (editorOrTest()) leaveEditorView();
     editor = ed; returnToEditor = false; editorCam = null;
     showEditor(ed, null);
-    hud.toast(t('editor.opened', { name: ed.meta.name ?? t('editor.untitled') }), 'gold');
+    hud.toast(t('editor.opened', { name: esc(ed.meta.name ?? t('editor.untitled')) }), 'gold');
   };
   const exitEditor = () => {
     const ed = editor; if (!ed) return;
-    if (ed.dirty && !confirm(t('editor.exitConfirm'))) return;
+    if (ed.dirty) { const kept = editorPanel?.autosaveNow() ?? false; if (!confirm(t(kept ? 'editor.exitConfirm' : 'editor.exitConfirmNoDraft'))) return; }
     leaveEditorView();
     editor = null; session = null; hud.setSession(null); hud.setVisible(false); menu.show();
   };
@@ -332,7 +333,7 @@ async function boot() {
       const base = gameConfigFor(sc);
       const issues = validateMap(file, { players: base.players.length, mode: base.mode, ai: base.players.map((p) => p.isAI) });
       const errors = issues.filter((i) => i.level === 'error');
-      if (errors.length) { hud.toast(`${t('editor.testErrors')} ${errors.slice(0, 3).map(issueText).join('; ')}`, 'warn'); return; }
+      if (errors.length) { hud.toast(`${t('editor.testErrors')} ${esc(errors.slice(0, 3).map(issueText).join('; '))}`, 'warn'); return; }
       editorPanel?.autosaveNow();
       editorCam = { x: renderer.cam.x, y: renderer.cam.y, zoom: renderer.cam.zoom };
       leaveEditorView();
@@ -356,7 +357,7 @@ async function boot() {
     }
     const issues = validateMap(file, { players: players.length, mode: opts.mode, ai: players.map((p) => p.isAI) });
     const errors = issues.filter((i) => i.level === 'error');
-    if (errors.length) { hud.toast(`${t('editor.testErrors')} ${errors.slice(0, 3).map(issueText).join('; ')}`, 'warn'); return; }
+    if (errors.length) { hud.toast(`${t('editor.testErrors')} ${esc(errors.slice(0, 3).map(issueText).join('; '))}`, 'warn'); return; }
     editorPanel?.autosaveNow();
     editorCam = { x: renderer.cam.x, y: renderer.cam.y, zoom: renderer.cam.zoom };
     leaveEditorView();

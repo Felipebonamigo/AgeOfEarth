@@ -3,7 +3,7 @@
 import { canonicalize, mapHash, migrateMap, validateMap, type FixedMapData, type MapIssue, type ValidateOpts } from '../core/map/fixed';
 import { BUILTIN_MAPS } from '../core/data/maps';
 import { exportText, importText } from './files';
-import { getLocale } from '../i18n';
+import { getLocale, t } from '../i18n';
 
 export interface MapEntry { id: string; name: string; nameEn?: string; w: number; h: number; starts: number; hash: number; updatedAt: number; builtin?: boolean }
 
@@ -19,6 +19,14 @@ function writeIndex(list: MapEntry[]): void { localStorage.setItem(INDEX_KEY, JS
 export function slugify(name: string): string {
   const s = name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   return s || 'mapa';
+}
+
+/** Id livre a partir de um slug base: `slug`, `slug-2`, `slug-3`… (não colide com embutidos nem com Meus mapas). */
+export function uniqueMapId(base: string): string {
+  const taken = new Set([...Object.keys(BUILTIN_MAPS), ...readIndex().map((e) => e.id)]);
+  let slug = base || 'mapa'; let n = 2;
+  while (taken.has(slug)) slug = `${base}-${n++}`;
+  return slug;
 }
 
 export function entryOf(d: FixedMapData, builtin = false, updatedAt = 0): MapEntry {
@@ -59,9 +67,8 @@ export function removeMap(id: string): void {
 
 export function duplicateMap(id: string, newName?: string, now = Date.now()): MapEntry | null {
   const src = getMap(id); if (!src) return null;
-  const name = newName ?? `${src.name ?? id} (cópia)`;
-  const base = slugify(name); let slug = base; let n = 2;
-  while (BUILTIN_MAPS[slug] || readIndex().some((e) => e.id === slug)) slug = `${base}-${n++}`;
+  const name = newName ?? `${src.name ?? id} ${t('editor.copySuffix')}`;
+  const slug = uniqueMapId(slugify(name));
   return putMap({ ...src, id: slug, name, nameEn: src.nameEn ? `${src.nameEn} (copy)` : undefined }, now);
 }
 

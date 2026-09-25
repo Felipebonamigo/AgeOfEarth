@@ -35,10 +35,10 @@ Objetivo: parar de parecer protótipo. É o caminho crítico do projeto.
 
 | # | Passo | Resp. | Semanas |
 |---|---|---|---|
-| 2.1 | Direção de arte: escolher estilo (2.5D pintado ou pré-renderizado), paleta, referências; nome/logo definitivos | V + T | 3–4 |
+| 2.1 | 🔶 Direção de arte: **realismo** por pipeline próprio (terreno por shader + sprites pré-renderizados em build; contrato em `docs/ART.md`); Etapa 0 ✅ (névoa suave, paleta terrosa, sem grade, sombras SE, fronteira fina, presets de qualidade, `?perf=1`, capturas em `docs/art/`). Pendente: respostas do dono (§8 de ART.md: inclinação 50° vs 90°, direções, cores de time, sangue, IA, hardware, artista) e nome/logo | V + A | 3–4 |
 | 2.2 | Contratar artista(s) (ou pipeline com IA + retoque humano); briefing com a lista completa de assets | V + T | 4–5 |
 | 2.3 | Assets: ~36 unidades (8 direções × parado/andar/atacar/morrer), 20 edifícios (2 estados + dano), tileset com transições, 60+ ícones, retratos dos 12 deuses, efeitos dos 12 poderes, cursores | T | 5–13 |
-| 2.4 | Integração: atlas de sprites e animação por spritesheet no renderizador (substitui `textures.ts`); partículas para poderes | A | 8–14 |
+| 2.4 | Integração: atlas de sprites e animação por spritesheet no renderizador (substitui `textures.ts`); partículas para poderes. Plano detalhado nas Etapas 1–6 de `docs/ART.md` (terreno por shader → pipeline de bake → edifícios → unidades → efeitos → míticas) | A | 8–14 |
 | 2.5 | Interface final: HUD temático (mármore/bronze), fontes, telas de menu e carregamento, tela de vitória | T + A | 9–13 |
 | 2.6 | Áudio: ~80 efeitos (unidades, combate, construção, UI, poderes), som ambiente por bioma, trilha (menu + 3 intensidades + batalha), vozes dos deuses (opcional) | T + A | 8–14 |
 | 2.7 | Cenas de campanha como ilustrações narradas (barato e bonito) | T | 11–14 |

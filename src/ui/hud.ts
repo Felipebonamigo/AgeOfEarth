@@ -94,6 +94,7 @@ export class HUD {
     this.idleBtn = el('button', 'btn'); this.idleBtn.id = 'idle'; this.idleBtn.textContent = t('top.idle', { n: 0 }); this.idleBtn.title = t('top.idleTip'); this.idleBtn.addEventListener('click', () => this.selectIdleVillager()); mmWrap.appendChild(this.idleBtn);
     this.bottom.appendChild(mmWrap);
     this.minimap = new Minimap(mm);
+    mm.addEventListener('contextmenu', (e) => e.preventDefault());   // botão direito no minimapa não abre o menu do navegador
     this.selPanel = el('div'); this.selPanel.id = 'selection'; this.bottom.appendChild(this.selPanel);
     this.cmdPanel = el('div'); this.cmdPanel.id = 'commands'; this.bottom.appendChild(this.cmdPanel);
     hud.appendChild(this.bottom);
@@ -566,29 +567,29 @@ export class HUD {
     this.showModal(`<h2>${t('menu.title')}</h2>
       <div class="row" style="flex-direction:column">
         <button class="btn primary" id="m-continue">${t('menu.continue')}</button>
-        <button class="btn" id="m-save">${t('menu.save')}</button>
-        <button class="btn" id="m-load" ${this.cb.hasSave() ? '' : 'disabled'}>${t('menu.load')}</button>
+        ${this.testMode ? '' : `<button class="btn" id="m-save">${t('menu.save')}</button>
+        <button class="btn" id="m-load" ${this.cb.hasSave() ? '' : 'disabled'}>${t('menu.load')}</button>`}
         <div style="display:flex;gap:8px"><button class="btn" id="m-export" style="flex:1">📤 → arquivo / file</button><button class="btn" id="m-import" style="flex:1">📥 ← arquivo / file</button></div>
         <button class="btn" id="m-help">${t('menu.help')}</button>
         <button class="btn" id="m-enc">${t('menu.enc')}</button>
         <div style="margin-top:8px">${opts ? optionsHTML(opts) : ''}</div>
         <label style="font-size:12px;color:#9aa5b8"><input type="checkbox" id="m-ranges" ${s.ui.showRanges ? 'checked' : ''}> ${t('menu.ranges')}</label>
         <button class="btn" id="m-exportmap">${t('menu.exportMap')}</button>
-        <button class="btn" id="m-savemap">${t('menu.saveMapLocal')}</button>
+        ${this.testMode ? '' : `<button class="btn" id="m-savemap">${t('menu.saveMapLocal')}</button>`}
         <button class="btn" id="m-diag">${t('menu.diagnostic')}</button>
         <button class="btn danger" id="m-quit">${this.testMode ? t('editor.backToEditor') : t('menu.quit')}</button>
       </div>`);
     const q = (id: string) => this.modal.querySelector(id) as HTMLElement;
     q('#m-continue').addEventListener('click', () => { this.menuOpen = false; this.hideModal(); s.paused = false; });
-    q('#m-save').addEventListener('click', () => { this.cb.onSave(); this.menuOpen = false; this.hideModal(); s.paused = false; });
-    q('#m-load').addEventListener('click', () => { this.hideModal(); this.cb.onLoad(); });
+    q('#m-save')?.addEventListener('click', () => { this.cb.onSave(); this.menuOpen = false; this.hideModal(); s.paused = false; });
+    q('#m-load')?.addEventListener('click', () => { this.hideModal(); this.cb.onLoad(); });
     q('#m-help').addEventListener('click', () => this.showHelp());
     q('#m-enc').addEventListener('click', () => this.showEncyclopedia());
     if (opts) bindOptions(this.modal, opts, () => this.showMenu());
     q('#m-ranges').addEventListener('change', (e) => { s.ui.showRanges = (e.target as HTMLInputElement).checked; });
     q('#m-diag').addEventListener('click', () => { this.cb.onDiagnostic?.(); });
     q('#m-exportmap').addEventListener('click', () => { this.cb.onExportMap?.(); });
-    q('#m-savemap').addEventListener('click', () => { this.cb.onSaveMapLocal?.(); });
+    q('#m-savemap')?.addEventListener('click', () => { this.cb.onSaveMapLocal?.(); });
     q('#m-export').addEventListener('click', () => { this.cb.onExport?.(); });
     q('#m-import').addEventListener('click', () => { this.hideModal(); this.cb.onImport?.(); });
     q('#m-quit').addEventListener('click', () => { if (confirm(t('menu.quitConfirm'))) { this.hideModal(); this.cb.onQuit(); } });
