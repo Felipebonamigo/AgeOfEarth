@@ -3,6 +3,9 @@ import { NetworkScheduler } from '../src/core/net/lockstep';
 import { stateHash } from '../src/core/net/hash';
 import { createGame } from '../src/core/sim/game';
 import { serialize, deserialize } from '../src/core/serialize';
+import { generateMap } from '../src/core/map/mapgen';
+import { mapToData, base64ToBytes, bytesToBase64 } from '../src/core/map/fixed';
+import { TERRAIN } from '../src/core/constants';
 import type { Command, GameConfig } from '../src/core/types';
 
 const config: GameConfig = { seed: 777, mapSize: 'small', players: [
@@ -93,6 +96,43 @@ describe('reconexão por instantâneo', () => {
     expect(stateHash(states[0])).toBe(stateHash(states[1]));
     expect(stateHash(states[0])).toBe(stateHash(states[2]));
     expect(scheds.every((s) => !s.desynced)).toBe(true);
+  });
+});
+
+describe('lockstep em mapa fixo', () => {
+  /** Dois pares em memória com entrega imediata; devolve os ticks em que cada um acusou dessincronização. */
+  function runPair(cfgA: GameConfig, cfgB: GameConfig, ticks: number) {
+    const a = createGame(cfgA), b = createGame(cfgB);
+    const desyncA: number[] = [], desyncB: number[] = [];
+    let sa!: NetworkScheduler, sb!: NetworkScheduler;
+    sa = new NetworkScheduler(0, [0, 1], 3, { sendCmds: (t, c) => sb.receive(0, t, c), sendHash: (t, h) => sb.receiveHash(0, t, h) });
+    sb = new NetworkScheduler(1, [0, 1], 3, { sendCmds: (t, c) => sa.receive(1, t, c), sendHash: (t, h) => sa.receiveHash(1, t, h) });
+    sa.onDesync = (t) => desyncA.push(t); sb.onDesync = (t) => desyncB.push(t);
+    for (let i = 0; i < ticks; i++) { sa.step(a); sb.step(b); }
+    return { a, b, sa, sb, desyncA, desyncB };
+  }
+  const mapCfg = (): GameConfig => ({ seed: 99, mapSize: 'small', map: mapToData(generateMap(64, 64, 31, 2, 'mountains'), 'lockstep'), players: [
+    { name: 'A', god: 'zeus', isAI: true, difficulty: 'normal' }, { name: 'B', god: 'hades', isAI: true, difficulty: 'normal' },
+  ] });
+  it('dois pares com o mesmo config.map mantêm hashes iguais por 400 ticks', () => {
+    const cfg = mapCfg();
+    const { a, b, sa, sb, desyncA, desyncB } = runPair(cfg, JSON.parse(JSON.stringify(cfg)), 400);
+    expect(a.tick).toBe(b.tick); expect(a.tick).toBeGreaterThanOrEqual(400);
+    expect(stateHash(a)).toBe(stateHash(b));
+    expect(sa.desynced).toBe(false); expect(sb.desynced).toBe(false);
+    expect(desyncA).toEqual([]); expect(desyncB).toEqual([]);
+  });
+  it('negativo: um tile de terreno diferente num dos pares acusa dessincronização no primeiro hash trocado (tick 100)', () => {
+    const cfg = mapCfg();
+    const other: GameConfig = JSON.parse(JSON.stringify(cfg));
+    // troca um tile de grama por terra (passável: a simulação não muda, só o mapa) no canto do mapa
+    const bytes = base64ToBytes(other.map!.terrain, other.map!.w * other.map!.h);
+    let i = 0; while (bytes[i] !== TERRAIN.GRASS) i++;
+    bytes[i] = TERRAIN.DIRT;
+    other.map!.terrain = bytesToBase64(bytes);
+    const { sa, sb, desyncA, desyncB } = runPair(cfg, other, 250);
+    expect(sa.desynced).toBe(true); expect(sb.desynced).toBe(true);
+    expect(desyncA).toEqual([100]); expect(desyncB).toEqual([100]);
   });
 });
 
