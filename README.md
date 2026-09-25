@@ -41,7 +41,7 @@ Todos os clientes simulam a mesma partida e só trocam comandos; um hash periód
 
 ## Conteúdo
 - 5 Idades, 3 deuses maiores, 9 deuses menores, 12 poderes divinos.
-- 15 unidades humanas, 5 heróis, 13 criaturas míticas, 3 Titãs.
+- 15 unidades humanas, 5 heróis com habilidades ativas (tecla Q), 13 criaturas míticas, 3 Titãs; veterania por abates (até 3 patentes).
 - 20 edifícios (incluindo 3 Maravilhas e o Portal dos Titãs), 60+ tecnologias.
 - IA adversária com economia, expansão, pesquisa, ondas de ataque, defesa e poderes; 3 dificuldades.
 - Mapas procedurais (3 tamanhos) com posições iniciais justas e gargalos alargados; névoa de guerra; minimapa; salvar/carregar (com exportar/importar arquivo); 22 conquistas.
