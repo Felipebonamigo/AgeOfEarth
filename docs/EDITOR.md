@@ -376,7 +376,7 @@ Estimativas de horas do agente; cada etapa é um ou mais commits em português c
 
 ---
 
-## 5b. Decisões tomadas na implementação (Etapas 1–2, concluídas)
+## 5b. Decisões tomadas na implementação (Etapas 0–3 concluídas; 4 em curso)
 
 - `validateMap`: `nodeNoAccess` só para nós que não são árvores (árvore no meio do bosque é normal); `pocket` só quando a região pequena faz fronteira com terreno sólido ou edifício (clareiras fechadas por nós abrem ao coletar); `chokepoint` emite um aviso por início (o ponto de articulação mais próximo a ≤ 10 tiles); `entityOverlap` de unidade só checa mapa/água/montanha (createGame usa o tile aberto mais próximo); `aiNoTc` exige `opts.ai`; máximo de 25 itens por código; com kit inicial o 3×3 do CC conta como bloqueado na análise de regiões e como ocupado para entidades (`entityOverlap`) e para outros inícios (`startOverlap`). Códigos além do §2.1: `badNodeAmount`, `kothOut`, `startOverlap` (erros) e `noBase` (aviso: jogador sem kit, sem edifício e sem cidadão só sobrevive enquanto tiver unidades — a regra de derrota respeita isso via `hasStartKit`).
 - Tipos de nó/edifício/unidade só valem com chave própria das tabelas (`'constructor'`/`'__proto__'` são rejeitados na validação e ignorados em `createGame`).
