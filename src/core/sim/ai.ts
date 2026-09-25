@@ -52,7 +52,7 @@ function snapshot(state: GameState, player: Player): Snapshot {
   const buildings = buildingsOf(state, player.id);
   const byType = new Map<string, Building[]>();
   for (const b of buildings) { const arr = byType.get(b.type) ?? []; arr.push(b); byType.set(b.type, arr); }
-  const villagers = units.filter((u) => u.type === 'villager' && u.inside === -1);
+  const villagers = units.filter((u) => u.type === 'villager' && u.inside === -1 && !(u.state === 'pray' && u.nodeId < 0 && BUILDINGS[state.buildings.get(-u.nodeId)?.type ?? '']?.titanGate));   // sacerdotes do ritual (cenários) não são realocados
   const gatherers: Record<string, number> = { food: 0, wood: 0, gold: 0, favor: 0 };
   for (const v of villagers) {
     if (v.state === 'pray') gatherers.favor++;

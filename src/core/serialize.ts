@@ -40,7 +40,7 @@ export function deserialize(json: string): GameState {
     units: new Map((o.units as Unit[]).map((u) => [u.id, { ...u, inside: u.inside ?? -1, resumeNodeId: u.resumeNodeId ?? -1, avoidIds: u.avoidIds ?? [], avoidUntil: u.avoidUntil ?? 0, blockedTicks: u.blockedTicks ?? 0 }])), buildings: new Map((o.buildings as Building[]).map((b) => [b.id, { ...b, garrison: b.garrison ?? [] }])),
     territory: Int8Array.from(o.territory as number[]), territoryDirty: true, territoryVersion: 0,
     events: o.events ?? [], effects: [], timed: o.timed ?? [], winner: o.winner, gameOver: o.gameOver, rng: new RNG(1),
-    ceasefireUntil: o.ceasefireUntil ?? 0, ceasefireBy: o.ceasefireBy ?? -1, fogVersion: 0, scenario: o.scenario ?? undefined,
+    ceasefireUntil: o.ceasefireUntil ?? 0, ceasefireBy: o.ceasefireBy ?? -1, fogVersion: 0, scenario: o.scenario ? { ...o.scenario, vars: o.scenario.vars ?? {} } : undefined,
   };
   state.rng.s = o.rng >>> 0;
   // Reconstrói bloqueios: terreno, nós e edifícios

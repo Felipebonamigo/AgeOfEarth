@@ -3,6 +3,8 @@ import { TICK_RATE } from '../constants';
 import type { ScenarioDef } from './types';
 import { count, countBuildings, military, townCenter, raid, give, grantTech, placeNear, spawnGroup } from './helpers';
 import { onBuildingComplete } from '../sim/entities';
+import { rectReachable } from '../map/components';
+import type { Unit } from '../types';
 
 const ME = 0;
 
@@ -32,7 +34,8 @@ export const HORDE: ScenarioDef = {
     if (t >= 0) { for (const b of state.buildings.values()) if (b.owner === t) b.dead = true; for (const u of state.units.values()) if (u.owner === t) u.dead = true; }
   },
   objectives: [
-    { id: 'waves', text: `Sobreviva a ${HORDE_WAVES} ondas`, check: (s) => (s.scenario!.fired.filter((f) => f.startsWith('wave')).length >= HORDE_WAVES && count(s, s.players.findIndex((p) => p.team === 9), military) === 0 ? 'done' : 'pending') },
+    // só contam monstros que ainda podem chegar a algum Centro Cívico defensor (nunca uma ilha ou bolsão)
+    { id: 'waves', text: `Sobreviva a ${HORDE_WAVES} ondas`, check: (s) => { const tcs = [...s.buildings.values()].filter((b) => b.type === 'town_center' && !b.dead && s.players[b.owner].team !== 9); const canReach = (u: Unit) => tcs.some((b) => rectReachable(s.map, Math.floor(u.x), Math.floor(u.y), b.tx, b.ty, b.w, b.h, true)); return s.scenario!.fired.filter((f) => f.startsWith('wave')).length >= HORDE_WAVES && count(s, s.players.findIndex((p) => p.team === 9), (u) => military(u) && canReach(u)) === 0 ? 'done' : 'pending'; } },
   ],
   triggers: [
     { id: 'start', when: (_s, c) => c.seconds >= 1, then: (_s, c) => c.say('Hades', 'Meus filhos famintos vêm buscar o que é meu. A primeira onda chega em 100 segundos.', '💀') },
@@ -108,11 +111,12 @@ export const SCENARIOS: ScenarioDef[] = [
       const et = townCenter(state, 1);
       if (et) { placeNear(state, 1, 'barracks', et.x + 6, et.y, true); placeNear(state, 1, 'stable', et.x - 6, et.y, true); placeNear(state, 1, 'temple', et.x, et.y + 6, true); spawnGroup(state, 1, ['hoplite', 'hoplite', 'hoplite', 'hoplite', 'toxotes', 'toxotes', 'hippeus', 'hippeus', 'cyclops'], et.x, et.y - 5); }
       const p = state.players[ME]; p.minorGods.push('athena'); p.powers.push({ id: 'restoration', used: false });
+      if (et) state.scenario!.vars.targetTc = et.id;   // o objetivo é o Centro Cívico original, não os que a Legião fundar depois
     },
     objectives: [
       { id: 'survive', text: 'Resista por 12 minutos (o Centro Cívico não pode cair)', check: (s) => (s.tick >= 12 * 60 * TICK_RATE ? 'done' : 'pending') },
       { id: 'fortress', text: 'Construa uma Fortaleza', optional: true, check: (s) => (countBuildings(s, ME, 'fortress') >= 1 ? 'done' : 'pending') },
-      { id: 'counter', text: 'Destrua o Centro Cívico da Legião de Hades', hidden: true, check: (s) => (countBuildings(s, 1, 'town_center') === 0 ? 'done' : 'pending') },
+      { id: 'counter', text: 'Destrua o Centro Cívico original da Legião de Hades', hidden: true, check: (s) => { const id = s.scenario!.vars.targetTc; const b = id !== undefined ? s.buildings.get(id) : undefined; return (id !== undefined ? !b || b.dead : countBuildings(s, 1, 'town_center') === 0) ? 'done' : 'pending'; } },
     ],
     triggers: [
       { id: 'start', when: (_s, c) => c.seconds >= 1, then: (_s, c) => c.say('Jasão', 'Eles virão em ondas, arconte. Torres nas entradas, hoplitas na frente, arqueiros atrás. Atena nos concedeu a Restauração: use-a quando a linha estiver por cair.', '🦁') },
@@ -142,7 +146,7 @@ export const SCENARIOS: ScenarioDef[] = [
       const et = townCenter(state, 1);
       if (et) { placeNear(state, 1, 'fortress', et.x + 8, et.y, true); placeNear(state, 1, 'temple', et.x - 6, et.y, true); placeNear(state, 1, 'barracks', et.x, et.y + 6, true); placeNear(state, 1, 'tower', et.x + 4, et.y - 6, true); placeNear(state, 1, 'tower', et.x - 4, et.y - 6, true); placeNear(state, 1, 'titan_gate', et.x, et.y - 10, false); spawnGroup(state, 1, ['hoplite', 'hoplite', 'hoplite', 'hoplite', 'toxotes', 'toxotes', 'hetairoi', 'hetairoi', 'medusa', 'cerberus', 'villager', 'villager', 'villager'], et.x, et.y - 6); }
       const gate = [...state.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate');
-      if (gate) { gate.progress = 0; for (const u of spawnGroup(state, 1, ['villager', 'villager', 'villager'], gate.x, gate.y + 4)) { u.state = 'pray'; u.nodeId = -gate.id; } }
+      if (gate) { gate.progress = 0; for (const u of spawnGroup(state, 1, ['villager', 'villager', 'villager'], gate.x, gate.y + gate.h / 2 + 1)) { u.state = 'pray'; u.nodeId = -gate.id; } }
       const a = state.players[2]; a.age = 2;
     },
     objectives: [
@@ -155,7 +159,7 @@ export const SCENARIOS: ScenarioDef[] = [
       { id: 'gate_progress', repeat: false, when: (s) => { const g = [...s.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate'); return !!g && g.progress > 90; }, then: (_s, c) => c.say('Oráculo de Delfos', 'O Portal está pela metade! Os sacerdotes cantam sem parar. Apresse-se!', '🔮') },
       // O ritual avança 0,3 s de obra por segundo enquanto houver sacerdotes (cidadãos) a até 6 tiles do Portal: ~10 minutos.
       { id: 'ritual', repeat: true, when: (_s, c) => c.seconds > 0, then: (s) => { const g = [...s.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate'); if (!g || g.complete) return; const priests = count(s, 1, (u) => u.type === 'villager' && (u.x - g.x) ** 2 + (u.y - g.y) ** 2 < 36); if (priests > 0) g.progress += 0.3; if (g.progress >= 180) { g.hp = g.maxHp; onBuildingComplete(s, g); } } },
-      { id: 'priests', repeat: true, when: (_s, c) => c.seconds % 40 === 0 && c.seconds > 0, then: (s) => { const g = [...s.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate'); if (!g || g.complete) return; const priests = count(s, 1, (u) => u.type === 'villager' && (u.x - g.x) ** 2 + (u.y - g.y) ** 2 < 36); if (priests < 3) { const v = spawnGroup(s, 1, ['villager', 'villager'], g.x, g.y + 4); for (const u of v) { u.state = 'pray'; u.nodeId = -g.id; } } } },
+      { id: 'priests', repeat: true, when: (_s, c) => c.seconds % 40 === 0 && c.seconds > 0, then: (s) => { const g = [...s.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate'); if (!g || g.complete) return; const priests = count(s, 1, (u) => u.type === 'villager' && (u.x - g.x) ** 2 + (u.y - g.y) ** 2 < 36); if (priests < 3) { const v = spawnGroup(s, 1, ['villager', 'villager'], g.x, g.y + g.h / 2 + 1); for (const u of v) { u.state = 'pray'; u.nodeId = -g.id; } } } },
       { id: 'cronus_rises', when: (s) => count(s, 1, (u) => u.type === 'cronus') >= 1, then: (_s, c) => { c.objective('gate', 'failed'); c.reveal('cronus'); c.say('Zeus', 'Cronos caminha novamente sobre a terra! Só um Titã ou uma nação inteira poderá detê-lo. Perseu tem dano extra contra Titãs.', '⚡'); } },
       { id: 'harass', repeat: true, when: (_s, c) => c.seconds >= 180 && c.seconds % 200 === 0, then: (s) => { const tc = townCenter(s, ME); if (tc) raid(s, 1, ['hetairoi', 'hetairoi', 'medusa', 'hypaspist', 'hypaspist'], tc.x, tc.y, 5, 26); } },
     ],

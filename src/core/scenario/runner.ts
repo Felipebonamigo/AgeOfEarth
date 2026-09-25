@@ -10,7 +10,7 @@ export function getScenario(id: string): ScenarioDef | undefined { return id ===
 export function initScenarioState(def: ScenarioDef): ScenarioState {
   const objectives: Record<string, 'pending'> = {}; const hidden: Record<string, boolean> = {};
   for (const o of def.objectives) { objectives[o.id] = 'pending'; hidden[o.id] = !!o.hidden; }
-  return { id: def.id, objectives, hidden, fired: [], outcome: 'playing' };
+  return { id: def.id, objectives, hidden, fired: [], outcome: 'playing', vars: {} };
 }
 
 export function runScenario(state: GameState): void {
@@ -20,7 +20,7 @@ export function runScenario(state: GameState): void {
     say: (speaker, text, icon) => state.events.push({ tick: state.tick, type: 'dialogue', player: -1, text, data: `${icon ?? '🗣️'}|${speaker}` }),
     objective: (id, status) => { if (sc.objectives[id] !== status) { sc.objectives[id] = status; sc.hidden[id] = false; state.events.push({ tick: state.tick, type: 'objective', player: -1, text: `${status === 'done' ? '✅' : status === 'failed' ? '❌' : '📌'} ${def.objectives.find((o) => o.id === id)?.text ?? id}`, data: status }); } },
     reveal: (id) => { if (sc.hidden[id]) { sc.hidden[id] = false; state.events.push({ tick: state.tick, type: 'objective', player: -1, text: `📌 ${t('mission.newObjective')}: ${def.objectives.find((o) => o.id === id)?.text ?? id}`, data: 'pending' }); } },
-    seconds: state.tick / TICK_RATE,
+    seconds: Math.floor((state.tick + 1) / TICK_RATE),   // inteiro: o runner roda no último tick de cada segundo
     fired: (id) => sc.fired.includes(id),
   };
   for (const o of def.objectives) {

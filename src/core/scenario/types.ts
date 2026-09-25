@@ -43,4 +43,5 @@ export interface ScenarioState {
   hidden: Record<string, boolean>;
   fired: string[];
   outcome: 'playing' | 'victory' | 'defeat';
+  vars: Record<string, number>;          // valores guardados pelo cenário (ex.: id do Centro Cívico alvo)
 }

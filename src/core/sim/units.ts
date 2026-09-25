@@ -82,7 +82,7 @@ export function startOrder(state: GameState, u: Unit, order: Order): void {
     case 'pray': {
       if (!def.canGather) { finishOrder(state, u); return; }
       const b = state.buildings.get(order.targetId!);
-      if (!b || b.dead || b.owner !== u.owner || !BUILDINGS[b.type].worship || !b.complete) { finishOrder(state, u); return; }
+      if (!b || b.dead || b.owner !== u.owner || !(BUILDINGS[b.type].worship || BUILDINGS[b.type].titanGate) || (!b.complete && !BUILDINGS[b.type].titanGate)) { finishOrder(state, u); return; }   // Portal em obra: ritual dos cenários
       u.state = 'move'; u.targetId = b.id; u.nodeId = 0; u.tx = b.x; u.ty = b.y; break;   // ao chegar adjacente vira 'pray'
     }
     case 'garrison': {
