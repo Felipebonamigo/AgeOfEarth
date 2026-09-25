@@ -13,9 +13,10 @@ import type { ObjectiveStatus, ScenarioDef } from './types';
 import { validateScenario, type CampaignDifficulty, type Condition, type ScenarioFile } from './schema';
 import { compileCondition, gameConfigFor } from './compile';
 import { campaignMission, isCampaignMission, missionConfig, withCampaignDifficulty, type CampaignEntry } from './campaign';
-import { canTrain } from '../sim/commands';
+import { canResearch, canTrain } from '../sim/commands';
 import { getUnitStats } from '../sim/modifiers';
-import { isEnemy } from '../sim/queries';
+import { isEnemy, nearestNode } from '../sim/queries';
+import { canPlaceBuilding } from '../sim/entities';
 import { setRaidObserver, type RaidRecord } from './helpers';
 
 /** Missão a rodar: id do registro, ScenarioDef registrado ou arquivo JSON (roda como scenarioData). */
@@ -35,6 +36,8 @@ export interface MissionRunOpts {
   deterministic?: boolean;
   /** Dificuldade da IA que joga pelo jogador 0 em runScripted (padrão: 'hard'). */
   playerAi?: Difficulty;
+  /** Objetivos que, por desenho, podem se cumprir antes de 60 s (fora da checagem d); ver MissionScript.earlyOk. */
+  earlyOk?: string[];
 }
 export interface ScriptedRunOpts extends MissionRunOpts {
   steps: ScriptStep[];
@@ -118,7 +121,7 @@ function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition }
       if (steps && me.alive && !state.gameOver) aiThink(state, me);
       if (state.tick % TICK_RATE === 0) {
         const s = state.scenario;
-        if (s && state.tick < 60 * TICK_RATE && Object.values(s.objectives).some((o) => o === 'done')) checks.noEarlyObjective = false;
+        if (s && state.tick < 60 * TICK_RATE && Object.entries(s.objectives).some(([k, o]) => o === 'done' && !opts.earlyOk?.includes(k))) checks.noEarlyObjective = false;
         if (TITANS.length) {
           const n = new Map<string, number>();
           for (const u of state.units.values()) if (!u.dead && TITANS.includes(u.type)) n.set(u.type, (n.get(u.type) ?? 0) + 1);
@@ -324,6 +327,8 @@ export interface MissionScript {
   hold?: Condition;
   /** Dificuldades em que a vitória dentro da janela não é exigida, com o motivo (listadas na saída; use só depois de esforço honesto). */
   exceptions?: ScriptExceptions;
+  /** Objetivos que um jogador cumpre legitimamente antes de 60 s (ex.: a colônia da m4 com 5 construtores); a checagem (d) os ignora. */
+  earlyOk?: string[];
 }
 
 /** Veredito de um roteiro: ok (vitória dentro da janela), exceção declarada ou falha com o motivo. */
@@ -343,7 +348,7 @@ export function scriptVerdict(r: MissionRunResult, script: MissionScript | undef
 /** Roda o roteiro de uma missão (MISSION_SCRIPTS) numa dificuldade, com as opções do roteiro. */
 export function runMissionScript(id: string, difficulty: CampaignDifficulty, deterministic = false): MissionRunResult {
   const sc = MISSION_SCRIPTS[id];
-  return runScripted(id, { minutes: sc?.minutes ?? 30, difficulty, steps: sc?.steps ?? [], deterministic, playerAi: sc?.playerAi, hold: sc?.hold });
+  return runScripted(id, { minutes: sc?.minutes ?? 30, difficulty, steps: sc?.steps ?? [], deterministic, playerAi: sc?.playerAi, hold: sc?.hold, earlyOk: sc?.earlyOk });
 }
 
 /**
@@ -397,6 +402,160 @@ function m2Counter(state: GameState): Command | null {
   return ids.length ? { type: 'attackMove', player: 0, ids, x: b.x, y: b.y } : null;
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// m4 "O Fogo do Cáucaso": expedição sem cidade (colônia no Vale da Cólquida) e as três correntes em sequência
+// ---------------------------------------------------------------------------------------------------------------
+
+/** m4: composição do exército (pesos): infantaria pesada na frente, arqueiros atrás, Minotauros de Atena e petróbolos contra as torres. */
+const M4_MIX: Record<string, number> = { hypaspist: 4, hoplite: 2, cretan_archer: 3, toxotes: 2, minotaur: 2, manticore: 1, petrobolos: 1, hetairoi: 1 };
+/** m4: o CC da colônia (canto do 3×3 centrado em [48,84], como pede a ficha) e o da 2ª cidade no vale lateral ([20,96]). */
+const M4_COLONY = { tx: 47, ty: 83 }, M4_SECOND = { tx: 19, ty: 95 };
+/**
+ * m4: militares para começar o assalto a uma corrente — o mesmo em todas as dificuldades (estado do jogo, não relógio: o tempo
+ * medido é o ritmo real da economia e das lutas). Com 26–28 o Normal perdia a colônia; com 45 e 50 o Fácil vencia aos 16m13s
+ * e 16m51s (abaixo da janela); 55 é quase 5× o exército do desembarque.
+ */
+const M4_ASSAULT_ARMY = 55;
+/** m4: as correntes na ordem do desfiladeiro. */
+const M4_CHAINS = ['corrente1', 'corrente2', 'corrente3'] as const;
+
+/** Pesquisa possível agora (roteiros): mesma regra do comando 'research'. */
+function canResearchNow(state: GameState, buildingId: number, tech: string): boolean {
+  const b = state.buildings.get(buildingId); return !!b && !b.dead && canResearch(state, state.players[0], b, tech).ok;
+}
+
+/** Héracles (tag 'heracles'): se cair, a missão está perdida. */
+function m4Heracles(state: GameState): Unit | null { const id = state.scenario?.vars['#heracles']; const u = id !== undefined ? state.units.get(id) : undefined; return u && !u.dead ? u : null; }
+
+/** Exército de assalto da m4: todos os militares menos Héracles (se ele cair, a missão está perdida; fica na colônia). */
+function m4Army(state: GameState): number[] {
+  const h = m4Heracles(state);
+  return armyOf(state).filter((id) => !h || id !== h.id);
+}
+
+/** Ataque-movimento do exército da m4 (e de Prometeu, quando livre) até a entidade da tag; perto dela, todos a atacam. */
+function m4Assault(state: GameState, tag: string, focusRadius = 10): Command[] {
+  const p = entityPos(state, '#' + tag); if (!p) return [];
+  const ids = m4Army(state); if (!ids.length) return [];
+  const out: Command[] = [{ type: 'attackMove', player: 0, ids, x: p.x, y: p.y }];
+  const f = focusTarget(state, state.scenario?.vars['#' + tag], focusRadius); if (f) out.push(f);
+  return out;
+}
+
+/** m4: torres na saída do desfiladeiro (a única entrada do vale por terra), onde chegam as ondas do Culto e as vinganças. */
+const M4_CHOKE_TOWERS: [number, number][] = [[43, 73], [40, 75], [46, 72]];
+
+/** Uma torre por vez na saída do desfiladeiro (até 3), com o cidadão mais perto, quando há madeira e ouro. */
+function m4ChokeTower(state: GameState): Command | null {
+  const p = state.players[0]; if (p.resources.wood < 130 || p.resources.gold < 70) return null;
+  const busy = [...state.buildings.values()].some((b) => b.owner === 0 && !b.dead && b.type === 'tower' && !b.complete);
+  if (busy) return null;
+  const spot = M4_CHOKE_TOWERS.find(([x, y]) => canPlaceBuilding(state, p, 'tower', x, y).ok);
+  if (!spot) return null;
+  let best: Unit | null = null, bd = Infinity;
+  for (const u of state.units.values()) {
+    if (u.owner !== 0 || u.dead || u.type !== 'villager' || u.inside !== -1 || u.state === 'build') continue;
+    const d = (u.x - spot[0]) * (u.x - spot[0]) + (u.y - spot[1]) * (u.y - spot[1]); if (d < bd) { bd = d; best = u; }
+  }
+  return best ? { type: 'build', player: 0, ids: [best.id], building: 'tower', tx: spot[0], ty: spot[1] } : null;
+}
+
+/** Madeira em falta com ouro sobrando (a IA poupa para a Idade e trava as construções): 3 mineiros vão cortar lenha. */
+function m4Wood(state: GameState): Command[] {
+  const p = state.players[0]; if (p.resources.wood >= 150 || p.resources.gold < 600) return [];
+  const tc = buildingPos(state, 0, 'town_center'); if (!tc) return [];
+  const tree = nearestNode(state, tc.x, tc.y, 'wood', 30); if (!tree) return [];
+  const miners = [...state.units.values()].filter((u) => u.owner === 0 && !u.dead && u.type === 'villager' && (u.state === 'gather' || u.state === 'return') && u.nodeId > 0 && state.map.nodes.get(u.nodeId)?.type === 'gold').slice(0, 3);
+  return miners.length ? [{ type: 'gather', player: 0, ids: miners.map((u) => u.id), targetId: tree.id }] : [];
+}
+
+/** Militares do exército de assalto a até `r` tiles de (x, y). */
+function m4ArmyNear(state: GameState, x: number, y: number, r: number): number {
+  return m4Army(state).filter((id) => { const u = state.units.get(id)!; return (u.x - x) * (u.x - x) + (u.y - y) * (u.y - y) <= r * r; }).length;
+}
+
+/**
+ * Corrente sob assalto agora (a próxima de pé, na ordem): começa com ≥ M4_ASSAULT_ARMY militares e continua enquanto ≥ 10
+ * deles estiverem nela (histerese: as baixas do assalto não fazem o exército recuar no meio); null fora de assalto.
+ */
+function m4AssaultTarget(state: GameState): string | null {
+  const next = M4_CHAINS.find((t) => entityPos(state, '#' + t)); if (!next) return null;
+  if (militaryCount(state, 0) >= M4_ASSAULT_ARMY) return next;
+  const p = entityPos(state, '#' + next)!;
+  return m4ArmyNear(state, p.x, p.y, 16) >= 10 ? next : null;
+}
+
+/** m4: onde o exército espera no platô 3 enquanto Héracles sobe para a Águia (a 15 tiles dela, fora da visão das duas partes). */
+const M4_STAGE = { x: 40, y: 31 };
+/** m4: retaguarda do assalto à corrente3 (na trilha do platô 2, a 13 tiles da torre e a 18 do Templo): onde Héracles espera. */
+const M4_REAR = { x: 50, y: 36 };
+
+/** Distância² entre uma unidade e um ponto. */
+const m4D2 = (u: { x: number; y: number }, p: { x: number; y: number }) => (u.x - p.x) * (u.x - p.x) + (u.y - p.y) * (u.y - p.y);
+
+/**
+ * m4: caça à Águia no Fácil — herói contra mítica, a mecânica cobrada pela ficha. Lá o platô 3 não tem guardas nem vingança:
+ * na corrente3 Héracles sai do CC quando o exército já está nela e espera na retaguarda (M4_REAR); livre Prometeu, com ≥ 45 %
+ * de vida, sobe ao Rochedo e ataca a Águia, com o exército de escolta. No Normal/Difícil ele fica guarnecido o tempo todo: com
+ * ele no front (350 de vida), o Difícil o deixava com 18 %, e a vingança da corrente3, que nasce perto dele, o pegava sozinho
+ * a caminho (derrota) — por isso lá as vinganças chegam pelo vale (§7.2). true = Héracles está (ou deve ir) lá fora.
+ */
+function m4HeroOut(state: GameState): boolean {
+  const h = m4Heracles(state); if (!h || state.config.campaignDifficulty !== 'easy') return false;
+  if (!state.scenario?.fired.includes('libertado')) {
+    const c3 = entityPos(state, '#corrente3');
+    return !!c3 && m4AssaultTarget(state) === 'corrente3' && h.hp >= h.maxHp * 0.6 && m4ArmyNear(state, c3.x, c3.y, 16) >= 10;
+  }
+  return m4Hunting(state);
+}
+
+/** Fácil, livre Prometeu e viva a Águia: Héracles, fora do vale (subiu para a corrente3) e com ≥ 45 % de vida, a caça. */
+function m4Hunting(state: GameState): boolean {
+  const h = m4Heracles(state);
+  return !!h && state.config.campaignDifficulty === 'easy' && !!state.scenario?.fired.includes('libertado') && !!entityPos(state, '#aguia') && h.inside === -1 && h.y < 66 && h.hp >= h.maxHp * 0.45;
+}
+
+/** Héracles na corrente3 (sai do CC e vai à retaguarda) e, livre Prometeu, contra a Águia. */
+function m4HeroMove(state: GameState): Command | null {
+  const h = m4Heracles(state); if (!h || !m4HeroOut(state)) return null;
+  if (h.inside !== -1) return { type: 'ungarrison', player: 0, buildingId: h.inside };
+  const eagleId = state.scenario?.vars['#aguia'];
+  if (m4Hunting(state) && eagleId !== undefined) return h.targetId === eagleId ? null : { type: 'attack', player: 0, ids: [h.id], targetId: eagleId };
+  return m4D2(h, M4_REAR) > 3 * 3 ? { type: 'move', player: 0, ids: [h.id], x: M4_REAR.x, y: M4_REAR.y } : null;
+}
+
+/**
+ * Livre Prometeu: durante a caça, o exército (sem Prometeu, que espera onde nasceu) derruba o Templo do platô 3 (fim do
+ * atrito) e espera Héracles; com ele a até 16 tiles da Águia, sobe junto. Depois, todos (e Prometeu) contra a Fortaleza.
+ */
+function m4Fortress(state: GameState): Command[] {
+  if (m4Hunting(state)) {
+    const h = m4Heracles(state)!, eagle = entityPos(state, '#aguia')!;
+    const prom = state.scenario?.vars['#prometeu'];
+    const ids = m4Army(state).filter((id) => id !== prom); if (!ids.length) return [];
+    if (m4D2(h, eagle) <= 16 * 16) return [{ type: 'attackMove', player: 0, ids, x: eagle.x, y: eagle.y }];
+    const temple = [...state.buildings.values()].find((b) => b.owner === 2 && !b.dead && b.type === 'temple' && m4D2(b, M4_STAGE) <= 10 * 10);
+    return [temple ? { type: 'attack', player: 0, ids, targetId: temple.id } : { type: 'move', player: 0, ids, x: M4_STAGE.x, y: M4_STAGE.y }];
+  }
+  return m4Assault(state, 'fortaleza_culto', 12);
+}
+
+/** Militares no desfiladeiro (acima do vale, y < 66) fora de um assalto voltam ao norte do vale. */
+function m4Regroup(state: GameState): Command | null {
+  const ids = m4Army(state).filter((id) => state.units.get(id)!.y < 66);
+  return ids.length ? { type: 'move', player: 0, ids, x: 46, y: 78 } : null;
+}
+
+/**
+ * Héracles fica guarnecido no Centro Cívico da colônia (a IA do jogador libera as guarnições 20 s depois de cada ameaça; o
+ * roteiro o põe de volta): se ele cair, a missão está perdida, e as invasões de vingança das correntes vêm atrás dele.
+ */
+function m4HeroCare(state: GameState): Command | null {
+  const h = m4Heracles(state); if (!h || h.inside !== -1 || m4HeroOut(state)) return null;
+  const tc = [...state.buildings.values()].filter((b) => b.owner === 0 && !b.dead && b.complete && b.type === 'town_center' && b.garrison.length < (BUILDINGS[b.type].garrison ?? 0)).sort((a, b) => a.id - b.id)[0];
+  return tc ? { type: 'garrison', player: 0, ids: [h.id], targetId: tc.id } : null;
+}
+
 /**
  * Roteiros das missões registradas (o jogador 0 é uma IA "difícil"; os passos cobram o objetivo que a IA não faz sozinha).
  * Missão nova: acrescente uma entrada com o id; sem entrada, scripts/missions.ts roda só a IA do jogador.
@@ -447,4 +606,48 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
       { label: 'cronos', when: { fired: 'cronus_rises' }, every: 10, command: (s) => { const c = [...s.units.values()].find((u) => u.owner === 1 && u.type === 'cronus' && !u.dead); const tc = buildingPos(s, 0, 'town_center'); if (!c || !tc) return null; const dx = c.x - tc.x, dy = c.y - tc.y; return dx * dx + dy * dy < 30 * 30 ? { type: 'attack', player: 0, ids: armyOf(s), targetId: c.id } : null; } },
     ],
   },
+  m4_caucaso: {
+    minutes: 40, expect: [17.5, 39], earlyOk: ['colonia'],
+    // a IA do jogador nunca sai em ondas (o alvo "mais fraco" dela seria qualquer torre do mapa); quem ataca é o roteiro
+    hold: { time: { gte: 0 } },
+    steps: [
+      // desembarque: os 5 cidadãos erguem o CC no centro do Vale da Cólquida já no 1º segundo (antes que a IA do jogador funde a
+      // cidade na praia) e o resto sobe junto; a colônia fica pronta aos ~40 s (por isso earlyOk: a checagem d não vale para ela)
+      { label: 'colônia', when: { time: { gte: 0 } }, command: (s) => {
+        const vills = [...s.units.values()].filter((u) => u.owner === 0 && !u.dead && u.type === 'villager').map((u) => u.id);
+        const rest = [...s.units.values()].filter((u) => u.owner === 0 && !u.dead && u.type !== 'villager').map((u) => u.id);
+        const cmds: Command[] = [];
+        if (vills.length) cmds.push({ type: 'build', player: 0, ids: vills, building: 'town_center', tx: M4_COLONY.tx, ty: M4_COLONY.ty });
+        if (rest.length) cmds.push({ type: 'move', player: 0, ids: rest, x: 48, y: 90 });
+        return cmds;
+      } },
+      // economia de quem começa sem nada: cidadãos além da meta da IA e filas militares cheias
+      { label: 'cidadãos', when: { objective: 'colonia', is: 'done' }, every: 4, command: (s) => trainVillagers(s, 42) },
+      { label: 'treino', when: { objective: 'colonia', is: 'done' }, every: 5, command: (s) => trainArmy(s, 0, { mix: M4_MIX, reserve: { food: 150, wood: 150, gold: 80 } }) },
+      { label: 'héracles', when: { time: { gte: 2 } }, every: 2, command: (s) => m4HeroCare(s) },
+      { label: 'torres', when: { objective: 'colonia', is: 'done' }, every: 20, command: (s) => m4ChokeTower(s) },
+      { label: 'madeira', when: { objective: 'colonia', is: 'done' }, every: 15, command: (s) => m4Wood(s) },
+      { label: 'poderes', when: { time: { gte: 2 } }, every: 3, command: (s) => battlePowers(s) },
+      // Difícil: a 2ª cidade é obrigatória — Civismo I na Academia e o CC no vale lateral
+      { label: 'civismo', when: { all: [{ difficulty: 'hard' }, { buildings: { player: 0, type: 'academy', complete: true }, gte: 1 }, { objective: 'cidades_dificil', is: 'pending' }] }, every: 10, command: (s) => {
+        const p = s.players[0]; if (p.techs.includes('civic1')) return null;
+        const ac = [...s.buildings.values()].find((b) => b.owner === 0 && !b.dead && b.complete && b.type === 'academy');
+        return ac && canResearchNow(s, ac.id, 'civic1') ? { type: 'research', player: 0, buildingId: ac.id, tech: 'civic1' } : null;
+      } },
+      { label: '2ª cidade', when: { all: [{ difficulty: 'hard' }, { buildings: { player: 0, type: 'town_center' }, lt: 2 }, { objective: 'cidades_dificil', is: 'pending' }] }, every: 15, command: (s) => {
+        const p = s.players[0]; if (!p.techs.includes('civic1') || p.resources.wood < 320 || p.resources.gold < 170) return null;
+        const vills = [...s.units.values()].filter((u) => u.owner === 0 && !u.dead && u.type === 'villager' && u.state !== 'build').slice(0, 4).map((u) => u.id);
+        return vills.length ? { type: 'build', player: 0, ids: vills, building: 'town_center', tx: M4_SECOND.tx, ty: M4_SECOND.ty } : null;
+      } },
+      // as três correntes em sequência (corrente1 → corrente2 → corrente3), cada uma quando o exército tem ≥ M4_ASSAULT_ARMY
+      // militares (estado, não relógio); fora dos assaltos, quem persegue inimigos desfiladeiro acima volta ao vale (não se toma
+      // um platô por acaso). No Fácil, Héracles vai à retaguarda do assalto à corrente3 e caça a Águia (m4HeroMove)
+      { label: 'disciplina', when: { not: { fired: 'libertado' } }, every: 5, command: (s) => (m4AssaultTarget(s) ? null : m4Regroup(s)) },
+      { label: 'assalto', when: { not: { fired: 'libertado' } }, every: 15, command: (s) => { const t = m4AssaultTarget(s); return t ? m4Assault(s, t) : null; } },
+      { label: 'héracles no front', when: { entity: { tag: 'corrente2' }, exists: false }, every: 3, command: (s) => m4HeroMove(s) },
+      // libertado: (Fácil) Héracles caça a Águia com o exército de escolta; depois, com Prometeu, a Fortaleza
+      { label: 'fortaleza', when: { fired: 'libertado' }, every: 10, command: (s) => m4Fortress(s) },
+    ],
+  },
 };
+

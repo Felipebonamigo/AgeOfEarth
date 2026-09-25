@@ -28,6 +28,7 @@ const scenarioOf = (state: GameState): ScenarioDef | undefined => { try { return
 import { t } from '../i18n';
 import { optionsHTML, bindOptions, type OptionsContext } from './options';
 import { padHelpRows } from './gamepad';
+import { DialogueQueue } from './dialogue';
 
 export interface HUDCallbacks { onSave: () => void; onLoad: () => void; onQuit: () => void; hasSave: () => boolean; onNextMission?: (currentId: string) => void; onExport?: () => void; onImport?: () => void; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onDiagnostic?: () => void; onExportMap?: () => void; onSaveMapLocal?: () => void }
 
@@ -82,6 +83,7 @@ export class HUD {
 
   setSession(s: Session | null) {
     this.session = s; this.lastEv = null; this.lastSelKey = ''; this.lastCmdKey = ''; this.lastObjKey = ''; this.gameOverShown = false;   // lastObjKey: outra partida do mesmo cenário precisa redesenhar (e reexibir) o painel de objetivos
+    this.dlg.clear(); this.renderDialogue();   // falas da partida anterior não passam para a próxima
     this.msgPanel.innerHTML = '';
     if (s) { s.onSelectionChanged = () => { this.refreshSelection(true); }; this.refreshGods(); this.refreshTop(); }
   }
@@ -121,7 +123,7 @@ export class HUD {
     this.padHintsEl = el('div', 'pad-hints hidden'); this.padHintsEl.id = 'pad-hints'; hud.appendChild(this.padHintsEl);
     this.msgPanel = el('div'); this.msgPanel.id = 'messages'; hud.appendChild(this.msgPanel);
     this.objPanel = el('div'); this.objPanel.id = 'objectives'; this.objPanel.classList.add('hidden'); hud.appendChild(this.objPanel);
-    this.dlgPanel = el('div'); this.dlgPanel.id = 'dialogue'; this.dlgPanel.classList.add('hidden'); this.dlgPanel.addEventListener('click', () => this.dlgPanel.classList.add('hidden')); hud.appendChild(this.dlgPanel);
+    this.dlgPanel = el('div'); this.dlgPanel.id = 'dialogue'; this.dlgPanel.classList.add('hidden'); this.dlgPanel.addEventListener('click', () => { this.dlg.next(performance.now()); this.renderDialogue(); }); hud.appendChild(this.dlgPanel);
     this.tooltip = el('div'); this.tooltip.id = 'tooltip'; this.tooltip.classList.add('hidden'); hud.appendChild(this.tooltip);
     this.modalBack = el('div'); this.modalBack.id = 'modal-back'; this.modalBack.classList.add('hidden');
     this.modal = el('div'); this.modal.id = 'modal'; this.modalBack.appendChild(this.modal);
@@ -162,7 +164,7 @@ export class HUD {
   setEditorMode(on: boolean) {
     this.editorMode = on;
     (this.root.querySelector('#hud') as HTMLElement).classList.toggle('editor', on);
-    if (on) { this.objPanel.classList.add('hidden'); this.dlgPanel.classList.add('hidden'); this.hideTooltip(); }
+    if (on) { this.objPanel.classList.add('hidden'); this.dlg.clear(); this.renderDialogue(); this.hideTooltip(); }
   }
   get editorModeOn() { return this.editorMode; }
   /** Painel do editor no lugar de #selection/#commands (escondidos por CSS). */
@@ -187,6 +189,7 @@ export class HUD {
     this.acc += dtReal; this.mmAcc += dtReal;
     this.fitLayout();
     this.drainEvents();
+    if (this.dlg.update(performance.now())) this.renderDialogue();   // fila de falas: a próxima entra quando a atual vence
     if (this.mmAcc > 0.15) { this.mmAcc = 0; this.minimap.draw(s.state, this.renderer.cam, s.local, { editor: this.editorMode }); }
     if (this.editorMode) return;   // editor: nada de recursos, seleção, poderes, objetivos ou fim de jogo
     if (this.acc > 0.12) { this.acc = 0; this.refreshTop(); this.refreshSelection(false); this.refreshGods(); this.refreshObjectives(false); }
@@ -262,13 +265,21 @@ export class HUD {
     s.select([next.id]); this.renderer.cam.centerOn(next.x, next.y);
   }
 
-  private dlgTimer = 0;
+  /** Falas do cenário em fila (src/ui/dialogue.ts): as do mesmo segundo aparecem uma depois da outra, sem se sobrescrever. */
+  private dlg = new DialogueQueue();
   showDialogue(meta: string, text: string) {
-    const [icon, speaker] = meta.split('|');
-    this.dlgPanel.innerHTML = `<span class="ic">${icon}</span><div><b>${speaker}</b><div>${text}</div></div><small>${t('modal.close').toLowerCase()}</small>`;
+    this.dlg.push({ meta, text }, performance.now());
+    this.renderDialogue();
+  }
+
+  /** Desenha a fala atual da fila (com quantas esperam) ou esconde o painel; clicar passa à próxima. */
+  private renderDialogue() {
+    const d = this.dlg.current;
+    if (!d) { this.dlgPanel.classList.add('hidden'); return; }
+    const [icon, speaker] = d.meta.split('|');
+    const more = this.dlg.waiting > 0 ? ` · +${this.dlg.waiting}` : '';
+    this.dlgPanel.innerHTML = `<span class="ic">${icon}</span><div><b>${speaker}</b><div>${d.text}</div></div><small>${t('modal.close').toLowerCase()}${more}</small>`;
     this.dlgPanel.classList.remove('hidden');
-    clearTimeout(this.dlgTimer);
-    this.dlgTimer = window.setTimeout(() => this.dlgPanel.classList.add('hidden'), 14000);
   }
 
   private lastObjKey = '';

@@ -7,6 +7,7 @@ import type { ScenarioFile } from './schema';
 import { compileScenarioCached } from './compile';
 import { CAMPAIGN_PLAN, PROLOGUE_IDS, type CampaignAct } from './official';
 import { getLocale } from '../../i18n';
+import m4 from './missions/m4_caucaso.scenario.json';
 import { count, countBuildings, military, townCenter, raid, give, grantTech, placeNear, spawnGroup, localHumanIndex } from './helpers';
 import { onBuildingComplete } from '../sim/entities';
 import { rectReachable } from '../map/components';
@@ -213,6 +214,7 @@ export const CAMPAIGN: readonly CampaignEntry[] = [
   { act: 1, id: 'm1_despertar', source: 'ts', prologue: true },
   { act: 1, id: 'm2_cerco', source: 'ts', prologue: true },
   { act: 1, id: 'm3_portal', source: 'ts', prologue: true },
+  { act: 1, id: 'm4_caucaso', source: 'json', file: m4 as unknown as ScenarioFile },   // fecha o Ato I (1º mapa fixo)
 ];
 
 /** Entrada do registro por id (undefined = não é missão oficial registrada). */
