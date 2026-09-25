@@ -11,6 +11,7 @@ Idioma da interface e dos comentários: português (Brasil). Código em inglês.
 - `npm run map:export saida.map.json --size small --seed 42` gera um mapa fixo; `npm run map:check arquivo.map.json` valida e roda 2 min de IA; `npm run smoke 5 42 -- --map arquivo.map.json` · `npx tsx scripts/horde.ts` — valida o Modo Horda
 - `npm run relay` — servidor de multiplayer (porta 8787)
 - `node scripts/playtest.mjs` / `playtest-campaign.mjs` / `playtest-mp.mjs` / `playtest-reconnect.mjs` / `playtest-options.mjs` / `playtest-i18n.mjs` / `playtest-modes.mjs` / `playtest-horde-replay.mjs` / `playtest-fixedmap.mjs` / `playtest-mp-fixedmap.mjs` / `playtest-rooms.mjs` / `playtest-spectate.mjs` / `actionshot.mjs` — Chromium headless (Playwright); exigem `npm run preview` e, para o multiplayer, `npm run relay`
+- `node scripts/renderperf.mjs http://localhost:4173/ 20` — custo do renderizador (ms/quadro em vários zooms) numa partida grande após 20 min simulados; rode antes/depois de mudanças visuais (números pessimistas: renderização por software)
 - Chromium do Playwright: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` neste ambiente; use `--use-gl=swiftshader --enable-unsafe-swiftshader`
 
 ## Regras do núcleo (`src/core`)

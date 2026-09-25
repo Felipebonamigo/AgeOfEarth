@@ -10,6 +10,7 @@
 | `npx tsx scripts/missions.ts` | As 3 missões carregam e os gatilhos disparam | ~10 s |
 | `npm run map:check src/core/data/maps/*.map.json` | Mapas embutidos válidos e 2 min de IA em cada | ~10 s |
 | `npx tsx scripts/perf.ts` | Mapa grande, 4 IAs Muito difícil: média < 3 ms/tick, pior tick < 50 ms | ~1 min |
+| `node scripts/renderperf.mjs` | Custo do renderizador com ~200 unidades e 150 edifícios: média < 1 ms/quadro, rolagem p95 < 10 ms (software) | ~1 min |
 | `npm run preview` + `node scripts/playtest.mjs` | Partida no navegador: construir, treinar, avançar, poderes, salvar/carregar | ~1 min |
 | `node scripts/playtest-campaign.mjs`, `playtest-horde-replay.mjs`, `playtest-garrison.mjs` | Campanha, Horda/replay, guarnição/portões | ~2 min |
 | `node scripts/playtest-options.mjs`, `playtest-i18n.mjs`, `playtest-modes.mjs`, `playtest-fixedmap.mjs` | Opções/atalhos/diagnóstico, inglês, modos de jogo, exportar/carregar mapa fixo | ~2 min |
