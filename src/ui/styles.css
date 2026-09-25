@@ -58,7 +58,9 @@ button { font-family: inherit; cursor: pointer; }
 .cmd.used { opacity: 0.35; }
 .cmd .lbl { max-width: 100%; text-align: center; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 9.5px; }
 
-#gods { position: absolute; right: 10px; top: 52px; display: flex; flex-direction: column; gap: 6px; }
+#hud > #rightcol { position: absolute; right: 10px; top: 52px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: none; }
+#rightcol > * { pointer-events: auto; }
+#gods { display: flex; flex-direction: column; gap: 6px; }
 #gods .pw { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; cursor: pointer; font-size: 12px; min-width: 190px; }
 #gods .pw .ic { font-size: 22px; }
 #gods .pw.used { opacity: 0.4; cursor: default; }
@@ -123,7 +125,7 @@ body.cur-attack #app canvas { cursor: crosshair; }
 body.cur-place #app canvas { cursor: cell; }
 body.cur-power #app canvas { cursor: crosshair; }
 
-#objectives { position: absolute; right: 10px; top: 150px; width: 300px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12px; }
+#objectives { width: 300px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12px; }
 #objectives h4 { margin: 0 0 6px; color: var(--gold); font-size: 13px; }
 #objectives ul { margin: 0; padding-left: 4px; list-style: none; }
 #objectives li { margin: 3px 0; line-height: 1.3; }

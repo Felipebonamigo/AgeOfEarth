@@ -31,14 +31,18 @@ export interface AchievementDef { id: string; name: string; desc: string; icon: 
 export interface AchievementCtx { godsPlayed: string[]; hordeWaves: number; missionsDone: string[]; missionsHard: string[] }
 
 const p = (s: GameState, l: number) => s.players[l];
+/** Idade com que a partida começa (startingAge do cenário/config; Deathmatch começa na Clássica). */
+const startAge = (s: GameState) => s.config.startingAge ?? (s.config.mode === 'deathmatch' ? 1 : 0);
+/** Conquista de Idade: só vale se o jogador AVANÇOU até ela (missões que já começam na Heroica não a concedem). */
+const advancedTo = (s: GameState, l: number, age: number) => p(s, l).age >= age && startAge(s) < age;
 const wonBy = (s: GameState, l: number) => s.gameOver && s.winner >= 0 && s.players[s.winner].team === p(s, l).team;
 
 export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'first_temple', name: 'Primeira Oferenda', desc: 'Conclua um Templo.', icon: '⚡', check: (s, l) => [...s.buildings.values()].some((b) => b.owner === l && b.complete && b.type === 'temple') },
-  { id: 'classical', name: 'Filósofo', desc: 'Alcance a Idade Clássica.', icon: '🏛️', check: (s, l) => p(s, l).age >= 1 },
-  { id: 'heroic', name: 'Canção dos Heróis', desc: 'Alcance a Idade Heroica.', icon: '⚔️', check: (s, l) => p(s, l).age >= 2 },
-  { id: 'mythic', name: 'Toque dos Deuses', desc: 'Alcance a Idade Mítica.', icon: '🔱', check: (s, l) => p(s, l).age >= 3 },
-  { id: 'titans', name: 'Titanomaquia', desc: 'Alcance a Idade dos Titãs.', icon: '🌋', check: (s, l) => p(s, l).age >= 4 },
+  { id: 'classical', name: 'Filósofo', desc: 'Alcance a Idade Clássica.', icon: '🏛️', check: (s, l) => advancedTo(s, l, 1) },
+  { id: 'heroic', name: 'Canção dos Heróis', desc: 'Alcance a Idade Heroica.', icon: '⚔️', check: (s, l) => advancedTo(s, l, 2) },
+  { id: 'mythic', name: 'Toque dos Deuses', desc: 'Alcance a Idade Mítica.', icon: '🔱', check: (s, l) => advancedTo(s, l, 3) },
+  { id: 'titans', name: 'Titanomaquia', desc: 'Alcance a Idade dos Titãs.', icon: '🌋', check: (s, l) => advancedTo(s, l, 4) },
   { id: 'titan_summoned', name: 'Correntes Rompidas', desc: 'Liberte um Titã.', icon: '⛓️', check: (s, l) => [...s.units.values()].some((u) => u.owner === l && UNITS[u.type].tags.includes('titan')) },
   { id: 'hero_trio', name: 'Argonautas', desc: 'Tenha três heróis vivos ao mesmo tempo.', icon: '🦁', check: (s, l) => [...s.units.values()].filter((u) => u.owner === l && UNITS[u.type].tags.includes('hero')).length >= 3 },
   { id: 'menagerie', name: 'Bestiário', desc: 'Tenha cinco criaturas míticas diferentes vivas ao mesmo tempo.', icon: '🐉', check: (s, l) => new Set([...s.units.values()].filter((u) => u.owner === l && UNITS[u.type].tags.includes('myth')).map((u) => u.type)).size >= 5 },

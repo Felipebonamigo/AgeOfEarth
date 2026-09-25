@@ -83,6 +83,16 @@ describe('G0: registro da campanha', () => {
     expect(ACHIEVEMENTS.find((a) => a.id === 'campaign_all_hard')!.check(s, 0, c(all, all.slice(0, 11)))).toBe(false);
     expect(ACHIEVEMENTS.find((a) => a.id === 'campaign_all_hard')!.check(s, 0, c(all, all))).toBe(true);
   });
+  it('conquistas de Idade exigem avançar: missão que já começa na Heroica não concede "Alcance a Idade Heroica"', () => {
+    const heroic = ACHIEVEMENTS.find((a) => a.id === 'heroic')!, classical = ACHIEVEMENTS.find((a) => a.id === 'classical')!;
+    const c = { godsPlayed: [], hordeWaves: 0, missionsDone: [], missionsHard: [] };
+    const s = createGame({ ...PROLOGUE[0].config, startingAge: 2 });
+    expect(s.players[0].age).toBe(2);
+    expect(heroic.check(s, 0, c)).toBe(false); expect(classical.check(s, 0, c)).toBe(false);
+    s.players[0].age = 3; expect(ACHIEVEMENTS.find((a) => a.id === 'mythic')!.check(s, 0, c)).toBe(true);   // avançou da Heroica à Mítica
+    const g = createGame({ ...PROLOGUE[0].config }); g.players[0].age = 2;
+    expect(heroic.check(g, 0, c)).toBe(true);
+  });
 });
 
 describe('G1: objetivos ocultos são avaliados', () => {

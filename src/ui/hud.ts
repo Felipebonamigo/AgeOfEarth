@@ -119,10 +119,12 @@ export class HUD {
     this.cmdPanel = el('div'); this.cmdPanel.id = 'commands'; this.bottom.appendChild(this.cmdPanel);
     hud.appendChild(this.bottom);
 
-    this.godsPanel = el('div'); this.godsPanel.id = 'gods'; hud.appendChild(this.godsPanel);
+    // coluna da direita: poderes e, abaixo deles, os objetivos da missão (empilhados: 3+ poderes não cobrem mais os objetivos)
+    const rightCol = el('div'); rightCol.id = 'rightcol'; hud.appendChild(rightCol);
+    this.godsPanel = el('div'); this.godsPanel.id = 'gods'; rightCol.appendChild(this.godsPanel);
     this.padHintsEl = el('div', 'pad-hints hidden'); this.padHintsEl.id = 'pad-hints'; hud.appendChild(this.padHintsEl);
     this.msgPanel = el('div'); this.msgPanel.id = 'messages'; hud.appendChild(this.msgPanel);
-    this.objPanel = el('div'); this.objPanel.id = 'objectives'; this.objPanel.classList.add('hidden'); hud.appendChild(this.objPanel);
+    this.objPanel = el('div'); this.objPanel.id = 'objectives'; this.objPanel.classList.add('hidden'); rightCol.appendChild(this.objPanel);
     this.dlgPanel = el('div'); this.dlgPanel.id = 'dialogue'; this.dlgPanel.classList.add('hidden'); this.dlgPanel.addEventListener('click', () => { this.dlg.next(performance.now()); this.renderDialogue(); }); hud.appendChild(this.dlgPanel);
     this.tooltip = el('div'); this.tooltip.id = 'tooltip'; this.tooltip.classList.add('hidden'); hud.appendChild(this.tooltip);
     this.modalBack = el('div'); this.modalBack.id = 'modal-back'; this.modalBack.classList.add('hidden');
