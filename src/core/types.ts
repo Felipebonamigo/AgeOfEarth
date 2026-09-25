@@ -180,6 +180,8 @@ export interface GameState {
   scenario?: ScenarioState;
   /** Rei da Colina: posição da colina, time que a segura sozinho e há quantos segundos. */
   koth?: { x: number; y: number; team: number; seconds: number };
+  /** Relíquias: no chão (carrier=-1, templeId=-1), carregada por um herói (carrier) ou guardada num Templo (templeId). */
+  relics: { x: number; y: number; carrier: number; templeId: number }[];
 }
 import type { ScenarioState } from './scenario/types';
 

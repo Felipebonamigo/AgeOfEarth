@@ -301,6 +301,12 @@ export class Renderer {
     const g = this.layers.ground; g.clear();
     const hp = this.layers.hp; hp.clear();
     const local = ui.localPlayer;
+    for (const r of state.relics) {   // relíquias no chão (ou acima do herói que a carrega)
+      if (r.templeId !== -1) continue;
+      const y = r.carrier !== -1 ? r.y - 0.9 : r.y;
+      g.circle(r.x * TILE, y * TILE, 7).fill({ color: 0x7c3aed, alpha: 0.9 }).stroke({ width: 2, color: 0xfde047 });
+      g.circle(r.x * TILE, y * TILE, 3).fill({ color: 0xfde047 });
+    }
     if (state.koth) {   // Rei da Colina: anel da colina na cor do time que a segura
       const k = state.koth;
       const holder = k.team === -1 ? null : state.players.find((p) => p.team === k.team);

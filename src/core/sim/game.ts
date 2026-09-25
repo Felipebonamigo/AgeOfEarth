@@ -19,6 +19,7 @@ import { checkVictory } from './victory';
 import { spiralSearch, isPassable } from '../map/grid';
 import { getScenario, initScenarioState, runScenario } from '../scenario/runner';
 import { updateKoth } from './modes';
+import { placeRelics, updateRelics } from './relics';
 
 const PATH_BUDGET_PER_TICK = 48;
 const MAX_EVENTS = 200;
@@ -33,7 +34,7 @@ export function createGame(config: GameConfig): GameState {
     players: [], units: new Map(), buildings: new Map(), nextId: 1,
     territory: new Int8Array(size.w * size.h).fill(-1), territoryDirty: true, territoryVersion: 0,
     events: [], effects: [], timed: [], winner: -1, gameOver: false, rng: new RNG(config.seed + 7),
-    ceasefireUntil: 0, ceasefireBy: -1, fogVersion: 0,
+    ceasefireUntil: 0, ceasefireBy: -1, fogVersion: 0, relics: [],
   };
   config.players.forEach((pc, i) => {
     const resources = { food: 300, wood: 250, gold: 120, knowledge: 0, favor: 0 } as Record<ResourceType, number>;
@@ -67,6 +68,7 @@ export function createGame(config: GameConfig): GameState {
     if (mode === 'regicide') { const t = spiralSearch(Math.floor(tc.x), Math.floor(tc.y) + 3, 6, (a, b) => isPassable(map, a, b)); spawnUnit(state, p.id, 'basileus', t ? t.x + 0.5 : tc.x, t ? t.y + 0.5 : tc.y + 3.5); }
     recomputePop(state, p);
   });
+  placeRelics(state);
   if (mode === 'koth') {
     const c = spiralSearch(Math.floor(size.w / 2), Math.floor(size.h / 2), 8, (a, b) => isPassable(map, a, b));
     state.koth = { x: (c ? c.x : Math.floor(size.w / 2)) + 0.5, y: (c ? c.y : Math.floor(size.h / 2)) + 0.5, team: -1, seconds: 0 };
@@ -123,7 +125,7 @@ export function tick(state: GameState, commands: Command[] = []): void {
   // Edifícios
   for (const b of state.buildings.values()) if (!b.dead) updateBuilding(state, rt, b, DT);
   // Economia e IA a cada segundo (defasadas para distribuir custo)
-  if (state.tick % TICK_RATE === 0) { economySecond(state); if (state.koth) updateKoth(state); }
+  if (state.tick % TICK_RATE === 0) { economySecond(state); if (state.koth) updateKoth(state); updateRelics(state); }
   for (const p of state.players) if (p.isAI && p.alive) aiThink(state, p);
   if (state.scenario) { if (state.tick % TICK_RATE === TICK_RATE - 1) runScenario(state); }
   else if (state.tick % TICK_RATE === TICK_RATE - 1) checkVictory(state);

@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { KOTH_RADIUS, KOTH_SECONDS, MAP_TYPES, TICK_RATE, DEATHMATCH_RESOURCES } from '../src/core/constants';
 import { createGame, tick } from '../src/core/sim/game';
 import { applyCommand } from '../src/core/sim/commands';
-import { buildingsOf, spawnUnit, unitsOf } from '../src/core/sim/entities';
+import { buildingsOf, spawnUnit, unitsOf, placeBuilding } from '../src/core/sim/entities';
 import { killUnit } from '../src/core/sim/combat';
 import { componentAt } from '../src/core/map/components';
 import { stateHash } from '../src/core/net/hash';
@@ -191,5 +191,37 @@ describe('formações de exército', () => {
     applyCommand(s, { type: 'move', player: 0, ids: units.map((u) => u.id), x: 30, y: 30, formation: 'wedge' });
     const targetsWedge = units.map((u) => `${u.tx.toFixed(1)},${u.ty.toFixed(1)}`).join('|');
     expect(targetsCol).not.toBe(targetsWedge);
+  });
+});
+
+describe('relíquias', () => {
+  it('herói recolhe a relíquia do chão, guarda no Templo e o dono ganha favor; a IA busca relíquias', async () => {
+    const { RELIC_FAVOR_PER_SECOND } = await import('../src/core/constants');
+    const { relicsOf } = await import('../src/core/sim/relics');
+    const s = createGame(base());
+    expect(s.relics.length).toBe(4);
+    for (const r of s.relics) expect(componentAt(s.map, Math.floor(r.x), Math.floor(r.y))).toBeGreaterThanOrEqual(0);
+    const r = s.relics[0];
+    const hero = spawnUnit(s, 0, 'jason', r.x + 0.3, r.y);
+    run(s, TICK_RATE + 1);
+    expect(r.carrier).toBe(hero.id);
+    const tc = buildingsOf(s, 0)[0];
+    const temple = placeBuilding(s, 0, 'temple', tc.tx + 5, tc.ty, true);
+    hero.x = temple.x; hero.y = temple.y + temple.h / 2 + 1; hero.px = hero.x; hero.py = hero.y;
+    const f0 = s.players[0].resources.favor;
+    run(s, 4 * TICK_RATE + 1);
+    expect(r.templeId).toBe(temple.id);
+    expect(relicsOf(s, 0)).toBe(1);
+    expect(s.players[0].resources.favor - f0).toBeGreaterThanOrEqual(RELIC_FAVOR_PER_SECOND * 3 - 1e-6);
+    // Templo destruído: a relíquia volta ao chão
+    applyCommand(s, { type: 'delete', player: 0, ids: [temple.id] });
+    run(s, TICK_RATE + 1);
+    expect(r.templeId).toBe(-1);
+    // IA: herói ocioso parte para a relíquia mais próxima
+    const ai = createGame(base({ players: [{ name: 'IA', god: 'zeus', isAI: true, difficulty: 'normal', team: 0 }, { name: 'B', god: 'poseidon', isAI: false, difficulty: 'normal', team: 1 }] }));
+    const near = ai.relics[0];
+    const j = spawnUnit(ai, 0, 'jason', near.x + 6, near.y);
+    run(ai, 8 * TICK_RATE);
+    expect(j.state !== 'idle' || near.carrier === j.id).toBe(true);
   });
 });

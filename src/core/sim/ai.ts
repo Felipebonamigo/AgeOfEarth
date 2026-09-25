@@ -39,6 +39,19 @@ export function aiThink(state: GameState, player: Player): void {
   tryAdvanceAge(state, player, snap);
   manageKing(state, player, snap);
   for (const h of snap.heroes) if (UNITS[h.type].ability && h.state === 'attack' && state.tick >= h.abilityReadyAt && h.inside === -1) applyCommand(state, { type: 'ability', player: player.id, unitId: h.id });
+  // Relíquias: herói ocioso vai buscar a mais próxima; herói com relíquia leva ao Templo
+  for (const h of snap.heroes) {
+    if (h.inside !== -1 || player.ai!.attackTarget !== -1) continue;
+    const carried = state.relics.find((r) => r.carrier === h.id);
+    if (carried) {
+      if (h.state === 'move') continue;
+      const temple = (snap.byType.get('temple') ?? []).find((b) => b.complete);
+      if (temple) applyCommand(state, { type: 'move', player: player.id, ids: [h.id], x: temple.x, y: temple.y + temple.h / 2 + 1 });
+    } else if (h.state === 'idle' && !h.order) {
+      const ground = state.relics.filter((r) => r.carrier === -1 && r.templeId === -1).sort((a, b) => dist(a.x, a.y, h.x, h.y) - dist(b.x, b.y, h.x, h.y))[0];
+      if (ground && dist(ground.x, ground.y, h.x, h.y) < 45) applyCommand(state, { type: 'move', player: player.id, ids: [h.id], x: ground.x, y: ground.y });
+    }
+  }
   manageEconomy(state, player, snap);
   manageBuilding(state, player, snap);
   manageTraining(state, player, snap);

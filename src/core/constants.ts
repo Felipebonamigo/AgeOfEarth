@@ -74,6 +74,9 @@ export function rankOf(kills: number): number { let r = 0; for (const k of VETER
 // Formações de exército (ordens de mover/atacar-mover com 4+ unidades)
 export type Formation = 'line' | 'box' | 'column' | 'wedge';
 export const FORMATIONS: Formation[] = ['line', 'box', 'column', 'wedge'];
+// Relíquias: heróis as recolhem e guardam num Templo; cada uma rende favor por segundo ao dono
+export const RELIC_COUNT_BASE = 2;         // + 1 por jogador
+export const RELIC_FAVOR_PER_SECOND = 0.35;
 export const KOTH_RADIUS = 6;          // raio da colina (tiles)
 export const KOTH_SECONDS = 240;       // segundos seguidos segurando a colina sozinho para vencer
 export const DEATHMATCH_RESOURCES = { food: 4000, wood: 4000, gold: 3000, knowledge: 300, favor: 150 } as const;

@@ -3,6 +3,7 @@
 import { RESOURCES, RESOURCE_ICONS, STANCES, TICK_RATE, MAX_SCHOLARS, SCHOLAR_COST, WONDER_VICTORY_SECONDS, KOTH_SECONDS, FORMATIONS, rankOf, type ResourceType, type Stance, type Formation } from '../core/constants';
 const FORMATION_ICONS: Record<Formation, string> = { line: '▬', box: '▦', column: '▮', wedge: '▲' };
 import { teamNames } from '../core/sim/modes';
+import { relicsOf } from '../core/sim/relics';
 import { AGES, BUILDINGS, BUILD_MENU, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS, ACADEMY_LINES, ABILITIES } from '../core/data';
 import type { Building, GameEvent, Unit } from '../core/types';
 import { getUnitStats, getBuildingStats, techCost } from '../core/sim/modifiers';
@@ -180,7 +181,9 @@ export class HUD {
     this.ageBtn.dataset.tip = p.age >= AGES.length - 1 ? t('top.maxAgeTip') : `<b>${AGES[p.age + 1].name}</b><div class="cost">${fmtCost(AGES[p.age + 1].cost as Record<string, number>, p)}</div><div class="desc">${AGES[p.age + 1].desc}</div>${adv.ok ? '' : `<div style="color:#ef4444;margin-top:4px">${adv.reason ?? ''}</div>`}`;
     this.ageBtn.classList.toggle('primary', adv.ok);
     const k = s.state.koth;
-    this.modeEl.textContent = k ? (k.team === -1 ? t('top.kothNone') : t('top.koth', { who: teamNames(s.state, k.team), s: k.seconds, total: KOTH_SECONDS })) : '';
+    const relics = relicsOf(s.state, p.id);
+    this.modeEl.textContent = (k ? (k.team === -1 ? t('top.kothNone') : t('top.koth', { who: teamNames(s.state, k.team), s: k.seconds, total: KOTH_SECONDS })) : '') + (relics > 0 ? ' ' + t('top.relics', { n: relics }) : '');
+    this.modeEl.dataset.tip = relics > 0 ? t('top.relicsTip') : '';
     const waiting = (s.scheduler as { waiting?: number }).waiting ?? 0;
     this.clockEl.textContent = fmtTime(s.state.time) + (s.paused ? ' ⏸' : s.speed !== 1 ? ` ${s.speed}×` : '') + (waiting > 10 ? ' ' + t('top.waiting') : '');
     let idle = 0;

@@ -15,7 +15,7 @@ export function serialize(state: GameState): string {
     players: s.players.map((p) => ({ ...p, visibility: Array.from(p.visibility), mods: undefined })),
     units: [...s.units.values()], buildings: [...s.buildings.values()],
     territory: Array.from(s.territory), events: s.events.slice(-200), timed: s.timed,
-    winner: s.winner, gameOver: s.gameOver, rng: s.rng.s, ceasefireUntil: s.ceasefireUntil, ceasefireBy: s.ceasefireBy, scenario: s.scenario ?? null, koth: s.koth ?? null,
+    winner: s.winner, gameOver: s.gameOver, rng: s.rng.s, ceasefireUntil: s.ceasefireUntil, ceasefireBy: s.ceasefireBy, scenario: s.scenario ?? null, koth: s.koth ?? null, relics: s.relics,
   };
   return JSON.stringify(out);
 }
@@ -40,7 +40,7 @@ export function deserialize(json: string): GameState {
     units: new Map((o.units as Unit[]).map((u) => [u.id, { ...u, inside: u.inside ?? -1, resumeNodeId: u.resumeNodeId ?? -1, avoidIds: u.avoidIds ?? [], avoidUntil: u.avoidUntil ?? 0, blockedTicks: u.blockedTicks ?? 0, abilityReadyAt: u.abilityReadyAt ?? 0, buffUntil: u.buffUntil ?? 0, buffAttack: u.buffAttack ?? 1, buffSpeed: u.buffSpeed ?? 1, buffHaste: u.buffHaste ?? 1, buffWard: u.buffWard ?? false, chargeUntil: u.chargeUntil ?? 0 }])), buildings: new Map((o.buildings as Building[]).map((b) => [b.id, { ...b, garrison: b.garrison ?? [] }])),
     territory: Int8Array.from(o.territory as number[]), territoryDirty: true, territoryVersion: 0,
     events: o.events ?? [], effects: [], timed: o.timed ?? [], winner: o.winner, gameOver: o.gameOver, rng: new RNG(1),
-    ceasefireUntil: o.ceasefireUntil ?? 0, ceasefireBy: o.ceasefireBy ?? -1, fogVersion: 0, scenario: o.scenario ? { ...o.scenario, vars: o.scenario.vars ?? {} } : undefined, koth: o.koth ?? undefined,
+    ceasefireUntil: o.ceasefireUntil ?? 0, ceasefireBy: o.ceasefireBy ?? -1, fogVersion: 0, scenario: o.scenario ? { ...o.scenario, vars: o.scenario.vars ?? {} } : undefined, koth: o.koth ?? undefined, relics: o.relics ?? [],
   };
   state.rng.s = o.rng >>> 0;
   // Reconstrói bloqueios: terreno, nós e edifícios
