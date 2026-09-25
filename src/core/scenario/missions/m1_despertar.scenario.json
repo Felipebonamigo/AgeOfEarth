@@ -1,0 +1,87 @@
+{
+  "format": "aoe-scenario",
+  "version": 1,
+  "id": "m1_despertar",
+  "icon": "🏺",
+  "title": { "pt": "O Despertar de Argos", "en": "The Awakening of Argos" },
+  "subtitle": { "pt": "Missão 1 · Fundamentos", "en": "Mission 1 · Foundations" },
+  "intro": [
+    { "pt": "Argos, antes das guerras dos deuses. Você é o jovem arconte de uma aldeia esquecida, e os oráculos falam de sombras que se agitam no Tártaro.",
+      "en": "Argos, before the wars of the gods. You are the young archon of a forgotten village, and the oracles speak of shadows stirring in Tartarus." },
+    { "pt": "Zeus exige provas de que sua cidade merece proteção: cresça, honre-o com um Templo e alcance a Idade Clássica. Bandos de saqueadores rondam as colinas.",
+      "en": "Zeus demands proof that your city deserves protection: grow, honor him with a Temple and reach the Classical Age. Bands of raiders roam the hills." }
+  ],
+  "outro": [
+    { "pt": "Argos prospera e o Olimpo tomou nota. Mas os batedores relatam um exército de Hades marchando do sul...",
+      "en": "Argos prospers and Olympus has taken notice. But the scouts report an army of Hades marching from the south..." }
+  ],
+  "hints": [
+    { "pt": "Use o botão \"Ociosos\" para achar cidadãos parados.", "en": "Use the \"Idle\" button to find idle villagers." },
+    { "pt": "Celeiro, Serraria e Mina perto dos recursos aceleram a coleta.", "en": "Granary, Lumber Camp and Mine near the resources speed up gathering." }
+  ],
+  "map": { "gen": { "mapSize": "small", "seed": 1101 } },
+  "config": {
+    "players": [
+      { "name": "Argos", "god": "zeus", "isAI": false, "difficulty": "easy" },
+      { "name": "Saqueadores", "god": "hades", "isAI": false, "difficulty": "easy" }
+    ],
+    "startingResources": { "food": 400, "wood": 300, "gold": 150 }
+  },
+  "setup": [
+    { "do": "removeAll", "player": 1 },
+    { "do": "place", "player": 1, "building": "barracks", "at": { "start": 1 }, "complete": true },
+    { "do": "place", "player": 1, "building": "tower", "at": { "start": 1, "dx": 3, "dy": -3 }, "complete": true },
+    { "do": "spawn", "player": 1, "units": ["hoplite", "hoplite", "toxotes", "toxotes"], "at": { "start": 1, "dy": 3 } },
+    { "do": "set", "player": 1, "resources": { "food": 0 } }
+  ],
+  "objectives": [
+    { "id": "vill", "text": { "pt": "Treine 10 Cidadãos", "en": "Train 10 Villagers" },
+      "done": { "units": { "player": 0, "type": "villager" }, "gte": 10 } },
+    { "id": "temple", "text": { "pt": "Construa um Templo e ponha 3 cidadãos para rezar", "en": "Build a Temple and set 3 villagers to pray" },
+      "done": { "all": [ { "buildings": { "player": 0, "type": "temple", "complete": true }, "gte": 1 }, { "units": { "player": 0, "state": "pray" }, "gte": 3 } ] } },
+    { "id": "army", "text": { "pt": "Treine 6 unidades militares no Quartel", "en": "Train 6 military units at the Barracks" },
+      "done": { "units": { "player": 0, "military": true }, "gte": 6 } },
+    { "id": "age", "text": { "pt": "Avance para a Idade Clássica", "en": "Advance to the Classical Age" },
+      "done": { "value": { "stat": "age", "player": 0 }, "gte": 1 } },
+    { "id": "camp", "text": { "pt": "Destrua o acampamento dos saqueadores", "en": "Destroy the raiders' camp" }, "hidden": true,
+      "done": { "buildings": { "player": 1, "complete": true }, "eq": 0 } }
+  ],
+  "triggers": [
+    { "id": "start", "when": { "time": { "gte": 1 } }, "then": [
+      { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
+        "text": { "pt": "Arconte, a terra é fértil e os deuses observam. Comece pelos cidadãos: selecione o Centro Cívico e treine-os (tecla Q). Mande-os às frutas e às árvores com o botão direito.",
+                  "en": "Archon, the land is fertile and the gods are watching. Start with villagers: select the Town Center and train them (Q key). Send them to berries and trees with the right button." } }
+    ] },
+    { "id": "tip_house", "when": { "value": { "stat": "pop", "player": 0 }, "gte": { "add": [ { "stat": "popCap", "player": 0 }, -3 ] } }, "then": [
+      { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
+        "text": { "pt": "Sua população está no limite. Selecione cidadãos e construa Casas (tecla Q). Cada casa abriga 10.",
+                  "en": "Your population is at the limit. Select villagers and build Houses (Q key). Each house holds 10." } }
+    ] },
+    { "id": "tip_temple", "when": { "all": [ { "fired": "start" }, { "objective": "vill", "is": "done" } ] }, "then": [
+      { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
+        "text": { "pt": "Zeus quer um Templo (tecla S com cidadãos selecionados). Cidadãos que rezam nele geram Favor, a moeda dos deuses. Lembre-se: só se constrói dentro das suas fronteiras.",
+                  "en": "Zeus wants a Temple (S key with villagers selected). Villagers praying there generate Favor, the currency of the gods. Remember: you can only build inside your borders." } }
+    ] },
+    { "id": "raid1", "when": { "time": { "gte": 240 } }, "then": [
+      { "do": "raid", "player": 1, "units": ["hoplite", "hoplite", "toxotes"], "target": { "tc": 0 }, "angle": 3, "distance": 20 },
+      { "do": "say", "speaker": { "pt": "Batedor", "en": "Scout" }, "icon": "🐎",
+        "text": { "pt": "Saqueadores se aproximam pelo sul! Reúna seus hoplitas.", "en": "Raiders approach from the south! Rally your hoplites." } }
+    ] },
+    { "id": "raid2", "when": { "time": { "gte": 480 } }, "then": [
+      { "do": "raid", "player": 1, "units": ["hoplite", "hoplite", "hoplite", "toxotes", "toxotes"], "target": { "tc": 0 }, "angle": 4, "distance": 22 },
+      { "do": "say", "speaker": { "pt": "Batedor", "en": "Scout" }, "icon": "🐎",
+        "text": { "pt": "Outra onda de saqueadores! Lembre-se: dentro das nossas fronteiras eles sofrem atrito.", "en": "Another wave of raiders! Remember: inside our borders they suffer attrition." } }
+    ] },
+    { "id": "reveal_camp", "when": { "objective": "age", "is": "done" }, "then": [
+      { "do": "reveal", "id": "camp" },
+      { "do": "say", "speaker": "Zeus", "icon": "⚡",
+        "text": { "pt": "Você provou seu valor, arconte. Agora leve a guerra até eles: destrua o acampamento dos saqueadores e Argos será minha.",
+                  "en": "You have proven your worth, archon. Now take the war to them: destroy the raiders' camp and Argos will be mine." } },
+      { "do": "give", "player": 0, "resources": { "gold": 200 } }
+    ] }
+  ],
+  "victory": { "all": [
+    { "objective": "vill", "is": "done" }, { "objective": "temple", "is": "done" }, { "objective": "army", "is": "done" },
+    { "objective": "age", "is": "done" }, { "objective": "camp", "is": "done" }
+  ] }
+}

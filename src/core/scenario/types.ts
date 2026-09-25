@@ -35,7 +35,13 @@ export interface ScenarioDef {
   victory: (state: GameState) => boolean;
   defeat?: (state: GameState) => boolean;
   hints?: string[];
+  /** Indicadores extras do painel de objetivos (cenários JSON): cronômetro enquanto a condição valer ou progresso de uma obra. */
+  hud?: ScenarioHudDef[];
 }
+
+export type ScenarioHudDef =
+  | { type: 'countdown'; seconds: number; while: (state: GameState) => boolean; label: string }
+  | { type: 'progress'; entity: (state: GameState) => number | -1; max: number; label: string };   // entity: progresso (s) da obra ou -1 se não existe/já concluída
 
 export interface ScenarioState {
   id: string;

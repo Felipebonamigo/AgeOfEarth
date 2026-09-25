@@ -9,6 +9,7 @@ import type { GameMap, GameState } from '../types';
 import { addNode, circleStarts, deriveDeepWater, NODE_AMOUNT, rebuildBlocked } from './mapgen';
 import { articulationPoints, componentAt, componentSize } from './components';
 import { dist, idx, inBounds, spiralSearch } from './grid';
+import type { ScenarioFile } from '../scenario/schema';
 
 export interface FixedMapData {
   v: 1;
@@ -26,6 +27,7 @@ export interface FixedMapData {
   startTeams?: number[];                        // time sugerido por início (ex.: [0, 0, 1, 1]) para atribuição por time
   koth?: [number, number];                      // colina do Rei da Colina; padrão: centro do mapa
   relics?: boolean;                             // padrão true: placeRelics sorteia pela semente; false em cenários
+  scenario?: ScenarioFile;                      // cenário declarativo embutido (docs/EDITOR.md §2.3); preservado tal como está
 }
 export type MapEntity =
   | { kind: 'building'; type: string; owner: number; x: number; y: number; complete?: boolean; tag?: string }   // x, y = canto (tx, ty); complete padrão true
@@ -38,7 +40,7 @@ export const MAP_LIMITS = { minSide: 48, maxSide: 160, maxTiles: 25_600, maxJson
 export interface MapIssue { level: 'error' | 'warn'; code: string; x?: number; y?: number; params?: Record<string, string | number> }
 
 /** Metadados aceitos por saveMap (tudo opcional). */
-export type MapMeta = Pick<FixedMapData, 'id' | 'name' | 'nameEn' | 'author' | 'description' | 'startKit' | 'startTeams' | 'koth' | 'relics'>;
+export type MapMeta = Pick<FixedMapData, 'id' | 'name' | 'nameEn' | 'author' | 'description' | 'startKit' | 'startTeams' | 'koth' | 'relics' | 'scenario'>;
 
 const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 export function bytesToBase64(bytes: Uint8Array): string {
@@ -159,6 +161,7 @@ export function canonicalize(data: FixedMapData): FixedMapData {
   if (data.startKit === false) out.startKit = false;
   if (Array.isArray(data.koth)) out.koth = [data.koth[0], data.koth[1]];
   if (data.relics === false) out.relics = false;
+  if (data.scenario && typeof data.scenario === 'object' && !Array.isArray(data.scenario)) out.scenario = data.scenario;   // tal como está (sem reordenar)
   out.nodes = (data.nodes ?? []).filter(Array.isArray).map(([t, x, y, a]) => [t, x, y, a] as FixedMapData['nodes'][number]).sort((a, b) => a[2] - b[2] || a[1] - b[1]);
   const ents = (Array.isArray(data.entities) ? data.entities : []).map(canonEntity).sort(entityOrder);
   if (ents.length > 0) out.entities = ents;
@@ -193,6 +196,7 @@ export function mapHash(input: FixedMapData): number {
   for (const e of ents) { mix(e.kind === 'building' ? 1 : 2); mixStr(e.type); mix(e.owner); mix(e.x); mix(e.y); mix(e.kind === 'building' && e.complete === false ? 0 : 1); mixStr(e.tag ?? ''); }
   if (data.koth) { mix(1); mix(data.koth[0]); mix(data.koth[1]); } else mix(0);
   mix(data.relics === false ? 0 : 1);
+  if (data.scenario) { let js = ''; try { js = JSON.stringify(data.scenario); } catch { js = ''; } mix(1); mixStr(js); }   // só quando existe: hashes antigos não mudam
   return h >>> 0;
 }
 
@@ -210,6 +214,7 @@ export function migrateMap(data: unknown): FixedMapData {
   if (out.entities !== undefined && !Array.isArray(out.entities)) delete out.entities;
   if (out.startTeams !== undefined && !Array.isArray(out.startTeams)) delete out.startTeams;
   if (out.koth !== undefined && !(Array.isArray(out.koth) && out.koth.length >= 2)) delete out.koth;
+  if (out.scenario !== undefined && (typeof out.scenario !== 'object' || out.scenario === null || Array.isArray(out.scenario))) delete out.scenario;
   if (typeof out.terrain !== 'string') out.terrain = '';
   if (typeof out.decor !== 'string') out.decor = '';
   return out;
@@ -251,7 +256,7 @@ export function saveMap(state: GameState, meta: MapMeta = {}, tagOf?: (id: numbe
   return canonicalize({
     ...data, entities,
     id: meta.id, nameEn: meta.nameEn, author: meta.author, description: meta.description,
-    startKit: meta.startKit, startTeams: meta.startTeams, koth: meta.koth, relics: meta.relics,
+    startKit: meta.startKit, startTeams: meta.startTeams, koth: meta.koth, relics: meta.relics, scenario: meta.scenario,
   });
 }
 

@@ -3,9 +3,22 @@ import { TICK_RATE } from '../constants';
 import type { GameState } from '../types';
 import type { ScenarioDef, ScenarioState, TriggerCtx } from './types';
 import { SCENARIOS, HORDE } from './campaign';
+import { compileScenarioCached } from './compile';
 import { t } from '../../i18n';
 
+/** Cenário embutido (campanha/Horda) por id. Continua servindo o HUD e a campanha. */
 export function getScenario(id: string): ScenarioDef | undefined { return id === HORDE.id ? HORDE : SCENARIOS.find((s) => s.id === id); }
+
+/**
+ * Cenário da partida: config.scenarioData (JSON) compilado com cache por (hash, idioma), senão o registro embutido
+ * por config.scenario (ou pelo id do estado). Lança se o JSON for inválido (createGame propaga; a interface avisa).
+ */
+export function getScenarioFor(state: GameState): ScenarioDef | undefined {
+  const cfg = state.config;
+  if (cfg.scenarioData) return compileScenarioCached(cfg.scenarioData);
+  const id = cfg.scenario ?? state.scenario?.id;
+  return id ? getScenario(id) : undefined;
+}
 
 export function initScenarioState(def: ScenarioDef): ScenarioState {
   const objectives: Record<string, 'pending'> = {}; const hidden: Record<string, boolean> = {};
@@ -15,7 +28,7 @@ export function initScenarioState(def: ScenarioDef): ScenarioState {
 
 export function runScenario(state: GameState): void {
   const sc = state.scenario; if (!sc || sc.outcome !== 'playing') return;
-  const def = getScenario(sc.id); if (!def) return;
+  const def = getScenarioFor(state); if (!def) return;
   const ctx: TriggerCtx = {
     say: (speaker, text, icon) => state.events.push({ tick: state.tick, type: 'dialogue', player: -1, text, data: `${icon ?? '🗣️'}|${speaker}` }),
     objective: (id, status) => { if (sc.objectives[id] !== status) { sc.objectives[id] = status; sc.hidden[id] = false; state.events.push({ tick: state.tick, type: 'objective', player: -1, text: `${status === 'done' ? '✅' : status === 'failed' ? '❌' : '📌'} ${def.objectives.find((o) => o.id === id)?.text ?? id}`, data: status }); } },

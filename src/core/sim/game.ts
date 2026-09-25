@@ -19,7 +19,7 @@ import { aiThink } from './ai';
 import { checkVictory } from './victory';
 import { spiralSearch, isPassable } from '../map/grid';
 import { nearestFreeTile } from '../map/pathfinding';
-import { getScenario, initScenarioState, runScenario } from '../scenario/runner';
+import { getScenarioFor, initScenarioState, runScenario } from '../scenario/runner';
 import { updateKoth } from './modes';
 import { placeRelics, updateRelics } from './relics';
 
@@ -122,9 +122,9 @@ export function createGame(config: GameConfig): GameState {
     const c = spiralSearch(hx, hy, 8, (a, b) => isPassable(map, a, b));
     state.koth = { x: (c ? c.x : hx) + 0.5, y: (c ? c.y : hy) + 0.5, team: -1, seconds: 0 };
   }
-  // Cenário (campanha): posicionamento extra e estado de objetivos
-  if (config.scenario) {
-    const def = getScenario(config.scenario);
+  // Cenário (campanha ou JSON em config.scenarioData): posicionamento extra e estado de objetivos
+  if (config.scenario || config.scenarioData) {
+    const def = getScenarioFor(state);
     if (def) {
       state.scenario = initScenarioState(def);
       for (const [tag, id] of tags) state.scenario.vars['#' + tag] = id;

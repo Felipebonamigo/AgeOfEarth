@@ -166,6 +166,7 @@ export interface GameConfig {
   startOrder?: number[];                                // jogador i usa map.starts[startOrder[i]]; padrão identidade
   campaignDifficulty?: 'easy' | 'normal' | 'hard';      // campanha/Horda: escala das invasões roteirizadas e das IAs inimigas
   startKit?: boolean | boolean[];                       // kit inicial (CC + cidadãos + batedor) por partida ou por jogador; padrão map?.startKit ?? true
+  scenarioData?: ScenarioFile;                          // cenário declarativo (JSON, docs/EDITOR.md §2.3): compilado por getScenarioFor no lugar de scenario
 }
 
 export interface GameState {
@@ -191,6 +192,7 @@ export interface GameState {
 }
 import type { ScenarioState } from './scenario/types';
 import type { FixedMapData } from './map/fixed';
+import type { ScenarioFile } from './scenario/schema';
 
 // ---------------- Comandos (a única forma de alterar o estado a partir de fora) ----------------
 export type Command =

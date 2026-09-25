@@ -1,7 +1,9 @@
 // Utilidades para cenários: contagens, invocação de esquadrões inimigos, recursos.
 import { UNITS } from '../data';
-import type { GameState, Unit } from '../types';
-import { spawnUnit, placeBuilding, canPlaceBuilding } from '../sim/entities';
+import { TICK_RATE } from '../constants';
+import type { Building, GameState, Unit } from '../types';
+import { spawnUnit, placeBuilding, canPlaceBuilding, onBuildingComplete, removeBuildingNow, removeUnitNow } from '../sim/entities';
+import { getBuildingStats } from '../sim/modifiers';
 import { giveOrder } from '../sim/units';
 import { spiralSearch, isPassable, idx, inBounds } from '../map/grid';
 import { rectReachable } from '../map/components';
@@ -68,9 +70,55 @@ export function grantTech(state: GameState, owner: number, tech: string): void {
   if (!p.techs.includes(tech)) { p.techs.push(tech); recomputeMods(state, p); refreshMaxHp(state, p); }
 }
 
-export function placeNear(state: GameState, owner: number, type: string, x: number, y: number, complete = true): void {
+/** Coloca um edifício no tile livre mais próximo (raio 14, ignorando limites e fronteiras). Devolve o edifício ou null. */
+export function placeNear(state: GameState, owner: number, type: string, x: number, y: number, complete = true): Building | null {
   const spot = spiralSearch(Math.floor(x), Math.floor(y), 14, (a, b) => canPlaceBuilding(state, state.players[owner], type, a, b, true, true).ok);
-  if (spot) placeBuilding(state, owner, type, spot.x, spot.y, complete);
+  return spot ? placeBuilding(state, owner, type, spot.x, spot.y, complete) : null;
+}
+
+/** Coloca um edifício exatamente no canto (tx, ty) se couber (sem procurar ao redor); senão devolve null. */
+export function placeExact(state: GameState, owner: number, type: string, tx: number, ty: number, complete = true): Building | null {
+  const a = Math.floor(tx), b = Math.floor(ty);
+  return canPlaceBuilding(state, state.players[owner], type, a, b, true, true).ok ? placeBuilding(state, owner, type, a, b, complete) : null;
+}
+
+/** Põe unidades a rezar num edifício (Templo ou Portal em obra), como os sacerdotes do ritual da missão 3. */
+export function prayAt(units: Unit[], b: Building): void {
+  for (const u of units) { u.state = 'pray'; u.nodeId = -b.id; u.order = null; u.path = null; u.targetId = -1; }
+}
+
+/** Remove na hora todos os edifícios e unidades cujo dono satisfaz o predicado (removeBuildingNow/removeUnitNow: sem escombros nem estatísticas). */
+export function removeAllOf(state: GameState, ownerPred: (owner: number) => boolean): void {
+  for (const b of [...state.buildings.values()]) if (ownerPred(b.owner)) removeBuildingNow(state, b);
+  for (const u of [...state.units.values()]) if (ownerPred(u.owner)) removeUnitNow(state, u);
+}
+
+/** Avança a obra de um edifício em `seconds` de trabalho; ao atingir o tempo de obra, conclui via onBuildingComplete (vida cheia). */
+export function advanceBuild(state: GameState, b: Building, seconds: number): void {
+  if (b.dead || b.complete) return;
+  b.progress += seconds;
+  const total = getBuildingStats(state, state.players[b.owner], b.type).buildTime;
+  if (b.progress >= total) { b.hp = b.maxHp; onBuildingComplete(state, b); }
+}
+
+/** Unidades do dono a menos de `radius` do ponto (dx²+dy² < r², sem trigonometria). */
+export function nearCount(state: GameState, owner: number, x: number, y: number, radius: number, pred?: (u: Unit) => boolean): number {
+  const r2 = radius * radius;
+  return count(state, owner, (u) => (u.x - x) * (u.x - x) + (u.y - y) * (u.y - y) < r2 && (!pred || pred(u)));
+}
+
+/** Ids guardados numa tag do cenário: vars['#tag'] (primeira entidade) e vars['#tag[k]'] (grupos invocados com tag). */
+export function tagIds(state: GameState, tag: string): number[] {
+  const vars = state.scenario?.vars; if (!vars) return [];
+  const out: number[] = [];
+  const first = vars['#' + tag]; if (first !== undefined) out.push(first);
+  for (let k = 0; ; k++) { const v = vars[`#${tag}[${k}]`]; if (v === undefined) break; if (!out.includes(v)) out.push(v); }
+  return out;
+}
+
+/** Trégua global por `seconds` (ninguém ataca; sem atrito), como o poder de Hermes. */
+export function ceasefire(state: GameState, seconds: number): void {
+  state.ceasefireUntil = Math.max(state.ceasefireUntil, state.tick + Math.round(seconds * TICK_RATE)); state.ceasefireBy = -1;
 }
 
 export function spawnGroup(state: GameState, owner: number, types: string[], x: number, y: number): Unit[] {
