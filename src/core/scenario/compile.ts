@@ -12,7 +12,8 @@ import type { ObjectiveDef, ObjectiveStatus, ScenarioDef, ScenarioHudDef, Trigge
 import type { Action, BuildingFilter, Cmp, Condition, EntityRef, PlayerSel, Point, ScenarioFile, UnitFilter, Value } from './schema';
 import { validateScenario } from './schema';
 import { tx } from './text';
-import { advanceBuild, ceasefire, count, give, grantTech, military, nearCount, placeExact, placeNear, prayAt, raid, removeAllOf, spawnGroup, tagIds, townCenter } from './helpers';
+import { advanceBuild, ceasefire, count, give, grantTech, military, nearCount, notifyRaid, placeExact, placeNear, prayAt, raid, removeAllOf, scaledGroup, spawnGroup, tagIds, townCenter } from './helpers';
+import { kingAlive } from '../sim/modes';
 
 /** Contexto de avaliação: estado + segundos inteiros + jogador/índice do forEachPlayer ('$p', k). */
 interface Env { state: GameState; seconds: number; fired: (id: string) => boolean; p: number; k: number }
@@ -45,7 +46,17 @@ function entity(env: Env, ref: EntityRef): Unit | Building | undefined {
   const s = env.state;
   const byId = (id: number | undefined) => { if (id === undefined || id < 0) return undefined; const e = s.units.get(id) ?? s.buildings.get(id); return e && !e.dead ? e : undefined; };
   if (!ref || typeof ref !== 'object') return undefined;
-  if ('tag' in ref) return byId(s.scenario?.vars['#' + ref.tag]);
+  if ('tag' in ref) {
+    // grupo da tag (G5): first = vars['#tag'] (compatível); alive = primeiro vivo do grupo; nearest = vivo mais perto de near (desempata por id)
+    if (ref.pick === 'alive') { for (const id of tagIds(s, ref.tag)) { const e = byId(id); if (e) return e; } return undefined; }
+    if (ref.pick === 'nearest') {
+      const pt = ref.near ? point(env, ref.near) : undefined; if (!pt) return undefined;
+      let best: Unit | Building | undefined; let bd = Infinity;
+      for (const id of tagIds(s, ref.tag)) { const e = byId(id); if (!e) continue; const d = (e.x - pt.x) * (e.x - pt.x) + (e.y - pt.y) * (e.y - pt.y); if (d < bd || (d === bd && best && e.id < best.id)) { bd = d; best = e; } }
+      return best;
+    }
+    return byId(s.scenario?.vars['#' + ref.tag]);
+  }
   if ('var' in ref) return byId(s.scenario?.vars[ref.var]);
   if ('tc' in ref) return townCenter(s, player(env, ref.tc)) ?? undefined;
   const owner = player(env, ref.player);
@@ -79,6 +90,7 @@ function value(env: Env, v: Value): number {
   if (typeof v === 'number') return v;
   if (!v || typeof v !== 'object') return 0;
   if ('stat' in v) {
+    if (v.stat === 'difficulty') return difficultyIndex(env.state);
     const p = env.state.players[player(env, v.player)]; if (!p) return 0;
     switch (v.stat) {
       case 'age': return p.age; case 'pop': return p.pop; case 'popCap': return p.popCap; case 'alive': return p.alive ? 1 : 0;
@@ -100,6 +112,19 @@ function cmp(env: Env, c: Cmp, x: number): boolean {
   return true;
 }
 
+/** Dificuldade da campanha como número: 0 = Fácil, 1 = Normal (padrão), 2 = Difícil. */
+function difficultyIndex(state: GameState): number { const d = state.config.campaignDifficulty ?? 'normal'; return d === 'easy' ? 0 : d === 'hard' ? 2 : 1; }
+
+/** Segundos que o jogador mantém uma Maravilha concluída de pé (a mais antiga); 0 sem Maravilha. */
+function wonderHeldSeconds(state: GameState, owner: number): number {
+  let best = 0;
+  for (const b of state.buildings.values()) {
+    if (b.dead || b.owner !== owner || !b.complete || b.wonderStart < 0 || !BUILDINGS[b.type].wonder) continue;
+    best = Math.max(best, Math.floor((state.tick - b.wonderStart) / TICK_RATE));
+  }
+  return best;
+}
+
 function typeMatch(type: string | string[] | undefined, t: string): boolean {
   return type === undefined || (Array.isArray(type) ? type.includes(t) : type === t);
 }
@@ -107,8 +132,10 @@ function typeMatch(type: string | string[] | undefined, t: string): boolean {
 function buildingsMatching(env: Env, f: BuildingFilter): Building[] {
   const s = env.state; const out: Building[] = [];
   const owner = f.player !== undefined ? player(env, f.player) : undefined;
+  const tagged = f.tag !== undefined ? tagIds(s, f.tag) : undefined;
   for (const b of s.buildings.values()) {
     if (b.dead) continue;
+    if (tagged && !tagged.includes(b.id)) continue;
     if (owner !== undefined && b.owner !== owner) continue;
     const team = s.players[b.owner]?.team;
     if (f.team !== undefined && team !== f.team) continue;
@@ -172,7 +199,17 @@ function evalCondition(env: Env, c: Condition): boolean {
     } else if (c.complete !== undefined || c.progress !== undefined) return false;   // unidade não tem obra
     return true;
   }
+  if ('koth' in c) { const k = s.koth; return cmp(env, c, k && k.team === c.koth.team ? k.seconds : 0); }
+  if ('wonderHeld' in c) { const p = player(env, c.wonderHeld.player); return cmp(env, c, p >= 0 ? wonderHeldSeconds(s, p) : 0); }
+  if ('kingAlive' in c) { const p = player(env, c.kingAlive); return p >= 0 && kingAlive(s, p); }
+  if ('alive' in c) { const p = player(env, c.alive); return p >= 0 && s.players[p].alive; }
+  if ('difficulty' in c) { const d = s.config.campaignDifficulty ?? 'normal'; return Array.isArray(c.difficulty) ? c.difficulty.includes(d) : c.difficulty === d; }
   return false;
+}
+
+/** Compila uma condição isolada (harness de testes, roteiros de jogador): avaliada com os segundos inteiros do runner. */
+export function compileCondition(c: Condition): (state: GameState) => boolean {
+  return (state) => evalCondition(envOf(state), c);
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -183,6 +220,8 @@ function storeTag(state: GameState, tag: string, ids: number[]): void {
   const vars = state.scenario?.vars; if (!vars || ids.length === 0) return;
   vars['#' + tag] = ids[0];
   ids.forEach((id, k) => { vars[`#${tag}[${k}]`] = id; });
+  // a tag reusada substitui o grupo: apaga os índices do grupo antigo além do novo tamanho (senão tagIds os contaria)
+  for (let k = ids.length; vars[`#${tag}[${k}]`] !== undefined; k++) delete vars[`#${tag}[${k}]`];
 }
 
 function runActions(env: Env, ctx: TriggerCtx, list: Action[]): void {
@@ -198,7 +237,7 @@ function runAction(env: Env, ctx: TriggerCtx, a: Action): void {
     case 'reveal': ctx.reveal(a.id); return;
     case 'raid': {
       const owner = player(env, a.player); const pt = point(env, a.target);
-      if (owner < 0 || !pt) return;
+      if (owner < 0 || !pt) { notifyRaid({ owner, requested: a.units.length, spawned: 0, noTarget: true }); return; }
       const angle = typeof a.angle === 'number' ? a.angle : a.angle.base + a.angle.perIndex * env.k;
       raid(s, owner, a.units, pt.x, pt.y, angle, a.distance ?? 22);
       return;
@@ -206,7 +245,7 @@ function runAction(env: Env, ctx: TriggerCtx, a: Action): void {
     case 'spawn': {
       const owner = player(env, a.player); const pt = point(env, a.at);
       if (owner < 0 || !pt) return;
-      const units = spawnGroup(s, owner, a.units, pt.x, pt.y);
+      const units = spawnGroup(s, owner, a.scaled ? scaledGroup(s, a.units) : a.units, pt.x, pt.y);
       if (a.tag) storeTag(s, a.tag, units.map((u) => u.id));
       if (a.state === 'pray' && a.prayAt) { const b = entity(env, a.prayAt); if (b && b.kind === 'building') prayAt(units, b); }
       return;

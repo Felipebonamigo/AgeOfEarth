@@ -124,11 +124,13 @@ Gramática **fechada e tipada**, sem `eval`, sem strings de expressão, sem temp
 ```ts
 type Text = string | { pt: string; en?: string };                         // resolvido por tx() ao emitir; nunca entra no hash
 type PlayerSel = number | 'local' | { team: number } | '$p';               // índice; primeiro humano; primeiro do time; jogador do forEachPlayer
-type EntityRef = { tag: string } | { var: string } | { tc: PlayerSel }
+type EntityRef = { tag: string; pick?: 'first' | 'alive' | 'nearest'; near?: Point }   // G5: grupo da tag; alive = 1º vivo; nearest exige near
+               | { var: string } | { tc: PlayerSel }
                | { player: PlayerSel; type: string; pick?: 'first' | 'nearest'; near?: Point };   // first = menor id; nearest desempata por id
 type Point = { at: [number, number] } | { start: number; dx?: number; dy?: number }
            | { tc: PlayerSel; dx?: number; dy?: number } | { entity: EntityRef; dx?: number; dy?: number };
 type Value = number | { stat: 'age'|'pop'|'popCap'|'food'|'wood'|'gold'|'favor'|'knowledge'|'alive'; player: PlayerSel }
+           | { stat: 'difficulty' }                                           // G3: 0 Fácil, 1 Normal, 2 Difícil
            | { var: string } | { add: [Value, number] };
 type Cmp = { gte?: Value; lte?: Value; eq?: Value; gt?: Value; lt?: Value };
 
@@ -137,17 +139,20 @@ type Condition =
   | { time: Cmp } | { every: { seconds: number; after?: number } }              // ctx.seconds inteiro; seconds % n === 0
   | { objective: string; is: 'pending' | 'done' | 'failed' } | { fired: string } | ({ firedCount: { prefix: string } } & Cmp)
   | ({ units: UnitFilter } & Cmp) | ({ buildings: BuildingFilter } & Cmp) | ({ value: Value } & Cmp) | ({ var: string } & Cmp)
-  | { entity: EntityRef; exists: boolean; complete?: boolean; progress?: Cmp };
+  | { entity: EntityRef; exists: boolean; complete?: boolean; progress?: Cmp }
+  | ({ koth: { team: number } } & Cmp) | ({ wonderHeld: { player: PlayerSel } } & Cmp)   // G2: segundos na colina (time T) / com a Maravilha de pé
+  | { kingAlive: PlayerSel } | { alive: PlayerSel }                             // G2: rei vivo; jogador não eliminado
+  | { difficulty: 'easy' | 'normal' | 'hard' | ('easy' | 'normal' | 'hard')[] };  // G3: config.campaignDifficulty (ausente = normal)
 interface UnitFilter { player: PlayerSel; type?: string | string[]; tag?: string; excludeTag?: string; state?: UnitState;
   near?: { point: Point; radius: number };                                      // dx²+dy² < r², sem trigonometria
   reachable?: { buildingsOf: BuildingFilter } }                                 // rectReachable (objetivo da Horda)
-interface BuildingFilter { player?: PlayerSel; team?: number; notTeam?: number; type?: string | string[]; complete?: boolean }
+interface BuildingFilter { player?: PlayerSel; team?: number; notTeam?: number; type?: string | string[]; complete?: boolean; tag?: string }   // tag: o grupo inteiro
 
 type Action =
   | { do: 'say'; speaker: Text; text: Text; icon?: string }
   | { do: 'objective'; id: string; status: 'done' | 'failed' | 'pending' } | { do: 'reveal'; id: string }
   | { do: 'raid'; player: PlayerSel; units: string[]; target: Point; angle: number | { base: number; perIndex: number }; distance?: number }
-  | { do: 'spawn'; player: PlayerSel; units: string[]; at: Point; tag?: string; state?: 'pray'; prayAt?: EntityRef }
+  | { do: 'spawn'; player: PlayerSel; units: string[]; at: Point; tag?: string; state?: 'pray'; prayAt?: EntityRef; scaled?: boolean }   // scaled (G3): escala como raid
   | { do: 'place'; player: PlayerSel; building: string; at: Point; exact?: boolean; complete?: boolean; progress?: number; tag?: string }
   | { do: 'give'; player: PlayerSel; resources: Partial<Record<ResourceType, number>> }
   | { do: 'set'; player: PlayerSel; age?: number; resources?: Partial<Record<ResourceType, number>>; techs?: string[]; minorGods?: string[] }
@@ -193,7 +198,7 @@ Trecho da missão 1 reescrita (prova de cobertura; a versão TS continua canôni
 
 Cobertura dos casos reais de `campaign.ts`: `vars.targetTc` (m2) = `storeEntity` + `{ entity: { var } , exists: false }` + `hud.countdown`; ritual do Portal (m3) = `place … complete:false, tag:"gate"` + `spawn … state:"pray", prayAt:{tag:"gate"}` + gatilho `repeat` com `every 1s` e `advanceBuild 0.3` + `hud.progress`; ondas por defensor da Horda = `forEachPlayer` + `raid … angle:{ base, perIndex:3 }` (a Horda em si permanece em TS).
 
-`validateScenario(file)` rejeita: `format/version`, ids de unidade/edifício/tecnologia/deus menor inexistentes (`UNITS`, `BUILDINGS`, `TECHS`, `MINOR_GODS`), `player` fora do intervalo, objetivo referenciado sem definição, ids duplicados, `do`/operador desconhecido, profundidade > 8, JSON > 256 KB, e **ids reservados** (`horde`, `m1_despertar`, `m2_cerco`, `m3_portal`, prefixo `wave`) para não interferir em `achievements.ts` e `aoe_campaign`.
+`validateScenario(file)` rejeita: `format/version`, ids de unidade/edifício/tecnologia/deus menor inexistentes (`UNITS`, `BUILDINGS`, `TECHS`, `MINOR_GODS`), `player` fora do intervalo, objetivo referenciado sem definição, ids duplicados, `do`/operador desconhecido, profundidade > 8, JSON > 256 KB, e **ids reservados** (`horde` e os 12 ids oficiais da campanha, `m1_despertar` … `m12_titanomaquia`, de `CAMPAIGN_PLAN`; prefixo `wave`) para não interferir em `achievements.ts` e `aoe_campaign`.
 
 ---
 
@@ -393,6 +398,8 @@ Estimativas de horas do agente; cada etapa é um ou mais commits em português c
 - Etapa 5 (parte 2): o HUD lê o cenário só por `getScenarioFor(state)` e desenha `def.hud` (countdown/progress) — as missões m2/m3 declaram `hud` em `campaign.ts`; progresso de campanha, "Próxima missão" e conquistas de missão só para ids oficiais e fora do modo de teste. Editor: modal **Gatilhos** (textarea JSON com validação ao vivo por caminho, 5 modelos, "Pegar ponto", Remover) grava `meta.scenario`; `MapEditor` copia `file.scenario` para `meta`; "Testar com o cenário embutido" usa `gameConfigFor(scenario)` + mapa inline. Campanha: "Cenários personalizados" (Meus mapas com `scenario` + importar; ids reservados recusados na importação). Multiplayer: `settings.fixedMap.scenario` leva só o título; os humanos da sala ocupam as primeiras vagas do cenário (IAs do lobby ignoradas), `scenarioData` viaja em `start` e é validado em todos os clientes; sem intro em rede. `scripts/playtest-scenario.mjs [url] [relay]`.
 
 - Revisão adversarial da Etapa 3 (24 achados corrigidos): ids únicos ao criar/copiar mapas (`uniqueMapId`), autosave só quando houve edição (não substitui o rascunho anterior) e também em `pagehide`, aviso de cota no autosave e confirmação de saída diferente quando o rascunho não pôde ser guardado, `setRevealAll(false)` ao sair do editor, testes não registram deus jogado nem oferecem Salvar/Carregar, `esc()` nos toasts com nome do mapa, "Escolher no mapa" só dentro do mapa com indicador e cancelamento (Esc/menu/troca de ferramenta), times por início validados, traço encerrado ao sair do canvas, avisos/tooltip não bloqueiam o hover, controles de intervalo/caixas não retêm os atalhos, botão direito no minimapa sem menu do navegador, tooltips sem `<br>`, textos padrão traduzidos, rodapé do editor com altura proporcional.
+
+- Campanha (docs/STORY.md §6, G0–G7): o registro `CAMPAIGN` (`campaign.ts`) serve menu, HUD, `startMission`/"Próxima missão" e runner; missões JSON oficiais são compiladas por `compileScenarioCached`. Operadores novos da gramática: `koth`, `wonderHeld`, `kingAlive`, `alive`, `difficulty` (condições), `{ stat: 'difficulty' }`, `spawn.scaled`, `BuildingFilter.tag` e `EntityRef { tag, pick, near }`. Objetivos ocultos são avaliados (revelam-se ao mudar de estado). Em cenário, `eliminatePlayers` roda sem declarar vencedor (marionetes sem IA fora do time local nunca são eliminadas) e a derrota implícita vale quando todos os humanos do time local caem. `validateScenario(f, { warnings: true })`/`lintScenario(f)` devolvem avisos (`level: 'warn'`: tag futura sem `fired`, oculto que nunca aparece, fala sem `en` ou > 200 caracteres), exibidos no modal Gatilhos sem bloquear o salvar. Entidades do mapa com a mesma tag viram grupo (`#tag[k]`).
 
 ## 6. Riscos e mitigação
 

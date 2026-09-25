@@ -16,12 +16,12 @@ import type { Renderer } from '../render/renderer';
 import { Minimap } from '../render/minimap';
 import type { Audio } from '../audio/audio';
 import { getScenarioFor } from '../core/scenario/runner';
-import { SCENARIOS, HORDE } from '../core/scenario/campaign';
+import { HORDE, isCampaignMission } from '../core/scenario/campaign';
 import type { GameState } from '../core/types';
 import type { ScenarioDef } from '../core/scenario/types';
 
-/** Ids oficiais (campanha e Horda): só eles marcam progresso em aoe_campaign e destravam conquistas de missão. */
-const isOfficialScenario = (id: string) => id === HORDE.id || SCENARIOS.some((s) => s.id === id);
+/** Ids oficiais (registro da campanha, TS ou JSON, e Horda): só eles marcam progresso em aoe_campaign e destravam conquistas de missão. */
+const isOfficialScenario = (id: string) => id === HORDE.id || isCampaignMission(id);
 /** Cenário da partida (embutido ou JSON compilado no idioma atual); um JSON inválido vira "sem cenário" em vez de derrubar o HUD. */
 const scenarioOf = (state: GameState): ScenarioDef | undefined => { try { return getScenarioFor(state); } catch { return undefined; } };
 import { t } from '../i18n';

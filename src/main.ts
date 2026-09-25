@@ -7,7 +7,7 @@ import { MainMenu } from './ui/menu';
 import { Audio, viewFromCamera } from './audio/audio';
 import { Session } from './game/session';
 import type { GameConfig } from './core/types';
-import { SCENARIOS, HORDE } from './core/scenario/campaign';
+import { HORDE, campaignMission, missionConfig, nextCampaignMission } from './core/scenario/campaign';
 import { migrateMap, validateMap, canonicalize, mapHash, type FixedMapData } from './core/map/fixed';
 import { validateScenario } from './core/scenario/schema';
 import { gameConfigFor } from './core/scenario/compile';
@@ -96,7 +96,7 @@ async function boot() {
     onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); if (session) { hud.setSession(session); hud.refreshTop(); } },
     onLoad: () => loadGame(),
     onQuit: () => { if (returnToEditor && editor) { returnFromTest(); return; } saveReplay(); session = null; hostResumeCheck = null; hud.onChat = null; hud.closeChat(); hud.setSession(null); hud.setVisible(false); menu.show(); document.body.className = ''; },
-    onNextMission: (id) => { const i = SCENARIOS.findIndex((m) => m.id === id); const next = SCENARIOS[i + 1]; if (next) startMission(next.id); else { session = null; hud.setSession(null); hud.setVisible(false); menu.show(); } },
+    onNextMission: (id) => { const next = nextCampaignMission(id); if (next) startMission(next.id, menu.campaignDifficulty()); else { session = null; hud.setSession(null); hud.setVisible(false); menu.show(); } },
   });
   hud.setVisible(false);
   /** Pacote de diagnóstico: versão, configurações, erros recentes, relatório de dessincronização e o save atual. */
@@ -147,12 +147,11 @@ async function boot() {
       hud.toast(t('msg.loaded'), 'good');
     } catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); }
   };
-  // Dificuldade da campanha: Fácil deixa as IAs inimigas fáceis; Difícil sobe um degrau (normal→difícil, difícil→muito difícil); as invasões roteirizadas escalam em helpers.raid
-  const enemyDifficulty = (d: Difficulty, c: 'easy' | 'normal' | 'hard'): Difficulty => (c === 'easy' ? 'easy' : c === 'hard' ? ({ easy: 'normal', normal: 'hard', hard: 'brutal', brutal: 'brutal' } as Record<Difficulty, Difficulty>)[d] : d);
+  // Dificuldade da campanha (missionConfig em campaign.ts): Fácil deixa as IAs inimigas fáceis; Difícil sobe um degrau; as invasões roteirizadas escalam em helpers.raid
   const startMission = (id: string, diff: 'easy' | 'normal' | 'hard' = 'normal') => {
-    const def = id === HORDE.id ? HORDE : SCENARIOS.find((m) => m.id === id); if (!def) return;
+    const def = id === HORDE.id ? HORDE : campaignMission(id); if (!def) return;
     replaySaved = false;
-    startGame({ ...def.config, scenario: id, campaignDifficulty: diff, players: def.config.players.map((p) => (p.isAI ? { ...p, difficulty: enemyDifficulty(p.difficulty, diff) } : p)) });
+    startGame(missionConfig(def, diff));
     if (session) { session.paused = true; hud.showIntro(() => { if (session) session.paused = false; }); }
   };
   /**

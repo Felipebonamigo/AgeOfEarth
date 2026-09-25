@@ -3,7 +3,7 @@ import { DIFFICULTIES, MAP_SIZES, GAME_MODES, MAP_TYPES, type Difficulty, type M
 import { MAJOR_GODS, MAJOR_GOD_LIST } from '../core/data';
 import type { GameConfig } from '../core/types';
 import { hashString } from '../core/rng';
-import { SCENARIOS } from '../core/scenario/campaign';
+import { CAMPAIGN, campaignMission } from '../core/scenario/campaign';
 import { NetClient, type LobbyState, type RoomSummary } from '../net/client';
 import { t, getLocale, setLocale, LOCALE_NAMES, type Locale } from '../i18n';
 import { optionsHTML, bindOptions, type OptionsContext } from './options';
@@ -63,6 +63,17 @@ export class MainMenu {
     try { const setup = JSON.parse(localStorage.getItem('aoe_setup') ?? '{}'); setup.fixedMapId = this.fixedMapId; localStorage.setItem('aoe_setup', JSON.stringify(setup)); } catch { /* ignore */ }
     if (this.net?.isHost && this.net.lobby) this.net.settings({ fixedMap: d ? { id: this.fixedMapId ?? undefined, name: mapName(d), w: d.w, h: d.h, starts: d.starts.length, hash: mapHash(d), scenario: d.scenario ? tx(d.scenario.title) : undefined } : null });
     this.render();
+  }
+  /** Missões do registro da campanha (G0) com cabeçalho por ato, selo "Prólogo", desbloqueio sequencial, ✅ e 🔥 do Difícil. */
+  private campaignHTML(completed: string[], hardDone: string[]): string {
+    const list = CAMPAIGN.map((e) => ({ e, m: campaignMission(e.id) })).filter((x) => !!x.m);
+    let act = 0;
+    return list.map(({ e, m }, i) => {
+      const head = e.act !== act ? `<div class="act-head" style="margin:${i ? 10 : 0}px 0 0;color:#f2c14e;font-weight:bold">${t(`main.act${(act = e.act)}`)}</div>` : '';
+      const locked = i > 0 && !completed.includes(list[i - 1].e.id); const done = completed.includes(e.id); const hard = hardDone.includes(e.id);
+      const badge = e.prologue ? ` <span class="badge" style="font-size:11px;color:#9aa5b8;border:1px solid var(--border);border-radius:6px;padding:0 5px">${t('main.prologue')}</span>` : '';
+      return `${head}<div class="mission ${locked ? 'locked' : ''}" data-id="${e.id}"><span class="ic">${m!.icon}</span><div><b>${esc(m!.title)}${badge} ${done ? '✅' : ''}${hard ? ` <span title="${t('main.doneHard')}">🔥</span>` : ''}</b><small>${esc(m!.subtitle)}${locked ? ` · ${t('main.locked')}` : ''}</small></div></div>`;
+    }).join('');
   }
   // ---------------- Cenários personalizados (aba Campanha; docs/EDITOR.md §4.7) ----------------
   /** Mapas de Meus mapas com cenário embutido. */
@@ -191,7 +202,7 @@ export class MainMenu {
     const cdiff = this.campaignDifficulty();
     const campaign = `<h3 style="margin:0 0 4px;color:#f2c14e">${t('main.campaignTitle')}</h3><p style="color:#9aa5b8;margin:0 0 8px;font-size:13px">${t('main.campaignDesc')}</p>
       <div style="display:flex;gap:8px;align-items:center;margin:0 0 8px"><label style="margin:0">${t('main.campaignDiff')}</label><select id="m-cdiff">${(['easy', 'normal', 'hard'] as const).map((d) => `<option value="${d}" ${cdiff === d ? 'selected' : ''}>${t(`diff.${d}`)}</option>`).join('')}</select><small style="color:#9aa5b8">${t('main.campaignDiffTip')}</small></div>
-      <div class="missions">${SCENARIOS.map((m, i) => { const locked = i > 0 && !completed.includes(SCENARIOS[i - 1].id); const done = completed.includes(m.id); const hard = hardDone.includes(m.id); return `<div class="mission ${locked ? 'locked' : ''}" data-id="${m.id}"><span class="ic">${m.icon}</span><div><b>${m.title} ${done ? '✅' : ''}${hard ? ` <span title="${t('main.doneHard')}">🔥</span>` : ''}</b><small>${m.subtitle}${locked ? ` · ${t('main.locked')}` : ''}</small></div></div>`; }).join('')}</div>${this.tab === 'campaign' ? this.customScenariosHTML() : ''}`;
+      <div class="missions">${this.campaignHTML(completed, hardDone)}</div>${this.tab === 'campaign' ? this.customScenariosHTML() : ''}`;
     const opts = this.cb.getOptions?.();
     this.el.innerHTML = `<div class="box">
       <h1>AGE OF EARTH</h1>

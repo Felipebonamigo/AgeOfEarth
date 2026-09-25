@@ -50,7 +50,11 @@ describe('cenários', () => {
     // outro CC inimigo vivo não impede a conclusão quando o original cai
     const def = SCENARIOS.find((m) => m.id === 'm2_cerco')!;
     applyCommand(s, { type: 'delete', player: 1, ids: [id] });
-    expect(def.objectives.find((o) => o.id === 'counter')!.check!(s)).toBe('done');
+    const counter = def.objectives.find((o) => o.id === 'counter')!;
+    // G1: ocultos são avaliados; o contra-ataque só conta depois dos reforços ('reinforce'), como antes (não vence antes dos 12 min)
+    expect(counter.check!(s)).toBe('pending');
+    s.scenario!.fired.push('reinforce');
+    expect(counter.check!(s)).toBe('done');
   });
 
   it('raid() invoca só em tiles ligados ao alvo (nunca em ilha ou bolsão)', () => {
