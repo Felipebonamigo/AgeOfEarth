@@ -12,16 +12,16 @@
       "en": "Zeus orders the unthinkable: free the Titan he himself chained. Land with Heracles, found a colony in the valley and break the three chains. The priests guarding the rock wear Hades' robes... but pray to another master." }
   ],
   "outro": [
-    { "pt": "Prometeu caminha livre pela primeira vez em trinta gerações. O Culto recua e deixa no rochedo um estandarte com um lobo. Zeus sorri; a Pítia, não: 'A cidade que acender o fogo dos Titãs arderá nele.' E no mar, um náufrago de Ítaca pede abrigo às praias de Argos...",
-      "en": "Prometheus walks free for the first time in thirty generations. The Cult retreats, leaving a wolf banner on the rock. Zeus smiles; the Pythia does not: 'The city that lights the Titans' fire shall burn in it.' And at sea, a castaway from Ithaca begs shelter on the shores of Argos..." }
+    { "pt": "Prometeu caminha livre pela primeira vez em trinta gerações. O Culto recua e deixa no rochedo um estandarte: o lobo de Lícaon, rei da Arcádia e hierofante do Culto. Zeus sorri; a Pítia, não: 'A cidade que acender o fogo dos Titãs arderá nele.' E no mar, um náufrago de Ítaca pede abrigo às praias de Argos...",
+      "en": "Prometheus walks free for the first time in thirty generations. The Cult retreats, leaving a banner on the rock: the wolf of Lycaon, king of Arcadia and hierophant of the Cult. Zeus smiles; the Pythia does not: 'The city that lights the Titans' fire shall burn in it.' And at sea, a castaway from Ithaca begs shelter on the shores of Argos..." }
   ],
   "hints": [
-    { "pt": "Sem cidade, os cidadãos não têm onde entregar o que colhem: erga o Centro Cívico no Vale da Cólquida antes de tudo.",
-      "en": "Without a city, villagers have nowhere to drop what they gather: raise the Town Center in the Valley of Colchis first." },
-    { "pt": "Nos platôs 2 e 3, os Santuários dos guardiões fazem da terra território inimigo: ali seus homens sofrem atrito. Não acampe nos platôs.",
-      "en": "On plateaus 2 and 3, the guardians' Sanctuaries make the land enemy territory: your men suffer attrition there. Don't camp on the plateaus." },
-    { "pt": "Heróis causam dano triplo em criaturas míticas: Héracles é a resposta para a Águia e para os Cérberos.",
-      "en": "Heroes deal triple damage to mythic creatures: Heracles is the answer to the Eagle and the Cerberi." },
+    { "pt": "Sem cidade, os cidadãos não têm onde entregar o que colhem: erga o Centro Cívico antes de tudo. O Vale da Cólquida, no centro do mapa, tem ouro, madeira e caça.",
+      "en": "Without a city, villagers have nowhere to drop what they gather: raise the Town Center first. The Valley of Colchis, in the middle of the map, has gold, wood and game." },
+    { "pt": "As correntes são as torres dos Guardiões nos três platôs do desfiladeiro, ao norte do vale. Perto delas e dos Templos deles, a terra é inimiga: ali seus homens sofrem atrito. Não acampe nos platôs.",
+      "en": "The chains are the Guardians' towers on the three plateaus of the gorge, north of the valley. Near them and their Temples the land is hostile: your men suffer attrition there. Don't camp on the plateaus." },
+    { "pt": "Heróis causam dano triplo em criaturas míticas: Héracles é a resposta para a Águia (a mantícora do Rochedo, no topo) e para os Cérberos.",
+      "en": "Heroes deal triple damage to mythic creatures: Heracles is the answer to the Eagle (the manticore on the Rock, at the top) and the Cerberi." },
     { "pt": "Civismo I, na Academia, empurra a fronteira e permite uma 2ª cidade (o vale a oeste é bom lugar). No Difícil, Zeus a exige.",
       "en": "Civics I, at the Academy, pushes the border and allows a 2nd city (the western valley is a good spot). On Hard, Zeus demands it." }
   ],
@@ -36,16 +36,16 @@
     "startingResources": { "food": 600, "wood": 600, "gold": 500, "favor": 60, "knowledge": 150 },
     "startKit": [false, true, false]
   },
-  "vars": { "aguia_s": 0 },
+  "vars": { "aguia_s": 0, "colonia_s": 0 },
   "setup": [
     { "do": "set", "player": 0, "minorGods": ["athena", "apollo"] },
     { "do": "set", "player": 1, "techs": ["masonry"], "resources": { "food": 300, "wood": 300, "gold": 200, "favor": 0, "knowledge": 0 } },
     { "do": "spawn", "player": 2, "units": ["manticore"], "at": { "at": [46, 16] }, "tag": "aguia" }
   ],
   "objectives": [
-    { "id": "colonia", "text": { "pt": "Funde a colônia de Argos no Vale da Cólquida (Centro Cívico)", "en": "Found the Argive colony in the Valley of Colchis (Town Center)" },
+    { "id": "colonia", "text": { "pt": "Funde a colônia de Argos (Centro Cívico)", "en": "Found the Argive colony (Town Center)" },
       "done": { "buildings": { "player": 0, "type": "town_center", "complete": true }, "gte": 1 } },
-    { "id": "correntes", "text": { "pt": "Rompa as três correntes de Prometeu", "en": "Break the three chains of Prometheus" },
+    { "id": "correntes", "text": { "pt": "Rompa as três correntes de Prometeu (as torres dos Guardiões nos platôs ao norte)", "en": "Break the three chains of Prometheus (the Guardians' towers on the plateaus to the north)" },
       "done": { "all": [ { "entity": { "tag": "corrente1" }, "exists": false }, { "entity": { "tag": "corrente2" }, "exists": false }, { "entity": { "tag": "corrente3" }, "exists": false } ] } },
     { "id": "culto", "hidden": true, "text": { "pt": "Destrua a Fortaleza do Passo", "en": "Destroy the Fortress of the Pass" },
       "done": { "all": [ { "fired": "libertado" }, { "entity": { "tag": "fortaleza_culto" }, "exists": false } ] } },
@@ -69,9 +69,11 @@
       { "do": "say", "speaker": "Zeus", "icon": "⚡",
         "text": { "pt": "Uma cidade é um acampamento. Duas são um reino. Não volte do Cáucaso com menos, arconte.", "en": "One city is a camp. Two are a realm. Do not come back from the Caucasus with less, archon." } } ] },
     { "id": "facil", "when": { "all": [ { "time": { "gte": 1 } }, { "difficulty": "easy" } ] }, "then": [
-      { "do": "kill", "entity": { "tag": "corrente3" } },
+      { "do": "kill", "entity": { "tag": "guarda3", "pick": "alive" } }, { "do": "kill", "entity": { "tag": "guarda3", "pick": "alive" } },
+      { "do": "kill", "entity": { "tag": "guarda3", "pick": "alive" } }, { "do": "kill", "entity": { "tag": "guarda3", "pick": "alive" } },
+      { "do": "kill", "entity": { "tag": "guarda3", "pick": "alive" } },
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
-        "text": { "pt": "A terceira corrente cedeu sozinha: até o bronze cansa em trinta gerações. Restam duas, arconte.", "en": "The third chain gave way on its own: even bronze tires in thirty generations. Two remain, archon." } } ] },
+        "text": { "pt": "Os guardas do terceiro platô desertaram: até a fé cansa em trinta gerações. A última corrente ficou sozinha, arconte.", "en": "The guards of the third plateau have deserted: even faith tires in thirty generations. The last chain stands alone, archon." } } ] },
     { "id": "dica_colonia", "when": { "time": { "gte": 20 } }, "then": [
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
         "text": { "pt": "Um Centro Cívico pode ser erguido em terra de ninguém. Selecione os cidadãos e escolha-o no menu de construção (tecla N).", "en": "A Town Center can be raised on no man's land. Select the villagers and pick it from the build menu (N key)." } } ] },
@@ -81,8 +83,9 @@
         "text": { "pt": "A colônia está de pé, mas seus homens já passam do que ela abriga: erga Casas antes de treinar cidadãos (tecla Q).", "en": "The colony stands, but your men already exceed what it can house: raise Houses before training villagers (Q key)." } } ] },
     { "id": "dica_atrito", "when": { "all": [ { "objective": "colonia", "is": "done" }, { "time": { "gte": 240 } } ] }, "then": [
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
-        "text": { "pt": "Além da linha dourada é terra do Culto: ali seus homens sangram (atrito). Civismo, na Academia, empurra a fronteira e permite outra cidade.", "en": "Beyond the golden line is Cult land: there your men bleed (attrition). Civics, at the Academy, pushes the border and allows another city." } } ] },
+        "text": { "pt": "Onde a terra ganha a cor de outro senhor, seus homens sangram (atrito): os Guardiões marcam os platôs; o Culto, o nordeste. Civismo, na Academia, empurra a fronteira e permite outra cidade.", "en": "Where the land takes another master's colour, your men bleed (attrition): the Guardians mark the plateaus; the Cult, the northeast. Civics, at the Academy, pushes the border and allows another city." } } ] },
     { "id": "atrito", "when": { "any": [
+        { "units": { "player": 0, "near": { "point": { "at": [28, 62] }, "radius": 9 } }, "gte": 1 },
         { "units": { "player": 0, "near": { "point": { "at": [60, 46] }, "radius": 9 } }, "gte": 1 },
         { "units": { "player": 0, "near": { "point": { "at": [40, 28] }, "radius": 9 } }, "gte": 1 } ] }, "then": [
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
@@ -98,27 +101,29 @@
     { "id": "corrente3_cai", "when": { "all": [ { "entity": { "tag": "corrente3" }, "exists": false }, { "not": { "difficulty": "easy" } } ] }, "then": [
       { "do": "raid", "player": 2, "units": ["hypaspist", "hypaspist", "hypaspist", "toxotes", "toxotes", "cerberus"], "target": { "entity": { "tag": "heracles" } }, "angle": 5, "distance": 18 } ] },
     { "id": "libertado", "when": { "objective": "correntes", "is": "done" }, "then": [
-      { "do": "spawn", "player": 0, "units": ["prometheus"], "at": { "at": [48, 14] }, "tag": "prometeu" },
+      { "do": "spawn", "player": 0, "units": ["prometheus"], "at": { "at": [56, 41] }, "tag": "prometeu" },
       { "do": "reveal", "id": "culto" },
       { "do": "say", "speaker": "Zeus", "icon": "⚡",
         "text": { "pt": "Ele é teu por um dia, arconte. Contra meu pai, até meus prisioneiros me servem. Derrube a fortaleza deles.", "en": "He is yours for a day, archon. Against my father, even my prisoners serve me. Bring down their fortress." } },
-      { "do": "say", "speaker": { "pt": "Lícaon", "en": "Lycaon" }, "icon": "🐺",
+      { "do": "say", "speaker": { "pt": "Lícaon, o Rei-Lobo", "en": "Lycaon, the Wolf-King" }, "icon": "🐺",
         "text": { "pt": "Sentem-se à minha mesa, argivos. Zeus sentou-se uma vez... e nunca mais teve fome.", "en": "Sit at my table, Argives. Zeus sat there once... and never hungered again." } } ] },
     { "id": "profecia", "when": { "all": [ { "fired": "libertado" }, { "any": [
         { "units": { "player": 0, "tag": "prometeu", "near": { "point": { "entity": { "tag": "fortaleza_culto" } }, "radius": 14 } }, "gte": 1 },
         { "objective": "culto", "is": "done" } ] } ] }, "then": [
       { "do": "say", "speaker": { "pt": "Prometeu", "en": "Prometheus" }, "icon": "🔥",
         "text": { "pt": "Obrigado, Argos. E perdoa o que vou dizer: a cidade que acender o fogo dos Titãs arderá nele.", "en": "Thank you, Argos. And forgive what I must say: the city that lights the Titans' fire shall burn in it." } } ] },
-    { "id": "aguia_vista", "when": { "all": [ { "entity": { "tag": "aguia" }, "exists": true }, { "units": { "player": 0, "near": { "point": { "at": [46, 16] }, "radius": 12 } }, "gte": 1 } ] }, "then": [
+    { "id": "aguia_vista", "when": { "all": [ { "entity": { "tag": "aguia" }, "exists": true }, { "units": { "player": 0, "tag": "heracles", "near": { "point": { "at": [46, 16] }, "radius": 12 } }, "gte": 1 } ] }, "then": [
       { "do": "say", "speaker": { "pt": "Héracles", "en": "Heracles" }, "icon": "💪",
-        "text": { "pt": "Uma águia do tamanho de um carro de guerra. Deixe-a comigo: herói fere criatura mítica em triplo.", "en": "An eagle the size of a war chariot. Leave her to me: a hero strikes a mythic beast threefold." } } ] },
-    { "id": "aguia_cai", "when": { "objective": "aguia", "is": "done" }, "then": [
-      { "do": "give", "player": 0, "resources": { "favor": 100 } },
+        "text": { "pt": "Chamam isso de Águia? Juba de leão, cauda de escorpião... Deixe-a comigo: herói causa dano triplo em criatura mítica.", "en": "They call that an Eagle? A lion's mane, a scorpion's tail... Leave her to me: a hero deals triple damage to mythic beasts." } } ] },
+    { "id": "aguia_heracles", "when": { "all": [ { "objective": "aguia", "is": "done" }, { "not": { "fired": "aguia_cai" } },
+        { "units": { "player": 0, "tag": "heracles", "near": { "point": { "at": [46, 16] }, "radius": 15 } }, "gte": 1 } ] }, "then": [
       { "do": "say", "speaker": { "pt": "Héracles", "en": "Heracles" }, "icon": "💪",
         "text": { "pt": "Já matei essa águia uma vez. Os deuses gostam de repetir histórias.", "en": "I killed this eagle once already. The gods love a rerun." } } ] },
+    { "id": "aguia_cai", "when": { "objective": "aguia", "is": "done" }, "then": [
+      { "do": "give", "player": 0, "resources": { "favor": 100 } } ] },
     { "id": "aguia_relogio", "repeat": true, "when": { "all": [ { "fired": "aguia_cai" }, { "difficulty": "hard" }, { "entity": { "tag": "aguia" }, "exists": false }, { "var": "aguia_s", "lt": 180 } ] }, "then": [
       { "do": "addVar", "name": "aguia_s", "delta": 1 } ] },
-    { "id": "aguia_renasce", "repeat": true, "when": { "all": [ { "fired": "aguia_cai" }, { "difficulty": "hard" }, { "var": "aguia_s", "gte": 180 } ] }, "then": [
+    { "id": "aguia_renasce", "repeat": true, "when": { "all": [ { "fired": "aguia_cai" }, { "difficulty": "hard" }, { "var": "aguia_s", "gte": 180 }, { "not": { "fired": "libertado" } } ] }, "then": [
       { "do": "setVar", "name": "aguia_s", "value": 0 },
       { "do": "spawn", "player": 2, "units": ["manticore"], "at": { "at": [46, 16] }, "tag": "aguia" },
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
@@ -129,13 +134,16 @@
         "text": { "pt": "Fui eu que forjei aquelas correntes. Seis elos cada, eu contei. Leve minha Abundância e não conte a meu pai.", "en": "I forged those chains. Six links each, I counted. Take my Plenty and don't tell my father." } } ] },
     { "id": "aviso_portal", "when": { "entity": { "player": 0, "type": "titan_gate" }, "exists": true }, "then": [
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
-        "text": { "pt": "O fogo dos Titãs não se acende no Cáucaso, arconte. Não por tuas mãos. Não ainda.", "en": "The Titans' fire is not lit in the Caucasus, archon. Not by your hands. Not yet." } } ] },
+        "text": { "pt": "O fogo dos Titãs não se acende no Cáucaso, arconte. Não por suas mãos. Não ainda.", "en": "The Titans' fire is not lit in the Caucasus, archon. Not by your hands. Not yet." } } ] },
     { "id": "sem_portal_argos", "repeat": true, "when": { "entity": { "player": 0, "type": "titan_gate" }, "exists": true }, "then": [
       { "do": "kill", "entity": { "player": 0, "type": "titan_gate" } },
       { "do": "give", "player": 0, "resources": { "food": 600, "wood": 600, "gold": 600, "favor": 200 } } ] },
     { "id": "sem_portal_culto", "repeat": true, "when": { "entity": { "player": 1, "type": "titan_gate" }, "exists": true }, "then": [
       { "do": "kill", "entity": { "player": 1, "type": "titan_gate" } } ] },
-    { "id": "contra_ataque", "repeat": true, "when": { "all": [ { "objective": "colonia", "is": "done" }, { "every": { "seconds": 150, "after": 300 } } ] }, "then": [
+    { "id": "colonia_relogio", "repeat": true, "when": { "objective": "colonia", "is": "done" }, "then": [
+      { "do": "addVar", "name": "colonia_s", "delta": 1 } ] },
+    { "id": "contra_ataque", "repeat": true, "when": { "var": "colonia_s", "gte": 300 }, "then": [
+      { "do": "setVar", "name": "colonia_s", "value": 150 },
       { "do": "raid", "player": 2, "units": ["hoplite", "hoplite", "toxotes", "toxotes", "hypaspist"], "target": { "tc": 0 }, "angle": 6 } ] }
   ],
   "victory": { "all": [
@@ -144,8 +152,8 @@
   ] },
   "defeat": { "any": [
     { "entity": { "tag": "heracles" }, "exists": false },
-    { "all": [ { "time": { "gte": 5 } }, { "buildings": { "player": 0, "type": "town_center" }, "eq": 0 }, { "units": { "player": 0, "type": "villager" }, "eq": 0 } ] },
-    { "all": [ { "objective": "colonia", "is": "done" }, { "buildings": { "player": 0, "type": "town_center" }, "eq": 0 } ] }
+    { "all": [ { "time": { "gte": 5 } }, { "buildings": { "player": 0, "type": "town_center", "complete": true }, "eq": 0 }, { "units": { "player": 0, "type": "villager" }, "eq": 0 } ] },
+    { "all": [ { "objective": "colonia", "is": "done" }, { "buildings": { "player": 0, "type": "town_center", "complete": true }, "eq": 0 } ] }
   ] },
   "hud": [
     { "type": "progress", "entity": { "player": 0, "type": "town_center" }, "max": 90, "label": { "pt": "🏛️ Colônia em obra", "en": "🏛️ Colony under construction" } }

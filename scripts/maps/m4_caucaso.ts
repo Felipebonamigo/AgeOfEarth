@@ -41,6 +41,8 @@ export const POINTS = {
   beach: [48, 135], valley: [48, 84], westValley: [20, 96],
   corrente1: [28, 62], corrente2: [60, 46], corrente3: [40, 28],
   rock: [48, 13], prometheus: [48, 14], eagle: [46, 16],
+  // onde Prometeu surge ao ser libertado: na descida do platô 3 para o platô 2, rumo à Fortaleza (longe da Águia)
+  freed: [56, 41],
   cult: [82, 24], fortress: [74, 30], altar: [88, 104],
 } as const;
 const STARTS: [number, number][] = [[48, 135], [82, 24], [52, 12]];
