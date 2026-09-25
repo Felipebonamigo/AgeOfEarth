@@ -6,6 +6,7 @@ import type { Building, GameState, Unit, VisualEffect } from '../core/types';
 import { Camera } from './camera';
 import { TextureCache, darken } from './textures';
 import { getUnitStats, getBuildingStats } from '../core/sim/modifiers';
+import type { EditorUI } from '../editor/types';
 
 const CHUNK = 16;
 
@@ -18,6 +19,7 @@ export interface RenderUI {
   placement: { type: string; tx: number; ty: number; ok: boolean; tiles?: { x: number; y: number; ok: boolean }[] } | null;
   dragRect: { x0: number; y0: number; x1: number; y1: number } | null;
   showRanges: boolean;
+  editor?: EditorUI | null;          // sobreposições do editor de mapas (pincel, fantasmas, inícios, grade, regiões)
   powerTarget: { radius: number } | null;
   mouseWorld: { x: number; y: number };
 }

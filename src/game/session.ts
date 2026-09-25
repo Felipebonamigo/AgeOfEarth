@@ -4,8 +4,9 @@ import type { Building, Command, GameConfig, GameState, Unit } from '../core/typ
 import { createGame } from '../core/sim/game';
 import { LocalScheduler, ReplayScheduler, type CommandScheduler, type ReplayFrame } from '../core/net/lockstep';
 import { serialize, deserialize } from '../core/serialize';
+import type { EditorUI } from '../editor/types';
 
-export type UIMode = 'normal' | 'place' | 'attackMove' | 'power' | 'rally';
+export type UIMode = 'normal' | 'place' | 'attackMove' | 'power' | 'rally' | 'editor';
 
 export interface UIState {
   mode: UIMode;
@@ -14,6 +15,7 @@ export interface UIState {
   powerId: string | null;
   wallStart: { x: number; y: number } | null;
   showRanges: boolean;
+  editor?: EditorUI;                 // presente só no editor de mapas (ui.mode === 'editor')
 }
 
 export class Session {

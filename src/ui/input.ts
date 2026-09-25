@@ -315,7 +315,7 @@ export class Input {
     let dragRect: RenderUI['dragRect'] = null;
     if (this.mouse.down && this.mouse.dragging && this.mouse.button === 0) dragRect = { x0: this.mouse.downX, y0: this.mouse.downY, x1: this.mouse.x, y1: this.mouse.y };
     const power = s.ui.mode === 'power' && s.ui.powerId ? POWERS[s.ui.powerId] : null;
-    return { localPlayer: s.local, selection: s.selection, hoverId: this.hoverId, placement, dragRect, showRanges: s.ui.showRanges, powerTarget: power && power.radius ? { radius: power.radius } : null, mouseWorld: w };
+    return { localPlayer: s.local, selection: s.selection, hoverId: this.hoverId, placement, dragRect, showRanges: s.ui.showRanges, editor: s.ui.editor ?? null, powerTarget: power && power.radius ? { radius: power.radius } : null, mouseWorld: w };
   }
 
   get tileSize() { return TILE; }
