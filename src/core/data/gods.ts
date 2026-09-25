@@ -56,8 +56,9 @@ export const MAJOR_GODS: Record<string, MajorGodDef> = {
       { type: 'cost', match: { tags: ['cavalry'] }, mult: 0.85 },
       { type: 'unit', match: { tags: ['cavalry'] }, stat: 'speed', mult: 1.1 },
       { type: 'player', stat: 'tradeTax', mult: 0.8 },
+      { type: 'gather', resource: 'all', mult: 1.08 },
     ],
-    perks: ['Cavalaria 15% mais barata e 10% mais rápida', 'Mercado com taxas menores', 'Milícia surge quando um edifício seu é destruído', 'Poder: Isca'],
+    perks: ['Cavalaria 15% mais barata e 10% mais rápida', 'Coleta de recursos +8% (a fartura dos mares)', 'Mercado com taxas menores', 'Milícia surge quando um edifício seu é destruído', 'Poder: Isca'],
     desc: 'O abalador da terra comanda cavalarias velozes e uma economia de comércio.',
   },
   hades: {
