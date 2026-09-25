@@ -128,6 +128,8 @@ export const SCENARIOS: ScenarioDef[] = [
     ],
     victory: (s) => s.scenario!.objectives.counter === 'done',
     defeat: (s) => countBuildings(s, ME, 'town_center') === 0 && s.tick > 5 * TICK_RATE,
+    // Cronômetro do painel de objetivos enquanto "Resista" estiver pendente (HUD genérico, docs/EDITOR.md §2.3 hud)
+    hud: [{ type: 'countdown', seconds: 12 * 60, while: (s) => s.scenario!.objectives.survive === 'pending', label: '' }],
   },
   {
     id: 'm3_portal', title: 'O Portal dos Titãs', subtitle: 'Missão 3 · Corrida', icon: '🌋',
@@ -165,5 +167,7 @@ export const SCENARIOS: ScenarioDef[] = [
     ],
     victory: (s) => (s.scenario!.objectives.gate === 'done') || (s.scenario!.objectives.cronus === 'done' && s.scenario!.fired.includes('cronus_rises')),
     defeat: (s) => countBuildings(s, ME, 'town_center') === 0 && s.tick > 5 * TICK_RATE,
+    // Progresso do ritual (obra do Portal) no painel de objetivos, some quando o Portal se conclui ou cai
+    hud: [{ type: 'progress', entity: (s) => { const g = [...s.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate'); return g && !g.complete ? g.progress : -1; }, max: 180, label: '🌋 Ritual do Portal' }],
   },
 ];

@@ -8,6 +8,8 @@ import { Session } from './game/session';
 import type { GameConfig } from './core/types';
 import { SCENARIOS, HORDE } from './core/scenario/campaign';
 import { migrateMap, validateMap, canonicalize, mapHash, type FixedMapData } from './core/map/fixed';
+import { validateScenario } from './core/scenario/schema';
+import { gameConfigFor } from './core/scenario/compile';
 import { putMap, slugify } from './game/maps';
 import { MapEditor } from './editor/editor';
 import { EditorPanel, type TestOpts } from './editor/panel';
@@ -127,7 +129,28 @@ async function boot() {
     const def = id === HORDE.id ? HORDE : SCENARIOS.find((m) => m.id === id); if (!def) return;
     replaySaved = false;
     startGame({ ...def.config, scenario: id, campaignDifficulty: diff, players: def.config.players.map((p) => (p.isAI ? { ...p, difficulty: enemyDifficulty(p.difficulty, diff) } : p)) });
-    if (session) { session.paused = true; hud.showIntro(id, () => { if (session) session.paused = false; }); }
+    if (session) { session.paused = true; hud.showIntro(() => { if (session) session.paused = false; }); }
+  };
+  /**
+   * Cenário personalizado (docs/EDITOR.md §4.7): mapa de Meus mapas (ou importado) com `scenario` embutido. Config do
+   * arquivo (gameConfigFor) + mapa inline e hash; semente do cenário ou sorteada. Ids reservados são recusados
+   * (validateScenario sem allowReserved): nunca marca progresso da campanha nem conquistas de missão.
+   */
+  const startScenarioFile = (map: FixedMapData): boolean => {
+    const sc = map.scenario;
+    if (!sc) { hud.toast(t('main.customScenarioNo'), 'warn'); return false; }
+    const issues = validateScenario(sc);
+    if (issues.length) { alert(`${t('main.customScenarioBad')}\n${issues.slice(0, 5).map((i) => `${i.path || '$'}: ${i.message}`).join('\n')}`); return false; }
+    const mapIssues = validateMap(map, { players: sc.config.players.length, mode: sc.config.mode, ai: sc.config.players.map((p) => p.isAI) });
+    const errors = mapIssues.filter((i) => i.level === 'error');
+    if (errors.length) { alert(`${t('main.fixedMapErrors')}\n${errors.slice(0, 5).map(issueText).join('\n')}`); return false; }
+    if (editorOrTest()) leaveEditorView();
+    replaySaved = false;
+    const base = gameConfigFor(sc);
+    try { startGame({ ...base, seed: sc.config.seed ?? ((Math.floor(Math.random() * 1e9)) >>> 0), map, mapHash: mapHash(map), scenarioData: sc }); }
+    catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); return false; }
+    if (session) { session.paused = true; hud.showIntro(() => { if (session) session.paused = false; }); }
+    return true;
   };
   let hostResumeCheck: (() => void) | null = null;
   const startNetworkGame = (client: NetClient, config: GameConfig, slots: number[], delay = 4) => {
@@ -137,6 +160,11 @@ async function boot() {
       const issues = validateMap(config.map, { players: config.players.length, mode: config.mode });
       const errors = issues.filter((i) => i.level === 'error');
       if (errors.length) { menu.showNetError(t('mp.mapInvalid', { reason: errors.slice(0, 2).map(issueText).join('; ') })); return; }
+    }
+    // Cenário JSON vindo do anfitrião: validado em todos os clientes (ids reservados recusados) antes de criar a sessão
+    if (config.scenarioData !== undefined) {
+      const issues = validateScenario(config.scenarioData);
+      if (issues.length) { menu.showNetError(t('mp.scenarioInvalid', { reason: issues.slice(0, 2).map((i) => `${i.path || '$'}: ${i.message}`).join('; ') })); return; }
     }
     const spectator = client.isSpectator || slots.indexOf(client.slot) < 0;
     const local = spectator ? Math.max(0, config.players.findIndex((p) => !p.isAI)) : slots.indexOf(client.slot);   // espectador assiste pela perspectiva do primeiro humano, com o mapa revelado
@@ -221,7 +249,7 @@ async function boot() {
     const cfg: GameConfig = { ...HORDE.config, seed: (Math.floor(Math.random() * 1e9)) >>> 0, scenario: HORDE.id, campaignDifficulty: difficulty === 'easy' ? 'easy' : difficulty === 'normal' ? 'normal' : 'hard', players: HORDE.config.players.map((p, i) => (i === 0 ? { ...p, god, difficulty } : p)) };
     replaySaved = false;
     startGame(cfg);
-    if (session) { session.paused = true; hud.showIntro(HORDE.id, () => { if (session) session.paused = false; }); }
+    if (session) { session.paused = true; hud.showIntro(() => { if (session) session.paused = false; }); }
   };
   const watchReplay = () => {
     try {
@@ -261,6 +289,8 @@ async function boot() {
   const startEditor = (file: FixedMapData) => {
     let ed: MapEditor;
     try { ed = new MapEditor(file, editorView); } catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); menu.show(); return; }
+    // O cenário embutido acompanha o mapa no editor (MapEditor só copia os metadados do terreno; setMeta não deve sujar o documento aqui)
+    if (file.scenario && typeof file.scenario === 'object' && !ed.meta.scenario) { ed.setMeta({ scenario: file.scenario }); ed.dirty = false; }
     if (editorOrTest()) leaveEditorView();
     editor = ed; returnToEditor = false; editorCam = null;
     showEditor(ed, null);
@@ -278,6 +308,25 @@ async function boot() {
     const file = ed.toFile();
     const starts = file.starts.length;
     if (starts < 2) { hud.toast(t('editor.testNeedStarts'), 'warn'); return; }
+    // Testar com o cenário embutido: jogadores, modo e recursos vêm do cenário (gameConfigFor) sobre o mapa inline; intro como na campanha
+    if (opts.scenario && file.scenario) {
+      const sc = file.scenario;
+      const scIssues = validateScenario(sc);
+      if (scIssues.length) { hud.toast(`${t('editor.testScenarioErrors')} ${scIssues.slice(0, 3).map((i) => `${i.path || '$'}: ${i.message}`).join('; ')}`, 'warn'); return; }
+      const base = gameConfigFor(sc);
+      const issues = validateMap(file, { players: base.players.length, mode: base.mode, ai: base.players.map((p) => p.isAI) });
+      const errors = issues.filter((i) => i.level === 'error');
+      if (errors.length) { hud.toast(`${t('editor.testErrors')} ${errors.slice(0, 3).map(issueText).join('; ')}`, 'warn'); return; }
+      editorPanel?.autosaveNow();
+      editorCam = { x: renderer.cam.x, y: renderer.cam.y, zoom: renderer.cam.zoom };
+      leaveEditorView();
+      returnToEditor = true; replaySaved = true;
+      try { startGame({ ...base, seed: (Math.floor(Math.random() * 1e9)) >>> 0, revealMap: opts.reveal || base.revealMap, map: file, mapHash: mapHash(file), scenarioData: sc }); }
+      catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); returnFromTest(); return; }
+      hud.setTestMode(() => returnFromTest());
+      if (session) { session.paused = true; hud.showIntro(() => { if (session) session.paused = false; }); }
+      return;
+    }
     let saved: { name?: string } = {}; try { saved = JSON.parse(localStorage.getItem('aoe_setup') ?? '{}'); } catch { /* ignore */ }
     const names = ['Leônidas', 'Péricles', 'Agamenon', 'Odisseu'];
     const as = Math.max(0, Math.min(starts - 1, opts.as | 0));
@@ -307,7 +356,7 @@ async function boot() {
     showEditor(ed, editorCam);
   };
 
-  const menu = new MainMenu(root, { onStart: (cfg) => { replaySaved = false; startGame(cfg); }, onLoad: loadGame, hasSave, onEditor: startEditor, onHelp: () => hud.showHelp(), onEncyclopedia: () => hud.showEncyclopedia(), onMission: startMission, onNetworkStart: startNetworkGame, onNetworkRejoin: rejoinNetworkGame, onHorde: startHorde, onReplay: watchReplay, hasReplay, onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); }, getOptions: () => options, onHotkeys: () => hud.showHotkeys() });
+  const menu = new MainMenu(root, { onStart: (cfg) => { replaySaved = false; startGame(cfg); }, onLoad: loadGame, hasSave, onEditor: startEditor, onHelp: () => hud.showHelp(), onEncyclopedia: () => hud.showEncyclopedia(), onMission: startMission, onScenarioFile: startScenarioFile, onNetworkStart: startNetworkGame, onNetworkRejoin: rejoinNetworkGame, onHorde: startHorde, onReplay: watchReplay, hasReplay, onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); }, getOptions: () => options, onHotkeys: () => hud.showHotkeys() });
   input.edgeScroll = settings.edgeScroll;
   // Tela, escala e qualidade salvas
   initDisplay((v) => { if (settings.fullscreen !== v) { settings.fullscreen = v; saveSettings(settings); } });
@@ -344,7 +393,7 @@ async function boot() {
   };
   requestAnimationFrame(loop);
   // Expõe para depuração/testes automatizados
-  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, startGame, loadGame, diagnostic, menu, startEditor, exitEditor, testFromEditor, get editor() { return editor; }, get editorPanel() { return editorPanel; }, mapData: () => (session ? mapToData(session.state.map) : null), debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; } };
+  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, startGame, loadGame, diagnostic, menu, startEditor, exitEditor, testFromEditor, startScenarioFile, get editor() { return editor; }, get editorPanel() { return editorPanel; }, mapData: () => (session ? mapToData(session.state.map) : null), debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; } };
 }
 
 boot().catch((e) => { console.error(e); document.body.innerHTML = `<pre style="color:#f88;padding:20px">Erro ao iniciar: ${(e as Error).stack}</pre>`; });
