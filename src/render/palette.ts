@@ -1,6 +1,7 @@
-// Paleta compartilhada da renderização (docs/ART.md §1.5–1.6): cor-base terrosa de cada terreno (usada pelo pintor de
-// chunks, pelo minimapa e pelas sobreposições do editor), materiais do placeholder, cor de time tingida, sol/sombra e
-// o ruído determinístico de baixa frequência que modula o terreno. Fica fora do núcleo determinístico.
+// Paleta compartilhada da renderização (docs/ART.md §1.5–1.6): cor-base terrosa de cada terreno (usada pelos
+// materiais e uniforms do shader do terreno, pelo minimapa e pelas sobreposições do editor), materiais do placeholder,
+// cor de time tingida, sol/sombra e o ruído determinístico de baixa frequência (manchas secas da grama, tom macro) que o
+// shader e o minimapa compartilham. Fica fora do núcleo determinístico.
 import { TERRAIN, PLAYER_COLORS } from '../core/constants';
 
 /** Cor-base (0xRRGGBB) de cada terreno; 6 = água profunda forçada pelo pincel do editor. */
@@ -41,7 +42,8 @@ export function teamTint(color: number): number {
   return mixColor(color, 0x8a7a5a, 0.3);
 }
 
-/** Sol único a noroeste-alto (espaço de tela, y para baixo, z para cima; §1.5) e a projeção da sombra no chão (sudeste). */
+/** Sol único a noroeste-alto (espaço de tela, y para baixo, z para cima; §1.5) e a projeção da sombra no chão (sudeste).
+ *  O shader do terreno recebe SUN_DIR normalizado como uSun (terrain/ChunkMesh.ts). */
 export const SUN_DIR = { x: -0.45, y: -0.55, z: 0.7 } as const;
 export const SHADOW_DIR = { x: 0.633, y: 0.774 } as const;   // -SUN_DIR.xy normalizado: direita-baixo
 /** Alfa das sombras separadas (camada 'shadows', blend multiply). */
@@ -112,17 +114,6 @@ export function noise2(x: number, y: number): number {
   const a = t[(iy * NOISE_N + ix) * 2], b = t[(iy * NOISE_N + ix1) * 2], c = t[(iy1 * NOISE_N + ix) * 2], d = t[(iy1 * NOISE_N + ix1) * 2];
   return (a + (b - a) * tx) * (1 - ty) + (c + (d - c) * tx) * ty;
 }
-/** Os dois canais de ruído no mesmo ponto (para deslocamentos 2D), escritos em out[0..1]; uma só busca na tabela. */
-export function noise2xy(x: number, y: number, out: Float32Array): void {
-  const t = noiseTable ?? (noiseTable = buildNoise());
-  const fx = x - Math.floor(x / NOISE_N) * NOISE_N, fy = y - Math.floor(y / NOISE_N) * NOISE_N;
-  const ix = fx | 0, iy = fy | 0, tx = fx - ix, ty = fy - iy;
-  const ix1 = (ix + 1) & (NOISE_N - 1), iy1 = (iy + 1) & (NOISE_N - 1);
-  const i00 = (iy * NOISE_N + ix) * 2, i10 = (iy * NOISE_N + ix1) * 2, i01 = (iy1 * NOISE_N + ix) * 2, i11 = (iy1 * NOISE_N + ix1) * 2;
-  const w00 = (1 - tx) * (1 - ty), w10 = tx * (1 - ty), w01 = (1 - tx) * ty, w11 = tx * ty;
-  out[0] = t[i00] * w00 + t[i10] * w10 + t[i01] * w01 + t[i11] * w11;
-  out[1] = t[i00 + 1] * w00 + t[i10 + 1] * w10 + t[i01 + 1] * w01 + t[i11 + 1] * w11;
-}
 /** Quanto a grama está seca em (x, y) tiles: manchas de ~5 tiles (0 = viva, 1 = seca). */
 export function dryness(x: number, y: number): number {
   const n = noise2(x * 0.19 + 40, y * 0.19 + 9);
@@ -134,7 +125,8 @@ export function macroTone(x: number, y: number): number { return 0.92 + 0.16 * n
 
 /**
  * Cor de um tile (terreno em x, y com variação `decor`) já modulada pelo ruído de baixa frequência: manchas secas na
- * grama, topo claro na montanha, jitter leve de matiz por tile. É a fonte do minimapa e do pintor de chunks.
+ * grama (o mesmo dryness que o shader do terreno lê em uKind.b), topo claro na montanha, jitter leve de matiz por tile.
+ * É a base do minimapa, coerente com o terreno por shader sem precisar de uma RenderTexture.
  */
 export function tileColor(terrain: number, x: number, y: number, decor: number): number {
   let c = terrainColor(terrain);

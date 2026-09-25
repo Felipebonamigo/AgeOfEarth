@@ -1,16 +1,27 @@
-// Geração procedural de texturas (sem arquivos de arte): terreno, recursos, unidades e edifícios — o placeholder até a
-// arte assada da Fase 2 (docs/ART.md). Paleta terrosa e materiais de palette.ts; nenhuma sombra é assada nos sprites de
-// unidades/edifícios (elas vivem na camada 'shadows'); as sombras dos nós são assadas no chunk com a regra de shadows.ts.
-import { Graphics, Rectangle, Texture, type Renderer } from 'pixi.js';
-import { TERRAIN, TILE } from '../core/constants';
+// Geração procedural de texturas (sem arquivos de arte): recursos, unidades e edifícios — o placeholder até a arte
+// assada da Fase 2 (docs/ART.md). O terreno é desenhado por shader (terrain/*). Paleta terrosa e materiais de
+// palette.ts; nenhuma sombra é assada nos sprites de unidades/edifícios (elas vivem na camada 'shadows'); os nós vêm de
+// um atlas único (NODE_VARIANTS variantes por tipo) com a sombra SE já desenhada no quadro, pela regra de shadows.ts.
+import { Container, Graphics, Rectangle, Texture, type Renderer } from 'pixi.js';
+import { TILE, type NodeType } from '../core/constants';
 import { BUILDINGS, UNITS } from '../core/data';
-import type { GameMap } from '../core/types';
-import { FOAM, MATERIALS, MOUNTAIN_TOP, hash01, mixColor, noise2, noise2xy, scaleColor, teamTint, terrainColor, tileColor, dryness } from './palette';
+import { MATERIALS, SHADOW_ALPHA, hash01, mixColor, scaleColor, teamTint } from './palette';
+import { nodeShadow } from './shadows';
 
 const { skin: SKIN, skinDark: SKIN_DARK, wood: WOOD, woodDark: WOOD_DARK, stone: STONE, stoneDark: STONE_DARK, marble: MARBLE, terracotta: TERRACOTTA, gold: GOLD, bronze: BRONZE, iron: IRON, linen: LINEN, leather: LEATHER } = MATERIALS;
 const DARK = 0x2a2622;
 
 export const darken = scaleColor;
+
+/** Tipos de nó no atlas (linhas) e variantes por tipo (colunas). */
+const NODE_TYPES: readonly NodeType[] = ['tree', 'berry', 'gold', 'deer', 'boar', 'lure'];
+export const NODE_VARIANTS = 8;
+/** Lado (px) da célula do atlas de nós: cabe a copa (± 16 px) e a sombra SE deslocada (até ≈ 24 px do centro). */
+const NODE_CELL = 56;
+/** O desenho do nó fica NODE_LIFT px acima do ponto de âncora (o centro do tile), como o antigo anchor (0,5; 0,6) de 51 px. */
+const NODE_LIFT = 5;
+/** Âncora dos sprites de nó: o centro do tile cai NODE_LIFT px abaixo do centro do desenho. */
+export const NODE_ANCHOR = { x: 0.5, y: (NODE_CELL / 2 + NODE_LIFT) / NODE_CELL } as const;
 export const mix = mixColor;
 
 export class TextureCache {
@@ -29,8 +40,46 @@ export class TextureCache {
   }
 
   // ---------------- Nós ----------------
+  private nodeAtlas: Texture | null = null;
+  private nodeFrames = new Map<string, Texture>();
+  /**
+   * Quadro do nó `type` com a variação `variant` (decor 0–255, quantizada em NODE_VARIANTS): todos os quadros vêm de
+   * UMA textura (gerada uma vez), então milhares de nós são desenhados em poucos lotes. Âncora: NODE_ANCHOR.
+   */
   node(type: string, variant: number): Texture {
-    return this.make(`node:${type}:${variant}`, TILE * 1.6, (g) => drawNode(g, type, variant), 2);
+    const v = Math.min(NODE_VARIANTS - 1, Math.max(0, Math.floor((variant & 255) * NODE_VARIANTS / 256)));
+    const key = `${type}:${v}`;
+    const hit = this.nodeFrames.get(key);
+    if (hit) return hit;
+    const atlas = this.nodeAtlas ?? (this.nodeAtlas = this.buildNodeAtlas());
+    const row = NODE_TYPES.indexOf(type as NodeType);
+    const tex = new Texture({ source: atlas.source, frame: new Rectangle(v * NODE_CELL, Math.max(0, row) * NODE_CELL, NODE_CELL, NODE_CELL) });
+    this.nodeFrames.set(key, tex);
+    return tex;
+  }
+  /** Atlas NODE_VARIANTS × NODE_TYPES células de NODE_CELL px: sombra SE (elíptica, borda macia) e o nó por cima. */
+  private buildNodeAtlas(): Texture {
+    // um Graphics para as sombras e um por nó, num Container (Graphics não aceita filhos no Pixi 8)
+    const root = new Container(), g = new Graphics();
+    root.addChild(g);
+    NODE_TYPES.forEach((type, row) => {
+      for (let v = 0; v < NODE_VARIANTS; v++) {
+        const ox = v * NODE_CELL + NODE_CELL / 2, oy = row * NODE_CELL + NODE_CELL / 2;
+        const sh = nodeShadow(type, 1);
+        if (sh) {
+          const cx = ox + sh.dx, cy = oy + NODE_LIFT + sh.dy;
+          g.ellipse(cx, cy, sh.rx + 1.5, sh.ry + 1).fill({ color: 0x000000, alpha: SHADOW_ALPHA * 0.4 });
+          g.ellipse(cx, cy, sh.rx - 0.5, sh.ry - 0.4).fill({ color: 0x000000, alpha: SHADOW_ALPHA * 0.62 });
+        }
+        const node = new Graphics();
+        drawNode(node, type, Math.round((v + 0.5) * 256 / NODE_VARIANTS));
+        node.position.set(ox, oy);
+        root.addChild(node);
+      }
+    });
+    const tex = this.renderer.generateTexture({ target: root, resolution: 2, frame: new Rectangle(0, 0, NODE_VARIANTS * NODE_CELL, NODE_TYPES.length * NODE_CELL), antialias: true });
+    root.destroy({ children: true });
+    return tex;
   }
   // ---------------- Unidades ----------------
   unit(type: string, color: number): Texture {
@@ -80,154 +129,7 @@ export class TextureCache {
   }
 }
 
-// ---------------- Terreno: camada de cor contínua (baixa frequência) + detalhes (alta frequência) ----------------
-/** Sub-pixels por tile da camada de cor; o canvas é ampliado TILE/SUB vezes com filtro bilinear (sem grade). */
-export const SUB = 8;
-/** Margem (em sub-pixels) pintada além do chunk para o filtro bilinear não desbotar nas bordas entre chunks. */
-export const CHUNK_MARGIN = 2;
-const isWater = (t: number) => t === TERRAIN.WATER || t === TERRAIN.DEEP;
-const smooth01 = (a: number, b: number, x: number) => { const k = x <= a ? 0 : x >= b ? 1 : (x - a) / (b - a); return k * k * (3 - 2 * k); };
-
-/**
- * Pinta a cor-base do retângulo de tiles [x0, x0+tw) × [y0, y0+th) num canvas de (tw·SUB + 2·margem)² pixels.
- * Cada sub-pixel mistura bilinearmente as cores (tileColor) dos 4 tiles mais próximos de uma posição perturbada por
- * ruído (transições irregulares de ≈ 1 tile); água × terra tem margem molhada do lado da terra e espuma do lado da água.
- */
-export function paintChunkBase(map: GameMap, x0: number, y0: number, tw: number, th: number): HTMLCanvasElement {
-  const M = CHUNK_MARGIN, W = tw * SUB + 2 * M, H = th * SUB + 2 * M;
-  const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
-  const ctx = canvas.getContext('2d')!;
-  const img = ctx.createImageData(W, H); const px = img.data;
-  // cache de cor/tipo dos tiles do retângulo ampliado em 2 tiles (perturbação ± 0,45 + bilinear ± 0,5 + margem)
-  const R = 2, cw = tw + 2 * R, ch = th + 2 * R;
-  const col = new Int32Array(cw * ch), water = new Uint8Array(cw * ch);
-  for (let j = 0; j < ch; j++) for (let i = 0; i < cw; i++) {
-    const x = Math.max(0, Math.min(map.w - 1, x0 - R + i)), y = Math.max(0, Math.min(map.h - 1, y0 - R + j));
-    const t = map.terrain[y * map.w + x];
-    col[j * cw + i] = tileColor(t, x, y, map.decor[y * map.w + x]); water[j * cw + i] = isWater(t) ? 1 : 0;
-  }
-  const foamR = (FOAM >> 16) & 255, foamG = (FOAM >> 8) & 255, foamB = FOAM & 255;
-  // a perturbação é de baixa frequência: uma amostra por bloco de 2×2 sub-pixels (0,25 tile), guardada por linha par
-  const nz = new Float32Array(2), rowNz = new Float32Array(W * 2);
-  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
-    const wx = x0 + (i - M + 0.5) / SUB, wy = y0 + (j - M + 0.5) / SUB;
-    if ((j & 1) === 0 && (i & 1) === 0) { noise2xy(wx * 0.9 + 13.06, wy * 0.9 + 41.06, nz); rowNz[i * 2] = nz[0]; rowNz[i * 2 + 1] = nz[1]; }
-    const bi = (i & ~1) * 2, dx = rowNz[bi], dy = rowNz[bi + 1];
-    // posição perturbada (± 0,45 tile) e bilinear entre os 4 tiles vizinhos; os índices cabem no cache ampliado (R = 2)
-    const sx = wx + (dx - 0.5) * 0.9 - 0.5, sy = wy + (dy - 0.5) * 0.9 - 0.5;
-    const tx = Math.floor(sx), ty = Math.floor(sy), fx = sx - tx, fy = sy - ty;
-    const c0 = (ty - y0 + R) * cw + (tx - x0 + R), c1 = c0 + 1, c2 = c0 + cw, c3 = c2 + 1;
-    const w0 = (1 - fx) * (1 - fy), w1 = fx * (1 - fy), w2 = (1 - fx) * fy, w3 = fx * fy;
-    let lr = 0, lg = 0, lb = 0, lw = 0, wr = 0, wg = 0, wb = 0, ww = 0;
-    let c = col[c0]; if (water[c0]) { wr += ((c >> 16) & 255) * w0; wg += ((c >> 8) & 255) * w0; wb += (c & 255) * w0; ww += w0; } else { lr += ((c >> 16) & 255) * w0; lg += ((c >> 8) & 255) * w0; lb += (c & 255) * w0; lw += w0; }
-    c = col[c1]; if (water[c1]) { wr += ((c >> 16) & 255) * w1; wg += ((c >> 8) & 255) * w1; wb += (c & 255) * w1; ww += w1; } else { lr += ((c >> 16) & 255) * w1; lg += ((c >> 8) & 255) * w1; lb += (c & 255) * w1; lw += w1; }
-    c = col[c2]; if (water[c2]) { wr += ((c >> 16) & 255) * w2; wg += ((c >> 8) & 255) * w2; wb += (c & 255) * w2; ww += w2; } else { lr += ((c >> 16) & 255) * w2; lg += ((c >> 8) & 255) * w2; lb += (c & 255) * w2; lw += w2; }
-    c = col[c3]; if (water[c3]) { wr += ((c >> 16) & 255) * w3; wg += ((c >> 8) & 255) * w3; wb += (c & 255) * w3; ww += w3; } else { lr += ((c >> 16) & 255) * w3; lg += ((c >> 8) & 255) * w3; lb += (c & 255) * w3; lw += w3; }
-    let r: number, g: number, b: number;
-    if (ww <= 0.001) { r = lr / lw; g = lg / lw; b = lb / lw; }
-    else if (lw <= 0.001) { r = wr / ww; g = wg / ww; b = wb / ww; }
-    else {
-      // margem molhada (terra escurecida perto da água) e espuma (água clareada perto da terra)
-      const wet = (1 - 0.24 * smooth01(0.1, 0.45, ww)) / lw;
-      const l0 = lr * wet, l1 = lg * wet, l2 = lb * wet;
-      const foam = 0.5 * (1 - smooth01(0.55, 0.8, ww)) * (0.5 + 0.5 * noise2(wx * 2.7 + 5, wy * 2.7 + 9));
-      const a0 = wr / ww, a1 = wg / ww, a2 = wb / ww;
-      const q0 = a0 + (foamR - a0) * foam, q1 = a1 + (foamG - a1) * foam, q2 = a2 + (foamB - a2) * foam;
-      const s = smooth01(0.42, 0.58, ww);
-      r = l0 + (q0 - l0) * s; g = l1 + (q1 - l1) * s; b = l2 + (q2 - l2) * s;
-    }
-    const k = (j * W + i) * 4;
-    px[k] = r; px[k + 1] = g; px[k + 2] = b; px[k + 3] = 255;
-  }
-  ctx.putImageData(img, 0, 0);
-  return canvas;
-}
-/**
- * Detalhes de alta frequência (tufos, flores, pedrinhas, ondulações, facetas de rocha) para os tiles do retângulo e de
- * uma margem de 1 tile ao redor (primitivas que cruzam a borda do chunk aparecem idênticas dos dois lados), em px locais
- * do chunk. Posições/quantidades vêm de hash01(x, y) do tile — nunca se repetem em grade. As primitivas são acumuladas
- * por estilo e emitidas com UMA chamada de fill/stroke por estilo por chunk (cada fill/stroke do Graphics custa caro).
- */
-export function drawChunkDetail(g: Graphics, map: GameMap, x0: number, y0: number, tw: number, th: number): void {
-  const tuftsLive: number[] = [], tuftsDry: number[] = [], flowersY: number[] = [], flowersL: number[] = [], stones: number[] = [];
-  const pebDark: number[] = [], pebLight: number[] = [], cracks: number[] = [], ripLight: number[] = [], ripDark: number[] = [];
-  const waves: number[] = [], wavesDeep: number[] = [], facetL: number[] = [], facetD: number[] = [], snow: number[] = [], facetSh: number[] = [], rocks: number[] = [];
-  for (let y = y0 - 1; y <= y0 + th; y++) for (let x = x0 - 1; x <= x0 + tw; x++) {
-    if (x < 0 || y < 0 || x >= map.w || y >= map.h) continue;
-    const t = map.terrain[y * map.w + x];
-    const ox = (x - x0) * TILE, oy = (y - y0) * TILE;
-    const h = (s: number) => hash01(x, y, s);
-    switch (t) {
-      case TERRAIN.GRASS: {
-        const dst = dryness(x, y) > 0.5 ? tuftsDry : tuftsLive;
-        const n = 1 + Math.floor(h(1) * 1.8);
-        for (let k = 0; k < n; k++) dst.push(ox + h(10 + k) * TILE, oy + h(20 + k) * TILE, 2.5 + h(30 + k) * 2, h(40 + k));
-        if (h(2) < 0.06) (h(3) < 0.5 ? flowersY : flowersL).push(ox + h(11) * TILE, oy + h(21) * TILE);
-        if (h(4) < 0.05) stones.push(ox + h(12) * TILE, oy + h(22) * TILE, 1.2 + h(13) * 0.6);
-        break;
-      }
-      case TERRAIN.DIRT: {
-        const n = 1 + Math.floor(h(1) * 2);
-        for (let k = 0; k < n; k++) (h(40 + k) < 0.5 ? pebDark : pebLight).push(ox + h(10 + k) * TILE, oy + h(20 + k) * TILE, 1 + h(30 + k) * 0.9);
-        if (h(2) < 0.3) { const cx = ox + h(11) * TILE, cy = oy + h(21) * TILE; cracks.push(cx, cy, cx + 3 + h(12) * 4, cy + 1 + h(13) * 3); }
-        break;
-      }
-      case TERRAIN.SAND: {
-        if (h(1) < 0.35) { const cx = ox + h(11) * TILE, cy = oy + h(21) * TILE, w = 6 + h(12) * 4, d = 2 + h(13) * 2; ripLight.push(cx, cy, w, d); ripDark.push(cx + 2, cy + 3, w - 4, 2); }
-        if (h(2) < 0.15) stones.push(ox + h(14) * TILE, oy + h(24) * TILE, 1.2);
-        break;
-      }
-      case TERRAIN.WATER: case TERRAIN.DEEP: {
-        if (h(1) < (t === TERRAIN.WATER ? 0.3 : 0.12)) (t === TERRAIN.WATER ? waves : wavesDeep).push(ox + h(11) * TILE, oy + h(21) * TILE, 7 + h(12) * 4);
-        break;
-      }
-      case TERRAIN.MOUNTAIN: {
-        if (h(1) < 0.55) {
-          const cx = ox + 6 + h(11) * (TILE - 12), cy = oy + 8 + h(21) * (TILE - 12), s = 5 + h(12) * 6;
-          facetL.push(cx, cy - s, cx - s * 0.95, cy + s * 0.6, cx + s * 0.15, cy + s * 0.6);
-          facetD.push(cx, cy - s, cx + s * 0.15, cy + s * 0.6, cx + s * 0.95, cy + s * 0.6);
-          if (h(3) < 0.3) snow.push(cx, cy - s, cx - s * 0.3, cy - s * 0.45, cx + s * 0.3, cy - s * 0.45);
-          facetSh.push(cx + s * 0.35, cy + s * 0.8, s * 0.9, s * 0.25);
-        } else rocks.push(ox + h(14) * TILE, oy + h(24) * TILE, 1.5 + h(15));
-        break;
-      }
-      default: g.rect(ox, oy, TILE, TILE).fill(0xff00ff);
-    }
-  }
-  // emissão: um fill/stroke por estilo
-  const tufts = (arr: number[], color: number) => {
-    if (!arr.length) return;
-    for (let i = 0; i < arr.length; i += 4) { const cx = arr[i], cy = arr[i + 1], len = arr[i + 2], lean = (arr[i + 3] - 0.5) * 1.2; g.poly([cx - 0.7, cy, cx + 0.7, cy, cx + lean, cy - len]); g.poly([cx + 1.5, cy + 0.3, cx + 2.7, cy + 0.3, cx + 2 + lean * 0.5, cy - len * 0.75]); }
-    g.fill({ color, alpha: 0.55 });
-  };
-  tufts(tuftsLive, 0x3f5522); tufts(tuftsDry, 0x6e6a38);
-  const dots = (arr: number[], color: number, alpha: number, fixedR?: number) => {
-    if (!arr.length) return;
-    const step = fixedR === undefined ? 3 : 2;
-    for (let i = 0; i < arr.length; i += step) g.circle(arr[i], arr[i + 1], fixedR ?? arr[i + 2]);
-    g.fill({ color, alpha });
-  };
-  dots(flowersY, 0xe9e0a8, 0.85, 1.3); dots(flowersL, 0xd8c8e0, 0.85, 1.3); dots(stones, 0x8f8a7a, 0.8);
-  dots(pebDark, 0x5e4628, 0.65); dots(pebLight, 0xa88a5a, 0.65); dots(rocks, 0x56554f, 0.7);
-  const lines = (arr: number[], color: number, alpha: number) => {
-    if (!arr.length) return;
-    for (let i = 0; i < arr.length; i += 4) g.moveTo(arr[i], arr[i + 1]).lineTo(arr[i + 2], arr[i + 3]);
-    g.stroke({ width: 1, color, alpha });
-  };
-  lines(cracks, 0x5a4326, 0.45);
-  const curves = (arr: number[], color: number, alpha: number, fixedD?: number) => {
-    if (!arr.length) return;
-    const step = fixedD === undefined ? 4 : 3;
-    for (let i = 0; i < arr.length; i += step) { const cx = arr[i], cy = arr[i + 1], w = arr[i + 2], d = fixedD ?? arr[i + 3]; g.moveTo(cx, cy).quadraticCurveTo(cx + w / 2, cy - d, cx + w, cy); }
-    g.stroke({ width: 1, color, alpha });
-  };
-  curves(ripLight, 0xe6d8b0, 0.4); curves(ripDark, 0xb8a878, 0.3); curves(waves, FOAM, 0.3, 2); curves(wavesDeep, FOAM, 0.18, 2);
-  const polys = (arr: number[], color: number, alpha = 1) => { if (!arr.length) return; for (let i = 0; i < arr.length; i += 6) g.poly(arr.slice(i, i + 6)); g.fill({ color, alpha }); };
-  if (facetSh.length) { for (let i = 0; i < facetSh.length; i += 4) g.ellipse(facetSh[i], facetSh[i + 1], facetSh[i + 2], facetSh[i + 3]); g.fill({ color: 0x000000, alpha: 0.18 }); }
-  polys(facetL, mixColor(terrainColor(TERRAIN.MOUNTAIN), MOUNTAIN_TOP, 0.35)); polys(facetD, scaleColor(terrainColor(TERRAIN.MOUNTAIN), 0.72)); polys(snow, MOUNTAIN_TOP, 0.9);
-}
-
-// ---------------- Nós (sem sombra: ela é assada no chunk pela regra de shadows.ts) ----------------
+// ---------------- Nós (a sombra SE é desenhada no mesmo quadro do atlas, pela regra de shadows.ts) ----------------
 function drawNode(g: Graphics, type: string, variant: number) {
   const v = variant / 255;
   switch (type) {
@@ -453,5 +355,3 @@ function drawConstruction(g: Graphics, type: string, color: number) {
   banner(g, x0 + W - 12, y0 + 2, color);
 }
 
-/** Cor-base do terreno (para legendas e sobreposições que ainda usam um tom só). */
-export { terrainColor };

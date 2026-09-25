@@ -5,13 +5,14 @@
 | Comando | O que cobre | Tempo |
 |---|---|---|
 | `npm run typecheck` | Tipos estritos | ~10 s |
-| `npm test` | 187 testes: dados, determinismo, pathfinding, simulação, regressões, cenários, lockstep/reconexão, modos, mapas fixos, editor, qualidade | ~15 s |
+| `npm test` | 244 testes: dados, determinismo, pathfinding, simulação, regressões, cenários, lockstep/reconexão, modos, mapas fixos, editor, qualidade, áudio, controle, shader do terreno | ~15 s |
 | `npm run balance 30 1,2,3,4,5,6` | 6 partidas IA×IA de 30 min: idades (Clássica ~5, Heroica 12–18, Mítica 19–26), ninguém travado | ~2 min |
 | `npx tsx scripts/missions.ts` | As 3 missões carregam e os gatilhos disparam | ~10 s |
 | `npm run map:check src/core/data/maps/*.map.json` | Mapas embutidos válidos e 2 min de IA em cada | ~10 s |
 | `npx tsx scripts/perf.ts` | Mapa grande, 4 IAs Muito difícil: média < 3 ms/tick, pior tick < 50 ms | ~1 min |
 | `npm run perf:render -- http://localhost:4173/ 20` | Renderizador no cenário fixo (144×144, semente 42, 3 IAs, 20 min, ≥ 260 unidades): fps, ms de `renderer.render` (média/p95), draw calls, MB de texturas, sprites e chunks nos 4 cenários; grava `docs/perf/<data>.json`. Números de base na seção abaixo | ~2 min |
 | `npm run art:shot -- http://localhost:4173/ <prefixo>` + `npm run art:diff -- <prefixo>` | 6 capturas de referência (3 zooms, editor, cidade da IA, batalha) comparadas com `docs/art/ref/` (≤ 2 % de pixels diferentes; `--update` só em mudança visual intencional) | ~1 min |
+| `tests/terrain-shader.test.ts` (em `npm test`) | GLSL ES 3.00 do terreno com os uniforms/texturas esperados (completo e simples, ≤ 5 leituras no interior do simples, fronteira suave no completo e por aresta no simples), bytes de `uWeights`/`uKind`/`uOwner` puros e determinísticos, `invalidateRect` alterando só o retângulo, retângulo + `TERRAIN_INFLUENCE` = reescrita total, materiais 256² tileáveis e em cache | — |
 | `tests/quality.test.ts` (em `npm test`) | Presets low/medium/high/auto, resolução efetiva, preset automático (desce com p95 > 12 ms, nunca sobe), `loadSettings` com save antigo | — |
 | `npm run preview` + `node scripts/playtest.mjs` | Partida no navegador: construir, treinar, avançar, poderes, salvar/carregar | ~1 min |
 | `node scripts/playtest-campaign.mjs`, `playtest-horde-replay.mjs`, `playtest-garrison.mjs` | Campanha, Horda/replay, guarnição/portões | ~2 min |
@@ -43,6 +44,41 @@ Leitura: o custo de CPU do quadro é baixo (< 1 ms parado) e os picos vêm da ge
 (≤ 40). Os "sprites" contam só o que é visível ao jogador local (névoa): o aglomerado do cenário 3 é em geral inimigo.
 Metas: 60 fps alvo / 40 fps mínimo no preset Média em GPU integrada 1080p e no Steam Deck (`docs/ART.md` §6); o dono
 mede no PC e no Deck com `?perf=1` (ou Opções → Avançado → Mostrar desempenho) e manda os números.
+
+## Desempenho do renderizador — Etapa 1 da arte (terreno por shader, 25/09/2026)
+
+Mesmo cenário e mesma medição da Etapa 0, mas com 10 min simulados (`node scripts/renderperf.mjs http://localhost:4186/ 10`),
+antes (`docs/perf/2026-09-25-etapa1-antes.json`, commit 051eade — o renderizador não mudou entre 051eade e a base desta
+etapa) e depois (`docs/perf/2026-09-25-etapa1-depois.json`). Terreno agora = `src/render/terrain/ChunkMesh.ts` (um quad
+por chunk num único Mesh, culling pelo índice, 1 draw call) + shader completo no preset Média; nós = sprites de um atlas
+único na camada `props` (faixas de chunks ordenadas por y); fronteiras no shader do terreno (curva suave).
+
+| Cenário | render média antes → depois (ms) | p95 antes → depois | máx antes → depois | draw calls | tex MB antes → depois | chunks |
+|---|---|---|---|---|---|---|
+| zoom 1 (cidade do jogador) | 0,52 → 0,56 | 1,5 → 0,8 | 3,0 → 0,8 | 5 → 5 | 35,5 → 14,4 | 12 |
+| zoom mínimo (mapa inteiro) | 0,69 → 0,66 | 0,8 → 1,2 | 10,1 → 1,2 | 8 → 5 | 110,3 → 14,4 | 81 |
+| zoom 1,5 (maior aglomerado) | 0,36 → 0,73 | 0,7 → 1,8 | 1,2 → 1,8 | 5 → 4 | 110,4 → 14,5 | 8 |
+| rolagem contínua | 2,85 → 1,44 | 17,9 → 5,3 | 23,7 → 5,3 | 6 → 4 | 134,4 → 14,5 | 12 |
+
+(No "depois" entram só 4–7 quadros na janela de 4 s — ver fps abaixo —, então p95 = máx; nenhum pico novo acima de 6 ms.)
+
+- **Zero `generateTexture` de chunk** (grep em `src/render`: só `TextureCache.make` de unidades/edifícios e o atlas de
+  nós, gerado uma vez por sessão). Draw calls 4–5 em todos os zooms (antes 5–9); o pico de rolagem caiu de 17,9/23,7 ms
+  para 5,3 ms e as texturas residentes de 110–134 MB para 14,4 MB (4 materiais 512² albedo + normal com mipmaps, água e
+  macro 256², 3 texturas w×h, atlas de nós).
+- **Cortar 50 árvores rolando a câmera** (mapa grande "forest", 6 236 nós, zoom 1, uma árvore removida e 24 px de rolagem
+  por quadro, `scripts/_tmp-etapa1.mjs trees`): `renderer.render` média 0,59 ms, p95 1,2 ms, máximo 2,2 ms (meta ≤ 4 ms).
+- **fps por software (swiftshader, 1440×900, zoom 1,3)**: preset Baixo (shader simples) 6,6–6,8 fps, igual à Etapa 0
+  (~7); preset Média (completo) 1,5 fps. O completo lê ~21 texels por pixel no interior de um material (4 macro, pesos,
+  tipo, 4 da B-spline, 3 grades × albedo+normal + 1 larga, 4 da fronteira) e até ~28 nas transições; por software isso
+  custa ~0,6 s por quadro. Em GPU real a conta é ~45 M leituras por quadro a 1080p (≈ 1–2 ms em integrada, dentro do
+  orçamento de §6). **Pendente do dono**: `?perf=1` no PC e no Deck nos presets Média e Baixo (docs/ART.md §6).
+  Observação: o preset `auto` mede só o custo de CPU de `renderer.render` (não o quadro da GPU), então não desce sozinho
+  para Baixo numa GPU fraca — ajuste fora desta etapa (`src/main.ts`).
+- Materiais gerados em runtime (em segundo plano ao abrir o menu, um por macrotarefa): ≈ 300 ms a 512² (grama 110 ms,
+  terra/areia 65, rocha 55, água+macro 15, Node com a máquina carregada) e ≈ 60 ms a 256²; o custo fica fora da partida.
+- Presets trocados em partida (`low → high → medium → auto → low → medium`): o shader alterna `simple:256` ↔ `full:512`,
+  `uNormals`/`uWaterAnim` seguem o preset, sem erro no console.
 
 ## Matriz manual (por versão candidata)
 
