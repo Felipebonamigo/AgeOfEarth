@@ -208,3 +208,34 @@ export function ejectGarrison(state: GameState, b: Building, ids?: number[]): vo
     }
   }
 }
+
+// ---------------- Remoção imediata (setup de mapa fixo/cenário, editor) ----------------
+/** Remove um edifício na hora: libera buildingAt/blocked/gateTeam do footprint, ejeta a guarnição (sem efeitos),
+ *  apaga do Map e invalida regiões/território. Sem escombros, eventos, reembolso ou estatísticas (use destroyBuilding em partida). */
+export function removeBuildingNow(state: GameState, b: Building): void {
+  const def = BUILDINGS[b.type];
+  const map = state.map;
+  for (let y = b.ty; y < b.ty + b.h; y++) for (let x = b.tx; x < b.tx + b.w; x++) {
+    if (!inBounds(map, x, y)) continue;
+    const i = idx(map, x, y);
+    if (map.buildingAt[i] === b.id) { map.buildingAt[i] = -1; if (!def.passable) map.blocked[i] = 0; }
+    if (def.gate) map.gateTeam[i] = -1;
+  }
+  if (b.garrison.length > 0) ejectGarrison(state, b);   // os tiles já estão livres: as unidades saem ao redor
+  b.queue.length = 0;
+  b.dead = true;
+  state.buildings.delete(b.id);
+  if (!def.passable) invalidateComponents(map);
+  state.territoryDirty = true;
+  const owner = state.players[b.owner];
+  if (owner) recomputePop(state, owner);
+}
+
+/** Remove uma unidade na hora: sai da guarnição (se estiver dentro), apaga do Map e recalcula a população. Sem efeitos nem estatísticas. */
+export function removeUnitNow(state: GameState, u: Unit): void {
+  if (u.inside !== -1) { const g = state.buildings.get(u.inside); if (g) g.garrison = g.garrison.filter((id) => id !== u.id); u.inside = -1; }
+  u.dead = true;
+  state.units.delete(u.id);
+  const owner = state.players[u.owner];
+  if (owner) recomputePop(state, owner);
+}

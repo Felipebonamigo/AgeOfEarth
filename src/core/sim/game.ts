@@ -1,11 +1,11 @@
 // Criação da partida e laço principal da simulação (passo fixo, determinístico).
 import { DT, MAP_SIZES, RESOURCES, TICK_RATE, MARKET_BASE_PRICE, PLAYER_COLORS, type ResourceType, DEATHMATCH_RESOURCES } from '../constants';
-import { MAJOR_GODS, UNITS } from '../data';
+import { BUILDINGS, MAJOR_GODS, UNITS } from '../data';
 import { RNG } from '../rng';
 import type { Command, GameConfig, GameState, Player } from '../types';
 import { generateMap, resetNodeSeq } from '../map/mapgen';
 import { mapFromData } from '../map/fixed';
-import { placeBuilding, recomputePop, spawnUnit } from './entities';
+import { canPlaceBuilding, placeBuilding, recomputePop, removeBuildingNow, removeUnitNow, spawnUnit } from './entities';
 import { defaultMods, recomputeMods } from './modifiers';
 import { recomputeTerritory } from './territory';
 import { updateFog } from './fog';
@@ -18,6 +18,7 @@ import { updateTimedEffects } from './powers';
 import { aiThink } from './ai';
 import { checkVictory } from './victory';
 import { spiralSearch, isPassable } from '../map/grid';
+import { nearestFreeTile } from '../map/pathfinding';
 import { getScenario, initScenarioState, runScenario } from '../scenario/runner';
 import { updateKoth } from './modes';
 import { placeRelics, updateRelics } from './relics';
@@ -57,33 +58,69 @@ export function createGame(config: GameConfig): GameState {
     state.players.push(p);
     recomputeMods(state, p);
   });
+  // Mapa fixo: ordem dos inícios (config.startOrder só vale se for uma permutação válida de índices de map.starts) e kit inicial por jogador
+  const order = validStartOrder(config.startOrder, map.starts.length, state.players.length);
+  const startOf = (i: number) => map.starts[order ? order[i] : i];
+  const kit = (i: number): boolean => Array.isArray(config.startKit) ? (config.startKit[i] ?? true) : (config.startKit ?? config.map?.startKit ?? true);
   // Posições iniciais: centro cívico + cidadãos + batedor
   state.players.forEach((p, i) => {
-    const s = map.starts[i];
-    const tc = placeBuilding(state, p.id, 'town_center', s.x - 1, s.y - 1, true);
-    const spots: [number, number][] = [[-2, 2.5], [-1, 2.5], [0, 2.5], [1, 2.5], [2, 2.5], [3, 1]];
-    spots.forEach(([dx, dy], k) => {
-      const x = tc.x + dx, y = tc.y + dy;
-      const t = spiralSearch(Math.floor(x), Math.floor(y), 6, (a, b) => isPassable(map, a, b));
-      const px = t ? t.x + 0.5 : x, py = t ? t.y + 0.5 : y;
-      spawnUnit(state, p.id, k < 5 ? 'villager' : 'kataskopos', px, py);
-    });
-    if (mode === 'regicide') { const t = spiralSearch(Math.floor(tc.x), Math.floor(tc.y) + 3, 6, (a, b) => isPassable(map, a, b)); spawnUnit(state, p.id, 'basileus', t ? t.x + 0.5 : tc.x, t ? t.y + 0.5 : tc.y + 3.5); }
+    const s = startOf(i);
+    if (kit(i)) {
+      const tc = placeBuilding(state, p.id, 'town_center', s.x - 1, s.y - 1, true);
+      const spots: [number, number][] = [[-2, 2.5], [-1, 2.5], [0, 2.5], [1, 2.5], [2, 2.5], [3, 1]];
+      spots.forEach(([dx, dy], k) => {
+        const x = tc.x + dx, y = tc.y + dy;
+        const t = spiralSearch(Math.floor(x), Math.floor(y), 6, (a, b) => isPassable(map, a, b));
+        const px = t ? t.x + 0.5 : x, py = t ? t.y + 0.5 : y;
+        spawnUnit(state, p.id, k < 5 ? 'villager' : 'kataskopos', px, py);
+      });
+      if (mode === 'regicide') { const t = spiralSearch(Math.floor(tc.x), Math.floor(tc.y) + 3, 6, (a, b) => isPassable(map, a, b)); spawnUnit(state, p.id, 'basileus', t ? t.x + 0.5 : tc.x, t ? t.y + 0.5 : tc.y + 3.5); }
+    } else if (mode === 'regicide') {
+      // Sem kit inicial o basileus nasce no tile passável mais próximo do início (validateMap avisa se não houver CC)
+      const t = spiralSearch(s.x, s.y, 6, (a, b) => isPassable(map, a, b));
+      spawnUnit(state, p.id, 'basileus', t ? t.x + 0.5 : s.x + 0.5, t ? t.y + 0.5 : s.y + 0.5);
+    }
     recomputePop(state, p);
   });
-  placeRelics(state);
+  // Entidades pré-colocadas do mapa fixo, na ordem do arquivo. Dono fora do intervalo ou tipo inexistente são ignorados
+  // (validateMap avisa antes; aqui é só robustez). Tags viram vars do cenário ('#tag' → id) depois de initScenarioState.
+  const tags = new Map<string, number>();
+  if (config.map) {
+    for (const e of config.map.entities ?? []) {
+      if (!Number.isInteger(e.owner) || e.owner < 0 || e.owner >= state.players.length) continue;
+      const owner = state.players[e.owner];
+      if (e.kind === 'building') {
+        if (!BUILDINGS[e.type] || !canPlaceBuilding(state, owner, e.type, e.x, e.y, true, true).ok) continue;
+        const b = placeBuilding(state, e.owner, e.type, e.x, e.y, e.complete ?? true);
+        if (e.tag) tags.set(e.tag, b.id);
+      } else if (e.kind === 'unit') {
+        if (!UNITS[e.type]) continue;
+        const t = nearestFreeTile(map, e.x, e.y, 6);
+        if (!t) continue;
+        const u = spawnUnit(state, e.owner, e.type, t.x + 0.5, t.y + 0.5);
+        if (e.tag) tags.set(e.tag, u.id);
+      }
+    }
+    // O setup não conta como construção/treino nem gera avisos na partida
+    for (const p of state.players) { recomputePop(state, p); p.stats.buildingsBuilt = 0; p.stats.unitsTrained = 0; }
+    state.events = [];
+  }
+  if (config.map?.relics !== false) placeRelics(state);
   if (mode === 'koth') {
-    const c = spiralSearch(Math.floor(size.w / 2), Math.floor(size.h / 2), 8, (a, b) => isPassable(map, a, b));
-    state.koth = { x: (c ? c.x : Math.floor(size.w / 2)) + 0.5, y: (c ? c.y : Math.floor(size.h / 2)) + 0.5, team: -1, seconds: 0 };
+    const hill = config.map?.koth;
+    const hx = hill ? Math.floor(hill[0]) : Math.floor(size.w / 2), hy = hill ? Math.floor(hill[1]) : Math.floor(size.h / 2);
+    const c = spiralSearch(hx, hy, 8, (a, b) => isPassable(map, a, b));
+    state.koth = { x: (c ? c.x : hx) + 0.5, y: (c ? c.y : hy) + 0.5, team: -1, seconds: 0 };
   }
   // Cenário (campanha): posicionamento extra e estado de objetivos
   if (config.scenario) {
     const def = getScenario(config.scenario);
     if (def) {
       state.scenario = initScenarioState(def);
+      for (const [tag, id] of tags) state.scenario.vars['#' + tag] = id;
       def.setup?.(state);
-      for (const [id, u] of state.units) if (u.dead) state.units.delete(id);
-      for (const [id, b] of state.buildings) if (b.dead) { for (let y = b.ty; y < b.ty + b.h; y++) for (let x = b.tx; x < b.tx + b.w; x++) { const i = y * map.w + x; if (map.buildingAt[i] === b.id) { map.buildingAt[i] = -1; map.blocked[i] = 0; } } state.buildings.delete(id); }
+      for (const u of state.units.values()) if (u.dead) removeUnitNow(state, u);
+      for (const b of state.buildings.values()) if (b.dead) removeBuildingNow(state, b);
       for (const p of state.players) { recomputeMods(state, p); recomputePop(state, p); }
     }
   }
@@ -105,6 +142,14 @@ export function createGame(config: GameConfig): GameState {
   return state;
 }
 import * as queries from './queries';
+
+/** startOrder válido = índices inteiros distintos dentro de [0, nStarts) cobrindo todos os jogadores; senão null (identidade). */
+function validStartOrder(order: number[] | undefined, nStarts: number, nPlayers: number): number[] | null {
+  if (!Array.isArray(order) || order.length < nPlayers) return null;
+  const seen = new Set<number>();
+  for (const v of order) { if (!Number.isInteger(v) || v < 0 || v >= nStarts || seen.has(v)) return null; seen.add(v); }
+  return order;
+}
 
 /** Avança a simulação em um tick, aplicando primeiro os comandos deste tick (ordem determinística). */
 export function tick(state: GameState, commands: Command[] = []): void {
