@@ -27,7 +27,7 @@ Versão otimizada: `npm run build` e `npm run preview`.
 
 ## Modos de jogo
 - **Partida rápida**: você contra 1–3 IAs, todos contra todos, cooperativo (você + IA aliada) ou contra uma aliança. Modos: **Conquista**, **Deathmatch** (cofres cheios), **Regicídio** (proteja o rei) e **Rei da Colina** (segure a colina central por 4 min). Tipos de mapa: continental, montanhoso, florestas, deserto e lagos.
-- **Campanha** "A Sombra dos Titãs": prólogo em 3 missões com objetivos, diálogos e gatilhos (tutorial → cerco → corrida contra o Portal dos Titãs).
+- **Campanha** "A Sombra dos Titãs": prólogo em 3 missões com objetivos, diálogos e gatilhos (tutorial → cerco → corrida contra o Portal dos Titãs); dificuldade Fácil/Normal/Difícil (invasões e IAs escalam) com conquistas por missão.
 - **Modo Horda**: sobreviva a 20 ondas do Tártaro, solo ou em cooperativo online (todos no mesmo time).
 - **Replays**: a última partida local fica gravada (só os comandos) e pode ser assistida no menu.
 - **Multiplayer online** (lockstep determinístico, até 4 jogadores incluindo IAs, com times/co-op):
@@ -37,14 +37,14 @@ npm run relay            # servidor de retransmissão na porta 8787 (pode ficar 
 npm run dev              # cada jogador abre o jogo, aba Multiplayer, mesmo servidor e mesma sala
 ```
 
-Todos os clientes simulam a mesma partida e só trocam comandos; um hash periódico detecta dessincronizações. O lobby tem bate-papo, ping por jogador, remoção pelo anfitrião e atraso do lockstep ajustado à latência; na partida, `Enter` abre o bate-papo. Se alguém cair, a partida pausa e o jogador pode **reconectar** entrando na mesma sala com o mesmo nome (o anfitrião envia um instantâneo).
+Todos os clientes simulam a mesma partida e só trocam comandos; um hash periódico (terreno, recursos, unidades) detecta dessincronizações. O lobby tem **lista pública de salas** (botão Salas abertas), bate-papo, ping por jogador, remoção pelo anfitrião, atraso do lockstep ajustado à latência e **mapa fixo** escolhido pelo anfitrião (todos recebem o mapa ao iniciar); na partida, `Enter` abre o bate-papo. Se alguém cair, a partida pausa e o jogador pode **reconectar** entrando na mesma sala com o mesmo nome (o anfitrião envia um instantâneo). **Espectadores** podem assistir a uma sala ou a uma partida em andamento (mapa revelado, sem comandos).
 
 ## Conteúdo
 - 5 Idades, 3 deuses maiores, 9 deuses menores, 12 poderes divinos.
 - 15 unidades humanas, 5 heróis com habilidades ativas (tecla Q), 13 criaturas míticas, 3 Titãs; veterania por abates (até 3 patentes).
 - 20 edifícios (incluindo 3 Maravilhas e o Portal dos Titãs), 60+ tecnologias.
 - IA adversária com economia, expansão, pesquisa, ondas de ataque, defesa e poderes; 3 dificuldades.
-- Mapas procedurais (3 tamanhos) com posições iniciais justas e gargalos alargados; névoa de guerra; minimapa; salvar/carregar (com exportar/importar arquivo); 22 conquistas.
+- Mapas procedurais (3 tamanhos, 5 tipos) com posições iniciais justas e gargalos alargados; **mapas fixos** (`.map.json`: exportar o mapa de uma partida, guardar em Meus mapas, importar, jogar solo ou online; validação com erros e avisos); névoa de guerra; minimapa; salvar/carregar (com exportar/importar arquivo); 27 conquistas.
 
 ## Desenvolvimento
 

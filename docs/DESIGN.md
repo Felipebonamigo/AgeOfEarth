@@ -56,8 +56,14 @@ repassa mensagens (`join`, `lobby`, `start`, `cmds`, `hash`, `left`, `chat`, `pi
 os clientes trocam um hash do estado para detectar dessincronização (um relatório fica em `localStorage`). Comandos recebidos em nome
 de outro jogador são descartados. Se alguém cai, todos pausam; quem entra de novo na mesma sala com o mesmo nome recebe do anfitrião
 um instantâneo (estado serializado + comandos já recebidos) e volta a enviar comandos a partir de um tick combinado
-(`NetworkScheduler.resumeTick`). Como só comandos trafegam, a banda é mínima e replays são gratuitos (gravar os comandos; um replay
-gravado após carregar um save parte desse save).
+(`NetworkScheduler.resumeTick`); comandos que chegam antes do instantâneo para ticks posteriores a ele são preservados. Como só
+comandos trafegam, a banda é mínima e replays são gratuitos (gravar os comandos; um replay gravado após carregar um save parte desse save).
+**Espectadores** ocupam vagas ≥ 100 no relay: recebem lobby, `start`, comandos e hashes, nunca enviam comandos nem são aguardados
+(`NetworkScheduler` com `local = -1`), veem o mapa revelado só na renderização e entram no meio da partida pelo mesmo instantâneo.
+A **lista pública de salas** (`list`/`rooms`) mostra salas abertas (entrar) e em andamento (assistir); o anfitrião pode ocultar a sala.
+**Mapas fixos**: o anfitrião escolhe um mapa (embutido, Meus mapas ou arquivo); a sala vê só o resumo (nome, tamanho, inícios, hash) e
+o `FixedMapData` inteiro vai uma vez dentro de `start.config` (limite de 1 MB no relay); cada cliente migra e valida o mapa antes de
+criar a sessão, e o hash do estado cobre terreno e recursos, de modo que qualquer divergência aparece no primeiro hash trocado.
 Na Steam, o mesmo protocolo roda sobre Steam Networking Sockets (relay da Valve) com `steamworks.js`.
 
 ## Profundidade (Fase 5.2)
@@ -76,6 +82,9 @@ Cenários (`src/core/scenario`) rodam dentro da simulação: objetivos avaliados
 contexto (falas, revelar objetivos, invocar esquadrões — sempre em tiles ligados ao alvo) e condições de vitória/derrota. O estado
 do cenário (objetivos, gatilhos disparados, `vars`) é serializado nos saves; `ctx.seconds` é inteiro. Novas missões são dados +
 pequenas funções, sem tocar no motor; o editor interno e os cenários em JSON estão em `docs/EDITOR.md`.
+**Dificuldade da campanha** (`GameConfig.campaignDifficulty`): as invasões roteirizadas passam por `scaledGroup` (Fácil ≈ 2/3, Difícil
+≈ 1,5×) e as IAs inimigas sobem um degrau no Difícil; vale para a Horda. Missões concluídas no Difícil ficam em `aoe_campaign.hard`
+(conquistas por missão, prólogo no Difícil, Horda no Difícil).
 
 ## Roteiro
 1. ✅ Fatia vertical: skirmish contra IA com todos os sistemas centrais.
