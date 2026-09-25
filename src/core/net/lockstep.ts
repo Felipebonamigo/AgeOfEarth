@@ -89,7 +89,8 @@ export class NetworkScheduler implements CommandScheduler {
 
   receive(slot: number, t: number, cmds: Command[]): void {
     let m = this.inbox.get(t); if (!m) { m = new Map(); this.inbox.set(t, m); }
-    m.set(slot, cmds);
+    // Anti-trapaça básico: um par só pode emitir comandos em nome do próprio jogador
+    m.set(slot, slot === this.local ? cmds : cmds.filter((c) => c.player === slot));
   }
   receiveHash(slot: number, t: number, hash: number): void {
     let m = this.hashes.get(t); if (!m) { m = new Map(); this.hashes.set(t, m); }

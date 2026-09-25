@@ -95,3 +95,16 @@ describe('reconexão por instantâneo', () => {
     expect(scheds.every((s) => !s.desynced)).toBe(true);
   });
 });
+
+describe('anti-trapaça básico', () => {
+  it('comando recebido em nome de outro jogador é descartado', () => {
+    const a = createGame(config);
+    const sa = new NetworkScheduler(0, [0, 1], 2, { sendCmds: () => {}, sendHash: () => {} });
+    const villA = [...a.units.values()].filter((u) => u.owner === 0 && u.type === 'villager').map((u) => u.id);
+    const x0 = a.units.get(villA[0])!.x;
+    // o par 1 tenta mandar os cidadãos do jogador 0 para longe
+    for (let t = 0; t < 40; t++) sa.receive(1, t, t === 5 ? [{ type: 'move', player: 0, ids: villA, x: x0 + 20, y: 10 } as Command] : []);
+    for (let i = 0; i < 30; i++) sa.step(a);
+    expect(a.units.get(villA[0])!.order?.type).not.toBe('move');
+  });
+});
