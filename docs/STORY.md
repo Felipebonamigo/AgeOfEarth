@@ -179,13 +179,14 @@ Legenda:
 ### 5.0 Convenções usadas em todas as fichas
 
 - **Jogador 0 = Argos (humano).** Os outros índices seguem `config.players`. Todo jogador tem `team` explícito. Sem isso, o time vira o índice (`game.ts: team: pc.team ?? i`) e um aliado vira inimigo.
-- **Objetivo secreto** *(antes de [G1]; hoje basta `hidden: true` com `done`/`failed`, e ele se revela ao mudar de estado)*: fica `hidden: true`, **sem** `done`/`failed`. Um **gatilho espelho** o cumpre com `{ "do": "objective", "id": …, "status": "done" }`. Motivo: o runner **não avalia objetivos ocultos** (`runner.ts` pula `sc.hidden[id]`). Quando [G1] existir, basta mover a condição para `done`.
-- **Objetivo oculto que é revelado:** é avaliado a partir do `reveal`, então pode ter `done` normal.
+- **Objetivo secreto** *(semântica com [G1])*: `hidden: true` **com** `done`/`failed` direto. O runner avalia os ocultos a cada segundo e, quando o estado muda, o objetivo é cumprido (ou falha) **e** revelado no mesmo instante. Não precisa mais de gatilho espelho (ele continua funcionando: `{ "do": "objective", … }` também revela). Use para achados que devem aparecer só quando acontecem (m4 `hefesto`).
+- **Objetivo oculto que é revelado por um gatilho** (`{ "do": "reveal" }`): como ele também é avaliado **desde o segundo 1**, o `done`/`failed` precisa vir num `all` com `{ "fired": "<gatilho que o revela>" }`. Sem a guarda, ele é cumprido — e revelado — antes da hora (ex.: a fortaleza destruída antes da libertação cumpria o `culto` da m4). O lint [G7] avisa quando falta a guarda (`objectives[i].done`/`failed`); m1 `camp`, m2 `counter` e m3 `cronus` já seguem este modelo.
+- **Marionete** (`"puppet": true` no jogador): facção sem IA movida só por gatilhos (Saqueadores da m1, Tártaro da Horda, guardas e Titãs das fichas). É **explícita**: todo jogador sem IA fora do time de Argos precisa de `"puppet": true` (ou `"puppet": false`, se for mesmo um adversário humano num cenário em rede) — o lint avisa quando falta. Marionete não passa pela eliminação comum; `{ "alive": P }` dela vale "tem alguma unidade ou edifício vivo" (um `kill`/`removeAll` do último a derruba, um `spawn` a traz de volta) e `{ "do": "defeat", "player": P }` a derrota de vez (some tudo o que ela tem).
 - **Tag criada mais tarde (por `spawn`/`place` num gatilho):** toda condição `{ "entity": { "tag": X }, "exists": false }` ou `{ "units": { "tag": X } … "eq": 0 }` sobre ela precisa vir dentro de `all` com `{ "fired": "<gatilho que cria X>" }`. Sem isso, ela vale **verdadeiro no segundo 1**, porque a tag ainda não existe. O teste de lint da §7.2 verifica isso.
 - **Tag de grupo** *(resolvido por [G5]: entidades do mapa com a mesma tag viram grupo)*: só `spawn` com `tag` grava o grupo inteiro (`#tag[k]`). Entidades do mapa fixo com a **mesma** tag ficam só com a última (`game.ts` usa `tags.set`) [G5]. Por isso, nos mapas fixos, **uma tag por entidade** (`corrente1`, `corrente2`…), e grupos nascem por `spawn` no `setup`.
 - **`raid`:** nasce a cerca de 22 tiles do alvo, no ângulo indicado. `dirs[0]` = leste, `2` = sul, `4` = oeste, `6` = norte (o y cresce para baixo). O alvo vira um **ponto fixo** no momento do disparo. **Se o alvo não existir** (por exemplo, `{ "tc": 0 }` depois que o CC caiu), o raid **não acontece**. Só `raid` escala com a dificuldade (Fácil ≈ 2/3, Difícil ≈ 1,5×). `spawn` não escala [G3].
 - **Contador por segundo** (maravilha, altar): um gatilho `repeat` soma quando a condição vale, outro zera quando não vale. A vitória fica `{ "var": X, "gte": N }`.
-- **Derrota por CC** *(com [G2] a eliminação já encerra a missão; a `DERROTA_CC` continua útil para perder assim que o CC cai)*: `{ "all": [ { "time": { "gte": 5 } }, { "buildings": { "player": 0, "type": "town_center" }, "eq": 0 } ] }` (chamada abaixo de `DERROTA_CC`). É obrigatória: dentro de cenário, `alive` nunca muda e a derrota implícita não dispara [G2].
+- **Derrota por CC** *(com [G2] a eliminação já encerra a missão; a `DERROTA_CC` continua útil para perder assim que o CC cai)*: `{ "all": [ { "time": { "gte": 5 } }, { "buildings": { "player": 0, "type": "town_center" }, "eq": 0 } ] }` (chamada abaixo de `DERROTA_CC`). Em cenário, um jogador comum só é eliminado sem edifício que conta **e sem nenhuma unidade viva** (quem perdeu a cidade mas tem exército segue jogando, como o defensor da Horda que socorre o aliado); a missão falha quando nenhum humano do time de Argos está de pé. Com humanos em times diferentes (cenário em rede), o resultado vale **por time**: `state.scenario.winnerTeam` guarda o time vencedor e a tela de fim de cada cliente mostra vitória ou derrota pelo próprio time.
 - **Dificuldade hoje:** a IA inimiga sobe um degrau no Difícil, e os `raid` escalam. As variações "com [G3]" usam a condição proposta `{ "difficulty": "easy" | "normal" | "hard" }`, escrita em texto e não em JSON validado.
 - Os blocos JSON mostram `config`, `setup`, objetivos, os gatilhos principais, vitória, derrota e HUD. As falas secundárias ficam na lista de diálogos. O arquivo final (`src/core/scenario/missions/<id>.scenario.json`) acrescenta `format`, `version`, `id`, `title`, `subtitle`, `icon`, `intro`, `outro`, `hints` e `map`.
 
@@ -233,10 +234,10 @@ Legenda:
 |---|---|---|---|
 | `colonia` | principal | Funde a colônia de Argos no Vale da Cólquida (Centro Cívico) / *Found the Argive colony in the Valley of Colchis (Town Center)* | 1 CC completo |
 | `correntes` | principal | Rompa as três correntes de Prometeu / *Break the three chains of Prometheus* | as 3 tags destruídas |
-| `culto` | principal, oculto até a libertação | Destrua a Fortaleza do Passo / *Destroy the Fortress of the Pass* | tag destruída |
+| `culto` | principal, oculto até a libertação | Destrua a Fortaleza do Passo / *Destroy the Fortress of the Pass* | tag destruída depois da libertação (`fired libertado`) |
 | `cidades` | secundário | Pesquise Civismo I na Academia e funde uma 2ª cidade / *Research Civics I at the Academy and found a 2nd city* | 2 CCs completos |
 | `aguia` | secundário | Abata a Águia do Cáucaso / *Slay the Eagle of the Caucasus* | tag destruída (criada no `setup`) |
-| `hefesto` | secreto | Encontre o Altar de Hefesto / *Find the Altar of Hephaestus* | gatilho espelho |
+| `hefesto` | secreto | Encontre o Altar de Hefesto / *Find the Altar of Hephaestus* | gatilho espelho (com [G1], pode virar `done` direto) |
 
 ```json
 {
@@ -244,7 +245,7 @@ Legenda:
     "players": [
       { "name": "Argos", "god": "zeus", "isAI": false, "difficulty": "normal", "team": 0 },
       { "name": "Culto de Cronos", "god": "hades", "isAI": true, "difficulty": "normal", "team": 1 },
-      { "name": "Guardiões do Cáucaso", "god": "hades", "isAI": false, "difficulty": "normal", "team": 1 }
+      { "name": "Guardiões do Cáucaso", "god": "hades", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
     ],
     "startingAge": 2,
     "startingResources": { "food": 600, "wood": 600, "gold": 500, "favor": 60, "knowledge": 150 },
@@ -261,7 +262,7 @@ Legenda:
     { "id": "correntes", "text": { "pt": "Rompa as três correntes de Prometeu", "en": "Break the three chains of Prometheus" },
       "done": { "all": [ { "entity": { "tag": "corrente1" }, "exists": false }, { "entity": { "tag": "corrente2" }, "exists": false }, { "entity": { "tag": "corrente3" }, "exists": false } ] } },
     { "id": "culto", "hidden": true, "text": { "pt": "Destrua a Fortaleza do Passo", "en": "Destroy the Fortress of the Pass" },
-      "done": { "entity": { "tag": "fortaleza_culto" }, "exists": false } },
+      "done": { "all": [ { "fired": "libertado" }, { "entity": { "tag": "fortaleza_culto" }, "exists": false } ] } },
     { "id": "cidades", "optional": true, "text": { "pt": "Pesquise Civismo I na Academia e funde uma 2ª cidade", "en": "Research Civics I at the Academy and found a 2nd city" },
       "done": { "buildings": { "player": 0, "type": "town_center", "complete": true }, "gte": 2 } },
     { "id": "aguia", "optional": true, "text": { "pt": "Abata a Águia do Cáucaso", "en": "Slay the Eagle of the Caucasus" },
@@ -398,7 +399,7 @@ Legenda:
     "players": [
       { "name": "Argos", "god": "zeus", "isAI": false, "difficulty": "normal", "team": 0 },
       { "name": "Liga do Istmo", "god": "poseidon", "isAI": true, "difficulty": "normal", "team": 1 },
-      { "name": "Cavaleiros de Poseidon", "god": "poseidon", "isAI": false, "difficulty": "normal", "team": 1 }
+      { "name": "Cavaleiros de Poseidon", "god": "poseidon", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
     ],
     "startingAge": 2,
     "startingResources": { "food": 800, "wood": 800, "gold": 400, "favor": 60, "knowledge": 200 },
@@ -534,7 +535,7 @@ Legenda:
       { "name": "Argos", "god": "zeus", "isAI": false, "difficulty": "normal", "team": 0 },
       { "name": "Liga do Istmo", "god": "poseidon", "isAI": true, "difficulty": "normal", "team": 1 },
       { "name": "Micenas", "god": "zeus", "isAI": true, "difficulty": "easy", "team": 0 },
-      { "name": "Frota de Poseidon", "god": "poseidon", "isAI": false, "difficulty": "normal", "team": 1 }
+      { "name": "Frota de Poseidon", "god": "poseidon", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
     ],
     "startingAge": 2,
     "startingResources": { "food": 1000, "wood": 1000, "gold": 800, "favor": 100, "knowledge": 300 },
@@ -673,7 +674,7 @@ Legenda:
     "players": [
       { "name": "Argos", "god": "zeus", "isAI": false, "difficulty": "normal", "team": 0 },
       { "name": "Liga do Istmo", "god": "poseidon", "isAI": true, "difficulty": "normal", "team": 1 },
-      { "name": "Mirmidões de Aquiles", "god": "poseidon", "isAI": false, "difficulty": "normal", "team": 1 }
+      { "name": "Mirmidões de Aquiles", "god": "poseidon", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
     ],
     "startingAge": 2,
     "startingResources": { "food": 1000, "wood": 800, "gold": 800, "favor": 120, "knowledge": 300 },
@@ -810,7 +811,7 @@ Legenda:
     "players": [
       { "name": "Argos", "god": "zeus", "isAI": false, "difficulty": "normal", "team": 0 },
       { "name": "Liga do Istmo", "god": "poseidon", "isAI": true, "difficulty": "normal", "team": 1 },
-      { "name": "Oceano", "god": "poseidon", "isAI": false, "difficulty": "normal", "team": 1 },
+      { "name": "Oceano", "god": "poseidon", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true },
       { "name": "Micenas", "god": "zeus", "isAI": true, "difficulty": "easy", "team": 0 }
     ],
     "startingAge": 3,
@@ -942,7 +943,7 @@ A paleta de bioma "Submundo" é visual e pedido da Fase 2 [G14]. Até lá, o ter
     "players": [
       { "name": "Legiões de Hades", "god": "hades", "isAI": false, "difficulty": "normal", "team": 0 },
       { "name": "Culto de Cronos", "god": "zeus", "isAI": true, "difficulty": "normal", "team": 1 },
-      { "name": "Carcereiros de Cronos", "god": "zeus", "isAI": false, "difficulty": "normal", "team": 1 }
+      { "name": "Carcereiros de Cronos", "god": "zeus", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
     ],
     "startingAge": 2,
     "startingResources": { "food": 800, "wood": 500, "gold": 800, "favor": 250, "knowledge": 300 },
@@ -1082,7 +1083,7 @@ A paleta de bioma "Submundo" é visual e pedido da Fase 2 [G14]. Até lá, o ter
       { "name": "Argos", "god": "zeus", "isAI": false, "difficulty": "normal", "team": 0 },
       { "name": "Hades", "god": "hades", "isAI": true, "difficulty": "normal", "team": 0 },
       { "name": "Culto de Cronos", "god": "hades", "isAI": true, "difficulty": "hard", "team": 1 },
-      { "name": "Sentinelas de Ótris", "god": "hades", "isAI": false, "difficulty": "normal", "team": 1 }
+      { "name": "Sentinelas de Ótris", "god": "hades", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
     ],
     "startingAge": 3,
     "startingResources": { "food": 2000, "wood": 2000, "gold": 1500, "favor": 150, "knowledge": 600 },
@@ -1215,7 +1216,7 @@ A paleta de bioma "Submundo" é visual e pedido da Fase 2 [G14]. Até lá, o ter
     "players": [
       { "name": "Argos", "god": "zeus", "isAI": false, "difficulty": "normal", "team": 0 },
       { "name": "Culto de Cronos", "god": "hades", "isAI": true, "difficulty": "hard", "team": 1 },
-      { "name": "Cronos", "god": "hades", "isAI": false, "difficulty": "normal", "team": 1 }
+      { "name": "Cronos", "god": "hades", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
     ],
     "startingAge": 3,
     "startingResources": { "food": 800, "wood": 800, "gold": 800, "favor": 100 },
@@ -1456,13 +1457,13 @@ As lacunas foram conferidas no código atual. A ordem é: impacto nas missões �
 | # | Lacuna | Onde está hoje | Proposta | Esforço | Missões que ganham | Prioridade |
 |---|---|---|---|---|---|---|
 | **G0** ✅ | **Registro de missões JSON na aba Campanha** (infraestrutura, não gramática) | **Feito.** `src/core/scenario/campaign.ts`: `CAMPAIGN: { act, id, source: 'ts' \| 'json', file?, prologue? }[]` (m1–m3 TS no Ato I com selo "Prólogo"); `campaignMissions()`, `campaignMission(id)` (JSON compilado por `compileScenarioCached`, cache por idioma), `nextCampaignMission(id)`, `isCampaignMission(id)`, `missionConfig(def, diff)`; `SCENARIOS` ficou como alias do prólogo. Plano oficial (12 ids e atos) em `official.ts` (`CAMPAIGN_PLAN`); `RESERVED_SCENARIO_IDS` = `horde` + os 12 ids | Menu, HUD (`isOfficialScenario`), `main.startMission`/`onNextMission` e o runner leem o registro. Aba Campanha com cabeçalhos "Ato I · A Sombra dos Titãs" / "Ato II · A Maré de Poseidon" / "Ato III · A Queda de Cronos" (PT/EN), desbloqueio sequencial e 🔥 do Difícil. Conquistas geradas em `achievements.ts`: uma por missão JSON registrada (id = id da missão), `campaign_act1..3` e `campaign_all_hard`; `campaign_prologue` continua. **Registrar uma missão:** criar `missions/<id>.scenario.json`, importar em `campaign.ts`, acrescentar `{ act, id, source: 'json', file }` em `CAMPAIGN` e o roteiro em `MISSION_SCRIPTS` (`testing.ts`) | — | **todas** | **feita** |
-| **G1** ✅ | Objetivo oculto nunca é avaliado | **Feito.** `runner.ts` avalia também os ocultos; ao mudar de estado, `ctx.objective` os revela | Segredo = objetivo `hidden` com `done`/`failed` direto (sem gatilho espelho). Um oculto que só deve contar depois de revelado leva a guarda `{ "fired": "<gatilho que o revela>" }` no `all` (m1 `camp`, m2 `counter` e m3 `cronus` ganharam essa guarda: comportamento visível idêntico) | — | todas | **feita** |
-| **G2** ✅ | Fim de partida em cenário | **Feito.** `victory.ts` separa `eliminatePlayers` (sem edifícios que contam e sem cidadãos — `hasStartKit` respeitado —, ou Regicídio sem rei → `alive=false`, eventos de derrota, unidades somem) de `declareWinner`; em cenário, `game.ts` chama `eliminateInScenario` (sem vencedor global) antes do runner. Marionetes (sem IA e fora do time local) nunca são eliminadas | Derrota implícita: todos os humanos do time local com `alive=false`. Condições `{ "koth": { "team": 0 }, "gte": 120 }` (segundos de `state.koth` quando o time é T, senão 0), `{ "wonderHeld": { "player": 0 }, "gte": 360 }` (segundos desde a conclusão da Maravilha mais antiga de pé; 0 sem Maravilha), `{ "kingAlive": 0 }` e `{ "alive": 0 }`. A `DERROTA_CC` continua útil quando a derrota deve vir antes da eliminação | — | m6, m10, m11; m1 perde ao perder tudo | **feita** |
+| **G1** ✅ | Objetivo oculto nunca é avaliado | **Feito.** `runner.ts` avalia também os ocultos; ao mudar de estado, `ctx.objective` os revela | Segredo = objetivo `hidden` com `done`/`failed` direto (sem gatilho espelho). Um oculto que só deve contar depois de revelado leva a guarda `{ "fired": "<gatilho que o revela>" }` no `all` (m1 `camp`, m2 `counter` e m3 `cronus` ganharam essa guarda: comportamento visível idêntico; a ficha da m4 `culto` também). O lint [G7] avisa oculto revelado por gatilho sem a guarda | — | todas | **feita** |
+| **G2** ✅ | Fim de partida em cenário | **Feito.** `victory.ts` separa `eliminatePlayers` (sem edifícios que contam e sem cidadãos — `hasStartKit` respeitado —, ou Regicídio sem rei → `alive=false`, eventos de derrota, unidades somem) de `declareWinner`; em cenário, `game.ts` chama `eliminateInScenario` (sem vencedor global) antes do runner, com o critério de "sem kit": só cai quem não tem edifício que conta **nem nenhuma unidade viva** (o defensor da Horda sem cidade segue com o exército). **Marionetes explícitas**: `config.players[i].puppet: true` (validado; Tártaro da Horda, Saqueadores da m1 e as facções roteirizadas das fichas); não passam pela eliminação comum e o `alive` delas é "tem alguma entidade viva" (`scenarioAlive`/`refreshPuppets`; `kill`/`removeAll` do último derrubam, `spawn` traz de volta), e `{ "do": "defeat", "player" }` derrota qualquer jogador (alive=false, evento, some tudo). Saves/replays sem nenhum `puppet` seguem a regra antiga (`migrateLegacyPuppets`) | Derrota implícita: nenhum humano (não marionete) de pé. **Resultado por time**: `state.scenario.winnerTeam` (-1 = ninguém; padrão no `deserialize`); `outcome` continua do ponto de vista do time do primeiro humano; com humanos em times diferentes (cenário em rede), o último time humano de pé vence e `defeat` do arquivo passa a vitória ao outro time; o HUD usa `scenarioWon(sc, time do jogador local)`. Condições `{ "koth": { "team": 0 }, "gte": 120 }` (segundos de `state.koth` quando o time é T, senão 0), `{ "wonderHeld": { "player": 0 }, "gte": 360 }` (segundos desde a conclusão da Maravilha mais antiga de pé; 0 sem Maravilha), `{ "kingAlive": 0 }` e `{ "alive": 0 }`. A `DERROTA_CC` continua útil quando a derrota deve vir antes da eliminação | — | m6, m10, m11; m1 perde ao perder tudo | **feita** |
 | **G3** ✅ | Condição de dificuldade | **Feito.** `{ "difficulty": "easy" \| "normal" \| "hard" \| [...] }`, `Value { "stat": "difficulty" }` (0/1/2, sem `player`) e `spawn { "scaled": true }` (mesmo `scaledGroup` do `raid`: Fácil ≈ 2/3, Difícil ≈ 1,5×). `config.campaignDifficulty` ausente = normal. IAs aliadas do jogador não mudam de nível (`withCampaignDifficulty`) | — | — | as variações "com [G3]" de todas | **feita** |
 | **G4** | HUD e tempo relativo | `progress` só lê a obra de um edifício; `countdown` é absoluto | `progress { "var", "max" }`, `countdown { "fromVar" }` e `Value { "time": true }` para marcar instantes com `setVar` | 4–6 h | m6 (guarda), m10 (altar), m11 (embarcados) | média-alta |
 | **G5** ✅ | Tag de grupo em entidades do mapa | **Feito.** Entidades do mapa com a mesma tag acumulam `vars['#tag[k]']` (ordem do arquivo) e `vars['#tag']` = primeiro id, como `spawn`/`place` | `UnitFilter`/`BuildingFilter { "tag" }` contam o grupo inteiro; `EntityRef { "tag", "pick": "first" \| "alive" \| "nearest", "near"? }` (`alive` = primeiro vivo do grupo; `nearest` exige `near`). Para "o grupo todo caiu": `{ "entity": { "tag": "g", "pick": "alive" }, "exists": false }` | — | libera grupos desenhados no editor | **feita** |
 | **G6** | `remove`, `order garrison` e `maxAge`/`forbid` | `kill` gera morte; `order` sem guarnecer (o comando existe em `commands.ts`); nada trava a Idade | `{ "do": "remove", "entity" }` (usa `removeUnitNow`); `order { "type": "garrison" \| "ungarrison" }`; `config.maxAge` e `config.forbid { buildings, units, techs }` conferidos em `commands.ts` e na IA | 4 h | m11 (embarque limpo), m12 e m4/m8 (sem Titã duplicado) | média |
-| **G7** ✅ | Lint de cenário (ferramenta) | **Feito.** `validateScenario(file, { warnings: true })` / `lintScenario(file)`: `ScenarioIssue.level` opcional (`'error'` padrão, `'warn'` no lint); `scenarioErrors(issues)` filtra só os erros | Avisos: tag criada só por gatilho usada numa condição que vale com o grupo ausente, sem `{ "fired" }` no mesmo `all`; objetivo `hidden` sem `done`/`failed` e sem gatilho que o revele; fala sem `en` ou com mais de 200 caracteres. O modal Gatilhos do editor mostra os avisos; `tests/missions.test.ts` exige lint limpo nas missões do registro | — | todas | **feita** |
+| **G7** ✅ | Lint de cenário (ferramenta) | **Feito.** `validateScenario(file, { warnings: true })` / `lintScenario(file)`: `ScenarioIssue.level` opcional (`'error'` padrão, `'warn'` no lint); `scenarioErrors(issues)` filtra só os erros | Avisos: tag criada só por gatilho usada numa condição que vale com o grupo ausente, sem `{ "fired" }` no mesmo `all`; objetivo `hidden` sem `done`/`failed` e sem gatilho que o revele; objetivo `hidden` com `done`/`failed` que um gatilho revela, sem `{ "fired": <esse gatilho> }` num `all` (seria cumprido antes do reveal, [G1]); jogador sem IA fora do time do primeiro humano sem `puppet`; fala sem `en` ou com mais de 200 caracteres. O modal Gatilhos do editor mostra os avisos; `tests/missions.test.ts` exige lint limpo nas missões do registro | — | todas | **feita** |
 | **G8** | Nome exibido por entidade | O `basileus` aparece como "Rei"; o Lícaon-lobo como "Leão de Nemeia" | `spawn`/`place { "name": { "pt", "en" } }` guardado na entidade e exibido pelo HUD; nomes de facção `{ pt, en }` | 3 h | m10, m11 | média |
 | **G9** | Vida de chefe | Sem condição `hp` nem ações de vida | `{ "entity": …, "hp": { "lte": 0.5 } }` (fração), `{ "do": "hpFloor", "entity", "value": 0.3 }`, `damage` e `heal` | 4–6 h | m11 (Cronos imbatível), m12 (fases) | média |
 | **G10** | Relíquias em cenário | Posições sorteadas; sem condição | `map.relics: [x,y][]` (além de boolean) e `Value { "stat": "relics" }` (usa `relicsOf`) | 3–4 h | m9 (secundário) | baixa-média |
@@ -1476,8 +1477,9 @@ As lacunas foram conferidas no código atual. A ordem é: impacto nas missões �
 
 **Correções técnicas no prólogo** (bugs, não roteiro) — ✅ **feitas**:
 - a) `m3_portal`: os "Aliados de Poseidon" não tinham `team` e eram **hostis** a todos (`team: pc.team ?? i`). Agora Argos e os aliados têm `team: 0` (o Culto, `team: 1`); a IA aliada coopera (teste em `tests/scenario-gaps.test.ts`) e não muda de nível com a dificuldade da campanha.
-- b) `m1_despertar`: não tinha `defeat` e quem perdia tudo ficava numa partida sem fim. Com [G2], o jogador sem edifícios e sem cidadãos é eliminado e a missão termina em derrota, sem mexer no texto.
-- O texto e o roteiro das três missões continuam idênticos.
+- b) `m1_despertar`: não tinha `defeat` e quem perdia tudo ficava numa partida sem fim. Com [G2], o jogador sem edifícios e sem unidades é eliminado e a missão termina em derrota, sem mexer no texto. Os Saqueadores são marionete explícita (`puppet: true`) e todos os jogadores de m1/m2 ganharam `team` explícito (mesmo valor de antes).
+- c) `m3_portal` — **números de dificuldade** (revisão 3.5): o Culto começava na Mítica com 4000 de cada recurso e atacava em ~2 min; nem a IA "difícil" jogando por Argos passava dos 5 min, em nenhuma dificuldade (o Culto arrasava os Aliados e depois Argos). Agora `M3_BALANCE` em `campaign.ts` dá ao Culto 1500/2000/2500 de cada recurso (Fácil/Normal/Difícil) e uma "calma" de 600/540/480 s antes de a IA dele poder lançar a 1ª onda (as invasões roteirizadas continuam), e o ritual avança 0,125 s de obra/s (~24 min em vez de ~10), casando com os 25–30 min da §4 (a corrida era curta demais para caber na janela e impossível de vencer pela força). Nenhum texto mudou.
+- O texto das três missões continua idêntico.
 
 **Missões que não dependem de nenhuma lacuna** (vão primeiro para a produção): **m4, m5, m6, m7, m8 e m9**. Todas usam só a gramática atual, com gatilho espelho para segredos e contadores por segundo. As três seguintes funcionam hoje com paliativo, mas convém esperar as lacunas indicadas:
 - **m10:** G2 + G4;
@@ -1513,7 +1515,8 @@ Cada missão ganha 4 verificações, rodadas por `npx tsx scripts/missions.ts` e
    - `validateScenario` sem problemas;
    - `validateMap` do mapa fixo sem erros;
    - lint de tags [G7]: toda tag citada em condição existe no mapa ou no `setup`, ou vem protegida por `fired`;
-   - nenhum objetivo `hidden` com `done`/`failed` enquanto [G1] não existir.
+   - nenhum objetivo `hidden` com `done`/`failed` revelado por gatilho sem `{ "fired": <gatilho> }` no `all` (com [G1] ele seria avaliado desde o segundo 1);
+   - todo jogador sem IA fora do time de Argos marcado `puppet`.
 2. **Viabilidade passiva (sem jogador):** roda N minutos sem comandos do jogador 0 e confere:
    - (a) nenhuma exceção;
    - (b) o resultado **não** é vitória;
@@ -1540,9 +1543,12 @@ Cada missão ganha 4 verificações, rodadas por `npx tsx scripts/missions.ts` e
 **Saída do `scripts/missions.ts`** (uma linha por missão × dificuldade), por exemplo `m5_itaca [hard] passiva=derrota@3m12s roteiro=vitória@18m40s objetivos={...}`. A CI falha se a vitória sair da faixa ou se uma checagem passiva quebrar.
 
 **Harness implementado (3.5):** `src/core/scenario/testing.ts` (só testes e scripts; determinístico).
-- `runPassive(src, { minutes, difficulty })` e `runScripted(src, { minutes, difficulty, steps, playerAi? })`, com `src` = id do registro, `ScenarioDef` registrado ou `ScenarioFile`. O roteiro dá ao jogador 0 um estado de IA (`aiThink` a cada tick, nível `playerAi`, padrão `hard`) e aplica os passos `{ label?, when: Condition, command: (state) => Command | Command[] | null, every? }` (sem `every`, dispara uma vez; com `every: N`, repete a cada N s enquanto `when` valer).
+- `runPassive(src, { minutes, difficulty })` e `runScripted(src, { minutes, difficulty, steps, playerAi?, hold? })`, com `src` = id do registro, `ScenarioDef` registrado ou `ScenarioFile`. O roteiro dá ao jogador 0 um estado de IA (`aiThink` a cada tick, nível `playerAi`, padrão `hard`) e aplica os passos `{ label?, when: Condition, command: (state) => Command | Command[] | null, every? }` (sem `every`, dispara uma vez; com `every: N`, repete a cada N s enquanto `when` valer). `hold` (condição): enquanto valer, a IA do jogador não lança ondas de ataque (o roteiro decide quando atacar).
 - Saída: `{ outcome, atSeconds, fired, objectives, raids, stepsFired, me, hash, error?, checks: { noException, noEarlyObjective, oneTitanEach, raidsSpawned, deterministic } }`; `failedChecks(r)` lista as que quebraram; `fmtOutcome(r)` dá `vitória@18m40s`.
-- Roteiro de uma missão nova: entrada em `MISSION_SCRIPTS` (`{ minutes, steps, expect: [minMin, maxMin], strict? }`) com utilitários `armyAttackMove`, `armyOf`, `entityPos('#tag')`, `buildingPos(owner, type)`. `tests/missions.test.ts` exige a entrada para toda missão do registro e roda a passiva de 6 min nas três dificuldades; `npx tsx scripts/missions.ts [min=14] [ids] [dificuldades]` roda a passiva e o roteiro longo.
+- Roteiro de uma missão nova: entrada em `MISSION_SCRIPTS` (`{ minutes, steps, expect: [minMin, maxMin], playerAi?, hold?, exceptions? }`; `expect` = tempo da §4 com ±30 %) com utilitários `armyAttackMove`, `armyOf`, `militaryCount`, `entityPos('#tag')`, `buildingPos(owner, type)`, `trainArmy(state, 0, { mix | units, reserve })`, `trainVillagers(state, n)`, `focusTarget(state, id, raio)`, `battlePowers(state)` (Raio no herói/mítica perto do exército, Restauração em ≥ 8 feridos), `dodgeStorms(state)` e `enemyNear`.
+- **Estrito por padrão** (`scriptVerdict`): `npx tsx scripts/missions.ts [min=14] [ids] [dificuldades]` falha se o roteiro não vencer dentro de `expect` em qualquer dificuldade. Só `exceptions: { hard: '<motivo>' }` (motivo obrigatório, usado depois de esforço honesto) dispensa uma dificuldade — e a exceção é listada no fim da saída ("Missões: OK (com N exceção(ões) declarada(s))"). Hoje não há nenhuma: m1 [10m30s–26m], m2 [14m–32m30s] e m3 [17m30s–39m] vencem nas três dificuldades.
+- **Validação estática de TODAS as missões do registro** (`staticMissionIssues(entry)`, TS e JSON): JSON com `validateScenario` sem erros e lint sem avisos; todas compilam com o mesmo id, ids de objetivos/gatilhos únicos, `config` (TS) passa pelo mesmo validador e lint dos arquivos (deuses, `team` explícito, `puppet` coerente) e há roteiro em `MISSION_SCRIPTS`. `tests/missions.test.ts` gera um caso por missão do registro e roda a passiva de 6 min nas três dificuldades.
+- Roteiros do prólogo: **m2** — defesa (a IA do jogador nunca sai em ondas), cidadãos até 38, filas militares cheias com mix de infantaria pesada/míticas/arqueiros, fuga da Tempestade de Raios; a partir dos 14 min contra-ataca quando tem ≥ 30 militares e ≥ 2,5 × os da Legião, com Raio/Restauração e foco no Centro Cívico original. **m3** — defesa e treino enquanto o Culto reza; aos 17,5 min (ritual em ~85 %) assalto ao Portal com foco nele; se Cronos surgir, Raio e exército nele perto de Argos.
 
 ---
 

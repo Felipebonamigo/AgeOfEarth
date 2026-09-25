@@ -5,6 +5,7 @@ import { createGame } from '../core/sim/game';
 import { LocalScheduler, ReplayScheduler, type CommandScheduler, type ReplayFrame } from '../core/net/lockstep';
 import { serialize, deserialize } from '../core/serialize';
 import type { EditorUI } from '../editor/types';
+import { localHumanIndex, migrateLegacyPuppets } from '../core/scenario/helpers';
 
 export type UIMode = 'normal' | 'place' | 'attackMove' | 'power' | 'rally' | 'editor';
 
@@ -37,10 +38,10 @@ export class Session {
 
   constructor(state: GameState, local = 0) { this.state = state; this.local = local; }
 
-  static newGame(config: GameConfig, local?: number): Session { return new Session(createGame(config), local ?? config.players.findIndex((p) => !p.isAI)); }
+  static newGame(config: GameConfig, local?: number): Session { return new Session(createGame(config), local ?? localHumanIndex(config)); }
   static load(json: string): Session {
     const st = deserialize(json);
-    const s = new Session(st, st.config.players.findIndex((p) => !p.isAI));
+    const s = new Session(st, localHumanIndex(st.config));
     try { const g = (JSON.parse(json) as { uiGroups?: [number, number[]][] }).uiGroups; if (g) s.groups = new Map(g); } catch { /* save antigo */ }
     s.replayBase = json;
     s.eventCursor = st.events.length;   // eventos antigos do save não são reexibidos como novos
@@ -59,8 +60,9 @@ export class Session {
   }
   static replay(json: string): Session {
     const o = JSON.parse(json) as { config: GameConfig; frames: ReplayFrame[]; base?: string };
+    o.config = migrateLegacyPuppets(o.config);   // replay de antes das marionetes explícitas
     const st = o.base ? deserialize(o.base) : createGame(o.config);
-    const s = new Session(st, Math.max(0, o.config.players.findIndex((p) => !p.isAI)));
+    const s = new Session(st, Math.max(0, localHumanIndex(o.config)));
     if (o.base) s.eventCursor = st.events.length;
     s.scheduler = new ReplayScheduler(o.frames);
     s.spectator = true;

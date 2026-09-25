@@ -3,16 +3,19 @@
 //   runPassive: roda N minutos sem comandos do jogador 0 (viabilidade passiva).
 //   runScripted: o jogador 0 ganha um estado de IA (aiThink a cada tick, economia e exército como numa partida IA × missão)
 //                e, por cima, passos roteirizados { when: Condition, command } aplicados por applyCommand (via tick).
-import { TICK_RATE, type Difficulty } from '../constants';
-import { UNITS } from '../data';
-import type { Command, GameConfig, GameState } from '../types';
+import { TICK_RATE, type Difficulty, type ResourceType } from '../constants';
+import { BUILDINGS, UNITS } from '../data';
+import type { Command, GameConfig, GameState, Unit } from '../types';
 import { createGame, tick } from '../sim/game';
 import { aiThink } from '../sim/ai';
 import { stateHash } from '../net/hash';
 import type { ObjectiveStatus, ScenarioDef } from './types';
-import type { CampaignDifficulty, Condition, ScenarioFile } from './schema';
+import { validateScenario, type CampaignDifficulty, type Condition, type ScenarioFile } from './schema';
 import { compileCondition, gameConfigFor } from './compile';
-import { campaignMission, isCampaignMission, missionConfig, withCampaignDifficulty } from './campaign';
+import { campaignMission, isCampaignMission, missionConfig, withCampaignDifficulty, type CampaignEntry } from './campaign';
+import { canTrain } from '../sim/commands';
+import { getUnitStats } from '../sim/modifiers';
+import { isEnemy } from '../sim/queries';
 import { setRaidObserver, type RaidRecord } from './helpers';
 
 /** Missão a rodar: id do registro, ScenarioDef registrado ou arquivo JSON (roda como scenarioData). */
@@ -33,7 +36,11 @@ export interface MissionRunOpts {
   /** Dificuldade da IA que joga pelo jogador 0 em runScripted (padrão: 'hard'). */
   playerAi?: Difficulty;
 }
-export interface ScriptedRunOpts extends MissionRunOpts { steps: ScriptStep[] }
+export interface ScriptedRunOpts extends MissionRunOpts {
+  steps: ScriptStep[];
+  /** Enquanto valer, a IA do jogador 0 não lança ondas de ataque (joga na defesa); a defesa de ameaças continua. */
+  hold?: Condition;
+}
 
 export interface MissionChecks {
   /** (a) nenhuma exceção. */
@@ -79,7 +86,7 @@ export function missionRunConfig(src: MissionSource, difficulty: CampaignDifficu
 
 const TITANS = Object.keys(UNITS).filter((k) => UNITS[k].tags.includes('titan'));
 
-function runOnce(src: MissionSource, opts: MissionRunOpts, steps: ScriptStep[] | null): MissionRunResult {
+function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition }, steps: ScriptStep[] | null): MissionRunResult {
   const difficulty = opts.difficulty ?? 'normal';
   const raids: RaidRecord[] = [];
   const checks: MissionChecks = { noException: true, noEarlyObjective: true, oneTitanEach: true, raidsSpawned: true, deterministic: true };
@@ -94,6 +101,7 @@ function runOnce(src: MissionSource, opts: MissionRunOpts, steps: ScriptStep[] |
     const me = state.players[0];
     if (steps) me.ai = { difficulty: opts.playerAi ?? 'hard', nextThink: TICK_RATE * 2, lastAttack: 0, attackTarget: -1, waves: 0, rallyX: 0, rallyY: 0, defending: -1000, builderIds: [], lastExpand: 0, personality: (run.config.seed + 3) % 97 };
     const conds = (steps ?? []).map((s) => compileCondition(s.when));
+    const hold = steps && opts.hold ? compileCondition(opts.hold) : null;
     const next = (steps ?? []).map(() => 0);   // próximo segundo em que o passo pode disparar (-1 = encerrado)
     const total = Math.round(opts.minutes * 60 * TICK_RATE);
     for (let i = 0; i < total && !state.gameOver; i++) {
@@ -106,6 +114,7 @@ function runOnce(src: MissionSource, opts: MissionRunOpts, steps: ScriptStep[] |
         next[k] = st.every ? sec + st.every : -1;
       });
       tick(state, cmds);
+      if (hold && me.ai && state.tick % TICK_RATE === 0 && hold(state)) me.ai.lastAttack = state.tick;   // "segura" as ondas da IA do jogador
       if (steps && me.alive && !state.gameOver) aiThink(state, me);
       if (state.tick % TICK_RATE === 0) {
         const s = state.scenario;
@@ -136,7 +145,7 @@ function runOnce(src: MissionSource, opts: MissionRunOpts, steps: ScriptStep[] |
   };
 }
 
-function withDeterminism(src: MissionSource, opts: MissionRunOpts, steps: ScriptStep[] | null): MissionRunResult {
+function withDeterminism(src: MissionSource, opts: MissionRunOpts & { hold?: Condition }, steps: ScriptStep[] | null): MissionRunResult {
   const a = runOnce(src, opts, steps);
   if (opts.deterministic === false || !a.checks.noException) return a;
   const b = runOnce(src, opts, steps);
@@ -192,13 +201,200 @@ export function buildingPos(state: GameState, owner: number, type?: string): { x
   return best;
 }
 
+/** Comandos para encher as filas (até `queue` itens) dos edifícios militares e do Templo do jogador, gastando só acima de `reserve`.
+ * `units`: tipos permitidos por ordem de preferência (padrão: qualquer militar treinável, da Idade mais alta primeiro). */
+export function trainArmy(state: GameState, player = 0, opts: { units?: string[]; mix?: Record<string, number>; reserve?: Partial<Record<ResourceType, number>>; queue?: number } = {}): Command[] {
+  const p = state.players[player]; if (!p || !p.alive) return [];
+  // mix: pesos por tipo; a cada escolha vem primeiro o tipo mais abaixo da sua fatia no exército (contando as filas)
+  const have: Record<string, number> = {}; let total = 0;
+  if (opts.mix) {
+    for (const u of state.units.values()) if (u.owner === player && !u.dead && opts.mix[u.type] !== undefined) { have[u.type] = (have[u.type] ?? 0) + 1; total++; }
+    for (const b of state.buildings.values()) if (b.owner === player && !b.dead) for (const q of b.queue) if (q.kind === 'unit' && opts.mix[q.id] !== undefined) { have[q.id] = (have[q.id] ?? 0) + 1; total++; }
+  }
+  const wsum = opts.mix ? Object.values(opts.mix).reduce((a, b) => a + b, 0) : 1;
+  const deficit = (u: string) => (opts.mix![u] / wsum) - (have[u] ?? 0) / Math.max(1, total);
+  const left = { ...p.resources };
+  const pop = { used: p.pop };
+  const out: Command[] = [];
+  const reserve = opts.reserve ?? {};
+  const queued = new Set<string>();   // heróis únicos já pedidos nesta chamada
+  for (const b of state.buildings.values()) {
+    if (b.owner !== player || b.dead || !b.complete) continue;
+    const def = BUILDINGS[b.type]; if (!def.trains || !(def.military || b.type === 'temple')) continue;
+    let q = b.queue.length;
+    const base = opts.mix ? Object.keys(opts.mix) : opts.units ?? [...def.trains].sort((x, y) => UNITS[y].age - UNITS[x].age);
+    const options = base.filter((u) => def.trains!.includes(u) && UNITS[u].tags.includes('military') && !UNITS[u].tags.includes('scout'));
+    if (opts.mix) options.sort((x, y) => deficit(y) - deficit(x));
+    for (const u of options) {
+      if (q >= (opts.queue ?? 2)) break;
+      if (queued.has(u) || !canTrain(state, p, b, u).ok) continue;
+      const cost = getUnitStats(state, p, u).cost;
+      if (Object.entries(cost).some(([r, v]) => left[r as ResourceType] - (v ?? 0) < (reserve[r as ResourceType] ?? 0))) continue;
+      if (pop.used + UNITS[u].pop > p.popCap) continue;
+      for (const [r, v] of Object.entries(cost)) left[r as ResourceType] -= v ?? 0;
+      pop.used += UNITS[u].pop; q++;
+      if (UNITS[u].unique) queued.add(u);
+      if (opts.mix) { have[u] = (have[u] ?? 0) + 1; total++; }
+      out.push({ type: 'train', player, buildingId: b.id, unit: u });
+    }
+  }
+  return out;
+}
+
+/** Cidadãos além da meta da IA (um humano não para em 26): cada Centro Cívico ocioso treina um, até `target` cidadãos. */
+export function trainVillagers(state: GameState, target: number, player = 0): Command[] {
+  const p = state.players[player]; if (!p || !p.alive) return [];
+  let n = 0; for (const u of state.units.values()) if (u.owner === player && !u.dead && u.type === 'villager') n++;
+  const out: Command[] = [];
+  for (const b of state.buildings.values()) {
+    if (n >= target) break;
+    if (b.owner !== player || b.dead || !b.complete || b.type !== 'town_center' || b.queue.length > 0 || !canTrain(state, p, b, 'villager').ok) continue;
+    out.push({ type: 'train', player, buildingId: b.id, unit: 'villager' }); n++;
+  }
+  return out;
+}
+
+/** Unidade inimiga viva mais valiosa (maior vida máxima) a até `radius` de (x, y) que satisfaz `pred`; null se não houver. */
+export function enemyNear(state: GameState, x: number, y: number, radius: number, pred: (u: Unit) => boolean = () => true, player = 0): Unit | null {
+  let best: Unit | null = null;
+  for (const u of state.units.values()) {
+    if (u.dead || u.inside !== -1 || !isEnemy(state, player, u.owner) || !pred(u)) continue;
+    const dx = u.x - x, dy = u.y - y; if (dx * dx + dy * dy > radius * radius) continue;
+    if (!best || u.maxHp > best.maxHp || (u.maxHp === best.maxHp && u.id < best.id)) best = u;
+  }
+  return best;
+}
+
+/** Unidades militares do jogador a até `radius` do edifício/unidade `targetId` passam a atacá-lo; null se não houver. */
+export function focusTarget(state: GameState, targetId: number | undefined, radius: number, player = 0): Command | null {
+  const t = targetId !== undefined ? state.buildings.get(targetId) ?? state.units.get(targetId) : undefined; if (!t || t.dead) return null;
+  const ids = armyOf(state, player).filter((id) => { const u = state.units.get(id)!; const dx = u.x - t.x, dy = u.y - t.y; return dx * dx + dy * dy <= radius * radius && u.targetId !== t.id; });
+  return ids.length ? { type: 'attack', player, ids, targetId: t.id } : null;
+}
+
+/**
+ * Poderes na batalha: Raio no herói/mítica inimigo mais valioso perto do exército (a IA só o usa perto de casa) e
+ * Restauração onde houver ≥ 8 militares feridos (< 60 % de vida) num raio de 8. Devolve no máximo um comando.
+ */
+export function battlePowers(state: GameState, player = 0): Command | null {
+  const army = armyOf(state, player).map((id) => state.units.get(id)!);
+  if (army.length === 0) return null;
+  if (hasPower(state, 'bolt', player)) {
+    let best: Unit | null = null;
+    for (const u of army) { const e = enemyNear(state, u.x, u.y, 10, (x) => UNITS[x.type].tags.includes('hero') || UNITS[x.type].tags.includes('myth'), player); if (e && (!best || e.maxHp > best.maxHp)) best = e; }
+    if (best) return { type: 'power', player, power: 'bolt', targetId: best.id };
+  }
+  if (hasPower(state, 'restoration', player)) {
+    const hurt = army.filter((u) => u.hp < u.maxHp * 0.6);
+    for (const h of hurt) { const n = hurt.filter((u) => (u.x - h.x) * (u.x - h.x) + (u.y - h.y) * (u.y - h.y) <= 64).length; if (n >= 8) return { type: 'power', player, power: 'restoration', x: h.x, y: h.y }; }
+  }
+  return null;
+}
+
+/** Tira as unidades do jogador de dentro de uma Tempestade de Raios inimiga ativa (sai pelo lado mais perto, até r + 3). */
+export function dodgeStorms(state: GameState, player = 0): Command[] {
+  const out: Command[] = [];
+  for (const t of state.timed) {
+    if (t.type !== 'lightning_storm' || t.until <= state.tick || t.x === undefined || t.y === undefined || !isEnemy(state, player, t.owner)) continue;
+    const r = (t.data ?? 6) + 1;
+    for (const id of armyOf(state, player)) {
+      const u = state.units.get(id)!; const dx = u.x - t.x, dy = u.y - t.y; const d = Math.sqrt(dx * dx + dy * dy);
+      if (d > r) continue;
+      const k = (r + 2) / Math.max(0.5, d);
+      out.push({ type: 'move', player, ids: [id], x: t.x + (d < 0.5 ? r + 2 : dx * k), y: t.y + (d < 0.5 ? 0 : dy * k) });
+    }
+  }
+  return out;
+}
+
+/** O poder `power` ainda está disponível para o jogador? */
+export function hasPower(state: GameState, power: string, player = 0): boolean { return !!state.players[player]?.powers.some((p) => p.id === power && !p.used); }
+
+/** Exceções explícitas de um roteiro (motivo por dificuldade). Nunca silenciosas: scripts/missions.ts lista cada uma. */
+export type ScriptExceptions = Partial<Record<CampaignDifficulty, string>>;
+
 /** Roteiro de uma missão para scripts/missions.ts: passos, duração e janela esperada de vitória (minutos, §4 ±30 %). */
 export interface MissionScript {
   minutes: number; steps: ScriptStep[];
-  /** Janela esperada de vitória (minutos). */
-  expect?: [number, number];
-  /** Com strict, scripts/missions.ts falha se a vitória não vier dentro da janela (em alguma dificuldade). Sem strict, só informa. */
-  strict?: boolean;
+  /** Janela esperada de vitória (minutos): o tempo da §4 com ±30 %. Estrito: fora dela (ou sem vitória), scripts/missions.ts falha. */
+  expect: [number, number];
+  /** Nível da IA que joga pelo jogador 0 (padrão: 'hard'). */
+  playerAi?: Difficulty;
+  /** Enquanto valer, a IA do jogador não lança ondas de ataque (defesa); os passos continuam valendo. */
+  hold?: Condition;
+  /** Dificuldades em que a vitória dentro da janela não é exigida, com o motivo (listadas na saída; use só depois de esforço honesto). */
+  exceptions?: ScriptExceptions;
+}
+
+/** Veredito de um roteiro: ok (vitória dentro da janela), exceção declarada ou falha com o motivo. */
+export interface ScriptVerdict { ok: boolean; inWindow: boolean; exception?: string; reason?: string }
+
+/** Estrito por padrão: exige vitória dentro de `expect`; só uma exceção declarada para a dificuldade dispensa (e é informada). */
+export function scriptVerdict(r: MissionRunResult, script: MissionScript | undefined): ScriptVerdict {
+  if (!script) return { ok: false, inWindow: false, reason: 'missão sem roteiro em MISSION_SCRIPTS' };
+  const [lo, hi] = script.expect;
+  const inWindow = r.outcome === 'victory' && r.atSeconds >= lo * 60 && r.atSeconds <= hi * 60;
+  if (inWindow) return { ok: true, inWindow };
+  const reason = r.outcome !== 'victory' ? `${fmtOutcome(r)}: sem vitória dentro de ${script.minutes} min` : `${fmtOutcome(r)}: vitória fora da janela ${fmtMinSec(Math.round(lo * 60))}–${fmtMinSec(Math.round(hi * 60))}`;
+  const exception = script.exceptions?.[r.difficulty];
+  return exception ? { ok: true, inWindow, exception, reason } : { ok: false, inWindow, reason };
+}
+
+/** Roda o roteiro de uma missão (MISSION_SCRIPTS) numa dificuldade, com as opções do roteiro. */
+export function runMissionScript(id: string, difficulty: CampaignDifficulty, deterministic = false): MissionRunResult {
+  const sc = MISSION_SCRIPTS[id];
+  return runScripted(id, { minutes: sc?.minutes ?? 30, difficulty, steps: sc?.steps ?? [], deterministic, playerAi: sc?.playerAi, hold: sc?.hold });
+}
+
+/**
+ * Validação estática de uma missão do registro (TS ou JSON). JSON: validateScenario sem erros e lint sem avisos. Todas: o
+ * ScenarioDef compila/existe com o mesmo id, objetivos e gatilhos com ids únicos, config válida pelo mesmo validador dos
+ * arquivos (jogadores, deuses, times explícitos, `puppet` coerente e lint de humano sem marionete) e roteiro de teste.
+ */
+export function staticMissionIssues(e: CampaignEntry): string[] {
+  const out: string[] = [];
+  if (e.source === 'json') {
+    if (!e.file) return ['arquivo JSON ausente no registro'];
+    for (const i of validateScenario(e.file, { allowReserved: true, warnings: true })) out.push(`${i.level === 'warn' ? '(lint) ' : ''}${i.path}: ${i.message}`);
+    if (e.file.id !== e.id) out.push(`id do arquivo '${e.file.id}' diferente do registro '${e.id}'`);
+  }
+  let def: ScenarioDef | undefined;
+  try { def = campaignMission(e.id); } catch (err) { out.push(`não compila: ${(err as Error).message}`); return out; }
+  if (!def) return [...out, 'campaignMission devolveu undefined'];
+  if (def.id !== e.id) out.push(`ScenarioDef com id '${def.id}'`);
+  const dup = (ids: string[]) => ids.filter((id, i) => ids.indexOf(id) !== i);
+  for (const id of dup(def.objectives.map((o) => o.id))) out.push(`objetivo duplicado: '${id}'`);
+  for (const id of dup(def.triggers.map((t) => t.id))) out.push(`gatilho duplicado: '${id}'`);
+  if (e.source === 'ts') {
+    // a config do TS passa pelo mesmo validador (e lint) dos arquivos, num arquivo mínimo
+    const c = def.config;
+    const shell: ScenarioFile = { format: 'aoe-scenario', version: 1, id: e.id, title: def.title, intro: def.intro, objectives: [], triggers: [], victory: { time: { gte: 1 } },
+      config: { seed: c.seed, players: c.players, ...(c.startingAge !== undefined ? { startingAge: c.startingAge } : {}), ...(c.startingResources ? { startingResources: c.startingResources } : {}), ...(c.startKit !== undefined ? { startKit: c.startKit } : {}), ...(c.mode ? { mode: c.mode } : {}) } };
+    for (const i of validateScenario(shell, { allowReserved: true, warnings: true })) out.push(`${i.level === 'warn' ? '(lint) ' : ''}config ${i.path}: ${i.message}`);
+    c.players.forEach((p, i) => { if (p.team === undefined) out.push(`config.players[${i}] sem team explícito`); });
+    for (const o of def.objectives) if (!o.text) out.push(`objetivo '${o.id}' sem texto`);
+  }
+  if (!MISSION_SCRIPTS[e.id]) out.push('sem roteiro em MISSION_SCRIPTS');
+  return out;
+}
+
+/** m2: composição do exército (pesos): infantaria pesada e míticas na frente, arqueiros atrás, cavalaria contra as catapultas. */
+const M2_MIX: Record<string, number> = { jason: 1, odysseus: 1, minotaur: 3, hypaspist: 4, hoplite: 4, toxotes: 3, cretan_archer: 3, hippeus: 1, hetairoi: 1, petrobolos: 1 };
+
+/** Militares vivos (não batedores) de um jogador. */
+export function militaryCount(state: GameState, player: number): number { return armyOf(state, player).length; }
+
+/**
+ * m2: contra-ataque por vantagem, como um jogador faria — avança contra o Centro Cívico original quando o exército tem
+ * ≥ 30 militares e ≥ 2,5 × os da Legião (logo depois de uma onda dela quebrar nas nossas defesas); manda só quem está
+ * ocioso ou longe do alvo (sem atropelar quem já está lutando).
+ */
+function m2Counter(state: GameState): Command | null {
+  const ours = militaryCount(state, 0), theirs = militaryCount(state, 1);
+  if (ours < 30 || ours < 2.5 * theirs) return null;
+  const id = state.scenario?.vars.targetTc; const b = id !== undefined ? state.buildings.get(id) : undefined; if (!b || b.dead) return null;
+  const ids = armyOf(state).filter((uid) => { const u = state.units.get(uid)!; const dx = u.x - b.x, dy = u.y - b.y; return u.state === 'idle' || (dx * dx + dy * dy > 25 * 25 && u.state !== 'attack'); });
+  return ids.length ? { type: 'attackMove', player: 0, ids, x: b.x, y: b.y } : null;
 }
 
 /**
@@ -207,7 +403,7 @@ export interface MissionScript {
  */
 export const MISSION_SCRIPTS: Record<string, MissionScript> = {
   m1_despertar: {
-    minutes: 30, expect: [10.5, 26], strict: true,
+    minutes: 30, expect: [10.5, 26],
     steps: [
       // Templo pronto e menos de 3 rezando: 3 cidadãos vão rezar (a IA sozinha nem sempre junta 3 ao mesmo tempo)
       { label: 'templo', when: { all: [{ buildings: { player: 0, type: 'temple', complete: true }, gte: 1 }, { units: { player: 0, state: 'pray' }, lt: 3 }, { objective: 'temple', is: 'pending' }] }, every: 30,
@@ -222,17 +418,33 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
   },
   m2_cerco: {
     minutes: 35, expect: [14, 32.5],
+    // defesa (Centro Cívico, exército e reforços em casa): a IA do jogador nunca sai em ondas; quem ataca é o roteiro
+    hold: { time: { gte: 0 } },
     steps: [
-      // resistidos os 12 minutos, o exército (com os reforços de Esparta) marcha contra o Centro Cívico original
-      { label: 'contra-ataque', when: { objective: 'survive', is: 'done' }, every: 45, command: (s) => { const p = entityPos(s, 'targetTc'); return p ? armyAttackMove(s, p.x, p.y) : null; } },
+      // economia e exército de quem defende: cidadãos até 38 (a IA para em 26 na Clássica) e filas militares sempre cheias
+      { label: 'cidadãos', when: { time: { gte: 3 } }, every: 4, command: (s) => trainVillagers(s, 38) },
+      { label: 'treino', when: { time: { gte: 5 } }, every: 5, command: (s) => trainArmy(s, 0, { mix: M2_MIX, reserve: { food: 150, wood: 100, gold: 60 } }) },
+      { label: 'tempestade', when: { time: { gte: 1 } }, every: 1, command: (s) => dodgeStorms(s) },
+      // resistidos os 12 minutos, reagrupa com os reforços de Esparta e, a partir dos 14 min, contra-ataca com vantagem
+      { label: 'contra-ataque', when: { all: [{ objective: 'survive', is: 'done' }, { time: { gte: 840 } }] }, every: 5, command: (s) => m2Counter(s) },
+      { label: 'poderes', when: { objective: 'survive', is: 'done' }, every: 3, command: (s) => battlePowers(s) },
+      // quem já chegou perto do Centro Cívico alvo bate nele (o ataque-movimento se distrai com a Fortaleza e as casas)
+      { label: 'cerco', when: { objective: 'survive', is: 'done' }, every: 5, command: (s) => focusTarget(s, s.scenario!.vars.targetTc, 22) },
     ],
   },
   m3_portal: {
     minutes: 40, expect: [17.5, 39],
+    // defesa em casa enquanto o Culto reza; a IA do jogador nunca sai em ondas, quem ataca é o roteiro
+    hold: { time: { gte: 0 } },
     steps: [
-      // a partir dos 5 min, o exército ataca o Portal em obra; se Cronos surgir, vai atrás dele
-      { label: 'portal', when: { all: [{ time: { gte: 300 } }, { entity: { player: 1, type: 'titan_gate' }, exists: true }] }, every: 45, command: (s) => { const g = buildingPos(s, 1, 'titan_gate'); return g ? armyAttackMove(s, g.x, g.y) : null; } },
-      { label: 'cronos', when: { fired: 'cronus_rises' }, every: 30, command: (s) => { const c = [...s.units.values()].find((u) => u.owner === 1 && u.type === 'cronus' && !u.dead); return c ? armyAttackMove(s, c.x, c.y) : null; } },
+      { label: 'treino', when: { time: { gte: 5 } }, every: 5, command: (s) => trainArmy(s, 0, { reserve: { food: 150, wood: 100, gold: 60 } }) },
+      { label: 'tempestade', when: { time: { gte: 1 } }, every: 1, command: (s) => dodgeStorms(s) },
+      // aos 17,5 min (ritual em ~85 %), todo o exército assalta o Portal; perto dele, todos batem no Portal
+      { label: 'portal', when: { all: [{ time: { gte: 1050 } }, { entity: { player: 1, type: 'titan_gate' }, exists: true }, { not: { fired: 'cronus_rises' } }] }, every: 30, command: (s) => { const g = buildingPos(s, 1, 'titan_gate'); return g ? armyAttackMove(s, g.x, g.y) : null; } },
+      { label: 'cerco', when: { all: [{ entity: { player: 1, type: 'titan_gate' }, exists: true }, { not: { fired: 'cronus_rises' } }] }, every: 5, command: (s) => focusTarget(s, [...s.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate' && !b.dead)?.id, 12) },
+      { label: 'poderes', when: { time: { gte: 2 } }, every: 3, command: (s) => battlePowers(s) },
+      // se Cronos surgir, o exército o enfrenta quando ele chega perto de Argos (Raio: battlePowers)
+      { label: 'cronos', when: { fired: 'cronus_rises' }, every: 10, command: (s) => { const c = [...s.units.values()].find((u) => u.owner === 1 && u.type === 'cronus' && !u.dead); const tc = buildingPos(s, 0, 'town_center'); if (!c || !tc) return null; const dx = c.x - tc.x, dy = c.y - tc.y; return dx * dx + dy * dy < 30 * 30 ? { type: 'attack', player: 0, ids: armyOf(s), targetId: c.id } : null; } },
     ],
   },
 };

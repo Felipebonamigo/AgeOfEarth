@@ -17,6 +17,7 @@ import { Minimap } from '../render/minimap';
 import type { Audio } from '../audio/audio';
 import { getScenarioFor } from '../core/scenario/runner';
 import { HORDE, isCampaignMission } from '../core/scenario/campaign';
+import { scenarioWon } from '../core/scenario/runner';
 import type { GameState } from '../core/types';
 import type { ScenarioDef } from '../core/scenario/types';
 
@@ -714,7 +715,8 @@ export class HUD {
   showScenarioEnd() {
     const s = this.session!; const st = s.state; const sc = st.scenario!; const def = scenarioOf(st);
     if (!def) { this.cb.onQuit(); return; }
-    const won = sc.outcome === 'victory';
+    // O estado é o mesmo em todos os clientes: com humanos em times diferentes, vitória/derrota vem do time vencedor (winnerTeam)
+    const won = scenarioWon(sc, s.player.team);
     this.audio.play(won ? 'victory' : 'defeat');
     // Progresso da campanha só para ids oficiais: cenários JSON personalizados nunca marcam aoe_campaign (nem conquistas de missão)
     if (won && isOfficialScenario(sc.id) && !this.testMode) { try { const prog = JSON.parse(localStorage.getItem('aoe_campaign') ?? '{"completed":[]}'); if (!prog.completed.includes(sc.id)) prog.completed.push(sc.id); if (st.config.campaignDifficulty === 'hard') { prog.hard = prog.hard ?? []; if (!prog.hard.includes(sc.id)) prog.hard.push(sc.id); } localStorage.setItem('aoe_campaign', JSON.stringify(prog)); } catch { /* ignore */ } }

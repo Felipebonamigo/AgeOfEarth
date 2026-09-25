@@ -15,23 +15,28 @@ export function checkVictory(state: GameState): void {
 /**
  * Eliminação (parte comum a partidas e cenários): jogador sem edifícios que contam (muralhas e fazendas não contam) e sem
  * cidadãos — sem kit inicial, sem nenhuma unidade — ou, no Regicídio, sem rei, fica alive=false com os eventos de derrota
- * e perde as unidades restantes. `skip` exclui jogadores (cenário: marionetes roteirizadas nunca são eliminadas).
+ * e perde as unidades restantes. `skip` exclui jogadores (cenário: marionetes roteirizadas seguem outra regra).
+ * `anyUnit` (cenários): qualquer unidade viva mantém o jogador, como sem kit inicial — um defensor da Horda que perdeu o
+ * Centro Cívico e os cidadãos segue vivo com o exército e pode socorrer o aliado.
  */
-export function eliminatePlayers(state: GameState, skip?: (p: Player) => boolean): void {
+export function eliminatePlayers(state: GameState, skip?: (p: Player) => boolean, anyUnit = false): void {
   for (const p of state.players) {
     if (!p.alive || skip?.(p)) continue;
     let hasBuilding = false, hasVillager = false;
     for (const b of state.buildings.values()) if (b.owner === p.id && !b.dead && !BUILDINGS[b.type].wall && !BUILDINGS[b.type].farm) { hasBuilding = true; break; }
-    if (!hasBuilding) for (const u of state.units.values()) if (u.owner === p.id && !u.dead && (u.type === 'villager' || !hasStartKit(state.config, p.id))) { hasVillager = true; break; }   // sem kit inicial (mapa de batalha), qualquer unidade viva mantém o jogador
+    const anyCounts = anyUnit || !hasStartKit(state.config, p.id);   // sem kit inicial (mapa de batalha) ou em cenário, qualquer unidade viva mantém o jogador
+    if (!hasBuilding) for (const u of state.units.values()) if (u.owner === p.id && !u.dead && (u.type === 'villager' || anyCounts)) { hasVillager = true; break; }
     const kingDead = state.config.mode === 'regicide' && !kingAlive(state, p.id);   // Regicídio: sem rei, o reino cai
     if (kingDead) state.events.push({ tick: state.tick, type: 'kingDied', player: p.id, text: t('ev.kingDied', { player: p.name }) });
-    if ((!hasBuilding && !hasVillager) || kingDead) {
-      p.alive = false; p.defeatedTick = state.tick;
-      state.events.push({ tick: state.tick, type: 'defeated', player: p.id, text: t('ev.defeated', { player: p.name }) });
-      // unidades restantes do derrotado desaparecem
-      for (const u of state.units.values()) if (u.owner === p.id && !u.dead) { u.dead = true; state.effects.push({ type: 'death', x: u.x, y: u.y, owner: p.id, ttl: 20, total: 20, data: u.type }); }
-    }
+    if ((!hasBuilding && !hasVillager) || kingDead) defeatPlayer(state, p);
   }
+}
+
+/** Derrota um jogador: alive=false, evento de derrota e as unidades restantes desaparecem (edifícios ficam). */
+export function defeatPlayer(state: GameState, p: Player): void {
+  p.alive = false; p.defeatedTick = state.tick;
+  state.events.push({ tick: state.tick, type: 'defeated', player: p.id, text: t('ev.defeated', { player: p.name }) });
+  for (const u of state.units.values()) if (u.owner === p.id && !u.dead) { u.dead = true; state.effects.push({ type: 'death', x: u.x, y: u.y, owner: p.id, ttl: 20, total: 20, data: u.type }); }
 }
 
 /** Vencedor global (só fora de cenário): último time de pé, Rei da Colina ou Maravilha mantida. */

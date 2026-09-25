@@ -30,14 +30,14 @@ describe('cenários', () => {
     expect(near()).toBeGreaterThanOrEqual(before + 5);
   });
 
-  it('ritual da missão 3: os sacerdotes ficam rezando no Portal e a obra avança ~0,3/s', () => {
+  it('ritual da missão 3: os sacerdotes ficam rezando no Portal e a obra avança ~0,125/s (~24 min)', () => {
     const s = mission('m3_portal');
     const gate = [...s.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate')!;
     run(s, 120 * TICK_RATE);
     const priests = unitsOf(s, 1).filter((u) => u.type === 'villager' && u.state === 'pray' && u.nodeId === -gate.id);
     expect(priests.length).toBeGreaterThanOrEqual(2);
-    expect(gate.progress).toBeGreaterThan(25);
-    expect(gate.progress).toBeLessThan(60);
+    expect(gate.progress).toBeGreaterThan(10);
+    expect(gate.progress).toBeLessThan(25);
   });
 
   it('missão 2: o objetivo é o Centro Cívico original, não os que a Legião fundar depois', () => {

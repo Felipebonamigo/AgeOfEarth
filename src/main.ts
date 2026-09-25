@@ -11,6 +11,7 @@ import { HORDE, campaignMission, missionConfig, nextCampaignMission } from './co
 import { migrateMap, validateMap, canonicalize, mapHash, type FixedMapData } from './core/map/fixed';
 import { validateScenario } from './core/scenario/schema';
 import { gameConfigFor } from './core/scenario/compile';
+import { localHumanIndex, migrateLegacyPuppets } from './core/scenario/helpers';
 import { putMap, slugify } from './game/maps';
 import { MapEditor } from './editor/editor';
 import { EditorPanel, type TestOpts } from './editor/panel';
@@ -170,7 +171,8 @@ async function boot() {
     if (editorOrTest()) leaveEditorView();
     replaySaved = false;
     const base = gameConfigFor(sc);
-    try { startGame({ ...base, seed: sc.config.seed ?? ((Math.floor(Math.random() * 1e9)) >>> 0), map, mapHash: mapHash(map), scenarioData: sc }); }
+    // partida local: arquivo sem nenhum `puppet` segue a regra antiga (ninguém controla os humanos de outros times)
+    try { startGame(migrateLegacyPuppets({ ...base, seed: sc.config.seed ?? ((Math.floor(Math.random() * 1e9)) >>> 0), map, mapHash: mapHash(map), scenarioData: sc })); }
     catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); return false; }
     if (session) { session.paused = true; hud.showIntro(() => { if (session) session.paused = false; }); }
     return true;
@@ -190,7 +192,7 @@ async function boot() {
       if (issues.length) { menu.showNetError(t('mp.scenarioInvalid', { reason: issues.slice(0, 2).map((i) => `${i.path || '$'}: ${i.message}`).join('; ') })); return; }
     }
     const spectator = client.isSpectator || slots.indexOf(client.slot) < 0;
-    const local = spectator ? Math.max(0, config.players.findIndex((p) => !p.isAI)) : slots.indexOf(client.slot);   // espectador assiste pela perspectiva do primeiro humano, com o mapa revelado
+    const local = spectator ? Math.max(0, localHumanIndex(config)) : slots.indexOf(client.slot);   // espectador assiste pela perspectiva do primeiro humano, com o mapa revelado
     session = Session.newGame(config, local); session.spectator = spectator;
     const humans = slots.map((_, i) => i);
     const sched = new NetworkScheduler(spectator ? -1 : local, humans, delay, { sendCmds: (t, c) => client.sendCmds(t, c), sendHash: (t, h) => client.sendHash(t, h) });
@@ -344,7 +346,7 @@ async function boot() {
       editorCam = { x: renderer.cam.x, y: renderer.cam.y, zoom: renderer.cam.zoom };
       leaveEditorView();
       returnToEditor = true; replaySaved = true;
-      try { startGame({ ...base, seed: (Math.floor(Math.random() * 1e9)) >>> 0, revealMap: opts.reveal || base.revealMap, map: file, mapHash: mapHash(file), scenarioData: sc }); }
+      try { startGame(migrateLegacyPuppets({ ...base, seed: (Math.floor(Math.random() * 1e9)) >>> 0, revealMap: opts.reveal || base.revealMap, map: file, mapHash: mapHash(file), scenarioData: sc })); }
       catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); returnFromTest(); return; }
       hud.setTestMode(() => returnFromTest());
       if (session) { session.paused = true; hud.showIntro(() => { if (session) session.paused = false; }); }

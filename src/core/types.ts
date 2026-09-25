@@ -158,7 +158,7 @@ export interface VisualEffect { type: string; x: number; y: number; tx?: number;
 export interface GameConfig {
   seed: number; mapSize: 'small' | 'medium' | 'large';
   scenario?: string;
-  players: { name: string; god: string; isAI: boolean; difficulty: Difficulty; team?: number }[];
+  players: { name: string; god: string; isAI: boolean; difficulty: Difficulty; team?: number; puppet?: boolean }[];   // puppet: facção roteirizada de cenário (sem IA, só gatilhos)
   revealMap?: boolean; startingAge?: number; startingResources?: Partial<Record<ResourceType, number>>;
   mode?: GameMode; mapType?: MapType;
   map?: FixedMapData;                                   // mapa fixo (editor/arquivo); se ausente, gera pelo seed

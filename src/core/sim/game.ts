@@ -19,7 +19,7 @@ import { aiThink } from './ai';
 import { checkVictory } from './victory';
 import { spiralSearch, isPassable } from '../map/grid';
 import { nearestFreeTile } from '../map/pathfinding';
-import { eliminateInScenario, getScenarioFor, initScenarioState, runScenario } from '../scenario/runner';
+import { eliminateInScenario, getScenarioFor, initScenarioState, refreshPuppets, runScenario } from '../scenario/runner';
 import { updateKoth } from './modes';
 import { placeRelics, updateRelics } from './relics';
 
@@ -187,8 +187,9 @@ export function tick(state: GameState, commands: Command[] = []): void {
   // Economia e IA a cada segundo (defasadas para distribuir custo)
   if (state.tick % TICK_RATE === 0) { economySecond(state); if (state.koth) updateKoth(state); updateRelics(state); }
   for (const p of state.players) if (p.isAI && p.alive) aiThink(state, p);
-  // Cenário: eliminação sem vencedor global (G2) e depois objetivos/gatilhos; fora dele, a vitória padrão
-  if (state.scenario) { if (state.tick % TICK_RATE === TICK_RATE - 1) { eliminateInScenario(state); runScenario(state); } }
+  // Cenário: eliminação sem vencedor global (G2) e depois objetivos/gatilhos; fora dele, a vitória padrão. As marionetes
+  // voltam a ser sincronizadas após os gatilhos: uma onda recém-invocada já pode ser atacada neste mesmo tick.
+  if (state.scenario) { if (state.tick % TICK_RATE === TICK_RATE - 1) { eliminateInScenario(state); runScenario(state); refreshPuppets(state); } }
   else if (state.tick % TICK_RATE === TICK_RATE - 1) checkVictory(state);
   // Território e névoa
   if (state.territoryDirty) recomputeTerritory(state);

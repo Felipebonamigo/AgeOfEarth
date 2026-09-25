@@ -120,12 +120,14 @@ describe('G2: fim de partida em cenário', () => {
     expect(s.events.some((e) => e.type === 'defeated' && e.player === 0)).toBe(true);
     expect(s.scenario!.outcome).toBe('defeat'); expect(s.gameOver).toBe(true); expect(s.winner).toBe(-2);
   });
-  it('marionetes (sem IA, fora do time local) nunca são eliminadas; IA inimiga é eliminada sem encerrar a partida', () => {
+  it('marionetes (puppet: true) não passam pela eliminação comum; IA inimiga é eliminada sem encerrar a partida', () => {
     const m1 = createGame({ ...PROLOGUE[0].config, scenario: 'm1_despertar' });
     expect(isScenarioPuppet(m1, 1)).toBe(true); expect(isScenarioPuppet(m1, 0)).toBe(false);
     removeAllOf(m1, (o) => o === 1);
     run(m1, 2 * TICK_RATE);
-    expect(m1.players[1].alive).toBe(true); expect(m1.scenario!.outcome).toBe('playing');
+    // marionete sem nenhuma entidade: alive=false sem evento de derrota e sem encerrar a missão (quem decide é o roteiro)
+    expect(m1.players[1].alive).toBe(false); expect(m1.scenario!.outcome).toBe('playing');
+    expect(m1.events.some((e) => e.type === 'defeated' && e.player === 1)).toBe(false);
     const s = game(mk());
     act(s, [{ do: 'removeAll', player: 1 }]);
     run(s, 2 * TICK_RATE);
@@ -284,7 +286,7 @@ describe('correções do prólogo', () => {
     expect(s.players.map((p) => p.team)).toEqual([0, 1, 0]);
     expect(isEnemy(s, 0, 2)).toBe(false); expect(isEnemy(s, 2, 1)).toBe(true); expect(isEnemy(s, 0, 1)).toBe(true);
     let hitArgos = 0, hitCult = 0;
-    for (let i = 0; i < 200 * TICK_RATE && !s.gameOver; i++) {
+    for (let i = 0; i < 600 * TICK_RATE && !s.gameOver && hitCult === 0; i++) {   // o Culto fica na defesa nos primeiros minutos (M3_BALANCE)
       tick(s);
       for (const u of unitsOf(s, 2)) { if (u.targetId < 0) continue; const t = s.units.get(u.targetId) ?? s.buildings.get(u.targetId); if (t?.owner === 0) hitArgos++; if (t?.owner === 1) hitCult++; }
     }

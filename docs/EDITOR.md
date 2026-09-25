@@ -161,18 +161,19 @@ type Action =
   | { do: 'storeEntity'; var: string; entity: EntityRef } | { do: 'advanceBuild'; entity: EntityRef; seconds: number }
   | { do: 'order'; units: { tag: string } | UnitFilter; order: { type: 'move' | 'attackMove'; at: Point } | { type: 'attack' | 'gather' | 'pray' | 'repair'; target: EntityRef } }
   | { do: 'kill'; entity: EntityRef } | { do: 'ceasefire'; seconds: number }
+  | { do: 'defeat'; player: PlayerSel }                                          // derrota roteirizada: alive=false, evento e tudo do jogador some
   | { do: 'forEachPlayer'; team?: number; alive?: boolean; then: Action[] };    // dentro: '$p' = jogador, índice k para angle.perIndex
 
 interface ScenarioFile {
   format: 'aoe-scenario'; version: 1;
   id: string; title: Text; subtitle?: Text; icon?: string; intro: Text[]; outro?: Text[]; hints?: Text[];
   map?: { gen: { mapSize: 'small' | 'medium' | 'large'; mapType?: MapType; seed: number } } | { data: FixedMapData };   // omitido quando embutido num mapa
-  config: { seed?: number; players: GameConfig['players']; startingAge?: number; startingResources?: …; revealMap?: boolean; startKit?: boolean | boolean[]; mode?: GameMode };
+  config: { seed?: number; players: GameConfig['players'] /* { name, god, isAI, difficulty, team?, puppet? } */; startingAge?: number; startingResources?: …; revealMap?: boolean; startKit?: boolean | boolean[]; mode?: GameMode };
   vars?: Record<string, number>;
   setup?: Action[];                              // após as entidades do mapa; tags → vars['#tag'] = id
   objectives: { id: string; text: Text; optional?: boolean; hidden?: boolean; done?: Condition; failed?: Condition }[];
   triggers: { id: string; when: Condition; then: Action[]; repeat?: boolean }[];
-  victory: Condition; defeat?: Condition;        // a derrota implícita do runner (humanos do time local sem nada) continua
+  victory: Condition; defeat?: Condition;        // a derrota implícita do runner (nenhum humano não-marionete de pé) continua; humanos em times diferentes: resultado por time (winnerTeam)
   hud?: ({ type: 'countdown'; seconds: number; while: Condition; label: Text } | { type: 'progress'; entity: EntityRef; max: number; label: Text })[];
 }
 ```
@@ -184,7 +185,7 @@ Trecho da missão 1 reescrita (prova de cobertura; a versão TS continua canôni
   "title": { "pt": "O Despertar de Argos", "en": "The Awakening of Argos" },
   "map": { "gen": { "mapSize": "small", "seed": 1101 } },
   "config": { "players": [ { "name": "Argos", "god": "zeus", "isAI": false, "difficulty": "easy" },
-                           { "name": "Saqueadores", "god": "hades", "isAI": false, "difficulty": "easy" } ],
+                           { "name": "Saqueadores", "god": "hades", "isAI": false, "difficulty": "easy", "puppet": true } ],
               "startingResources": { "food": 400, "wood": 300, "gold": 150 }, "startKit": [true, false] },
   "setup": [ { "do": "place", "player": 1, "building": "barracks", "at": { "start": 1 }, "complete": true },
              { "do": "spawn", "player": 1, "units": ["hoplite", "hoplite", "toxotes", "toxotes"], "at": { "start": 1, "dy": 3 } } ],
@@ -399,7 +400,7 @@ Estimativas de horas do agente; cada etapa é um ou mais commits em português c
 
 - Revisão adversarial da Etapa 3 (24 achados corrigidos): ids únicos ao criar/copiar mapas (`uniqueMapId`), autosave só quando houve edição (não substitui o rascunho anterior) e também em `pagehide`, aviso de cota no autosave e confirmação de saída diferente quando o rascunho não pôde ser guardado, `setRevealAll(false)` ao sair do editor, testes não registram deus jogado nem oferecem Salvar/Carregar, `esc()` nos toasts com nome do mapa, "Escolher no mapa" só dentro do mapa com indicador e cancelamento (Esc/menu/troca de ferramenta), times por início validados, traço encerrado ao sair do canvas, avisos/tooltip não bloqueiam o hover, controles de intervalo/caixas não retêm os atalhos, botão direito no minimapa sem menu do navegador, tooltips sem `<br>`, textos padrão traduzidos, rodapé do editor com altura proporcional.
 
-- Campanha (docs/STORY.md §6, G0–G7): o registro `CAMPAIGN` (`campaign.ts`) serve menu, HUD, `startMission`/"Próxima missão" e runner; missões JSON oficiais são compiladas por `compileScenarioCached`. Operadores novos da gramática: `koth`, `wonderHeld`, `kingAlive`, `alive`, `difficulty` (condições), `{ stat: 'difficulty' }`, `spawn.scaled`, `BuildingFilter.tag` e `EntityRef { tag, pick, near }`. Objetivos ocultos são avaliados (revelam-se ao mudar de estado). Em cenário, `eliminatePlayers` roda sem declarar vencedor (marionetes sem IA fora do time local nunca são eliminadas) e a derrota implícita vale quando todos os humanos do time local caem. `validateScenario(f, { warnings: true })`/`lintScenario(f)` devolvem avisos (`level: 'warn'`: tag futura sem `fired`, oculto que nunca aparece, fala sem `en` ou > 200 caracteres), exibidos no modal Gatilhos sem bloquear o salvar. Entidades do mapa com a mesma tag viram grupo (`#tag[k]`).
+- Campanha (docs/STORY.md §6, G0–G7): o registro `CAMPAIGN` (`campaign.ts`) serve menu, HUD, `startMission`/"Próxima missão" e runner; missões JSON oficiais são compiladas por `compileScenarioCached`. Operadores novos da gramática: `koth`, `wonderHeld`, `kingAlive`, `alive`, `difficulty` (condições), `{ stat: 'difficulty' }`, `spawn.scaled`, `BuildingFilter.tag` e `EntityRef { tag, pick, near }`. Objetivos ocultos são avaliados (revelam-se ao mudar de estado). Em cenário, `eliminatePlayers` roda sem declarar vencedor e só elimina quem não tem edifício que conta **nem nenhuma unidade**; marionetes são explícitas (`players[i].puppet: true`) e o `alive` delas é "tem entidade viva"; `{ do: 'defeat', player }` derrota qualquer jogador. A derrota implícita vale quando nenhum humano (não marionete) está de pé; com humanos em times diferentes, o resultado vale por time (`scenario.winnerTeam`, tela de fim por cliente). `validateScenario(f, { warnings: true })`/`lintScenario(f)` devolvem avisos (`level: 'warn'`: tag futura sem `fired`, oculto que nunca aparece, oculto revelado por gatilho sem `{ fired }` no `done`/`failed`, humano de outro time sem `puppet`, fala sem `en` ou > 200 caracteres), exibidos no modal Gatilhos sem bloquear o salvar. Entidades do mapa com a mesma tag viram grupo (`#tag[k]`).
 
 ## 6. Riscos e mitigação
 

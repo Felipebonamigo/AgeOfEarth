@@ -438,7 +438,7 @@ export class MainMenu {
       const map = st.fixedMap && this.fixedMap ? this.fixedMap : undefined;   // só o anfitrião tem o arquivo; os outros recebem em `start`
       if (st.horde) {
         const humans: GameConfig['players'] = lobby.players.map((p) => ({ name: p.name, god: p.god, isAI: false, difficulty: st.difficulty as Difficulty, team: 0 }));
-        humans.push({ name: 'Tártaro', god: 'hades', isAI: false, difficulty: 'normal', team: 9 });
+        humans.push({ name: 'Tártaro', god: 'hades', isAI: false, difficulty: 'normal', team: 9, puppet: true });   // marionete: só as ondas
         const hordeMap = map && map.starts.length >= humans.length ? map : undefined;   // a Horda aceita mapa fixo com início para cada humano + Tártaro
         net.start({ seed: st.seed >>> 0, mapSize: st.mapSize as MapSize, players: humans, scenario: 'horde', startingResources: { food: 600, wood: 500, gold: 300, favor: 20 }, map: hordeMap, mapHash: hordeMap ? mapHash(hordeMap) : undefined }, delay);
         return;
@@ -451,8 +451,12 @@ export class MainMenu {
         if (scIssues.length) { this.netStatus = t('mp.scenarioInvalid', { reason: scIssues.slice(0, 2).map((i) => `${i.path || '$'}: ${i.message}`).join('; ') }); this.render(); return; }
         const base = gameConfigFor(sc);
         const humans = lobby.players;
-        if (humans.length > base.players.length) { this.netStatus = t('mp.scenarioPlayers', { n: base.players.length, p: humans.length }); this.render(); return; }
-        const scPlayers: GameConfig['players'] = base.players.map((p, i) => (i < humans.length ? { ...p, name: humans[i].name, god: humans[i].god, isAI: false, team: humans[i].team } : p));
+        // vagas humanas = as primeiras até a primeira marionete (os humanos da sala ocupam os índices 0…n-1, como os slots do lockstep)
+        const open = base.players.findIndex((p) => p.puppet === true);
+        const room = open < 0 ? base.players.length : open;
+        if (humans.length > room) { this.netStatus = t('mp.scenarioPlayers', { n: room, p: humans.length }); this.render(); return; }
+        // marionetes explícitas em rede: humanos da sala com puppet: false; vaga sem IA que ninguém ocupou vira marionete (só gatilhos)
+        const scPlayers: GameConfig['players'] = base.players.map((p, i) => (i < humans.length ? { ...p, name: humans[i].name, god: humans[i].god, isAI: false, team: humans[i].team, puppet: false } : !p.isAI ? { ...p, puppet: true } : p));
         const issues = validateMap(map, { players: scPlayers.length, mode: base.mode, ai: scPlayers.map((p) => p.isAI) });
         if (hasErrors(issues)) { this.fixedIssues = issues; this.netStatus = t('main.fixedMapErrors') + ' ' + issues.filter((i) => i.level === 'error').slice(0, 2).map(issueText).join('; '); this.render(); return; }
         net.start({ ...base, seed: sc.config.seed ?? (st.seed >>> 0), players: scPlayers, map, mapHash: mapHash(map), scenarioData: sc }, delay);

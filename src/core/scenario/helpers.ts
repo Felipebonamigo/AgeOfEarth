@@ -1,7 +1,7 @@
 // Utilidades para cenários: contagens, invocação de esquadrões inimigos, recursos.
 import { UNITS } from '../data';
 import { TICK_RATE } from '../constants';
-import type { Building, GameState, Unit } from '../types';
+import type { Building, GameConfig, GameState, Unit } from '../types';
 import { spawnUnit, placeBuilding, canPlaceBuilding, onBuildingComplete, removeBuildingNow, removeUnitNow } from '../sim/entities';
 import { getBuildingStats } from '../sim/modifiers';
 import { giveOrder } from '../sim/units';
@@ -25,7 +25,39 @@ export function countBuildings(state: GameState, owner: number, type?: string): 
   let n = 0; for (const b of state.buildings.values()) if (b.owner === owner && !b.dead && b.complete && (!type || b.type === type)) n++; return n;
 }
 export function military(u: Unit): boolean { return UNITS[u.type].tags.includes('military') && !UNITS[u.type].tags.includes('scout'); }
-export function localPlayer(state: GameState): number { return state.config.players.findIndex((p) => !p.isAI); }
+export function localPlayer(state: GameState): number { return localHumanIndex(state.config); }
+
+/** Marionete roteirizada: jogador marcado com `puppet: true` na config (facção sem IA, movida só por gatilhos). */
+export function isPuppetConfig(config: GameConfig, i: number): boolean { return !!config.players[i]?.puppet; }
+/** Primeiro humano de verdade da config (sem IA e sem marionete): o 'local' dos cenários; -1 se não houver. */
+export function localHumanIndex(config: GameConfig): number { return config.players.findIndex((p) => !p.isAI && !p.puppet); }
+/**
+ * Saves e replays de antes das marionetes explícitas: se nenhum jogador traz o campo `puppet`, vale a regra antiga (todo
+ * jogador sem IA fora do time do primeiro humano era marionete). Configs novas não mudam; devolve a mesma config se nada mudar.
+ */
+export function migrateLegacyPuppets(config: GameConfig): GameConfig {
+  if (!(config.scenario || config.scenarioData) || config.players.some((p) => p.puppet !== undefined)) return config;
+  const first = config.players.findIndex((p) => !p.isAI); if (first < 0) return config;
+  const team = config.players[first].team ?? first;
+  if (!config.players.some((p, i) => !p.isAI && (p.team ?? i) !== team)) return config;
+  return { ...config, players: config.players.map((p, i) => (!p.isAI && (p.team ?? i) !== team ? { ...p, puppet: true } : p)) };
+}
+/**
+ * `alive` de um jogador em cenário. Marionete: tem alguma entidade viva (unidade ou edifício) — a eliminação comum não se
+ * aplica a ela, que costuma não ter cidade; `kill`/`removeAll` do último vivo ou { do: 'defeat' } a derrubam, e um `spawn`
+ * posterior a traz de volta. Os demais: o `alive` do estado (eliminateInScenario).
+ */
+export function scenarioAlive(state: GameState, id: number): boolean {
+  const p = state.players[id]; if (!p) return false;
+  return isPuppetConfig(state.config, id) ? hasAnyEntity(state, id) : p.alive;
+}
+
+/** O jogador tem alguma entidade viva (unidade, inclusive guarnecida, ou edifício de qualquer tipo, mesmo em obra)? */
+export function hasAnyEntity(state: GameState, owner: number): boolean {
+  for (const u of state.units.values()) if (u.owner === owner && !u.dead) return true;
+  for (const b of state.buildings.values()) if (b.owner === owner && !b.dead) return true;
+  return false;
+}
 export function townCenter(state: GameState, owner: number) { return [...state.buildings.values()].find((b) => b.owner === owner && b.type === 'town_center' && !b.dead) ?? null; }
 
 /** Escala um grupo roteirizado pela dificuldade da campanha: Fácil ≈ 2/3 (mínimo 1), Difícil ≈ 1,5× (repete os primeiros). */
