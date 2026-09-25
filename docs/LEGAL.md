@@ -72,7 +72,8 @@ Contato: [e-mail] · Responsável: [nome/empresa, CNPJ]
 | pixelmatch | ISC | Comparação de capturas (`scripts/artdiff.mjs`; devDependency, não distribuída) |
 | pngjs | MIT | Leitura/escrita de PNG nos scripts de captura e no bake de sprites (devDependency, não distribuída) |
 | three.js | MIT | Só em tempo de build: renderiza os modelos paramétricos/.glb no Chromium headless para gerar os atlas de sprites (`scripts/bake/`, devDependency; não vai no pacote — só os PNG/JSON gerados, que são arte própria) |
-| Fontes, música e efeitos sonoros | [preencher ao adquirir os assets — Fase 2] | Arte e áudio |
+| Música, efeitos sonoros e ambiente | Áudio sintetizado pelo próprio código (WebAudio em `src/audio/`, sem gravações nem amostras de terceiros); mesma licença do jogo | Áudio |
+| Fontes | [preencher ao adquirir os assets — Fase 2] | Arte |
 
 Mantenha os textos de licença MIT dos pacotes distribuídos em `desktop/THIRD_PARTY.txt` (gerar com `npx license-checker --production`
 antes de cada build).

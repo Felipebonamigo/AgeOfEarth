@@ -37,6 +37,7 @@ src/core        simulação determinística (sem DOM): dados, mapa, sim, rede (l
 src/render      PixiJS: texturas procedurais, chunks, entidades, névoa, efeitos
 src/ui          DOM: HUD, comandos, menus, enciclopédia; entrada
 src/game        sessão (estado + agendador + seleção)
+src/audio       WebAudio: síntese própria de efeitos, ambiente e música (lê o estado, nunca altera)
 desktop/        wrapper Electron para Steam
 tests/          vitest: dados, determinismo, pathfinding, simulação
 scripts/        headless (IA x IA), balanceamento, screenshots automatizados
@@ -48,6 +49,28 @@ Movimento: A* em grade sem cortar cantos + movimento físico com a mesma regra (
 (`src/core/map/components.ts`, cache invalidado quando o bloqueio muda) respondem "há caminho?" sem A*: alvos em outra região
 são abandonados (`moveTowards` devolve `blocked`), a IA não constrói onde selaria a passagem (`wouldSeal`) e a geração de mapas
 alarga gargalos de 1 tile (pontos de articulação).
+
+## Áudio
+Tudo é sintetizado pelo próprio código em WebAudio (`src/audio/`), sem arquivos: nada a licenciar e nada a baixar. O áudio não
+toca a simulação (pode usar `Math.random`) e só lê o estado.
+- `engine.ts`: contexto criado no primeiro gesto; barramentos efeitos/interface/música/ambiente → mestre → compressor; reverberação
+  por convolução com resposta ao impulso gerada; ruídos e cordas Karplus-Strong em cache (nada é alocado por disparo); limite de
+  24 vozes (roubo da menos importante) e limite por categoria; `stats()` com vozes por categoria, pico, CPU e ganhos.
+- `synth.ts` + `sfx.ts`: 47 receitas (bronze com parciais inarmônicas, carne/escudo, arco, flecha, catapulta, cascos, marcha, machado,
+  picareta, colheita, martelos, sino, desabamento, fogo, mortes estilizadas sem gore, raio com trovão, terremoto, ondas, invocação,
+  Titã, cura, interface de mármore/bronze, trompa), cada uma com variação de altura/tempo por disparo e nivelada por `renderOffline`.
+- `events.ts`: a cada quadro lê os `state.effects`/`state.events` novos (por identidade: o núcleo descarta eventos antigos), escolhe
+  a receita, atenua pela distância ao centro da câmera (fora da tela cai forte e abafa), faz pan por x e respeita a névoa do jogador
+  local. Golpes demais num quadro viram a camada de batalha (clamor + choques esparsos com intensidade). Trabalho, marcha, cascos e
+  fogo vêm de amostragens periódicas das unidades visíveis perto do centro.
+- `ambience.ts`: bioma sob a câmera (amostragem da vista) → vento com rajadas, montanha, água/vagas, folhas, cigarras em ciclos e
+  pássaros esparsos, com crossfade.
+- `music.ts`: música generativa em modos gregos (dórico, frígio, mixolídio) com lira, aulos, bordão, tambor de moldura, bumbo e
+  trompa; intensidade paz/tensão/batalha pelo combate visível e ataques sofridos (histerese); andamento e instrumentação crescem
+  com a Idade; tema do menu; cadências de vitória/derrota; crossfade de 4–8 s. Frases com progressão e condução de vozes simples
+  (passos, saltos compensados, notas do acorde nos tempos fortes, motivos reaproveitados) — nenhuma frase se repete em 10 min.
+- Opções: volume geral, efeitos, música, ambiente e mudo (Ctrl+M), persistidos em `Settings`. Testes: `tests/audio.test.ts`
+  (lógica pura) e `scripts/playtest-audio.mjs` (navegador).
 
 ## Multiplayer (lockstep)
 `NetworkScheduler` envia os comandos locais para o tick `T + atraso` (2–12 ticks, escolhido pelo anfitrião pela pior latência
