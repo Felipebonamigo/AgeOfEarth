@@ -96,7 +96,7 @@ describe('editor: ops com inversa exata', () => {
     const ed = editorOf(genFile());
     const map = ed.map, s = map.starts[0];
     const { inv } = roundTrip(ed, { kind: 'addNode', type: 'gold', x: s.x, y: s.y, amount: 500 });
-    expect(inv).toEqual({ kind: 'removeNode', x: s.x, y: s.y });
+    expect(inv).toMatchObject({ kind: 'removeNode', x: s.x, y: s.y });
     const n = firstNode(map, 'tree');
     const { inv: inv2 } = roundTrip(ed, { kind: 'removeNode', x: n.x, y: n.y });
     expect(inv2).toEqual({ kind: 'addNode', type: 'tree', x: n.x, y: n.y, amount: n.amount, id: n.id });

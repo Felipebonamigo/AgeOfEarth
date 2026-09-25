@@ -33,9 +33,9 @@ export function defaultEditorUI(): EditorUI {
  *  Os campos opcionais (terrains, id, nextId, insert) são preenchidos pelas inversas para restaurar o estado byte a byte;
  *  a interface normalmente não os usa. */
 export type EditOp =
-  | { kind: 'paint'; tiles: number[]; terrain: number; terrains?: number[] }   // terrains: terreno por tile (inversa); senão terrain para todos
-  | { kind: 'addNode'; type: NodeType; x: number; y: number; amount?: number; id?: number }   // id: força o id do nó (inversa de removeNode)
-  | { kind: 'removeNode'; x: number; y: number }
+  | { kind: 'paint'; tiles: number[]; terrain: number; nodeSeq?: number; terrains?: number[] }   // terrains: terreno por tile (inversa); senão terrain para todos
+  | { kind: 'addNode'; type: NodeType; x: number; y: number; amount?: number; id?: number; nodeSeq?: number }   // id: força o id do nó (inversa de removeNode)
+  | { kind: 'removeNode'; x: number; y: number; nodeSeq?: number }
   | { kind: 'setNodeAmount'; x: number; y: number; amount: number }
   | { kind: 'setStart'; index: number; x: number; y: number; insert?: boolean }   // index === starts.length acrescenta um início; insert desloca os seguintes
   | { kind: 'removeStart'; index: number }
@@ -43,7 +43,7 @@ export type EditOp =
   | { kind: 'removeEntity'; id: number; nextId?: number }            // id de unidade ou edifício vivo; nextId: restaura state.nextId (inversa de placeEntity)
   | { kind: 'setEntity'; id: number; owner?: number; complete?: boolean; tag?: string | null }
   | { kind: 'moveEntity'; id: number; x: number; y: number }        // edifício: canto; unidade: tile
-  | { kind: 'batch'; ops: EditOp[] };
+  | { kind: 'batch'; ops: EditOp[]; nodeSeq?: number };   // nodeSeq: valor do contador de ids de nós a restaurar depois de aplicar (inversas exatas: o contador está no save)
 
 /** Quem desenha: o editor acumula um retângulo sujo por quadro e chama isto uma vez (renderer + minimapa). */
 export interface EditorView {

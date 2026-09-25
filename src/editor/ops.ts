@@ -13,7 +13,7 @@ import { MAX_PLAYERS, TERRAIN, type NodeType } from '../core/constants';
 import { BUILDINGS, UNITS } from '../core/data';
 import type { Building, GameMap, GameState, ResourceNode, Unit } from '../core/types';
 import { idx, inBounds, isPassable } from '../core/map/grid';
-import { addNode, deriveDeepWater, rebuildBlocked, removeNode, resetNodeSeq, NODE_ID_BASE } from '../core/map/mapgen';
+import { addNode, deriveDeepWater, rebuildBlocked, removeNode, resetNodeSeq, getNodeSeq, NODE_ID_BASE } from '../core/map/mapgen';
 import { invalidateComponents } from '../core/map/components';
 import { canPlaceBuilding, onBuildingComplete, placeBuilding, pushUnitsOutOfTile, recomputePop, removeBuildingNow, removeUnitNow, spawnUnit } from '../core/sim/entities';
 import { recomputeMods, refreshMaxHp } from '../core/sim/modifiers';
@@ -201,7 +201,16 @@ function refreshWonderMods(state: GameState, ...owners: number[]): void {
  * Aplica a op ao estado (sessão pausada) e devolve a inversa exata. Lança EditError sem alterar o estado quando
  * a op é recusada (ver códigos). tags: mapa externo id → tag mantido pela MapEditor (opcional).
  */
+/** Aplica a operação e devolve a inversa exata. O contador global de ids de nós (gravado no save) também é restaurado pela inversa. */
 export function applyEditOp(state: GameState, op: EditOp, tags?: TagMap): EditOp {
+  const prev = getNodeSeq();
+  let inv: EditOp;
+  try { inv = applyEditOpInner(state, op, tags); } catch (e) { resetNodeSeq(prev); throw e; }   // op recusada: nada muda, nem o contador
+  if ('nodeSeq' in op && op.nodeSeq !== undefined) resetNodeSeq(op.nodeSeq);
+  if (inv.kind === 'paint' || inv.kind === 'addNode' || inv.kind === 'removeNode' || inv.kind === 'batch') inv.nodeSeq = prev;
+  return inv;
+}
+function applyEditOpInner(state: GameState, op: EditOp, tags?: TagMap): EditOp {
   switch (op.kind) {
     case 'paint': return applyPaint(state, op);
     case 'addNode': {
