@@ -2,7 +2,7 @@
 import { TILE, PLAYER_COLORS } from '../core/constants';
 import type { GameState } from '../core/types';
 import type { Camera } from './camera';
-import { terrainColor } from './palette';
+import { tileColor } from './palette';
 
 /** Opções de desenho: no editor, inícios numerados e nada de névoa. */
 export interface MinimapDrawOpts { editor?: boolean }
@@ -21,11 +21,13 @@ export class Minimap {
     const c = document.createElement('canvas'); c.width = w; c.height = h;
     const ctx = c.getContext('2d')!;
     const img = ctx.createImageData(w, h);
+    // mesma cor modulada do terreno da partida (paleta terrosa + ruído de baixa frequência), 1 px por tile
     for (let i = 0; i < w * h; i++) {
-      const col = terrainColor(state.map.terrain[i]);
+      const x = i % w, y = (i - x) / w;
+      const col = tileColor(state.map.terrain[i], x, y, state.map.decor[i]);
       let r = (col >> 16) & 255, g = (col >> 8) & 255, b = col & 255;
       const nid = state.map.nodeAt[i];
-      if (nid !== -1) { const n = state.map.nodes.get(nid); if (n) { if (n.type === 'tree') { r = 0x2f; g = 0x6a; b = 0x2a; } else if (n.type === 'gold') { r = 0xf2; g = 0xc1; b = 0x4e; } else if (n.type === 'berry') { r = 0xd2; g = 0x2a; b = 0x3c; } else { r = 0x9a; g = 0x6b; b = 0x3c; } } }
+      if (nid !== -1) { const n = state.map.nodes.get(nid); if (n) { if (n.type === 'tree') { r = 0x3a; g = 0x55; b = 0x22; } else if (n.type === 'gold') { r = 0xd0; g = 0xa1; b = 0x2e; } else if (n.type === 'berry') { r = 0xb8; g = 0x30; b = 0x3a; } else { r = 0x8a; g = 0x62; b = 0x38; } } }
       img.data[i * 4] = r; img.data[i * 4 + 1] = g; img.data[i * 4 + 2] = b; img.data[i * 4 + 3] = 255;
     }
     ctx.putImageData(img, 0, 0);

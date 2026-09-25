@@ -4,11 +4,13 @@ import { TILE, TICK_RATE, PLAYER_COLORS, KOTH_RADIUS, rankOf } from '../core/con
 import { BUILDINGS, UNITS } from '../core/data';
 import type { Building, GameState, Unit, VisualEffect } from '../core/types';
 import { Camera } from './camera';
-import { TextureCache, darken } from './textures';
+import { TextureCache, darken, paintChunkBase, drawChunkDetail, SUB, CHUNK_MARGIN } from './textures';
 import { getUnitStats, getBuildingStats } from '../core/sim/modifiers';
 import { componentAt } from '../core/map/components';
 import type { EditorUI } from '../editor/types';
-import { terrainColor, regionColor } from './palette';
+import { terrainColor, regionColor, SHADOW_ALPHA } from './palette';
+import { FogMesh, TerritoryMesh } from './fog';
+import { unitShadow, buildingShadow, nodeShadow } from './shadows';
 
 const CHUNK = 16;
 /** Zoom mínimo padrão da partida; em mapas grandes/telas pequenas cai até enquadrar o mapa inteiro (ver updateMinZoom). */
@@ -26,7 +28,8 @@ export function buildingCorner(type: string, x: number, y: number): { tx: number
   return { tx: x - Math.floor(def.w / 2), ty: y - Math.floor(def.h / 2) };
 }
 
-interface EntityView { root: Container; body: Sprite; type: string; color: number; complete: boolean; angle: number; carry: Sprite | null; label?: Text; rank?: Graphics; rankShown?: number }
+/** Vista de uma entidade: corpo (gira com a unidade) e sombra separada na camada 'shadows' (não gira; cai para sudeste). */
+interface EntityView { root: Container; body: Sprite; shadow: Sprite | null; type: string; color: number; complete: boolean; angle: number; carry: Sprite | null; label?: Text; rank?: Graphics; rankShown?: number }
 
 export interface RenderUI {
   localPlayer: number;
@@ -45,12 +48,16 @@ export class Renderer {
   tex!: TextureCache;
   cam = new Camera();
   world = new Container();
-  layers = { terrain: new Container(), territory: new Container(), ground: new Graphics(), buildings: new Container(), units: new Container(), fx: new Container(), hp: new Graphics(), editor: new Container(), fog: new Container() };
+  /** Ordem (docs/ART.md §3.7): terrain → territory → shadows → ground → buildings → units → fx → hp → editor → fog.
+   *  'shadows' é inserida antes de 'ground' em setState (init() monta o resto). */
+  layers = { terrain: new Container(), territory: new Container(), shadows: new Container(), ground: new Graphics(), buildings: new Container(), units: new Container(), fx: new Container(), hp: new Graphics(), editor: new Container(), fog: new Container() };
   overlay = new Graphics();
   /** Quantos chunks de terreno ficam em cache antes de descartar os fora da tela (60 na partida; no editor, todos). */
   chunkCacheLimit = 60;
   private chunks = new Map<string, Sprite>();
   private chunkNodeCount = new Map<string, number>();
+  /** Ids dos nós desenhados em cada chunk (inclui a margem de 1 tile): se algum sumir, o chunk é regenerado. */
+  private chunkNodes = new Map<string, number[]>();
   // Sobreposições do editor: texturas w×h de regiões/passabilidade (como a névoa), gráfico por quadro e rótulos dos inícios
   private edGfx = new Graphics();
   private edLabels: Text[] = [];
@@ -61,8 +68,8 @@ export class Renderer {
   private views = new Map<number, EntityView>();
   /** Espectador: tudo visível (só na renderização; a simulação não muda). */
   revealAll = false;
-  private fogCanvas!: HTMLCanvasElement; private fogTex!: Texture; private fogSprite!: Sprite; private fogVersion = -1;
-  private terrCanvas!: HTMLCanvasElement; private terrTex!: Texture; private terrSprite!: Sprite; private borders = new Graphics(); private terrVersion = -1;
+  private fog: FogMesh | null = null; private fogVersion = -1;
+  private terr: TerritoryMesh | null = null; private terrVersion = -1;
   private fxViews = new Map<VisualEffect, Container>();
   private deathViews: { c: Container; ttl: number; total: number; kind: string }[] = [];
   private lastNodeCount = -1;
@@ -89,24 +96,23 @@ export class Renderer {
     this.cam.setMap(state.map.w, state.map.h);
     this.cam.resize(this.app.screen.width, this.app.screen.height);
     for (const s of this.chunks.values()) s.destroy({ texture: true });
-    this.chunks.clear(); this.chunkNodeCount.clear();
-    for (const v of this.views.values()) v.root.destroy({ children: true });
+    this.chunks.clear(); this.chunkNodeCount.clear(); this.chunkNodes.clear();
+    for (const v of this.views.values()) this.destroyView(v);
     this.views.clear();
+    // Camada de sombras entre territory e ground (init() monta as demais; aqui só se ainda não estiver no mundo)
+    if (this.layers.shadows.parent !== this.world) this.world.addChildAt(this.layers.shadows, this.world.getChildIndex(this.layers.ground));
+    this.layers.shadows.removeChildren();
     for (const v of this.fxViews.values()) v.destroy({ children: true });
     this.fxViews.clear();
     for (const d of this.deathViews) d.c.destroy({ children: true });
     this.deathViews = [];
     this.layers.territory.removeChildren();
     this.layers.fog.removeChildren();
+    this.fog?.destroy(); this.terr?.destroy();
     const { w, h } = state.map;
-    this.fogCanvas = document.createElement('canvas'); this.fogCanvas.width = w; this.fogCanvas.height = h;
-    this.fogTex = Texture.from(this.fogCanvas); this.fogTex.source.scaleMode = 'linear';
-    this.fogSprite = new Sprite(this.fogTex); this.fogSprite.width = w * TILE; this.fogSprite.height = h * TILE;
-    this.layers.fog.addChild(this.fogSprite);
-    this.terrCanvas = document.createElement('canvas'); this.terrCanvas.width = w; this.terrCanvas.height = h;
-    this.terrTex = Texture.from(this.terrCanvas); this.terrTex.source.scaleMode = 'nearest';
-    this.terrSprite = new Sprite(this.terrTex); this.terrSprite.width = w * TILE; this.terrSprite.height = h * TILE; this.terrSprite.alpha = 0.09;
-    this.layers.territory.addChild(this.terrSprite, this.borders);
+    // Névoa e fronteiras: malhas w×h por shader (fog.ts), atualizadas só quando fogVersion/territoryVersion mudam
+    this.fog = new FogMesh(w, h); this.layers.fog.addChild(this.fog.mesh);
+    this.terr = new TerritoryMesh(w, h); this.layers.territory.addChild(this.terr.mesh);
     // Camada do editor: regiões e passabilidade como texturas w×h (regeneradas só quando algo muda), gráfico e rótulos
     this.layers.editor.removeChildren();
     for (const l of this.edLabels) l.destroy(); this.edLabels = [];
@@ -165,7 +171,7 @@ export class Renderer {
     for (let cy = Math.floor(ay0 / CHUNK); cy <= Math.floor(ay1 / CHUNK); cy++) for (let cx = Math.floor(ax0 / CHUNK); cx <= Math.floor(ax1 / CHUNK); cx++) {
       const k = this.chunkKey(cx, cy);
       const sp = this.chunks.get(k);
-      if (sp) { sp.destroy({ texture: true }); this.chunks.delete(k); this.layers.terrain.removeChild(sp); }
+      if (sp) { sp.destroy({ texture: true }); this.chunks.delete(k); this.chunkNodes.delete(k); this.layers.terrain.removeChild(sp); }
       // Recontagem de nós do chunk: mantém refreshChunksIfNeeded coerente sem regenerar os outros chunks
       let nodes = 0;
       for (let y = cy * CHUNK; y < Math.min(map.h, (cy + 1) * CHUNK); y++) for (let x = cx * CHUNK; x < Math.min(map.w, (cx + 1) * CHUNK); x++) if (map.nodeAt[y * map.w + x] !== -1) nodes++;
@@ -183,61 +189,82 @@ export class Renderer {
 
   // ---------------- Terreno em chunks ----------------
   private chunkKey(cx: number, cy: number) { return `${cx},${cy}`; }
+  /**
+   * Gera a textura de um chunk (16×16 tiles): camada de cor contínua (canvas a SUB px/tile ampliado com filtro
+   * bilinear — sem grade), detalhes de alta frequência por tile, sombras dos nós (assadas aqui, caindo para sudeste
+   * pela regra de shadows.ts) e os sprites dos nós. Nós numa margem de 1 tile também são desenhados (recortados pela
+   * moldura) para que árvores/sombras que cruzam a borda apareçam iguais nos dois chunks vizinhos.
+   */
   private buildChunk(state: GameState, cx: number, cy: number): Sprite {
     const map = state.map;
     const c = new Container();
     const x0 = cx * CHUNK, y0 = cy * CHUNK;
+    const tw = Math.min(map.w - x0, CHUNK), th = Math.min(map.h - y0, CHUNK);
+    // cor-base (baixa frequência)
+    const baseTex = Texture.from(paintChunkBase(map, x0, y0, tw, th));
+    baseTex.source.scaleMode = 'linear';
+    const base = new Sprite(baseTex);
+    base.scale.set(TILE / SUB);
+    base.position.set(-CHUNK_MARGIN * TILE / SUB, -CHUNK_MARGIN * TILE / SUB);
+    c.addChild(base);
+    // detalhes (alta frequência) e sombras dos nós
+    const detail = new Graphics();
+    drawChunkDetail(detail, map, x0, y0, tw, th);
+    c.addChild(detail);
+    const shadows = new Graphics();
+    let anyShadow = false;
+    const ids: number[] = [];
     let nodes = 0;
-    for (let y = y0; y < Math.min(map.h, y0 + CHUNK); y++) for (let x = x0; x < Math.min(map.w, x0 + CHUNK); x++) {
-      const i = y * map.w + x;
-      const s = new Sprite(this.tex.tile(map.terrain[i], map.decor[i] % 256));
-      s.position.set((x - x0) * TILE, (y - y0) * TILE);
-      c.addChild(s);
-    }
-    // Transições suaves entre terrenos (areia/grama/água) e espuma nas margens
-    const blend = new Graphics();
-    for (let y = y0; y < Math.min(map.h, y0 + CHUNK); y++) for (let x = x0; x < Math.min(map.w, x0 + CHUNK); x++) {
-      const t = map.terrain[y * map.w + x];
-      const px = (x - x0) * TILE, py = (y - y0) * TILE;
-      const nb: [number, number, number, number, number, number][] = [[x + 1, y, px + TILE - 8, py, 8, TILE], [x - 1, y, px, py, 8, TILE], [x, y + 1, px, py + TILE - 8, TILE, 8], [x, y - 1, px, py, TILE, 8]];
-      for (const [nx, ny, rx, ry, rw, rh] of nb) {
-        if (nx < 0 || ny < 0 || nx >= map.w || ny >= map.h) continue;
-        const nt = map.terrain[ny * map.w + nx];
-        if (nt === t) continue;
-        const water = t === 1 || t === 5, nwater = nt === 1 || nt === 5;
-        if (water && !nwater) { blend.rect(rx, ry, rw, rh).fill({ color: 0xbfe3f7, alpha: 0.35 }); continue; }   // espuma
-        if (!water && nwater) { blend.rect(rx, ry, rw, rh).fill({ color: 0xe9dfb0, alpha: 0.25 }); continue; }   // margem
-        blend.rect(rx, ry, rw, rh).fill({ color: terrainColor(nt), alpha: 0.28 });
-      }
-    }
-    c.addChild(blend);
-    for (let y = y0; y < Math.min(map.h, y0 + CHUNK); y++) for (let x = x0; x < Math.min(map.w, x0 + CHUNK); x++) {
+    const nodeSprites: Sprite[] = [];
+    for (let y = y0 - 1; y <= y0 + th; y++) for (let x = x0 - 1; x <= x0 + tw; x++) {
+      if (x < 0 || y < 0 || x >= map.w || y >= map.h) continue;
       const id = map.nodeAt[y * map.w + x];
       if (id === -1) continue;
       const n = map.nodes.get(id)!;
-      const s = new Sprite(this.tex.node(n.type, map.decor[y * map.w + x] % 256));
+      const own = x >= x0 && y >= y0 && x < x0 + tw && y < y0 + th;
+      if (own) nodes++;
+      ids.push(id);
+      const decor = map.decor[y * map.w + x] % 256;
+      const k = n.type === 'tree' ? 0.85 + (decor % 40) / 100 : 1;
+      const px = (x - x0 + 0.5) * TILE, py = (y - y0 + 0.5) * TILE;
+      const sh = nodeShadow(n.type, k);
+      if (sh) { shadows.ellipse(px + sh.dx, py + sh.dy, sh.rx, sh.ry); anyShadow = true; }
+      const s = new Sprite(this.tex.node(n.type, decor));
       s.anchor.set(0.5, 0.6);
-      s.position.set((x - x0 + 0.5) * TILE, (y - y0 + 0.5) * TILE);
-      if (n.type === 'tree') { const k = 0.85 + (map.decor[y * map.w + x] % 40) / 100; s.scale.set(k); }
-      c.addChild(s); nodes++;
+      s.position.set(px, py);
+      s.scale.set(k);
+      s.zIndex = y;
+      nodeSprites.push(s);
     }
-    const w = Math.min(map.w - x0, CHUNK) * TILE, h = Math.min(map.h - y0, CHUNK) * TILE;
-    const tex = this.app.renderer.generateTexture({ target: c, resolution: 1, frame: new Rectangle(0, 0, w, h) });
+    if (anyShadow) shadows.fill({ color: 0x000000, alpha: SHADOW_ALPHA });   // um fill só para todas as elipses
+    c.addChild(shadows);
+    nodeSprites.sort((a, b) => a.zIndex - b.zIndex);
+    for (const s of nodeSprites) c.addChild(s);
+    const tex = this.app.renderer.generateTexture({ target: c, resolution: 1, frame: new Rectangle(0, 0, tw * TILE, th * TILE) });
+    base.destroy({ texture: true, textureSource: true });
     c.destroy({ children: true });
     const sp = new Sprite(tex);
     sp.position.set(x0 * TILE, y0 * TILE);
-    this.chunkNodeCount.set(this.chunkKey(cx, cy), nodes);
+    const key = this.chunkKey(cx, cy);
+    this.chunkNodeCount.set(key, nodes);
+    this.chunkNodes.set(key, ids);
     return sp;
+  }
+
+  private dropChunk(k: string, sp: Sprite): void {
+    sp.destroy({ texture: true }); this.chunks.delete(k); this.chunkNodes.delete(k); this.layers.terrain.removeChild(sp);
   }
 
   private refreshChunksIfNeeded(state: GameState): void {
     if (state.map.nodes.size === this.lastNodeCount) return;
     this.lastNodeCount = state.map.nodes.size;
-    // Recontagem por chunk; chunks cuja contagem mudou são regenerados
+    // Recontagem por chunk; chunks cuja contagem mudou ou cujo algum nó desenhado (inclusive na margem) sumiu são regenerados
     const counts = new Map<string, number>();
     for (const n of state.map.nodes.values()) { const k = this.chunkKey(Math.floor(n.x / CHUNK), Math.floor(n.y / CHUNK)); counts.set(k, (counts.get(k) ?? 0) + 1); }
     for (const [k, sp] of this.chunks) {
-      if ((counts.get(k) ?? 0) !== (this.chunkNodeCount.get(k) ?? 0)) { sp.destroy({ texture: true }); this.chunks.delete(k); this.layers.terrain.removeChild(sp); }
+      if ((counts.get(k) ?? 0) !== (this.chunkNodeCount.get(k) ?? 0)) { this.dropChunk(k, sp); continue; }
+      const ids = this.chunkNodes.get(k);
+      if (ids) for (const id of ids) if (!state.map.nodes.has(id)) { this.dropChunk(k, sp); break; }
     }
   }
 
@@ -252,52 +279,25 @@ export class Renderer {
       if (!this.chunks.has(k)) { const sp = this.buildChunk(state, cx, cy); this.chunks.set(k, sp); this.layers.terrain.addChild(sp); }
     }
     // descarta chunks distantes quando há muitos em cache
-    if (this.chunks.size > this.chunkCacheLimit) for (const [k, sp] of this.chunks) if (!wanted.has(k)) { sp.destroy({ texture: true }); this.chunks.delete(k); this.layers.terrain.removeChild(sp); }
+    if (this.chunks.size > this.chunkCacheLimit) for (const [k, sp] of this.chunks) if (!wanted.has(k)) this.dropChunk(k, sp);
   }
 
-  // ---------------- Fronteiras ----------------
+  // ---------------- Fronteiras (linha fina + tingimento, por shader em fog.ts) ----------------
   private updateTerritory(state: GameState): void {
+    const t = this.terr; if (!t) return;
+    t.setZoom(this.cam.zoom);
     if (state.territoryVersion === this.terrVersion) return;
     this.terrVersion = state.territoryVersion;
-    const { w, h } = state.map;
-    const ctx = this.terrCanvas.getContext('2d')!;
-    const img = ctx.createImageData(w, h);
-    const d = img.data;
-    for (let i = 0; i < w * h; i++) {
-      const o = state.territory[i];
-      if (o < 0) continue;
-      const c = PLAYER_COLORS[o % PLAYER_COLORS.length].num;
-      d[i * 4] = (c >> 16) & 255; d[i * 4 + 1] = (c >> 8) & 255; d[i * 4 + 2] = c & 255; d[i * 4 + 3] = 255;
-    }
-    ctx.putImageData(img, 0, 0);
-    this.terrTex.source.update();
-    const g = this.borders; g.clear();
-    const t = state.territory;
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const o = t[y * w + x];
-      if (o < 0) continue;
-      const c = PLAYER_COLORS[o % PLAYER_COLORS.length].num;
-      const px = x * TILE, py = y * TILE;
-      if (x === w - 1 || t[y * w + x + 1] !== o) g.moveTo(px + TILE, py).lineTo(px + TILE, py + TILE).stroke({ width: 2.5, color: c, alpha: 0.85 });
-      if (x === 0 || t[y * w + x - 1] !== o) g.moveTo(px, py).lineTo(px, py + TILE).stroke({ width: 2.5, color: c, alpha: 0.85 });
-      if (y === h - 1 || t[(y + 1) * w + x] !== o) g.moveTo(px, py + TILE).lineTo(px + TILE, py + TILE).stroke({ width: 2.5, color: c, alpha: 0.85 });
-      if (y === 0 || t[(y - 1) * w + x] !== o) g.moveTo(px, py).lineTo(px + TILE, py).stroke({ width: 2.5, color: c, alpha: 0.85 });
-    }
+    t.update(state.territory);
   }
 
-  // ---------------- Névoa ----------------
+  // ---------------- Névoa (bordas macias por shader em fog.ts) ----------------
   private updateFog(state: GameState, local: number): void {
-    this.fogSprite.visible = !this.revealAll;
+    const f = this.fog; if (!f) return;
+    f.mesh.visible = !this.revealAll;
     if (this.revealAll || state.fogVersion === this.fogVersion) return;
     this.fogVersion = state.fogVersion;
-    const { w, h } = state.map;
-    const vis = state.players[local].visibility;
-    const ctx = this.fogCanvas.getContext('2d')!;
-    const img = ctx.createImageData(w, h);
-    const d = img.data;
-    for (let i = 0; i < w * h; i++) { const v = vis[i]; d[i * 4] = 4; d[i * 4 + 1] = 6; d[i * 4 + 2] = 14; d[i * 4 + 3] = v === 2 ? 0 : v === 1 ? 120 : 245; }
-    ctx.putImageData(img, 0, 0);
-    this.fogTex.source.update();
+    f.update(state.players[local].visibility);
   }
 
   private visibleToLocal(state: GameState, local: number, e: Unit | Building): boolean {
@@ -309,16 +309,23 @@ export class Renderer {
   }
 
   // ---------------- Entidades ----------------
+  private destroyView(v: EntityView): void { v.root.destroy({ children: true }); v.shadow?.destroy(); }
+
   private getView(e: Unit | Building, color: number): EntityView {
     let v = this.views.get(e.id);
     const complete = e.kind === 'building' ? e.complete : true;
-    if (v && (v.type !== e.type || v.color !== color || v.complete !== complete)) { v.root.destroy({ children: true }); this.views.delete(e.id); v = undefined; }
+    if (v && (v.type !== e.type || v.color !== color || v.complete !== complete)) { this.destroyView(v); this.views.delete(e.id); v = undefined; }
     if (!v) {
       const root = new Container();
       const body = new Sprite(e.kind === 'unit' ? this.tex.unit(e.type, color) : this.tex.building(e.type, color, complete));
       body.anchor.set(0.5);
       root.addChild(body);
-      v = { root, body, type: e.type, color, complete, angle: 0, carry: null };
+      // sombra separada: elipse (unidade) ou footprint (edifício), deslocada para sudeste, multiply, sem rotação
+      let shadow: Sprite | null = null;
+      if (e.kind === 'unit') { const sh = unitShadow(e.type); shadow = new Sprite(this.tex.shadowEllipse(sh.rx, sh.ry)); }
+      else { const sh = buildingShadow(e.type); if (sh) shadow = new Sprite(this.tex.shadowRect(sh.w, sh.h)); }
+      if (shadow) { shadow.anchor.set(0.5); shadow.alpha = SHADOW_ALPHA; shadow.blendMode = 'multiply'; this.layers.shadows.addChild(shadow); }
+      v = { root, body, shadow, type: e.type, color, complete, angle: 0, carry: null };
       (e.kind === 'unit' ? this.layers.units : this.layers.buildings).addChild(root);
       this.views.set(e.id, v);
     }
@@ -336,6 +343,7 @@ export class Renderer {
       v.root.position.set(b.x * TILE, b.y * TILE);
       v.root.zIndex = b.y;
       v.root.visible = true;
+      if (v.shadow) { const sh = buildingShadow(b.type)!; v.shadow.position.set(b.x * TILE + sh.dx, b.y * TILE + sh.dy); v.shadow.visible = true; }
       if (state.tick - b.lastDamageTick < 3) v.body.tint = 0xff9999; else v.body.tint = 0xffffff;
       if (b.disabledUntil > state.tick) v.body.tint = 0xb39ddb;
       seen.add(b.id);
@@ -364,6 +372,14 @@ export class Renderer {
       const lunge = state.tick - u.attackTick < 4 ? 1 + (4 - (state.tick - u.attackTick)) * 0.08 : 1;
       v.body.scale.set(bob * lunge, bob);
       if (UNITS[u.type].flying) v.body.position.y = -6 + Math.sin(this.time * 3 + u.id) * 2;
+      // sombra: acompanha o pé, não gira, cai para sudeste (mais longe e mais fraca para voadoras)
+      if (v.shadow) {
+        const sh = unitShadow(u.type);
+        v.shadow.position.set(ix * TILE + sh.dx, iy * TILE + sh.dy);
+        v.shadow.scale.set(bob);
+        v.shadow.alpha = UNITS[u.type].flying ? SHADOW_ALPHA * 0.6 : u.type === 'shade' ? SHADOW_ALPHA * 0.4 : SHADOW_ALPHA;
+        v.shadow.visible = true;
+      }
       v.body.tint = state.tick - u.lastDamageTick < 3 ? 0xff8080 : (state.tick < state.players[u.owner].bronzeUntil ? 0xffd28a : 0xffffff);
       v.body.alpha = u.type === 'shade' ? 0.7 : 1;
       // patente de veterano (estrelas acima da unidade)
@@ -382,7 +398,7 @@ export class Renderer {
       } else if (v.carry) v.carry.visible = false;
       seen.add(u.id);
     }
-    for (const [id, v] of this.views) if (!seen.has(id)) { const e = state.units.get(id) ?? state.buildings.get(id); if (!e) { v.root.destroy({ children: true }); this.views.delete(id); } else v.root.visible = false; }
+    for (const [id, v] of this.views) if (!seen.has(id)) { const e = state.units.get(id) ?? state.buildings.get(id); if (!e) { this.destroyView(v); this.views.delete(id); } else { v.root.visible = false; if (v.shadow) v.shadow.visible = false; } }
   }
 
   // ---------------- Overlays: seleção, vida, construção, alcance, fantasma ----------------
