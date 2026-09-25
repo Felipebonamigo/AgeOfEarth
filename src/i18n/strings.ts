@@ -41,7 +41,7 @@ const pt = {
   'cmd.buildTipB': '<b>{name}</b><div class="cost">{cost}</div><div class="desc">{desc}</div>',
   'cmd.ageMax': 'Máx.',
   // mensagens
-  'msg.welcome': 'Bem-vindo, {name}. Você serve a {god}. Pressione F1 para ajuda.', 'msg.saved': 'Jogo salvo.', 'msg.savedF5': 'Jogo salvo (F5).', 'msg.loaded': 'Jogo carregado.',
+  'presence.menu': 'No menu principal', 'presence.playing': '{age} · {min} min', 'msg.welcome': 'Bem-vindo, {name}. Você serve a {god}. Pressione F1 para ajuda.', 'msg.saved': 'Jogo salvo.', 'msg.savedF5': 'Jogo salvo (F5).', 'msg.loaded': 'Jogo carregado.',
   'msg.saveFail': 'Falha ao salvar: {err}', 'msg.loadFail': 'Falha ao carregar: {err}', 'msg.noIdle': 'Nenhum cidadão ocioso.', 'msg.cannot': 'Não é possível.',
   'msg.cantBuildHere': 'Não é possível construir aqui.', 'msg.selectBuilders': 'Selecione cidadãos para construir.', 'msg.missing': 'Recursos insuficientes: falta {list}.',
   'msg.needTC': 'Você precisa de um Centro Cívico para avançar de Idade.', 'msg.cantAdvance': 'Não é possível avançar.', 'msg.advanceStarted': 'Avanço para a {age} iniciado.', 'msg.advanceStartedGod': 'Avanço para a {age} iniciado sob a proteção de {god}.',
@@ -138,7 +138,7 @@ const en: Record<keyof typeof pt, string> = {
   'cmd.techTip': '<b>{name}</b><div class="cost">{cost} <span>⏱ {time}s</span></div><div class="desc">{desc}</div>',
   'cmd.buildTipB': '<b>{name}</b><div class="cost">{cost}</div><div class="desc">{desc}</div>',
   'cmd.ageMax': 'Max',
-  'msg.welcome': 'Welcome, {name}. You serve {god}. Press F1 for help.', 'msg.saved': 'Game saved.', 'msg.savedF5': 'Game saved (F5).', 'msg.loaded': 'Game loaded.',
+  'presence.menu': 'In the main menu', 'presence.playing': '{age} · {min} min', 'msg.welcome': 'Welcome, {name}. You serve {god}. Press F1 for help.', 'msg.saved': 'Game saved.', 'msg.savedF5': 'Game saved (F5).', 'msg.loaded': 'Game loaded.',
   'msg.saveFail': 'Save failed: {err}', 'msg.loadFail': 'Load failed: {err}', 'msg.noIdle': 'No idle citizens.', 'msg.cannot': 'Not possible.',
   'msg.cantBuildHere': 'Cannot build here.', 'msg.selectBuilders': 'Select citizens to build.', 'msg.missing': 'Not enough resources: missing {list}.',
   'msg.needTC': 'You need a Town Center to advance an Age.', 'msg.cantAdvance': 'Cannot advance.', 'msg.advanceStarted': 'Advance to the {age} started.', 'msg.advanceStartedGod': 'Advance to the {age} started under the protection of {god}.',

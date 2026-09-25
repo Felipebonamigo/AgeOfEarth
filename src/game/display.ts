@@ -2,6 +2,7 @@
 export interface DesktopBridge {
   steamName?: () => Promise<string | null>;
   achievement?: (id: string) => Promise<boolean>;
+  presence?: (status: string) => Promise<boolean>;
   toggleFullscreen?: () => Promise<void>;
   setFullscreen?: (v: boolean) => Promise<void>;
   isFullscreen?: () => Promise<boolean>;
@@ -43,6 +44,10 @@ export function setFullscreen(v: boolean): void {
 }
 
 export function toggleFullscreen(): void { setFullscreen(!isFullscreen()); }
+
+let lastPresence = '';
+/** Steam Rich Presence (só no Electron com Steam); ignora repetições. */
+export function setPresence(status: string): void { if (status === lastPresence) return; lastPresence = status; const d = desktop(); if (d?.presence) void d.presence(status); }
 
 /** Escala da interface (HUD, menus e modais) sem mexer na renderização do mapa. */
 export function applyUiScale(scale: number): void {

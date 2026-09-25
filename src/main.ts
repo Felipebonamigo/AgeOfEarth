@@ -16,9 +16,9 @@ import { Achievements } from './game/achievements';
 import { detectLocale, setLocale, t } from './i18n';
 import { loadSettings, saveSettings } from './game/settings';
 import { exportText, importText } from './game/files';
-import { applyUiScale, initDisplay, isFullscreen, setFullscreen, desktop } from './game/display';
+import { applyUiScale, initDisplay, isFullscreen, setFullscreen, desktop, setPresence } from './game/display';
 import type { OptionsContext } from './ui/options';
-import { MAJOR_GODS } from './core/data';
+import { MAJOR_GODS, AGES } from './core/data';
 import { serialize, deserialize } from './core/serialize';
 
 const SAVE_KEY = 'aoe_save_v1';
@@ -224,7 +224,8 @@ async function boot() {
       input.update(dt);
       renderer.render(session.state, alpha, input.renderUI(), dt);
       hud.update(dt);
-    }
+      if (session.state.tick % 200 === 0) setPresence(t('presence.playing', { age: AGES[session.player.age].name, min: Math.floor(session.state.time / 60) }));
+    } else setPresence(t('presence.menu'));
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);

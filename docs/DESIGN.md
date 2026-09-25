@@ -60,6 +60,13 @@ um instantâneo (estado serializado + comandos já recebidos) e volta a enviar c
 gravado após carregar um save parte desse save).
 Na Steam, o mesmo protocolo roda sobre Steam Networking Sockets (relay da Valve) com `steamworks.js`.
 
+## Profundidade (Fase 5.2)
+Veterania: unidades militares (exceto Titãs) sobem 3 patentes com abates (3/8/15), +10% de ataque e vida por patente (estrelas na unidade).
+Heróis têm uma habilidade ativa (`data/abilities.ts`, comando `ability`, tecla Q) com recarga e efeito temporário guardado na unidade
+(`buffUntil`, `buffAttack`, `buffSpeed`, `buffHaste`, `buffWard`, `chargeUntil`) — tudo determinístico. Formações (linha, quadrado, coluna,
+cunha) são escolhidas no painel e enviadas com a ordem. Relíquias (`state.relics`) ficam no chão; heróis as recolhem e guardam num Templo,
+que rende favor por segundo enquanto estiver de pé.
+
 ## Times e co-op
 `Player.team` define alianças: aliados não se atacam, compartilham visão, não sofrem atrito no território um do
 outro e vencem juntos (conquista ou maravilha). A IA reconhece aliados e escolhe inimigos por time.

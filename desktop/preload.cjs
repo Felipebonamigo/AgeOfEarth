@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('desktop', {
   steamName: () => ipcRenderer.invoke('steam:name'),
   achievement: (id) => ipcRenderer.invoke('steam:achievement', id),
+  presence: (status) => ipcRenderer.invoke('steam:presence', status),
   toggleFullscreen: () => ipcRenderer.invoke('window:toggleFullscreen'),
   setFullscreen: (v) => ipcRenderer.invoke('window:setFullscreen', v),
   isFullscreen: () => ipcRenderer.invoke('window:isFullscreen'),

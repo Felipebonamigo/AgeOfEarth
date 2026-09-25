@@ -30,6 +30,8 @@ function createWindow() {
 
 ipcMain.handle('steam:name', () => (steam ? steam.localplayer.getName() : null));
 ipcMain.handle('steam:achievement', (_e, id) => { try { if (steam) { steam.achievement.activate(id); return true; } } catch { /* ignore */ } return false; });
+// Rich Presence: texto de status visível aos amigos na Steam ("No menu", "Idade Heroica · 12 min"…)
+ipcMain.handle('steam:presence', (_e, status) => { try { if (steam && steam.localplayer.setRichPresence) { steam.localplayer.setRichPresence('status', String(status).slice(0, 120)); steam.localplayer.setRichPresence('steam_display', '#Status'); return true; } } catch { /* ignore */ } return false; });
 ipcMain.handle('window:toggleFullscreen', (e) => { const w = BrowserWindow.fromWebContents(e.sender); if (w) w.setFullScreen(!w.isFullScreen()); });
 ipcMain.handle('window:setFullscreen', (e, v) => { const w = BrowserWindow.fromWebContents(e.sender); if (w) w.setFullScreen(!!v); });
 ipcMain.handle('window:isFullscreen', (e) => { const w = BrowserWindow.fromWebContents(e.sender); return w ? w.isFullScreen() : false; });
