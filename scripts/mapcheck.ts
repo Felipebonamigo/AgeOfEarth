@@ -38,7 +38,9 @@ for (const file of files) {
   try { for (let i = 0; i < total && !state.gameOver; i++) tick(state); }
   catch (e) { console.log(`  ERRO no tick ${state.tick}: ${(e as Error).stack ?? e}`); failed = true; continue; }
   const ms = Date.now() - t0;
-  console.log(`  ${MINUTES} min de jogo em ${(ms / 1000).toFixed(1)}s reais (${(ms / state.tick).toFixed(2)} ms/tick) · unidades ${state.units.size} · edifícios ${state.buildings.size}${state.gameOver ? ' · partida terminou' : ''}`);
+  const simMin = state.tick / TICK_RATE / 60;
+  console.log(`  ${simMin.toFixed(1)} min simulados em ${(ms / 1000).toFixed(1)}s reais (${(ms / Math.max(1, state.tick)).toFixed(2)} ms/tick) · unidades ${state.units.size} · edifícios ${state.buildings.size}${state.gameOver ? ` · PARTIDA TERMINOU no tick ${state.tick}` : ''}`);
+  if (state.gameOver && state.tick < TICK_RATE * 60) { console.log('  <-- a partida acabou no primeiro minuto (jogadores sem base?)'); failed = true; }
   for (const p of state.players) {
     let vill = 0, mil = 0, idle = 0;
     for (const u of state.units.values()) { if (u.owner !== p.id || u.dead) continue; if (u.type === 'villager') { vill++; if (u.state === 'idle') idle++; } else mil++; }

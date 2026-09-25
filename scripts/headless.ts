@@ -4,19 +4,24 @@
 import fs from 'node:fs';
 import { createGame, tick, summarize } from '../src/core/sim/game';
 import { TICK_RATE } from '../src/core/constants';
-import type { FixedMapData } from '../src/core/map/fixed';
+import { migrateMap, validateMap, type FixedMapData } from '../src/core/map/fixed';
 
 const argv = process.argv.slice(2);
 let mapFile: string | undefined;
 const positional: string[] = [];
 for (let i = 0; i < argv.length; i++) {
-  if (argv[i] === '--map') { mapFile = argv[++i]; continue; }
+  if (argv[i] === '--map') { mapFile = argv[++i]; if (mapFile === undefined || mapFile.startsWith('--')) { console.error('Uso: npx tsx scripts/headless.ts [minutos] [semente] --map arquivo.map.json'); process.exit(1); } continue; }
   if (argv[i].startsWith('--map=')) { mapFile = argv[i].slice('--map='.length); continue; }
   positional.push(argv[i]);
 }
 const minutes = Number(positional[0] ?? 12);
 const seed = Number(positional[1] ?? 42);
-const map: FixedMapData | undefined = mapFile ? JSON.parse(fs.readFileSync(mapFile, 'utf8')) as FixedMapData : undefined;
+let map: FixedMapData | undefined;
+if (mapFile) {
+  try { map = migrateMap(JSON.parse(fs.readFileSync(mapFile, 'utf8'))); } catch (e) { console.error(`Mapa fixo inválido (${mapFile}): ${(e as Error).message}`); process.exit(1); }
+  const errors = validateMap(map, { players: Math.max(2, Math.min(3, map.starts.length)) }).filter((i) => i.level === 'error');
+  if (errors.length) { for (const i of errors) console.error(`  erro ${i.code} ${i.x !== undefined ? `(${i.x}, ${i.y})` : ''} ${JSON.stringify(i.params ?? {})}`); process.exit(1); }
+}
 if (map) console.log(`Mapa fixo: ${mapFile} (${map.name ?? map.id ?? 'sem nome'}, ${map.w}x${map.h}, ${map.starts.length} inícios, ${map.entities?.length ?? 0} entidades)`);
 const allPlayers = [
   { name: 'Zeus IA', god: 'zeus', isAI: true, difficulty: 'normal' as const },

@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { createGame, tick } from '../src/core/sim/game';
 import { applyCommand } from '../src/core/sim/commands';
 import { validateMap } from '../src/core/map/fixed';
+import { SCENARIOS } from '../src/core/scenario/campaign';
 import { generateMap } from '../src/core/map/mapgen';
 import { mapToData, mapFromData, type FixedMapData } from '../src/core/map/fixed';
 import { enterGarrison, removeBuildingNow, removeUnitNow } from '../src/core/sim/entities';
@@ -224,5 +225,21 @@ describe('remoção imediata', () => {
     expect([...s.units.values()].filter((u) => u.owner === 1 && u.type === 'basileus').length).toBe(1);   // o rei do mapa, sem segundo
     for (let i = 0; i < 40; i++) tick(s);
     expect(s.players[1].alive).toBe(true);   // só tem exército, mas sem kit isso basta
+  });
+  it('config.startKit sobrepõe map.startKit e tags de entidades viram vars do cenário (#tag → id)', () => {
+    const { data, map } = baseData();
+    const s0 = map.starts[0];
+    const spot = freeRect(map, s0.x + 6, s0.y + 6, 2, 2);
+    data.startKit = true;
+    data.entities = [{ kind: 'building', type: 'tower', owner: 0, x: spot.x, y: spot.y, tag: 'guarda' }];
+    // startKit:false no config vence o true do mapa
+    const noKit = createGame({ seed: 1, mapSize: 'small', players, map: data, startKit: false });
+    expect([...noKit.buildings.values()].some((b) => b.type === 'town_center')).toBe(false);
+    expect([...noKit.buildings.values()].some((b) => b.type === 'tower')).toBe(true);
+    // com cenário, a tag fica em vars
+    const def = SCENARIOS[0];
+    const sc = createGame({ ...def.config, scenario: def.id, map: data, players: def.config.players.slice(0, 2) });
+    const tower = [...sc.buildings.values()].find((b) => b.type === 'tower')!;
+    expect(sc.scenario?.vars['#guarda']).toBe(tower.id);
   });
 });
