@@ -1,42 +1,80 @@
-// Mede o custo do renderizador (ms por quadro de renderer.render) numa partida grande com IAs, em vários zooms.
-// Chromium headless com swiftshader (renderização por software): os números absolutos são pessimistas; servem para
-// comparar antes/depois de mudanças visuais e como limite superior. Exige `npm run preview` (porta 4173).
-// Uso: node scripts/renderperf.mjs [url] [minutosDeJogo=20]
+// Mede o custo do renderizador num cenário FIXO e reproduzível (docs/ART.md §6): mapa grande 144×144, semente 42,
+// 3 IAs Muito difícil, 20 min simulados por scheduler.step (sem renderizar) e debugSpawn de hoplitas até ≥ 260 unidades.
+// Lê os números de window.aoe.perf (src/render/perf.ts): fps, ms de renderer.render (média/p95/máx), draw calls por
+// quadro, MB de texturas residentes, sprites e chunks — em 4 cenários (zoom 1, mapa inteiro, aglomerado, rolagem).
+// Chromium headless com swiftshader (renderização por software): os ms e o fps são pessimistas e NÃO representam GPU;
+// valem draw calls, MB e o custo de CPU, comparados antes/depois. Grava docs/perf/<data>.json e imprime uma tabela.
+// Exige `npm run preview` (porta 4173) ou a URL passada.
+// Uso: node scripts/renderperf.mjs [url] [minutosDeJogo=20] [--date AAAA-MM-DD] [--out docs/perf] [--units 260] [--label texto]
 import { chromium } from 'playwright';
-const url = process.argv[2] ?? 'http://localhost:4173/';
-const warm = Number(process.argv[3] ?? 20);
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { execSync } from 'node:child_process';
+
+const args = process.argv.slice(2);
+const opt = (name, def) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : def; };
+const pos = args.filter((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--')));
+const url = pos[0] ?? 'http://localhost:4173/';
+const warm = Number(pos[1] ?? 20);
+const date = opt('--date', new Date().toISOString().slice(0, 10));
+const outDir = opt('--out', 'docs/perf');
+const minUnits = Number(opt('--units', 260));
+const label = opt('--label', '');
+const SEED = 42, MEASURE_MS = 4000;
+let commit = ''; try { commit = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch { /* fora do git */ }
+
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
+const page = await browser.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1 });
 const errors = [];
 page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
+// Sem rolagem na borda (o mouse do Playwright fica em (0,0)) e sem contador na tela (a medição é pela API)
+await page.addInitScript(() => { try { const k = 'aoe_settings_v1'; localStorage.setItem(k, JSON.stringify({ ...JSON.parse(localStorage.getItem(k) ?? '{}'), edgeScroll: false, showFps: false, quality: 'medium' })); } catch { /* ignore */ } });
 await page.goto(url, { waitUntil: 'networkidle' });
-await page.selectOption('#m-map', 'large'); await page.selectOption('#m-ais', '3'); await page.selectOption('#m-diff', 'brutal'); await page.fill('#m-seed', '42');
-await page.click('#m-start'); await page.waitForTimeout(1500);
+await page.mouse.move(800, 450);
+// Partida fixa (mesma configuração do menu, sem depender do DOM): 3 IAs Muito difícil, deuses pela semente
+await page.evaluate((seed) => {
+  const gods = ['zeus', 'poseidon', 'hades'], names = ['Leônidas', 'Péricles', 'Agamenon', 'Odisseu', 'Temístocles', 'Alexandre'];
+  const players = [{ name: 'Jogador', god: 'zeus', isAI: false, difficulty: 'brutal', team: 0 }];
+  for (let i = 0; i < 3; i++) players.push({ name: `${names[(seed + i) % names.length]} (IA)`, god: gods[(seed + i * 7) % gods.length], isAI: true, difficulty: 'brutal', team: i + 1 });
+  window.aoe.startGame({ seed, mapSize: 'large', players, revealMap: false, mode: 'conquest', mapType: 'continental' });
+  window.aoe.session.paused = true;
+}, SEED);
+if (!(await page.evaluate(() => !!window.aoe.perf))) { console.error('window.aoe.perf ausente: a build não tem src/render/perf.ts'); process.exit(1); }
 // avança a simulação diretamente (sem renderizar) até `warm` minutos de jogo, em fatias para não travar a página
-await page.evaluate(() => { window.aoe.session.paused = true; });
 for (let done = 0; done < warm * 60 * 20; done += 1200) await page.evaluate((n) => { const s = window.aoe.session; for (let i = 0; i < n; i++) s.scheduler.step(s.state); }, 1200);
-await page.evaluate(() => { window.aoe.session.paused = false; });
-// instrumenta renderer.render sem tocar no código do jogo
-await page.evaluate(() => {
-  const r = window.aoe.renderer; const orig = r.render.bind(r); window.__frames = [];
-  r.render = (...a) => { const t0 = performance.now(); orig(...a); window.__frames.push(performance.now() - t0); };
-  window.aoe.session.speed = 1;
-});
-const measure = async (label, setup) => {
+// completa até `minUnits` unidades com hoplitas em volta dos Centros Cívicos de cada jogador (alternando donos)
+const spawned = await page.evaluate((min) => {
+  const s = window.aoe.session; const st = s.state; let n = 0;
+  const tcs = [...st.buildings.values()].filter((b) => b.type === 'town_center');
+  for (let i = 0; st.units.size < min && i < 2000; i++) { const tc = tcs[i % tcs.length]; if (!tc) break; const r = 4 + (i % 7), a = (i * 2.399) % 6.283; if (window.aoe.debugSpawn(tc.owner, 'hoplite', tc.x + Math.cos(a) * r, tc.y + Math.sin(a) * r)) n++; }
+  return n;
+}, minUnits);
+await page.evaluate(() => { window.aoe.session.paused = false; window.aoe.session.speed = 1; });
+const info = await page.evaluate(() => { const s = window.aoe.session; return { seed: s.state.seed, tick: s.state.tick, minutes: Math.round(s.state.time / 60), units: s.state.units.size, buildings: s.state.buildings.size, map: `${s.state.map.w}×${s.state.map.h}`, quality: window.aoe.renderer.quality.preset, resolution: window.aoe.renderer.app.renderer.resolution, viewport: `${window.innerWidth}×${window.innerHeight}` }; });
+console.log('partida:', JSON.stringify(info), `(+${spawned} hoplitas)`);
+
+const measure = async (name, title, setup) => {
   await page.evaluate(setup);
-  await page.evaluate(() => { window.__frames = []; });
-  await page.waitForTimeout(4000);
-  const r = await page.evaluate(() => { const f = window.__frames.slice().sort((a, b) => a - b); const avg = f.reduce((a, b) => a + b, 0) / Math.max(1, f.length); return { n: f.length, avg: +avg.toFixed(2), p95: +(f[Math.floor(f.length * 0.95)] ?? 0).toFixed(2), max: +(f[f.length - 1] ?? 0).toFixed(2) }; });
-  console.log(`${label.padEnd(34)} quadros=${r.n} média=${r.avg} ms p95=${r.p95} ms máx=${r.max} ms`);
-  return r;
+  await page.waitForTimeout(400);   // chunks do novo enquadramento fora da janela de medição
+  await page.evaluate(() => window.aoe.perf.reset());
+  await page.waitForTimeout(MEASURE_MS);
+  const r = await page.evaluate(() => window.aoe.perf.snapshot());
+  console.log(`${title.padEnd(32)} fps=${String(r.fps).padStart(5)}  render ${String(r.render.avg).padStart(5)} ms (p95 ${String(r.render.p95).padStart(5)}, máx ${String(r.render.max).padStart(5)})  draw calls=${String(r.drawCalls).padStart(3)} (máx ${r.drawCallsMax})  tex=${r.textureMB} MB (${r.textures})  sprites=${r.sprites}  chunks=${r.chunks}  quadros=${r.render.n}`);
+  return { name, title, ...r };
 };
-const info = await page.evaluate(() => { const s = window.aoe.session; return { tick: s.state.tick, units: s.state.units.size, buildings: s.state.buildings.size, map: `${s.state.map.w}×${s.state.map.h}` }; });
-console.log('partida:', JSON.stringify(info));
 const results = {};
-results.zoom1 = await measure('zoom 1 (cidade do jogador)', () => { const s = window.aoe.session; const r = window.aoe.renderer; r.cam.zoom = 1; const tc = [...s.state.buildings.values()].find((b) => b.owner === s.local); if (tc) r.cam.centerOn(tc.x, tc.y); });
-results.zoomOut = await measure('zoom mínimo (mapa inteiro)', () => { const r = window.aoe.renderer; if (r.fitMap) r.fitMap(); else r.cam.zoom = r.cam.minZoom; });
-results.battle = await measure('zoom 1,5 (maior aglomerado)', () => { const s = window.aoe.session; const r = window.aoe.renderer; r.cam.zoom = 1.5; let best = null, bestN = -1; for (const u of s.state.units.values()) { let n = 0; for (const v of s.state.units.values()) if (Math.abs(v.x - u.x) < 12 && Math.abs(v.y - u.y) < 8) n++; if (n > bestN) { bestN = n; best = u; } } if (best) r.cam.centerOn(best.x, best.y); });
-results.scroll = await measure('rolagem contínua (chunks novos)', () => { const r = window.aoe.renderer; r.cam.zoom = 1; let t = 0; window.__scroll = setInterval(() => { t += 1; r.cam.centerOn(40 + (t * 3) % 100, 40 + (t * 2) % 100); }, 50); });
+results.zoom1 = await measure('zoom1', 'zoom 1 (cidade do jogador)', () => { const s = window.aoe.session; const r = window.aoe.renderer; r.cam.zoom = 1; const tc = [...s.state.buildings.values()].find((b) => b.owner === s.local && b.type === 'town_center'); if (tc) r.cam.centerOn(tc.x, tc.y); });
+results.zoomOut = await measure('zoomOut', 'zoom mínimo (mapa inteiro)', () => { const r = window.aoe.renderer; if (r.fitMap) r.fitMap(); else r.cam.zoom = r.cam.minZoom; });
+results.battle = await measure('battle', 'zoom 1,5 (maior aglomerado)', () => { const s = window.aoe.session; const r = window.aoe.renderer; r.cam.zoom = 1.5; let best = null, bestN = -1; for (const u of s.state.units.values()) { let n = 0; for (const v of s.state.units.values()) if (Math.abs(v.x - u.x) < 12 && Math.abs(v.y - u.y) < 8) n++; if (n > bestN) { bestN = n; best = u; } } if (best) r.cam.centerOn(best.x, best.y); });
+results.scroll = await measure('scroll', 'rolagem contínua (chunks novos)', () => { const r = window.aoe.renderer; r.cam.zoom = 1; let t = 0; window.__scroll = setInterval(() => { t += 1; r.cam.centerOn(40 + (t * 3) % 100, 40 + (t * 2) % 100); }, 50); });
 await page.evaluate(() => clearInterval(window.__scroll));
 console.log('errors:', errors.length ? errors.join('\n') : 'none');
 await browser.close();
+
+mkdirSync(outDir, { recursive: true });
+const file = join(outDir, `${date}${label ? '-' + label : ''}.json`);
+writeFileSync(file, JSON.stringify({ date, commit, label, url, note: 'Chromium headless + swiftshader (software): ms/fps pessimistas, sem GPU; comparar antes/depois. Ver docs/ART.md §6.', scenario: { ...info, warmMinutes: warm, spawned, measureMs: MEASURE_MS }, results, errors }, null, 2) + '\n');
+console.log('gravado em', file);
+console.log('\n| Cenário | fps | render média (ms) | p95 | máx | draw calls | tex MB | sprites | chunks |\n|---|---|---|---|---|---|---|---|---|');
+for (const r of Object.values(results)) console.log(`| ${r.title} | ${r.fps} | ${r.render.avg} | ${r.render.p95} | ${r.render.max} | ${r.drawCalls} | ${r.textureMB} | ${r.sprites} | ${r.chunks} |`);
+if (errors.length) process.exit(1);

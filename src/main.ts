@@ -22,6 +22,8 @@ import { nearestFreeTile } from './core/map/pathfinding';
 import { Achievements } from './game/achievements';
 import { detectLocale, setLocale, t } from './i18n';
 import { loadSettings, saveSettings } from './game/settings';
+import { AutoQuality, levelOf, resolveQuality } from './render/quality';
+import { PerfMonitor } from './render/perf';
 import { exportText, importText } from './game/files';
 import { applyUiScale, initDisplay, isFullscreen, setFullscreen, desktop, setPresence } from './game/display';
 import type { OptionsContext } from './ui/options';
@@ -44,6 +46,18 @@ async function boot() {
   const root = document.getElementById('app')!;
   const renderer = new Renderer();
   await renderer.init(root);
+  // Contador de desempenho (?perf=1 ou opção "mostrar desempenho") e preset de qualidade (docs/ART.md §3.9)
+  const perf = new PerfMonitor(renderer);
+  const perfParam = new URLSearchParams(location.search).get('perf') === '1';
+  let auto = new AutoQuality();
+  /** Aplica o preset salvo: 'auto' começa em Média e mede o início de cada partida; os outros não medem. */
+  const applyQuality = () => {
+    auto = new AutoQuality(levelOf(settings.quality));
+    if (settings.quality !== 'auto') auto.decided = true;
+    renderer.setQuality(resolveQuality(settings.quality, { level: auto.level, showFps: settings.showFps, teamOutline: settings.teamOutline }));
+    perf.setVisible(perfParam || settings.showFps);
+  };
+  applyQuality();
   const audio = new Audio();
   let session: Session | null = null;
   const achievements = new Achievements();
@@ -90,6 +104,9 @@ async function boot() {
     setEdgeScroll: (v) => { input.edgeScroll = v; settings.edgeScroll = v; saveSettings(settings); },
     setUiScale: (v) => { settings.uiScale = v; saveSettings(settings); applyUiScale(v); },
     setRenderScale: (v) => { settings.renderScale = v; saveSettings(settings); renderer.setRenderScale(v); },
+    setQuality: (v) => { settings.quality = v; saveSettings(settings); applyQuality(); },
+    setShowFps: (v) => { settings.showFps = v; saveSettings(settings); applyQuality(); },
+    setTeamOutline: (v) => { settings.teamOutline = v; saveSettings(settings); applyQuality(); },
     setFullscreen: (v) => { settings.fullscreen = v; saveSettings(settings); setFullscreen(v); },
     onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); if (session) { hud.setSession(session); hud.refreshTop(); } },
     onHotkeys: () => hud.showHotkeys(),
@@ -324,8 +341,10 @@ async function boot() {
   window.addEventListener('resize', () => renderer.resize());
 
   let last = performance.now();
+  let measured: Session | null = null;   // sessão cuja abertura o preset automático está medindo
   const loop = (now: number) => {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    perf.frame(now);
     if (session) {
       hostResumeCheck?.();
       const alpha = session.step(dt);
@@ -334,7 +353,16 @@ async function boot() {
       if (session.state.gameOver && !replaySaved && !editorOrTest()) saveReplay();
       if (!session.spectator && !editorOrTest()) achievements.update(session.state, session.local, dt);
       input.update(dt);
+      const t0 = performance.now();
       renderer.render(session.state, alpha, input.renderUI(), dt);
+      const ms = performance.now() - t0;
+      perf.sample(ms);
+      // Preset automático: mede os primeiros quadros de cada partida (não do editor) e desce um nível se preciso
+      if (!editing) {
+        if (session !== measured) { measured = session; auto.reset(); }
+        const lowered = auto.sample(ms);
+        if (lowered) { renderer.setQuality(resolveQuality('auto', { level: lowered, showFps: settings.showFps, teamOutline: settings.teamOutline })); hud.toast(t('msg.qualityLowered', { level: t(`quality.${lowered}`) }), 'info'); }
+      }
       hud.update(dt);
       if (editing) editorPanel?.update();
       if (editing) setPresence(t('presence.menu'));
@@ -344,7 +372,7 @@ async function boot() {
   };
   requestAnimationFrame(loop);
   // Expõe para depuração/testes automatizados
-  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, startGame, loadGame, diagnostic, menu, startEditor, exitEditor, testFromEditor, get editor() { return editor; }, get editorPanel() { return editorPanel; }, mapData: () => (session ? mapToData(session.state.map) : null), debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; } };
+  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, perf, settings, applyQuality, startGame, loadGame, diagnostic, menu, startEditor, exitEditor, testFromEditor, get editor() { return editor; }, get editorPanel() { return editorPanel; }, mapData: () => (session ? mapToData(session.state.map) : null), debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; } };
 }
 
 boot().catch((e) => { console.error(e); document.body.innerHTML = `<pre style="color:#f88;padding:20px">Erro ao iniciar: ${(e as Error).stack}</pre>`; });

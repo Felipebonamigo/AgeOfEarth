@@ -69,6 +69,8 @@ Contato: [e-mail] · Responsável: [nome/empresa, CNPJ]
 | steamworks.js | MIT | Integração Steam |
 | ws | MIT | Servidor de retransmissão |
 | Vite, TypeScript, Vitest, Playwright | MIT / Apache-2.0 | Ferramentas de desenvolvimento (não distribuídas) |
+| pixelmatch | ISC | Comparação de capturas (`scripts/artdiff.mjs`; devDependency, não distribuída) |
+| pngjs | MIT | Leitura/escrita de PNG nos scripts de captura (devDependency, não distribuída) |
 | Fontes, música e efeitos sonoros | [preencher ao adquirir os assets — Fase 2] | Arte e áudio |
 
 Mantenha os textos de licença MIT dos pacotes distribuídos em `desktop/THIRD_PARTY.txt` (gerar com `npx license-checker --production`
