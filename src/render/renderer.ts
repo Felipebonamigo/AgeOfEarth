@@ -1,5 +1,6 @@
 // Renderizador PixiJS: chunks de terreno, fronteiras, entidades interpoladas, efeitos, névoa e overlays.
 import { Application, Container, Graphics, Sprite, Texture, Rectangle, Text, TextStyle } from 'pixi.js';
+import { effectiveResolution, resolveQuality, type Quality } from './quality';
 import { TILE, TICK_RATE, PLAYER_COLORS, KOTH_RADIUS, rankOf } from '../core/constants';
 import { BUILDINGS, UNITS } from '../core/data';
 import type { Building, GameState, Unit, VisualEffect } from '../core/types';
@@ -78,7 +79,8 @@ export class Renderer {
 
   async init(parent: HTMLElement): Promise<void> {
     this.app = new Application();
-    await this.app.init({ resizeTo: parent, background: 0x0b1020, antialias: true, preference: 'webgl', resolution: Math.min(2, window.devicePixelRatio || 1), autoDensity: true });
+    // Sem antialias (docs/ART.md §3.9): sprites e terreno já são amostrados por textura; resolução = min(teto do preset, dpr) · renderScale
+    await this.app.init({ resizeTo: parent, background: 0x0b1020, antialias: false, preference: 'webgl', resolution: effectiveResolution(this.quality, window.devicePixelRatio || 1, this.renderScale), autoDensity: true });
     parent.appendChild(this.app.canvas);
     this.tex = new TextureCache(this.app.renderer);
     this.app.stage.addChild(this.world, this.overlay);
@@ -179,12 +181,23 @@ export class Renderer {
     }
     this.lastNodeCount = map.nodes.size;
   }
-  /** Qualidade de renderização: fração da resolução nativa (0.5–1). Menos pixels = mais leve em GPUs fracas. */
-  setRenderScale(scale: number): void {
-    const s = Math.max(0.25, Math.min(1, scale));
-    this.app.renderer.resolution = Math.min(2, window.devicePixelRatio || 1) * s;
+  /** Preset de qualidade em vigor (docs/ART.md §3.9); as etapas seguintes leem daqui sombras, partículas, água e shader. */
+  quality: Quality = resolveQuality('auto');
+  private renderScale = 1;
+  private applyResolution(): void {
+    this.app.renderer.resolution = effectiveResolution(this.quality, window.devicePixelRatio || 1, this.renderScale);
     this.app.resize();
     this.resize();
+  }
+  /** Resolução de renderização: fração da resolução nativa (0.25–1). Menos pixels = mais leve em GPUs fracas. */
+  setRenderScale(scale: number): void {
+    this.renderScale = Math.max(0.25, Math.min(1, scale));
+    this.applyResolution();
+  }
+  /** Aplica um preset de qualidade (teto de resolução agora; sombras/partículas/água/shader pelas etapas seguintes). */
+  setQuality(q: Quality): void {
+    this.quality = q;
+    this.applyResolution();
   }
 
   // ---------------- Terreno em chunks ----------------

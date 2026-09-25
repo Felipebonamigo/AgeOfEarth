@@ -1,8 +1,10 @@
 // Bloco de opções compartilhado entre o menu principal e o menu da partida:
-// volume, tela cheia, rolagem na borda, tamanho da interface, qualidade de renderização, idioma e atalhos.
+// volume, tela cheia, rolagem na borda, tamanho da interface, preset de qualidade, resolução de renderização,
+// avançado (contador de desempenho, contorno de time), idioma e atalhos.
 import { t, getLocale, setLocale, LOCALE_NAMES, type Locale } from '../i18n';
 import type { Settings } from '../game/settings';
 import { isFullscreen, UI_SCALES, RENDER_SCALES } from '../game/display';
+import { QUALITY_PRESETS, type QualityPreset } from '../render/quality';
 
 export interface OptionsContext {
   settings: Settings;
@@ -10,6 +12,9 @@ export interface OptionsContext {
   setEdgeScroll: (v: boolean) => void;
   setUiScale: (v: number) => void;
   setRenderScale: (v: number) => void;
+  setQuality: (v: QualityPreset) => void;
+  setShowFps: (v: boolean) => void;
+  setTeamOutline: (v: boolean) => void;
   setFullscreen: (v: boolean) => void;
   onLocaleChanged: () => void;
   onHotkeys: () => void;
@@ -25,7 +30,12 @@ export function optionsHTML(ctx: OptionsContext): string {
     <label style="${LBL}"><input type="checkbox" id="o-fs" ${isFullscreen() ? 'checked' : ''}> ${t('menu.fullscreen')} (F11)</label>
     <label style="${LBL}"><input type="checkbox" id="o-edge" ${s.edgeScroll ? 'checked' : ''}> ${t('menu.edgeScroll')}</label>
     <label style="${LBL}">${t('menu.uiScale')} <select id="o-ui">${UI_SCALES.map((v) => `<option value="${v}" ${near(v, s.uiScale) ? 'selected' : ''}>${Math.round(v * 100)}%</option>`).join('')}</select></label>
+    <label style="${LBL}" title="${t('menu.qualityTip')}">${t('menu.quality')} <select id="o-quality">${QUALITY_PRESETS.map((v) => `<option value="${v}" ${s.quality === v ? 'selected' : ''}>${t(`quality.${v}`)}</option>`).join('')}</select></label>
     <label style="${LBL}" title="${t('menu.renderTip')}">${t('menu.renderScale')} <select id="o-render">${RENDER_SCALES.map((v) => `<option value="${v}" ${near(v, s.renderScale) ? 'selected' : ''}>${Math.round(v * 100)}%</option>`).join('')}</select></label>
+    <details style="${LBL}"><summary style="cursor:pointer">${t('menu.advanced')}</summary>
+      <label style="${LBL};display:block;margin-top:4px"><input type="checkbox" id="o-fps" ${s.showFps ? 'checked' : ''}> ${t('menu.showFps')}</label>
+      <label style="${LBL};display:block" title="${t('menu.teamOutlineTip')}"><input type="checkbox" id="o-outline" ${s.teamOutline ? 'checked' : ''}> ${t('menu.teamOutline')}</label>
+    </details>
     <label style="${LBL}">${t('menu.language')} <select id="o-lang">${(Object.keys(LOCALE_NAMES) as Locale[]).map((l) => `<option value="${l}" ${getLocale() === l ? 'selected' : ''}>${LOCALE_NAMES[l]}</option>`).join('')}</select></label>
     <button class="btn" id="o-hotkeys">${t('menu.hotkeys')}</button>
   </div>`;
@@ -38,6 +48,9 @@ export function bindOptions(root: ParentNode, ctx: OptionsContext, rerender: () 
   q('#o-edge')?.addEventListener('change', (e) => ctx.setEdgeScroll((e.target as HTMLInputElement).checked));
   q('#o-ui')?.addEventListener('change', (e) => ctx.setUiScale(Number((e.target as HTMLSelectElement).value)));
   q('#o-render')?.addEventListener('change', (e) => ctx.setRenderScale(Number((e.target as HTMLSelectElement).value)));
+  q('#o-quality')?.addEventListener('change', (e) => ctx.setQuality((e.target as HTMLSelectElement).value as QualityPreset));
+  q('#o-fps')?.addEventListener('change', (e) => ctx.setShowFps((e.target as HTMLInputElement).checked));
+  q('#o-outline')?.addEventListener('change', (e) => ctx.setTeamOutline((e.target as HTMLInputElement).checked));
   q('#o-lang')?.addEventListener('change', (e) => { setLocale((e.target as HTMLSelectElement).value as Locale); ctx.onLocaleChanged(); rerender(); });
   q('#o-hotkeys')?.addEventListener('click', () => ctx.onHotkeys());
 }
