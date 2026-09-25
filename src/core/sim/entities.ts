@@ -15,7 +15,7 @@ export function spawnUnit(state: GameState, owner: number, type: string, x: numb
     id: state.nextId++, kind: 'unit', type, owner, x, y, px: x, py: y, hp: stats.hp, maxHp: stats.hp,
     state: 'idle', tx: x, ty: y, path: null, pathI: 0, targetId: -1, nodeId: -1, carry: null, carryAmt: 0,
     cooldown: 0, stance: def.tags.includes('civilian') ? 'passive' : 'aggressive', leashX: x, leashY: y, kills: 0, heads: 1,
-    dead: false, spawnTick: state.tick, repathAt: 0, stuck: 0, order: null, queue: [], attackTick: -100, lastDamageTick: -100, orderTick: state.tick, inside: -1, resumeNodeId: -1, avoidIds: [], avoidUntil: 0, blockedTicks: 0,
+    dead: false, spawnTick: state.tick, repathAt: 0, stuck: 0, order: null, queue: [], attackTick: -100, lastDamageTick: -100, orderTick: state.tick, inside: -1, resumeNodeId: -1, avoidIds: [], avoidUntil: 0, blockedTicks: 0, abilityReadyAt: 0, buffUntil: 0, buffAttack: 1, buffSpeed: 1, buffHaste: 1, buffWard: false, chargeUntil: 0,
   };
   state.units.set(u.id, u);
   player.pop += def.pop;

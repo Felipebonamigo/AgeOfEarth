@@ -100,3 +100,70 @@ describe('veterania', () => {
     expect(s.events.filter((e) => e.type === 'rank').length).toBe(3);
   });
 });
+
+describe('habilidades dos heróis', () => {
+  it('Grito dos Argonautas: +30% de ataque para aliados no raio, recarga e expiração', async () => {
+    const { computeDamage } = await import('../src/core/sim/combat');
+    const { ABILITIES } = await import('../src/core/data');
+    const s = createGame(base());
+    const jason = spawnUnit(s, 0, 'jason', 30.5, 30.5);
+    const ally = spawnUnit(s, 0, 'hoplite', 32.5, 30.5);
+    const far = spawnUnit(s, 0, 'hoplite', 45.5, 30.5);
+    const enemy = spawnUnit(s, 1, 'hoplite', 31.5, 31.5);
+    run(s, 1);
+    const d0 = computeDamage(s, ally, enemy);
+    expect(applyCommand(s, { type: 'ability', player: 0, unitId: jason.id }).ok).toBe(true);
+    expect(computeDamage(s, ally, enemy)).toBeCloseTo(d0 * 1.3, 5);
+    expect(computeDamage(s, far, enemy)).toBeCloseTo(d0, 5);
+    expect(applyCommand(s, { type: 'ability', player: 0, unitId: jason.id }).ok).toBe(false);   // recarregando
+    run(s, (ABILITIES.war_cry.duration + 1) * TICK_RATE);
+    expect(computeDamage(s, ally, enemy)).toBeCloseTo(d0, 5);
+    expect(s.effects.length + s.events.filter((e) => e.type === 'ability').length).toBeGreaterThan(0);
+  });
+
+  it('Golpe Titânico triplica o próximo golpe e é consumido; Escudo Espelhado bloqueia a petrificação', async () => {
+    const { computeDamage, performAttack } = await import('../src/core/sim/combat');
+    const s = createGame(base());
+    const her = spawnUnit(s, 0, 'heracles', 30.5, 30.5);
+    const enemy = spawnUnit(s, 1, 'hoplite', 31.2, 30.5); enemy.hp = enemy.maxHp = 100000;
+    run(s, 1);
+    const d0 = computeDamage(s, her, enemy);
+    applyCommand(s, { type: 'ability', player: 0, unitId: her.id });
+    expect(computeDamage(s, her, enemy)).toBeCloseTo(d0 * 3, 5);
+    performAttack(s, her, enemy);
+    expect(her.chargeUntil).toBe(0);
+    expect(computeDamage(s, her, enemy)).toBeCloseTo(d0, 5);
+    // Perseu protege contra a Medusa
+    const perseus = spawnUnit(s, 0, 'perseus', 40.5, 40.5);
+    const hop = spawnUnit(s, 0, 'hoplite', 41.5, 40.5);
+    const medusa = spawnUnit(s, 1, 'medusa', 42.5, 40.5);
+    run(s, 1);
+    applyCommand(s, { type: 'ability', player: 0, unitId: perseus.id });
+    let petrified = 0;
+    for (let i = 0; i < 200; i++) { hop.hp = hop.maxHp; performAttack(s, medusa, hop); if (hop.dead) { petrified++; hop.dead = false; hop.hp = hop.maxHp; } }
+    expect(petrified).toBe(0);
+  });
+
+  it('Fúria dobra a cadência; Astúcia acelera o movimento; a IA usa a habilidade em combate', async () => {
+    const { attackInterval } = await import('../src/core/sim/combat');
+    const s = createGame(base());
+    const ach = spawnUnit(s, 0, 'achilles', 30.5, 30.5);
+    run(s, 1);
+    const i0 = attackInterval(ach, s.tick);
+    applyCommand(s, { type: 'ability', player: 0, unitId: ach.id });
+    expect(attackInterval(ach, s.tick)).toBeCloseTo(i0 / 2, 5);
+    const ody = spawnUnit(s, 0, 'odysseus', 20.5, 20.5);
+    applyCommand(s, { type: 'move', player: 0, ids: [ody.id], x: 20.5, y: 40.5 });
+    run(s, 20); const yA = ody.y;
+    applyCommand(s, { type: 'ability', player: 0, unitId: ody.id });
+    const y1 = ody.y; run(s, 20); const yB = ody.y;
+    expect(yB - y1).toBeGreaterThan((yA - 20.5) * 1.25);
+    // IA: herói em combate com habilidade pronta a usa
+    const ai = createGame(base({ players: [{ name: 'IA', god: 'zeus', isAI: true, difficulty: 'normal', team: 0 }, { name: 'B', god: 'poseidon', isAI: false, difficulty: 'normal', team: 1 }] }));
+    const tc = buildingsOf(ai, 0)[0];
+    const j = spawnUnit(ai, 0, 'jason', tc.x + 5, tc.y + 5);
+    spawnUnit(ai, 1, 'hoplite', tc.x + 6, tc.y + 5);
+    run(ai, 6 * TICK_RATE);
+    expect(j.abilityReadyAt).toBeGreaterThan(0);
+  });
+});

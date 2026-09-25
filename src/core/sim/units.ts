@@ -111,6 +111,7 @@ export function updateUnit(state: GameState, rt: Runtime, u: Unit, dt: number): 
   const def = UNITS[u.type];
   const player = state.players[u.owner];
   const stats = getUnitStats(state, player, u.type);
+  const spd = state.tick < u.buffUntil ? stats.speed * u.buffSpeed : stats.speed;   // Astúcia
 
   switch (u.state) {
     case 'idle': case 'hold': {
@@ -128,7 +129,7 @@ export function updateUnit(state: GameState, rt: Runtime, u: Unit, dt: number): 
       if (u.order?.type === 'garrison') {
         const b = state.buildings.get(u.targetId);
         if (!b || b.dead) { finishOrder(state, u); return; }
-        const r = moveTowards(state, rt, u, stats.speed * dt, b.x, b.y, { tx: b.tx, ty: b.ty, w: b.w, h: b.h }, 1.0, true);
+        const r = moveTowards(state, rt, u, spd * dt, b.x, b.y, { tx: b.tx, ty: b.ty, w: b.w, h: b.h }, 1.0, true);
         if (r === 'arrived') { const q = u.queue; if (!enterGarrison(state, u, b)) finishOrder(state, u); else u.queue = q; }
         else if (r === 'blocked') finishOrder(state, u);
         return;
@@ -136,12 +137,12 @@ export function updateUnit(state: GameState, rt: Runtime, u: Unit, dt: number): 
       if (u.order?.type === 'pray') {
         const b = state.buildings.get(u.targetId);
         if (!b || b.dead) { finishOrder(state, u); return; }
-        const r = moveTowards(state, rt, u, stats.speed * dt, b.x, b.y, { tx: b.tx, ty: b.ty, w: b.w, h: b.h }, 0.95, true);
+        const r = moveTowards(state, rt, u, spd * dt, b.x, b.y, { tx: b.tx, ty: b.ty, w: b.w, h: b.h }, 0.95, true);
         if (r === 'arrived') { u.state = 'pray'; u.nodeId = -b.id; u.path = null; u.order = null; }
         else if (r === 'blocked') finishOrder(state, u);
         return;
       }
-      if (moveTowards(state, rt, u, stats.speed * dt, u.tx, u.ty, null) !== 'moving') finishOrder(state, u);   // chegou ou foi o mais perto possível
+      if (moveTowards(state, rt, u, spd * dt, u.tx, u.ty, null) !== 'moving') finishOrder(state, u);   // chegou ou foi o mais perto possível
       return;
     }
     case 'attackMove': {
@@ -149,7 +150,7 @@ export function updateUnit(state: GameState, rt: Runtime, u: Unit, dt: number): 
         const t = acquireTarget(state, u, stats.los, true, Math.min(stats.los, stats.range + 5));
         if (t) { u.targetId = t.id; u.state = 'attack'; u.path = null; u.orderTick = state.tick; return; }
       }
-      if (moveTowards(state, rt, u, stats.speed * dt, u.tx, u.ty, null) !== 'moving') finishOrder(state, u);
+      if (moveTowards(state, rt, u, spd * dt, u.tx, u.ty, null) !== 'moving') finishOrder(state, u);
       return;
     }
     case 'attack': {
@@ -160,7 +161,7 @@ export function updateUnit(state: GameState, rt: Runtime, u: Unit, dt: number): 
       if (d <= reach) {
         u.path = null;
         if (state.tick < state.ceasefireUntil) return;
-        if (u.cooldown <= 0) { performAttack(state, u, t); u.cooldown = attackInterval(u); }
+        if (u.cooldown <= 0) { performAttack(state, u, t); u.cooldown = attackInterval(u, state.tick); }
         return;
       }
       if (def.immobile) { u.targetId = -1; u.state = 'idle'; return; }
@@ -169,13 +170,13 @@ export function updateUnit(state: GameState, rt: Runtime, u: Unit, dt: number): 
       // Alvo adquirido sozinho que não conseguimos golpear há 10 s (fugindo, atrás de obstáculo): desiste e evita-o por um tempo
       if (!u.order && state.tick - Math.max(u.orderTick, u.attackTick) > 10 * TICK_RATE) { giveUpTarget(state, u, t.id); return; }
       const goal: PathGoal = t.kind === 'building' ? { tx: t.tx, ty: t.ty, w: t.w, h: t.h } : { tx: Math.floor(t.x), ty: Math.floor(t.y), w: 1, h: 1 };
-      if (moveTowards(state, rt, u, stats.speed * dt, t.x, t.y, goal, reach - 0.1, t.kind === 'building') === 'blocked') giveUpTarget(state, u, t.id);
+      if (moveTowards(state, rt, u, spd * dt, t.x, t.y, goal, reach - 0.1, t.kind === 'building') === 'blocked') giveUpTarget(state, u, t.id);
       return;
     }
     case 'garrison': return;
-    case 'gather': updateGather(state, rt, u, dt, stats.speed); return;
-    case 'return': updateReturn(state, rt, u, dt, stats.speed); return;
-    case 'build': updateBuild(state, rt, u, dt, stats.speed); return;
+    case 'gather': updateGather(state, rt, u, dt, spd); return;
+    case 'return': updateReturn(state, rt, u, dt, spd); return;
+    case 'build': updateBuild(state, rt, u, dt, spd); return;
     case 'pray': {
       const b = state.buildings.get(-u.nodeId);
       if (!b || b.dead || b.owner !== u.owner) { u.nodeId = -1; finishOrder(state, u); return; }

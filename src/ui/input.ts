@@ -245,6 +245,7 @@ export class Input {
       if (k === 's' && (!villagersOnly || e.shiftKey)) { s.issue({ type: 'stop', player: s.local, ids: units.map((u) => u.id) }); return; }
       if (k === 'a' && !villagersOnly) { s.ui.mode = 'attackMove'; document.body.className = 'cur-attack'; this.hud.refreshCommands(true); return; }
       if (k === 'g' && !villagersOnly) { this.hud.garrisonNearest(units); return; }
+      if (k === 'q' && !villagersOnly) { const h = units.find((x) => UNITS[x.type].ability && s.state.tick >= x.abilityReadyAt) ?? units.find((x) => UNITS[x.type].ability); if (h) { this.hud.issueChecked({ type: 'ability', player: s.local, unitId: h.id }); return; } }
       if (villagersOnly && !e.ctrlKey && !e.altKey) {
         const keyU = e.key.toUpperCase();
         const cands = (BUILD_HOTKEYS[keyU] ?? '').split(',').filter(Boolean);

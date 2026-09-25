@@ -1,6 +1,6 @@
 // Idiomas: PT-BR (canônico, nos dados) e EN (sobreposição por id). Troca em tempo de execução.
-import { AGES, BUILDINGS, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS } from '../core/data';
-import { EN_AGES, EN_BUILDINGS, EN_MAJOR_GODS, EN_MINOR_GODS, EN_POWERS, EN_TECHS, EN_UNITS, type TextOverlay } from './en-data';
+import { AGES, BUILDINGS, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS, ABILITIES } from '../core/data';
+import { EN_AGES, EN_BUILDINGS, EN_MAJOR_GODS, EN_MINOR_GODS, EN_POWERS, EN_TECHS, EN_UNITS, EN_ABILITIES, type TextOverlay } from './en-data';
 import { STRINGS } from './strings';
 
 export type Locale = 'pt' | 'en';
@@ -31,6 +31,7 @@ export function setLocale(locale: Locale): void {
   for (const [id, b] of Object.entries(BUILDINGS)) apply(b as unknown as Record<string, unknown>, EN_BUILDINGS[id]);
   for (const [id, x] of Object.entries(TECHS)) apply(x as unknown as Record<string, unknown>, EN_TECHS[id]);
   for (const [id, p] of Object.entries(POWERS)) apply(p as unknown as Record<string, unknown>, EN_POWERS[id]);
+  for (const [id, a] of Object.entries(ABILITIES)) apply(a as unknown as Record<string, unknown>, EN_ABILITIES[id]);
   for (const [id, g] of Object.entries(MINOR_GODS)) apply(g as unknown as Record<string, unknown>, EN_MINOR_GODS[id]);
   for (const [id, g] of Object.entries(MAJOR_GODS)) apply(g as unknown as Record<string, unknown>, EN_MAJOR_GODS[id]);
   AGES.forEach((a, i) => apply(a as unknown as Record<string, unknown>, EN_AGES[String(i)]));

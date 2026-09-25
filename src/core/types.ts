@@ -15,6 +15,7 @@ export interface UnitDef {
   range: number; speed: number; los: number; trainTime: number; pop: number; radius: number;
   tags: string[]; bonus: Record<string, number>; building: string | null; age: number;
   hotkey?: string; desc: string;
+  ability?: string;                                     // habilidade ativa (heróis), ver data/abilities.ts
   flying?: boolean; immobile?: boolean; unique?: boolean; god?: string; special?: 'heads' | 'petrify';
   splash?: number; canGather?: boolean; canBuild?: boolean;
 }
@@ -77,7 +78,8 @@ export interface Unit {
   dead: boolean; spawnTick: number; repathAt: number; stuck: number;
   order: Order | null; queue: Order[];
   attackTick: number;                                  // último tick em que atacou (animação)
-  avoidIds: number[]; avoidUntil: number; blockedTicks: number;   // ticks seguidos sem conseguir se aproximar do alvo               // alvos/nós/entregas inalcançáveis a evitar até o tick
+  avoidIds: number[]; avoidUntil: number; blockedTicks: number;   // ticks seguidos sem conseguir se aproximar do alvo
+  abilityReadyAt: number; buffUntil: number; buffAttack: number; buffSpeed: number; buffHaste: number; buffWard: boolean; chargeUntil: number;   // habilidades/buffs (heróis)               // alvos/nós/entregas inalcançáveis a evitar até o tick
   inside: number;                                      // id do edifício em que está guarnecida (-1 fora)
   resumeNodeId: number;                                // nó/fazenda para retomar a coleta ao sair da guarnição
   orderTick: number;                                   // tick em que o alvo/ordem atual começou (detecção de travamento)
@@ -202,4 +204,5 @@ export type Command =
   | { type: 'trade'; player: number; action: 'buy' | 'sell'; resource: ResourceType }
   | { type: 'delete'; player: number; ids: number[] }
   | { type: 'ungarrison'; player: number; buildingId: number }
-  | { type: 'garrison'; player: number; ids: number[]; targetId: number; queue?: boolean };
+  | { type: 'garrison'; player: number; ids: number[]; targetId: number; queue?: boolean }
+  | { type: 'ability'; player: number; unitId: number };

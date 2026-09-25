@@ -2,7 +2,7 @@
 // minimapa, mensagens, tooltips e modais (deuses menores, menu, ajuda, enciclopédia, fim de jogo).
 import { RESOURCES, RESOURCE_ICONS, STANCES, TICK_RATE, MAX_SCHOLARS, SCHOLAR_COST, WONDER_VICTORY_SECONDS, KOTH_SECONDS, rankOf, type ResourceType, type Stance } from '../core/constants';
 import { teamNames } from '../core/sim/modes';
-import { AGES, BUILDINGS, BUILD_MENU, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS, ACADEMY_LINES } from '../core/data';
+import { AGES, BUILDINGS, BUILD_MENU, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS, ACADEMY_LINES, ABILITIES } from '../core/data';
 import type { Building, GameEvent, Unit } from '../core/types';
 import { getUnitStats, getBuildingStats, techCost } from '../core/sim/modifiers';
 import { canTrain, canResearch, canAdvanceAge, academyTechCount } from '../core/sim/commands';
@@ -377,6 +377,12 @@ export class HUD {
       } else {
         const ids = units.map((u) => u.id);
         add('⚔️', t('cmd.attackMove'), t('cmd.attackMoveTip'), 'A', () => { s.ui.mode = 'attackMove'; document.body.className = 'cur-attack'; this.lastCmdKey = ''; this.refreshCommands(true); }, { active: s.ui.mode === 'attackMove' });
+        const seenAb = new Set<string>();
+        for (const h of units) {
+          const abId = UNITS[h.type].ability; if (!abId || seenAb.has(h.type)) continue; seenAb.add(h.type);
+          const ab = ABILITIES[abId]; const left = Math.ceil((h.abilityReadyAt - s.state.tick) / TICK_RATE);
+          add(ab.icon, ab.name, `<b>${ab.icon} ${ab.name}</b> · ${UNITS[h.type].name}<div class="desc">${ab.desc}</div><div>${left > 0 ? t('cmd.abilityCooldown', { s: left }) : t('cmd.abilityReady')}</div>`, 'Q', () => { this.issueChecked({ type: 'ability', player: s.local, unitId: h.id }); this.lastCmdKey = ''; }, { disabled: left > 0 });
+        }
         add('✋', t('cmd.stop'), t('cmd.stopTip'), 'S', () => { s.issue({ type: 'stop', player: s.local, ids }); });
         const stance = units[0].stance;
         for (const k of Object.keys(STANCES)) add(k === 'aggressive' ? '🔥' : k === 'defensive' ? '🛡️' : '🕊️', t(`stance.${k}`), `<b>${t('cmd.stance', { name: t(`stance.${k}`) })}</b><div class="desc">${t(`cmd.stanceTip.${k}`)}</div>`, null, () => { s.issue({ type: 'stance', player: s.local, ids, stance: k as Stance }); this.lastCmdKey = ''; }, { active: stance === k });

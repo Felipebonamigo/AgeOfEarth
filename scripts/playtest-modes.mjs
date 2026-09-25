@@ -29,6 +29,13 @@ console.log('aviso do rei:', (await page.textContent('#messages'))?.includes('re
 await page.evaluate(() => { const s = window.aoe.session; const tc = [...s.state.buildings.values()].find((b) => b.owner === s.local); const u = window.aoe.debugSpawn(s.local, 'hoplite', tc.x + 4, tc.y + 4); u.kills = 9; s.select([u.id]); });
 await page.waitForTimeout(400);
 console.log('veterania no painel:', (await page.textContent('#selection'))?.includes('⭐⭐') ? 'ok' : 'FALHOU');
+// habilidade de herói: botão no painel e tecla Q
+await page.evaluate(() => { const s = window.aoe.session; const tc = [...s.state.buildings.values()].find((b) => b.owner === s.local); const h = window.aoe.debugSpawn(s.local, 'jason', tc.x - 4, tc.y + 4); s.select([h.id]); });
+await page.waitForTimeout(400);
+console.log('botão da habilidade:', (await page.textContent('#commands'))?.includes('Grito') ? 'ok' : 'FALHOU');
+await page.keyboard.press('q'); await page.waitForTimeout(400);
+const ab = await page.evaluate(() => { const s = window.aoe.session; const h = [...s.state.units.values()].find((u) => u.type === 'jason'); return { ready: h.abilityReadyAt, tick: s.state.tick, buff: h.buffAttack }; });
+console.log('Q ativou a habilidade:', ab.ready > ab.tick && ab.buff > 1 ? 'ok' : `FALHOU ${JSON.stringify(ab)}`, '| recarga no painel:', (await page.textContent('#commands'))?.includes('Recarga') || (await page.evaluate(() => document.querySelector('#commands .cmd[disabled], #commands .cmd.disabled') !== null)) ? 'ok' : 'não visível');
 await back();
 const d = await start('deathmatch', 'desert', 33);
 console.log('Deathmatch:', JSON.stringify(d), d.age === 1 && d.food >= 3000 ? 'ok' : 'FALHOU');

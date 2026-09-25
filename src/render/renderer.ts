@@ -424,6 +424,7 @@ export class Renderer {
           case 'splash': g.circle(0, 0, (Number(e.data) || 1.5) * TILE * p).stroke({ width: 3, color: 0xf97316, alpha: 1 - p }); break;
           case 'heal': g.circle(0, 0, (Number(e.data) || 8) * TILE * (0.3 + p * 0.7)).stroke({ width: 3, color: 0x4ade80, alpha: 1 - p }); break;
           case 'spawn': g.circle(0, 0, 6 + p * 14).stroke({ width: 2, color: 0xffffff, alpha: 1 - p }); break;
+          case 'ability': g.circle(0, 0, 8 + p * Number(e.data ?? 1) * TILE).stroke({ width: 3, color: 0xfde047, alpha: 1 - p }); break;
           case 'curse': g.circle(0, 0, 6 + p * 10).fill({ color: 0xec4899, alpha: 0.6 * (1 - p) }); break;
           case 'pestilence': g.circle(0, 0, (Number(e.data) || 10) * TILE).fill({ color: 0x7e22ce, alpha: 0.18 * (1 - p) }); break;
           case 'quake': g.circle(0, 0, (Number(e.data) || 7) * TILE).stroke({ width: 4, color: 0x92400e, alpha: 0.6 * (1 - p) }); this.cam.shake = Math.max(this.cam.shake, 4 * (1 - p)); break;

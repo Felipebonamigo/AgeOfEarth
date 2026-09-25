@@ -38,6 +38,7 @@ export function aiThink(state: GameState, player: Player): void {
   if (!snap.tc && snap.villagers.length === 0) return;
   tryAdvanceAge(state, player, snap);
   manageKing(state, player, snap);
+  for (const h of snap.heroes) if (UNITS[h.type].ability && h.state === 'attack' && state.tick >= h.abilityReadyAt && h.inside === -1) applyCommand(state, { type: 'ability', player: player.id, unitId: h.id });
   manageEconomy(state, player, snap);
   manageBuilding(state, player, snap);
   manageTraining(state, player, snap);

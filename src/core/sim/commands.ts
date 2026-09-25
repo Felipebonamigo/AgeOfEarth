@@ -1,6 +1,6 @@
 // Comandos: validação e aplicação. Toda mudança de estado originada do jogador/IA/rede passa por aqui,
 // o que torna a simulação reproduzível (lockstep, replays, saves).
-import { MAX_SCHOLARS, SCHOLAR_COST, type Stance } from '../constants';
+import { MAX_SCHOLARS, SCHOLAR_COST, TICK_RATE, type Stance } from '../constants';
 import { ACADEMY_LINES, AGES, BUILDINGS, MAX_AGE, MINOR_GODS, MAJOR_GODS, TECHS, UNITS } from '../data';
 import type { Building, Command, GameState, Player, Unit } from '../types';
 import { spiralSearch, canPass, inBounds } from '../map/grid';
@@ -9,12 +9,42 @@ import { canPlaceBuilding, placeBuilding, recomputePop, unitsOf, countBuildings,
 import { getUnitStats, techCost, getBuildingStats } from './modifiers';
 import { queueTotalFor } from './buildings';
 import { giveOrder, stopUnit } from './units';
-import { entityById } from './queries';
+import { entityById, isAlly } from './queries';
+import { getRuntime } from './runtime';
+import { ABILITIES } from '../data';
 import { usePower } from './powers';
 import { killUnit, destroyBuilding } from './combat';
 import { t } from '../../i18n';
 
 export interface CommandResult { ok: boolean; reason?: string }
+
+/** Habilidade ativa de um herói: aplica o efeito a ele e aos aliados no raio (buff temporário) e inicia a recarga. */
+export function useAbility(state: GameState, player: Player, unitId: number): CommandResult {
+  const u = state.units.get(unitId);
+  if (!u || u.dead || u.owner !== player.id || u.inside !== -1) return { ok: false };
+  const ab = UNITS[u.type].ability ? ABILITIES[UNITS[u.type].ability!] : undefined;
+  if (!ab) return { ok: false, reason: t('err.noAbility') };
+  if (state.tick < u.abilityReadyAt) return { ok: false, reason: t('err.abilityCooldown', { s: Math.ceil((u.abilityReadyAt - state.tick) / TICK_RATE) }) };
+  const until = state.tick + ab.duration * TICK_RATE;
+  const applyTo = (x: Unit) => {
+    if (x.buffUntil < state.tick) { x.buffAttack = 1; x.buffSpeed = 1; x.buffHaste = 1; x.buffWard = false; }   // buff anterior expirou: zera
+    x.buffUntil = Math.max(x.buffUntil, until);
+    if (ab.effect === 'attack') x.buffAttack = Math.max(x.buffAttack, ab.power);
+    if (ab.effect === 'speed') x.buffSpeed = Math.max(x.buffSpeed, ab.power);
+    if (ab.effect === 'haste') x.buffHaste = Math.max(x.buffHaste, ab.power);
+    if (ab.effect === 'ward') x.buffWard = true;
+  };
+  if (ab.effect === 'charge') u.chargeUntil = until;
+  else if (ab.radius > 0) {
+    const r2 = ab.radius * ab.radius;
+    getRuntime(state).hash.each(u.x, u.y, ab.radius, (x) => { if (!x.dead && x.inside === -1 && isAlly(state, player.id, x.owner) && (x.x - u.x) ** 2 + (x.y - u.y) ** 2 <= r2) applyTo(x); });
+    applyTo(u);
+  } else applyTo(u);
+  u.abilityReadyAt = state.tick + ab.cooldown * TICK_RATE;
+  state.effects.push({ type: 'ability', x: u.x, y: u.y, ttl: 20, total: 20, data: Math.max(1, ab.radius), owner: player.id });
+  if (!player.isAI) state.events.push({ tick: state.tick, type: 'ability', player: player.id, x: u.x, y: u.y, text: `${ab.icon} ${ab.name}` });
+  return { ok: true };
+}
 
 function ownedUnits(state: GameState, player: number, ids: number[]): Unit[] {
   const out: Unit[] = [];
@@ -173,6 +203,7 @@ export function applyCommand(state: GameState, cmd: Command): CommandResult {
     }
     case 'advanceAge': return advanceAge(state, player, cmd.buildingId, cmd.minorGod);
     case 'power': return usePower(state, player, cmd.power, cmd.x, cmd.y, cmd.targetId);
+    case 'ability': return useAbility(state, player, cmd.unitId);
     case 'trade': {
       if (countBuildings(state, player.id, (b) => b.complete && !!BUILDINGS[b.type].trade) === 0) return { ok: false, reason: t('err.needMarket') };
       return marketTrade(state, player, cmd.action, cmd.resource) ? { ok: true } : { ok: false, reason: t('err.noResources') };

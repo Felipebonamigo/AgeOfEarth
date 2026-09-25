@@ -159,3 +159,11 @@ export const EN_AGES: Record<string, TextOverlay> = {
   '3': { name: 'Mythic Age', short: 'Mythic', desc: 'Colossal creatures, wonders of the world and divine power. Requires 4 Academy line researches.' },
   '4': { name: 'Age of Titans', short: 'Titans', desc: 'The apex: open the Titan Gate and free a Titan. Requires a Fortress and 6 Academy line researches.' },
 };
+
+export const EN_ABILITIES: Record<string, TextOverlay> = {
+  war_cry: { name: 'Cry of the Argonauts', desc: 'Jason and allies within 6 tiles gain +30% attack for 15 s.' },
+  cunning: { name: 'Cunning', desc: 'Odysseus and allies within 6 tiles gain +40% speed for 10 s.' },
+  titanic_blow: { name: 'Titanic Blow', desc: "Heracles's next strike (within 20 s) deals triple damage and hits enemies within 2 tiles." },
+  fury: { name: "Achilles's Fury", desc: 'Achilles attacks twice as fast for 10 s.' },
+  mirror_shield: { name: 'Mirror Shield', desc: 'Perseus and allies within 5 tiles become immune to petrification and take only 30% divine damage for 12 s.' },
+};

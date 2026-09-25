@@ -1,7 +1,7 @@
 // Combate: aquisição de alvos, cálculo de dano (tipos de ataque x armadura x bônus por tag),
 // habilidades especiais (petrificação, cabeças da Hidra, dano em área) e morte de unidades/edifícios.
 import { TICK_RATE, VETERAN_BONUS, rankOf } from '../constants';
-import { BUILDINGS, UNITS } from '../data';
+import { BUILDINGS, UNITS, ABILITIES } from '../data';
 import type { Building, GameState, Unit } from '../types';
 import { idx } from '../map/grid';
 import { invalidateComponents } from '../map/components';
@@ -14,9 +14,10 @@ import { t } from '../../i18n';
 
 export const ATTACK_INTERVAL: Record<string, number> = { villager: 1.0, scout: 1.0, infantry: 1.0, archer: 1.5, skirmisher: 1.2, cavalry: 1.1, siege: 3.0, hero: 1.1, myth: 1.5, titan: 2.0, building: 2.0 };
 
-export function attackInterval(attacker: Unit | Building): number {
+export function attackInterval(attacker: Unit | Building, tick = -1): number {
   if (attacker.kind === 'building') return ATTACK_INTERVAL.building;
-  return ATTACK_INTERVAL[UNITS[attacker.type].cls] ?? 1.2;
+  const base = ATTACK_INTERVAL[UNITS[attacker.type].cls] ?? 1.2;
+  return tick >= 0 && tick < attacker.buffUntil ? base / attacker.buffHaste : base;   // Fúria: ataca mais rápido
 }
 
 function isMelee(state: GameState, attacker: Unit | Building): boolean {
@@ -78,6 +79,8 @@ export function computeDamage(state: GameState, attacker: Unit | Building, targe
     attack = st.attack; attackType = def.attackType; bonus = def.bonus;
     if (def.special === 'heads') attack *= 1 + 0.2 * (attacker.heads - 1);
     if (def.tags.includes('military') && !def.tags.includes('titan')) attack *= 1 + VETERAN_BONUS * rankOf(attacker.kills);   // veterania
+    if (state.tick < attacker.buffUntil) attack *= attacker.buffAttack;   // Grito dos Argonautas
+    if (attacker.chargeUntil > state.tick) attack *= ABILITIES[UNITS[attacker.type].ability ?? '']?.power ?? 3;   // Golpe Titânico
   } else {
     const st = getBuildingStats(state, state.players[attacker.owner], attacker.type);
     attack = st.attack; attackType = BUILDINGS[attacker.type].attackType ?? 'pierce';
@@ -91,6 +94,7 @@ export function computeDamage(state: GameState, attacker: Unit | Building, targe
   let reduction: number;
   if (attackType === 'divine') reduction = Math.min(armor.hack, armor.pierce) * 0.5;
   else reduction = armor[attackType as 'hack' | 'pierce' | 'crush'] ?? 0;
+  if (target.kind === 'unit' && attackType === 'divine' && state.tick < target.buffUntil && target.buffWard) reduction = Math.max(reduction, 1 - (ABILITIES.mirror_shield.power));   // Escudo Espelhado
   if (target.kind === 'unit' && state.tick < tp.bronzeUntil) reduction = Math.min(0.9, reduction + 0.3);
   return Math.max(1, attack * mult * (1 - reduction));
 }
@@ -123,7 +127,8 @@ export function performAttack(state: GameState, attacker: Unit | Building, targe
   // Petrificação da Medusa
   if (attacker.kind === 'unit' && UNITS[attacker.type].special === 'petrify' && target.kind === 'unit') {
     const tdef = UNITS[target.type];
-    if (tdef.tags.includes('human') && !tdef.tags.includes('hero') && state.rng.chance(0.12)) {
+    const warded = state.tick < target.buffUntil && target.buffWard;
+    if (tdef.tags.includes('human') && !tdef.tags.includes('hero') && !warded && state.rng.chance(0.12)) {
       state.effects.push({ type: 'petrify', x: target.x, y: target.y, ttl: 30, total: 30, data: target.type });
       killUnit(state, target, attacker.owner, attacker);
       return;
@@ -131,9 +136,11 @@ export function performAttack(state: GameState, attacker: Unit | Building, targe
   }
   const dmg = computeDamage(state, attacker, target);
   applyDamage(state, target, dmg, attacker.owner, attacker);
-  // Dano em área (Quimera, Titãs)
+  // Dano em área (Quimera, Titãs, Golpe Titânico)
   if (attacker.kind === 'unit') {
-    const splash = getUnitStats(state, owner, attacker.type).splash;
+    const charged = attacker.chargeUntil > state.tick;
+    const splash = Math.max(getUnitStats(state, owner, attacker.type).splash, charged ? (ABILITIES[UNITS[attacker.type].ability ?? '']?.radius ?? 2) : 0);
+    if (charged) attacker.chargeUntil = 0;
     if (splash > 0) {
       const rt = getRuntime(state);
       const tx = target.x, ty = target.y;
