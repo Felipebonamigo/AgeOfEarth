@@ -588,6 +588,13 @@ function manageArmy(state: GameState, player: Player, snap: Snapshot): void {
       return;
     }
   }
+  // Ataque coordenado: se uma IA aliada já está atacando, junta-se a ela com o mesmo alvo (com metade do exército mínimo e sem esperar o intervalo)
+  const allyTarget = alliedAttackTarget(state, player);
+  if (allyTarget && army.length >= Math.max(4, Math.round(threshold * 0.5)) && state.tick - ai.lastAttack > attackCooldown * 0.25 && rectReachable(state.map, Math.floor(army[0].x), Math.floor(army[0].y), allyTarget.tx, allyTarget.ty, allyTarget.w, allyTarget.h, true)) {
+    ai.attackTarget = allyTarget.id; ai.lastAttack = state.tick; ai.waves++;
+    applyCommand(state, { type: 'attackMove', player: player.id, ids: [...army.map((u) => u.id), ...snap.heroes.map((u) => u.id)], x: allyTarget.x, y: allyTarget.y });
+    return;
+  }
   if (army.length >= threshold && state.tick - ai.lastAttack > attackCooldown) {
     const target = chooseAttackTarget(state, player, tc, army[0]);
     if (target) {
@@ -600,6 +607,16 @@ function manageArmy(state: GameState, player: Player, snap: Snapshot): void {
   // 3) Reunião no ponto de encontro
   const idle = army.filter((u) => u.state === 'idle' && dist(u.x, u.y, ai.rallyX, ai.rallyY) > 5);
   if (idle.length > 0) applyCommand(state, { type: 'move', player: player.id, ids: idle.map((u) => u.id), x: ai.rallyX, y: ai.rallyY });
+}
+
+/** Alvo que uma IA aliada (mesmo time) está atacando neste momento, se houver. */
+function alliedAttackTarget(state: GameState, player: Player): Building | null {
+  for (const p of state.players) {
+    if (p.id === player.id || !p.isAI || !p.alive || p.team !== player.team || !p.ai || p.ai.attackTarget === -1) continue;
+    const b = state.buildings.get(p.ai.attackTarget);
+    if (b && !b.dead && isEnemy(state, player.id, b.owner)) return b;
+  }
+  return null;
 }
 
 function chooseAttackTarget(state: GameState, player: Player, tc: Building, from: Unit): Building | null {

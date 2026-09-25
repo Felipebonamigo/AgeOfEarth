@@ -294,3 +294,22 @@ describe('produção, poderes e estado', () => {
     for (const g of Object.keys(MAJOR_GODS)) expect(MAJOR_GODS[g].minorGods.length).toBeGreaterThanOrEqual(3);
   });
 });
+
+describe('IA aliada', () => {
+  it('IAs do mesmo time atacam o mesmo alvo quando uma delas lança uma onda', () => {
+    const s = createGame({ seed: 77, mapSize: 'medium', players: [
+      { name: 'A', god: 'zeus', isAI: true, difficulty: 'normal', team: 1 },
+      { name: 'B', god: 'poseidon', isAI: true, difficulty: 'normal', team: 1 },
+      { name: 'C', god: 'hades', isAI: false, difficulty: 'normal', team: 2 },
+    ] });
+    // exércitos prontos para as duas IAs e cidade inimiga como alvo
+    for (const pid of [0, 1]) { const tc = buildingsOf(s, pid)[0]; for (let i = 0; i < 12; i++) spawnUnit(s, pid, 'hoplite', tc.x + 4 + (i % 4), tc.y + 4 + Math.floor(i / 4)); s.players[pid].ai!.lastAttack = -100000; }
+    let joint = false;
+    for (let i = 0; i < 90 * TICK_RATE && !joint; i++) {
+      tick(s);
+      const a = s.players[0].ai!.attackTarget, b = s.players[1].ai!.attackTarget;
+      if (a !== -1 && a === b) joint = true;
+    }
+    expect(joint).toBe(true);
+  });
+});
