@@ -134,8 +134,20 @@ function canonEntity(e: MapEntity): MapEntity {
  * campos com valor padrão removidos (startKit:true, relics:true, entities:[], startTeams vazio, textos vazios).
  * Devolve um objeto novo; a entrada não é alterada. saveMap(createGame({ map: f })) ≡ canonicalize(f).
  */
+/** Terreno canônico: se o arquivo não tem nenhum byte DEEP, a água profunda é derivada (mesma regra de mapFromData), para que
+ *  saveMap(loadMap(f)) e mapHash(f) coincidam com o arquivo salvo uma vez. Tamanho inválido: devolve como está. */
+function canonicalTerrain(data: FixedMapData): string {
+  if (!sizeOk(data.w, data.h) || !sizeOk(data.h, data.w) || typeof data.terrain !== 'string') return data.terrain;
+  const w = data.w, h = data.h, n = w * h;
+  const bytes = base64ToBytes(data.terrain, n);
+  if (bytes.some((b) => b === TERRAIN.DEEP) || !bytes.some((b) => b === TERRAIN.WATER)) return data.terrain;
+  const map: GameMap = { w, h, terrain: bytes, blocked: new Uint8Array(n), nodeAt: new Int32Array(n).fill(-1), buildingAt: new Int32Array(n).fill(-1), gateTeam: new Int8Array(n).fill(-1), nodes: new Map(), starts: [], decor: new Uint8Array(n) };
+  deriveDeepWater(map);
+  return bytesToBase64(map.terrain);
+}
+
 export function canonicalize(data: FixedMapData): FixedMapData {
-  const out: FixedMapData = { v: 1, w: data.w, h: data.h, terrain: data.terrain, decor: data.decor, nodes: [], starts: [] };
+  const out: FixedMapData = { v: 1, w: data.w, h: data.h, terrain: canonicalTerrain(data), decor: data.decor, nodes: [], starts: [] };
   const str = (v: unknown) => (typeof v === 'string' && v.length > 0 ? v : undefined);
   if (str(data.id)) out.id = data.id;
   if (str(data.name)) out.name = data.name;
@@ -164,8 +176,9 @@ export function mapHash(input: FixedMapData): number {
   const mix = (v: number) => { h ^= (v | 0) >>> 0; h = Math.imul(h, 16777619) >>> 0; };
   const mixStr = (s: string) => { mix(s.length); for (let i = 0; i < s.length; i++) mix(s.charCodeAt(i)); };
   mix(data.w); mix(data.h);
+  if (!sizeOk(data.w, data.h) || !sizeOk(data.h, data.w)) return h >>> 0;   // tamanho inválido: não aloca w*h
   const n = data.w * data.h;
-  const terrain = base64ToBytes(data.terrain, n > 0 ? n : 0);
+  const terrain = base64ToBytes(data.terrain, n);
   for (let i = 0; i < terrain.length; i++) mix(terrain[i]);
   mix(data.starts.length);
   for (const [x, y] of data.starts) { mix(x); mix(y); }
@@ -315,16 +328,20 @@ export function validateMap(input: FixedMapData, opts: ValidateOpts = {}): MapIs
 
   // ---- kit inicial: CC 3x3 sobre água/montanha/nó ----
   const kit = data.startKit !== false;
-  if (kit) for (const [sx, sy] of starts) {
-    let bad = false;
+  const kitAt = new Int8Array(n).fill(-1);   // 3x3 do CC de cada início com kit (índice do início)
+  if (kit) starts.forEach(([sx, sy], si) => {
+    let bad = false, overlap = false;
     for (let dy = -1; dy <= 1 && !bad; dy++) for (let dx = -1; dx <= 1; dx++) {
       const x = sx + dx, y = sy + dy;
       if (x < 0 || y < 0 || x >= w || y >= h) { bad = true; break; }
       const i = y * w + x;
       if (isSolid(terrain[i]) || nodeAt[i] !== -1) { bad = true; break; }
+      if (kitAt[i] !== -1) overlap = true;
     }
     if (bad) err('startBlocked', sx, sy);
-  }
+    else if (overlap) err('startOverlap', sx, sy, { start: si + 1 });
+    else for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) kitAt[(sy + dy) * w + sx + dx] = si;
+  });
 
   // ---- entidades ----
   const buildingAt = new Int32Array(n).fill(-1);
@@ -334,8 +351,9 @@ export function validateMap(input: FixedMapData, opts: ValidateOpts = {}): MapIs
   for (const e of data.entities ?? []) {
     const k = entIndex++;
     if (!e || (e.kind !== 'building' && e.kind !== 'unit')) { err('unknownType', undefined, undefined, { type: String((e as { type?: unknown })?.type ?? '?') }); continue; }
-    const def = e.kind === 'building' ? BUILDINGS[e.type] : UNITS[e.type];
-    if (!def || typeof e.type !== 'string') { err('unknownType', e.x, e.y, { type: String(e.type) }); continue; }
+    const table: Record<string, unknown> = e.kind === 'building' ? BUILDINGS : UNITS;
+    const def = typeof e.type === 'string' && Object.prototype.hasOwnProperty.call(table, e.type) ? table[e.type] : undefined;   // chaves do prototype ('constructor') não valem
+    if (!def) { err('unknownType', e.x, e.y, { type: String(e.type) }); continue; }
     if (!Number.isInteger(e.owner) || e.owner < 0 || e.owner >= starts.length) { err('badOwner', e.x, e.y, { owner: Number(e.owner), starts: starts.length }); continue; }
     if (!Number.isInteger(e.x) || !Number.isInteger(e.y)) { err('entityOverlap', e.x, e.y, { type: e.type }); continue; }
     if (e.kind === 'building') {
@@ -344,7 +362,7 @@ export function validateMap(input: FixedMapData, opts: ValidateOpts = {}): MapIs
       for (let y = e.y; y < e.y + bh && !bad; y++) for (let x = e.x; x < e.x + bw; x++) {
         if (x < 0 || y < 0 || x >= w || y >= h) { bad = true; break; }
         const i = y * w + x;
-        if (isSolid(terrain[i]) || nodeAt[i] !== -1 || buildingAt[i] !== -1) { bad = true; break; }
+        if (isSolid(terrain[i]) || nodeAt[i] !== -1 || buildingAt[i] !== -1 || kitAt[i] !== -1) { bad = true; break; }   // inclui o CC do kit inicial
       }
       if (bad) { err('entityOverlap', e.x, e.y, { type: e.type }); continue; }
       const bdef = BUILDINGS[e.type];

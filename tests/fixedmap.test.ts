@@ -322,6 +322,27 @@ describe('robustez contra arquivos malformados (revisão da Etapa 1)', () => {
     expect(() => canonicalize(bad)).not.toThrow(); expect(() => mapHash(bad)).not.toThrow();
     expect(canonicalize(bad).starts.length).toBe(1); expect(canonicalize(bad).nodes.length).toBe(1);
   });
+  it('tipos de entidade herdados do prototype são rejeitados; inícios sobrepostos e edifício sob o CC do kit são erros', () => {
+    const d = base();
+    d.entities = [{ kind: 'building', type: 'constructor', owner: 0, x: 20, y: 20 }, { kind: 'unit', type: '__proto__', owner: 0, x: 21, y: 21 }];
+    expect(validateMap(d).filter((i) => i.code === 'unknownType').length).toBe(2);
+    const s = createGame({ seed: 1, mapSize: 'small', players, map: d });
+    expect([...s.buildings.values()].every((b) => b.type !== 'constructor') && [...s.units.values()].every((u) => u.type !== '__proto__')).toBe(true);
+    const dup = { ...base(), starts: [base().starts[0], [base().starts[0][0] + 1, base().starts[0][1]]] as [number, number][] };
+    expect(validateMap(dup).some((i) => i.level === 'error' && i.code === 'startOverlap')).toBe(true);
+    const under = base(); const [sx, sy] = under.starts[0];
+    under.entities = [{ kind: 'building', type: 'tower', owner: 0, x: sx, y: sy }];
+    expect(validateMap(under).some((i) => i.level === 'error' && i.code === 'entityOverlap')).toBe(true);
+  });
+  it('a forma canônica deriva a água profunda: importar e salvar uma vez não muda o hash', () => {
+    const d = base();
+    const bytes = base64ToBytes(d.terrain, d.w * d.h).map((b) => (b === TERRAIN.DEEP ? TERRAIN.WATER : b));   // arquivo desenhado só com água rasa
+    const shallow = { ...d, terrain: bytesToBase64(bytes) };
+    const loaded = mapToData(mapFromData(JSON.parse(JSON.stringify(shallow))));
+    expect(mapHash(shallow)).toBe(mapHash(loaded));
+    expect(canonicalize(shallow).terrain).toBe(canonicalize(loaded).terrain);
+    expect(() => mapHash({ ...d, w: 1e6, h: 1e6 })).not.toThrow();
+  });
   it('colina fora do mapa é erro (kothOut) e a partida cai no centro em vez de NaN', () => {
     const d = { ...base(), koth: [999, -1] as [number, number] };
     expect(validateMap(d).some((i) => i.level === 'error' && i.code === 'kothOut')).toBe(true);

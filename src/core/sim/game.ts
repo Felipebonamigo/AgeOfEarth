@@ -95,11 +95,11 @@ export function createGame(config: GameConfig): GameState {
       e = { ...e, owner: pi };
       const owner = state.players[pi];
       if (e.kind === 'building') {
-        if (!BUILDINGS[e.type] || !canPlaceBuilding(state, owner, e.type, e.x, e.y, true, true).ok) continue;
+        if (typeof e.type !== 'string' || !Object.prototype.hasOwnProperty.call(BUILDINGS, e.type) || !canPlaceBuilding(state, owner, e.type, e.x, e.y, true, true).ok) continue;
         const b = placeBuilding(state, e.owner, e.type, e.x, e.y, e.complete ?? true);
         if (e.tag) tags.set(e.tag, b.id);
       } else if (e.kind === 'unit') {
-        if (!UNITS[e.type]) continue;
+        if (typeof e.type !== 'string' || !Object.prototype.hasOwnProperty.call(UNITS, e.type)) continue;
         const t = nearestFreeTile(map, e.x, e.y, 6);
         if (!t) continue;
         const u = spawnUnit(state, e.owner, e.type, t.x + 0.5, t.y + 0.5);
