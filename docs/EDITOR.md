@@ -376,6 +376,18 @@ Estimativas de horas do agente; cada etapa é um ou mais commits em português c
 
 ---
 
+## 5b. Decisões tomadas na implementação (Etapas 1–2, concluídas)
+
+- `validateMap`: `nodeNoAccess` só para nós que não são árvores (árvore no meio do bosque é normal); `pocket` só quando a região pequena faz fronteira com terreno sólido ou edifício (clareiras fechadas por nós abrem ao coletar); `chokepoint` emite um aviso por início (o ponto de articulação mais próximo a ≤ 10 tiles); `entityOverlap` de unidade só checa mapa/água/montanha (createGame usa o tile aberto mais próximo); `aiNoTc` exige `opts.ai`; máximo de 25 itens por código; com kit inicial o 3×3 do CC conta como bloqueado na análise de regiões e como ocupado para entidades (`entityOverlap`) e para outros inícios (`startOverlap`). Códigos além do §2.1: `badNodeAmount`, `kothOut`, `startOverlap` (erros) e `noBase` (aviso: jogador sem kit, sem edifício e sem cidadão só sobrevive enquanto tiver unidades — a regra de derrota respeita isso via `hasStartKit`).
+- Tipos de nó/edifício/unidade só valem com chave própria das tabelas (`'constructor'`/`'__proto__'` são rejeitados na validação e ignorados em `createGame`).
+- Forma canônica: `canonicalize` deriva a água profunda quando o arquivo não tem nenhum byte DEEP (mesma regra de `mapFromData`), para que importar e salvar uma vez não mude o `mapHash`; `mapHash` inclui a `tag` das entidades e não aloca `w*h` com tamanho inválido; `blankMap` usa a mesma rotação de inícios de `generateMap` para a mesma semente.
+- `createGame`: `owner` de uma entidade é o índice do **início** (segue `startOrder`); obra pré-colocada incompleta é `unpaid` (cancelar/excluir não reembolsa); `complete` só booleano; unidade pré-colocada nasce em região com ≥ 8 tiles quando possível; em regicídio sem kit o basileus só nasce se o mapa não o pré-colocou; colina inválida cai no centro; `stats.buildingsBuilt/unitsTrained` e `events` são zerados só quando há `config.map`.
+- Hash do estado: terreno inteiro (4 bytes por mistura, ~0,05 ms num mapa médio) + `id` e `floor(amount)` de cada nó; o contador de ids de nós (`nodeSeq`) é gravado no save/instantâneo para que quem reconecta gere os mesmos ids.
+- `removeBuildingNow` limpa `gateTeam` só para portões e `blocked` só para não passáveis; maravilha removida zera a contagem de vitória e recalcula modificadores.
+- Lobby: `settings.fixedMap` leva só `{ id, name, w, h, starts, hash }` (o relay descarta o resto); o mapa inteiro vai em `start.config` (limite de 1 MB; `maxPayload` de 2 MiB). A Horda aceita mapa fixo quando há início para cada humano + Tártaro.
+- Biblioteca local (`src/game/maps.ts`): `aoe_maps_v1` + `aoe_map_<id>`; importar um arquivo na Partida rápida/lobby também o guarda em Meus mapas (cota cheia → só em memória); a escolha fica em `aoe_setup.fixedMapId`. Primeiro mapa embutido: `estreito` (gerado; a ser redesenhado no editor na Etapa 4).
+- Scripts: `npm run map:export`, `npm run map:check`, `npm run smoke N S -- --map arquivo` (o `--` é obrigatório com o npm).
+
 ## 6. Riscos e mitigação
 
 | Risco | Mitigação |
