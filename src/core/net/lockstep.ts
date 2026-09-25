@@ -63,11 +63,13 @@ export class NetworkScheduler implements CommandScheduler {
   /** Jogador reconectado: seus comandos só são exigidos a partir do tick guardado (todos os pares usam o mesmo valor). */
   private rejoinAt = new Map<number, number>();
   get delayTicks() { return this.delay; }
+  /** Espectador (local < 0): recebe comandos e hashes de todos, nunca envia nem é aguardado. */
+  get spectator() { return this.local < 0; }
 
   constructor(local: number, humans: number[], delayTicks: number, transport: NetTransport) {
     this.local = local; this.humans = new Set(humans); this.delay = Math.max(1, delayTicks); this.transport = transport;
   }
-  issue(cmd: Command): void { this.outgoing.push(cmd); }
+  issue(cmd: Command): void { if (this.local < 0) return; this.outgoing.push(cmd); }
   /** Jogador saiu: seus comandos passam a ser considerados vazios. */
   dropPlayer(slot: number): void { this.humans.delete(slot); this.rejoinAt.delete(slot); }
   /** Jogador voltou: volta a ser exigido a partir de fromTick (exclusivo). Folga para a mensagem chegar a todos antes desse tick. */
@@ -80,10 +82,11 @@ export class NetworkScheduler implements CommandScheduler {
     for (const [t, m] of this.inbox) if (t >= afterTick) out.push([t, [...m.entries()]]);   // inclui o tick atual (ainda não executado)
     return out.sort((a, b) => a[0] - b[0]);
   }
-  /** Quem reconecta: adota o inbox do anfitrião e passa a enviar comandos a partir de resumeTick + 1. */
-  importPending(pending: [number, [number, Command[]][]][], resumeTick: number): void {
-    this.inbox.clear();
-    for (const [t, entries] of pending) this.inbox.set(t, new Map(entries));
+  /** Quem reconecta: adota o inbox do anfitrião e passa a enviar comandos a partir de resumeTick + 1.
+   *  Comandos que já chegaram pelo relay para ticks >= snapshotTick são mantidos (podem ter passado na frente do instantâneo). */
+  importPending(pending: [number, [number, Command[]][]][], resumeTick: number, snapshotTick = -1): void {
+    for (const t of [...this.inbox.keys()]) if (t < snapshotTick) this.inbox.delete(t);
+    for (const [t, entries] of pending) { let m = this.inbox.get(t); if (!m) { m = new Map(); this.inbox.set(t, m); } for (const [slot, cmds] of entries) m.set(slot, cmds); }
     this.lastSent = resumeTick;
     this.outgoing = [];
     this.rejoinAt.set(this.local, resumeTick);
@@ -103,14 +106,14 @@ export class NetworkScheduler implements CommandScheduler {
     const mine = this.localHashes.get(t); const others = this.hashes.get(t);
     if (mine === undefined || !others) return;
     for (const [, h] of others) if (h !== mine && !this.desynced) { this.desynced = true; this.lastDesync = { tick: t, mine, theirs: [...others.entries()] }; this.onDesync?.(t); }
-    if (others.size >= this.humans.size - 1) { this.hashes.delete(t); this.localHashes.delete(t); }
+    if (others.size >= this.humans.size - (this.local >= 0 ? 1 : 0)) { this.hashes.delete(t); this.localHashes.delete(t); }
   }
 
   step(state: GameState): boolean {
     const T = state.tick;
     // envia comandos locais para o tick futuro (uma vez por tick)
     const target = T + this.delay;
-    if (this.lastSent < target) {
+    if (this.local >= 0 && this.lastSent < target) {
       for (let t = Math.max(this.lastSent + 1, 0); t <= target; t++) {
         const cmds = t === target ? this.outgoing : [];
         this.receive(this.local, t, cmds);
@@ -128,7 +131,7 @@ export class NetworkScheduler implements CommandScheduler {
     if (m) for (const p of [...m.keys()].sort((a, b) => a - b)) cmds.push(...(m.get(p) ?? []));
     this.inbox.delete(T);
     tick(state, cmds);
-    if (state.tick % 100 === 0) { const h = stateHash(state); this.localHashes.set(state.tick, h); this.transport.sendHash(state.tick, h); this.checkHash(state.tick); }
+    if (state.tick % 100 === 0) { const h = stateHash(state); this.localHashes.set(state.tick, h); if (this.local >= 0) this.transport.sendHash(state.tick, h); this.checkHash(state.tick); }
     return true;
   }
 }

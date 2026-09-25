@@ -6,6 +6,8 @@ import type { Camera } from './camera';
 const TERRAIN_COLORS: Record<number, string> = { [TERRAIN.GRASS]: '#4f8a34', [TERRAIN.WATER]: '#2f79b5', [TERRAIN.DEEP]: '#1f5a8f', [TERRAIN.SAND]: '#d8c78c', [TERRAIN.DIRT]: '#8a6b40', [TERRAIN.MOUNTAIN]: '#74736c' };
 
 export class Minimap {
+  /** Espectador: mostra tudo. */
+  revealAll = false;
   canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D;
   private base: HTMLCanvasElement | null = null;
   private baseNodes = -1;
@@ -49,7 +51,7 @@ export class Minimap {
       ctx.fillRect(x * sx, y * sy, sx + 0.5, sy + 0.5);
     }
     const vis = state.players[local].visibility;
-    const reveal = state.config.revealMap;
+    const reveal = state.config.revealMap || this.revealAll;
     for (const b of state.buildings.values()) {
       const i = Math.floor(b.y) * w + Math.floor(b.x);
       if (!reveal && b.owner !== local && vis[i] < 1) continue;

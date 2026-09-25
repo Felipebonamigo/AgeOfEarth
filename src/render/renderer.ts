@@ -32,6 +32,8 @@ export class Renderer {
   private chunks = new Map<string, Sprite>();
   private chunkNodeCount = new Map<string, number>();
   private views = new Map<number, EntityView>();
+  /** Espectador: tudo visível (só na renderização; a simulação não muda). */
+  revealAll = false;
   private fogCanvas!: HTMLCanvasElement; private fogTex!: Texture; private fogSprite!: Sprite; private fogVersion = -1;
   private terrCanvas!: HTMLCanvasElement; private terrTex!: Texture; private terrSprite!: Sprite; private borders = new Graphics(); private terrVersion = -1;
   private fxViews = new Map<VisualEffect, Container>();
@@ -77,7 +79,7 @@ export class Renderer {
     this.terrTex = Texture.from(this.terrCanvas); this.terrTex.source.scaleMode = 'nearest';
     this.terrSprite = new Sprite(this.terrTex); this.terrSprite.width = w * TILE; this.terrSprite.height = h * TILE; this.terrSprite.alpha = 0.09;
     this.layers.territory.addChild(this.terrSprite, this.borders);
-    this.fogVersion = -1; this.terrVersion = -1; this.lastNodeCount = -1;
+    this.fogVersion = -1; this.terrVersion = -1; this.lastNodeCount = -1; this.revealAll = false;
     const start = state.map.starts[0];
     this.cam.zoom = 1.3;
     this.cam.centerOn(start.x, start.y);
@@ -199,7 +201,8 @@ export class Renderer {
 
   // ---------------- Névoa ----------------
   private updateFog(state: GameState, local: number): void {
-    if (state.fogVersion === this.fogVersion) return;
+    this.fogSprite.visible = !this.revealAll;
+    if (this.revealAll || state.fogVersion === this.fogVersion) return;
     this.fogVersion = state.fogVersion;
     const { w, h } = state.map;
     const vis = state.players[local].visibility;
@@ -212,7 +215,7 @@ export class Renderer {
   }
 
   private visibleToLocal(state: GameState, local: number, e: Unit | Building): boolean {
-    if (e.owner === local || state.config.revealMap) return true;
+    if (e.owner === local || state.config.revealMap || this.revealAll) return true;
     const vis = state.players[local].visibility;
     const i = Math.floor(e.y) * state.map.w + Math.floor(e.x);
     if (i < 0 || i >= vis.length) return false;

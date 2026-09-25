@@ -118,6 +118,8 @@ export class HUD {
     this.tooltip.style.left = `${tx}px`; this.tooltip.style.top = `${ty}px`;
   }
 
+  /** Visão de espectador: névoa desligada e todos visíveis no mapa e no minimapa (só renderização). */
+  setRevealAll(v: boolean) { this.renderer.revealAll = v; this.minimap.revealAll = v; }
   toast(text: string, kind: 'info' | 'warn' | 'good' | 'gold' = 'info', pos?: { x: number; y: number }) {
     const t = el('div', `toast ${kind}`, text);
     if (pos) t.addEventListener('click', () => { this.renderer.cam.centerOn(pos.x, pos.y); });
@@ -182,7 +184,7 @@ export class HUD {
     this.ageBtn.classList.toggle('primary', adv.ok);
     const k = s.state.koth;
     const relics = relicsOf(s.state, p.id);
-    this.modeEl.textContent = (k ? (k.team === -1 ? t('top.kothNone') : t('top.koth', { who: teamNames(s.state, k.team), s: k.seconds, total: KOTH_SECONDS })) : '') + (relics > 0 ? ' ' + t('top.relics', { n: relics }) : '');
+    this.modeEl.textContent = (s.spectator ? t('top.spectator') + ' ' : '') + (k ? (k.team === -1 ? t('top.kothNone') : t('top.koth', { who: teamNames(s.state, k.team), s: k.seconds, total: KOTH_SECONDS })) : '') + (relics > 0 ? ' ' + t('top.relics', { n: relics }) : '');
     this.modeEl.dataset.tip = relics > 0 ? t('top.relicsTip') : '';
     const waiting = (s.scheduler as { waiting?: number }).waiting ?? 0;
     this.clockEl.textContent = fmtTime(s.state.time) + (s.paused ? ' ⏸' : s.speed !== 1 ? ` ${s.speed}×` : '') + (waiting > 10 ? ' ' + t('top.waiting') : '');

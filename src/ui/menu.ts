@@ -13,7 +13,7 @@ import { esc } from './html';
 
 const fixedMapLabel = (d: { name?: string; w: number; h: number; starts: number | unknown[] }) => t('main.fixedMapInfo', { name: esc(d.name ?? 'mapa'), w: d.w, h: d.h, n: Array.isArray(d.starts) ? d.starts.length : d.starts });
 
-export interface MenuCallbacks { onStart: (config: GameConfig) => void; onLoad: () => void; hasSave: () => boolean; onHelp: () => void; onEncyclopedia: () => void; onMission: (id: string, difficulty: 'easy' | 'normal' | 'hard') => void; onNetworkStart: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onNetworkRejoin: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onHorde: (god: string, difficulty: Difficulty) => void; onReplay: () => void; hasReplay: () => boolean; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onHotkeys?: () => void }
+export interface MenuCallbacks { onStart: (config: GameConfig) => void; onLoad: () => void; hasSave: () => boolean; onHelp: () => void; onEncyclopedia: () => void; onMission: (id: string, difficulty: 'easy' | 'normal' | 'hard') => void; onNetworkStart: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onNetworkRejoin: (client: NetClient, config: GameConfig, slots: number[], delay: number, dropped?: number[]) => void; onHorde: (god: string, difficulty: Difficulty) => void; onReplay: () => void; hasReplay: () => boolean; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onHotkeys?: () => void }
 
 export class MainMenu {
   root: HTMLElement; el: HTMLElement;
@@ -51,16 +51,25 @@ export class MainMenu {
     if (!this.roomList) return `<div style="font-size:12px;color:#9aa5b8;margin-top:6px">${t('mp.connecting')}</div>`;
     if (this.roomList.length === 0) return `<div style="font-size:12px;color:#9aa5b8;margin-top:6px">${t('mp.roomsNone')}</div>`;
     const modeName = (m: string) => (m === 'horde' ? t('mp.horde') : t(`mode.${m}`)).split(/[:(]/)[0].trim();
-    return `<div style="font-size:12px;color:#9aa5b8;margin-top:6px">${t('mp.roomsTitle')}</div><table style="width:100%;font-size:13px;border-collapse:collapse">${this.roomList.map((r) => `<tr><td><b>${esc(r.code)}</b></td><td style="color:#9aa5b8">${t('mp.roomInfo', { host: esc(r.host), n: r.players, mode: modeName(r.mode), map: r.fixedMap ? esc(r.fixedMap) : t(`map.${r.mapSize}`) })}</td><td align="right"><button class="btn" data-room="${esc(r.code)}" style="padding:2px 10px;font-size:12px">${t('mp.enter')}</button></td></tr>`).join('')}</table>`;
+    return `<div style="font-size:12px;color:#9aa5b8;margin-top:6px">${t('mp.roomsTitle')}</div><table style="width:100%;font-size:13px;border-collapse:collapse">${this.roomList.map((r) => `<tr><td><b>${esc(r.code)}</b></td><td style="color:#9aa5b8">${t('mp.roomInfo', { host: esc(r.host), n: r.players, mode: modeName(r.mode), map: r.fixedMap ? esc(r.fixedMap) : t(`map.${r.mapSize}`) })}${r.started ? ` · <span style="color:#f2c14e">${t('mp.roomStarted')}</span>` : ''}${r.spectators ? ` · 👁 ${r.spectators}` : ''}</td><td align="right" style="white-space:nowrap">${r.started ? '' : `<button class="btn" data-room="${esc(r.code)}" style="padding:2px 10px;font-size:12px">${t('mp.enter')}</button> `}<button class="btn" data-spectate="${esc(r.code)}" style="padding:2px 10px;font-size:12px">${t('mp.spectate')}</button></td></tr>`).join('')}</table>`;
   }
-  private bindRoomList(joinRoom: (room: string) => Promise<void>) {
+  private bindRoomList(joinRoom: (room: string, spectate?: boolean) => Promise<void>) {
     this.el.querySelectorAll('[data-room]').forEach((b) => b.addEventListener('click', () => void joinRoom(String((b as HTMLElement).dataset.room))));
+    this.el.querySelectorAll('[data-spectate]').forEach((b) => b.addEventListener('click', () => void joinRoom(String((b as HTMLElement).dataset.spectate), true)));
   }
   /** Abre uma conexão só para consultar as salas públicas (atualiza a cada 3 s até entrar numa sala ou fechar a lista). */
-  private async startBrowsing(url: string, joinRoom: (room: string) => Promise<void>) {
+  /** Guarda servidor/sala/nome digitados para que um redesenho da aba não os perca. */
+  private rememberJoinFields() {
+    const q = (id: string) => this.el.querySelector(id) as HTMLInputElement | null;
+    const url = q('#mp-url')?.value, room = q('#mp-room')?.value, name = q('#mp-name')?.value;
+    if (url === undefined || room === undefined || name === undefined) return;
+    try { localStorage.setItem('aoe_mp', JSON.stringify({ url: url.trim(), room: room.trim() || 'OLIMPO', name: name.trim() || t('main.player') })); } catch { /* ignore */ }
+  }
+  private async startBrowsing(url: string, joinRoom: (room: string, spectate?: boolean) => Promise<void>) {
+    this.rememberJoinFields();
     this.stopBrowsing();
     const net = new NetClient(); this.browsing = net; this.roomList = null; this.netStatus = ''; this.render();
-    net.on('rooms', (m) => { if (this.browsing !== net) return; this.roomList = (m.rooms as RoomSummary[]) ?? []; const box = this.el.querySelector('#mp-rooms'); if (box) { box.innerHTML = this.roomListHTML(); this.bindRoomList(joinRoom); } });
+    net.on('rooms', (m) => { if (this.browsing !== net) return; const rooms = (m.rooms as RoomSummary[]) ?? []; if (this.roomList && JSON.stringify(rooms) === JSON.stringify(this.roomList)) return; this.roomList = rooms; const box = this.el.querySelector('#mp-rooms'); if (box) { box.innerHTML = this.roomListHTML(); this.bindRoomList(joinRoom); } });   // só redesenha quando a lista muda
     net.on('close', () => { if (this.browsing === net) { this.stopBrowsing(); this.netStatus = t('mp.closed'); this.render(); } });
     try { await net.connect(url); } catch (e) { this.browsing = null; this.netStatus = (e as Error).message; this.render(); return; }
     net.list();
@@ -175,7 +184,7 @@ export class MainMenu {
       return `<p style="color:#9aa5b8;font-size:13px;margin:0 0 8px">${t('mp.intro')}</p>
         <div class="grid"><div><label>${t('mp.server')}</label><input id="mp-url" value="${defaultUrl}"><label>${t('mp.room')}</label><input id="mp-room" value="${saved.room ?? 'OLIMPO'}" maxlength="12"></div>
         <div><label>${t('main.name')}</label><input id="mp-name" value="${saved.name ?? t('main.player')}" maxlength="18"><label>${t('main.god')}</label><select id="mp-god">${MAJOR_GOD_LIST.map((g) => `<option value="${g}">${MAJOR_GODS[g].icon} ${MAJOR_GODS[g].name}</option>`).join('')}</select></div></div>
-        <div class="actions"><button class="btn primary" id="mp-join">${t('mp.join')}</button><button class="btn" id="mp-browse">${this.browsing ? t('mp.browseClose') : t('mp.browse')}</button><span style="color:#ef4444;font-size:13px">${this.netStatus}</span></div>
+        <div class="actions"><button class="btn primary" id="mp-join">${t('mp.join')}</button><button class="btn" id="mp-spectate" title="${t('mp.spectateTip')}">${t('mp.spectate')}</button><button class="btn" id="mp-browse">${this.browsing ? t('mp.browseClose') : t('mp.browse')}</button><span style="color:#ef4444;font-size:13px">${this.netStatus}</span></div>
         <div id="mp-rooms">${this.roomListHTML()}</div>`;
     }
     const me = this.net.slot; const host = lobby.host === me;
@@ -184,6 +193,7 @@ export class MainMenu {
     const st = lobby.settings;
     return `<h3 style="margin:0;color:#f2c14e">${t('mp.roomTitle', { room: this.net.room })} <small style="color:#9aa5b8;font-weight:normal">${t('mp.connected', { n: lobby.players.length })}</small></h3>
       <table style="width:100%;font-size:13px;margin:8px 0;border-collapse:collapse"><tr style="color:#9aa5b8"><th align="left">${t('mp.player')}</th><th align="left">${t('mp.god')}</th><th align="left">${t('mp.team')}</th><th align="left">${t('mp.ping')}</th><th></th></tr>${rows}</table>
+      ${lobby.spectators?.length ? `<div id="mp-spectators" style="font-size:12px;color:#9aa5b8;margin:-4px 0 8px">${t('mp.spectators', { names: lobby.spectators.map((s) => `${esc(s.name)}${s.slot === me ? ` ${t('mp.you')}` : ''}${host ? ` <button class="btn" data-kick="${s.slot}" style="padding:0 6px;font-size:11px">${t('mp.kick')}</button>` : ''}`).join(', ') })}</div>` : ''}
       <div class="grid"><div>
         <label>${t('main.fixedMap')}</label><div style="display:flex;gap:6px;align-items:center"><span id="mp-fixed" style="flex:1;font-size:12px;color:${st.fixedMap ? '#f2c14e' : '#9aa5b8'}">${st.fixedMap ? fixedMapLabel(st.fixedMap) : t('main.fixedMapNone')}</span>${host ? `<button class="btn" id="mp-fixed-load" style="padding:4px 8px;font-size:12px">${t('main.fixedMapLoad')}</button>${st.fixedMap ? `<button class="btn" id="mp-fixed-clear" style="padding:4px 8px;font-size:12px">${t('main.fixedMapClear')}</button>` : ''}` : ''}</div>
         <label>${t('main.mapSize')}</label><select id="mp-map" ${host && !st.fixedMap ? '' : 'disabled'}>${Object.keys(MAP_SIZES).map((k) => `<option value="${k}" ${st.mapSize === k ? 'selected' : ''}>${t(`map.${k}`)}</option>`).join('')}</select>
@@ -193,13 +203,13 @@ export class MainMenu {
         <div><label>${t('mp.aiDiff')}</label><select id="mp-diff" ${host ? '' : 'disabled'}>${Object.keys(DIFFICULTIES).map((k) => `<option value="${k}" ${st.difficulty === k ? 'selected' : ''}>${t(`diff.${k}`)}</option>`).join('')}</select>
         <label><input type="checkbox" id="mp-horde" ${host ? '' : 'disabled'} ${st.horde ? 'checked' : ''}> ${t('mp.horde')}</label>${st.horde && st.fixedMap ? `<div style="font-size:12px;color:#f2c14e">${t('mp.fixedMapHorde')}</div>` : ''}
         <label><input type="checkbox" id="mp-public" ${host ? '' : 'disabled'} ${st.public !== false ? 'checked' : ''}> ${t('mp.public')}</label>
-        <label>${t('mp.myGod')}</label><select id="mp-mygod">${MAJOR_GOD_LIST.map((g) => `<option value="${g}" ${lobby.players.find((p) => p.slot === me)?.god === g ? 'selected' : ''}>${MAJOR_GODS[g].icon} ${MAJOR_GODS[g].name}</option>`).join('')}</select></div></div>
+        ${this.net.isSpectator ? '' : `<label>${t('mp.myGod')}</label><select id="mp-mygod">${MAJOR_GOD_LIST.map((g) => `<option value="${g}" ${lobby.players.find((p) => p.slot === me)?.god === g ? 'selected' : ''}>${MAJOR_GODS[g].icon} ${MAJOR_GODS[g].name}</option>`).join('')}</select>`}</div></div>
       <div class="actions">${host ? `<button class="btn primary" id="mp-start">${t('mp.start')}</button>` : `<span style="color:#9aa5b8">${t('mp.waitingHost')}</span>`}<button class="btn" id="mp-leave">${t('mp.leave')}</button><span style="color:#ef4444;font-size:13px">${this.netStatus}</span></div>${chat}`;
   }
 
   private bindMultiplayer() {
     const q = (id: string) => this.el.querySelector(id) as HTMLInputElement | null;
-    const joinRoom = async (room: string) => {
+    const joinRoom = async (room: string, spectate = false) => {
       const url = q('#mp-url')!.value.trim(), name = q('#mp-name')!.value.trim() || t('main.player'), god = q('#mp-god')!.value;
       try { localStorage.setItem('aoe_mp', JSON.stringify({ url, room, name })); } catch { /* ignore */ }
       this.stopBrowsing();
@@ -208,16 +218,17 @@ export class MainMenu {
       net.on('error', (m) => { this.netStatus = String(m.msg); this.render(); });
       net.on('close', () => { if (this.net === net) { this.net = null; this.netStatus = t('mp.closed'); if (!this.el.classList.contains('hidden')) this.render(); } });
       net.on('start', (m) => { this.cb.onNetworkStart(net, m.config as GameConfig, m.slots as number[], Number(m.delay) || 4); });
-      net.on('joined', (m) => { if (m.rejoin) this.cb.onNetworkRejoin(net, m.config as GameConfig, m.slots as number[], Number(m.delay) || 4); });
+      net.on('joined', (m) => { if (m.rejoin) this.cb.onNetworkRejoin(net, m.config as GameConfig, m.slots as number[], Number(m.delay) || 4, (m.dropped as number[]) ?? []); });
       net.on('chat', (m) => { this.chatLog.push({ name: String(m.name ?? '?'), text: String(m.text ?? '') }); if (this.chatLog.length > 60) this.chatLog.shift(); if (this.tab === 'multiplayer' && !this.el.classList.contains('hidden')) this.renderChatLog(); });
       this.chatLog = [];
       this.netStatus = t('mp.connecting'); this.render();
       try { await net.connect(url); } catch (e) { this.netStatus = (e as Error).message; this.render(); return; }
       this.net = net; this.netStatus = '';
-      net.join(room, name, god);
+      net.join(room, name, god, spectate);
     };
     q('#mp-join')?.addEventListener('click', () => void joinRoom(q('#mp-room')!.value.trim() || 'OLIMPO'));
-    q('#mp-browse')?.addEventListener('click', () => { if (this.browsing) { this.stopBrowsing(); this.render(); return; } void this.startBrowsing(q('#mp-url')!.value.trim(), joinRoom); });
+    q('#mp-spectate')?.addEventListener('click', () => void joinRoom(q('#mp-room')!.value.trim() || 'OLIMPO', true));
+    q('#mp-browse')?.addEventListener('click', () => { if (this.browsing) { this.rememberJoinFields(); this.stopBrowsing(); this.render(); return; } void this.startBrowsing(q('#mp-url')!.value.trim(), joinRoom); });
     this.bindRoomList(joinRoom);
     q('#mp-leave')?.addEventListener('click', () => { this.net?.close(); this.net = null; this.netStatus = ''; this.render(); });
     const sendChat = () => { const inp = q('#mp-chat-input'); if (!inp || !this.net) return; this.net.chat(inp.value); inp.value = ''; };

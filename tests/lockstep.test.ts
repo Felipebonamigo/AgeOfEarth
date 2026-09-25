@@ -94,6 +94,47 @@ describe('reconexão por instantâneo', () => {
     expect(stateHash(states[0])).toBe(stateHash(states[2]));
     expect(scheds.every((s) => !s.desynced)).toBe(true);
   });
+
+  it('comandos que passam na frente do instantâneo (ticks >= T) não são perdidos por quem reconecta ou assiste', () => {
+    const cfg: GameConfig = { seed: 4343, mapSize: 'small', players: [
+      { name: 'A', god: 'zeus', isAI: false, difficulty: 'normal' }, { name: 'B', god: 'hades', isAI: false, difficulty: 'normal' }, { name: 'C', god: 'poseidon', isAI: false, difficulty: 'normal' },
+    ] };
+    const states = [createGame(cfg), createGame(cfg), createGame(cfg)];
+    const queues: (() => void)[][] = [[], [], []];
+    const scheds: NetworkScheduler[] = [];
+    const alive = [true, true, true];
+    const DELAY = 3;
+    for (let i = 0; i < 3; i++) {
+      scheds.push(new NetworkScheduler(i, [0, 1, 2], DELAY, {
+        sendCmds: (t, c) => { for (let j = 0; j < 3; j++) if (j !== i) queues[j].push(() => { if (alive[j]) scheds[j].receive(i, t, c); }); },
+        sendHash: (t, h) => { for (let j = 0; j < 3; j++) if (j !== i) queues[j].push(() => { if (alive[j]) scheds[j].receiveHash(i, t, h); }); },
+      }));
+    }
+    const flush = () => { for (const q of queues) while (q.length) q.shift()!(); };
+    const stepAll = (n: number) => { for (let k = 0; k < n; k++) { for (let i = 0; i < 3; i++) if (alive[i]) scheds[i].step(states[i]); flush(); } };
+    const vill = (st: typeof states[0], owner: number) => [...st.units.values()].filter((u) => u.owner === owner && u.type === 'villager').map((u) => u.id);
+    stepAll(40);
+    alive[2] = false; scheds[0].dropPlayer(2); scheds[1].dropPlayer(2);
+    stepAll(60);
+    const T = states[0].tick;
+    const resume = NetworkScheduler.resumeTick(T, DELAY);
+    const snapshot = JSON.stringify({ state: serialize(states[0]), pending: scheds[0].exportPending(T) });   // A exporta agora…
+    scheds[0].addPlayer(2, resume); scheds[1].addPlayer(2, resume);
+    alive[2] = true;
+    // …mas antes de C aplicar o instantâneo, B manda uma ordem para um tick futuro: ela chega a C (e a A) pelo relay
+    scheds[1].issue({ type: 'move', player: 1, ids: vill(states[1], 1), x: 25, y: 25 } as Command);
+    scheds[1].step(states[1]); flush();
+    const data = JSON.parse(snapshot) as { state: string; pending: [number, [number, Command[]][]][] };
+    states[2] = deserialize(data.state);
+    scheds[2].importPending(data.pending, resume, T);
+    stepAll(120);
+    for (let g = 0; g < 60 && !(states[0].tick === states[1].tick && states[1].tick === states[2].tick); g++) { const mx = Math.max(...states.map((s) => s.tick)); for (let i = 0; i < 3; i++) if (states[i].tick < mx) scheds[i].step(states[i]); flush(); }
+    expect(states[2].tick).toBe(states[0].tick);
+    expect(states[2].tick).toBeGreaterThan(T + 60);
+    expect(stateHash(states[2])).toBe(stateHash(states[0]));
+    expect(stateHash(states[1])).toBe(stateHash(states[0]));
+    expect(scheds.every((s) => !s.desynced)).toBe(true);
+  });
 });
 
 describe('anti-trapaça básico', () => {
@@ -106,5 +147,32 @@ describe('anti-trapaça básico', () => {
     for (let t = 0; t < 40; t++) sa.receive(1, t, t === 5 ? [{ type: 'move', player: 0, ids: villA, x: x0 + 20, y: 10 } as Command] : []);
     for (let i = 0; i < 30; i++) sa.step(a);
     expect(a.units.get(villA[0])!.order?.type).not.toBe('move');
+  });
+  it('espectador (local -1) acompanha dois jogadores sem enviar comandos nem hashes e termina com o mesmo estado', () => {
+    const a = createGame(config), b = createGame(config), w = createGame(config);
+    const qA: (() => void)[] = [], qB: (() => void)[] = [], qW: (() => void)[] = [];
+    let sa!: NetworkScheduler, sb!: NetworkScheduler, sw!: NetworkScheduler;
+    let sentByWatcher = 0;
+    sa = new NetworkScheduler(0, [0, 1], 3, { sendCmds: (t, c) => { qB.push(() => sb.receive(0, t, c)); qW.push(() => sw.receive(0, t, c)); }, sendHash: (t, h) => { qB.push(() => sb.receiveHash(0, t, h)); qW.push(() => sw.receiveHash(0, t, h)); } });
+    sb = new NetworkScheduler(1, [0, 1], 3, { sendCmds: (t, c) => { qA.push(() => sa.receive(1, t, c)); qW.push(() => sw.receive(1, t, c)); }, sendHash: (t, h) => { qA.push(() => sa.receiveHash(1, t, h)); qW.push(() => sw.receiveHash(1, t, h)); } });
+    sw = new NetworkScheduler(-1, [0, 1], 3, { sendCmds: () => { sentByWatcher++; }, sendHash: () => { sentByWatcher++; } });
+    expect(sw.spectator).toBe(true);
+    const villA = [...a.units.values()].filter((u) => u.owner === 0 && u.type === 'villager').map((u) => u.id);
+    const tcA = [...a.buildings.values()].find((x) => x.owner === 0)!;
+    for (let i = 0; i < 300; i++) {
+      if (i === 10) sa.issue({ type: 'move', player: 0, ids: villA, x: tcA.x + 5, y: tcA.y + 5 } as Command);
+      if (i === 12) sw.issue({ type: 'move', player: 0, ids: villA, x: tcA.x - 9, y: tcA.y } as Command);   // ignorado: espectador não comanda
+      sa.step(a);
+      if (i % 2 === 0) { while (qB.length) qB.shift()!(); while (qA.length) qA.shift()!(); while (qW.length) qW.shift()!(); }
+      sb.step(b); sw.step(w);
+    }
+    while (qB.length) qB.shift()!(); while (qA.length) qA.shift()!(); while (qW.length) qW.shift()!();
+    for (let g = 0; g < 60 && !(a.tick === b.tick && b.tick === w.tick); g++) { const m = Math.max(a.tick, b.tick, w.tick); if (a.tick < m) sa.step(a); if (b.tick < m) sb.step(b); if (w.tick < m) sw.step(w); }
+    expect(w.tick).toBe(a.tick); expect(w.tick).toBeGreaterThan(200);
+    expect(stateHash(w)).toBe(stateHash(a)); expect(stateHash(b)).toBe(stateHash(a));
+    expect(sentByWatcher).toBe(0);
+    expect(sw.desynced).toBe(false);
+    const u = w.units.get(villA[0])!;
+    expect(Math.abs(u.x - (tcA.x + 5)) < 3 || u.state !== 'idle').toBe(true);   // a ordem do jogador A foi aplicada no espectador
   });
 });

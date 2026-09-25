@@ -112,10 +112,11 @@ async function boot() {
   };
   let hostResumeCheck: (() => void) | null = null;
   const startNetworkGame = (client: NetClient, config: GameConfig, slots: number[], delay = 4) => {
-    const local = slots.indexOf(client.slot);
-    session = Session.newGame(config, local);
+    const spectator = client.isSpectator || slots.indexOf(client.slot) < 0;
+    const local = spectator ? Math.max(0, config.players.findIndex((p) => !p.isAI)) : slots.indexOf(client.slot);   // espectador assiste pela perspectiva do primeiro humano, com o mapa revelado
+    session = Session.newGame(config, local); session.spectator = spectator;
     const humans = slots.map((_, i) => i);
-    const sched = new NetworkScheduler(local, humans, delay, { sendCmds: (t, c) => client.sendCmds(t, c), sendHash: (t, h) => client.sendHash(t, h) });
+    const sched = new NetworkScheduler(spectator ? -1 : local, humans, delay, { sendCmds: (t, c) => client.sendCmds(t, c), sendHash: (t, h) => client.sendHash(t, h) });
     hud.onChat = (text) => client.chat(text);
     client.on('chat', (m) => hud.toast(`💬 ${String(m.name ?? '?')}: ${String(m.text ?? '')}`, 'info'));
     sched.onDesync = (tk) => {
@@ -141,10 +142,11 @@ async function boot() {
     // Anfitrião: alguém reconectou → manda o estado atual e os comandos já recebidos; todos voltam a exigir os comandos dele mais adiante
     client.on('snapshotRequest', (m) => {
       if (!session || !(session.scheduler instanceof NetworkScheduler)) return;
-      const idx = slots.indexOf(Number(m.slot)); if (idx < 0) return;
+      const idx = slots.indexOf(Number(m.slot)); if (idx < 0 && !m.spectator) return;
       const tk = session.state.tick;
       const sch = session.scheduler as NetworkScheduler;
       client.snapshot(Number(m.slot), JSON.stringify({ state: serialize(session.state), pending: sch.exportPending(tk) }), tk);
+      if (idx < 0) { hud.toast(t('msg.spectatorJoined', { name: String(m.name ?? '?') }), 'info'); return; }   // espectador: só o instantâneo
       sch.addPlayer(idx, NetworkScheduler.resumeTick(tk, sch.delayTicks));
       hud.toast(t('msg.rejoined', { name: config.players[idx]?.name ?? t('msg.someone') }), 'good');
       resumeAfterRejoin();
@@ -163,14 +165,17 @@ async function boot() {
     const home = [...session.state.buildings.values()].find((b) => b.owner === session!.local && b.type === 'town_center');
     if (home) renderer.cam.centerOn(home.x, home.y);
     hud.setSession(session); hud.setVisible(true); menu.hide();
-    hud.toast(t('msg.online', { n: config.players.filter((p) => !p.isAI).length, name: config.players[local].name }), 'gold');
+    hud.setRevealAll(spectator);
+    if (spectator) hud.toast(t('msg.spectating'), 'gold');
+    else hud.toast(t('msg.online', { n: config.players.filter((p) => !p.isAI).length, name: config.players[local].name }), 'gold');
     hud.toast(t('mp.delayInfo', { n: delay, ms: delay * 50 }) + ' · ' + t('msg.chatHint'), 'info');
   };
   /** Reconexão: entra na partida em andamento com o instantâneo do anfitrião. */
-  const rejoinNetworkGame = (client: NetClient, config: GameConfig, slots: number[], delay: number) => {
+  const rejoinNetworkGame = (client: NetClient, config: GameConfig, slots: number[], delay: number, dropped: number[] = []) => {
     startNetworkGame(client, config, slots, delay);
     if (!session) return;
     const s = session; s.paused = true;
+    for (const slot of dropped) { const idx = slots.indexOf(slot); if (idx >= 0) (s.scheduler as NetworkScheduler).dropPlayer(idx); }   // quem já caiu não é aguardado
     hud.toast(t('msg.rejoining'), 'info');
     client.on('snapshot', (m) => {
       if (session !== s) return;
@@ -180,9 +185,9 @@ async function boot() {
         s.state = st; s.eventCursor = st.events.length; s.selection.clear();
         renderer.setState(st);
         const sch = s.scheduler as NetworkScheduler;
-        sch.importPending(data.pending, NetworkScheduler.resumeTick(Number(m.tick), delay));
-        s.paused = false; hud.setSession(s); hud.refreshTop();
-        hud.toast(t('msg.rejoined', { name: config.players[s.local]?.name ?? '' }), 'good');
+        sch.importPending(data.pending, NetworkScheduler.resumeTick(Number(m.tick), delay), Number(m.tick));
+        s.paused = false; hud.setSession(s); hud.setRevealAll(s.spectator); hud.refreshTop();
+        hud.toast(s.spectator ? t('msg.spectating') : t('msg.rejoined', { name: config.players[s.local]?.name ?? '' }), 'good');
       } catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); }
     });
   };
