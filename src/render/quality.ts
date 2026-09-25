@@ -31,6 +31,18 @@ export const QUALITY_PRESETS: readonly QualityPreset[] = ['auto', 'low', 'medium
 export const AUTO_SAMPLE_FRAMES = 120;
 /** p95 (ms de renderer.render) acima do qual o automático desce um nível. */
 export const AUTO_P95_MS = 12;
+/** p95 do intervalo entre quadros (ms) acima do qual o automático desce um nível (abaixo de ~25 fps). O custo JS de
+ *  renderer.render não inclui a rasterização (GPU ou software), então o intervalo real entre quadros também conta. */
+export const AUTO_FRAME_P95_MS = 40;
+/** O automático decide cedo se os quadros forem lentos: depois deste tempo de parede com pelo menos AUTO_MIN_FRAMES. */
+export const AUTO_MAX_WALL_MS = 3000;
+export const AUTO_MIN_FRAMES = 8;
+
+/** Renderização por software (sem GPU/driver): o automático começa em 'low'. `renderer` = UNMASKED_RENDERER_WEBGL. */
+export function isSoftwareRenderer(renderer: string | null | undefined): boolean {
+  return !!renderer && /swiftshader|llvmpipe|softpipe|software|microsoft basic render/i.test(renderer);
+}
+
 /** Orçamento de partículas por nível (índice = Quality.particles). */
 export const PARTICLE_BUDGET = [200, 800, 2000] as const;
 
@@ -79,17 +91,25 @@ export class AutoQuality {
   level: QualityLevel;
   decided = false;
   private samples: number[] = [];
-  constructor(level: QualityLevel = 'medium', readonly frames = AUTO_SAMPLE_FRAMES, readonly limitMs = AUTO_P95_MS) { this.level = level; }
+  private intervals: number[] = [];
+  private wallMs = 0;
+  constructor(level: QualityLevel = 'medium', readonly frames = AUTO_SAMPLE_FRAMES, readonly limitMs = AUTO_P95_MS, readonly frameLimitMs = AUTO_FRAME_P95_MS) { this.level = level; }
   /** Recomeça a medição (nova partida) mantendo o nível atual. */
-  reset(): void { this.samples = []; this.decided = false; }
-  sample(ms: number): QualityLevel | null {
+  reset(): void { this.samples = []; this.intervals = []; this.wallMs = 0; this.decided = false; }
+  /**
+   * `ms` = custo JS de renderer.render; `intervalMs` = tempo desde o quadro anterior (opcional). Decide após `frames`
+   * quadros ou, com quadros lentos, após AUTO_MAX_WALL_MS de parede com pelo menos AUTO_MIN_FRAMES amostras.
+   */
+  sample(ms: number, intervalMs?: number): QualityLevel | null {
     if (this.decided) return null;
     this.samples.push(ms);
-    if (this.samples.length < this.frames) return null;
+    if (intervalMs !== undefined && intervalMs > 0 && intervalMs < 5000) { this.intervals.push(intervalMs); this.wallMs += intervalMs; }
+    const early = this.wallMs >= AUTO_MAX_WALL_MS && this.samples.length >= AUTO_MIN_FRAMES;
+    if (this.samples.length < this.frames && !early) return null;
     this.decided = true;
-    const worst = p95(this.samples);
-    this.samples = [];
-    if (worst <= this.limitMs) return null;
+    const worst = p95(this.samples), worstFrame = p95(this.intervals);
+    this.samples = []; this.intervals = []; this.wallMs = 0;
+    if (worst <= this.limitMs && worstFrame <= this.frameLimitMs) return null;
     const next = lowerLevel(this.level);
     if (next === this.level) return null;
     this.level = next;

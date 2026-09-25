@@ -26,7 +26,7 @@ import { nearestFreeTile } from './core/map/pathfinding';
 import { Achievements } from './game/achievements';
 import { detectLocale, setLocale, t } from './i18n';
 import { loadSettings, saveSettings } from './game/settings';
-import { AutoQuality, levelOf, resolveQuality } from './render/quality';
+import { AutoQuality, isSoftwareRenderer, levelOf, resolveQuality } from './render/quality';
 import { PerfMonitor } from './render/perf';
 import { exportText, importText } from './game/files';
 import { applyUiScale, initDisplay, isFullscreen, setFullscreen, desktop, setPresence } from './game/display';
@@ -55,8 +55,10 @@ async function boot() {
   const perfParam = new URLSearchParams(location.search).get('perf') === '1';
   let auto = new AutoQuality();
   /** Aplica o preset salvo: 'auto' começa em Média e mede o início de cada partida; os outros não medem. */
+  // Sem GPU (renderização por software): o automático já começa no nível baixo
+  const softwareGpu = isSoftwareRenderer(renderer.gpuName());
   const applyQuality = () => {
-    auto = new AutoQuality(levelOf(settings.quality));
+    auto = new AutoQuality(settings.quality === 'auto' && softwareGpu ? 'low' : levelOf(settings.quality));
     if (settings.quality !== 'auto') auto.decided = true;
     renderer.setQuality(resolveQuality(settings.quality, { level: auto.level, showFps: settings.showFps, teamOutline: settings.teamOutline }));
     perf.setVisible(perfParam || settings.showFps);
@@ -399,6 +401,7 @@ async function boot() {
 
   let last = performance.now();
   let measured: Session | null = null;   // sessão cuja abertura o preset automático está medindo
+  let lastFrameAt = 0;                    // para o intervalo real entre quadros (inclui a rasterização)
   const loop = (now: number) => {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     perf.frame(now);
@@ -412,13 +415,14 @@ async function boot() {
       if (!session.spectator && !editorOrTest()) achievements.update(session.state, session.local, dt);
       input.update(dt);
       const t0 = performance.now();
+      const interval = lastFrameAt > 0 ? t0 - lastFrameAt : undefined; lastFrameAt = t0;
       renderer.render(session.state, alpha, input.renderUI(), dt);
       const ms = performance.now() - t0;
       perf.sample(ms);
       // Preset automático: mede os primeiros quadros de cada partida (não do editor) e desce um nível se preciso
       if (!editing) {
         if (session !== measured) { measured = session; auto.reset(); }
-        const lowered = auto.sample(ms);
+        const lowered = auto.sample(ms, interval);
         if (lowered) { renderer.setQuality(resolveQuality('auto', { level: lowered, showFps: settings.showFps, teamOutline: settings.teamOutline })); hud.toast(t('msg.qualityLowered', { level: t(`quality.${lowered}`) }), 'info'); }
       }
       hud.update(dt);

@@ -152,6 +152,14 @@ export class Renderer {
     this.cam.minZoom = Math.min(DEFAULT_MIN_ZOOM, this.fitZoom());
     if (this.cam.zoom < this.cam.minZoom) { this.cam.zoom = this.cam.minZoom; this.cam.clamp(); }
   }
+  /** Nome da GPU (WEBGL_debug_renderer_info) ou null; usado para detectar renderização por software. */
+  gpuName(): string | null {
+    try {
+      const gl = (this.app.renderer as unknown as { gl?: WebGLRenderingContext }).gl; if (!gl) return null;
+      const ext = gl.getExtension('WEBGL_debug_renderer_info');
+      return String(gl.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER) ?? '') || null;
+    } catch { return null; }
+  }
   /** Enquadra o mapa inteiro: recalcula minZoom, aplica o zoom de enquadramento e centra a câmera (editor ao abrir). */
   fitMap(): void {
     if (!this.state) return;

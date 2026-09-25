@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { AutoQuality, AUTO_P95_MS, AUTO_SAMPLE_FRAMES, QUALITY_PRESETS, effectiveResolution, levelOf, lowerLevel, p95, resolveQuality } from '../src/render/quality';
+import { AutoQuality, isSoftwareRenderer, AUTO_P95_MS, AUTO_SAMPLE_FRAMES, QUALITY_PRESETS, effectiveResolution, levelOf, lowerLevel, p95, resolveQuality } from '../src/render/quality';
 import { loadSettings, DEFAULT_SETTINGS } from '../src/game/settings';
 
 describe('qualidade (docs/ART.md §3.9)', () => {
@@ -66,5 +66,21 @@ describe('qualidade (docs/ART.md §3.9)', () => {
       store.aoe_settings_v1 = '{corrompido';
       expect(loadSettings().quality).toBe('auto');
     } finally { delete (globalThis as { localStorage?: unknown }).localStorage; }
+  });
+
+  it('automático detecta renderização por software e decide cedo com quadros lentos (intervalo real entre quadros)', () => {
+    expect(isSoftwareRenderer('ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)')).toBe(true);
+    expect(isSoftwareRenderer('llvmpipe (LLVM 15.0.7, 256 bits)')).toBe(true);
+    expect(isSoftwareRenderer('ANGLE (Intel, Intel(R) UHD Graphics 620, OpenGL 4.6)')).toBe(false);
+    expect(isSoftwareRenderer(null)).toBe(false);
+    // render barato em JS mas quadros a 1,5 fps: desce antes de 120 quadros
+    const a = new AutoQuality('medium');
+    let lowered: string | null = null, n = 0;
+    while (!a.decided && n < 200) { lowered = a.sample(2, 660); n++; }
+    expect(a.decided).toBe(true); expect(n).toBeLessThan(20); expect(lowered).toBe('low');
+    // quadros rápidos: não desce e segue o limite de 120 quadros
+    const b = new AutoQuality('medium'); let m = 0;
+    while (!b.decided && m < 500) { b.sample(2, 16.7); m++; }
+    expect(m).toBe(AUTO_SAMPLE_FRAMES); expect(b.level).toBe('medium');
   });
 });
