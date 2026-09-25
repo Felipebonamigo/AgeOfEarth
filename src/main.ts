@@ -6,7 +6,7 @@ import { MainMenu } from './ui/menu';
 import { Audio } from './audio/audio';
 import { Session } from './game/session';
 import type { GameConfig } from './core/types';
-import { SCENARIOS } from './core/scenario/campaign';
+import { SCENARIOS, HORDE } from './core/scenario/campaign';
 import { NetworkScheduler } from './core/net/lockstep';
 import type { NetClient } from './net/client';
 import type { Command } from './core/types';
@@ -14,6 +14,7 @@ import { spawnUnit } from './core/sim/entities';
 import { nearestFreeTile } from './core/map/pathfinding';
 
 const SAVE_KEY = 'aoe_save_v1';
+const REPLAY_KEY = 'aoe_replay_v1';
 
 async function boot() {
   const root = document.getElementById('app')!;
@@ -22,12 +23,15 @@ async function boot() {
   const audio = new Audio();
   let session: Session | null = null;
   const hasSave = () => { try { return !!localStorage.getItem(SAVE_KEY); } catch { return false; } };
+  const hasReplay = () => { try { return !!localStorage.getItem(REPLAY_KEY); } catch { return false; } };
+  let replaySaved = false;
+  const saveReplay = () => { if (!session || session.spectator) return; const json = session.replayJSON(); if (!json) return; try { localStorage.setItem(REPLAY_KEY, json); replaySaved = true; } catch { /* ignore */ } };
 
   const hud = new HUD(root, renderer, audio, {
     hasSave,
     onSave: () => { if (!session) return; try { localStorage.setItem(SAVE_KEY, session.save()); hud.toast('Jogo salvo.', 'good'); } catch (e) { hud.toast('Falha ao salvar: ' + (e as Error).message, 'warn'); } },
     onLoad: () => loadGame(),
-    onQuit: () => { session = null; hud.setSession(null); hud.setVisible(false); menu.show(); document.body.className = ''; },
+    onQuit: () => { saveReplay(); session = null; hud.setSession(null); hud.setVisible(false); menu.show(); document.body.className = ''; },
     onNextMission: (id) => { const i = SCENARIOS.findIndex((m) => m.id === id); const next = SCENARIOS[i + 1]; if (next) startMission(next.id); else { session = null; hud.setSession(null); hud.setVisible(false); menu.show(); } },
   });
   hud.setVisible(false);
@@ -53,7 +57,8 @@ async function boot() {
     } catch (e) { hud.toast('Falha ao carregar: ' + (e as Error).message, 'warn'); }
   };
   const startMission = (id: string) => {
-    const def = SCENARIOS.find((m) => m.id === id); if (!def) return;
+    const def = id === HORDE.id ? HORDE : SCENARIOS.find((m) => m.id === id); if (!def) return;
+    replaySaved = false;
     startGame({ ...def.config, scenario: id });
     if (session) { session.paused = true; hud.showIntro(id, () => { if (session) session.paused = false; }); }
   };
@@ -75,7 +80,24 @@ async function boot() {
     hud.setSession(session); hud.setVisible(true); menu.hide();
     hud.toast(`Partida online: ${config.players.filter((p) => !p.isAI).length} jogadores. Você é ${config.players[local].name}.`, 'gold');
   };
-  const menu = new MainMenu(root, { onStart: startGame, onLoad: loadGame, hasSave, onHelp: () => hud.showHelp(), onEncyclopedia: () => hud.showEncyclopedia(), onMission: startMission, onNetworkStart: startNetworkGame });
+  const startHorde = (god: string, difficulty: GameConfig['players'][number]['difficulty']) => {
+    const cfg: GameConfig = { ...HORDE.config, seed: (Math.floor(Math.random() * 1e9)) >>> 0, scenario: HORDE.id, players: HORDE.config.players.map((p, i) => (i === 0 ? { ...p, god, difficulty } : p)) };
+    replaySaved = false;
+    startGame(cfg);
+    if (session) { session.paused = true; hud.showIntro(HORDE.id, () => { if (session) session.paused = false; }); }
+  };
+  const watchReplay = () => {
+    try {
+      const json = localStorage.getItem(REPLAY_KEY); if (!json) return;
+      session = Session.replay(json);
+      renderer.setState(session.state);
+      const home = [...session.state.buildings.values()].find((b) => b.owner === session!.local && b.type === 'town_center');
+      if (home) renderer.cam.centerOn(home.x, home.y);
+      hud.setSession(session); hud.setVisible(true); menu.hide();
+      hud.toast('🎬 Replay: você está assistindo; ordens não têm efeito. Use as velocidades 1×/2×/3×.', 'gold');
+    } catch (e) { hud.toast('Falha ao abrir o replay: ' + (e as Error).message, 'warn'); }
+  };
+  const menu = new MainMenu(root, { onStart: (cfg) => { replaySaved = false; startGame(cfg); }, onLoad: loadGame, hasSave, onHelp: () => hud.showHelp(), onEncyclopedia: () => hud.showEncyclopedia(), onMission: startMission, onNetworkStart: startNetworkGame, onHorde: startHorde, onReplay: watchReplay, hasReplay });
 
   window.addEventListener('keydown', (e) => {
     if (!session) return;
@@ -89,6 +111,7 @@ async function boot() {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     if (session) {
       const alpha = session.step(dt);
+      if (session.state.gameOver && !replaySaved) saveReplay();
       input.update(dt);
       renderer.render(session.state, alpha, input.renderUI(), dt);
       hud.update(dt);

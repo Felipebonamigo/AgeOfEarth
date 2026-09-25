@@ -2,7 +2,7 @@
 import { DT } from '../core/constants';
 import type { Building, Command, GameConfig, GameState, Unit } from '../core/types';
 import { createGame } from '../core/sim/game';
-import { LocalScheduler, type CommandScheduler } from '../core/net/lockstep';
+import { LocalScheduler, ReplayScheduler, type CommandScheduler, type ReplayFrame } from '../core/net/lockstep';
 import { serialize, deserialize } from '../core/serialize';
 
 export type UIMode = 'normal' | 'place' | 'attackMove' | 'power' | 'rally';
@@ -28,6 +28,7 @@ export class Session {
   lastEvent: { x: number; y: number } | null = null;
   eventCursor = 0;
   onSelectionChanged: (() => void) | null = null;
+  spectator = false;
 
   constructor(state: GameState, local = 0) { this.state = state; this.local = local; }
 
@@ -35,7 +36,21 @@ export class Session {
   static load(json: string): Session { const st = deserialize(json); return new Session(st, st.config.players.findIndex((p) => !p.isAI)); }
   save(): string { return serialize(this.state); }
 
-  issue(cmd: Command): void { this.scheduler.issue(cmd); }
+  issue(cmd: Command): void { if (this.spectator) return; this.scheduler.issue(cmd); }
+
+  /** Replay gravado desta partida (partidas locais). */
+  replayJSON(): string | null {
+    const sch = this.scheduler;
+    if (!(sch instanceof LocalScheduler)) return null;
+    return JSON.stringify({ version: 1, config: this.state.config, frames: sch.frames, ticks: this.state.tick });
+  }
+  static replay(json: string): Session {
+    const o = JSON.parse(json) as { config: GameConfig; frames: ReplayFrame[] };
+    const s = new Session(createGame(o.config), Math.max(0, o.config.players.findIndex((p) => !p.isAI)));
+    s.scheduler = new ReplayScheduler(o.frames);
+    s.spectator = true;
+    return s;
+  }
 
   /** Avança a simulação conforme o tempo real decorrido; retorna a fração de interpolação. */
   step(dtReal: number): number {

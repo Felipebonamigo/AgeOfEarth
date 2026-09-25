@@ -6,7 +6,7 @@ import { hashString } from '../core/rng';
 import { SCENARIOS } from '../core/scenario/campaign';
 import { NetClient, type LobbyState } from '../net/client';
 
-export interface MenuCallbacks { onStart: (config: GameConfig) => void; onLoad: () => void; hasSave: () => boolean; onHelp: () => void; onEncyclopedia: () => void; onMission: (id: string) => void; onNetworkStart: (client: NetClient, config: GameConfig, slots: number[]) => void }
+export interface MenuCallbacks { onStart: (config: GameConfig) => void; onLoad: () => void; hasSave: () => boolean; onHelp: () => void; onEncyclopedia: () => void; onMission: (id: string) => void; onNetworkStart: (client: NetClient, config: GameConfig, slots: number[]) => void; onHorde: (god: string, difficulty: Difficulty) => void; onReplay: () => void; hasReplay: () => boolean }
 
 export class MainMenu {
   root: HTMLElement; el: HTMLElement;
@@ -54,6 +54,8 @@ export class MainMenu {
       </div>
       <div class="actions">
         <button class="btn primary ${this.tab === 'skirmish' ? '' : 'hidden'}" id="m-start">▶ Jogar</button>
+        <button class="btn ${this.tab === 'skirmish' ? '' : 'hidden'}" id="m-horde" title="Sobreviva a 20 ondas do Tártaro">💀 Modo Horda</button>
+        <button class="btn ${this.tab === 'skirmish' ? '' : 'hidden'}" id="m-replay" ${this.cb.hasReplay() ? '' : 'disabled'}>🎬 Último replay</button>
         <button class="btn" id="m-load" ${this.cb.hasSave() ? '' : 'disabled'}>📂 Carregar</button>
         <button class="btn" id="m-help">❓ Como jogar</button>
         <button class="btn" id="m-enc">📖 Enciclopédia</button>
@@ -83,6 +85,8 @@ export class MainMenu {
       this.cb.onStart({ seed, mapSize: map, players, revealMap: q('#m-reveal').checked });
     });
     q('#m-load').addEventListener('click', () => this.cb.onLoad());
+    q('#m-horde').addEventListener('click', () => this.cb.onHorde(this.god, q('#m-diff').value as Difficulty));
+    q('#m-replay').addEventListener('click', () => this.cb.onReplay());
     q('#m-help').addEventListener('click', () => this.cb.onHelp());
     q('#m-enc').addEventListener('click', () => this.cb.onEncyclopedia());
   }
@@ -108,6 +112,7 @@ export class MainMenu {
         <label>Tamanho do mapa</label><select id="mp-map" ${host ? '' : 'disabled'}>${Object.entries(MAP_SIZES).map(([k, v]) => `<option value="${k}" ${st.mapSize === k ? 'selected' : ''}>${v.label}</option>`).join('')}</select>
         <label>IAs adicionais</label><select id="mp-ais" ${host ? '' : 'disabled'}>${[0, 1, 2, 3].map((n) => `<option value="${n}" ${st.ais === n ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
         <div><label>Dificuldade das IAs</label><select id="mp-diff" ${host ? '' : 'disabled'}>${Object.entries(DIFFICULTIES).map(([k, v]) => `<option value="${k}" ${st.difficulty === k ? 'selected' : ''}>${v.label}</option>`).join('')}</select>
+        <label><input type="checkbox" id="mp-horde" ${host ? '' : 'disabled'} ${st.horde ? 'checked' : ''}> Modo Horda cooperativo (todos no mesmo time contra 20 ondas)</label>
         <label>Meu deus</label><select id="mp-mygod">${MAJOR_GOD_LIST.map((g) => `<option value="${g}" ${lobby.players.find((p) => p.slot === me)?.god === g ? 'selected' : ''}>${MAJOR_GODS[g].icon} ${MAJOR_GODS[g].name}</option>`).join('')}</select></div></div>
       <div class="actions">${host ? '<button class="btn primary" id="mp-start">▶ Iniciar partida</button>' : '<span style="color:#9aa5b8">Aguardando o anfitrião iniciar...</span>'}<button class="btn" id="mp-leave">Sair da sala</button><span style="color:#ef4444;font-size:13px">${this.netStatus}</span></div>`;
   }
@@ -128,8 +133,8 @@ export class MainMenu {
       net.join(room, name, god);
     });
     q('#mp-leave')?.addEventListener('click', () => { this.net?.close(); this.net = null; this.netStatus = ''; this.render(); });
-    const settingsChanged = () => { if (!this.net?.isHost) return; this.net.settings({ mapSize: q('#mp-map')!.value, ais: Number(q('#mp-ais')!.value), difficulty: q('#mp-diff')!.value }); };
-    q('#mp-map')?.addEventListener('change', settingsChanged); q('#mp-ais')?.addEventListener('change', settingsChanged); q('#mp-diff')?.addEventListener('change', settingsChanged);
+    const settingsChanged = () => { if (!this.net?.isHost) return; this.net.settings({ mapSize: q('#mp-map')!.value, ais: Number(q('#mp-ais')!.value), difficulty: q('#mp-diff')!.value, horde: !!q('#mp-horde')?.checked }); };
+    q('#mp-map')?.addEventListener('change', settingsChanged); q('#mp-ais')?.addEventListener('change', settingsChanged); q('#mp-diff')?.addEventListener('change', settingsChanged); q('#mp-horde')?.addEventListener('change', settingsChanged);
     q('#mp-mygod')?.addEventListener('change', () => this.net?.player({ god: q('#mp-mygod')!.value }));
     this.el.querySelectorAll('[data-team]').forEach((sel) => sel.addEventListener('change', () => this.net?.player({ slot: Number((sel as HTMLElement).dataset.team), team: Number((sel as HTMLSelectElement).value) })));
     q('#mp-start')?.addEventListener('click', () => {
@@ -139,6 +144,12 @@ export class MainMenu {
       const names = ['Leônidas', 'Péricles', 'Agamenon', 'Temístocles'];
       const usedTeams = new Set(players.map((p) => p.team));
       for (let i = 0; i < Number(st.ais); i++) { let t = 3; while (usedTeams.has(t) && t > 0) t--; usedTeams.add(t); players.push({ name: `${names[i % names.length]} (IA)`, god: MAJOR_GOD_LIST[(st.seed + i) % 3], isAI: true, difficulty: st.difficulty as Difficulty, team: t }); }
+      if (st.horde) {
+        const humans: GameConfig['players'] = lobby.players.map((p) => ({ name: p.name, god: p.god, isAI: false, difficulty: st.difficulty as Difficulty, team: 0 }));
+        humans.push({ name: 'Tártaro', god: 'hades', isAI: false, difficulty: 'normal', team: 9 });
+        net.start({ seed: st.seed >>> 0, mapSize: st.mapSize as MapSize, players: humans, scenario: 'horde', startingResources: { food: 600, wood: 500, gold: 300, favor: 20 } });
+        return;
+      }
       if (players.length > 4) { this.netStatus = 'Máximo de 4 jogadores (humanos + IAs).'; this.render(); return; }
       net.start({ seed: st.seed >>> 0, mapSize: st.mapSize as MapSize, players });
     });

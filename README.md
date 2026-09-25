@@ -27,6 +27,8 @@ Versão otimizada: `npm run build` e `npm run preview`.
 ## Modos de jogo
 - **Partida rápida**: você contra 1–3 IAs, todos contra todos, cooperativo (você + IA aliada) ou contra uma aliança.
 - **Campanha** "A Sombra dos Titãs": prólogo em 3 missões com objetivos, diálogos e gatilhos (tutorial → cerco → corrida contra o Portal dos Titãs).
+- **Modo Horda**: sobreviva a 20 ondas do Tártaro, solo ou em cooperativo online (todos no mesmo time).
+- **Replays**: a última partida local fica gravada (só os comandos) e pode ser assistida no menu.
 - **Multiplayer online** (lockstep determinístico, até 4 jogadores incluindo IAs, com times/co-op):
 
 ```bash

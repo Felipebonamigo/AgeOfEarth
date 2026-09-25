@@ -2,9 +2,9 @@
 import { TICK_RATE } from '../constants';
 import type { GameState } from '../types';
 import type { ScenarioDef, ScenarioState, TriggerCtx } from './types';
-import { SCENARIOS } from './campaign';
+import { SCENARIOS, HORDE } from './campaign';
 
-export function getScenario(id: string): ScenarioDef | undefined { return SCENARIOS.find((s) => s.id === id); }
+export function getScenario(id: string): ScenarioDef | undefined { return id === HORDE.id ? HORDE : SCENARIOS.find((s) => s.id === id); }
 
 export function initScenarioState(def: ScenarioDef): ScenarioState {
   const objectives: Record<string, 'pending'> = {}; const hidden: Record<string, boolean> = {};
@@ -34,5 +34,5 @@ export function runScenario(state: GameState): void {
     t.then(state, ctx);
   }
   if (def.victory(state)) { sc.outcome = 'victory'; state.gameOver = true; state.winner = state.config.players.findIndex((p) => !p.isAI); state.events.push({ tick: state.tick, type: 'victory', player: state.winner, text: `Missão cumprida: ${def.title}!` }); }
-  else if (def.defeat?.(state) || !state.players[state.config.players.findIndex((p) => !p.isAI)].alive) { sc.outcome = 'defeat'; state.gameOver = true; state.winner = -2; state.events.push({ tick: state.tick, type: 'defeated', player: -1, text: `Missão falhou: ${def.title}.` }); }
+  else if (def.defeat?.(state) || state.players.filter((p) => !p.isAI && p.team === state.players[state.config.players.findIndex((q) => !q.isAI)].team).every((p) => !p.alive)) { sc.outcome = 'defeat'; state.gameOver = true; state.winner = -2; state.events.push({ tick: state.tick, type: 'defeated', player: -1, text: `Missão falhou: ${def.title}.` }); }
 }

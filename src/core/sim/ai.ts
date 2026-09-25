@@ -503,9 +503,11 @@ function manageArmy(state: GameState, player: Player, snap: Snapshot): void {
   const tc = snap.tc;
   const dir = enemyDirection(state, player, tc);
   ai.rallyX = tc.x + dir.x * 7; ai.rallyY = tc.y + dir.y * 7;
-  // 1) Ameaças perto dos meus edifícios
+  // 1) Ameaças perto dos meus edifícios e dos edifícios de aliados
   let threat: Unit | null = null, threatD = Infinity;
-  for (const b of snap.buildings) {
+  const guarded: Building[] = [...snap.buildings];
+  for (const b of state.buildings.values()) if (b.owner !== player.id && !b.dead && state.players[b.owner].team === player.team && (b.type === 'town_center' || b.type === 'fortress' || b.type === 'temple')) guarded.push(b);
+  for (const b of guarded) {
     rt.hash.each(b.x, b.y, 12, (u) => {
       if (!isEnemy(state, player.id, u.owner) || u.dead || !state.players[u.owner].alive) return;
       if (UNITS[u.type].tags.includes('scout') || UNITS[u.type].attack <= 0) return;

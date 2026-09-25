@@ -62,7 +62,7 @@ serializado nos saves. Novas missões são dados + pequenas funções, sem tocar
 
 ## Roteiro
 1. ✅ Fatia vertical: skirmish contra IA com todos os sistemas centrais.
-2. ✅ Times/co-op e multiplayer em lockstep via relay WebSocket (testado com dois navegadores).
+2. ✅ Times/co-op e multiplayer em lockstep via relay WebSocket (testado com dois navegadores); Modo Horda cooperativo; replays por gravação de comandos.
 3. ✅ Prólogo da campanha (3 missões) com sistema de cenários reutilizável.
 4. Arte final (sprites 2.5D), animações, música e dublagem dos poderes.
 5. Steam: transporte pela Steam Networking Sockets, lobbies/matchmaking, conquistas, cloud saves.

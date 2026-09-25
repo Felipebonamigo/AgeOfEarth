@@ -11,11 +11,30 @@ export interface CommandScheduler {
   step(state: GameState): boolean;
 }
 
+export type ReplayFrame = [number, Command[]];
+
 export class LocalScheduler implements CommandScheduler {
   private pending: Command[] = [];
+  /** Gravação de replay: só os ticks com comandos. */
+  frames: ReplayFrame[] = [];
   issue(cmd: Command): void { this.pending.push(cmd); }
   step(state: GameState): boolean {
     const cmds = this.pending; this.pending = [];
+    if (cmds.length > 0) this.frames.push([state.tick, cmds]);
+    tick(state, cmds);
+    return true;
+  }
+}
+
+/** Reproduz comandos gravados; ignora comandos novos (modo espectador). */
+export class ReplayScheduler implements CommandScheduler {
+  private i = 0;
+  constructor(private frames: ReplayFrame[]) {}
+  issue(): void { /* espectador */ }
+  get finished() { return this.i >= this.frames.length; }
+  step(state: GameState): boolean {
+    const cmds: Command[] = [];
+    while (this.i < this.frames.length && this.frames[this.i][0] === state.tick) { cmds.push(...this.frames[this.i][1]); this.i++; }
     tick(state, cmds);
     return true;
   }

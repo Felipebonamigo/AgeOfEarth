@@ -6,6 +6,51 @@ import { onBuildingComplete } from '../sim/entities';
 
 const ME = 0;
 
+/** Ondas do Modo Horda: cresce em número e qualidade a cada onda. */
+function hordeWave(n: number): string[] {
+  const pool: string[][] = [
+    ['hoplite', 'toxotes'], ['hoplite', 'toxotes', 'hippeus'], ['hypaspist', 'cretan_archer', 'hetairoi', 'minotaur'],
+    ['hypaspist', 'hetairoi', 'cyclops', 'centaur', 'petrobolos'], ['myrmidon', 'hydra', 'manticore', 'nemean_lion', 'helepolis'], ['myrmidon', 'medusa', 'chimera', 'colossus', 'cerberus'],
+  ];
+  const tier = Math.min(pool.length - 1, Math.floor((n - 1) / 3));
+  const size = 4 + n * 2;
+  const out: string[] = [];
+  for (let i = 0; i < size; i++) out.push(pool[tier][(i * 7 + n) % pool[tier].length]);
+  if (n % 5 === 0) out.push(n >= 15 ? 'cronus' : 'colossus');
+  return out;
+}
+export const HORDE_WAVES = 20;
+
+export const HORDE: ScenarioDef = {
+  id: 'horde', title: 'Modo Horda', subtitle: 'Sobreviva a 20 ondas do Tártaro (solo ou cooperativo)', icon: '💀',
+  intro: ['As portas do Tártaro se abriram. A cada 100 segundos uma onda maior e mais monstruosa marcha contra sua cidade. Fortifique-se, avance de Idade e sobreviva a 20 ondas. Em cooperativo, cada jogador defende sua própria cidade e pode socorrer o aliado.'],
+  outro: ['Vinte ondas do Tártaro quebraram contra suas muralhas. Os deuses aplaudem.'],
+  config: { seed: 4404, mapSize: 'medium', players: [{ name: 'Defensor', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 }, { name: 'Tártaro', god: 'hades', isAI: false, difficulty: 'normal', team: 9 }], startingResources: { food: 600, wood: 500, gold: 300, favor: 20 } },
+  setup: (state) => {
+    // O Tártaro não tem cidade: remove o que o gerador criou para ele
+    const t = state.players.findIndex((p) => p.name === 'Tártaro');
+    if (t >= 0) { for (const b of state.buildings.values()) if (b.owner === t) b.dead = true; for (const u of state.units.values()) if (u.owner === t) u.dead = true; }
+  },
+  objectives: [
+    { id: 'waves', text: `Sobreviva a ${HORDE_WAVES} ondas`, check: (s) => (s.scenario!.fired.filter((f) => f.startsWith('wave')).length >= HORDE_WAVES && count(s, s.players.findIndex((p) => p.name === 'Tártaro'), military) === 0 ? 'done' : 'pending') },
+  ],
+  triggers: [
+    { id: 'start', when: (_s, c) => c.seconds >= 1, then: (_s, c) => c.say('Hades', 'Meus filhos famintos vêm buscar o que é meu. A primeira onda chega em 100 segundos.', '💀') },
+    ...Array.from({ length: HORDE_WAVES }, (_, i) => ({
+      id: `wave${i + 1}`,
+      when: (_s: import('../types').GameState, c: import('./types').TriggerCtx) => c.seconds >= 100 * (i + 1),
+      then: (s: import('../types').GameState, c: import('./types').TriggerCtx) => {
+        const t = s.players.findIndex((p) => p.name === 'Tártaro');
+        const defenders = s.players.filter((p) => p.team === 0 && p.alive);
+        defenders.forEach((d, k) => { const tc = townCenter(s, d.id); if (tc) raid(s, t, hordeWave(i + 1), tc.x, tc.y, (i + k * 3) % 8, 24); });
+        c.say('Hades', `Onda ${i + 1} de ${HORDE_WAVES}!${(i + 1) % 5 === 0 ? ' Algo enorme caminha entre eles...' : ''}`, '💀');
+      },
+    })),
+  ],
+  victory: (s) => s.scenario!.objectives.waves === 'done',
+  defeat: (s) => s.players.filter((p) => p.team === 0).every((p) => countBuildings(s, p.id, 'town_center') === 0) && s.tick > 5 * TICK_RATE,
+};
+
 export const SCENARIOS: ScenarioDef[] = [
   {
     id: 'm1_despertar', title: 'O Despertar de Argos', subtitle: 'Missão 1 · Fundamentos', icon: '🏺',

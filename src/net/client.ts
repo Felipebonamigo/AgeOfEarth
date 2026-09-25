@@ -2,7 +2,7 @@
 import type { Command, GameConfig } from '../core/types';
 
 export interface LobbyPlayer { slot: number; name: string; god: string; team: number; ready: boolean }
-export interface LobbyState { host: number; settings: { mapSize: string; ais: number; difficulty: string; seed: number; teams?: string }; players: LobbyPlayer[] }
+export interface LobbyState { host: number; settings: { mapSize: string; ais: number; difficulty: string; seed: number; teams?: string; horde?: boolean }; players: LobbyPlayer[] }
 type Handler = (msg: Record<string, unknown>) => void;
 
 export class NetClient {
