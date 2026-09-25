@@ -3,7 +3,7 @@ import type { Command, GameConfig } from '../core/types';
 
 export interface RoomSummary { code: string; players: number; host: string; mode: string; mapSize: string; fixedMap: string | null; started?: boolean; spectators?: number }
 export interface LobbyPlayer { slot: number; name: string; god: string; team: number; ready: boolean; ping?: number }
-export interface LobbyState { host: number; settings: { mapSize: string; ais: number; difficulty: string; seed: number; teams?: string; horde?: boolean; mode?: string; mapType?: string; public?: boolean; fixedMap?: { id?: string; name?: string; w: number; h: number; starts: number; hash?: number } | null }; players: LobbyPlayer[]; spectators?: { slot: number; name: string }[] }
+export interface LobbyState { host: number; settings: { mapSize: string; ais: number; difficulty: string; seed: number; teams?: string; horde?: boolean; mode?: string; mapType?: string; public?: boolean; fixedMap?: { id?: string; name?: string; w: number; h: number; starts: number; hash?: number; scenario?: string } | null }; players: LobbyPlayer[]; spectators?: { slot: number; name: string }[] }   // fixedMap.scenario: título do cenário embutido (só metadado; o arquivo vai em `start`)
 type Handler = (msg: Record<string, unknown>) => void;
 
 export class NetClient {

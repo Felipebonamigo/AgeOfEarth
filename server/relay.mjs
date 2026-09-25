@@ -59,7 +59,7 @@ wss.on('connection', (ws) => {
     switch (msg.t) {
       case 'settings': if (slot === room.host && msg.settings) {
         const st = { ...msg.settings };
-        if (st.fixedMap && typeof st.fixedMap === 'object') st.fixedMap = { name: String(st.fixedMap.name ?? '').slice(0, 40), w: Number(st.fixedMap.w) | 0, h: Number(st.fixedMap.h) | 0, starts: Number(st.fixedMap.starts) | 0, hash: Number(st.fixedMap.hash) >>> 0 };   // só metadados no lobby; o mapa inteiro vai em `start`
+        if (st.fixedMap && typeof st.fixedMap === 'object') st.fixedMap = { name: String(st.fixedMap.name ?? '').slice(0, 40), w: Number(st.fixedMap.w) | 0, h: Number(st.fixedMap.h) | 0, starts: Number(st.fixedMap.starts) | 0, hash: Number(st.fixedMap.hash) >>> 0, ...(st.fixedMap.scenario ? { scenario: String(st.fixedMap.scenario).slice(0, 60) } : {}) };   // só metadados no lobby (scenario = título do cenário embutido); o mapa inteiro vai em `start`
         room.settings = { ...room.settings, ...st }; broadcast(room, lobbyState(room));
       } break;
       case 'player': { const c = room.clients.get(slot) ?? room.spectators.get(slot); if (c) { if (msg.god) c.god = msg.god; if (msg.ready !== undefined) c.ready = !!msg.ready; if (typeof msg.ping === 'number') c.ping = Math.max(0, Math.min(9999, Math.round(msg.ping))); } if (slot === room.host && msg.team !== undefined && room.clients.has(msg.slot)) room.clients.get(msg.slot).team = msg.team; if (!room.started) broadcast(room, lobbyState(room)); break; }

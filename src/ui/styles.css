@@ -130,6 +130,17 @@ body.cur-power #app canvas { cursor: crosshair; }
 #objectives li.done { color: var(--muted); text-decoration: line-through; }
 #objectives li.failed { color: var(--danger); }
 #objectives .timer { margin-top: 6px; color: var(--gold); font-weight: 600; }
+#objectives .timer .bar { height: 5px; margin-top: 3px; background: #0f1628; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; }
+#objectives .timer .bar span { display: block; height: 100%; background: var(--gold); }
+/* Modal Gatilhos do editor: JSON do cenário com validação ao vivo */
+#modal .es-json { width: 100%; min-width: 720px; box-sizing: border-box; background: #0f1628; color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.35; resize: vertical; white-space: pre; }
+#modal .es-json.bad { border-color: var(--danger); }
+#modal .es-issues { list-style: none; margin: 6px 0 0; padding: 0; max-height: 120px; overflow: auto; font-size: 12px; }
+#modal .es-issues li { padding: 1px 0; color: var(--danger); } #modal .es-issues li.ok { color: var(--ok); }
+#modal .es-issues code { color: var(--marble); font-family: ui-monospace, Menlo, Consolas, monospace; }
+#modal .es-bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+#modal .es-bar .btn { padding: 3px 8px; font-size: 12px; }
+#menu .scenariocards { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; max-height: 260px; overflow: auto; }
 #dialogue { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); width: 640px; max-width: 80vw; background: rgba(8, 12, 24, 0.96); border: 1px solid var(--gold); border-radius: 10px; padding: 10px 14px; display: flex; gap: 12px; align-items: flex-start; font-size: 13px; cursor: pointer; box-shadow: 0 6px 24px rgba(0,0,0,0.5); animation: fadein 0.3s; }
 #dialogue .ic { font-size: 30px; }
 #dialogue b { color: var(--gold); display: block; margin-bottom: 2px; }

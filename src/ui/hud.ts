@@ -15,7 +15,15 @@ import type { Session } from '../game/session';
 import type { Renderer } from '../render/renderer';
 import { Minimap } from '../render/minimap';
 import type { Audio } from '../audio/audio';
-import { getScenario } from '../core/scenario/runner';
+import { getScenarioFor } from '../core/scenario/runner';
+import { SCENARIOS, HORDE } from '../core/scenario/campaign';
+import type { GameState } from '../core/types';
+import type { ScenarioDef } from '../core/scenario/types';
+
+/** Ids oficiais (campanha e Horda): só eles marcam progresso em aoe_campaign e destravam conquistas de missão. */
+const isOfficialScenario = (id: string) => id === HORDE.id || SCENARIOS.some((s) => s.id === id);
+/** Cenário da partida (embutido ou JSON compilado no idioma atual); um JSON inválido vira "sem cenário" em vez de derrubar o HUD. */
+const scenarioOf = (state: GameState): ScenarioDef | undefined => { try { return getScenarioFor(state); } catch { return undefined; } };
 import { t } from '../i18n';
 import { optionsHTML, bindOptions, type OptionsContext } from './options';
 
@@ -55,7 +63,7 @@ export class HUD {
   }
 
   setSession(s: Session | null) {
-    this.session = s; this.lastSelKey = ''; this.lastCmdKey = ''; this.gameOverShown = false;
+    this.session = s; this.lastSelKey = ''; this.lastCmdKey = ''; this.lastObjKey = ''; this.gameOverShown = false;   // lastObjKey: outra partida do mesmo cenário precisa redesenhar (e reexibir) o painel de objetivos
     this.msgPanel.innerHTML = '';
     if (s) { s.onSelectionChanged = () => { this.refreshSelection(true); }; this.refreshGods(); this.refreshTop(); }
   }
@@ -241,15 +249,20 @@ export class HUD {
   private lastObjKey = '';
   refreshObjectives(force: boolean) {
     const s = this.session; if (!s || !s.state.scenario) { this.objPanel.classList.add('hidden'); return; }
-    const def = getScenario(s.state.scenario.id); if (!def) return;
+    const def = scenarioOf(s.state); if (!def) return;
     const sc = s.state.scenario;
-    const key = Object.entries(sc.objectives).map(([k, v]) => `${k}${v}${sc.hidden[k] ? 'h' : ''}`).join(',') + Math.floor(s.state.time / 5);
+    // Indicadores genéricos de def.hud (campanha em TS ou cenário JSON): cronômetro enquanto a condição valer; progresso de uma obra
+    let extra = '';
+    for (const h of def.hud ?? []) {
+      try {
+        if (h.type === 'countdown') { if (h.while(s.state)) extra += `<div class="timer">⏳ ${h.label ? `${h.label}: ` : ''}${fmtTime(Math.max(0, h.seconds - s.state.time))}</div>`; }
+        else { const p = h.entity(s.state); if (p >= 0) { const pct = Math.max(0, Math.min(100, Math.round((p / Math.max(1, h.max)) * 100))); extra += `<div class="timer">${h.label}: ${pct}%<div class="bar"><span style="width:${pct}%"></span></div></div>`; } }
+      } catch { /* condição do HUD falhou: sem indicador */ }
+    }
+    const key = Object.entries(sc.objectives).map(([k, v]) => `${k}${v}${sc.hidden[k] ? 'h' : ''}`).join(',') + Math.floor(s.state.time / 5) + '|' + extra;
     if (!force && key === this.lastObjKey) return;
     this.lastObjKey = key;
     const rows = def.objectives.filter((o) => !sc.hidden[o.id]).map((o) => { const st = sc.objectives[o.id]; return `<li class="${st}">${st === 'done' ? '✅' : st === 'failed' ? '❌' : '◻️'} ${o.text}${o.optional ? ` <small>${t('mission.optional')}</small>` : ''}</li>`; }).join('');
-    let extra = '';
-    if (s.state.scenario.id === 'm2_cerco' && sc.objectives.survive === 'pending') extra = `<div class="timer">⏳ ${fmtTime(Math.max(0, 12 * 60 - s.state.time))}</div>`;
-    if (s.state.scenario.id === 'm3_portal') { const g = [...s.state.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate'); if (g && !g.complete) extra = `<div class="timer">🌋 Ritual do Portal: ${Math.max(0, Math.round((g.progress / 180) * 100))}%</div>`; }
     this.objPanel.innerHTML = `<h4>${def.icon} ${def.title}</h4><ul>${rows}</ul>${extra}`;
     this.objPanel.classList.remove('hidden');
   }
@@ -651,20 +664,23 @@ export class HUD {
   }
 
   showScenarioEnd() {
-    const s = this.session!; const st = s.state; const sc = st.scenario!; const def = getScenario(sc.id)!;
+    const s = this.session!; const st = s.state; const sc = st.scenario!; const def = scenarioOf(st);
+    if (!def) { this.cb.onQuit(); return; }
     const won = sc.outcome === 'victory';
     this.audio.play(won ? 'victory' : 'defeat');
-    if (won) { try { const prog = JSON.parse(localStorage.getItem('aoe_campaign') ?? '{"completed":[]}'); if (!prog.completed.includes(sc.id)) prog.completed.push(sc.id); if (st.config.campaignDifficulty === 'hard') { prog.hard = prog.hard ?? []; if (!prog.hard.includes(sc.id)) prog.hard.push(sc.id); } localStorage.setItem('aoe_campaign', JSON.stringify(prog)); } catch { /* ignore */ } }
+    // Progresso da campanha só para ids oficiais: cenários JSON personalizados nunca marcam aoe_campaign (nem conquistas de missão)
+    if (won && isOfficialScenario(sc.id) && !this.testMode) { try { const prog = JSON.parse(localStorage.getItem('aoe_campaign') ?? '{"completed":[]}'); if (!prog.completed.includes(sc.id)) prog.completed.push(sc.id); if (st.config.campaignDifficulty === 'hard') { prog.hard = prog.hard ?? []; if (!prog.hard.includes(sc.id)) prog.hard.push(sc.id); } localStorage.setItem('aoe_campaign', JSON.stringify(prog)); } catch { /* ignore */ } }
     const text = won ? (def.outro ?? [t('mission.done')]).map((x) => `<p>${x}</p>`).join('') : `<p>${t('mission.failedText')}</p>`;
     this.showModal(`<h2>${won ? t('mission.done') : t('mission.failed')} — ${def.title}</h2>${text}<p><small>${t('mission.stats', { time: fmtTime(st.time), kills: s.player.stats.kills, losses: s.player.stats.losses })}</small></p>
-      <div class="actions"><button class="btn" id="m-continue">${t('mission.continue')}</button>${won && this.cb.onNextMission ? `<button class="btn primary" id="m-next">${t('mission.next')}</button>` : ''}<button class="btn ${won ? '' : 'primary'}" id="m-quit">${t('over.menu')}</button></div>`, false);
+      <div class="actions"><button class="btn" id="m-continue">${t('mission.continue')}</button>${won && this.cb.onNextMission && isOfficialScenario(sc.id) && !this.testMode ? `<button class="btn primary" id="m-next">${t('mission.next')}</button>` : ''}<button class="btn ${won ? '' : 'primary'}" id="m-quit">${this.testMode ? t('editor.backToEditor') : t('over.menu')}</button></div>`, false);
     this.modal.querySelector('#m-continue')!.addEventListener('click', () => this.hideModal());
     this.modal.querySelector('#m-next')?.addEventListener('click', () => { this.hideModal(); this.cb.onNextMission?.(sc.id); });
     this.modal.querySelector('#m-quit')!.addEventListener('click', () => { this.hideModal(); this.cb.onQuit(); });
   }
 
-  showIntro(scenarioId: string, onStart: () => void) {
-    const def = getScenario(scenarioId); if (!def) { onStart(); return; }
+  /** Tela de abertura do cenário da sessão atual (campanha, Horda ou JSON): título, intro, objetivos visíveis e dicas no idioma atual. */
+  showIntro(onStart: () => void) {
+    const def = this.session ? scenarioOf(this.session.state) : undefined; if (!def) { onStart(); return; }
     this.showModal(`<h2>${def.icon} ${def.title}</h2><p style="color:#f2c14e">${def.subtitle}</p>${def.intro.map((x) => `<p>${x}</p>`).join('')}<h3>${t('mission.objectives')}</h3><ul>${def.objectives.filter((o) => !o.hidden).map((o) => `<li>${o.text}${o.optional ? ` <small>${t('mission.optional')}</small>` : ''}</li>`).join('')}</ul>${def.hints ? `<h3>${t('mission.hints')}</h3><ul>${def.hints.map((h) => `<li>${h}</li>`).join('')}</ul>` : ''}<div class="actions"><button class="btn primary" id="m-go">${t('mission.start')}</button></div>`, false);
     this.modal.querySelector('#m-go')!.addEventListener('click', () => { this.hideModal(); onStart(); });
   }
