@@ -2,7 +2,7 @@
 import { NODE_RESOURCE, FARM_GATHERERS, NODE_CAPACITY, type NodeType, type ResourceType } from '../constants';
 import { getRuntime } from './runtime';
 import { BUILDINGS, UNITS } from '../data';
-import type { Building, GameState, ResourceNode, Unit } from '../types';
+import type { Building, GameMap, GameState, ResourceNode, Unit } from '../types';
 import { distToRect, idx, inBounds } from '../map/grid';
 
 /** Jogadores de times diferentes são inimigos. */
@@ -26,6 +26,7 @@ export function nearestNode(state: GameState, x: number, y: number, want: Resour
       const n = map.nodes.get(id);
       if (!n || n.amount <= 0) continue;
       if (isResource ? NODE_RESOURCE[n.type] !== want : n.type !== want) continue;
+      if (nodeAccessTiles(map, n) === 0) continue;   // ex.: árvore no meio do bosque
       if (pred && !pred(n)) continue;
       const d = (tx + 0.5 - x) * (tx + 0.5 - x) + (ty + 0.5 - y) * (ty + 0.5 - y);
       if (d < bestD) { bestD = d; best = n; }
@@ -36,7 +37,19 @@ export function nearestNode(state: GameState, x: number, y: number, want: Resour
 
 /** Nº de coletores designados a um nó neste tick. */
 export function nodeGatherers(state: GameState, nodeId: number): number { return getRuntime(state).nodeGatherers.get(nodeId) ?? 0; }
-export function nodeHasRoom(state: GameState, n: ResourceNode): boolean { return nodeGatherers(state, n.id) < NODE_CAPACITY[n.type]; }
+/** Nº de tiles vizinhos (8) do nó onde uma unidade terrestre pode ficar; 0 = inacessível por enquanto. */
+export function nodeAccessTiles(map: GameMap, n: ResourceNode): number {
+  let c = 0;
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    if (dx === 0 && dy === 0) continue;
+    const x = n.x + dx, y = n.y + dy;
+    if (inBounds(map, x, y) && map.blocked[idx(map, x, y)] === 0) c++;
+  }
+  return c;
+}
+/** Capacidade efetiva de coletores: limitada pelos tiles de acesso (um nó com 1 tile livre comporta 1 coletor). */
+export function nodeCapacity(state: GameState, n: ResourceNode): number { return Math.min(NODE_CAPACITY[n.type], nodeAccessTiles(state.map, n)); }
+export function nodeHasRoom(state: GameState, n: ResourceNode): boolean { return nodeGatherers(state, n.id) < nodeCapacity(state, n); }
 /** Nó mais próximo do mesmo recurso com vaga (usado para espalhar coletores por um agrupamento). */
 export function nearestNodeWithRoom(state: GameState, x: number, y: number, want: ResourceType | NodeType, maxR = 18, exclude = -1): ResourceNode | null {
   return nearestNode(state, x, y, want, maxR, exclude, (n) => nodeHasRoom(state, n));
@@ -46,6 +59,11 @@ export function farmGatherers(state: GameState, farmId: number): number {
   let n = 0;
   for (const u of state.units.values()) if (!u.dead && u.nodeId === -farmId && (u.state === 'gather' || u.state === 'return')) n++;
   return n;
+}
+/** Id do agricultor titular da fazenda (o primeiro na ordem de criação); os demais são excedentes. */
+export function farmPrimary(state: GameState, farmId: number): number {
+  for (const u of state.units.values()) if (!u.dead && u.nodeId === -farmId && (u.state === 'gather' || u.state === 'return')) return u.id;
+  return -1;
 }
 
 /** Fazenda concluída do jogador com vaga, mais próxima. */

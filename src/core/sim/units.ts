@@ -1,6 +1,6 @@
 // Comportamento das unidades: máquina de estados (mover, atacar, coletar, construir, rezar),
 // seguimento de caminho com separação suave e perseguição com "coleira" (retorno ao ponto de origem).
-import { CARRY_CAPACITY, GATHER_RATES, HUNT_TYPES, NODE_RESOURCE, TICK_RATE, type ResourceType } from '../constants';
+import { CARRY_CAPACITY, FARM_GATHERERS, GATHER_RATES, HUNT_TYPES, NODE_RESOURCE, TICK_RATE, type ResourceType } from '../constants';
 import { BUILDINGS, UNITS } from '../data';
 import type { Building, GameState, Order, ResourceNode, Unit } from '../types';
 import { distToRect, idx, inBounds, canPass, dist } from '../map/grid';
@@ -9,8 +9,7 @@ import { removeNode } from '../map/mapgen';
 import { getBuildingStats, getUnitStats } from './modifiers';
 import { getRuntime, type Runtime } from './runtime';
 import { acquireTarget, attackInterval, canTarget, performAttack } from './combat';
-import { entityById, distanceTo, nearestDropoff, nearestFreeFarm, nearestNode, nearestNodeWithRoom, nodeGatherers, farmGatherers } from './queries';
-import { NODE_CAPACITY } from '../constants';
+import { entityById, distanceTo, nearestDropoff, nearestFreeFarm, nearestNode, nearestNodeWithRoom, nodeGatherers, nodeCapacity, farmGatherers, farmPrimary } from './queries';
 import { t } from '../../i18n';
 import { onBuildingComplete, canGarrison, enterGarrison } from './entities';
 
@@ -43,14 +42,24 @@ export function startOrder(state: GameState, u: Unit, order: Order): void {
     case 'gather': {
       if (!def.canGather) { finishOrder(state, u); return; }
       const id = order.targetId!;
+      // Fazenda própria (checada antes dos nós: ids de entidades e de nós são disjuntos, mas fica explícito)
+      const b = state.buildings.get(id);
+      if (b && !b.dead && BUILDINGS[b.type].farm && b.owner === u.owner) {
+        if (!b.complete) { u.nodeId = -b.id; u.state = 'build'; u.targetId = b.id; break; }
+        const mine = u.nodeId === -b.id && (u.state === 'gather' || u.state === 'return') ? 1 : 0;
+        const target = farmGatherers(state, b.id) - mine < FARM_GATHERERS ? b : nearestFreeFarm(state, u.owner, b.x, b.y, 12);
+        if (target) { u.nodeId = -target.id; u.state = 'gather'; break; }
+        // todas as fazendas ocupadas: procura outra fonte de comida ou avisa
+        if (findNewSource(state, u, 'food')) break;
+        if (!state.players[u.owner].isAI) state.events.push({ tick: state.tick, type: 'idleVillager', player: u.owner, x: u.x, y: u.y, text: t('ev.farmBusy') });
+        finishOrder(state, u); return;
+      }
       let node = state.map.nodes.get(id);
       if (node) {
         // nó lotado: escolhe outro do mesmo tipo no agrupamento
-        if (nodeGatherers(state, node.id) >= NODE_CAPACITY[node.type]) node = nearestNodeWithRoom(state, node.x + 0.5, node.y + 0.5, node.type, 6, node.id) ?? node;
+        if (nodeGatherers(state, node.id) >= nodeCapacity(state, node)) node = nearestNodeWithRoom(state, node.x + 0.5, node.y + 0.5, node.type, 6, node.id) ?? node;
         u.nodeId = node.id; u.state = 'gather'; break;
       }
-      const b = state.buildings.get(id);
-      if (b && !b.dead && BUILDINGS[b.type].farm && b.owner === u.owner) { u.nodeId = -b.id; u.state = b.complete ? 'gather' : 'build'; if (!b.complete) u.targetId = b.id; break; }
       finishOrder(state, u); return;
     }
     case 'build': case 'repair': {
@@ -95,6 +104,8 @@ export function updateUnit(state: GameState, rt: Runtime, u: Unit, dt: number): 
   switch (u.state) {
     case 'idle': case 'hold': {
       if (u.queue.length > 0 && !u.order) { startOrder(state, u, u.queue.shift()!); return; }
+      // Carga na mão e ponto de entrega disponível (ex.: Centro Cívico reconstruído): retoma a entrega
+      if (u.carryAmt > 0 && u.carry && !u.order && (state.tick + u.id) % 40 === 0 && nearestDropoff(state, u.owner, u.x, u.y, u.carry)) { u.state = 'return'; u.path = null; return; }
       if (def.attack > 0 && u.stance !== 'passive' && (state.tick + u.id) % 6 === 0 && state.tick >= state.ceasefireUntil) {
         const range = u.state === 'hold' || u.stance === 'defensive' ? stats.range + 0.5 : stats.los;
         const t = acquireTarget(state, u, range, true, Math.min(range, stats.range + 4));
@@ -179,15 +190,31 @@ function moveTowards(state: GameState, rt: Runtime, u: Unit, step: number, tx: n
   const def = UNITS[u.type];
   const map = state.map;
   const team = state.players[u.owner].team;
-  const dNow = rectTarget && goal ? distToRect(u.x, u.y, goal.tx, goal.ty, goal.w, goal.h) : dist(u.x, u.y, tx, ty);
+  const goalDist = (): number => rectTarget && goal ? distToRect(u.x, u.y, goal.tx, goal.ty, goal.w, goal.h) : dist(u.x, u.y, tx, ty);
+  const dNow = goalDist();
   if (dNow <= stopDist) { u.path = null; return true; }
   if (def.flying) {
     stepTo(u, tx, ty, step, map, true, team);
     return dist(u.x, u.y, tx, ty) <= stopDist;
   }
+  if (!canPass(map, Math.floor(u.x), Math.floor(u.y), team)) {
+    // presa num tile bloqueado (ex.: portão fechado, edifício surgido em cima): sai para o tile livre mais próximo
+    const f = nearestFreeTile(map, u.x, u.y, 4);
+    if (f) stepTo(u, f.x + 0.5, f.y + 0.5, step, map, true, team);
+    return false;
+  }
+  // Passo direto rumo ao ponto mais próximo do alvo. Usado quando o A* diz que já estamos no tile certo/adjacente
+  // ou enquanto se espera um novo caminho: sem isso a unidade ficava parada a ~1 tile do alvo sem nunca encostar.
+  const approach = (amount: number): number => {
+    if (amount <= 0) return goalDist();
+    let ax = tx, ay = ty;
+    if (rectTarget && goal) { ax = Math.max(goal.tx, Math.min(goal.tx + goal.w, u.x)); ay = Math.max(goal.ty, Math.min(goal.ty + goal.h, u.y)); }
+    stepTo(u, ax, ay, amount, map, false, team);
+    return goalDist();
+  };
   // (Re)calcula caminho se necessário
   if (!u.path || (goal && state.tick >= u.repathAt && u.pathI >= u.path.length - 2 && dist(u.path[u.path.length - 2], u.path[u.path.length - 1], tx, ty) > 1.5)) {
-    if (state.tick < u.repathAt && u.path === null) return false;
+    if (state.tick < u.repathAt && u.path === null) return approach(step) <= stopDist;
     if (rt.pathBudget <= 0) { u.repathAt = state.tick + 1; return false; }
     rt.pathBudget--;
     const sx = Math.floor(u.x), sy = Math.floor(u.y);
@@ -204,7 +231,7 @@ function moveTowards(state: GameState, rt: Runtime, u: Unit, step: number, tx: n
     if (!p) { u.path = null; u.stuck = 0; return true; }
     if (!goal && p.length >= 2) { p[p.length - 2] = tx; p[p.length - 1] = ty; }
     u.path = p; u.pathI = 0;
-    if (p.length === 0) { u.path = null; return dist(u.x, u.y, tx, ty) <= Math.max(stopDist, 1.2); }
+    if (p.length === 0) { u.path = null; return approach(step) <= Math.max(stopDist, 1.2); }   // já no tile adjacente: encosta
   }
   const path = u.path;
   let remaining = step;
@@ -216,8 +243,7 @@ function moveTowards(state: GameState, rt: Runtime, u: Unit, step: number, tx: n
   }
   if (u.pathI >= path.length) {
     u.path = null;
-    const dEnd = rectTarget && goal ? distToRect(u.x, u.y, goal.tx, goal.ty, goal.w, goal.h) : dist(u.x, u.y, tx, ty);
-    return dEnd <= Math.max(stopDist, 1.3);
+    return approach(remaining) <= Math.max(stopDist, 1.3);
   }
   return false;
 }
@@ -281,11 +307,14 @@ function updateGather(state: GameState, rt: Runtime, u: Unit, dt: number, speed:
     // Fazenda
     const farm = state.buildings.get(-u.nodeId);
     if (!farm || farm.dead || !farm.complete) { if (!findNewSource(state, u, 'food')) fallbackIdle(state, u); return; }
+    if (switchCargo(u, 'food')) return;   // carga de outro recurso na mão: entrega antes (senão seria perdida)
     const d = distToRect(u.x, u.y, farm.tx, farm.ty, farm.w, farm.h);
     if (d > 0.9) { moveTowards(state, rt, u, speed * dt, farm.x, farm.y, { tx: farm.tx, ty: farm.ty, w: farm.w, h: farm.h }, 0.9, true); return; }
-    if (farmGatherers(state, farm.id) > 1) { // fazenda lotada: procura outra
+    if (farmGatherers(state, farm.id) > FARM_GATHERERS && farmPrimary(state, farm.id) !== u.id) { // fazenda lotada: o excedente procura outra
       const other = nearestFreeFarm(state, u.owner, u.x, u.y, 20);
       if (other && other.id !== farm.id) { u.nodeId = -other.id; u.path = null; return; }
+      if (!findNewSource(state, u, 'food')) fallbackIdle(state, u, t('ev.farmBusy'));
+      return;
     }
     const rate = GATHER_RATES.farm * player.mods.gather.food * player.mods.gather.farm;
     gatherInto(u, 'food', rate * dt);
@@ -297,11 +326,13 @@ function updateGather(state: GameState, rt: Runtime, u: Unit, dt: number, speed:
     if (!findNewSource(state, u, res)) fallbackIdle(state, u);
     return;
   }
+  const res = NODE_RESOURCE[node.type];
+  if (switchCargo(u, res)) return;
   const d = distToRect(u.x, u.y, node.x, node.y, 1, 1);
   if (d > 1.0) {
     // lotado ou inalcançável há muito tempo: procura outro nó do agrupamento
     if ((state.tick + u.id) % 40 === 0) {
-      const crowded = nodeGatherers(state, node.id) > NODE_CAPACITY[node.type];
+      const crowded = nodeGatherers(state, node.id) > nodeCapacity(state, node);
       const stuckLong = state.tick - u.orderTick > 30 * TICK_RATE;
       if (crowded || stuckLong) {
         const alt = nearestNodeWithRoom(state, u.x, u.y, node.type, stuckLong ? 12 : 6, node.id);
@@ -312,8 +343,6 @@ function updateGather(state: GameState, rt: Runtime, u: Unit, dt: number, speed:
     moveTowards(state, rt, u, speed * dt, node.x + 0.5, node.y + 0.5, { tx: node.x, ty: node.y, w: 1, h: 1 }, 1.0, true); return;
   }
   u.orderTick = state.tick;
-  const res = NODE_RESOURCE[node.type];
-  if (u.carry && u.carry !== res && u.carryAmt > 0) { u.state = 'return'; u.path = null; return; }
   let rate = GATHER_RATES[node.type] * player.mods.gather[res];
   if (HUNT_TYPES.has(node.type)) rate *= player.mods.gather.hunt;
   const take = Math.min(rate * dt, node.amount, CARRY_CAPACITY - u.carryAmt);
@@ -327,42 +356,73 @@ function gatherInto(u: Unit, res: ResourceType, amt: number) {
   u.carryAmt += amt;
 }
 
+/** Vai colher outro recurso com carga na mão: entrega primeiro (true = mudou para 'return'); restos < 1 são descartados. */
+function switchCargo(u: Unit, res: ResourceType): boolean {
+  if (!u.carry || u.carry === res || u.carryAmt <= 0) return false;
+  if (u.carryAmt < 1) { u.carryAmt = 0; return false; }
+  u.state = 'return'; u.path = null; return true;
+}
+
 export function depleteNode(state: GameState, node: ResourceNode): void {
   removeNode(state.map, node.id);
   state.effects.push({ type: 'nodeGone', x: node.x + 0.5, y: node.y + 0.5, ttl: 1, total: 1, data: node.type });
+  // Redistribui todos que colhiam neste nó (inclusive quem está entregando ou voltando vazio), mantendo o recurso da tarefa
+  const res = NODE_RESOURCE[node.type];
+  const rt = getRuntime(state);
+  for (const u of state.units.values()) {
+    if (u.dead || u.nodeId !== node.id) continue;
+    const next = pickNewSource(state, u, res);
+    if (next !== null && next > 0) rt.nodeGatherers.set(next, (rt.nodeGatherers.get(next) ?? 0) + 1);
+    if (u.state === 'return') { u.nodeId = next ?? -1; continue; }
+    if (next !== null) { u.nodeId = next; u.path = null; u.state = 'gather'; u.orderTick = state.tick; }
+    else fallbackIdle(state, u);
+  }
 }
 
-/** Procura nova fonte do mesmo recurso perto da unidade (nó ou fazenda). */
-function findNewSource(state: GameState, u: Unit, res: ResourceType): boolean {
+/** Escolhe nova fonte do mesmo recurso perto da unidade: id do nó (> 0) ou -id da fazenda; null se não houver. */
+function pickNewSource(state: GameState, u: Unit, res: ResourceType): number | null {
   const node = nearestNodeWithRoom(state, u.x, u.y, res, 14) ?? nearestNode(state, u.x, u.y, res, 14);
   const farm = res === 'food' ? nearestFreeFarm(state, u.owner, u.x, u.y, 14) : null;
-  if (node && (!farm || distToRect(u.x, u.y, node.x, node.y, 1, 1) <= distToRect(u.x, u.y, farm.tx, farm.ty, farm.w, farm.h))) { u.nodeId = node.id; u.path = null; u.state = 'gather'; u.orderTick = state.tick; return true; }
-  if (farm) { u.nodeId = -farm.id; u.path = null; u.state = 'gather'; u.orderTick = state.tick; return true; }
-  return false;
+  if (node && (!farm || distToRect(u.x, u.y, node.x, node.y, 1, 1) <= distToRect(u.x, u.y, farm.tx, farm.ty, farm.w, farm.h))) return node.id;
+  if (farm) return -farm.id;
+  return null;
 }
 
-function fallbackIdle(state: GameState, u: Unit) {
+/** Procura nova fonte do mesmo recurso perto da unidade (nó ou fazenda) e passa a colher nela. */
+function findNewSource(state: GameState, u: Unit, res: ResourceType): boolean {
+  const next = pickNewSource(state, u, res);
+  if (next === null) return false;
+  u.nodeId = next; u.path = null; u.state = 'gather'; u.orderTick = state.tick;
+  return true;
+}
+
+function fallbackIdle(state: GameState, u: Unit, text = t('ev.idleDepleted')) {
   u.nodeId = -1;
   if (u.carryAmt > 0) { u.state = 'return'; u.path = null; return; }
   const p = state.players[u.owner];
-  if (!p.isAI) state.events.push({ tick: state.tick, type: 'idleVillager', player: u.owner, x: u.x, y: u.y, text: t('ev.idleDepleted') });
+  if (!p.isAI) state.events.push({ tick: state.tick, type: 'idleVillager', player: u.owner, x: u.x, y: u.y, text });
   finishOrder(state, u);
 }
 
 function updateReturn(state: GameState, rt: Runtime, u: Unit, dt: number, speed: number): void {
-  if (!u.carry || u.carryAmt <= 0) { u.carry = null; u.carryAmt = 0; u.state = u.nodeId !== -1 ? 'gather' : 'idle'; u.path = null; return; }
+  if (!u.carry || u.carryAmt <= 0) { u.carryAmt = 0; u.state = u.nodeId !== -1 ? 'gather' : 'idle'; u.path = null; return; }
   const drop = nearestDropoff(state, u.owner, u.x, u.y, u.carry);
-  if (!drop) { finishOrder(state, u); return; }
+  const p = state.players[u.owner];
+  if (!drop) {
+    // Sem ponto de entrega (ex.: Centro Cívico destruído): fica ocioso com a carga, avisa e retoma quando houver um (ver 'idle')
+    if (!p.isAI && !state.events.some((e) => e.type === 'idleVillager' && e.player === u.owner && e.data === 'noDropoff' && state.tick - e.tick < 20 * TICK_RATE)) state.events.push({ tick: state.tick, type: 'idleVillager', player: u.owner, x: u.x, y: u.y, text: t('ev.noDropoff'), data: 'noDropoff' });
+    finishOrder(state, u); return;
+  }
   const d = distToRect(u.x, u.y, drop.tx, drop.ty, drop.w, drop.h);
   if (d > 0.9) { moveTowards(state, rt, u, speed * dt, drop.x, drop.y, { tx: drop.tx, ty: drop.ty, w: drop.w, h: drop.h }, 0.9, true); return; }
-  const p = state.players[u.owner];
+  const delivered: ResourceType = u.carry;
   p.resources[u.carry] += u.carryAmt; p.stats.gathered[u.carry] += u.carryAmt;
-  u.carry = null; u.carryAmt = 0; u.path = null;
+  u.carryAmt = 0; u.path = null;   // u.carry fica como memória do último recurso (usada se o nó sumir)
   if (u.nodeId !== -1) {
     const node = u.nodeId > 0 ? state.map.nodes.get(u.nodeId) : null;
     const farm = u.nodeId < 0 ? state.buildings.get(-u.nodeId) : null;
     if ((node && node.amount > 0) || (farm && !farm.dead)) { u.state = 'gather'; return; }
-    const res: ResourceType = node ? NODE_RESOURCE[node.type] : 'food';
+    const res: ResourceType = node ? NODE_RESOURCE[node.type] : (farm ? 'food' : delivered);   // nó sumiu: mantém o recurso entregue
     if (findNewSource(state, u, res)) return;
   }
   finishOrder(state, u);

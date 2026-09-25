@@ -24,7 +24,7 @@ const MAX_EVENTS = 200;
 
 export function createGame(config: GameConfig): GameState {
   const size = MAP_SIZES[config.mapSize];
-  resetNodeSeq(1);
+  resetNodeSeq();
   const map = generateMap(size.w, size.h, config.seed, config.players.length);
   const state: GameState = {
     config, seed: config.seed, tick: 0, time: 0, map,

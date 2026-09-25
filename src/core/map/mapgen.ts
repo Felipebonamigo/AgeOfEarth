@@ -136,14 +136,16 @@ export function addNode(map: GameMap, type: NodeType, x: number, y: number, amou
   return node;
 }
 
-let nodeSeq = 1;
+/** Ids de nós de recurso vivem num intervalo disjunto dos ids de unidades/edifícios (state.nextId), para nunca colidirem. */
+export const NODE_ID_BASE = 1 << 20;
+let nodeSeq = NODE_ID_BASE;
 function nextNodeId(map: GameMap): number {
   // ids de nós são crescentes; garante unicidade mesmo após remoções
   let id = nodeSeq++;
   while (map.nodes.has(id)) id = nodeSeq++;
   return id;
 }
-export function resetNodeSeq(v = 1) { nodeSeq = v; }
+export function resetNodeSeq(v = NODE_ID_BASE) { nodeSeq = v; }
 
 export function removeNode(map: GameMap, id: number): void {
   const n = map.nodes.get(id);

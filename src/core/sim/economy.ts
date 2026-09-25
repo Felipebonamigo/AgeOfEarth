@@ -2,10 +2,13 @@
 // regeneração, atrito territorial e contagem de maravilhas. Roda uma vez por segundo.
 import { BASE_ATTRITION, FAVOR_DECAY, FAVOR_PER_WORSHIPPER, KNOWLEDGE_PER_SCHOLAR, MARKET_BASE_PRICE, MARKET_TAX, MARKET_TRADE_LOT, RESOURCES, WONDER_VICTORY_SECONDS, TICK_RATE, GARRISON_HEAL, type ResourceType } from '../constants';
 import { BUILDINGS, UNITS } from '../data';
-import type { GameState, Player } from '../types';
+import type { GameState, Player, QueueItem } from '../types';
 import { territoryOwnerAt } from './territory';
-import { getUnitStats } from './modifiers';
+import { getUnitStats, techCost } from './modifiers';
 import { isEnemy } from './queries';
+import { killUnit } from './combat';
+import { AGES } from '../data';
+import { SCHOLAR_COST } from '../constants';
 
 export function canAfford(player: Player, cost: Record<string, number>): boolean {
   for (const [k, v] of Object.entries(cost)) if ((player.resources[k as ResourceType] ?? 0) < v) return false;
@@ -16,6 +19,14 @@ export function pay(player: Player, cost: Record<string, number>): void {
 }
 export function refund(player: Player, cost: Record<string, number>, frac = 1): void {
   for (const [k, v] of Object.entries(cost)) player.resources[k as ResourceType] += v * frac;
+}
+/** Custo pago por um item da fila (reembolso ao cancelar/destruir): o valor guardado ao enfileirar ou, em saves antigos, o custo atual. */
+export function queueItemCost(state: GameState, player: Player, item: QueueItem): Record<string, number> {
+  if (item.paid) return item.paid;
+  if (item.kind === 'unit') return getUnitStats(state, player, item.id).cost;
+  if (item.kind === 'tech') return techCost(player, item.id);
+  if (item.kind === 'scholar') return SCHOLAR_COST as Record<string, number>;
+  return (AGES[player.age + 1]?.cost ?? {}) as Record<string, number>;
 }
 export function missingResources(player: Player, cost: Record<string, number>): ResourceType[] {
   const out: ResourceType[] = [];
@@ -69,7 +80,7 @@ export function economySecond(state: GameState): void {
       const rate = (BASE_ATTRITION + state.players[owner].mods.player.attrition) * Math.max(0, 1 - p.mods.player.attritionResist);
       if (rate > 0 && state.tick >= state.ceasefireUntil) {
         u.hp -= rate;
-        if (u.hp <= 0) { u.hp = 0; u.dead = true; p.stats.losses++; state.effects.push({ type: 'death', x: u.x, y: u.y, owner: u.owner, ttl: 20, total: 20, data: u.type }); }
+        if (u.hp <= 0) killUnit(state, u, owner);   // via killUnit: recalcula população, estatísticas, sombras e eventos
       }
     }
   }

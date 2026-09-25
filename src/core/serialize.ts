@@ -1,7 +1,7 @@
 // Serialização do estado (salvar/carregar). Mapas e arrays tipados viram arrays simples.
 import { RNG } from './rng';
 import type { GameState, Unit, Building, ResourceNode, Player } from './types';
-import { resetNodeSeq } from './map/mapgen';
+import { NODE_ID_BASE, resetNodeSeq } from './map/mapgen';
 
 export interface SavedGame { version: number; state: unknown }
 const VERSION = 1;
@@ -32,7 +32,7 @@ export function deserialize(json: string): GameState {
   const blocked = new Uint8Array(w * h);
   let maxNode = 0;
   for (const n of o.map.nodes as ResourceNode[]) { nodes.set(n.id, n); nodeAt[n.y * w + n.x] = n.id; if (n.id > maxNode) maxNode = n.id; }
-  resetNodeSeq(maxNode + 1);
+  resetNodeSeq(Math.max(maxNode + 1, NODE_ID_BASE));
   const state: GameState = {
     config: o.config, seed: o.seed, tick: o.tick, time: o.time, nextId: o.nextId,
     map: { w, h, terrain, blocked, nodeAt, buildingAt, gateTeam, nodes, starts: o.map.starts, decor: Uint8Array.from(o.map.decor as number[]) },

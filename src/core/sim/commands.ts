@@ -4,7 +4,7 @@ import { MAX_SCHOLARS, SCHOLAR_COST, type Stance } from '../constants';
 import { ACADEMY_LINES, AGES, BUILDINGS, MAX_AGE, MINOR_GODS, MAJOR_GODS, TECHS, UNITS } from '../data';
 import type { Building, Command, GameState, Player, Unit } from '../types';
 import { spiralSearch, canPass, inBounds } from '../map/grid';
-import { canAfford, marketTrade, pay, refund } from './economy';
+import { canAfford, marketTrade, pay, refund, queueItemCost } from './economy';
 import { canPlaceBuilding, placeBuilding, recomputePop, unitsOf, countBuildings, ejectGarrison, canGarrison } from './entities';
 import { getUnitStats, techCost, getBuildingStats } from './modifiers';
 import { queueTotalFor } from './buildings';
@@ -144,8 +144,9 @@ export function applyCommand(state: GameState, cmd: Command): CommandResult {
       const queued = b.queue.filter((q) => q.kind === 'scholar').length;
       if (b.scholars + queued >= MAX_SCHOLARS) return { ok: false, reason: t('err.maxScholars', { n: MAX_SCHOLARS }) };
       if (!canAfford(player, SCHOLAR_COST)) return { ok: false, reason: t('err.noResources') };
-      pay(player, SCHOLAR_COST);
-      b.queue.push({ kind: 'scholar', id: 'scholar', elapsed: 0, total: queueTotalFor(state, player, 'scholar', 'scholar') });
+      const paid = { ...SCHOLAR_COST } as Record<string, number>;
+      pay(player, paid);
+      b.queue.push({ kind: 'scholar', id: 'scholar', elapsed: 0, total: queueTotalFor(state, player, 'scholar', 'scholar'), paid });
       return { ok: true };
     }
     case 'cancel': {
@@ -158,10 +159,7 @@ export function applyCommand(state: GameState, cmd: Command): CommandResult {
       const item = b.queue[cmd.index];
       if (!item) return { ok: false };
       b.queue.splice(cmd.index, 1);
-      if (item.kind === 'unit') refund(player, getUnitStats(state, player, item.id).cost);
-      else if (item.kind === 'tech') refund(player, techCost(player, item.id));
-      else if (item.kind === 'scholar') refund(player, SCHOLAR_COST);
-      else if (item.kind === 'age') refund(player, AGES[player.age + 1].cost as Record<string, number>);
+      refund(player, queueItemCost(state, player, item));   // devolve o que foi pago (não o custo atual)
       recomputePop(state, player);
       return { ok: true };
     }
@@ -232,8 +230,9 @@ function train(state: GameState, player: Player, buildingId: number, unit: strin
   if (!b) return { ok: false };
   const c = canTrain(state, player, b, unit);
   if (!c.ok) return c;
-  pay(player, getUnitStats(state, player, unit).cost);
-  b.queue.push({ kind: 'unit', id: unit, elapsed: 0, total: queueTotalFor(state, player, 'unit', unit) });
+  const paid = { ...getUnitStats(state, player, unit).cost };
+  pay(player, paid);
+  b.queue.push({ kind: 'unit', id: unit, elapsed: 0, total: queueTotalFor(state, player, 'unit', unit), paid });
   recomputePop(state, player);
   return { ok: true };
 }
@@ -257,8 +256,9 @@ function research(state: GameState, player: Player, buildingId: number, tech: st
   if (!b) return { ok: false };
   const c = canResearch(state, player, b, tech);
   if (!c.ok) return c;
-  pay(player, techCost(player, tech));
-  b.queue.push({ kind: 'tech', id: tech, elapsed: 0, total: TECHS[tech].time });
+  const paid = { ...techCost(player, tech) };
+  pay(player, paid);
+  b.queue.push({ kind: 'tech', id: tech, elapsed: 0, total: TECHS[tech].time, paid });
   return { ok: true };
 }
 
@@ -289,7 +289,8 @@ function advanceAge(state: GameState, player: Player, buildingId: number, minorG
   if (next.minorGod) {
     if (!minorGod || !c.minorOptions?.includes(minorGod)) return { ok: false, reason: t('err.chooseMinor') };
   }
-  pay(player, next.cost as Record<string, number>);
-  b.queue.push({ kind: 'age', id: `age:${minorGod ?? ''}`, elapsed: 0, total: next.time });
+  const paid = { ...(next.cost as Record<string, number>) };
+  pay(player, paid);
+  b.queue.push({ kind: 'age', id: `age:${minorGod ?? ''}`, elapsed: 0, total: next.time, paid });
   return { ok: true };
 }

@@ -8,6 +8,7 @@ import { getBuildingStats, getUnitStats } from './modifiers';
 import { getRuntime } from './runtime';
 import { distanceTo, isEnemy } from './queries';
 import { recomputePop, spawnUnit, ejectGarrison } from './entities';
+import { refund, queueItemCost } from './economy';
 import { t } from '../../i18n';
 
 export const ATTACK_INTERVAL: Record<string, number> = { villager: 1.0, scout: 1.0, infantry: 1.0, archer: 1.5, skirmisher: 1.2, cavalry: 1.1, siege: 3.0, hero: 1.1, myth: 1.5, titan: 2.0, building: 2.0 };
@@ -24,6 +25,7 @@ function isMelee(state: GameState, attacker: Unit | Building): boolean {
 
 export function canTarget(state: GameState, attacker: Unit | Building, target: Unit | Building): boolean {
   if (target.dead) return false;
+  if (target.kind === 'unit' && target.inside !== -1) return false;   // dentro de um edifício: protegido
   if (!isEnemy(state, attacker.owner, target.owner)) return false;
   if (!state.players[target.owner].alive) return false;
   if (target.kind === 'unit' && UNITS[target.type].flying && isMelee(state, attacker)) return false;
@@ -144,6 +146,7 @@ export function performAttack(state: GameState, attacker: Unit | Building, targe
 export function killUnit(state: GameState, u: Unit, killerOwner: number, killer?: Unit | Building): void {
   if (u.dead) return;
   u.dead = true; u.hp = 0;
+  if (u.inside !== -1) { const g = state.buildings.get(u.inside); if (g) g.garrison = g.garrison.filter((id) => id !== u.id); u.inside = -1; }
   const def = UNITS[u.type];
   const victim = state.players[u.owner];
   victim.stats.losses++;
@@ -177,7 +180,8 @@ export function destroyBuilding(state: GameState, b: Building, killerOwner: numb
     const i = idx(state.map, x, y);
     if (state.map.buildingAt[i] === b.id) { state.map.buildingAt[i] = -1; if (!def.passable) state.map.blocked[i] = 0; }
   }
-  // Devolve população da fila
+  // Reembolsa a fila (unidades, tecnologias, filósofos, avanço de Idade) e devolve a população reservada
+  for (const q of b.queue) refund(victim, queueItemCost(state, victim, q));
   b.queue.length = 0;
   if (def.territory) state.territoryDirty = true;
   if (def.gate) for (let y = b.ty; y < b.ty + b.h; y++) for (let x = b.tx; x < b.tx + b.w; x++) state.map.gateTeam[idx(state.map, x, y)] = -1;

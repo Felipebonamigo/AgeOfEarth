@@ -83,7 +83,7 @@ export interface Unit {
   lastDamageTick: number;
 }
 
-export interface QueueItem { kind: 'unit' | 'tech' | 'age' | 'scholar'; id: string; elapsed: number; total: number }
+export interface QueueItem { kind: 'unit' | 'tech' | 'age' | 'scholar'; id: string; elapsed: number; total: number; paid?: Record<string, number> }  // paid: custo pago ao enfileirar (reembolso exato)
 
 export interface Building {
   id: number; kind: 'building'; type: string; owner: number;
