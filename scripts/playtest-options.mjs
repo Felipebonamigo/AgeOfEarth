@@ -55,6 +55,12 @@ await page.keyboard.press('p'); await page.waitForTimeout(100);
 await page.click('#top button:has-text("Menu")'); await page.waitForTimeout(200); await page.keyboard.press('Escape'); await page.waitForTimeout(200);
 console.log('pausa manual preservada após menu:', await page.evaluate(() => window.aoe.session.paused) ? 'ok' : 'FALHOU');
 await page.keyboard.press('p'); await page.waitForTimeout(100);
+// diagnóstico exportável (botão no menu da partida) — aqui via API, sem abrir o diálogo de download
+const diag = await page.evaluate(() => JSON.parse(window.aoe.diagnostic()));
+console.log('diagnóstico:', diag.version === 1 && diag.session && typeof diag.session.save === 'string' && Array.isArray(diag.errors) ? 'ok' : 'FALHOU', '| campos:', Object.keys(diag).join(','));
+await page.click('#top button:has-text("Menu")'); await page.waitForTimeout(200);
+console.log('botão de diagnóstico no menu:', await page.isVisible('#modal #m-diag'));
+await page.keyboard.press('Escape'); await page.waitForTimeout(200);
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(300);
 console.log('após recarregar, zoom do menu:', await page.evaluate(() => document.getElementById('menu').style.zoom));
 await page.screenshot({ path: '/tmp/options.png' });

@@ -7,7 +7,7 @@ import { Audio } from './audio/audio';
 import { Session } from './game/session';
 import type { GameConfig } from './core/types';
 import { SCENARIOS, HORDE } from './core/scenario/campaign';
-import { NetworkScheduler } from './core/net/lockstep';
+import { NetworkScheduler, LocalScheduler } from './core/net/lockstep';
 import type { NetClient } from './net/client';
 import type { Command } from './core/types';
 import { spawnUnit } from './core/sim/entities';
@@ -23,6 +23,12 @@ import { serialize, deserialize } from './core/serialize';
 
 const SAVE_KEY = 'aoe_save_v1';
 const REPLAY_KEY = 'aoe_replay_v1';
+
+// Últimos erros do navegador (para o diagnóstico exportável)
+const recentErrors: { when: string; msg: string }[] = [];
+const noteError = (msg: string) => { recentErrors.push({ when: new Date().toISOString(), msg: msg.slice(0, 500) }); if (recentErrors.length > 50) recentErrors.shift(); };
+window.addEventListener('error', (e) => noteError(`${e.message} @ ${e.filename}:${e.lineno}`));
+window.addEventListener('unhandledrejection', (e) => noteError(`promise: ${String((e as PromiseRejectionEvent).reason)}`));
 
 async function boot() {
   const settings = loadSettings();
@@ -44,12 +50,18 @@ async function boot() {
     onExport: () => { if (!session) return; void exportText(`age-of-earth-${new Date().toISOString().slice(0, 10)}.json`, session.save()).then((ok) => { if (ok) hud.toast(t('msg.saved'), 'good'); }); },
     onImport: () => { void importText().then((json) => { if (!json) return; try { session = Session.load(json); replaySaved = false; renderer.setState(session.state); hud.setSession(session); hud.setVisible(true); menu.hide(); hud.toast(t('msg.loaded'), 'good'); } catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); } }); },
     getOptions: () => options,
+    onDiagnostic: () => { void exportText(`age-of-earth-diagnostico-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`, diagnostic()).then((ok) => { if (ok) hud.toast(t('msg.diagnosticSaved'), 'good'); }); },
     onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); if (session) { hud.setSession(session); hud.refreshTop(); } },
     onLoad: () => loadGame(),
     onQuit: () => { saveReplay(); session = null; hostResumeCheck = null; hud.onChat = null; hud.closeChat(); hud.setSession(null); hud.setVisible(false); menu.show(); document.body.className = ''; },
     onNextMission: (id) => { const i = SCENARIOS.findIndex((m) => m.id === id); const next = SCENARIOS[i + 1]; if (next) startMission(next.id); else { session = null; hud.setSession(null); hud.setVisible(false); menu.show(); } },
   });
   hud.setVisible(false);
+  /** Pacote de diagnóstico: versão, configurações, erros recentes, relatório de dessincronização e o save atual. */
+  const diagnostic = (): string => {
+    let desync: unknown = null; try { desync = JSON.parse(localStorage.getItem('aoe_desync_v1') ?? 'null'); } catch { /* ignore */ }
+    return JSON.stringify({ version: 1, when: new Date().toISOString(), userAgent: navigator.userAgent, screen: { w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio }, settings, locale: settings.locale, errors: recentErrors, desync, session: session ? { tick: session.state.tick, local: session.local, config: session.state.config, online: !(session.scheduler instanceof LocalScheduler), save: session.save() } : null });
+  };
   // Opções compartilhadas (menu principal e menu da partida)
   const options: OptionsContext = {
     settings,
@@ -216,7 +228,7 @@ async function boot() {
   };
   requestAnimationFrame(loop);
   // Expõe para depuração/testes automatizados
-  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, startGame, loadGame, debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; } };
+  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, startGame, loadGame, diagnostic, debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; } };
 }
 
 boot().catch((e) => { console.error(e); document.body.innerHTML = `<pre style="color:#f88;padding:20px">Erro ao iniciar: ${(e as Error).stack}</pre>`; });

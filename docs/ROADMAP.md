@@ -84,7 +84,7 @@ Marco **M4 (semana 22)**: partidas online estáveis pela Steam.
 | 6.3 | Página "Em breve": cápsulas, screenshots, descrição PT/EN, tags, trailer curto — começar a acumular wishlists | V + T + A | 14–16 |
 | 6.4 | Build Electron completo: instalador via SteamPipe, Steam Cloud, conquistas (20–30), Rich Presence, tela cheia/resoluções, controle Steam Input | A | 16–20 |
 | 6.5 | Verificação Steam Deck (legibilidade, desempenho, controle) e build Linux | A + V | 20–22 |
-| 6.6 | Telemetria opt-in e relatório de erros (para achar bugs dos jogadores) | A | 18–20 |
+| 6.6 | Relatório de erros: ✅ botão "Exportar diagnóstico" no menu da partida (versão, configurações, erros recentes, relatório de dessincronização e o save). Pendente: telemetria opt-in | A | 18–20 |
 | 6.7 | Legal: EULA, política de privacidade (servidor de lobby → LGPD), licenças de fontes/áudio, créditos | V + A | 20–22 |
 | 6.8 | QA: matriz de testes (Windows 10/11, Linux, Mac; máquinas fracas), checklist de lançamento | A + V | 22–26 |
 | 6.9 | Steam Playtest público (gratuito) + demo no Steam Next Fest | V | 24–28 |
