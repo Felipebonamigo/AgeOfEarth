@@ -7,7 +7,7 @@ import { idx, inBounds, isPassable, dist, spiralSearch } from '../map/grid';
 import { applyCommand, canAdvanceAge, canResearch, canTrain } from './commands';
 import { canPlaceBuilding, countBuildings, buildingsOf, unitsOf } from './entities';
 import { getRuntime } from './runtime';
-import { isMilitary, nearestEnemyBuilding, nearestNode, nearestNodeWithRoom, nearestFreeFarm, countUnits } from './queries';
+import { isMilitary, isEnemy, nearestEnemyBuilding, nearestNode, nearestNodeWithRoom, nearestFreeFarm, countUnits } from './queries';
 import { getBuildingStats, getUnitStats, techCost } from './modifiers';
 import { canAfford } from './economy';
 
@@ -66,7 +66,7 @@ function snapshot(state: GameState, player: Player): Snapshot {
     scouts: units.filter((u) => UNITS[u.type].tags.includes('scout')),
     heroes: units.filter((u) => UNITS[u.type].tags.includes('hero')),
     buildings, byType, tc: tcs.find((b) => b.complete) ?? tcs[0] ?? null, underConstruction: buildings.filter((b) => !b.complete),
-    gatherers, enemies: state.players.filter((p) => p.id !== player.id && p.alive),
+    gatherers, enemies: state.players.filter((p) => isEnemy(state, player.id, p.id) && p.alive),
   };
 }
 
@@ -292,7 +292,7 @@ function nearestUnclaimedNode(state: GameState, player: Player, from: Building, 
 function enemyDirection(state: GameState, player: Player, tc: Building): { x: number; y: number } {
   let ex = 0, ey = 0, n = 0;
   for (const b of state.buildings.values()) {
-    if (b.owner === player.id || b.dead || b.type !== 'town_center' || !state.players[b.owner].alive) continue;
+    if (!isEnemy(state, player.id, b.owner) || b.dead || b.type !== 'town_center' || !state.players[b.owner].alive) continue;
     ex += b.x; ey += b.y; n++;
   }
   if (n === 0) return { x: 0, y: 1 };
@@ -507,7 +507,7 @@ function manageArmy(state: GameState, player: Player, snap: Snapshot): void {
   let threat: Unit | null = null, threatD = Infinity;
   for (const b of snap.buildings) {
     rt.hash.each(b.x, b.y, 12, (u) => {
-      if (u.owner === player.id || u.dead || !state.players[u.owner].alive) return;
+      if (!isEnemy(state, player.id, u.owner) || u.dead || !state.players[u.owner].alive) return;
       if (UNITS[u.type].tags.includes('scout') || UNITS[u.type].attack <= 0) return;
       const d = dist(u.x, u.y, b.x, b.y);
       if (d < 12 && d < threatD) { threatD = d; threat = u; }
@@ -562,7 +562,7 @@ function chooseAttackTarget(state: GameState, player: Player, tc: Building): Bui
   // Prefere o inimigo mais fraco (menos militares) e, dentro dele, o edifício mais próximo
   let weakest: Player | null = null, weakestArmy = Infinity;
   for (const e of state.players) {
-    if (e.id === player.id || !e.alive) continue;
+    if (!isEnemy(state, player.id, e.id) || !e.alive) continue;
     const n = countUnits(state, e.id, isMilitary);
     if (n < weakestArmy) { weakestArmy = n; weakest = e; }
   }
@@ -589,7 +589,7 @@ function managePowers(state: GameState, player: Player, snap: Snapshot): void {
   // Grupo inimigo mais denso perto de mim
   let clumpX = 0, clumpY = 0, clumpN = 0;
   for (const b of snap.buildings) {
-    const near = rt.hash.query(b.x, b.y, 10).filter((u) => u.owner !== player.id && !u.dead && UNITS[u.type].attack > 0);
+    const near = rt.hash.query(b.x, b.y, 10).filter((u) => isEnemy(state, player.id, u.owner) && !u.dead && UNITS[u.type].attack > 0);
     if (near.length > clumpN) { clumpN = near.length; clumpX = near.reduce((s, u) => s + u.x, 0) / near.length; clumpY = near.reduce((s, u) => s + u.y, 0) / near.length; }
   }
   const use = (power: string, x?: number, y?: number, targetId?: number) => applyCommand(state, { type: 'power', player: player.id, power, x, y, targetId }).ok;
@@ -601,7 +601,7 @@ function managePowers(state: GameState, player: Player, snap: Snapshot): void {
       case 'sentinel': if (defending) { use(p, undefined, undefined, tc.id); return; } break;
       case 'bolt': {
         let best: Unit | null = null, bestV = 0;
-        rt.hash.each(tc.x, tc.y, 40, (u) => { if (u.owner === player.id || u.dead) return; const v = u.maxHp * (UNITS[u.type].tags.includes('hero') ? 1.5 : 1); if (v > bestV && (UNITS[u.type].tags.includes('myth') || UNITS[u.type].tags.includes('hero') || (defending && v > 150))) { bestV = v; best = u; } });
+        rt.hash.each(tc.x, tc.y, 40, (u) => { if (!isEnemy(state, player.id, u.owner) || u.dead) return; const v = u.maxHp * (UNITS[u.type].tags.includes('hero') ? 1.5 : 1); if (v > bestV && (UNITS[u.type].tags.includes('myth') || UNITS[u.type].tags.includes('hero') || (defending && v > 150))) { bestV = v; best = u; } });
         if (best) { use(p, undefined, undefined, (best as Unit).id); return; }
         break;
       }

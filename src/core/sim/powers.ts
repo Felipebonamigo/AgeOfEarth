@@ -7,7 +7,7 @@ import { spiralSearch, isPassable, inBounds, idx } from '../map/grid';
 import { placeBuilding, spawnUnit, canPlaceBuilding } from './entities';
 import { getRuntime } from './runtime';
 import { applyDamage, killUnit } from './combat';
-import { entityById } from './queries';
+import { entityById, isEnemy } from './queries';
 
 export interface PowerResult { ok: boolean; reason?: string }
 
@@ -21,7 +21,7 @@ export function usePower(state: GameState, player: Player, powerId: string, x?: 
   switch (powerId) {
     case 'bolt': {
       const t = targetId !== undefined ? entityById(state, targetId) : null;
-      if (!t || t.kind !== 'unit' || t.dead || t.owner === player.id) return { ok: false, reason: 'Escolha uma unidade inimiga.' };
+      if (!t || t.kind !== 'unit' || t.dead || !isEnemy(state, player.id, t.owner)) return { ok: false, reason: 'Escolha uma unidade inimiga.' };
       state.effects.push({ type: 'bolt', x: t.x, y: t.y, ttl: 24, total: 24 });
       if (UNITS[t.type].tags.includes('titan')) applyDamage(state, t, t.maxHp * 0.5, player.id);
       else killUnit(state, t, player.id);
@@ -60,7 +60,7 @@ export function usePower(state: GameState, player: Player, powerId: string, x?: 
       const r = def.radius ?? 10;
       let n = 0;
       for (const b of state.buildings.values()) {
-        if (b.owner === player.id || b.dead || !BUILDINGS[b.type].military) continue;
+        if (!isEnemy(state, player.id, b.owner) || b.dead || !BUILDINGS[b.type].military) continue;
         if ((b.x - px) ** 2 + (b.y - py) ** 2 <= r * r) { b.disabledUntil = state.tick + 60 * TICK_RATE; n++; }
       }
       state.effects.push({ type: 'pestilence', x: px, y: py, ttl: 60, total: 60, data: r });
@@ -72,7 +72,7 @@ export function usePower(state: GameState, player: Player, powerId: string, x?: 
     case 'curse': {
       const r = def.radius ?? 4;
       let n = 0;
-      const victims = rt.hash.query(px, py, r).filter((u) => u.owner !== player.id && !u.dead && UNITS[u.type].tags.includes('human') && !UNITS[u.type].tags.includes('hero'));
+      const victims = rt.hash.query(px, py, r).filter((u) => isEnemy(state, player.id, u.owner) && !u.dead && UNITS[u.type].tags.includes('human') && !UNITS[u.type].tags.includes('hero'));
       for (const u of victims) {
         if (n >= 8) break;
         killUnit(state, u, player.id);
@@ -125,7 +125,7 @@ export function updateTimedEffects(state: GameState): void {
     if (state.tick >= t.until) { state.timed.splice(i, 1); continue; }
     if (t.type === 'lightning_storm' && state.tick % 10 === 0) {
       const r = t.data ?? 6;
-      const targets = rt.hash.query(t.x!, t.y!, r).filter((u) => u.owner !== t.owner && !u.dead);
+      const targets = rt.hash.query(t.x!, t.y!, r).filter((u) => isEnemy(state, t.owner, u.owner) && !u.dead);
       if (targets.length > 0) {
         const v = targets[Math.floor(state.rng.float() * targets.length)];
         state.effects.push({ type: 'bolt', x: v.x, y: v.y, ttl: 16, total: 16 });
@@ -136,10 +136,10 @@ export function updateTimedEffects(state: GameState): void {
     } else if (t.type === 'earthquake' && state.tick % 5 === 0) {
       const r = t.data ?? 7;
       for (const b of state.buildings.values()) {
-        if (b.dead || b.owner === t.owner) continue;
+        if (b.dead || !isEnemy(state, t.owner, b.owner)) continue;
         if ((b.x - t.x!) ** 2 + (b.y - t.y!) ** 2 <= r * r) applyDamage(state, b, 75, t.owner);
       }
-      rt.hash.each(t.x!, t.y!, r, (u) => { if (u.owner !== t.owner && !u.dead && (u.x - t.x!) ** 2 + (u.y - t.y!) ** 2 <= r * r) applyDamage(state, u, 3, t.owner); });
+      rt.hash.each(t.x!, t.y!, r, (u) => { if (isEnemy(state, t.owner, u.owner) && !u.dead && (u.x - t.x!) ** 2 + (u.y - t.y!) ** 2 <= r * r) applyDamage(state, u, 3, t.owner); });
     }
   }
 }

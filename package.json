@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "smoke": "tsx scripts/headless.ts",
-    "balance": "tsx scripts/balance.ts"
+    "balance": "tsx scripts/balance.ts",
+    "relay": "node server/relay.mjs"
   },
   "license": "MIT",
   "dependencies": {
@@ -22,6 +23,7 @@
   "devDependencies": {
     "@types/node": "^22.20.4",
     "@types/ws": "^8.18.1",
+    "playwright": "1.55",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vite": "^6.4.3",

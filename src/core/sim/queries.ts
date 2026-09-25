@@ -5,6 +5,10 @@ import { BUILDINGS, UNITS } from '../data';
 import type { Building, GameState, ResourceNode, Unit } from '../types';
 import { distToRect, idx, inBounds } from '../map/grid';
 
+/** Jogadores de times diferentes são inimigos. */
+export function isEnemy(state: GameState, a: number, b: number): boolean { return a !== b && state.players[a].team !== state.players[b].team; }
+export function isAlly(state: GameState, a: number, b: number): boolean { return a === b || state.players[a].team === state.players[b].team; }
+
 /** Nó de recurso mais próximo (por tipo de recurso ou de nó) dentro de um raio, por busca em anéis no grid. */
 export function nearestNode(state: GameState, x: number, y: number, want: ResourceType | NodeType, maxR = 18, exclude = -1, pred?: (n: ResourceNode) => boolean): ResourceNode | null {
   const map = state.map;
@@ -82,7 +86,7 @@ export function nearestBuilding(state: GameState, owner: number, x: number, y: n
 export function nearestEnemyBuilding(state: GameState, owner: number, x: number, y: number, pred?: (b: Building) => boolean): Building | null {
   let best: Building | null = null, bestD = Infinity;
   for (const b of state.buildings.values()) {
-    if (b.owner === owner || b.dead || (pred && !pred(b))) continue;
+    if (!isEnemy(state, owner, b.owner) || b.dead || (pred && !pred(b))) continue;
     if (!state.players[b.owner].alive) continue;
     const d = distToRect(x, y, b.tx, b.ty, b.w, b.h);
     if (d < bestD) { bestD = d; best = b; }

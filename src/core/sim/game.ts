@@ -38,7 +38,7 @@ export function createGame(config: GameConfig): GameState {
     for (const r of RESOURCES) if (config.startingResources?.[r] !== undefined) resources[r] = config.startingResources[r]!;
     const god = MAJOR_GODS[pc.god] ? pc.god : 'zeus';
     const p: Player = {
-      id: i, name: pc.name, color: PLAYER_COLORS[i % PLAYER_COLORS.length].num, isAI: pc.isAI, difficulty: pc.difficulty,
+      id: i, name: pc.name, color: PLAYER_COLORS[i % PLAYER_COLORS.length].num, isAI: pc.isAI, difficulty: pc.difficulty, team: pc.team ?? i,
       god, minorGods: [], age: config.startingAge ?? 0, resources, techs: [], powers: [{ id: MAJOR_GODS[god].power, used: false }],
       pop: 0, popCap: 0, alive: true, defeatedTick: -1, mods: defaultMods(),
       stats: { kills: 0, losses: 0, unitsTrained: 0, buildingsBuilt: 0, buildingsLost: 0, razed: 0, gathered: { food: 0, wood: 0, gold: 0, knowledge: 0, favor: 0 } },

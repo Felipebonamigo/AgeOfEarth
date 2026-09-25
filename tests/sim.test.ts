@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { TICK_RATE } from '../src/core/constants';
 import { applyCommand, canAdvanceAge, canTrain } from '../src/core/sim/commands';
 import { canPlaceBuilding, placeBuilding, spawnUnit, unitsOf, buildingsOf } from '../src/core/sim/entities';
-import { computeDamage } from '../src/core/sim/combat';
+import { computeDamage, canTarget as canTargetCheck } from '../src/core/sim/combat';
+import { createGame } from '../src/core/sim/game';
 import { territoryOwnerAt } from '../src/core/sim/territory';
 import { serialize, deserialize } from '../src/core/serialize';
 import { nearestNode } from '../src/core/sim/queries';
@@ -183,5 +184,31 @@ describe('consultas', () => {
     for (let i = 0; i < 120 * TICK_RATE && !s.gameOver; i++) tick(s);
     expect(s.gameOver).toBe(true);
     expect(s.winner).toBe(0);
+  });
+});
+
+describe('times', () => {
+  it('aliados não se atacam, não sofrem atrito e vencem juntos', () => {
+    const s = createGame({ seed: 99, mapSize: 'small', players: [
+      { name: 'A', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 },
+      { name: 'B', god: 'hades', isAI: false, difficulty: 'normal', team: 0 },
+      { name: 'C', god: 'poseidon', isAI: false, difficulty: 'normal', team: 1 },
+    ] });
+    const tcB = buildingsOf(s, 1)[0];
+    const ally = spawnUnit(s, 0, 'hoplite', tcB.x + 3, tcB.y + 3);
+    const hp0 = ally.hp;
+    run(s, 6 * TICK_RATE);
+    expect(ally.hp).toBe(hp0);              // sem atrito no território aliado, sem ataque do centro cívico aliado
+    expect(computeDamage(s, ally, tcB)).toBeGreaterThan(0); // função pura ainda calcula, mas canTarget bloqueia
+    expect(canTargetCheck(s, ally, tcB)).toBe(false);
+    // C perde tudo → aliança A+B vence
+    for (const b of buildingsOf(s, 2)) b.hp = 0.1;
+    for (const u of unitsOf(s, 2)) u.hp = 0.1;
+    for (let i = 0; i < 6; i++) spawnUnit(s, 0, 'hetairoi', buildingsOf(s, 2)[0].x + 3 + i * 0.5, buildingsOf(s, 2)[0].y + 4);
+    applyCommand(s, { type: 'attackMove', player: 0, ids: unitsOf(s, 0).filter((u) => u.type === 'hetairoi').map((u) => u.id), x: buildingsOf(s, 2)[0].x, y: buildingsOf(s, 2)[0].y });
+    for (let i = 0; i < 120 * TICK_RATE && !s.gameOver; i++) tick(s);
+    expect(s.gameOver).toBe(true);
+    expect(s.players[s.winner].team).toBe(0);
+    expect(s.players[1].alive).toBe(true);
   });
 });

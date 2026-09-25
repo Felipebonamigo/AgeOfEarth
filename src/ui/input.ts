@@ -6,7 +6,7 @@ import type { Session } from '../game/session';
 import type { Renderer, RenderUI } from '../render/renderer';
 import type { HUD } from './hud';
 import type { Audio } from '../audio/audio';
-import { isMilitary } from '../core/sim/queries';
+import { isMilitary, isEnemy } from '../core/sim/queries';
 import { NODE_NAMES } from '../core/constants';
 
 const BUILD_HOTKEYS: Record<string, string> = {};
@@ -144,7 +144,7 @@ export class Input {
     const tx = Math.floor(x), ty = Math.floor(y);
     const nid = tx >= 0 && ty >= 0 && tx < map.w && ty < map.h ? map.nodeAt[ty * map.w + tx] : -1;
     let cmd: Command | null = null;
-    if (target && target.owner !== s.local) {
+    if (target && isEnemy(s.state, s.local, target.owner)) {
       cmd = { type: 'attack', player: s.local, ids, targetId: target.id, queue };
     } else if (nid !== -1) {
       const gatherers = units.filter((u) => UNITS[u.type].canGather);
@@ -203,7 +203,7 @@ export class Input {
   private usePowerAt(x: number, y: number) {
     const s = this.getSession()!; const id = s.ui.powerId!; const def = POWERS[id];
     const target = this.renderer.pick(s.state, x, y, s.local);
-    if (def.targeting === 'unit') { if (!target || target.kind !== 'unit' || target.owner === s.local) { this.hud.toast('Escolha uma unidade inimiga.', 'warn'); return; } s.issue({ type: 'power', player: s.local, power: id, targetId: target.id }); }
+    if (def.targeting === 'unit') { if (!target || target.kind !== 'unit' || !isEnemy(s.state, s.local, target.owner)) { this.hud.toast('Escolha uma unidade inimiga.', 'warn'); return; } s.issue({ type: 'power', player: s.local, power: id, targetId: target.id }); }
     else if (def.targeting === 'building') { if (!target || target.kind !== 'building' || target.owner !== s.local) { this.hud.toast('Escolha um edifício seu.', 'warn'); return; } s.issue({ type: 'power', player: s.local, power: id, targetId: target.id }); }
     else s.issue({ type: 'power', player: s.local, power: id, x, y });
     this.audio.play('power');

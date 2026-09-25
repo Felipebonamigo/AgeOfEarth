@@ -270,7 +270,7 @@ export class Renderer {
     for (const id of ui.selection) {
       const e = state.units.get(id) ?? state.buildings.get(id);
       if (!e) continue;
-      const color = e.owner === local ? 0x8ff58f : e.owner === -1 ? 0xffffff : 0xff7b7b;
+      const color = e.owner === local ? 0x8ff58f : state.players[e.owner].team === state.players[local].team ? 0xfde68a : 0xff7b7b;
       if (e.kind === 'unit') {
         const ix = e.px + (e.x - e.px) * alpha, iy = e.py + (e.y - e.py) * alpha;
         const r = UNITS[e.type].radius * TILE * 1.4;

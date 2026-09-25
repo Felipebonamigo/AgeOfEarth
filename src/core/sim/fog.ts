@@ -17,13 +17,14 @@ export function updateFog(state: GameState, player: Player): void {
       if (inBounds(map, tx, ty)) vis[idx(map, tx, ty)] = 2;
     }
   };
+  // Visão compartilhada entre aliados (mesmo time)
   for (const u of state.units.values()) {
-    if (u.owner !== player.id || u.dead) continue;
-    mark(u.x, u.y, getUnitStats(state, player, u.type).los);
+    if (u.dead || state.players[u.owner].team !== player.team) continue;
+    mark(u.x, u.y, getUnitStats(state, state.players[u.owner], u.type).los);
   }
   for (const b of state.buildings.values()) {
-    if (b.owner !== player.id || b.dead) continue;
-    const los = b.complete ? getBuildingStats(state, player, b.type).los : Math.max(3, (BUILDINGS[b.type].los ?? 6) / 2);
+    if (b.dead || state.players[b.owner].team !== player.team) continue;
+    const los = b.complete ? getBuildingStats(state, state.players[b.owner], b.type).los : Math.max(3, (BUILDINGS[b.type].los ?? 6) / 2);
     mark(b.x, b.y, los);
   }
   state.fogVersion++;

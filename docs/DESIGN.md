@@ -44,10 +44,27 @@ scripts/        headless (IA x IA), balanceamento, screenshots automatizados
 O renderizador nunca altera o estado; toda mutação vem de `Command`s aplicados no tick. A camada de
 apresentação pode ser trocada (por exemplo, por Unity) sem reescrever as regras.
 
+## Multiplayer (lockstep)
+`NetworkScheduler` envia os comandos locais para o tick `T + atraso` (4 ticks = 200 ms) e só executa o tick `T`
+quando os comandos de todos os humanos para `T` chegaram. O relay (`server/relay.mjs`) apenas repassa mensagens
+(`join`, `lobby`, `start`, `cmds`, `hash`, `left`). A cada 100 ticks os clientes trocam um hash do estado para
+detectar dessincronização. Como só comandos trafegam, a banda é mínima e replays são gratuitos (gravar os comandos).
+Na Steam, o mesmo protocolo roda sobre Steam Networking Sockets (relay da Valve) com `steamworks.js`.
+
+## Times e co-op
+`Player.team` define alianças: aliados não se atacam, compartilham visão, não sofrem atrito no território um do
+outro e vencem juntos (conquista ou maravilha). A IA reconhece aliados e escolhe inimigos por time.
+
+## Campanha
+Cenários (`src/core/scenario`) rodam dentro da simulação: objetivos avaliados por segundo, gatilhos com
+contexto (falas, revelar objetivos, invocar esquadrões) e condições de vitória/derrota. O estado do cenário é
+serializado nos saves. Novas missões são dados + pequenas funções, sem tocar no motor.
+
 ## Roteiro
 1. ✅ Fatia vertical: skirmish contra IA com todos os sistemas centrais.
-2. Arte final (sprites 2.5D), animações, música e dublagem dos poderes.
-3. Multiplayer lockstep (2–8 jogadores) sobre Steam Networking Sockets; lobbies; replays.
-4. Co-op: times contra IA, modo horda (ondas míticas).
-5. Campanha: gatilhos de missão, diálogos, cutscenes; história da Titanomaquia em 3 atos.
-6. Editor de mapas + Steam Workshop; localização (EN/ES); conquistas.
+2. ✅ Times/co-op e multiplayer em lockstep via relay WebSocket (testado com dois navegadores).
+3. ✅ Prólogo da campanha (3 missões) com sistema de cenários reutilizável.
+4. Arte final (sprites 2.5D), animações, música e dublagem dos poderes.
+5. Steam: transporte pela Steam Networking Sockets, lobbies/matchmaking, conquistas, cloud saves.
+6. Campanha completa: a Titanomaquia em 3 atos; modo horda cooperativo (ondas míticas).
+7. Editor de mapas + Steam Workshop; localização (EN/ES); replays.

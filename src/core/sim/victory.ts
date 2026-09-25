@@ -17,8 +17,14 @@ export function checkVictory(state: GameState): void {
     }
   }
   const alive = state.players.filter((p) => p.alive);
-  if (alive.length === 1) { state.gameOver = true; state.winner = alive[0].id; state.events.push({ tick: state.tick, type: 'victory', player: alive[0].id, text: `${alive[0].name} venceu por conquista!` }); return; }
+  const teams = new Set(alive.map((p) => p.team));
   if (alive.length === 0) { state.gameOver = true; state.winner = -1; return; }
+  if (teams.size === 1 && state.players.length > 1) {
+    const w = alive.find((p) => !p.isAI) ?? alive[0];
+    state.gameOver = true; state.winner = w.id;
+    state.events.push({ tick: state.tick, type: 'victory', player: w.id, text: alive.length > 1 ? `A aliança de ${alive.map((p) => p.name).join(' e ')} venceu por conquista!` : `${w.name} venceu por conquista!` });
+    return;
+  }
   for (const p of alive) if (p.wonderVictoryAt >= 0) {
     state.gameOver = true; state.winner = p.id;
     state.events.push({ tick: state.tick, type: 'victory', player: p.id, text: `${p.name} venceu pela Maravilha!` });

@@ -5,6 +5,7 @@ import { BUILDINGS, UNITS } from '../data';
 import type { GameState, Player } from '../types';
 import { territoryOwnerAt } from './territory';
 import { getUnitStats } from './modifiers';
+import { isEnemy } from './queries';
 
 export function canAfford(player: Player, cost: Record<string, number>): boolean {
   for (const [k, v] of Object.entries(cost)) if ((player.resources[k as ResourceType] ?? 0) < v) return false;
@@ -63,7 +64,7 @@ export function economySecond(state: GameState): void {
     if (p.mods.player.regen > 0 && u.hp < u.maxHp && state.tick - u.lastDamageTick > 5 * TICK_RATE) u.hp = Math.min(u.maxHp, u.hp + p.mods.player.regen);
     if (def.tags.includes('titan')) continue;
     const owner = territoryOwnerAt(state, u.x, u.y);
-    if (owner !== -1 && owner !== u.owner && state.players[owner].alive) {
+    if (owner !== -1 && isEnemy(state, owner, u.owner) && state.players[owner].alive) {
       const rate = (BASE_ATTRITION + state.players[owner].mods.player.attrition) * Math.max(0, 1 - p.mods.player.attritionResist);
       if (rate > 0 && state.tick >= state.ceasefireUntil) {
         u.hp -= rate;

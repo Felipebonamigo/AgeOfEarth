@@ -530,11 +530,11 @@ export class HUD {
   showGameOver() {
     const s = this.session!; const st = s.state;
     if (st.scenario) { this.showScenarioEnd(); return; }
-    const won = st.winner === s.local;
+    const won = st.winner >= 0 && st.players[st.winner].team === s.player.team;
     this.audio.play(won ? 'victory' : 'defeat');
-    const rows = st.players.map((p) => `<tr><td style="color:#${p.color.toString(16).padStart(6, '0')}">${p.name}${p.id === st.winner ? ' 🏆' : ''}</td><td>${AGES[p.age].short}</td><td>${p.stats.kills}</td><td>${p.stats.losses}</td><td>${p.stats.razed}</td><td>${p.stats.buildingsBuilt}</td><td>${p.stats.unitsTrained}</td><td>${Math.round(p.stats.gathered.food + p.stats.gathered.wood + p.stats.gathered.gold)}</td><td>${p.techs.length}</td><td>${p.territoryTiles}</td></tr>`).join('');
+    const rows = st.players.map((p) => `<tr><td style="color:#${p.color.toString(16).padStart(6, '0')}">${p.name}${st.winner >= 0 && st.players[st.winner].team === p.team ? ' 🏆' : ''}</td><td>${p.team + 1}</td><td>${AGES[p.age].short}</td><td>${p.stats.kills}</td><td>${p.stats.losses}</td><td>${p.stats.razed}</td><td>${p.stats.buildingsBuilt}</td><td>${p.stats.unitsTrained}</td><td>${Math.round(p.stats.gathered.food + p.stats.gathered.wood + p.stats.gathered.gold)}</td><td>${p.techs.length}</td><td>${p.territoryTiles}</td></tr>`).join('');
     this.showModal(`<h2>${won ? '🏆 Vitória!' : st.winner === -1 ? 'Empate' : '💀 Derrota'}</h2><p>${st.events.filter((e) => e.type === 'victory').map((e) => e.text).join(' ') || ''} Tempo de jogo: ${fmtTime(st.time)}.</p>
-      <table><tr><th>Jogador</th><th>Idade</th><th>Abates</th><th>Perdas</th><th>Destruídos</th><th>Construídos</th><th>Treinados</th><th>Coletado</th><th>Pesquisas</th><th>Território</th></tr>${rows}</table>
+      <table><tr><th>Jogador</th><th>Time</th><th>Idade</th><th>Abates</th><th>Perdas</th><th>Destruídos</th><th>Construídos</th><th>Treinados</th><th>Coletado</th><th>Pesquisas</th><th>Território</th></tr>${rows}</table>
       <div class="actions"><button class="btn" id="m-continue">Continuar assistindo</button><button class="btn primary" id="m-quit">Voltar ao menu</button></div>`, false);
     this.modal.querySelector('#m-continue')!.addEventListener('click', () => this.hideModal());
     this.modal.querySelector('#m-quit')!.addEventListener('click', () => { this.hideModal(); this.cb.onQuit(); });

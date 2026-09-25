@@ -124,7 +124,7 @@ export interface AIState {
 }
 
 export interface Player {
-  id: number; name: string; color: number; isAI: boolean; difficulty: Difficulty;
+  id: number; name: string; color: number; isAI: boolean; difficulty: Difficulty; team: number;
   god: string; minorGods: string[]; age: number;
   resources: Record<ResourceType, number>;
   techs: string[]; powers: PowerState[];
@@ -148,7 +148,7 @@ export interface VisualEffect { type: string; x: number; y: number; tx?: number;
 export interface GameConfig {
   seed: number; mapSize: 'small' | 'medium' | 'large';
   scenario?: string;
-  players: { name: string; god: string; isAI: boolean; difficulty: Difficulty }[];
+  players: { name: string; god: string; isAI: boolean; difficulty: Difficulty; team?: number }[];
   revealMap?: boolean; startingAge?: number; startingResources?: Partial<Record<ResourceType, number>>;
 }
 

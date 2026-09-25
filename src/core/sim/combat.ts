@@ -6,7 +6,7 @@ import type { Building, GameState, Unit } from '../types';
 import { idx } from '../map/grid';
 import { getBuildingStats, getUnitStats } from './modifiers';
 import { getRuntime } from './runtime';
-import { distanceTo } from './queries';
+import { distanceTo, isEnemy } from './queries';
 import { recomputePop, spawnUnit } from './entities';
 
 export const ATTACK_INTERVAL: Record<string, number> = { villager: 1.0, scout: 1.0, infantry: 1.0, archer: 1.5, skirmisher: 1.2, cavalry: 1.1, siege: 3.0, hero: 1.1, myth: 1.5, titan: 2.0, building: 2.0 };
@@ -23,7 +23,7 @@ function isMelee(state: GameState, attacker: Unit | Building): boolean {
 
 export function canTarget(state: GameState, attacker: Unit | Building, target: Unit | Building): boolean {
   if (target.dead) return false;
-  if (target.owner === attacker.owner) return false;
+  if (!isEnemy(state, attacker.owner, target.owner)) return false;
   if (!state.players[target.owner].alive) return false;
   if (target.kind === 'unit' && UNITS[target.type].flying && isMelee(state, attacker)) return false;
   if (attacker.kind === 'unit' && UNITS[attacker.type].attack <= 0) return false;
@@ -37,7 +37,7 @@ export function acquireTarget(state: GameState, attacker: Unit | Building, range
   const ax = attacker.x, ay = attacker.y;
   const attackerIsSiege = attacker.kind === 'unit' && UNITS[attacker.type].cls === 'siege';
   rt.hash.each(ax, ay, range, (u) => {
-    if (u.owner === attacker.owner || u.dead) return;
+    if (u.dead || !isEnemy(state, attacker.owner, u.owner)) return;
     if (!canTarget(state, attacker, u)) return;
     const d = distanceTo(attacker, u);
     if (d > range) return;
@@ -52,7 +52,7 @@ export function acquireTarget(state: GameState, attacker: Unit | Building, range
   if (!includeBuildings) return best;
   let bestB: Building | null = null, bestBD = attackerIsSiege ? Infinity : bestD;
   for (const b of state.buildings.values()) {
-    if (b.owner === attacker.owner || b.dead || !canTarget(state, attacker, b)) continue;
+    if (b.dead || !isEnemy(state, attacker.owner, b.owner) || !canTarget(state, attacker, b)) continue;
     const d = distanceTo(attacker, b);
     if (d > buildingRange) continue;
     let score = d;
@@ -130,7 +130,7 @@ export function performAttack(state: GameState, attacker: Unit | Building, targe
       const rt = getRuntime(state);
       const tx = target.x, ty = target.y;
       rt.hash.each(tx, ty, splash, (u) => {
-        if (u === target || u.dead || u.owner === attacker.owner || !canTarget(state, attacker, u)) return;
+        if (u === target || u.dead || !canTarget(state, attacker, u)) return;
         const dx = u.x - tx, dy = u.y - ty;
         if (dx * dx + dy * dy > splash * splash) return;
         applyDamage(state, u, computeDamage(state, attacker, u) * 0.5, attacker.owner, attacker);

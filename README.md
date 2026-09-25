@@ -24,6 +24,18 @@ Versão otimizada: `npm run build` e `npm run preview`.
 - Vença por **Conquista** (elimine todos) ou pela **Maravilha** (mantenha-a de pé por 6 minutos).
 - `F1` mostra os controles; `F2` abre a enciclopédia completa (unidades, edifícios, tecnologias, deuses).
 
+## Modos de jogo
+- **Partida rápida**: você contra 1–3 IAs, todos contra todos, cooperativo (você + IA aliada) ou contra uma aliança.
+- **Campanha** "A Sombra dos Titãs": prólogo em 3 missões com objetivos, diálogos e gatilhos (tutorial → cerco → corrida contra o Portal dos Titãs).
+- **Multiplayer online** (lockstep determinístico, até 4 jogadores incluindo IAs, com times/co-op):
+
+```bash
+npm run relay            # servidor de retransmissão na porta 8787 (pode ficar em qualquer VPS)
+npm run dev              # cada jogador abre o jogo, aba Multiplayer, mesmo servidor e mesma sala
+```
+
+Todos os clientes simulam a mesma partida e só trocam comandos; um hash periódico detecta dessincronizações.
+
 ## Conteúdo
 - 5 Idades, 3 deuses maiores, 9 deuses menores, 12 poderes divinos.
 - 15 unidades humanas, 5 heróis, 13 criaturas míticas, 3 Titãs.
@@ -38,12 +50,16 @@ npm test           # testes (vitest): dados, determinismo, pathfinding, simulaç
 npm run typecheck  # TypeScript estrito
 npm run smoke 20   # simula 20 minutos de IA x IA sem interface e imprime o resumo
 npm run balance    # várias partidas IA x IA com sementes diferentes (balanceamento)
+npx tsx scripts/missions.ts     # valida as missões da campanha sem interface
+node scripts/playtest.mjs       # playtest automatizado no Chromium (requer `npm run preview` em outro terminal)
+node scripts/playtest-mp.mjs    # dois navegadores em lockstep (requer preview + `npm run relay`)
 ```
 
 Estrutura: `src/core` (simulação, sem DOM) · `src/render` (PixiJS) · `src/ui` (HUD/menus) · `desktop/` (Electron/Steam) · `docs/` (design, Steam).
 
 ## Roteiro
-Fatia vertical concluída (skirmish contra IA). Próximos passos: arte final, multiplayer lockstep pela Steam, co-op, campanha da Titanomaquia, editor de mapas e Workshop. Detalhes em `docs/DESIGN.md` e `docs/STEAM.md`.
+Concluído: skirmish contra IA, times/co-op, multiplayer em lockstep via relay, prólogo da campanha, empacotamento Electron.
+Próximos passos: arte final e animações, música, transporte pela Steam Networking Sockets, lobby com matchmaking, mais missões da Titanomaquia, editor de mapas e Workshop. Detalhes em `docs/DESIGN.md` e `docs/STEAM.md`.
 
 ## Licença
 MIT.

@@ -7,6 +7,9 @@ import { Audio } from './audio/audio';
 import { Session } from './game/session';
 import type { GameConfig } from './core/types';
 import { SCENARIOS } from './core/scenario/campaign';
+import { NetworkScheduler } from './core/net/lockstep';
+import type { NetClient } from './net/client';
+import type { Command } from './core/types';
 
 const SAVE_KEY = 'aoe_save_v1';
 
@@ -52,7 +55,25 @@ async function boot() {
     startGame({ ...def.config, scenario: id });
     if (session) { session.paused = true; hud.showIntro(id, () => { if (session) session.paused = false; }); }
   };
-  const menu = new MainMenu(root, { onStart: startGame, onLoad: loadGame, hasSave, onHelp: () => hud.showHelp(), onEncyclopedia: () => hud.showEncyclopedia(), onMission: startMission });
+  const startNetworkGame = (client: NetClient, config: GameConfig, slots: number[]) => {
+    const local = slots.indexOf(client.slot);
+    session = Session.newGame(config, local);
+    const humans = slots.map((_, i) => i);
+    const sched = new NetworkScheduler(local, humans, 4, { sendCmds: (t, c) => client.sendCmds(t, c), sendHash: (t, h) => client.sendHash(t, h) });
+    sched.onDesync = (t) => hud.toast(`⚠️ Dessincronização detectada no tick ${t}. A partida pode divergir entre os jogadores.`, 'warn');
+    client.on('cmds', (m) => { const idx = slots.indexOf(Number(m.slot)); if (idx >= 0) sched.receive(idx, Number(m.tick), (m.cmds as Command[]) ?? []); });
+    client.on('hash', (m) => { const idx = slots.indexOf(Number(m.slot)); if (idx >= 0) sched.receiveHash(idx, Number(m.tick), Number(m.hash)); });
+    client.on('left', (m) => { const idx = slots.indexOf(Number(m.slot)); if (idx >= 0) { sched.dropPlayer(idx); hud.toast(`${config.players[idx]?.name ?? 'Um jogador'} saiu da partida.`, 'warn'); } });
+    client.on('close', () => hud.toast('Conexão com o servidor perdida.', 'warn'));
+    session.scheduler = sched;
+    session.speed = 1;
+    renderer.setState(session.state);
+    const home = [...session.state.buildings.values()].find((b) => b.owner === session!.local && b.type === 'town_center');
+    if (home) renderer.cam.centerOn(home.x, home.y);
+    hud.setSession(session); hud.setVisible(true); menu.hide();
+    hud.toast(`Partida online: ${config.players.filter((p) => !p.isAI).length} jogadores. Você é ${config.players[local].name}.`, 'gold');
+  };
+  const menu = new MainMenu(root, { onStart: startGame, onLoad: loadGame, hasSave, onHelp: () => hud.showHelp(), onEncyclopedia: () => hud.showEncyclopedia(), onMission: startMission, onNetworkStart: startNetworkGame });
 
   window.addEventListener('keydown', (e) => {
     if (!session) return;
