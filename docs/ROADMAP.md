@@ -29,6 +29,8 @@ Objetivo: partida rápida e missões divertidas para um jogador humano, sem trav
 Marco **M1 (semana 5)**: "vertical slice jogável por terceiros" — enviar para 3–5 amigos testarem.
 
 ## Fase 2 — Identidade visual e áudio · semanas 3–14 (paralela)
+
+> **Direção visual (decisão do dono, set/2026): o jogo deve ter visual realista.** O plano técnico e a direção de arte ficam em `docs/ART.md` (pipeline de arte substituível por arte profissional; entregas semanais com capturas antes/depois).
 Objetivo: parar de parecer protótipo. É o caminho crítico do projeto.
 
 | # | Passo | Resp. | Semanas |
