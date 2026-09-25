@@ -3,7 +3,7 @@
 import { MAX_SCHOLARS, TICK_RATE } from '../constants';
 import { AGES, BUILDINGS, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS } from '../data';
 import type { Building, GameState, Player, QueueItem } from '../types';
-import { getBuildingStats, getUnitStats, recomputeMods } from './modifiers';
+import { getBuildingStats, getUnitStats, recomputeMods, refreshMaxHp } from './modifiers';
 import type { Runtime } from './runtime';
 import { acquireTarget, attackInterval, performAttack } from './combat';
 import { findSpawnTile, recomputePop, spawnUnit } from './entities';
@@ -76,7 +76,9 @@ function completeQueueItem(state: GameState, b: Building, item: QueueItem): void
     case 'age': {
       const [, minor] = item.id.split(':');
       player.age = Math.min(AGES.length - 1, player.age + 1);
-      if (minor && MINOR_GODS[minor]) {
+      // deus menor válido: opção do deus maior para a idade que acabou de passar, ainda não escolhido
+      const options = MAJOR_GODS[player.god]?.minorGods[player.age - 1] ?? [];
+      if (minor && MINOR_GODS[minor] && options.includes(minor) && !player.minorGods.includes(minor)) {
         player.minorGods.push(minor);
         const power = MINOR_GODS[minor].power;
         if (!player.powers.some((p) => p.id === power)) player.powers.push({ id: power, used: false });
@@ -105,19 +107,7 @@ function rallyEntityAt(state: GameState, x: number, y: number): number | null {
   return null;
 }
 
-/** Atualiza maxHp de unidades e edifícios após mudanças de modificadores (mantém a fração de vida). */
-export function refreshMaxHp(state: GameState, player: Player): void {
-  for (const u of state.units.values()) {
-    if (u.owner !== player.id || u.dead) continue;
-    const st = getUnitStats(state, player, u.type);
-    if (st.hp !== u.maxHp) { const frac = u.hp / u.maxHp; u.maxHp = st.hp; u.hp = Math.round(st.hp * frac); }
-  }
-  for (const b of state.buildings.values()) {
-    if (b.owner !== player.id || b.dead) continue;
-    const st = getBuildingStats(state, player, b.type);
-    if (st.hp !== b.maxHp) { const frac = b.hp / b.maxHp; b.maxHp = st.hp; b.hp = Math.round(st.hp * frac); }
-  }
-}
+export { refreshMaxHp } from './modifiers';
 
 export function queueTotalFor(state: GameState, player: Player, kind: QueueItem['kind'], id: string): number {
   if (kind === 'unit') return getUnitStats(state, player, id).trainTime;

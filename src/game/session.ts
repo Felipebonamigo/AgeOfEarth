@@ -29,11 +29,19 @@ export class Session {
   eventCursor = 0;
   onSelectionChanged: (() => void) | null = null;
   spectator = false;
+  /** Save de origem quando a partida foi carregada: o replay parte dele, não do tick 0. */
+  replayBase: string | null = null;
 
   constructor(state: GameState, local = 0) { this.state = state; this.local = local; }
 
   static newGame(config: GameConfig, local?: number): Session { return new Session(createGame(config), local ?? config.players.findIndex((p) => !p.isAI)); }
-  static load(json: string): Session { const st = deserialize(json); return new Session(st, st.config.players.findIndex((p) => !p.isAI)); }
+  static load(json: string): Session {
+    const st = deserialize(json);
+    const s = new Session(st, st.config.players.findIndex((p) => !p.isAI));
+    s.replayBase = json;
+    s.eventCursor = st.events.length;   // eventos antigos do save não são reexibidos como novos
+    return s;
+  }
   save(): string { return serialize(this.state); }
 
   issue(cmd: Command): void { if (this.spectator) return; this.scheduler.issue(cmd); }
@@ -42,11 +50,13 @@ export class Session {
   replayJSON(): string | null {
     const sch = this.scheduler;
     if (!(sch instanceof LocalScheduler)) return null;
-    return JSON.stringify({ version: 1, config: this.state.config, frames: sch.frames, ticks: this.state.tick });
+    return JSON.stringify({ version: 1, config: this.state.config, frames: sch.frames, ticks: this.state.tick, base: this.replayBase ?? undefined });
   }
   static replay(json: string): Session {
-    const o = JSON.parse(json) as { config: GameConfig; frames: ReplayFrame[] };
-    const s = new Session(createGame(o.config), Math.max(0, o.config.players.findIndex((p) => !p.isAI)));
+    const o = JSON.parse(json) as { config: GameConfig; frames: ReplayFrame[]; base?: string };
+    const st = o.base ? deserialize(o.base) : createGame(o.config);
+    const s = new Session(st, Math.max(0, o.config.players.findIndex((p) => !p.isAI)));
+    if (o.base) s.eventCursor = st.events.length;
     s.scheduler = new ReplayScheduler(o.frames);
     s.spectator = true;
     return s;

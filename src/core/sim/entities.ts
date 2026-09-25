@@ -5,6 +5,7 @@ import type { Building, GameState, Player, Unit } from '../types';
 import { idx, inBounds, spiralSearch, isPassable } from '../map/grid';
 import { getBuildingStats, getUnitStats } from './modifiers';
 import { t } from '../../i18n';
+import { invalidateComponents, componentAt, componentSize } from '../map/components';
 
 export function spawnUnit(state: GameState, owner: number, type: string, x: number, y: number): Unit {
   const player = state.players[owner];
@@ -14,7 +15,7 @@ export function spawnUnit(state: GameState, owner: number, type: string, x: numb
     id: state.nextId++, kind: 'unit', type, owner, x, y, px: x, py: y, hp: stats.hp, maxHp: stats.hp,
     state: 'idle', tx: x, ty: y, path: null, pathI: 0, targetId: -1, nodeId: -1, carry: null, carryAmt: 0,
     cooldown: 0, stance: def.tags.includes('civilian') ? 'passive' : 'aggressive', leashX: x, leashY: y, kills: 0, heads: 1,
-    dead: false, spawnTick: state.tick, repathAt: 0, stuck: 0, order: null, queue: [], attackTick: -100, lastDamageTick: -100, orderTick: state.tick, inside: -1, resumeNodeId: -1,
+    dead: false, spawnTick: state.tick, repathAt: 0, stuck: 0, order: null, queue: [], attackTick: -100, lastDamageTick: -100, orderTick: state.tick, inside: -1, resumeNodeId: -1, avoidIds: [], avoidUntil: 0, blockedTicks: 0,
   };
   state.units.set(u.id, u);
   player.pop += def.pop;
@@ -36,19 +37,32 @@ export function placeBuilding(state: GameState, owner: number, type: string, tx:
     state.map.buildingAt[i] = b.id;
     if (!def.passable) state.map.blocked[i] = 1;
   }
-  if (!def.passable) pushUnitsOut(state, b);
+  if (!def.passable) { pushUnitsOut(state, b); invalidateComponents(state.map); }
   if (complete) onBuildingComplete(state, b);
   return b;
 }
 
 /** Empurra unidades que estejam sobre a área do edifício para o tile livre mais próximo. */
+/** Tile passável que não seja um bolsão minúsculo (região com pelo menos 8 tiles), para não prender unidades. */
+function openTile(state: GameState, x: number, y: number): boolean {
+  return isPassable(state.map, x, y) && componentSize(state.map, componentAt(state.map, x, y)) >= 8;
+}
 function pushUnitsOut(state: GameState, b: Building) {
   for (const u of state.units.values()) {
     if (u.dead || UNITS[u.type].flying || u.inside !== -1) continue;
     if (u.x >= b.tx && u.x < b.tx + b.w && u.y >= b.ty && u.y < b.ty + b.h) {
-      const t = spiralSearch(Math.floor(u.x), Math.floor(u.y), 8, (x, y) => isPassable(state.map, x, y));
+      const t = spiralSearch(Math.floor(u.x), Math.floor(u.y), 8, (x, y) => openTile(state, x, y)) ?? spiralSearch(Math.floor(u.x), Math.floor(u.y), 8, (x, y) => isPassable(state.map, x, y));
       if (t) { u.x = t.x + 0.5; u.y = t.y + 0.5; u.px = u.x; u.py = u.y; u.path = null; }
     }
+  }
+}
+/** Empurra para fora as unidades terrestres que estejam sobre um tile que acabou de ficar bloqueado (pedra, javali). */
+export function pushUnitsOutOfTile(state: GameState, tx: number, ty: number): void {
+  for (const u of state.units.values()) {
+    if (u.dead || UNITS[u.type].flying || u.inside !== -1) continue;
+    if (Math.floor(u.x) !== tx || Math.floor(u.y) !== ty) continue;
+    const t = spiralSearch(tx, ty, 6, (x, y) => openTile(state, x, y)) ?? spiralSearch(tx, ty, 6, (x, y) => isPassable(state.map, x, y));
+    if (t) { u.x = t.x + 0.5; u.y = t.y + 0.5; u.px = u.x; u.py = u.y; u.path = null; }
   }
 }
 
@@ -64,7 +78,7 @@ export function onBuildingComplete(state: GameState, b: Building): void {
   player.stats.buildingsBuilt++;
   recomputePop(state, player);
   if (def.wonder || def.popCap) { /* nada extra */ }
-  if (def.wonder) { const { recomputeMods } = requireMods(); recomputeMods(state, player); }
+  if (def.wonder) { const { recomputeMods, refreshMaxHp } = requireMods(); recomputeMods(state, player); refreshMaxHp(state, player); }   // bônus da maravilha vale para quem já existe
 }
 
 // Import tardio para evitar ciclo modifiers <-> entities em tempo de módulo.
@@ -94,6 +108,7 @@ export function countBuildings(state: GameState, owner: number, pred: (b: Buildi
 
 export function buildingLimitOk(state: GameState, player: Player, type: string): PlaceCheck {
   const def = BUILDINGS[type];
+  if (def.titanGate && player.titanSpawned) return { ok: false, reason: t('err.titanOnce') };   // o Titã só surge uma vez
   if (def.limit === 'city') {
     const n = countBuildings(state, player.id, (b) => b.type === 'town_center');
     if (n >= player.mods.player.cityLimit) return { ok: false, reason: t('err.cityLimit', { n: player.mods.player.cityLimit }) };
@@ -135,12 +150,13 @@ export function findSpawnTile(state: GameState, b: Building, towardX?: number, t
   const ring = (r: number) => {
     for (let y = b.ty - r; y < b.ty + b.h + r; y++) for (let x = b.tx - r; x < b.tx + b.w + r; x++) {
       const onRing = x === b.tx - r || x === b.tx + b.w + r - 1 || y === b.ty - r || y === b.ty + b.h + r - 1;
-      if (!onRing || !isPassable(map, x, y)) continue;
+      if (!onRing || !openTile(state, x, y)) continue;
       const d = towardX !== undefined && towardY !== undefined ? (x - towardX) * (x - towardX) + (y - towardY) * (y - towardY) : (x - b.x) * (x - b.x) + (y - b.y) * (y - b.y);
       if (d < bestD) { bestD = d; bestX = x; bestY = y; }
     }
   };
   for (let r = 1; r <= 6 && bestD === Infinity; r++) ring(r);
+  if (bestD === Infinity) { const t = spiralSearch(b.tx, b.ty + b.h, 8, (x, y) => isPassable(map, x, y)); if (t) { bestX = t.x; bestY = t.y; } }
   return { x: bestX + 0.5, y: bestY + 0.5 };
 }
 

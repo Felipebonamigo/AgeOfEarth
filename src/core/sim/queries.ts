@@ -51,8 +51,8 @@ export function nodeAccessTiles(map: GameMap, n: ResourceNode): number {
 export function nodeCapacity(state: GameState, n: ResourceNode): number { return Math.min(NODE_CAPACITY[n.type], nodeAccessTiles(state.map, n)); }
 export function nodeHasRoom(state: GameState, n: ResourceNode): boolean { return nodeGatherers(state, n.id) < nodeCapacity(state, n); }
 /** Nó mais próximo do mesmo recurso com vaga (usado para espalhar coletores por um agrupamento). */
-export function nearestNodeWithRoom(state: GameState, x: number, y: number, want: ResourceType | NodeType, maxR = 18, exclude = -1): ResourceNode | null {
-  return nearestNode(state, x, y, want, maxR, exclude, (n) => nodeHasRoom(state, n));
+export function nearestNodeWithRoom(state: GameState, x: number, y: number, want: ResourceType | NodeType, maxR = 18, exclude = -1, avoid?: number[]): ResourceNode | null {
+  return nearestNode(state, x, y, want, maxR, exclude, (n) => nodeHasRoom(state, n) && !(avoid && avoid.includes(n.id)));
 }
 
 export function farmGatherers(state: GameState, farmId: number): number {
@@ -67,10 +67,11 @@ export function farmPrimary(state: GameState, farmId: number): number {
 }
 
 /** Fazenda concluída do jogador com vaga, mais próxima. */
-export function nearestFreeFarm(state: GameState, owner: number, x: number, y: number, maxR = 20): Building | null {
+export function nearestFreeFarm(state: GameState, owner: number, x: number, y: number, maxR = 20, avoid?: number[]): Building | null {
   let best: Building | null = null, bestD = Infinity;
   for (const b of state.buildings.values()) {
     if (b.owner !== owner || b.dead || !b.complete || !BUILDINGS[b.type].farm) continue;
+    if (avoid && avoid.includes(b.id)) continue;
     const d = distToRect(x, y, b.tx, b.ty, b.w, b.h);
     if (d > maxR || d >= bestD) continue;
     if (farmGatherers(state, b.id) >= FARM_GATHERERS) continue;
@@ -79,10 +80,11 @@ export function nearestFreeFarm(state: GameState, owner: number, x: number, y: n
   return best;
 }
 
-export function nearestDropoff(state: GameState, owner: number, x: number, y: number, resource: ResourceType): Building | null {
+export function nearestDropoff(state: GameState, owner: number, x: number, y: number, resource: ResourceType, avoid?: number[]): Building | null {
   let best: Building | null = null, bestD = Infinity;
   for (const b of state.buildings.values()) {
     if (b.owner !== owner || b.dead || !b.complete) continue;
+    if (avoid && avoid.includes(b.id)) continue;
     const def = BUILDINGS[b.type];
     if (!def.dropoff || !def.dropoff.includes(resource)) continue;
     const d = distToRect(x, y, b.tx, b.ty, b.w, b.h);

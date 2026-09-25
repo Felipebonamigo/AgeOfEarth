@@ -1,13 +1,14 @@
 // Inteligência artificial dos oponentes: economia, construção, pesquisa, avanço de idade,
 // exército (defesa, ondas de ataque, recuo) e uso de poderes divinos. Pensa a cada N segundos.
-import { DIFFICULTIES, TICK_RATE, NODE_RESOURCE, RESOURCES, type ResourceType } from '../constants';
+import { DIFFICULTIES, TICK_RATE, NODE_RESOURCE, RESOURCES, MARKET_TRADE_LOT, type ResourceType } from '../constants';
+import { rectReachable, wouldSeal } from '../map/components';
 import { AGES, BUILDINGS, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS } from '../data';
-import type { Building, GameState, Player, Unit } from '../types';
+import type { Building, GameState, Player, ResourceNode, Unit } from '../types';
 import { idx, inBounds, isPassable, dist, spiralSearch } from '../map/grid';
-import { applyCommand, canAdvanceAge, canResearch, canTrain } from './commands';
+import { applyCommand, canAdvanceAge, canResearch, canTrain, academyTechCount } from './commands';
 import { canPlaceBuilding, countBuildings, buildingsOf, unitsOf } from './entities';
 import { getRuntime } from './runtime';
-import { isMilitary, isEnemy, nearestEnemyBuilding, nearestNode, nearestNodeWithRoom, nearestFreeFarm, countUnits } from './queries';
+import { isMilitary, isEnemy, nearestEnemyBuilding, nearestNode, nearestNodeWithRoom, nearestFreeFarm, countUnits, nodeHasRoom } from './queries';
 import { getBuildingStats, getUnitStats, techCost } from './modifiers';
 import { canAfford } from './economy';
 import { t } from '../../i18n';
@@ -149,7 +150,13 @@ function assignGatherer(state: GameState, player: Player, v: Unit, r: string, sn
     if (node) { applyCommand(state, { type: 'gather', player: player.id, ids: [v.id], targetId: node.id }); return true; }
     return false;
   }
-  const node = nearestNodeWithRoom(state, v.x, v.y, res, 24) ?? nearestNodeWithRoom(state, anchor.x, anchor.y, res, 34) ?? nearestNode(state, anchor.x, anchor.y, res, 34);
+  // só nós com caminho por terra a partir do cidadão; se os veios perto acabaram, procura longe (a IA constrói um ponto de entrega lá depois)
+  const fx = Math.floor(v.x), fy = Math.floor(v.y);
+  const reach = (n: ResourceNode) => rectReachable(state.map, fx, fy, n.x, n.y, 1, 1, true);
+  const node = nearestNode(state, v.x, v.y, res, 24, -1, (n) => nodeHasRoom(state, n) && reach(n))
+    ?? nearestNode(state, anchor.x, anchor.y, res, 34, -1, (n) => nodeHasRoom(state, n) && reach(n))
+    ?? nearestNode(state, anchor.x, anchor.y, res, 34, -1, reach)
+    ?? nearestNode(state, anchor.x, anchor.y, res, 70, -1, (n) => nodeHasRoom(state, n) && reach(n));
   if (!node) return false;
   applyCommand(state, { type: 'gather', player: player.id, ids: [v.id], targetId: node.id });
   return true;
@@ -240,7 +247,8 @@ function manageBuilding(state: GameState, player: Player, snap: Snapshot): void 
     if (!def || def.age > age) continue;
     const bcost = getBuildingStats(state, player, p.type).cost;
     if (!canAfford(player, bcost)) { if (p.type === 'house') return; continue; }
-    const essential = ['house', 'temple', 'academy', 'granary', 'lumber_camp', 'mine', 'farm', 'barracks', 'fortress'].includes(p.type) || p.type.startsWith('wonder') || p.type === 'titan_gate';
+    // (o mercado é essencial: é a válvula de escape quando o ouro acaba e a comida sobra)
+    const essential = ['house', 'temple', 'academy', 'granary', 'lumber_camp', 'mine', 'farm', 'barracks', 'fortress', 'market'].includes(p.type) || p.type.startsWith('wonder') || p.type === 'titan_gate';
     if (!essential && (bcost.gold ?? 0) > player.resources.gold - budgetOf(state, player).reserveGold) continue;
     let spot = findBuildSpot(state, player, p.type, p.anchorX, p.anchorY, p.minR, p.maxR);
     if (!spot) {
@@ -325,6 +333,8 @@ export function findBuildSpot(state: GameState, player: Player, type: string, ax
     const d = Math.max(Math.abs(x - cx), Math.abs(y - cy));
     if (d < minR) return false;
     if (!canPlaceBuilding(state, player, type, x, y, ignoreLimits).ok) return false;
+    // nunca fecha a passagem local (corredor de saída da base, gargalo do mapa)
+    if (!def.passable && !def.wall && wouldSeal(map, x, y, def.w, def.h)) return false;
     if (!needsMargin) return true;
     // margem: nenhum edifício não passável nos tiles ao redor (mantém corredores para as unidades saírem)
     for (let yy = y - 1; yy <= y + def.h; yy++) for (let xx = x - 1; xx <= x + def.w; xx++) {
@@ -471,6 +481,8 @@ function manageResearch(state: GameState, player: Player, snap: Snapshot): void 
     const cost = techCost(player, t);
     const isLine = !!def.line;
     const cheap = ((cost.gold ?? 0) + (cost.food ?? 0) * 0.5) < 160;
+    // Linhas da Academia além do exigido pela próxima Idade só depois de juntar o fundo (senão o ouro nunca fecha)
+    if (isLine && !budget.fundMet && (cost.gold ?? 0) > 0 && academyTechCount(player) >= (AGES[player.age + 1]?.requires.techCount ?? 0) + 1) continue;
     // Linhas da Academia (necessárias para avançar) sempre; o resto só com sobra sobre o fundo da idade
     if (!isLine && !(cheap && player.age === 0) && (budget.surplus.gold < (cost.gold ?? 0) + 50 || budget.surplus.food < (cost.food ?? 0))) continue;
     if ((cost.gold ?? 0) > player.resources.gold - 40) continue;
@@ -491,7 +503,23 @@ function manageTrade(state: GameState, player: Player, snap: Snapshot): void {
     if (r.gold >= price + 30) { applyCommand(state, { type: 'trade', player: player.id, action: 'buy', resource: scarce }); return; }
     if (abundant !== scarce && r[abundant] > 250) { applyCommand(state, { type: 'trade', player: player.id, action: 'sell', resource: abundant }); return; }
   }
-  if (r.gold < 100 && r[abundant] > 700) applyCommand(state, { type: 'trade', player: player.id, action: 'sell', resource: abundant });
+  // Fundo da próxima Idade: converte o excedente grande de comida/madeira no ouro que falta (até 4 lotes por pensamento)
+  const budget = budgetOf(state, player);
+  const nextCost = (AGES[player.age + 1]?.cost ?? {}) as Record<string, number>;
+  let goldShort = !budget.fundMet && budget.surplus.gold < 0 ? -budget.surplus.gold : (r.gold < 100 ? 100 - r.gold : 0);
+  let sold = 0;
+  for (const k of [...tradeable].sort((a, b) => r[b] - r[a])) {
+    const keep = Math.max(500, (nextCost[k] ?? 0) + 150);
+    while (goldShort > 0 && sold < 4 && r[k] - MARKET_TRADE_LOT >= keep) {
+      const g0 = r.gold;
+      if (!applyCommand(state, { type: 'trade', player: player.id, action: 'sell', resource: k }).ok) break;
+      goldShort -= r.gold - g0; sold++;
+    }
+  }
+  // Recurso que trava a Idade com ouro sobrando: compra
+  if (!budget.fundMet) for (const k of tradeable) {
+    if (budget.surplus[k] < 0 && r.gold > budget.reserveGold + player.prices[k] * 1.5 + 100) { applyCommand(state, { type: 'trade', player: player.id, action: 'buy', resource: k }); break; }
+  }
 }
 
 // ---------------- Exército ----------------
@@ -511,15 +539,19 @@ function manageArmy(state: GameState, player: Player, snap: Snapshot): void {
   for (const b of guarded) {
     rt.hash.each(b.x, b.y, 12, (u) => {
       if (!isEnemy(state, player.id, u.owner) || u.dead || !state.players[u.owner].alive) return;
-      if (UNITS[u.type].tags.includes('scout') || UNITS[u.type].attack <= 0) return;
+      const ud = UNITS[u.type];
+      if (ud.tags.includes('scout') || ud.attack <= 0) return;
       const d = dist(u.x, u.y, b.x, b.y);
+      if (ud.tags.includes('civilian') && u.state !== 'attack' && d >= 5) return;   // cidadão só coletando perto da fronteira não é ameaça
       if (d < 12 && d < threatD) { threatD = d; threat = u; }
     });
   }
+  const waveInProgress = ai.attackTarget !== -1;
   if (threat) {
     const t = threat as Unit;
     ai.defending = state.tick;
-    const defenders = army.filter((u) => u.state !== 'attack' || dist(u.x, u.y, t.x, t.y) > 10);
+    // com uma onda em curso, só quem está perto de casa responde; a onda continua
+    const defenders = army.filter((u) => (u.state !== 'attack' || dist(u.x, u.y, t.x, t.y) > 10) && (!waveInProgress || dist(u.x, u.y, t.x, t.y) < 30));
     if (defenders.length > 0) applyCommand(state, { type: 'attackMove', player: player.id, ids: defenders.map((u) => u.id), x: t.x, y: t.y });
     // cidadãos ameaçados se guarnecem no centro cívico/fortaleza mais próximo quando o exército é fraco
     const scared = snap.villagers.filter((v) => v.inside === -1 && dist(v.x, v.y, t.x, t.y) < 7);
@@ -529,7 +561,7 @@ function manageArmy(state: GameState, player: Player, snap: Snapshot): void {
       if (shelter) applyCommand(state, { type: 'garrison', player: player.id, ids: scared.map((u) => u.id), targetId: shelter.id });
       else applyCommand(state, { type: 'move', player: player.id, ids: scared.map((u) => u.id), x: tc.x, y: tc.y + 3 });
     }
-    return;
+    if (!waveInProgress) return;
   }
   // Sem ameaças há 20 s: libera guarnições para voltarem ao trabalho
   if (state.tick - ai.defending > 20 * TICK_RATE) {
@@ -557,7 +589,7 @@ function manageArmy(state: GameState, player: Player, snap: Snapshot): void {
     }
   }
   if (army.length >= threshold && state.tick - ai.lastAttack > attackCooldown) {
-    const target = chooseAttackTarget(state, player, tc);
+    const target = chooseAttackTarget(state, player, tc, army[0]);
     if (target) {
       ai.attackTarget = target.id; ai.lastAttack = state.tick; ai.waves++;
       const ids = [...army.map((u) => u.id), ...snap.heroes.map((u) => u.id)];
@@ -570,8 +602,8 @@ function manageArmy(state: GameState, player: Player, snap: Snapshot): void {
   if (idle.length > 0) applyCommand(state, { type: 'move', player: player.id, ids: idle.map((u) => u.id), x: ai.rallyX, y: ai.rallyY });
 }
 
-function chooseAttackTarget(state: GameState, player: Player, tc: Building): Building | null {
-  // Prefere o inimigo mais fraco (menos militares) e, dentro dele, o edifício mais próximo
+function chooseAttackTarget(state: GameState, player: Player, tc: Building, from: Unit): Building | null {
+  // Prefere o inimigo mais fraco (menos militares) e, dentro dele, o edifício mais próximo — desde que haja caminho por terra
   let weakest: Player | null = null, weakestArmy = Infinity;
   for (const e of state.players) {
     if (!isEnemy(state, player.id, e.id) || !e.alive) continue;
@@ -580,7 +612,11 @@ function chooseAttackTarget(state: GameState, player: Player, tc: Building): Bui
   }
   if (!weakest) return null;
   const w = weakest;
-  return nearestEnemyBuilding(state, player.id, tc.x, tc.y, (b) => b.owner === w.id && !BUILDINGS[b.type].wall) ?? nearestEnemyBuilding(state, player.id, tc.x, tc.y);
+  const fx = Math.floor(from.x), fy = Math.floor(from.y);
+  const reachable = (b: Building) => rectReachable(state.map, fx, fy, b.tx, b.ty, b.w, b.h, true);
+  return nearestEnemyBuilding(state, player.id, tc.x, tc.y, (b) => b.owner === w.id && !BUILDINGS[b.type].wall && reachable(b))
+    ?? nearestEnemyBuilding(state, player.id, tc.x, tc.y, (b) => !BUILDINGS[b.type].wall && reachable(b))
+    ?? nearestEnemyBuilding(state, player.id, tc.x, tc.y, reachable);
 }
 
 function manageScouts(state: GameState, player: Player, snap: Snapshot): void {

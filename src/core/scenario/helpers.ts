@@ -4,7 +4,7 @@ import type { GameState, Unit } from '../types';
 import { spawnUnit, placeBuilding, canPlaceBuilding } from '../sim/entities';
 import { giveOrder } from '../sim/units';
 import { spiralSearch, isPassable } from '../map/grid';
-import { recomputeMods } from '../sim/modifiers';
+import { recomputeMods, refreshMaxHp } from '../sim/modifiers';
 
 export function count(state: GameState, owner: number, pred: (u: Unit) => boolean): number {
   let n = 0; for (const u of state.units.values()) if (u.owner === owner && !u.dead && pred(u)) n++; return n;
@@ -39,7 +39,7 @@ export function give(state: GameState, owner: number, res: Partial<Record<'food'
 
 export function grantTech(state: GameState, owner: number, tech: string): void {
   const p = state.players[owner];
-  if (!p.techs.includes(tech)) { p.techs.push(tech); recomputeMods(state, p); }
+  if (!p.techs.includes(tech)) { p.techs.push(tech); recomputeMods(state, p); refreshMaxHp(state, p); }
 }
 
 export function placeNear(state: GameState, owner: number, type: string, x: number, y: number, complete = true): void {

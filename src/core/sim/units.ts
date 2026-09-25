@@ -3,8 +3,9 @@
 import { CARRY_CAPACITY, FARM_GATHERERS, GATHER_RATES, HUNT_TYPES, NODE_RESOURCE, TICK_RATE, type ResourceType } from '../constants';
 import { BUILDINGS, UNITS } from '../data';
 import type { Building, GameState, Order, ResourceNode, Unit } from '../types';
-import { distToRect, idx, inBounds, canPass, dist } from '../map/grid';
-import { findPath, nearestFreeTile, type PathGoal } from '../map/pathfinding';
+import { distToRect, idx, inBounds, canPass, canStep, dist } from '../map/grid';
+import { componentAt, componentSize, nearestLargeComponentTile, rectReachable } from '../map/components';
+import { findPathEx, nearestFreeTile, type PathGoal } from '../map/pathfinding';
 import { removeNode } from '../map/mapgen';
 import { getBuildingStats, getUnitStats } from './modifiers';
 import { getRuntime, type Runtime } from './runtime';
@@ -15,6 +16,16 @@ import { onBuildingComplete, canGarrison, enterGarrison } from './entities';
 
 const ARRIVE = 0.2;
 const LEASH = 11;
+type MoveResult = 'arrived' | 'moving' | 'blocked';   // blocked = não há caminho até o alvo
+
+/** Marca um alvo/nó/entrega como inalcançável por alguns segundos (evita insistir no mesmo alvo a cada tick). */
+function avoid(state: GameState, u: Unit, id: number, seconds: number): void {
+  if (state.tick >= u.avoidUntil) u.avoidIds.length = 0;
+  if (!u.avoidIds.includes(id)) u.avoidIds.push(id);
+  if (u.avoidIds.length > 6) u.avoidIds.shift();
+  u.avoidUntil = state.tick + Math.round(seconds * TICK_RATE);
+}
+function avoided(state: GameState, u: Unit): number[] | undefined { return state.tick < u.avoidUntil ? u.avoidIds : undefined; }
 
 // ---------------- Ordens ----------------
 export function giveOrder(state: GameState, u: Unit, order: Order, queue = false): void {
@@ -105,11 +116,11 @@ export function updateUnit(state: GameState, rt: Runtime, u: Unit, dt: number): 
     case 'idle': case 'hold': {
       if (u.queue.length > 0 && !u.order) { startOrder(state, u, u.queue.shift()!); return; }
       // Carga na mão e ponto de entrega disponível (ex.: Centro Cívico reconstruído): retoma a entrega
-      if (u.carryAmt > 0 && u.carry && !u.order && (state.tick + u.id) % 40 === 0 && nearestDropoff(state, u.owner, u.x, u.y, u.carry)) { u.state = 'return'; u.path = null; return; }
+      if (u.carryAmt > 0 && u.carry && !u.order && (state.tick + u.id) % 40 === 0 && nearestDropoff(state, u.owner, u.x, u.y, u.carry, avoided(state, u))) { u.state = 'return'; u.path = null; return; }
       if (def.attack > 0 && u.stance !== 'passive' && (state.tick + u.id) % 6 === 0 && state.tick >= state.ceasefireUntil) {
         const range = u.state === 'hold' || u.stance === 'defensive' ? stats.range + 0.5 : stats.los;
         const t = acquireTarget(state, u, range, true, Math.min(range, stats.range + 4));
-        if (t) { u.leashX = u.x; u.leashY = u.y; u.targetId = t.id; u.state = 'attack'; u.order = null; u.path = null; }
+        if (t) { u.leashX = u.x; u.leashY = u.y; u.targetId = t.id; u.state = 'attack'; u.order = null; u.path = null; u.orderTick = state.tick; }
       }
       return;
     }
@@ -117,28 +128,28 @@ export function updateUnit(state: GameState, rt: Runtime, u: Unit, dt: number): 
       if (u.order?.type === 'garrison') {
         const b = state.buildings.get(u.targetId);
         if (!b || b.dead) { finishOrder(state, u); return; }
-        const arrived = moveTowards(state, rt, u, stats.speed * dt, b.x, b.y, { tx: b.tx, ty: b.ty, w: b.w, h: b.h }, 1.0, true);
-        if (arrived) { const q = u.queue; if (!enterGarrison(state, u, b)) finishOrder(state, u); else u.queue = q; }
+        const r = moveTowards(state, rt, u, stats.speed * dt, b.x, b.y, { tx: b.tx, ty: b.ty, w: b.w, h: b.h }, 1.0, true);
+        if (r === 'arrived') { const q = u.queue; if (!enterGarrison(state, u, b)) finishOrder(state, u); else u.queue = q; }
+        else if (r === 'blocked') finishOrder(state, u);
         return;
       }
       if (u.order?.type === 'pray') {
         const b = state.buildings.get(u.targetId);
         if (!b || b.dead) { finishOrder(state, u); return; }
-        const arrived = moveTowards(state, rt, u, stats.speed * dt, b.x, b.y, { tx: b.tx, ty: b.ty, w: b.w, h: b.h }, 0.95, true);
-        if (arrived) { u.state = 'pray'; u.nodeId = -b.id; u.path = null; u.order = null; }
+        const r = moveTowards(state, rt, u, stats.speed * dt, b.x, b.y, { tx: b.tx, ty: b.ty, w: b.w, h: b.h }, 0.95, true);
+        if (r === 'arrived') { u.state = 'pray'; u.nodeId = -b.id; u.path = null; u.order = null; }
+        else if (r === 'blocked') finishOrder(state, u);
         return;
       }
-      const arrived = moveTowards(state, rt, u, stats.speed * dt, u.tx, u.ty, null);
-      if (arrived) finishOrder(state, u);
+      if (moveTowards(state, rt, u, stats.speed * dt, u.tx, u.ty, null) !== 'moving') finishOrder(state, u);   // chegou ou foi o mais perto possível
       return;
     }
     case 'attackMove': {
       if ((state.tick + u.id) % 5 === 0 && def.attack > 0 && state.tick >= state.ceasefireUntil) {
         const t = acquireTarget(state, u, stats.los, true, Math.min(stats.los, stats.range + 5));
-        if (t) { u.targetId = t.id; u.state = 'attack'; u.path = null; return; }
+        if (t) { u.targetId = t.id; u.state = 'attack'; u.path = null; u.orderTick = state.tick; return; }
       }
-      const arrived = moveTowards(state, rt, u, stats.speed * dt, u.tx, u.ty, null);
-      if (arrived) finishOrder(state, u);
+      if (moveTowards(state, rt, u, stats.speed * dt, u.tx, u.ty, null) !== 'moving') finishOrder(state, u);
       return;
     }
     case 'attack': {
@@ -155,8 +166,10 @@ export function updateUnit(state: GameState, rt: Runtime, u: Unit, dt: number): 
       if (def.immobile) { u.targetId = -1; u.state = 'idle'; return; }
       // Perseguição com coleira (quando o alvo foi adquirido automaticamente)
       if (!u.order && dist(u.x, u.y, u.leashX, u.leashY) > LEASH) { u.targetId = -1; u.state = 'move'; u.tx = u.leashX; u.ty = u.leashY; u.path = null; u.order = { type: 'move', x: u.leashX, y: u.leashY }; return; }
+      // Alvo adquirido sozinho que não conseguimos golpear há 10 s (fugindo, atrás de obstáculo): desiste e evita-o por um tempo
+      if (!u.order && state.tick - Math.max(u.orderTick, u.attackTick) > 10 * TICK_RATE) { giveUpTarget(state, u, t.id); return; }
       const goal: PathGoal = t.kind === 'building' ? { tx: t.tx, ty: t.ty, w: t.w, h: t.h } : { tx: Math.floor(t.x), ty: Math.floor(t.y), w: 1, h: 1 };
-      moveTowards(state, rt, u, stats.speed * dt, t.x, t.y, goal, reach - 0.1, t.kind === 'building');
+      if (moveTowards(state, rt, u, stats.speed * dt, t.x, t.y, goal, reach - 0.1, t.kind === 'building') === 'blocked') giveUpTarget(state, u, t.id);
       return;
     }
     case 'garrison': return;
@@ -170,6 +183,13 @@ export function updateUnit(state: GameState, rt: Runtime, u: Unit, dt: number): 
       return;
     }
   }
+}
+
+/** Larga um alvo inalcançável e volta ao que fazia; o alvo fica evitado por 15 s para não ser readquirido no tick seguinte. */
+function giveUpTarget(state: GameState, u: Unit, targetId: number): void {
+  avoid(state, u, targetId, 15);
+  u.targetId = -1;
+  resumeAfterCombat(state, u);
 }
 
 function resumeAfterCombat(state: GameState, u: Unit): void {
@@ -186,22 +206,29 @@ function resumeAfterCombat(state: GameState, u: Unit): void {
  * Move a unidade em direção a (tx,ty). Retorna true ao chegar. Se goal for dado, o A* mira o retângulo (adjacente).
  * stopDist: distância ao alvo em que consideramos "chegou" (para ataques à distância).
  */
-function moveTowards(state: GameState, rt: Runtime, u: Unit, step: number, tx: number, ty: number, goal: PathGoal | null, stopDist = ARRIVE, rectTarget = false): boolean {
+function moveTowards(state: GameState, rt: Runtime, u: Unit, step: number, tx: number, ty: number, goal: PathGoal | null, stopDist = ARRIVE, rectTarget = false): MoveResult {
   const def = UNITS[u.type];
   const map = state.map;
   const team = state.players[u.owner].team;
   const goalDist = (): number => rectTarget && goal ? distToRect(u.x, u.y, goal.tx, goal.ty, goal.w, goal.h) : dist(u.x, u.y, tx, ty);
   const dNow = goalDist();
-  if (dNow <= stopDist) { u.path = null; return true; }
+  if (dNow <= stopDist) { u.path = null; return 'arrived'; }
   if (def.flying) {
-    stepTo(u, tx, ty, step, map, true, team);
-    return dist(u.x, u.y, tx, ty) <= stopDist;
+    const fx = Math.max(0.5, Math.min(map.w - 0.5, tx)), fy = Math.max(0.5, Math.min(map.h - 0.5, ty));   // destino fora do mapa: para na borda
+    stepTo(u, fx, fy, step, map, true, team);
+    return dist(u.x, u.y, fx, fy) <= stopDist ? 'arrived' : 'moving';
   }
-  if (!canPass(map, Math.floor(u.x), Math.floor(u.y), team)) {
+  const sx = Math.floor(u.x), sy = Math.floor(u.y);
+  if (!canPass(map, sx, sy, team)) {
     // presa num tile bloqueado (ex.: portão fechado, edifício surgido em cima): sai para o tile livre mais próximo
     const f = nearestFreeTile(map, u.x, u.y, 4);
     if (f) stepTo(u, f.x + 0.5, f.y + 0.5, step, map, true, team);
-    return false;
+    return 'moving';
+  }
+  if (componentSize(map, componentAt(map, sx, sy)) < 8) {
+    // presa num bolsão minúsculo entre obstáculos: sai para a região grande mais próxima
+    const f = nearestLargeComponentTile(map, sx, sy, 8, 6);
+    if (f) { stepTo(u, f.x + 0.5, f.y + 0.5, step, map, true, team); return 'moving'; }
   }
   // Passo direto rumo ao ponto mais próximo do alvo. Usado quando o A* diz que já estamos no tile certo/adjacente
   // ou enquanto se espera um novo caminho: sem isso a unidade ficava parada a ~1 tile do alvo sem nunca encostar.
@@ -214,42 +241,61 @@ function moveTowards(state: GameState, rt: Runtime, u: Unit, step: number, tx: n
   };
   // (Re)calcula caminho se necessário
   if (!u.path || (goal && state.tick >= u.repathAt && u.pathI >= u.path.length - 2 && dist(u.path[u.path.length - 2], u.path[u.path.length - 1], tx, ty) > 1.5)) {
-    if (state.tick < u.repathAt && u.path === null) return approach(step) <= stopDist;
-    if (rt.pathBudget <= 0) { u.repathAt = state.tick + 1; return false; }
+    if (state.tick < u.repathAt && u.path === null) {
+      // sem caminho ativo: encosta em linha reta; se não avança (destino bloqueado, multidão), desiste após 1 s (ponto) ou 4 s (edifício/nó)
+      const before = goalDist(); const after = approach(step);
+      if (after <= stopDist) { u.blockedTicks = 0; return 'arrived'; }
+      u.blockedTicks = after < before - 1e-4 ? 0 : u.blockedTicks + 1;
+      if (u.blockedTicks > (goal ? 4 : 1) * TICK_RATE) { u.blockedTicks = 0; return goal ? 'blocked' : 'arrived'; }   // o mais perto possível
+      return 'moving';
+    }
+    if (rt.pathBudget <= 0) { u.repathAt = state.tick + 1; return 'moving'; }
     rt.pathBudget--;
-    const sx = Math.floor(u.x), sy = Math.floor(u.y);
     let g: PathGoal;
     let adjacent = false;
     if (goal) { g = goal; adjacent = true; }
     else {
       const t = nearestFreeTile(map, tx, ty, 10);
-      if (!t) { u.path = null; return true; }
+      if (!t) { u.path = null; return 'blocked'; }
       g = { tx: t.x, ty: t.y, w: 1, h: 1 };
     }
-    const p = findPath(map, sx, sy, g, adjacent, 6000, team);
     u.repathAt = state.tick + Math.floor(TICK_RATE * 1.5);
-    if (!p) { u.path = null; u.stuck = 0; return true; }
-    if (!goal && p.length >= 2) { p[p.length - 2] = tx; p[p.length - 1] = ty; }
+    // Alvo em outra região do mapa (ilha, bolsão, base selada): não há caminho — decidido sem gastar A*
+    if (!rectReachable(map, sx, sy, g.tx, g.ty, g.w, g.h, adjacent)) { u.path = null; u.stuck = 0; return 'blocked'; }
+    let r = findPathEx(map, sx, sy, g, adjacent, 6000, team);
+    // Há caminho (mesma região) mas o orçamento acabou num mínimo local (margem de lago): tenta uma vez com orçamento maior
+    if (!r.complete && (!r.path || r.path.length === 0)) r = findPathEx(map, sx, sy, g, adjacent, 40000, team);
+    const p = r.path;
+    if (!p) { u.path = null; u.stuck = 0; return 'blocked'; }
+    // só encosta no ponto exato se o caminho chegou ao tile do próprio destino (destino sobre obstáculo: para no tile livre vizinho)
+    if (!goal && r.complete && p.length >= 2 && g.tx === Math.floor(tx) && g.ty === Math.floor(ty)) { p[p.length - 2] = tx; p[p.length - 1] = ty; }
     u.path = p; u.pathI = 0;
-    if (p.length === 0) { u.path = null; return approach(step) <= Math.max(stopDist, 1.2); }   // já no tile adjacente: encosta
+    if (p.length === 0) {
+      u.path = null;
+      if (!goal && !canPass(map, Math.floor(tx), Math.floor(ty), team)) return 'arrived';   // destino sobre obstáculo: o tile livre vizinho é o mais perto possível
+      return approach(step) <= Math.max(stopDist, 1.2) ? 'arrived' : 'moving';   // já no tile adjacente: encosta
+    }
   }
   const path = u.path;
   let remaining = step;
+  const x0 = u.x, y0 = u.y;
   while (remaining > 0 && u.pathI < path.length) {
     const wx = path[u.pathI], wy = path[u.pathI + 1];
     const d = dist(u.x, u.y, wx, wy);
     if (d <= remaining) { moveExact(u, wx, wy, map, team); remaining -= d; u.pathI += 2; }
     else { stepTo(u, wx, wy, remaining, map, false, team); remaining = 0; }
   }
+  if (u.x !== x0 || u.y !== y0) u.blockedTicks = 0;
   if (u.pathI >= path.length) {
     u.path = null;
-    return approach(remaining) <= Math.max(stopDist, 1.3);
+    if (!goal && !canPass(map, Math.floor(tx), Math.floor(ty), team)) return 'arrived';   // destino sobre obstáculo: chegou ao tile livre mais próximo
+    return approach(remaining) <= Math.max(stopDist, 1.3) ? 'arrived' : 'moving';
   }
-  return false;
+  return 'moving';
 }
 
 function moveExact(u: Unit, x: number, y: number, map: GameState['map'], team: number) {
-  if (canPass(map, Math.floor(x), Math.floor(y), team)) { u.x = x; u.y = y; }
+  if (canStep(map, u.x, u.y, x, y, team)) { u.x = x; u.y = y; }
   else u.stuck++;
 }
 
@@ -260,11 +306,11 @@ function stepTo(u: Unit, tx: number, ty: number, step: number, map: GameState['m
   const k = Math.min(1, step / d);
   const nx = u.x + dx * k, ny = u.y + dy * k;
   if (fly) { u.x = Math.max(0.5, Math.min(map.w - 0.5, nx)); u.y = Math.max(0.5, Math.min(map.h - 0.5, ny)); return; }
-  if (canPass(map, Math.floor(nx), Math.floor(ny), team)) { u.x = nx; u.y = ny; u.stuck = 0; }
+  if (canStep(map, u.x, u.y, nx, ny, team)) { u.x = nx; u.y = ny; u.stuck = 0; }
   else {
-    // tenta deslizar em um eixo
-    if (canPass(map, Math.floor(nx), Math.floor(u.y), team)) u.x = nx;
-    else if (canPass(map, Math.floor(u.x), Math.floor(ny), team)) u.y = ny;
+    // tenta deslizar em um eixo (sem atravessar frestas diagonais); deslizar sem sair do lugar conta como preso
+    if (Math.abs(nx - u.x) > 1e-6 && canStep(map, u.x, u.y, nx, u.y, team)) u.x = nx;
+    else if (Math.abs(ny - u.y) > 1e-6 && canStep(map, u.x, u.y, u.x, ny, team)) u.y = ny;
     else { u.stuck++; if (u.stuck > 6) { u.path = null; u.stuck = 0; } }
   }
 }
@@ -294,7 +340,7 @@ export function applySeparation(state: GameState, rt: Runtime): void {
     });
     if (px !== 0 || py !== 0) {
       const nx = u.x + px, ny = u.y + py;
-      if (canPass(map, Math.floor(nx), Math.floor(ny), state.players[u.owner].team)) { u.x = nx; u.y = ny; }
+      if (canStep(map, u.x, u.y, nx, ny, state.players[u.owner].team)) { u.x = nx; u.y = ny; }
     }
   }
 }
@@ -309,9 +355,15 @@ function updateGather(state: GameState, rt: Runtime, u: Unit, dt: number, speed:
     if (!farm || farm.dead || !farm.complete) { if (!findNewSource(state, u, 'food')) fallbackIdle(state, u); return; }
     if (switchCargo(u, 'food')) return;   // carga de outro recurso na mão: entrega antes (senão seria perdida)
     const d = distToRect(u.x, u.y, farm.tx, farm.ty, farm.w, farm.h);
-    if (d > 0.9) { moveTowards(state, rt, u, speed * dt, farm.x, farm.y, { tx: farm.tx, ty: farm.ty, w: farm.w, h: farm.h }, 0.9, true); return; }
+    if (d > 0.9) {
+      if (moveTowards(state, rt, u, speed * dt, farm.x, farm.y, { tx: farm.tx, ty: farm.ty, w: farm.w, h: farm.h }, 0.9, true) === 'blocked') {
+        avoid(state, u, farm.id, 60);
+        if (!findNewSource(state, u, 'food')) fallbackIdle(state, u, t('ev.cantReach', { name: BUILDINGS[farm.type].name }));
+      }
+      return;
+    }
     if (farmGatherers(state, farm.id) > FARM_GATHERERS && farmPrimary(state, farm.id) !== u.id) { // fazenda lotada: o excedente procura outra
-      const other = nearestFreeFarm(state, u.owner, u.x, u.y, 20);
+      const other = nearestFreeFarm(state, u.owner, u.x, u.y, 20, avoided(state, u));
       if (other && other.id !== farm.id) { u.nodeId = -other.id; u.path = null; return; }
       if (!findNewSource(state, u, 'food')) fallbackIdle(state, u, t('ev.farmBusy'));
       return;
@@ -340,7 +392,14 @@ function updateGather(state: GameState, rt: Runtime, u: Unit, dt: number, speed:
         if (stuckLong) { fallbackIdle(state, u); return; }
       }
     }
-    moveTowards(state, rt, u, speed * dt, node.x + 0.5, node.y + 0.5, { tx: node.x, ty: node.y, w: 1, h: 1 }, 1.0, true); return;
+    if (moveTowards(state, rt, u, speed * dt, node.x + 0.5, node.y + 0.5, { tx: node.x, ty: node.y, w: 1, h: 1 }, 1.0, true) === 'blocked') {
+      // nó sem caminho (cercado, outra região): evita-o e procura outro do mesmo recurso
+      avoid(state, u, node.id, 60);
+      const alt = nearestNodeWithRoom(state, u.x, u.y, node.type, 12, node.id, u.avoidIds);
+      if (alt) { u.nodeId = alt.id; u.path = null; u.orderTick = state.tick; }
+      else if (!findNewSource(state, u, res)) fallbackIdle(state, u);
+    }
+    return;
   }
   u.orderTick = state.tick;
   let rate = GATHER_RATES[node.type] * player.mods.gather[res];
@@ -381,8 +440,9 @@ export function depleteNode(state: GameState, node: ResourceNode): void {
 
 /** Escolhe nova fonte do mesmo recurso perto da unidade: id do nó (> 0) ou -id da fazenda; null se não houver. */
 function pickNewSource(state: GameState, u: Unit, res: ResourceType): number | null {
-  const node = nearestNodeWithRoom(state, u.x, u.y, res, 14) ?? nearestNode(state, u.x, u.y, res, 14);
-  const farm = res === 'food' ? nearestFreeFarm(state, u.owner, u.x, u.y, 14) : null;
+  const av = avoided(state, u);
+  const node = nearestNodeWithRoom(state, u.x, u.y, res, 14, -1, av) ?? nearestNode(state, u.x, u.y, res, 14, -1, (n) => !(av && av.includes(n.id)));
+  const farm = res === 'food' ? nearestFreeFarm(state, u.owner, u.x, u.y, 14, av) : null;
   if (node && (!farm || distToRect(u.x, u.y, node.x, node.y, 1, 1) <= distToRect(u.x, u.y, farm.tx, farm.ty, farm.w, farm.h))) return node.id;
   if (farm) return -farm.id;
   return null;
@@ -406,7 +466,7 @@ function fallbackIdle(state: GameState, u: Unit, text = t('ev.idleDepleted')) {
 
 function updateReturn(state: GameState, rt: Runtime, u: Unit, dt: number, speed: number): void {
   if (!u.carry || u.carryAmt <= 0) { u.carryAmt = 0; u.state = u.nodeId !== -1 ? 'gather' : 'idle'; u.path = null; return; }
-  const drop = nearestDropoff(state, u.owner, u.x, u.y, u.carry);
+  const drop = nearestDropoff(state, u.owner, u.x, u.y, u.carry, avoided(state, u));
   const p = state.players[u.owner];
   if (!drop) {
     // Sem ponto de entrega (ex.: Centro Cívico destruído): fica ocioso com a carga, avisa e retoma quando houver um (ver 'idle')
@@ -414,7 +474,11 @@ function updateReturn(state: GameState, rt: Runtime, u: Unit, dt: number, speed:
     finishOrder(state, u); return;
   }
   const d = distToRect(u.x, u.y, drop.tx, drop.ty, drop.w, drop.h);
-  if (d > 0.9) { moveTowards(state, rt, u, speed * dt, drop.x, drop.y, { tx: drop.tx, ty: drop.ty, w: drop.w, h: drop.h }, 0.9, true); return; }
+  if (d > 0.9) {
+    // sem caminho até este ponto de entrega: evita-o por 30 s e tenta o próximo mais perto no tick seguinte
+    if (moveTowards(state, rt, u, speed * dt, drop.x, drop.y, { tx: drop.tx, ty: drop.ty, w: drop.w, h: drop.h }, 0.9, true) === 'blocked') avoid(state, u, drop.id, 30);
+    return;
+  }
   const delivered: ResourceType = u.carry;
   p.resources[u.carry] += u.carryAmt; p.stats.gathered[u.carry] += u.carryAmt;
   u.carryAmt = 0; u.path = null;   // u.carry fica como memória do último recurso (usada se o nó sumir)
@@ -442,7 +506,11 @@ function updateBuild(state: GameState, rt: Runtime, u: Unit, dt: number, speed: 
       if (!player.isAI) state.events.push({ tick: state.tick, type: 'idleVillager', player: u.owner, x: u.x, y: u.y, text: t('ev.cantReach', { name: def.name }) });
       u.targetId = -1; finishOrder(state, u); return;
     }
-    moveTowards(state, rt, u, speed * dt, b.x, b.y, { tx: b.tx, ty: b.ty, w: b.w, h: b.h }, 0.95, true); return;
+    if (moveTowards(state, rt, u, speed * dt, b.x, b.y, { tx: b.tx, ty: b.ty, w: b.w, h: b.h }, 0.95, true) === 'blocked') {
+      if (!player.isAI) state.events.push({ tick: state.tick, type: 'idleVillager', player: u.owner, x: u.x, y: u.y, text: t('ev.cantReach', { name: def.name }) });
+      u.targetId = -1; finishOrder(state, u);
+    }
+    return;
   }
   u.path = null; u.orderTick = state.tick;
   if (!b.complete) {

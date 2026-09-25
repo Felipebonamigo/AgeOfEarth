@@ -38,6 +38,15 @@ export function canPass(map: GameMap, x: number, y: number, team: number): boole
   return map.blocked[i] === 0 || (team >= 0 && map.gateTeam[i] === team);
 }
 
+/** Passo físico de (x0,y0) a (x1,y1): destino passável e, ao trocar de tile em x e em y ao mesmo tempo, os dois vizinhos
+ * ortogonais também (mesma regra do A*: não atravessa a fresta diagonal entre dois obstáculos). */
+export function canStep(map: GameMap, x0: number, y0: number, x1: number, y1: number, team: number): boolean {
+  const ax = Math.floor(x0), ay = Math.floor(y0), bx = Math.floor(x1), by = Math.floor(y1);
+  if (!canPass(map, bx, by, team)) return false;
+  if (ax !== bx && ay !== by) return canPass(map, bx, ay, team) && canPass(map, ax, by, team);
+  return true;
+}
+
 /** Percorre tiles em espiral a partir de (cx,cy) até pred retornar true. Retorna o tile ou null. */
 export function spiralSearch(cx: number, cy: number, maxR: number, pred: (x: number, y: number) => boolean): { x: number; y: number } | null {
   if (pred(cx, cy)) return { x: cx, y: cy };

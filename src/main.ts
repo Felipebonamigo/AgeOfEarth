@@ -41,7 +41,7 @@ async function boot() {
     hasSave,
     onSave: () => { if (!session) return; try { localStorage.setItem(SAVE_KEY, session.save()); hud.toast(t('msg.saved'), 'good'); } catch (e) { hud.toast(t('msg.saveFail', { err: (e as Error).message }), 'warn'); } },
     onExport: () => { if (!session) return; void exportText(`age-of-earth-${new Date().toISOString().slice(0, 10)}.json`, session.save()).then((ok) => { if (ok) hud.toast(t('msg.saved'), 'good'); }); },
-    onImport: () => { void importText().then((json) => { if (!json) return; try { session = Session.load(json); renderer.setState(session.state); hud.setSession(session); hud.setVisible(true); menu.hide(); hud.toast(t('msg.loaded'), 'good'); } catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); } }); },
+    onImport: () => { void importText().then((json) => { if (!json) return; try { session = Session.load(json); replaySaved = false; renderer.setState(session.state); hud.setSession(session); hud.setVisible(true); menu.hide(); hud.toast(t('msg.loaded'), 'good'); } catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); } }); },
     getOptions: () => options,
     onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); if (session) { hud.setSession(session); hud.refreshTop(); } },
     onLoad: () => loadGame(),
@@ -75,7 +75,7 @@ async function boot() {
   const loadGame = () => {
     try {
       const json = localStorage.getItem(SAVE_KEY); if (!json) return;
-      session = Session.load(json);
+      session = Session.load(json); replaySaved = false;
       renderer.setState(session.state);
       const tc = [...session.state.buildings.values()].find((b) => b.owner === session!.local && b.type === 'town_center');
       if (tc) renderer.cam.centerOn(tc.x, tc.y);

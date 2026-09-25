@@ -320,7 +320,7 @@ export class HUD {
         const name = item.kind === 'unit' ? UNITS[item.id].name : item.kind === 'tech' ? TECHS[item.id].name : item.kind === 'scholar' ? t('cmd.scholar') : `${AGES[owner.age + 1]?.name ?? ''}`;
         const qi = el('div', 'qi', `${icon}<div class="prog" style="width:${i === 0 ? Math.round((item.elapsed / item.total) * 100) : 0}%"></div>`);
         qi.dataset.tip = `<b>${name}</b><div class="desc">${i === 0 ? t('sel.remaining', { n: Math.ceil(item.total - item.elapsed) }) : t('sel.queued')} · ${t('sel.clickCancel')}</div>`;
-        qi.addEventListener('click', () => { s.issue({ type: 'cancel', player: s.local, buildingId: b.id, index: i }); });
+        qi.addEventListener('click', () => { s.issue({ type: 'cancel', player: s.local, buildingId: b.id, index: i, itemId: item.uid }); });
         q.appendChild(qi);
       });
       c.appendChild(q);

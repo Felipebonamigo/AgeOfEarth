@@ -115,6 +115,20 @@ function applyStat(obj: Record<string, unknown>, stat: string, mult?: number, ad
   o[key] = v;
 }
 
+/** Atualiza maxHp de unidades e edifícios após mudanças de modificadores (mantém a fração de vida). */
+export function refreshMaxHp(state: GameState, player: Player): void {
+  for (const u of state.units.values()) {
+    if (u.owner !== player.id || u.dead) continue;
+    const st = getUnitStats(state, player, u.type);
+    if (st.hp !== u.maxHp) { const frac = u.hp / u.maxHp; u.maxHp = st.hp; u.hp = Math.round(st.hp * frac); }
+  }
+  for (const b of state.buildings.values()) {
+    if (b.owner !== player.id || b.dead) continue;
+    const st = getBuildingStats(state, player, b.type);
+    if (st.hp !== b.maxHp) { const frac = b.hp / b.maxHp; b.maxHp = st.hp; b.hp = Math.round(st.hp * frac); }
+  }
+}
+
 export function techCost(player: Player, techId: string): Record<string, number> {
   const def = TECHS[techId];
   const out: Record<string, number> = {};

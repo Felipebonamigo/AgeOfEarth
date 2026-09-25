@@ -4,6 +4,7 @@ import { TICK_RATE } from '../constants';
 import { BUILDINGS, UNITS } from '../data';
 import type { Building, GameState, Unit } from '../types';
 import { idx } from '../map/grid';
+import { invalidateComponents } from '../map/components';
 import { getBuildingStats, getUnitStats } from './modifiers';
 import { getRuntime } from './runtime';
 import { distanceTo, isEnemy } from './queries';
@@ -39,8 +40,10 @@ export function acquireTarget(state: GameState, attacker: Unit | Building, range
   let best: Unit | null = null, bestD = Infinity;
   const ax = attacker.x, ay = attacker.y;
   const attackerIsSiege = attacker.kind === 'unit' && UNITS[attacker.type].cls === 'siege';
+  const avoid = attacker.kind === 'unit' && state.tick < attacker.avoidUntil ? attacker.avoidIds : null;   // alvos inalcançáveis recentes
   rt.hash.each(ax, ay, range, (u) => {
     if (u.dead || !isEnemy(state, attacker.owner, u.owner)) return;
+    if (avoid && avoid.includes(u.id)) return;
     if (!canTarget(state, attacker, u)) return;
     const d = distanceTo(attacker, u);
     if (d > range) return;
@@ -56,6 +59,7 @@ export function acquireTarget(state: GameState, attacker: Unit | Building, range
   let bestB: Building | null = null, bestBD = attackerIsSiege ? Infinity : bestD;
   for (const b of state.buildings.values()) {
     if (b.dead || !isEnemy(state, attacker.owner, b.owner) || !canTarget(state, attacker, b)) continue;
+    if (avoid && avoid.includes(b.id)) continue;
     const d = distanceTo(attacker, b);
     if (d > buildingRange) continue;
     let score = d;
@@ -180,6 +184,7 @@ export function destroyBuilding(state: GameState, b: Building, killerOwner: numb
     const i = idx(state.map, x, y);
     if (state.map.buildingAt[i] === b.id) { state.map.buildingAt[i] = -1; if (!def.passable) state.map.blocked[i] = 0; }
   }
+  if (!def.passable) invalidateComponents(state.map);
   // Reembolsa a fila (unidades, tecnologias, filósofos, avanço de Idade) e devolve a população reservada
   for (const q of b.queue) refund(victim, queueItemCost(state, victim, q));
   b.queue.length = 0;
@@ -196,7 +201,7 @@ export function destroyBuilding(state: GameState, b: Building, killerOwner: numb
       for (let k = 0; k < 2; k++) { const m = spawnUnit(state, b.owner, 'militia', b.x + (k === 0 ? -0.6 : 0.6), b.y + 0.4); m.stance = 'aggressive'; }
     }
     if (def.wonder) { victim.wonderVictoryAt = -1; state.events.push({ tick: state.tick, type: 'wonderLost', player: b.owner, x: b.x, y: b.y, text: t('ev.wonderLost', { name: def.name, player: victim.name }) }); }
-    if (def.wonder) { const m = modsModule(); m.recomputeMods(state, victim); }
+    if (def.wonder) { const m = modsModule(); m.recomputeMods(state, victim); m.refreshMaxHp(state, victim); }
   }
   recomputePop(state, victim);
 }

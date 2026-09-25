@@ -96,10 +96,9 @@ import * as queries from './queries';
 /** Avança a simulação em um tick, aplicando primeiro os comandos deste tick (ordem determinística). */
 export function tick(state: GameState, commands: Command[] = []): void {
   if (state.gameOver) { state.tick++; state.time += DT; return; }
-  for (const c of commands) applyCommand(state, c);
   const rt = getRuntime(state);
   rt.pathBudget = PATH_BUDGET_PER_TICK;
-  // Hash espacial
+  // Hash espacial (antes dos comandos: poderes usados logo após carregar/criar a partida já enxergam as unidades)
   rt.hash.clear();
   rt.nodeGatherers.clear();
   for (const u of state.units.values()) {
@@ -107,6 +106,7 @@ export function tick(state: GameState, commands: Command[] = []): void {
     rt.hash.insert(u);
     if (u.nodeId > 0 && (u.state === 'gather' || u.state === 'return')) rt.nodeGatherers.set(u.nodeId, (rt.nodeGatherers.get(u.nodeId) ?? 0) + 1);
   }
+  for (const c of commands) applyCommand(state, c);
   // Efeitos temporizados de poderes
   updateTimedEffects(state);
   // Unidades

@@ -14,7 +14,7 @@ export function serialize(state: GameState): string {
     map: { w: s.map.w, h: s.map.h, terrain: Array.from(s.map.terrain), decor: Array.from(s.map.decor), starts: s.map.starts, nodes: [...s.map.nodes.values()] },
     players: s.players.map((p) => ({ ...p, visibility: Array.from(p.visibility), mods: undefined })),
     units: [...s.units.values()], buildings: [...s.buildings.values()],
-    territory: Array.from(s.territory), events: s.events.slice(-50), timed: s.timed,
+    territory: Array.from(s.territory), events: s.events.slice(-200), timed: s.timed,
     winner: s.winner, gameOver: s.gameOver, rng: s.rng.s, ceasefireUntil: s.ceasefireUntil, ceasefireBy: s.ceasefireBy, scenario: s.scenario ?? null,
   };
   return JSON.stringify(out);
@@ -37,7 +37,7 @@ export function deserialize(json: string): GameState {
     config: o.config, seed: o.seed, tick: o.tick, time: o.time, nextId: o.nextId,
     map: { w, h, terrain, blocked, nodeAt, buildingAt, gateTeam, nodes, starts: o.map.starts, decor: Uint8Array.from(o.map.decor as number[]) },
     players: (o.players as (Player & { visibility: number[] })[]).map((p) => ({ ...p, team: p.team ?? p.id, visibility: Uint8Array.from(p.visibility), mods: { gather: { food: 1, wood: 1, gold: 1, knowledge: 1, favor: 1, hunt: 1, farm: 1 }, player: { territory: 0, cityLimit: 1, attrition: 0, attritionResist: 0, favorRate: 1, knowledgeRate: 1, researchCost: 1, buildSpeed: 1, trainSpeed: 1, popCap: 0, los: 0, tradeTax: 1, regen: 0 }, unitEffects: [], buildingEffects: [], version: 0 } })),
-    units: new Map((o.units as Unit[]).map((u) => [u.id, { ...u, inside: u.inside ?? -1, resumeNodeId: u.resumeNodeId ?? -1 }])), buildings: new Map((o.buildings as Building[]).map((b) => [b.id, { ...b, garrison: b.garrison ?? [] }])),
+    units: new Map((o.units as Unit[]).map((u) => [u.id, { ...u, inside: u.inside ?? -1, resumeNodeId: u.resumeNodeId ?? -1, avoidIds: u.avoidIds ?? [], avoidUntil: u.avoidUntil ?? 0, blockedTicks: u.blockedTicks ?? 0 }])), buildings: new Map((o.buildings as Building[]).map((b) => [b.id, { ...b, garrison: b.garrison ?? [] }])),
     territory: Int8Array.from(o.territory as number[]), territoryDirty: true, territoryVersion: 0,
     events: o.events ?? [], effects: [], timed: o.timed ?? [], winner: o.winner, gameOver: o.gameOver, rng: new RNG(1),
     ceasefireUntil: o.ceasefireUntil ?? 0, ceasefireBy: o.ceasefireBy ?? -1, fogVersion: 0, scenario: o.scenario ?? undefined,

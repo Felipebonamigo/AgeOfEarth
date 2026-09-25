@@ -67,14 +67,19 @@ function isGoal(x: number, y: number, g: PathGoal, adjacent: boolean): boolean {
  * Se o objetivo for inalcançável dentro do orçamento, retorna um caminho parcial até o tile mais próximo explorado.
  */
 export function findPath(map: GameMap, sx: number, sy: number, goal: PathGoal, adjacent = false, maxNodes = 6000, team = -1): number[] | null {
+  return findPathEx(map, sx, sy, goal, adjacent, maxNodes, team).path;
+}
+
+/** Como findPath, mas informa se o caminho chegou de fato ao objetivo (false = parcial por orçamento ou inalcançável). */
+export function findPathEx(map: GameMap, sx: number, sy: number, goal: PathGoal, adjacent = false, maxNodes = 6000, team = -1): { path: number[] | null; complete: boolean } {
   const pass = (i: number) => map.blocked[i] === 0 || (team >= 0 && map.gateTeam[i] === team);
   const n = map.w * map.h;
   ensureBuffers(n);
   stamp++;
   if (stamp === 0xffffffff) { stampBuf.fill(0); stamp = 1; }
-  if (!inBounds(map, sx, sy)) return null;
+  if (!inBounds(map, sx, sy)) return { path: null, complete: false };
   const start = idx(map, sx, sy);
-  if (isGoal(sx, sy, goal, adjacent)) return [];
+  if (isGoal(sx, sy, goal, adjacent)) return { path: [], complete: true };
   const heap = new MinHeap();
   gBuf[start] = 0; parentBuf[start] = -1; stampBuf[start] = stamp; closedBuf[start] = 0;
   heap.push(goalDist(sx, sy, goal), start);
@@ -108,13 +113,13 @@ export function findPath(map: GameMap, sx: number, sy: number, goal: PathGoal, a
     }
   }
   const end = found >= 0 ? found : best;
-  if (end === start) return found >= 0 ? [] : null;
+  if (end === start) return found >= 0 ? { path: [], complete: true } : { path: null, complete: false };
   const rev: number[] = [];
   let c = end;
   while (c !== -1 && c !== start) { rev.push(c); c = parentBuf[c]; }
   const tiles: number[] = [];
   for (let i = rev.length - 1; i >= 0; i--) { const t = rev[i]; const x = t % map.w; tiles.push(x, (t - x) / map.w); }
-  return smoothPath(map, sx, sy, tiles, team);
+  return { path: smoothPath(map, sx, sy, tiles, team), complete: found >= 0 };
 }
 
 /** Remove waypoints intermediários quando há linha de visada livre. */

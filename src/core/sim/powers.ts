@@ -4,7 +4,7 @@ import { BUILDINGS, POWERS, UNITS } from '../data';
 import type { GameState, Player } from '../types';
 import { addNode } from '../map/mapgen';
 import { spiralSearch, isPassable, inBounds, idx } from '../map/grid';
-import { placeBuilding, spawnUnit, canPlaceBuilding } from './entities';
+import { placeBuilding, spawnUnit, canPlaceBuilding, pushUnitsOutOfTile } from './entities';
 import { getRuntime } from './runtime';
 import { applyDamage, killUnit } from './combat';
 import { entityById, isEnemy } from './queries';
@@ -22,7 +22,7 @@ export function usePower(state: GameState, player: Player, powerId: string, x?: 
   switch (powerId) {
     case 'bolt': {
       const tgt = targetId !== undefined ? entityById(state, targetId) : null;
-      if (!tgt || tgt.kind !== 'unit' || tgt.dead || !isEnemy(state, player.id, tgt.owner)) return { ok: false, reason: t('err.chooseEnemyUnit') };
+      if (!tgt || tgt.kind !== 'unit' || tgt.dead || tgt.inside !== -1 || !isEnemy(state, player.id, tgt.owner)) return { ok: false, reason: t('err.chooseEnemyUnit') };
       state.effects.push({ type: 'bolt', x: tgt.x, y: tgt.y, ttl: 24, total: 24 });
       if (UNITS[tgt.type].tags.includes('titan')) applyDamage(state, tgt, tgt.maxHp * 0.5, player.id);
       else killUnit(state, tgt, player.id);
@@ -32,6 +32,7 @@ export function usePower(state: GameState, player: Player, powerId: string, x?: 
       const spot = spiralSearch(Math.floor(px), Math.floor(py), 6, (a, b) => isPassable(state.map, a, b) && state.map.buildingAt[idx(state.map, a, b)] === -1);
       if (!spot) return { ok: false, reason: t('err.invalidPlace') };
       addNode(state.map, 'lure', spot.x, spot.y, 800);
+      pushUnitsOutOfTile(state, spot.x, spot.y);
       state.effects.push({ type: 'spawn', x: spot.x + 0.5, y: spot.y + 0.5, ttl: 20, total: 20 });
       break;
     }
@@ -64,8 +65,8 @@ export function usePower(state: GameState, player: Player, powerId: string, x?: 
         if (!isEnemy(state, player.id, b.owner) || b.dead || !BUILDINGS[b.type].military) continue;
         if ((b.x - px) ** 2 + (b.y - py) ** 2 <= r * r) { b.disabledUntil = state.tick + 60 * TICK_RATE; n++; }
       }
-      state.effects.push({ type: 'pestilence', x: px, y: py, ttl: 60, total: 60, data: r });
       if (n === 0) return { ok: false, reason: t('err.noMilitaryBuildings') };
+      state.effects.push({ type: 'pestilence', x: px, y: py, ttl: 60, total: 60, data: r });
       break;
     }
     case 'oracle': player.revealUntil = state.tick + 60 * TICK_RATE; break;
@@ -78,7 +79,7 @@ export function usePower(state: GameState, player: Player, powerId: string, x?: 
         if (n >= 8) break;
         killUnit(state, u, player.id);
         const s = spiralSearch(Math.floor(u.x), Math.floor(u.y), 3, (a, b) => isPassable(state.map, a, b) && state.map.buildingAt[idx(state.map, a, b)] === -1);
-        if (s) addNode(state.map, 'boar', s.x, s.y, 120);
+        if (s) { addNode(state.map, 'boar', s.x, s.y, 120); pushUnitsOutOfTile(state, s.x, s.y); }
         state.effects.push({ type: 'curse', x: u.x, y: u.y, ttl: 20, total: 20 });
         n++;
       }

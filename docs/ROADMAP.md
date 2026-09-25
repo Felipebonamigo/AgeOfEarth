@@ -18,10 +18,10 @@ Objetivo: partida rápida e missões divertidas para um jogador humano, sem trav
 | # | Passo | Resp. | Semanas |
 |---|---|---|---|
 | 1.1 | Playtests seus (10+ partidas), registrando o que travou, ficou lento ou fácil | V | 1–5 (contínuo) |
-| 1.2 | ✅ Formações de grupo (corpo a corpo à frente, arqueiros, cerco); empurrão suave; destino bloqueado por unidade. Caçada a bugs por agentes em curso: lente de economia concluída (11 achados corrigidos, 10 testes de regressão); restantes: movimento, combate/IA, produção, rede, cenários, interface | A | 1–2 |
+| 1.2 | ✅ Formações de grupo (corpo a corpo à frente, arqueiros, cerco); empurrão suave; destino bloqueado por unidade. Caçada a bugs por agentes: lentes de economia, movimento, combate/IA, produção/tecnologia e estado/rede concluídas (33 achados corrigidos, 29 testes de regressão); restantes: cenários e interface | A | 1–2 |
 | 1.3 | ✅ Guarnição (Centro Cívico, Fortaleza, Torre; flechas extras; cura; liberar com retorno ao trabalho) e portões. Fila com Shift e auto-coleta já existiam. Pendente: waypoints visuais | A | 2–3 |
 | 1.4 | ✅ Dificuldade Muito difícil; IA abriga cidadãos em ataques e libera depois; IA aliada defende centros/fortalezas/templos do time. Pendente: ataques coordenados entre IAs aliadas | A | 3–4 |
-| 1.5 | Balanceamento por dados (100 partidas IA×IA por versão) + ajustes de custos/tempos | A | 2–5 |
+| 1.5 | Balanceamento por dados (`npm run balance`, 18 sementes por versão). Após a caça a bugs a IA deixou de travar: Clássica ~5 min, Heroica 12–18, Mítica 19–26, Titãs 27–30; partidas terminam em 30 min em ~40% das sementes. Pendente: ajustar custos/tempos com base nos playtests humanos | A | 2–5 |
 | 1.6 | ✅ Medido (scripts/perf.ts): mapa grande, 4 IAs Muito difícil, ~260 unidades → média 1–2 ms/tick, pico 28 ms (orçamento 50 ms). Web Worker desnecessário por ora; falta medir renderização em GPU real | A | 4–5 |
 | 1.7 | ✅ Sistema de idiomas (PT-BR/EN) cobrindo conteúdo, interface, menus e mensagens da simulação; seletor no menu principal e no menu da partida; teste de completude | A | 4–5 |
 | 1.8 | ✅ Exportar/importar save como arquivo (Electron e navegador); opções persistidas (volume, alcances, rolagem na borda, idioma, tela cheia, tamanho da interface, qualidade de renderização) no menu principal e no menu da partida; tela de atalhos gerada a partir dos dados; ajuda traduzida; conquistas (22) com ponte para a Steam | A | 5 |

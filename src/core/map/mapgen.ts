@@ -4,6 +4,7 @@ import { TERRAIN, type NodeType } from '../constants';
 import { RNG, makeNoise } from '../rng';
 import type { GameMap, ResourceNode } from '../types';
 import { idx, inBounds, dist } from './grid';
+import { articulationPoints, invalidateComponents } from './components';
 
 const NODE_AMOUNT: Record<NodeType, number> = { tree: 150, berry: 175, gold: 900, deer: 140, boar: 260, lure: 800 };
 
@@ -102,6 +103,7 @@ export function generateMap(w: number, h: number, seed: number, playerCount: num
   rebuildBlocked(map);
   ensureConnectivity(map);
   rebuildBlocked(map);
+  widenChokepoints(map);
   return map;
 }
 
@@ -133,6 +135,7 @@ export function addNode(map: GameMap, type: NodeType, x: number, y: number, amou
   map.nodes.set(id, node);
   map.nodeAt[i] = id;
   map.blocked[i] = 1;
+  invalidateComponents(map);
   return node;
 }
 
@@ -154,6 +157,7 @@ export function removeNode(map: GameMap, id: number): void {
   const i = idx(map, n.x, n.y);
   map.nodeAt[i] = -1;
   map.blocked[i] = 0;
+  invalidateComponents(map);
 }
 
 function placeCluster(map: GameMap, rng: RNG, type: NodeType, cx: number, cy: number, radius: number, count: number) {
@@ -173,6 +177,27 @@ export function rebuildBlocked(map: GameMap): void {
   for (let i = 0; i < w * h; i++) {
     const t = terrain[i];
     blocked[i] = (t === TERRAIN.WATER || t === TERRAIN.DEEP || t === TERRAIN.MOUNTAIN || map.nodeAt[i] !== -1) ? 1 : 0;
+  }
+  invalidateComponents(map);
+}
+
+/** Alarga gargalos de 1 tile: remove árvores/veios ao redor de cada ponto de articulação (unidades não travam e a IA não sela a base). */
+function widenChokepoints(map: GameMap): void {
+  // até 3 passes: abrir um gargalo pode expor o próximo (custa ~10% das árvores, só nas bordas dos bosques)
+  for (let pass = 0; pass < 3; pass++) {
+    const ap = articulationPoints(map);
+    let removed = 0;
+    for (let i = 0; i < ap.length; i++) {
+      if (!ap[i]) continue;
+      const x = i % map.w, y = (i - x) / map.w;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const xx = x + dx, yy = y + dy;
+        if (!inBounds(map, xx, yy)) continue;
+        const id = map.nodeAt[idx(map, xx, yy)];
+        if (id !== -1) { removeNode(map, id); removed++; }
+      }
+    }
+    if (removed === 0) break;
   }
 }
 

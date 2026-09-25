@@ -77,13 +77,14 @@ export interface Unit {
   dead: boolean; spawnTick: number; repathAt: number; stuck: number;
   order: Order | null; queue: Order[];
   attackTick: number;                                  // último tick em que atacou (animação)
+  avoidIds: number[]; avoidUntil: number; blockedTicks: number;   // ticks seguidos sem conseguir se aproximar do alvo               // alvos/nós/entregas inalcançáveis a evitar até o tick
   inside: number;                                      // id do edifício em que está guarnecida (-1 fora)
   resumeNodeId: number;                                // nó/fazenda para retomar a coleta ao sair da guarnição
   orderTick: number;                                   // tick em que o alvo/ordem atual começou (detecção de travamento)
   lastDamageTick: number;
 }
 
-export interface QueueItem { kind: 'unit' | 'tech' | 'age' | 'scholar'; id: string; elapsed: number; total: number; paid?: Record<string, number> }  // paid: custo pago ao enfileirar (reembolso exato)
+export interface QueueItem { kind: 'unit' | 'tech' | 'age' | 'scholar'; id: string; elapsed: number; total: number; paid?: Record<string, number>; uid?: number }  // paid: custo pago ao enfileirar (reembolso exato)
 
 export interface Building {
   id: number; kind: 'building'; type: string; owner: number;
@@ -191,7 +192,7 @@ export type Command =
   | { type: 'train'; player: number; buildingId: number; unit: string }
   | { type: 'research'; player: number; buildingId: number; tech: string }
   | { type: 'hireScholar'; player: number; buildingId: number }
-  | { type: 'cancel'; player: number; buildingId: number; index: number }
+  | { type: 'cancel'; player: number; buildingId: number; index: number; itemId?: number }   // itemId = uid do item (preferido)
   | { type: 'rally'; player: number; buildingId: number; x: number; y: number }
   | { type: 'advanceAge'; player: number; buildingId: number; minorGod?: string }
   | { type: 'power'; player: number; power: string; x?: number; y?: number; targetId?: number }

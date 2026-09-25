@@ -146,7 +146,7 @@ export function applyCommand(state: GameState, cmd: Command): CommandResult {
       if (!canAfford(player, SCHOLAR_COST)) return { ok: false, reason: t('err.noResources') };
       const paid = { ...SCHOLAR_COST } as Record<string, number>;
       pay(player, paid);
-      b.queue.push({ kind: 'scholar', id: 'scholar', elapsed: 0, total: queueTotalFor(state, player, 'scholar', 'scholar'), paid });
+      b.queue.push({ kind: 'scholar', id: 'scholar', elapsed: 0, total: queueTotalFor(state, player, 'scholar', 'scholar'), paid, uid: state.nextId++ });
       return { ok: true };
     }
     case 'cancel': {
@@ -156,9 +156,11 @@ export function applyCommand(state: GameState, cmd: Command): CommandResult {
         if (!b.complete) { refund(player, getBuildingStats(state, player, b.type).cost, 1); destroyBuilding(state, b, -1); return { ok: true }; }
         return { ok: false };
       }
-      const item = b.queue[cmd.index];
+      // por uid quando informado (o índice pode ter mudado entre o clique e a execução, ex.: lockstep)
+      const index = cmd.itemId !== undefined ? b.queue.findIndex((q) => q.uid === cmd.itemId) : cmd.index;
+      const item = b.queue[index];
       if (!item) return { ok: false };
-      b.queue.splice(cmd.index, 1);
+      b.queue.splice(index, 1);
       refund(player, queueItemCost(state, player, item));   // devolve o que foi pago (não o custo atual)
       recomputePop(state, player);
       return { ok: true };
@@ -232,7 +234,7 @@ function train(state: GameState, player: Player, buildingId: number, unit: strin
   if (!c.ok) return c;
   const paid = { ...getUnitStats(state, player, unit).cost };
   pay(player, paid);
-  b.queue.push({ kind: 'unit', id: unit, elapsed: 0, total: queueTotalFor(state, player, 'unit', unit), paid });
+  b.queue.push({ kind: 'unit', id: unit, elapsed: 0, total: queueTotalFor(state, player, 'unit', unit), paid, uid: state.nextId++ });
   recomputePop(state, player);
   return { ok: true };
 }
@@ -258,7 +260,7 @@ function research(state: GameState, player: Player, buildingId: number, tech: st
   if (!c.ok) return c;
   const paid = { ...techCost(player, tech) };
   pay(player, paid);
-  b.queue.push({ kind: 'tech', id: tech, elapsed: 0, total: TECHS[tech].time, paid });
+  b.queue.push({ kind: 'tech', id: tech, elapsed: 0, total: TECHS[tech].time, paid, uid: state.nextId++ });
   return { ok: true };
 }
 
@@ -288,9 +290,9 @@ function advanceAge(state: GameState, player: Player, buildingId: number, minorG
   const next = AGES[player.age + 1];
   if (next.minorGod) {
     if (!minorGod || !c.minorOptions?.includes(minorGod)) return { ok: false, reason: t('err.chooseMinor') };
-  }
+  } else minorGod = undefined;   // Idade sem escolha: ignora qualquer deus enviado (cliente modificado)
   const paid = { ...(next.cost as Record<string, number>) };
   pay(player, paid);
-  b.queue.push({ kind: 'age', id: `age:${minorGod ?? ''}`, elapsed: 0, total: next.time, paid });
+  b.queue.push({ kind: 'age', id: `age:${minorGod ?? ''}`, elapsed: 0, total: next.time, paid, uid: state.nextId++ });
   return { ok: true };
 }
