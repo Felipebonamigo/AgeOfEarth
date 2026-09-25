@@ -7,10 +7,12 @@
 import { Container, Sprite, type Texture } from 'pixi.js';
 import { SHADOW_ALPHA } from '../palette';
 import type { ArtLibrary, UnitArt } from '../art/ArtLibrary';
-import { frameIndex, isMirrored, type UnitAnim } from '../art/logic';
+import { frameBox, frameIndex, isMirrored, type Box, type UnitAnim } from '../art/logic';
 
 /** Índice numérico das animações (chave sem string para a troca de pose). */
 const ANIM_INDEX: Record<UnitAnim, number> = { idle: 0, walk: 1, attack: 2, die: 3, carry: 4, gather: 5 };
+/** Caixa de trabalho de updateBounds (reutilizada). */
+const BOX: Box = { x0: 0, y0: 0, x1: 0, y1: 0 };
 
 export class UnitView {
   readonly root = new Container();
@@ -119,16 +121,11 @@ export class UnitView {
   set visible(v: boolean) { this.root.visible = v; if (this.shadow) this.shadow.visible = v; }
   get visible(): boolean { return this.root.visible; }
 
-  /** Caixa do quadro de cor atual (recorte, sem transparência) em px de mundo. */
+  /** Caixa do quadro de cor atual (recorte, sem transparência; espelhada com o sprite) em px de mundo. */
   private updateBounds(): void {
-    const tex = this.body.texture;
-    const ax = this.art.anchor.x * tex.orig.width, ay = this.art.anchor.y * tex.orig.height;
-    const tx = tex.trim ? tex.trim.x : 0, ty = tex.trim ? tex.trim.y : 0;
-    const tw = tex.trim ? tex.trim.width : tex.orig.width, th = tex.trim ? tex.trim.height : tex.orig.height;
-    let x0 = tx - ax, x1 = tx + tw - ax;
-    if (this.mirrored) { const a = -x1; x1 = -x0; x0 = a; }
-    this.bx0 = this.px + x0; this.bx1 = this.px + x1;
-    this.by0 = this.py + ty - ay; this.by1 = this.py + ty + th - ay;
+    const b = frameBox(this.body.texture, this.art.anchor, this.mirrored, BOX);
+    this.bx0 = this.px + b.x0; this.bx1 = this.px + b.x1;
+    this.by0 = this.py + b.y0; this.by1 = this.py + b.y1;
   }
 
   destroy(): void {

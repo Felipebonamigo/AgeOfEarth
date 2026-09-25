@@ -15,7 +15,7 @@ Idioma da interface e dos comentários: português (Brasil). Código em inglês.
 - `npm run art:shot` / `npm run art:diff` — capturas de referência (3 zooms, editor, cidade, batalha) em `docs/art/` e diff contra `docs/art/ref/` (2 % de tolerância); `?perf=1` na URL mostra fps/ms/draw calls/MB
 - `node scripts/renderperf.mjs http://localhost:4173/ 20 [--quality low|medium|high] [--measure 12000] [--baked off]` — custo do renderizador (ms/quadro em vários zooms) numa partida grande após 20 min simulados; rode antes/depois de mudanças visuais (números pessimistas: renderização por software)
 - `node scripts/rendercpu.mjs http://localhost:4173/ [--modes papa] [--label x]` — CPU por quadro do renderizador (nosso código + Pixi) sem o ruído da rasterização por software, arte assada ligada × desligada; JSON em `docs/perf/`
-- `node scripts/artparade.mjs http://localhost:4173/` — "desfile" da arte assada (hoplitas nas 8 direções, luta, cidadãos cortando/carregando/construindo, templo em obra e completo, bosque): `docs/art/etapa2b-desfile-{z10,z22,z22-2x}.png` e `etapa2b-procedural-z10.png`; falha se a arte assada não for servida
+- `node scripts/artparade.mjs http://localhost:4173/` — "desfile" da arte assada (hoplitas nas 8 direções, luta, cidadãos cortando/carregando/construindo, templo em obra e completo, bosque): `docs/art/etapa2b-desfile-{z10,z22,z22-2x}.png` e `etapa2b-procedural-z10.png`; falha se a arte assada não for servida, se quem anda olhar para fora da velocidade ou se > 10 % dos golpes num aglomerado apontarem a 90°+ do alvo
 - Chromium do Playwright: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` neste ambiente; use `--use-gl=swiftshader --enable-unsafe-swiftshader`
 
 ## Regras do núcleo (`src/core`)

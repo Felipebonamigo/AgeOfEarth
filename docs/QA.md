@@ -128,10 +128,24 @@ Leitura:
 - **Rasterização por software** (fps): no preset Baixo empata ou melhora (1,8 → 1,8; 2,5 → 2,6; 1,2 → 2,0; 1,5 → 2,3), graças
   aos grupos de render (menos CPU disputando com o swiftshader) e ao filtro de mipmap `nearest` no atlas 1× (o trilinear
   custava ~40 % do fps da cena por software). Em GPU real isso é irrelevante; **pendente do dono**: `?perf=1` no PC e no Deck.
-- **Draw calls** 3–6 → 8–15 (cada grupo de render é um lote próprio; orçamento 40). **Texturas** +18 MB (atlas 1× de units,
-  buildings e props com os três passes e mipmaps; o 2× do preset alto soma ≈ 40 MB), longe do orçamento de 160 MB.
+- **Draw calls** 3–6 → 8–15 nesta medição; boa parte disso **não** vinha da arte, e sim das faixas como grupos de render
+  (cada grupo é um lote próprio) — ver as correções abaixo: 6–9. **Texturas** +18 MB (atlas 1× de units, buildings e props
+  com os três passes e mipmaps; o 2× do preset alto soma ≈ 40 MB), longe do orçamento de 160 MB.
 - **Desligada = visual idêntico**: `artshot --procedural` desta build × a build base dá 0 px de diferença em 5 das 6
   capturas e 103 px (0,008 %, efeito animado) na "cidade".
+
+**Correções da revisão da Etapa 2B** (mesma sessão, build anterior × corrigida, preset Baixo, `--reveal`, 12 s por cenário;
+`docs/perf/2026-09-25-etapa2b-correcoes-{baixo,cpu}.json`):
+- **Faixas sem grupo de render**: draw calls 8 → 6 (zoom 1), 15 → 9 (mapa inteiro), 8 → 6 (aglomerado), 9 → 7 (rolagem).
+  CPU (`rendercpu`, mediana das duas passadas): nosso código 0,2–0,3 / 0,6–0,8 / 0,3–0,4 / 0,2–0,3 ms e Pixi 0,5–0,6 /
+  2,1–2,5 / 0,5–0,7 / 0,5–0,6 ms, contra 0,2–0,3 / 0,6 / 0,2–0,3 / 0,2 e 0,5 / 1,8–2,1 / 0,4–0,7 / 0,5–0,6 na build anterior
+  — dentro do ruído de uma passada para outra: os grupos por faixa não poupavam CPU (com unidades andando todas as faixas
+  refaziam as instruções a cada quadro).
+- **Primeira partida sem troca de visual**: os atlas carregam no menu (`configure` → manifesto → grupos) e sobem para a GPU
+  um por quadro no ticker; ao `startGame` a arte já é servida (0 reconstruções; antes, ≈ 3,4 s depois do início, um quadro de
+  30–53 ms refazia os props do mapa inteiro e o seguinte fazia o upload de 5 atlas em 19–27 ms). Os props nascem por chunk
+  quando ele entra na tela: `PropLayer.reset` do 144×144 caiu de 30–53 ms para 0,3–0,5 ms (260 sprites na tela inicial
+  contra 2 806 do mapa inteiro). Ligar a opção no meio da partida reconstrói uma vez só (antes, duas).
 
 ## Matriz manual (por versão candidata)
 

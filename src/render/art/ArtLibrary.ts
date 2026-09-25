@@ -1,9 +1,10 @@
 // Biblioteca de arte do renderizador (docs/ART.md §3.7): une a fonte assada (AtlasSource, atlas do bake) e a procedural
 // (ProceduralSource, o TextureCache de hoje). As vistas pedem quadros por (id, animação, direção), edifício por estágio e
 // prop por nome; quando não há quadro assado (tipo não assado, atlas carregando/recusado ou opção desligada) a resposta
-// é null e quem chamou desenha o procedural — sem erro. Carregamento: o manifesto no configure; os atlas dos grupos
-// units/buildings/props no prewarm (início da partida) ou, preguiçosamente, na primeira vez que um tipo aparece.
-// `generation` muda sempre que o conjunto de quadros disponíveis muda: o renderizador então refaz vistas e props.
+// é null e quem chamou desenha o procedural — sem erro. Carregamento: com a opção ligada, o configure (ainda no menu) lê o
+// manifesto e em seguida os atlas dos grupos units/buildings/props na escala do preset — a primeira partida já começa
+// assada, sem trocar o visual no meio do jogo —; o prewarm do início da partida só confere. `generation` muda quando o
+// conjunto de quadros SERVIDOS muda (carregou, falhou, trocou a escala, ligou/desligou): o renderizador refaz vistas e props.
 import type { Texture } from 'pixi.js';
 import type { TextureCache } from '../textures';
 import { AtlasSource, type PassFrames } from './AtlasSource';
@@ -22,7 +23,8 @@ export interface UnitArt {
   /** Moldura (px de mundo). */
   size: { w: number; h: number };
   anims: Record<string, ArtAnimInfo>;
-  /** Distância (px de mundo) do pé ao topo visível mais alto dos quadros de parado — base da barra de vida. */
+  /** Distância (px de mundo) do pé ao topo da cabeça (menor topo visível do parado entre as 8 direções) — régua da barra
+   *  de vida, da patente e do disco de carga. */
   top: number;
   /** Direções espelhadas (--mirror) ou null. */
   mirrored: Record<string, number> | null;
@@ -60,15 +62,27 @@ export class ArtLibrary {
 
   private bump(): void { this.generation++; this.units.clear(); this.servedCache.clear(); this.passCache.clear(); }
 
-  /** Aplica a opção e a escala do preset; começa a ler o manifesto (barato) se a arte estiver ligada. */
+  /**
+   * Aplica a opção e a escala do preset. Ligada: começa já (no menu) a carregar o manifesto e os atlas da escala pedida.
+   * A geração só muda se o que é SERVIDO agora mudar (desligar, ou a outra escala já pronta): trocar para uma escala que
+   * ainda vai carregar, ou ligar com os atlas por carregar, não reconstrói nada agora — a reconstrução vem uma vez só,
+   * quando o carregamento termina.
+   */
   configure(enabled: boolean, scale: ArtScale): void {
-    const changed = enabled !== this.enabled || scale !== this.wanted;
+    const before = this.servedKey();
     this.enabled = enabled; this.wanted = scale;
-    if (enabled) void this.atlas.loadManifest();
-    if (changed) { this.bump(); if (this.prewarmed) this.prewarm(); }
+    this.servedCache.clear();   // served() depende de `wanted`
+    if (enabled) this.prewarm();
+    if (this.servedKey() !== before) this.bump();
+  }
+  /** Assinatura do que é servido agora ('off' = nada assado: desligada ou nada pronto ainda). */
+  private servedKey(): string {
+    if (!this.enabled || !this.atlas.manifest) return 'off';
+    const k = GROUPS.map((g) => this.served(g) ?? '-').join(',');
+    return k === '-,-,-' ? 'off' : k;
   }
 
-  /** Pré-aquecimento (início da partida): manifesto + atlas de units/buildings/props na escala servida, sem esperar. */
+  /** Pré-aquecimento: manifesto + atlas de units/buildings/props na escala do preset, sem esperar (idempotente). */
   prewarm(): void {
     this.prewarmed = true;
     if (!this.enabled) return;
@@ -139,11 +153,13 @@ export class ArtLibrary {
       const list = color.anims.get(unitAnimName(id, anim, d));
       if (!list || list.length !== info.frames) { this.units.set(id, null); return null; }
     }
-    // topo visível dos quadros de parado (a moldura inclui lança, morte e sombra: alta demais para a barra de vida)
+    // altura da cabeça: o topo visível dos quadros de parado na direção em que ele é mais BAIXO (a cabeça tem a mesma
+    // altura em todas; a lança/arma só sobe o topo em algumas — o máximo deixava a barra ~0,5 tile acima do elmo)
     let top = 0;
-    for (let d = 0; d < 8; d++) for (const t of color.anims.get(unitAnimName(id, 'idle', d)) ?? []) {
-      const trimY = t.trim ? t.trim.y : 0;
-      top = Math.max(top, size.anchor.y * t.orig.height - trimY);
+    for (let d = 0; d < 8; d++) {
+      let dirTop = 0;
+      for (const t of color.anims.get(unitAnimName(id, 'idle', d)) ?? []) dirTop = Math.max(dirTop, size.anchor.y * t.orig.height - (t.trim ? t.trim.y : 0));
+      if (dirTop > 0 && (top === 0 || dirTop < top)) top = dirTop;
     }
     const res = scale, anims = a.anims;
     const art: UnitArt = {

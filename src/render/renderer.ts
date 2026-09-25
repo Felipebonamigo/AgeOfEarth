@@ -1,13 +1,14 @@
 // Renderizador PixiJS: terreno por shader (com fronteiras), nós como sprites, entidades interpoladas, efeitos, névoa e overlays.
 import { Application, Container, Graphics, Sprite, Texture, Text, TextStyle } from 'pixi.js';
 import { effectiveResolution, resolveQuality, type Quality } from './quality';
-import { TILE, TICK_RATE, PLAYER_COLORS, KOTH_RADIUS, rankOf } from '../core/constants';
+import { TILE, TICK_RATE, DT, PLAYER_COLORS, KOTH_RADIUS, rankOf } from '../core/constants';
 import { BUILDINGS, UNITS } from '../core/data';
 import type { Building, GameState, Unit, VisualEffect } from '../core/types';
 import { Camera } from './camera';
 import { TextureCache, darken } from './textures';
 import { getUnitStats, getBuildingStats } from '../core/sim/modifiers';
 import { componentAt } from '../core/map/components';
+import { distToRect } from '../core/map/grid';
 import type { EditorUI } from '../editor/types';
 import { terrainColor, regionColor, SHADOW_ALPHA } from './palette';
 import { FogMesh } from './fog';
@@ -17,8 +18,12 @@ import { PropLayer } from './props';
 import { ArtLibrary } from './art/ArtLibrary';
 import { UnitView } from './views/UnitView';
 import { BuildingView } from './views/BuildingView';
-import { buildingStage, chooseAnim, dirFromAngle, dirWithHysteresis, mulColor, type UnitAnim } from './art/logic';
+import { animDuration, buildingStage, chooseAnim, deathAlpha, dirWithHysteresis, freshHit, isWalking, mulColor, type UnitAnim } from './art/logic';
 
+/** Cor de fundo (fora do mapa). */
+const BG = 0x0b1020;
+/** Folga (tiles) sobre as distâncias de trabalho/ataque da simulação para considerar a unidade "no posto". */
+const POST_SLACK = 0.15;
 /** Zoom mínimo padrão da partida; em mapas grandes/telas pequenas cai até enquadrar o mapa inteiro (ver updateMinZoom). */
 const DEFAULT_MIN_ZOOM = 0.35;
 /** Raio (em tiles) do anel de cada início no editor: o gerador limpa esse raio e o kit inicial cabe dentro dele. */
@@ -83,7 +88,17 @@ export class Renderer {
   private dying = new Map<VisualEffect, UnitView>();
   private recentDeaths: RecentDeath[] = [];
   private tmpVec = { x: 0, y: 0 };
+  /** Ponto do alvo de quem está no posto (engagedTarget). */
+  private tgtPt = { x: 0, y: 0 };
   private animIn = { moving: false, attacking: false, carrying: false, working: false };
+  /** Relógio (s) das animações assadas: tempo de JOGO, (tick + alpha)/TICK_RATE, nunca voltando para trás. Congela na
+   *  pausa e na espera do lockstep (ninguém anda no lugar) e acelera em 2×/3× junto com o movimento e os efeitos (a queda
+   *  cabe no efeito 'death' em qualquer velocidade). O relógio real (`time`) segue para água, balanço procedural e tremor. */
+  private animClock = 0;
+  /** Moldura na cor do fundo em volta do mapa, acima de props e sombras (modo assado): copas e sombras da borda não vazam
+   *  para fora do retângulo do mapa, que a névoa não cobre. */
+  private edgeFrame = new Graphics();
+  private edgeKey = -1;
   // Sobreposições do editor: texturas w×h de regiões/passabilidade (como a névoa), gráfico por quadro e rótulos dos inícios
   private edGfx = new Graphics();
   private edLabels: Text[] = [];
@@ -104,19 +119,23 @@ export class Renderer {
   async init(parent: HTMLElement): Promise<void> {
     this.app = new Application();
     // Sem antialias (docs/ART.md §3.9): sprites e terreno já são amostrados por textura; resolução = min(teto do preset, dpr) · renderScale
-    await this.app.init({ resizeTo: parent, background: 0x0b1020, antialias: false, preference: 'webgl', resolution: effectiveResolution(this.quality, window.devicePixelRatio || 1, this.renderScale), autoDensity: true });
+    await this.app.init({ resizeTo: parent, background: BG, antialias: false, preference: 'webgl', resolution: effectiveResolution(this.quality, window.devicePixelRatio || 1, this.renderScale), autoDensity: true });
     parent.appendChild(this.app.canvas);
     this.tex = new TextureCache(this.app.renderer);
     this.art = new ArtLibrary(this.tex, `${import.meta.env.BASE_URL ?? './'}art/`);
     this.art.configure(this.quality.bakedArt, this.quality.atlasScale);
     this.props = new PropLayer(this.tex, this.art);
     this.app.stage.addChild(this.world, this.overlay);
-    this.world.addChild(this.layers.terrain, this.layers.shadows, this.layers.props, this.layers.ground, this.layers.buildings, this.layers.units, this.layers.fx, this.layers.hp, this.layers.editor, this.layers.fog);
+    this.world.addChild(this.layers.terrain, this.layers.shadows, this.layers.props, this.edgeFrame, this.layers.ground, this.layers.buildings, this.layers.units, this.layers.fx, this.layers.hp, this.layers.editor, this.layers.fog);
+    this.edgeFrame.visible = false;
+    // atlas prontos sobem para a GPU um por quadro (no menu, enquanto a arte carrega): a partida não paga o upload +
+    // mipmaps de todos no primeiro quadro que os usa
+    this.app.ticker.add(() => this.uploadNextAtlas());
     this.layers.props.addChild(this.props.root);
     this.layers.shadows.addChild(this.props.shadowRoot);
     // Grupos de render (Pixi 8): o mundo é um grupo — mover a câmera muda só a transformação do grupo, sem recalcular a de
-    // cada sprite —, e props e sombras dos props são grupos próprios (cada faixa também, no modo assado): quando unidades
-    // se reordenam por zIndex, só o grupo da faixa delas refaz as instruções, não os milhares de nós e sombras parados.
+    // cada sprite —, e props e sombras dos props são grupos próprios. As faixas NÃO são grupos (cada grupo é um lote e um
+    // draw call a mais, e com unidades andando elas refazem as instruções de qualquer jeito).
     this.world.isRenderGroup = true;
     this.layers.props.isRenderGroup = true;
     this.props.shadowRoot.isRenderGroup = true;
@@ -150,6 +169,7 @@ export class Renderer {
     this.fog = new FogMesh(w, h); this.layers.fog.addChild(this.fog.mesh);
     // arte assada: pré-aquecimento dos atlas (sem esperar; enquanto carrega, tudo sai procedural)
     this.bakedMode = this.quality.bakedArt; this.artGen = this.art.generation;
+    this.animClock = 0;
     this.applyLayerOrder();
     this.props.reset(state, this.bakedMode, this.art.propsReady());
     this.art.prewarm();
@@ -263,10 +283,12 @@ export class Renderer {
   /** Ordem das camadas do modo em vigor (ver `layers`). */
   private applyLayerOrder(): void {
     const L = this.layers;
+    const F = this.edgeFrame;
     const order: Container[] = this.bakedMode
-      ? [L.terrain, L.shadows, L.ground, L.props, L.buildings, L.units, L.fx, L.hp, L.editor, L.fog]
-      : [L.terrain, L.shadows, L.props, L.ground, L.buildings, L.units, L.fx, L.hp, L.editor, L.fog];
+      ? [L.terrain, L.shadows, L.ground, L.props, F, L.buildings, L.units, L.fx, L.hp, L.editor, L.fog]
+      : [L.terrain, L.shadows, L.props, F, L.ground, L.buildings, L.units, L.fx, L.hp, L.editor, L.fog];
     order.forEach((c, i) => this.world.setChildIndex(c, i));
+    F.visible = this.bakedMode;   // desligada: visual idêntico ao anterior
   }
   /**
    * A ArtLibrary mudou de geração (atlas carregou/falhou, escala 1×/2× ou opção ligada/desligada): refaz as vistas de
@@ -285,6 +307,26 @@ export class Renderer {
     this.art.collect();
   }
   private clearDying(): void { for (const d of this.dying.values()) d.destroy(); this.dying.clear(); this.recentDeaths.length = 0; }
+  /** Moldura para um mapa w×h (redesenhada só quando o tamanho muda: setState, editor). */
+  private updateEdgeFrame(w: number, h: number): void {
+    const k = w * 65536 + h; if (k === this.edgeKey) return;
+    this.edgeKey = k;
+    // folga maior que o que a câmera mostra fora do mapa no zoom mínimo (mapa pequeno em tela 4K); cada faixa é um
+    // retângulo preenchido à parte (vários retângulos num só caminho viram furos/sobras na triangulação)
+    const W = w * TILE, H = h * TILE, M = Math.max(W, H) * 4 + 4096;
+    const g = this.edgeFrame.clear();
+    g.rect(-M, -M, W + 2 * M, M).fill(BG);
+    g.rect(-M, H, W + 2 * M, M).fill(BG);
+    g.rect(-M, 0, M, H).fill(BG);
+    g.rect(W, 0, M, H).fill(BG);
+  }
+  /** Sobe para a GPU a próxima imagem de atlas pronta (uma por quadro do ticker). */
+  private uploadNextAtlas(): void {
+    const q = this.art?.atlas.uploads; if (!q || q.length === 0) return;
+    const src = q.shift()!;
+    if (src.destroyed) return;
+    try { this.app.renderer.texture.initSource(src); } catch { /* sobe no primeiro uso */ }
+  }
 
   // ---------------- Névoa (bordas macias por shader em fog.ts) ----------------
   private updateFog(state: GameState, local: number): void {
@@ -308,6 +350,12 @@ export class Renderer {
     if (v.unit) v.unit.destroy(); else if (v.bld) v.bld.destroy();
     else { v.root.destroy({ children: true }); v.shadow?.destroy(); }
   }
+  /**
+   * y de desenho de um edifício (zIndex e faixa no modo assado; também a régua do pick): o centro, como as unidades pelo
+   * pé. Edifício plano e pisável (fazenda) fica sob quem está em cima dele: a borda de cima do footprint. Com a arte
+   * desligada, o centro (ordem só entre edifícios, como antes).
+   */
+  private buildingDrawY(b: Building): number { return this.bakedMode && BUILDINGS[b.type]?.passable ? b.ty - 0.01 : b.y; }
   /** Container onde a vista vive: no modo assado, a faixa de props do y do pé (ordem global); senão a camada antiga. */
   private parentFor(kind: 'unit' | 'building', y: number, flying: boolean): Container {
     if (this.bakedMode && !flying) { const row = this.props.rowFor(y); if (row) return row; }
@@ -331,7 +379,7 @@ export class Renderer {
       else { const sh = buildingShadow(e.type); if (sh) shadow = new Sprite(this.tex.shadowRect(sh.w, sh.h)); }
       if (shadow) { shadow.anchor.set(0.5); shadow.alpha = SHADOW_ALPHA; shadow.blendMode = 'multiply'; this.layers.shadows.addChild(shadow); }
       v = { root, body, shadow, type: e.type, color, complete, angle: 0, carry: null, unit: null, bld: null };
-      this.parentFor(e.kind, e.y, e.kind === 'unit' && !!UNITS[e.type]?.flying).addChild(root);
+      this.parentFor(e.kind, e.kind === 'building' ? this.buildingDrawY(e) : e.y, e.kind === 'unit' && !!UNITS[e.type]?.flying).addChild(root);
       this.views.set(e.id, v);
     }
     return v;
@@ -353,7 +401,7 @@ export class Renderer {
     for (const st of BAKED_STAGES) if (!this.art.building(e.type, st)) return undefined;
     const bv = new BuildingView(this.art, e.type, color, this.layers.shadows);
     const v: EntityView = { root: bv.root, body: bv.body, shadow: bv.shadow, type: e.type, color, complete: e.complete, angle: 0, carry: null, unit: null, bld: bv };
-    this.parentFor('building', e.y, false).addChild(bv.root);
+    this.parentFor('building', this.buildingDrawY(e), false).addChild(bv.root);
     this.views.set(e.id, v);
     return v;
   }
@@ -376,14 +424,15 @@ export class Renderer {
         v.bld.place(b.x * TILE, b.y * TILE);
         v.bld.tint(tint, mulColor(color, tint));
         v.complete = b.complete;
-        const parent = this.parentFor('building', b.y, false); if (v.root.parent !== parent) parent.addChild(v.root);
-        v.root.zIndex = b.y;
+        const by = this.buildingDrawY(b);
+        const parent = this.parentFor('building', by, false); if (v.root.parent !== parent) parent.addChild(v.root);
+        v.root.zIndex = by;
         v.bld.visible = true;
         seen.add(b.id);
         continue;
       }
       v.root.position.set(b.x * TILE, b.y * TILE);
-      v.root.zIndex = b.y;
+      v.root.zIndex = this.buildingDrawY(b);
       v.root.visible = true;
       if (v.shadow) { const sh = buildingShadow(b.type)!; v.shadow.position.set(b.x * TILE + sh.dx, b.y * TILE + sh.dy); v.shadow.visible = true; }
       v.body.tint = tint;
@@ -399,18 +448,17 @@ export class Renderer {
       const flying = !!UNITS[u.type].flying;
       v.root.zIndex = iy + (flying ? 1000 : 0);
       v.root.visible = true;
-      // direção: movimento, ou o alvo quando parado atacando/coletando/construindo
-      const dx = u.x - u.px, dy = u.y - u.py;
-      const moving = dx * dx + dy * dy > 1e-6;
-      let faced = false;
-      if (moving) v.angle = Math.atan2(dy, dx);
-      else if (u.state === 'attack' || u.state === 'gather' || u.state === 'build') {
-        const t = u.state === 'attack' ? (state.units.get(u.targetId) ?? state.buildings.get(u.targetId)) : (u.nodeId > 0 ? state.map.nodes.get(u.nodeId) : (u.nodeId < 0 ? state.buildings.get(-u.nodeId) : state.buildings.get(u.targetId)));
-        if (t) { const tx = 'kind' in t ? t.x : t.x + 0.5, ty = 'kind' in t ? t.y : t.y + 0.5; v.angle = Math.atan2(ty - iy, tx - ix); faced = true; }
-      }
       const bodyTint = state.tick - u.lastDamageTick < 3 ? 0xff8080 : (state.tick < state.players[u.owner].bronzeUntil ? 0xffd28a : 0xffffff);
-      if (v.unit) this.updateBakedUnit(u, v, ix, iy, moving, faced, dx, dy, bodyTint, color);
+      if (v.unit) this.updateBakedUnit(state, u, v, ix, iy, bodyTint, color);
       else {
+        // direção: movimento, ou o alvo quando parado atacando/coletando/construindo
+        const dx = u.x - u.px, dy = u.y - u.py;
+        const moving = dx * dx + dy * dy > 1e-6;
+        if (moving) v.angle = Math.atan2(dy, dx);
+        else if (u.state === 'attack' || u.state === 'gather' || u.state === 'build') {
+          const t = u.state === 'attack' ? (state.units.get(u.targetId) ?? state.buildings.get(u.targetId)) : (u.nodeId > 0 ? state.map.nodes.get(u.nodeId) : (u.nodeId < 0 ? state.buildings.get(-u.nodeId) : state.buildings.get(u.targetId)));
+          if (t) { const tx = 'kind' in t ? t.x : t.x + 0.5, ty = 'kind' in t ? t.y : t.y + 0.5; v.angle = Math.atan2(ty - iy, tx - ix); }
+        }
         v.root.position.set(ix * TILE, iy * TILE);
         v.body.rotation = v.angle;
         // animações simples: balanço ao andar, investida ao atacar
@@ -438,11 +486,12 @@ export class Renderer {
         v.rank.clear();
         for (let i = 0; i < rk; i++) v.rank.star(-6 + i * 6 - (rk - 1) * 3 + 3, -16, 4, 3, 1.5).fill({ color: 0xfde047 });
       }
-      // carga (a assada com animação 'carry' mostra o cesto ao andar: sem o disco)
-      if (u.carry && u.carryAmt > 0 && !(v.unit && v.unit.art.anims.carry)) {
+      // carga: disco na cor do recurso (também na assada — o cesto da animação 'carry' é o mesmo para tudo e some com a
+      // unidade parada), ao lado da cabeça
+      if (u.carry && u.carryAmt > 0) {
         if (!v.carry) { v.carry = new Sprite(this.tex.disc(3.5, 0xffffff)); v.carry.anchor.set(0.5); v.root.addChild(v.carry); }
         v.carry.visible = true; v.carry.tint = u.carry === 'food' ? 0xef4444 : u.carry === 'wood' ? 0x92400e : 0xf2c14e;
-        v.carry.position.set(-8, v.unit ? -v.unit.art.top * 0.5 : -8);
+        v.carry.position.set(v.unit ? -10 : -8, v.unit ? -v.unit.art.top * 0.8 : -8);
       } else if (v.carry) v.carry.visible = false;
       seen.add(u.id);
     }
@@ -459,23 +508,64 @@ export class Renderer {
   }
 
   /**
-   * Unidade assada: direção pela velocidade NA TELA (com histerese; parada mantém a última e vira para o alvo ao
-   * atacar/coletar/construir), animação pelo estado (cada golpe recomeça o ataque do quadro 0) e quadro a 10 fps.
+   * Unidade no posto: alvo ao alcance, golpeando (entre golpes também), coletando ou construindo. Mesmas distâncias da
+   * simulação (core/sim/units.ts: alcance do ataque + raios, 1,0 do nó, 0,9 da fazenda, 0,95 da obra) com POST_SLACK de
+   * folga; o ponto do alvo vai para tgtPt. No posto a vista fica parada virada para o alvo, e o empurrão da separação
+   * entre vizinhos (que mexe no x/y todo tick num aglomerado) não vira passo nem direção.
    */
-  private updateBakedUnit(u: Unit, v: EntityView, ix: number, iy: number, moving: boolean, faced: boolean, dx: number, dy: number, bodyTint: number, color: number): void {
-    const uv = v.unit!;
+  private engagedTarget(state: GameState, u: Unit): boolean {
+    const p = this.tgtPt;
+    if (u.state === 'attack') {
+      const t = state.units.get(u.targetId) ?? state.buildings.get(u.targetId);
+      if (!t) return false;
+      const reach = getUnitStats(state, state.players[u.owner], u.type).range + UNITS[u.type].radius + (t.kind === 'unit' ? UNITS[t.type].radius : 0);
+      const d = t.kind === 'building' ? distToRect(u.x, u.y, t.tx, t.ty, t.w, t.h) : Math.sqrt((u.x - t.x) * (u.x - t.x) + (u.y - t.y) * (u.y - t.y));
+      if (d > reach + POST_SLACK) return false;
+      p.x = t.x; p.y = t.y; return true;
+    }
+    if (u.state === 'gather') {
+      if (u.nodeId > 0) {
+        const n = state.map.nodes.get(u.nodeId);
+        if (!n || distToRect(u.x, u.y, n.x, n.y, 1, 1) > 1.0 + POST_SLACK) return false;
+        p.x = n.x + 0.5; p.y = n.y + 0.5; return true;
+      }
+      const f = u.nodeId < 0 ? state.buildings.get(-u.nodeId) : undefined;
+      if (!f || distToRect(u.x, u.y, f.tx, f.ty, f.w, f.h) > 0.9 + POST_SLACK) return false;
+      p.x = f.x; p.y = f.y; return true;
+    }
+    if (u.state === 'build') {
+      const b = state.buildings.get(u.targetId);
+      if (!b || distToRect(u.x, u.y, b.tx, b.ty, b.w, b.h) > 0.95 + POST_SLACK) return false;
+      p.x = b.x; p.y = b.y; return true;
+    }
+    return false;
+  }
+
+  /**
+   * Unidade assada. Direção (com histerese, pela projeção NA TELA): no posto, para o alvo; andando de fato, pela
+   * velocidade; senão mantém a última. Andar = deslocamento do tick acima de uma fração do passo (isWalking), nunca no
+   * posto. Animação pelo estado (cada golpe novo e recente recomeça o ataque do quadro 0), quadro a 10 fps no relógio de
+   * jogo (animClock). O cesto de 'carry' só com comida (não há quadros de carga por recurso: madeira e ouro andam com
+   * 'walk' e o disco da cor do recurso).
+   */
+  private updateBakedUnit(state: GameState, u: Unit, v: EntityView, ix: number, iy: number, bodyTint: number, color: number): void {
+    const uv = v.unit!, art = uv.art, clock = this.animClock;
+    const posted = this.engagedTarget(state, u);
+    const dx = u.x - u.px, dy = u.y - u.py;
+    const walking = !posted && isWalking(dx * dx + dy * dy, getUnitStats(state, state.players[u.owner], u.type).speed * DT, uv.anim === 'walk' || uv.anim === 'carry');
     let dir = uv.dir;
-    if (moving) { const s = this.cam.worldDeltaToScreen(dx, dy, this.tmpVec); dir = dirWithHysteresis(Math.atan2(s.y, s.x), uv.dir); }
-    else if (faced) { const s = this.cam.worldDeltaToScreen(Math.cos(v.angle), Math.sin(v.angle), this.tmpVec); dir = dirFromAngle(Math.atan2(s.y, s.x)); }
-    const hit = u.attackTick !== uv.lastAttackTick;
-    if (hit) uv.lastAttackTick = u.attackTick;
-    const art = uv.art;
-    const attacking = hit || (uv.anim === 'attack' && !uv.finished(this.time));
+    const s = posted ? this.cam.worldDeltaToScreen(this.tgtPt.x - ix, this.tgtPt.y - iy, this.tmpVec) : walking ? this.cam.worldDeltaToScreen(dx, dy, this.tmpVec) : null;
+    if (s && (s.x * s.x + s.y * s.y) > 1e-6) dir = dirWithHysteresis(Math.atan2(s.y, s.x), uv.dir);
+    const atk = art.anims.attack;
+    const hit = freshHit(u.attackTick, uv.lastAttackTick, state.tick, atk ? Math.ceil(animDuration(atk.frames, atk.fps) * TICK_RATE) : 0);
+    uv.lastAttackTick = u.attackTick;
+    const attacking = hit || (uv.anim === 'attack' && !uv.finished(clock));
     const ai = this.animIn;
-    ai.moving = moving; ai.attacking = attacking; ai.carrying = !!u.carry && u.carryAmt >= 1; ai.working = !moving && (u.state === 'gather' || u.state === 'build');
+    ai.moving = walking; ai.attacking = attacking; ai.carrying = u.carry === 'food' && u.carryAmt >= 1;
+    ai.working = posted && (u.state === 'gather' || u.state === 'build');
     const anim: UnitAnim = chooseAnim(ai, art.has);
-    uv.pose(anim, dir, this.time, hit && anim === 'attack');
-    uv.tick(this.time, (u.id % 13) * 0.077);
+    uv.pose(anim, dir, clock, hit && anim === 'attack');
+    uv.tick(clock, (u.id % 13) * 0.077);
     uv.place(ix * TILE, iy * TILE);
     uv.tint(bodyTint, mulColor(color, bodyTint));
     uv.visible = true;
@@ -591,7 +681,8 @@ export class Renderer {
   private fxSeen = new Set<VisualEffect>();
   /**
    * Morte/petrificação de uma unidade assada: a animação 'die' (direção herdada da vista que sumiu neste quadro) ou a
-   * estátua (quadro parado em cinza), na faixa do y do pé, apagando como o efeito procedural. false = procedural.
+   * estátua (quadro parado em cinza), na faixa do y do pé. A queda corre no relógio de jogo a partir do tick da morte (em
+   * 2×/3× ela acelera junto com o efeito e chega ao último quadro) e só apaga depois dele. false = procedural.
    */
   private updateDying(state: GameState, e: VisualEffect): boolean {
     const p = 1 - e.ttl / e.total;
@@ -609,15 +700,18 @@ export class Renderer {
       for (const d of this.recentDeaths) if (d.type === type && Math.abs(d.x - e.x * TILE) < TILE && Math.abs(d.y - e.y * TILE) < TILE) { dir = d.dir; break; }
       const color = PLAYER_COLORS[(e.owner ?? 0) % PLAYER_COLORS.length].num;
       uv = new UnitView(art, this.art, type, color, this.layers.shadows, dir);
-      if (e.type === 'death') uv.pose('die', dir, this.time, true);
-      else { uv.pose('idle', dir, this.time); uv.tick(0, 0); uv.tint(0x9ca3af, 0x9ca3af); }
+      if (e.type === 'death') uv.pose('die', dir, this.animClock - (e.total - e.ttl) / TICK_RATE, true);
+      else { uv.pose('idle', dir, this.animClock); uv.tick(0, 0); uv.tint(0x9ca3af, 0x9ca3af); }
       uv.place(e.x * TILE, e.y * TILE);
       uv.root.zIndex = e.y - 0.01;
       this.parentFor('unit', e.y, false).addChild(uv.root);
       this.dying.set(e, uv);
     }
-    if (e.type === 'death') { uv.tick(this.time, 0); uv.alpha = p < 0.5 ? 1 : Math.max(0, 1 - (p - 0.5) * 2); }
-    else uv.alpha = 1 - p;
+    if (e.type === 'death') {
+      uv.tick(this.animClock, 0);
+      const die = uv.art.anims.die;
+      uv.alpha = deathAlpha(p, die ? animDuration(die.frames, die.fps) * TICK_RATE : 0, e.total);
+    } else uv.alpha = 1 - p;
     return true;
   }
 
@@ -820,6 +914,10 @@ export class Renderer {
     if (this.cam.shake > 0) this.cam.shake = Math.max(0, this.cam.shake - dtReal * 12);
     this.world.scale.set(this.cam.zoom);
     this.world.position.set(-this.cam.x * this.cam.zoom + sx, -this.cam.y * this.cam.zoom + sy);
+    // relógio de jogo das animações assadas (não volta: retomar a pausa com alpha < 1 não recua o quadro)
+    const clock = (state.tick + alpha) / TICK_RATE;
+    if (clock > this.animClock || clock < this.animClock - 1) this.animClock = clock;
+    if (this.bakedMode) this.updateEdgeFrame(state.map.w, state.map.h);
     this.updateTerrain(state, ui.localPlayer);
     this.updateEntities(state, alpha, ui);
     this.updateGround(state, alpha, ui);
@@ -831,47 +929,54 @@ export class Renderer {
   }
 
   /**
-   * Entidade sob o ponto (em tiles). Unidades têm prioridade sobre edifícios. Com arte assada, dois estágios (docs/ART.md
-   * §1.8): primeiro a caixa do quadro das unidades assadas (o pé mais à frente, maior y, ganha: clicar no elmo/escudo
-   * pega a unidade mesmo com o chão sob o cursor sendo de outro tile), depois o círculo de sempre; edifícios pelo tile
-   * como hoje e, por último, pela caixa do quadro assado (telhado/fachada acima do footprint). Uma unidade atrás de um
-   * edifício continua clicável: unidades vêm antes de qualquer edifício. A névoa decide pela posição do pé.
+   * Entidade sob o ponto (em tiles). Sem a arte assada: a unidade mais próxima cujo círculo contém o ponto, senão o
+   * edifício do tile. Com a arte assada (docs/ART.md §1.8), em estágios:
+   *  1. voadoras pelo círculo (a camada delas fica acima das faixas);
+   *  2. unidades procedurais pelo círculo (pequenas: a caixa larga de um sprite assado vizinho não pode escondê-las —
+   *     clicar no inimigo encostado no seu hoplita tem de atacar, não mover);
+   *  3. caixas: quadro das unidades assadas (clicar no elmo/escudo pega a unidade mesmo com o chão sob o cursor sendo de
+   *     outro tile), quadro dos edifícios assados (telhado/fachada acima do footprint) e o footprint de qualquer edifício;
+   *     entre as que contêm o ponto ganha a desenhada na frente (maior y de desenho: pé da unidade, buildingDrawY do
+   *     edifício) — o telhado do templo cobre o cidadão atrás dele, e o hoplita na frente do templo continua ganhando;
+   *  4. o círculo de qualquer unidade (abaixo do pé, fora da caixa).
+   * A névoa decide pela posição do pé.
    */
   pick(state: GameState, x: number, y: number, local: number): Unit | Building | null {
-    if (this.bakedMode) {
-      const wx = x * TILE, wy = y * TILE;
-      let front: Unit | null = null;
-      for (const [id, v] of this.views) {
-        if (!v.unit || !v.unit.visible || !v.unit.contains(wx, wy)) continue;
-        const u = state.units.get(id);
-        if (!u || u.inside !== -1 || !this.visibleToLocal(state, local, u)) continue;
-        if (!front || u.y > front.y) front = u;
-      }
-      if (front) return front;
-    }
-    let best: Unit | null = null, bestD = Infinity;
+    const baked = this.bakedMode;
+    let best: Unit | null = null, bestD = Infinity, fly: Unit | null = null, flyD = Infinity, small: Unit | null = null, smallD = Infinity;
     for (const u of state.units.values()) {
       if (u.inside !== -1 || !this.visibleToLocal(state, local, u)) continue;
       const r = Math.max(0.45, UNITS[u.type].radius * 1.5);
       const dx = u.x - x, dy = u.y - y; const d = dx * dx + dy * dy;
-      if (d <= r * r && d < bestD) { bestD = d; best = u; }
+      if (d > r * r) continue;
+      if (d < bestD) { bestD = d; best = u; }
+      if (!baked) continue;
+      if (UNITS[u.type].flying) { if (d < flyD) { flyD = d; fly = u; } }
+      else if (!this.views.get(u.id)?.unit && d < smallD) { smallD = d; small = u; }
     }
-    if (best) return best;
     const tx = Math.floor(x), ty = Math.floor(y);
-    if (tx < 0 || ty < 0 || tx >= state.map.w || ty >= state.map.h) return null;
-    const bid = state.map.buildingAt[ty * state.map.w + tx];
-    if (bid !== -1) { const b = state.buildings.get(bid); if (b && this.visibleToLocal(state, local, b)) return b; }
-    if (this.bakedMode) {
-      const wx = x * TILE, wy = y * TILE;
-      let front: Building | null = null;
-      for (const [id, v] of this.views) {
-        if (!v.bld || !v.bld.visible || !v.bld.contains(wx, wy)) continue;
+    const bid = tx >= 0 && ty >= 0 && tx < state.map.w && ty < state.map.h ? state.map.buildingAt[ty * state.map.w + tx] : -1;
+    const tileB = bid !== -1 ? state.buildings.get(bid) : undefined;
+    const onTile = tileB && this.visibleToLocal(state, local, tileB) ? tileB : null;
+    if (!baked) return best ?? onTile;
+    if (fly) return fly;
+    if (small) return small;
+    const wx = x * TILE, wy = y * TILE;
+    let front: Unit | Building | null = null, frontY = -Infinity;
+    for (const [id, v] of this.views) {
+      if (v.unit) {
+        if (!v.unit.visible || !v.unit.contains(wx, wy)) continue;
+        const u = state.units.get(id);
+        if (u && u.inside === -1 && u.y > frontY && this.visibleToLocal(state, local, u)) { front = u; frontY = u.y; }
+      } else if (v.bld) {
+        if (!v.bld.visible || !v.bld.contains(wx, wy)) continue;
         const b = state.buildings.get(id);
-        if (b && this.visibleToLocal(state, local, b) && (!front || b.y > front.y)) front = b;
+        const by = b ? this.buildingDrawY(b) : 0;
+        if (b && by > frontY && this.visibleToLocal(state, local, b)) { front = b; frontY = by; }
       }
-      if (front) return front;
     }
-    return null;
+    if (onTile && this.buildingDrawY(onTile) > frontY) front = onTile;
+    return front ?? best;
   }
 
   /** Data URL de uma miniatura (retrato) para a interface. */

@@ -3,7 +3,7 @@
 // contrato (pxPerTile/pitchDeg/versão/passe) e, se qualquer arquivo falhar, o grupo inteiro fica "failed" e o jogo segue
 // no procedural. Carrega com Assets.load (cache com prefixo por arquivo: os três passes e as duas escalas repetem os
 // mesmos nomes de quadro); se o Assets falhar (file:// no Electron não tem fetch), cai para XHR + <img> + Spritesheet.
-import { Assets, ImageSource, Spritesheet, Texture } from 'pixi.js';
+import { Assets, ImageSource, Spritesheet, Texture, type TextureSource } from 'pixi.js';
 import { checkSheetMeta } from './logic';
 import type { ArtGroup, ArtManifest, ArtPass, ArtScale, SheetJson } from './types';
 
@@ -61,6 +61,8 @@ export class AtlasSource {
   get busy(): number { return this.pending.size; }
   /** Mensagens de recusa/erro (diagnóstico e testes do navegador). */
   readonly errors: string[] = [];
+  /** Imagens dos atlas prontos ainda não enviadas à GPU: o renderizador sobe uma por quadro (no menu, antes da partida). */
+  readonly uploads: TextureSource[] = [];
 
   /** `base` = pasta dos atlas relativa à página ('./art/'). */
   constructor(private base: string) {}
@@ -126,7 +128,10 @@ export class AtlasSource {
           for (const [name, list] of Object.entries(sheet.animations)) p.anims.set(name, list as Texture[]);
           if (data.meta.aoe?.mirrored) p.mirrored = { ...(p.mirrored ?? {}), ...data.meta.aoe.mirrored };
         }
-        if (this.groups.get(key) === g) g.status = 'ready';
+        if (this.groups.get(key) === g) {
+          g.status = 'ready';
+          for (const r of settled) this.uploads.push((r as PromiseFulfilledResult<{ sheet: Spritesheet }>).value.sheet.textureSource);
+        }
       } catch (e) {
         g.status = 'failed'; g.error = (e as Error).message;
         this.fail(`atlas ${key}: ${g.error}`);

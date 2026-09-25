@@ -4,7 +4,7 @@
 import { Container, Sprite } from 'pixi.js';
 import { SHADOW_ALPHA } from '../palette';
 import type { ArtLibrary, BakedFrame } from '../art/ArtLibrary';
-import type { BuildStage } from '../art/logic';
+import { frameBox, type BuildStage } from '../art/logic';
 
 export class BuildingView {
   readonly root = new Container();
@@ -38,11 +38,9 @@ export class BuildingView {
     this.team.visible = !!f.team; if (f.team) this.team.texture = f.team;
     this.hasShadow = !!f.shadow; if (f.shadow) this.shadow.texture = f.shadow;
     this.shadow.visible = this.root.visible && this.hasShadow;
-    const tex = f.color, ay = f.anchor.y * tex.orig.height, ax = f.anchor.x * tex.orig.width;
-    const tx = tex.trim ? tex.trim.x : 0, ty = tex.trim ? tex.trim.y : 0;
-    const tw = tex.trim ? tex.trim.width : tex.orig.width, th = tex.trim ? tex.trim.height : tex.orig.height;
-    this.top = ay - ty;
-    this.lx0 = tx - ax; this.lx1 = tx + tw - ax; this.ly0 = ty - ay; this.ly1 = ty + th - ay;
+    const b = frameBox(f.color, f.anchor, false, { x0: 0, y0: 0, x1: 0, y1: 0 });
+    this.top = -b.y0;
+    this.lx0 = b.x0; this.lx1 = b.x1; this.ly0 = b.y0; this.ly1 = b.y1;
     return true;
   }
 

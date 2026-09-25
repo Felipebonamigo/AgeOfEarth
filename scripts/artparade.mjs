@@ -1,11 +1,14 @@
 // "Desfile" da arte assada (docs/ART.md §5, Etapa 2 parte B): partida com semente fixa (42, mapa pequeno, 1 IA) e, numa
 // área aberta ao sul de um bosque perto do Centro Cívico, um templo completo, um templo em obra (≈ 45 %, cidadãos
 // construindo), 8 hoplitas indo e voltando nas 8 direções (roda do desfile, postura passiva), 6 contra 6 hoplitas lutando
-// (vida alta para a luta durar as capturas), cidadãos cortando o bosque (dos dois jogadores) e carregando madeira.
+// (vida alta para a luta durar as capturas), um aglomerado de 5 contra 5 em ataque-mover que se mistura, cidadãos cortando
+// o bosque (dos dois jogadores) e carregando madeira.
 // O mapa é revelado só no renderizador e o HUD fica oculto.
 // Capturas em docs/art/: <prefixo>-desfile-z10.png e -desfile-z22.png (preset médio, atlas 1×), -desfile-z22-2x.png
 // (preset alto, atlas 2×) e <prefixo>-procedural-z10.png (a mesma cena com a arte assada desligada, para comparar).
-// Imprime o estado da ArtLibrary e falha se houver erro de página ou se a arte assada não for servida.
+// Imprime o estado da ArtLibrary e falha se houver erro de página, se a arte assada não for servida, se quem anda olhar
+// para fora da velocidade ou se mais de 10 % dos quadros de 'attack' (amostrados na luta e no aglomerado, onde o empurrão
+// da separação mexe em todos) estiverem a 90° ou mais do alvo.
 // Exige `npm run preview` (ou a URL passada). Uso: node scripts/artparade.mjs [url] [--out docs/art] [--prefix etapa2b]
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
@@ -68,6 +71,12 @@ const scene = await page.evaluate(() => {
   for (let i = 0; i < 6; i++) { mine.push(tough(sp(me, 'hoplite', F.x - 1.5, F.y - 2 + i * 0.8))); theirs.push(tough(sp(foe, 'hoplite', F.x + 1.5, F.y - 2 + i * 0.8))); }
   mine.forEach((u, i) => { if (u && theirs[i]) s.issue({ type: 'attack', player: me, ids: [u.id], targetId: theirs[i].id }); });
   theirs.forEach((u, i) => { if (u && mine[i]) s.scheduler.issue({ type: 'attack', player: foe, ids: [u.id], targetId: mine[i].id }); });
+  // aglomerado: 5 × 5 em ataque-mover um contra o outro (os exércitos se misturam e se empurram)
+  const K = spot(E.x + 6, E.y + 7) ?? { x: F.x + 5, y: F.y };
+  const ka = [], kb = [];
+  for (let i = 0; i < 5; i++) { ka.push(tough(sp(me, 'hoplite', K.x - 1, K.y + 1))); kb.push(tough(sp(foe, 'hoplite', K.x + 3, K.y + 1))); }
+  s.issue({ type: 'attackMove', player: me, ids: ids(ka), x: K.x + 4, y: K.y + 1 });
+  s.scheduler.issue({ type: 'attackMove', player: foe, ids: ids(kb), x: K.x - 2, y: K.y + 1 });
   // roda do desfile: 8 hoplitas do jogador, passivos, cada um vai e volta numa das 8 direções
   const W = { x: E.x - 9, y: E.y + 8 };
   const walkers = [];
@@ -135,6 +144,25 @@ const checks = await page.evaluate(() => {
 console.log('vistas assadas:', JSON.stringify(checks));
 if (checks.dirBad > 0) errors.push(`direção incoerente em ${checks.dirBad} unidade(s) andando`);
 for (const a of ['walk', 'gather']) if (!checks.anims[a]) errors.push(`nenhuma unidade em '${a}'`);
+// golpes virados para o alvo: amostra os quadros de 'attack' (luta em linha e aglomerado) por alguns segundos
+const facing = { ok: 0, off: 0, samples: [] };
+for (let k = 0; k < 12; k++) {
+  const r = await page.evaluate(() => {
+    const s = window.aoe.session, R = window.aoe.renderer, out = [];
+    for (const [id, v] of R.views) {
+      if (!v.unit || v.unit.anim !== 'attack') continue;
+      const u = s.state.units.get(id), t = u && s.state.units.get(u.targetId); if (!t) continue;
+      const d = ((Math.round(Math.atan2(t.y - u.y, t.x - u.x) / (Math.PI / 4)) % 8) + 8) % 8;
+      out.push({ id, dir: v.unit.dir, toTarget: d, diff: Math.min((d - v.unit.dir + 8) % 8, (v.unit.dir - d + 8) % 8) });
+    }
+    return out;
+  });
+  for (const f of r) { if (f.diff >= 2) { facing.off++; if (facing.samples.length < 5) facing.samples.push(f); } else facing.ok++; }
+  await page.waitForTimeout(250);
+}
+console.log('golpes × direção do alvo:', JSON.stringify(facing));
+if (facing.ok + facing.off === 0) errors.push("nenhuma unidade em 'attack'");
+else if (facing.off > 0.1 * (facing.ok + facing.off)) errors.push(`${facing.off} de ${facing.ok + facing.off} quadros de 'attack' a 90° ou mais do alvo`);
 await look(mid, 2.2); await shot('desfile-z22');
 const status1 = await page.evaluate(() => ({ ...window.aoe.renderer.art.status(), preset: window.aoe.renderer.quality.preset }));
 // a mesma cena com a arte assada desligada (visual procedural)

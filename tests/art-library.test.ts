@@ -7,7 +7,7 @@ import path from 'node:path';
 import {
   dirFromAngle, dirFromVector, dirWithHysteresis, chooseAnim, frameIndex, animDuration, unitFrameName, unitAnimName, buildingFrameName,
   propFrameName, buildingStage, treeLook, stumpVariant, animalDir, amountStage, nodeFrameName, nodeStage, treeScale, treeOffset, checkSheetMeta, pickScale,
-  isMirrored, spriteLocalX, mulColor, type UnitAnim,
+  isMirrored, frameBox, mulColor, isWalking, freshHit, deathAlpha, type UnitAnim,
 } from '../src/render/art/logic';
 import type { ArtManifest, SheetJson } from '../src/render/art/types';
 import { resolveQuality, QUALITY_PRESETS } from '../src/render/quality';
@@ -50,6 +50,27 @@ describe('animação e quadro por tempo (10 fps)', () => {
     expect(chooseAnim({ moving: false, attacking: false, carrying: true, working: true }, all)).toBe('gather');
     expect(chooseAnim({ moving: false, attacking: false, carrying: false, working: true }, hop)).toBe('idle');
     expect(chooseAnim({ moving: true, attacking: true, carrying: false, working: false }, all)).toBe('attack');
+  });
+  it('andar de fato: o empurrão da separação não vira passo (histerese 30 % / 15 % do passo)', () => {
+    const step = 2.2 / 20;   // hoplita: 0,11 tile/tick
+    expect(isWalking(step * step, step, false)).toBe(true);
+    for (const push of [0.005, 0.02, 0.03]) expect(isWalking(push * push, step, false), `${push}`).toBe(false);
+    expect(isWalking(0.02 * 0.02, step, true)).toBe(true);    // andando, continua até cair abaixo de 15 %
+    expect(isWalking(0.01 * 0.01, step, true)).toBe(false);
+    expect(isWalking(0, step, true)).toBe(false);
+  });
+  it('golpe: só um attackTick novo E recente anima (vista que volta à tela não toca golpe antigo)', () => {
+    expect(freshHit(100, 90, 101, 12)).toBe(true);
+    expect(freshHit(100, 100, 101, 12)).toBe(false);          // já visto
+    expect(freshHit(100, -100, 2100, 12)).toBe(false);        // golpe de 100 s atrás
+    expect(freshHit(100, -100, 112, 12)).toBe(true);
+  });
+  it('morte: opaca até o último quadro da queda, depois apaga até o fim do efeito', () => {
+    // queda de 0,6 s = 12 ticks num efeito de 24: apaga a partir da metade
+    expect(deathAlpha(0.3, 12, 24)).toBe(1); expect(deathAlpha(0.49, 12, 24)).toBe(1);
+    expect(deathAlpha(0.75, 12, 24)).toBeCloseTo(0.5); expect(deathAlpha(1, 12, 24)).toBe(0);
+    // queda mais longa que meio efeito: começa a apagar só depois dela (até 85 %)
+    expect(deathAlpha(0.6, 18, 24)).toBe(1); expect(deathAlpha(0.8, 18, 24)).toBeLessThan(1);
   });
   it('loop volta ao 0 sem repetir o último; sem loop para no último', () => {
     expect([0, 0.05, 0.1, 0.3, 0.79, 0.8, 1.25].map((t) => frameIndex(t, 8, 10, true))).toEqual([0, 0, 1, 3, 7, 0, 4]);
@@ -125,13 +146,24 @@ describe('atlas: meta.aoe, escala, espelhamento e cor', () => {
   it('1×/2× pelo preset; 2× só se existir', () => {
     expect(pickScale(2, [1, 2])).toBe(2); expect(pickScale(2, [1])).toBe(1); expect(pickScale(1, [1, 2])).toBe(1);
   });
-  it('espelhado com scale.x = −1: o pé (âncora) fica no mesmo ponto', () => {
+  it('espelhado com scale.x = −1: a caixa do quadro (pick) troca de lado em volta do pé; y e o pé não mudam', () => {
     expect(isMirrored({ 0: 4, 1: 3, 7: 5 }, 1)).toBe(true);
     expect(isMirrored({ 0: 4 }, 2)).toBe(false); expect(isMirrored(null, 0)).toBe(false);
-    const ax = 0.4, w = 88;
-    expect(spriteLocalX(ax, ax, w, -1)).toBeCloseTo(0);
-    expect(spriteLocalX(0, ax, w, -1)).toBeCloseTo(ax * w);        // borda esquerda da textura vai para a direita do pé
-    expect(spriteLocalX(1, ax, w, 1)).toBeCloseTo((1 - ax) * w);
+    // quadro 88×72, âncora (0,4; 0,8) → pé em (35,2; 57,6) da moldura; recorte x 30–60, y 10–62
+    const f = { orig: { width: 88, height: 72 }, trim: { x: 30, y: 10, width: 30, height: 52 } }, anchor = { x: 0.4, y: 0.8 };
+    const out = { x0: 0, y0: 0, x1: 0, y1: 0 };
+    const n = { ...frameBox(f, anchor, false, out) };
+    expect(n.x0).toBeCloseTo(30 - 35.2); expect(n.x1).toBeCloseTo(60 - 35.2);
+    expect(n.y0).toBeCloseTo(10 - 57.6); expect(n.y1).toBeCloseTo(62 - 57.6);
+    const m = frameBox(f, anchor, true, out);
+    expect(m.x0).toBeCloseTo(-n.x1); expect(m.x1).toBeCloseTo(-n.x0);   // o que ficava à direita do pé vai para a esquerda
+    expect(m.y0).toBeCloseTo(n.y0); expect(m.y1).toBeCloseTo(n.y1);
+    // um ponto da textura cai do lado oposto do pé no espelhado (Pixi: scale.x = −1 gira em torno da âncora)
+    const px = 58 - 35.2;   // coluna 58 da moldura, 22,8 px à direita do pé
+    expect(px >= n.x0 && px <= n.x1).toBe(true); expect(-px >= m.x0 && -px <= m.x1).toBe(true); expect(px >= m.x0 && px <= m.x1).toBe(false);
+    // sem recorte: a moldura inteira
+    const full = frameBox({ orig: { width: 64, height: 64 } }, { x: 0.5, y: 1 }, true, out);
+    expect([full.x0, full.x1, full.y0, full.y1]).toEqual([-32, 32, -64, 0]);
   });
   it('tint composto por canal', () => {
     expect(mulColor(0xffffff, 0x3b82f6)).toBe(0x3b82f6);

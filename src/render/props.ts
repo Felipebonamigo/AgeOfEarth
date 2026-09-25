@@ -4,10 +4,12 @@
 // dentro da faixa o sort do Pixi), sem costura de ordenação nas colunas de chunk. Com a arte assada, as unidades e os
 // edifícios (não voadores) também entram nessas faixas (rowFor), então árvore, casa e hoplita se ocluem pela posição do
 // pé. O culling é por chunk (sprite.visible dos nós do chunk ao entrar/sair da tela) e um nó num tile nunca explorado
-// fica oculto (senão a copa das árvores da borda do mapa escaparia da névoa, que cobre só o retângulo do mapa). A
-// conferência é sempre por chunk (≤ 256 tiles, nunca O(nós do mapa)): os chunks visíveis quando map.nodes.size muda e a
-// cada 30 quadros (estágio de frutas/ouro/árvore em corte); um chunk que volta à tela é conferido antes de aparecer;
-// invalidateRect (editor) confere os chunks do retângulo. Nada de generateTexture.
+// fica oculto (senão a copa das árvores da borda do mapa escaparia da névoa, que cobre só o retângulo do mapa). Os
+// sprites nascem por chunk, na primeira vez que o chunk entra na tela (reset() não cria nenhum: trocar a arte no meio da
+// partida refaz só o que já foi visto, e o que nunca apareceu não vira sprite). A conferência é sempre por chunk
+// (≤ 256 tiles, nunca O(nós do mapa)): os chunks visíveis quando map.nodes.size muda e a cada 30 quadros (estágio de
+// frutas/ouro/árvore em corte); um chunk que volta à tela é conferido antes de aparecer; invalidateRect (editor)
+// confere os chunks do retângulo. Nada de generateTexture.
 //   Procedural (arte assada desligada ou atlas ainda carregando): o atlas único de nós de textures.ts, sombra no quadro.
 //   Assado: quadro `<kind>/<variante>[/<tag>]` do atlas de props (logic.nodeFrameName) + sombra separada numa faixa
 //   espelhada da camada 'shadows'; espécie/variante por hash do tile, estágio por amount/max, toco ao esgotar.
@@ -60,8 +62,9 @@ export class PropLayer {
   get count(): number { return this.props.size; }
 
   /**
-   * Recria tudo para o estado. `bakedMode` = arte assada ligada (faixas recebem entidades); `bakedProps` = atlas de
-   * props pronto. `keepStumps` preserva os tocos (reconstrução por mudança de arte, mesma partida).
+   * Recomeça para o estado: faixas vazias (os sprites nascem por chunk quando ele entra na tela, em update()) e os tocos
+   * conhecidos. `bakedMode` = arte assada ligada (faixas recebem entidades); `bakedProps` = atlas de props pronto.
+   * `keepStumps` preserva os tocos (reconstrução por mudança de arte, mesma partida).
    */
   reset(state: GameState, bakedMode: boolean, bakedProps: boolean, keepStumps = false): void {
     for (const c of this.rows) c.destroy({ children: true });
@@ -74,11 +77,12 @@ export class PropLayer {
     this.cw = cw;
     this.rows = []; this.shadowRows = []; this.ids = []; this.vis = new Uint8Array(cw * ch); this.fogKey = -1;
     for (let r = 0; r < ch; r++) {
-      const c = new Container(); c.sortableChildren = true; c.visible = false; if (bakedMode) c.isRenderGroup = true; this.rows.push(c); this.root.addChild(c);
+      // faixa comum (não grupo de render): no Pixi 8 cada grupo é um lote próprio (+1 draw call por faixa na tela) e, com
+      // unidades andando, as faixas refazem as instruções a cada quadro de qualquer jeito — o grupo não poupava CPU
+      const c = new Container(); c.sortableChildren = true; c.visible = false; this.rows.push(c); this.root.addChild(c);
       const s = new Container(); s.visible = false; this.shadowRows.push(s); this.shadowRoot.addChild(s);
     }
     for (let i = 0; i < cw * ch; i++) this.ids.push(new Set());
-    for (const n of state.map.nodes.values()) this.add(state, n.id);
     if (this.bakedProps) for (const t of this.stumps) this.addStump(state, t);
     this.lastNodeCount = state.map.nodes.size;
   }

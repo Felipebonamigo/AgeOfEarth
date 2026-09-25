@@ -52,6 +52,31 @@ export function chooseAnim(i: AnimInput, has: (a: UnitAnim) => boolean): UnitAni
   if (i.working && has('gather')) return 'gather';
   return 'idle';
 }
+/**
+ * A unidade anda de fato neste tick? O deslocamento `disp2` (tiles², desde o tick anterior) tem de passar de 30 % do
+ * passo `step` (velocidade · DT) para começar a andar e de 15 % para continuar: o empurrão da separação entre vizinhos
+ * (≈ 0,005–0,03 tile/tick, contra ≈ 0,11 do passo) não vira ciclo de passos nem direção. Quem está no posto (alvo ao
+ * alcance) nem chega aqui: o renderizador já trata como parado.
+ */
+export function isWalking(disp2: number, step: number, wasWalking: boolean): boolean {
+  const m = (wasWalking ? 0.15 : 0.3) * step;
+  return disp2 > m * m;
+}
+/**
+ * Golpe novo a animar: o attackTick mudou desde o último visto pela vista E é recente (≤ `windowTicks`, a duração do
+ * ataque). Uma vista que volta à tela ou sai da névoa não toca um golpe antigo.
+ */
+export function freshHit(attackTick: number, lastSeen: number, tick: number, windowTicks: number): boolean {
+  return attackTick !== lastSeen && tick - attackTick <= windowTicks;
+}
+/**
+ * Alfa da unidade assada morrendo pelo progresso `p` (0–1) do efeito 'death': opaca até o último quadro da queda
+ * (`dieTicks` de jogo, de `totalTicks`) e então apaga até o fim do efeito — nunca antes da metade.
+ */
+export function deathAlpha(p: number, dieTicks: number, totalTicks: number): number {
+  const from = Math.min(0.85, Math.max(0.5, dieTicks / Math.max(1, totalTicks)));
+  return p < from ? 1 : Math.max(0, 1 - (p - from) / (1 - from));
+}
 
 /**
  * Índice do quadro de uma animação a `fps` quadros/s depois de `elapsed` segundos: em loop volta ao 0 (o último quadro
@@ -166,8 +191,23 @@ export function pickScale(wanted: ArtScale, available: readonly number[]): ArtSc
 export function isMirrored(mirrored: Record<string, number> | null | undefined, dir: number): boolean {
   return !!mirrored && mirrored[String(dir)] !== undefined;
 }
-/** X local (px) de um ponto da textura na coluna `u` (0–1) com âncora `ax`, largura `w` e escala horizontal `sx`. */
-export function spriteLocalX(u: number, ax: number, w: number, sx: 1 | -1): number { return (u - ax) * w * sx; }
+/** Geometria de um quadro recortado (o que o Pixi guarda em Texture.orig/trim). */
+export interface FrameGeom { orig: { width: number; height: number }; trim?: { x: number; y: number; width: number; height: number } | null }
+export interface Box { x0: number; y0: number; x1: number; y1: number }
+/**
+ * Caixa (px, relativa ao pé = âncora) da parte não transparente de um quadro recortado — a que as vistas usam no pick e
+ * a barra de vida acima do telhado. Espelhado (scale.x = −1 em torno da âncora): x vira −x, então a caixa troca de lado
+ * em volta do pé ([x0, x1] → [−x1, −x0]); y não muda. Escreve em `out` (sem alocar por quadro).
+ */
+export function frameBox(f: FrameGeom, anchor: { x: number; y: number }, mirrored: boolean, out: Box): Box {
+  const ax = anchor.x * f.orig.width, ay = anchor.y * f.orig.height;
+  const tx = f.trim ? f.trim.x : 0, ty = f.trim ? f.trim.y : 0;
+  const tw = f.trim ? f.trim.width : f.orig.width, th = f.trim ? f.trim.height : f.orig.height;
+  const x0 = tx - ax, x1 = tx + tw - ax;
+  out.x0 = mirrored ? -x1 : x0; out.x1 = mirrored ? -x0 : x1;
+  out.y0 = ty - ay; out.y1 = ty + th - ay;
+  return out;
+}
 
 // ---------------- Cor ----------------
 /** Produto de duas cores 0xRRGGBB por canal (tint composto: cor do time × flash de dano, por exemplo). */
