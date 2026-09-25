@@ -46,6 +46,8 @@ export interface ScriptedRunOpts extends MissionRunOpts {
   hold?: Condition;
   /** Cofre do jogador: enquanto `when` valer, a IA do jogador 0 não enxerga (nem gasta) até `resources` do estoque; os passos veem tudo. */
   reserve?: ScriptReserve;
+  /** Poderes guardados para os passos: a IA do jogador 0 não os usa (ver MissionScript.keepPowers). */
+  keepPowers?: string[];
 }
 
 /**
@@ -99,7 +101,7 @@ export function missionRunConfig(src: MissionSource, difficulty: CampaignDifficu
 
 const TITANS = Object.keys(UNITS).filter((k) => UNITS[k].tags.includes('titan'));
 
-function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; reserve?: ScriptReserve }, steps: ScriptStep[] | null): MissionRunResult {
+function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; reserve?: ScriptReserve; keepPowers?: string[] }, steps: ScriptStep[] | null): MissionRunResult {
   const difficulty = opts.difficulty ?? 'normal';
   const raids: RaidRecord[] = [];
   const checks: MissionChecks = { noException: true, noEarlyObjective: true, oneTitanEach: true, raidsSpawned: true, deterministic: true };
@@ -135,7 +137,11 @@ function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; 
         // cofre: a IA pensa sem a parte guardada do estoque (não a gasta) e ela volta intacta logo depois
         const hidden: [ResourceType, number][] = [];
         if (reserve && saving) for (const [r, v] of Object.entries(reserve.resources) as [ResourceType, number][]) { const h = Math.max(0, Math.min(me.resources[r], v)); me.resources[r] -= h; hidden.push([r, h]); }
+        // poderes guardados: a IA os vê como já usados durante o aiThink (os passos os usam na hora certa)
+        const kept = opts.keepPowers ? me.powers.filter((p) => !p.used && opts.keepPowers!.includes(p.id)) : [];
+        for (const p of kept) p.used = true;
         aiThink(state, me);
+        for (const p of kept) p.used = false;
         for (const [r, h] of hidden) me.resources[r] += h;
       }
       if (state.tick % TICK_RATE === 0) {
@@ -167,7 +173,7 @@ function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; 
   };
 }
 
-function withDeterminism(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; reserve?: ScriptReserve }, steps: ScriptStep[] | null): MissionRunResult {
+function withDeterminism(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; reserve?: ScriptReserve; keepPowers?: string[] }, steps: ScriptStep[] | null): MissionRunResult {
   const a = runOnce(src, opts, steps);
   if (opts.deterministic === false || !a.checks.noException) return a;
   const b = runOnce(src, opts, steps);
@@ -350,6 +356,11 @@ export interface MissionScript {
   exceptions?: ScriptExceptions;
   /** Objetivos que um jogador cumpre legitimamente antes de 60 s (ex.: a colônia da m4 com 5 construtores); a checagem (d) os ignora. */
   earlyOk?: string[];
+  /**
+   * Poderes que a IA do jogador não usa (ela os vê como já usados durante o aiThink; o estado não muda fora dele): ficam para os
+   * passos, que os usam na hora que um jogador usaria (ex.: o Oráculo da m7 aos 150 s, e não no 2º segundo). Sem o campo, nada muda.
+   */
+  keepPowers?: string[];
 }
 
 /** Veredito de um roteiro: ok (vitória dentro da janela), exceção declarada ou falha com o motivo. */
@@ -369,7 +380,7 @@ export function scriptVerdict(r: MissionRunResult, script: MissionScript | undef
 /** Roda o roteiro de uma missão (MISSION_SCRIPTS) numa dificuldade, com as opções do roteiro. */
 export function runMissionScript(id: string, difficulty: CampaignDifficulty, deterministic = false): MissionRunResult {
   const sc = MISSION_SCRIPTS[id];
-  return runScripted(id, { minutes: sc?.minutes ?? 30, difficulty, steps: sc?.steps ?? [], deterministic, playerAi: sc?.playerAi, hold: sc?.hold, earlyOk: sc?.earlyOk, reserve: sc?.reserve });
+  return runScripted(id, { minutes: sc?.minutes ?? 30, difficulty, steps: sc?.steps ?? [], deterministic, playerAi: sc?.playerAi, hold: sc?.hold, earlyOk: sc?.earlyOk, reserve: sc?.reserve, keepPowers: sc?.keepPowers });
 }
 
 /**
@@ -640,6 +651,78 @@ function m6Home(state: GameState, radius: number): Command | null {
   return ids.length ? { type: 'attackMove', player: 0, ids, x: home.x, y: home.y } : null;
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// m7 "A Cólera de Aquiles": caça ao herói (Oráculo quando ele marcha, espera na aldeia2, as naus e depois ele)
+// ---------------------------------------------------------------------------------------------------------------
+
+/** m7: composição do exército (pesos): hipaspistas na frente, arqueiros cretenses atrás, cavalaria para chegar antes dele. */
+const M7_MIX: Record<string, number> = { hypaspist: 4, cretan_archer: 4, hoplite: 1, toxotes: 1, hetairoi: 2, hippeus: 1, petrobolos: 2 };
+/**
+ * m7: militares para sair contra as naus (o acampamento) — estado, não relógio (o tempo medido é o ritmo real da economia e das
+ * lutas): pelo menos M7_ASSAULT_ARMY e M7_ASSAULT_RATIO × os militares dos mirmidões, como um jogador que só ataca com folga.
+ * Enquanto as naus estão na praia, Tétis devolve Aquiles a cada queda: é lá que a caça termina. O assalto segue enquanto metade
+ * do exército estiver nas naus (histerese, como na m4). Medido: com 55–70 a vitória saía aos 13–15 min em alguma dificuldade (no
+ * limite ou abaixo da janela) e, sem Oficina, os assaltos do Difícil morriam na Fortaleza (flechas mal a arranham) até os 32–34 min.
+ */
+const M7_ASSAULT_ARMY = 80, M7_ASSAULT_RATIO = 2;
+
+/** Aquiles vivo (tag 'aquiles'; Tétis o devolve às naus com a mesma tag enquanto o acampamento estiver de pé). */
+function m7Achilles(state: GameState): Unit | null { const id = state.scenario?.vars['#aquiles']; const u = id !== undefined ? state.units.get(id) : undefined; return u && !u.dead ? u : null; }
+
+/** Militares do jogador a até `r` tiles de (x, y). */
+function armyNear(state: GameState, x: number, y: number, r: number): number {
+  return armyOf(state).filter((id) => { const u = state.units.get(id)!; return (u.x - x) * (u.x - x) + (u.y - y) * (u.y - y) <= r * r; }).length;
+}
+
+/**
+ * Assalto às naus em curso: começa com o exército da folga (M7_ASSAULT_*) e continua enquanto metade dele (e ≥ 10) estiver a até
+ * 18 tiles delas — alguns perseguidores que chegam às naus atrás dos mirmidões não arrastam o exército inteiro para lá.
+ */
+function m7Assaulting(state: GameState): boolean {
+  const camp = entityPos(state, '#acampamento'); if (!camp) return false;
+  const ours = militaryCount(state, 0);
+  return (ours >= M7_ASSAULT_ARMY && ours >= M7_ASSAULT_RATIO * militaryCount(state, 2)) || armyNear(state, camp.x, camp.y, 18) >= Math.max(10, ours / 2);
+}
+
+/**
+ * O assalto: todo o exército em ataque-movimento até as naus; a até 18 tiles delas, infantaria, cavalaria e cerco batem no
+ * acampamento (as flechas mal arranham a Fortaleza) e os arqueiros ficam nos mirmidões.
+ */
+function m7Assault(state: GameState): Command[] {
+  const camp = entityPos(state, '#acampamento'); const campId = state.scenario?.vars['#acampamento'];
+  if (!camp || campId === undefined || !m7Assaulting(state)) return [];
+  const out: Command[] = [];
+  const d2 = (u: Unit) => (u.x - camp.x) * (u.x - camp.x) + (u.y - camp.y) * (u.y - camp.y);
+  const army = armyOf(state).map((id) => state.units.get(id)!);
+  const far = army.filter((u) => d2(u) > 18 * 18).map((u) => u.id);
+  if (far.length) out.push({ type: 'attackMove', player: 0, ids: far, x: camp.x, y: camp.y });
+  const breakers = army.filter((u) => d2(u) <= 18 * 18 && u.targetId !== campId && (!UNITS[u.type].tags.includes('ranged') || UNITS[u.type].tags.includes('siege'))).map((u) => u.id);
+  if (breakers.length) out.push({ type: 'attack', player: 0, ids: breakers, targetId: campId });
+  return out;
+}
+
+/** Um edifício de `type` perto do Centro Cívico, com o cidadão mais perto, se o jogador ainda não tem nenhum e tem o custo com folga. */
+function m7Build(state: GameState, type: string): Command | null {
+  const p = state.players[0];
+  if (firstBuilding(state, type)) return null;
+  const cost = getBuildingStats(state, p, type).cost;
+  if (p.resources.wood < (cost.wood ?? 0) + 100 || p.resources.gold < (cost.gold ?? 0) + 50) return null;
+  const tc = firstBuilding(state, 'town_center'); if (!tc || !tc.complete) return null;
+  const spot = findBuildSpot(state, p, type, tc.x, tc.y, 5, 14); if (!spot) return null;
+  const v = villagersNear(state, spot.x, spot.y).find((u) => u.state !== 'build'); if (!v) return null;
+  return { type: 'build', player: 0, ids: [v.id], building: type, tx: spot.x, ty: spot.y };
+}
+
+/** Sem as naus, Aquiles vem até Argos: todo o exército em ataque-movimento até ele e foco nele a até 14 tiles. */
+function m7Hunt(state: GameState): Command[] {
+  const a = m7Achilles(state); if (!a) return [];
+  const out: Command[] = [];
+  const far = armyOf(state).filter((id) => { const u = state.units.get(id)!; return (u.x - a.x) * (u.x - a.x) + (u.y - a.y) * (u.y - a.y) > 14 * 14; });
+  if (far.length) out.push({ type: 'attackMove', player: 0, ids: far, x: a.x, y: a.y });
+  const f = focusTarget(state, a.id, 14); if (f) out.push(f);
+  return out;
+}
+
 /**
  * Roteiros das missões registradas (o jogador 0 é uma IA "difícil"; os passos cobram o objetivo que a IA não faz sozinha).
  * Missão nova: acrescente uma entrada com o id; sem entrada, scripts/missions.ts roda só a IA do jogador.
@@ -753,6 +836,31 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
       { label: 'poderes', when: { time: { gte: 2 } }, every: 3, command: (s) => battlePowers(s) },
       // Colosso perto da Estátua: todo o exército por perto bate nele (Jasão tem dano triplo em míticas)
       { label: 'colosso', when: { fired: 'obra' }, every: 3, command: (s) => { const w = firstBuilding(s, 'wonder_zeus'); const c = w ? enemyNear(s, w.x, w.y, 16, (u) => u.type === 'colossus') : null; return c ? focusTarget(s, c.id, 22) : null; } },
+    ],
+  },
+  m7_aquiles: {
+    minutes: 40, expect: [14, 39],
+    // a IA do jogador nunca sai em ondas (o alvo "mais fraco" dela seria o acampamento, e o assalto é do roteiro); ela defende as
+    // aldeias sozinha quando os mirmidões chegam perto dos edifícios dela
+    hold: { time: { gte: 0 } },
+    // o Oráculo e o Raio ficam para o roteiro: a IA gastaria o Oráculo no 2º segundo e o Raio no primeiro mirmidão perto de casa
+    keepPowers: ['oracle', 'bolt'],
+    steps: [
+      { label: 'cidadãos', when: { time: { gte: 3 } }, every: 4, command: (s) => trainVillagers(s, 40) },
+      { label: 'treino', when: { time: { gte: 5 } }, every: 5, command: (s) => trainArmy(s, 0, { mix: M7_MIX, reserve: { food: 150, wood: 100, gold: 80 } }) },
+      // cavalaria para chegar antes dele e petróbolos para as naus (a IA sozinha nem sempre ergue o Estábulo e a Oficina)
+      { label: 'estábulo', when: { time: { gte: 60 } }, every: 20, command: (s) => m7Build(s, 'stable') },
+      { label: 'oficina', when: { time: { gte: 60 } }, every: 20, command: (s) => m7Build(s, 'siege_workshop') },
+      // Apolo fala aos 90 s; o Oráculo sai quando Aquiles marcha (rota1, 150 s): o mapa inteiro por 60 s, para ver a rota
+      { label: 'oráculo', when: { fired: 'rota1' }, command: () => ({ type: 'power', player: 0, power: 'oracle' }) },
+      // "esteja onde ele vai estar" (§7.2): quando o batedor anuncia a 2ª marcha, o exército espera Aquiles na aldeia2
+      { label: 'aldeia2', when: { all: [{ fired: 'rota2' }, { entity: { tag: 'aldeia2' }, exists: true }] }, command: (s) => { const p = entityPos(s, '#aldeia2'); return p ? armyAttackMove(s, p.x, p.y) : null; } },
+      // Raio em Aquiles quando ele encosta no exército (Tétis o devolve às naus) e Restauração nos feridos
+      { label: 'poderes', when: { fired: 'rota1' }, every: 2, command: (s) => battlePowers(s) },
+      // com o exército formado, as naus: enquanto elas estiverem na praia, Tétis devolve Aquiles a cada queda
+      { label: 'naus', when: { entity: { tag: 'acampamento' }, exists: true }, every: 5, command: (s) => m7Assault(s) },
+      // sem as naus, Aquiles vem até Argos (isca): todos atrás dele e foco nele
+      { label: 'caça', when: { fired: 'isca' }, every: 5, command: (s) => m7Hunt(s) },
     ],
   },
 };

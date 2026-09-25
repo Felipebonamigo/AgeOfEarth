@@ -1,0 +1,143 @@
+{
+  "format": "aoe-scenario",
+  "version": 1,
+  "id": "m7_aquiles",
+  "icon": "🔥",
+  "title": { "pt": "A Cólera de Aquiles", "en": "The Wrath of Achilles" },
+  "subtitle": { "pt": "Ato II · Missão 7 · Caça ao herói", "en": "Act II · Mission 7 · Hero hunt" },
+  "intro": [
+    { "pt": "Poseidon pediu um favor à nereida Tétis, e ela emprestou o filho. Aquiles desembarcou no sul com seus mirmidões e queima as aldeias de Argos, uma a uma.",
+      "en": "Poseidon asked a favor of the nereid Thetis, and she lent him her son. Achilles has landed in the south with his Myrmidons and is burning the villages of Argos, one by one." },
+    { "pt": "Ninguém vence Aquiles na planície. Mas ele é um só, e escolhe sempre a aldeia mais próxima. Salve o que puder e derrube o filho de Tétis.",
+      "en": "No one beats Achilles on open ground. But he is only one man, and he always chooses the nearest village. Save what you can and bring down the son of Thetis." }
+  ],
+  "outro": [
+    { "pt": "Aquiles caiu, e as aldeias choram um inimigo que não odiavam. Entre as coisas dele havia um presente: um colar de dentes de lobo. 'Para o filho da nereida, de um rei que também foi traído pelos deuses.'",
+      "en": "Achilles has fallen, and the villages mourn an enemy they did not hate. Among his things was a gift: a necklace of wolf teeth. 'For the nereid's son, from a king the gods also betrayed.'" }
+  ],
+  "hints": [
+    { "pt": "O Oráculo de Apolo (painel de poderes) revela o mapa inteiro por 60 segundos: veja para onde Aquiles marcha. Ele sempre escolhe a aldeia mais próxima.",
+      "en": "Apollo's Oracle (powers panel) reveals the whole map for 60 seconds: see where Achilles is marching. He always picks the nearest village." },
+    { "pt": "Aquiles é mais lento que a cavalaria: hipeus e hetairoi chegam antes dele à próxima aldeia. Depois de queimar uma aldeia, os mirmidões voltam às naus até a próxima marcha.",
+      "en": "Achilles is slower than cavalry: hippeis and hetairoi reach the next village before him. After burning a village, the Myrmidons go back to the ships until the next march." },
+    { "pt": "Enquanto as naus estiverem na praia, Tétis arranca o filho da morte e o devolve ao acampamento. Queime o acampamento mirmidão e a próxima queda será a última.",
+      "en": "While the ships stay on the beach, Thetis snatches her son from death and returns him to the camp. Burn the Myrmidon camp and his next fall will be his last." },
+    { "pt": "Queime o acampamento enquanto os mirmidões marcham, ou enfrente-os lá. Sem as naus, Aquiles vem até o seu Centro Cívico: receba-o com torres, arqueiros cretenses e hipaspistas.",
+      "en": "Burn the camp while the Myrmidons are marching, or fight them there. Without the ships, Achilles comes to your Town Center: greet him with towers, Cretan archers and hypaspists." }
+  ],
+  "map": { "gen": { "mapSize": "medium", "mapType": "forest", "seed": 7707 } },
+  "config": {
+    "players": [
+      { "name": "Argos", "god": "zeus", "isAI": false, "difficulty": "normal", "team": 0 },
+      { "name": "Liga do Istmo", "god": "poseidon", "isAI": true, "difficulty": "normal", "team": 1 },
+      { "name": "Mirmidões de Aquiles", "god": "poseidon", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
+    ],
+    "startingAge": 2,
+    "startingResources": { "food": 1000, "wood": 800, "gold": 800, "favor": 120, "knowledge": 300 },
+    "startKit": [true, true, false]
+  },
+  "vars": { "rota2_t": 330, "rota3_t": 510, "rota4_t": 690, "teto": 26 },
+  "setup": [
+    { "do": "set", "player": 0, "minorGods": ["athena", "apollo"] },
+    { "do": "place", "player": 0, "building": "granary", "at": { "tc": 0, "dx": 13, "dy": 22 }, "tag": "aldeia1" },
+    { "do": "place", "player": 0, "building": "granary", "at": { "tc": 0, "dx": -4, "dy": 27 }, "tag": "aldeia2" },
+    { "do": "place", "player": 0, "building": "granary", "at": { "tc": 0, "dx": -20, "dy": 22 }, "tag": "aldeia3" },
+    { "do": "place", "player": 0, "building": "granary", "at": { "tc": 0, "dx": -25, "dy": 3 }, "tag": "aldeia4" },
+    { "do": "spawn", "player": 0, "units": ["hypaspist", "hypaspist", "hypaspist", "cretan_archer", "cretan_archer", "cretan_archer"], "at": { "tc": 0, "dy": 5 } },
+    { "do": "spawn", "player": 0, "units": ["odysseus"], "at": { "tc": 0, "dy": 3 }, "tag": "odisseu" },
+    { "do": "place", "player": 1, "building": "barracks", "at": { "tc": 1, "dx": 6 }, "complete": true },
+    { "do": "spawn", "player": 1, "units": ["villager", "villager", "villager", "villager", "villager"], "at": { "tc": 1, "dy": 4 } },
+    { "do": "set", "player": 2, "techs": ["phalanx", "bronze_armor", "iron_weapons", "divine_arms"] },
+    { "do": "place", "player": 2, "building": "fortress", "at": { "start": 2 }, "tag": "acampamento" },
+    { "do": "spawn", "player": 2, "units": ["achilles"], "at": { "start": 2, "dy": 4 }, "tag": "aquiles" },
+    { "do": "spawn", "player": 2, "units": ["myrmidon", "myrmidon", "myrmidon", "myrmidon", "myrmidon", "myrmidon", "myrmidon", "myrmidon"], "at": { "start": 2, "dy": 5 }, "tag": "mirmidoes" }
+  ],
+  "objectives": [
+    { "id": "aquiles", "text": { "pt": "Derrote Aquiles", "en": "Defeat Achilles" },
+      "done": { "all": [ { "entity": { "tag": "aquiles" }, "exists": false }, { "entity": { "tag": "acampamento" }, "exists": false } ] } },
+    { "id": "acampamento", "text": { "pt": "Queime o acampamento mirmidão", "en": "Burn the Myrmidon camp" },
+      "done": { "entity": { "tag": "acampamento" }, "exists": false } },
+    { "id": "aldeias", "optional": true, "text": { "pt": "Salve ao menos 2 aldeias", "en": "Save at least 2 villages" },
+      "done": { "all": [ { "objective": "aquiles", "is": "done" }, { "var": "aldeias_perdidas", "lt": 3 } ] },
+      "failed": { "var": "aldeias_perdidas", "gte": 3 } },
+    { "id": "odisseu_vivo", "optional": true, "hidden": true, "text": { "pt": "Derrote Aquiles com Odisseu vivo", "en": "Defeat Achilles with Odysseus alive" },
+      "done": { "all": [ { "objective": "aquiles", "is": "done" }, { "entity": { "tag": "odisseu" }, "exists": true } ] } }
+  ],
+  "triggers": [
+    { "id": "ritmo_facil", "when": { "difficulty": "easy" }, "then": [
+      { "do": "setVar", "name": "rota2_t", "value": 390 }, { "do": "setVar", "name": "rota3_t", "value": 630 }, { "do": "setVar", "name": "rota4_t", "value": 870 }, { "do": "setVar", "name": "teto", "value": 20 } ] },
+    { "id": "forca_dificil", "when": { "difficulty": "hard" }, "then": [
+      { "do": "set", "player": 2, "techs": ["anthropomorphic"] } ] },
+    { "id": "ritmo_dificil", "when": { "difficulty": "hard" }, "then": [
+      { "do": "setVar", "name": "rota2_t", "value": 270 }, { "do": "setVar", "name": "rota3_t", "value": 390 }, { "do": "setVar", "name": "rota4_t", "value": 510 }, { "do": "setVar", "name": "teto", "value": 24 } ] },
+    { "id": "apolo", "when": { "time": { "gte": 90 } }, "then": [
+      { "do": "say", "speaker": { "pt": "Apolo", "en": "Apollo" }, "icon": "☀️",
+        "text": { "pt": "Todo imortal tem um lado que não vê. Use meu Oráculo: por um minuto, nada se esconde de você.", "en": "Every immortal has a side he cannot see. Use my Oracle: for one minute, nothing hides from you." } } ] },
+    { "id": "rota1", "when": { "all": [ { "time": { "gte": 150 } }, { "not": { "fired": "isca" } }, { "entity": { "tag": "aldeia1" }, "exists": true } ] }, "then": [
+      { "do": "order", "units": { "player": 2, "military": true }, "order": { "type": "attack", "target": { "tag": "aldeia1" } } },
+      { "do": "raid", "player": 2, "units": ["myrmidon", "peltast", "peltast"], "target": { "entity": { "tag": "aldeia1" } }, "angle": 2 },
+      { "do": "say", "speaker": { "pt": "Batedor", "en": "Scout" }, "icon": "🐎",
+        "text": { "pt": "Fumaça sobre a primeira aldeia! Os mirmidões marcham com ele.", "en": "Smoke over the first village! The Myrmidons march with him." } },
+      { "do": "say", "speaker": { "pt": "Aquiles", "en": "Achilles" }, "icon": "🔥",
+        "text": { "pt": "Minha mãe me deu duas vidas para escolher: uma longa e esquecida, outra curta e cantada. Adivinhe qual escolhi, arconte.", "en": "My mother gave me two lives to choose from: a long forgotten one, or a short one sung forever. Guess which I chose, archon." } } ] },
+    { "id": "odisseu_dica", "when": { "time": { "gte": 200 } }, "then": [
+      { "do": "say", "speaker": { "pt": "Odisseu", "en": "Odysseus" }, "icon": "🏹",
+        "text": { "pt": "Não corra atrás dele pela mata. Esteja onde ele vai estar, ou dê a ele um motivo para vir até você.", "en": "Don't chase him through the woods. Be where he's going to be, or give him a reason to come to you." } } ] },
+    { "id": "rota2", "when": { "all": [ { "time": { "gte": { "var": "rota2_t" } } }, { "not": { "fired": "isca" } }, { "entity": { "tag": "aldeia2" }, "exists": true } ] }, "then": [
+      { "do": "order", "units": { "player": 2, "military": true }, "order": { "type": "attack", "target": { "tag": "aldeia2" } } },
+      { "do": "raid", "player": 2, "units": ["myrmidon", "myrmidon", "peltast", "peltast"], "target": { "entity": { "tag": "aldeia2" } }, "angle": 2 },
+      { "do": "say", "speaker": { "pt": "Batedor", "en": "Scout" }, "icon": "🐎",
+        "text": { "pt": "Os mirmidões saíram das naus outra vez! Agora vão para a aldeia do sul, a mais perto delas.", "en": "The Myrmidons have left the ships again! Now they head for the southern village, the nearest one." } } ] },
+    { "id": "rota3", "when": { "all": [ { "time": { "gte": { "var": "rota3_t" } } }, { "not": { "fired": "isca" } }, { "entity": { "tag": "aldeia3" }, "exists": true } ] }, "then": [
+      { "do": "order", "units": { "player": 2, "military": true }, "order": { "type": "attack", "target": { "tag": "aldeia3" } } },
+      { "do": "raid", "player": 2, "units": ["myrmidon", "myrmidon", "peltast", "peltast", "peltast"], "target": { "entity": { "tag": "aldeia3" } }, "angle": 3 },
+      { "do": "say", "speaker": { "pt": "Batedor", "en": "Scout" }, "icon": "🐎",
+        "text": { "pt": "Aquiles marcha para a aldeia do lago, a sudoeste!", "en": "Achilles is marching on the lake village, to the southwest!" } } ] },
+    { "id": "rota4", "when": { "all": [ { "time": { "gte": { "var": "rota4_t" } } }, { "not": { "fired": "isca" } }, { "entity": { "tag": "aldeia4" }, "exists": true } ] }, "then": [
+      { "do": "order", "units": { "player": 2, "military": true }, "order": { "type": "attack", "target": { "tag": "aldeia4" } } },
+      { "do": "raid", "player": 2, "units": ["myrmidon", "myrmidon", "myrmidon", "peltast", "peltast"], "target": { "entity": { "tag": "aldeia4" } }, "angle": 3 },
+      { "do": "say", "speaker": { "pt": "Batedor", "en": "Scout" }, "icon": "🐎",
+        "text": { "pt": "Ele contorna o lago! Só resta a aldeia do oeste.", "en": "He is going around the lake! Only the western village is left." } } ] },
+    { "id": "volta1", "when": { "all": [ { "fired": "rota1" }, { "not": { "fired": "isca" } }, { "entity": { "tag": "aldeia1" }, "exists": false } ] }, "then": [
+      { "do": "order", "units": { "player": 2, "military": true }, "order": { "type": "move", "at": { "start": 2, "dy": 5 } } } ] },
+    { "id": "volta2", "when": { "all": [ { "fired": "rota2" }, { "not": { "fired": "isca" } }, { "entity": { "tag": "aldeia2" }, "exists": false } ] }, "then": [
+      { "do": "order", "units": { "player": 2, "military": true }, "order": { "type": "move", "at": { "start": 2, "dy": 5 } } } ] },
+    { "id": "volta3", "when": { "all": [ { "fired": "rota3" }, { "not": { "fired": "isca" } }, { "entity": { "tag": "aldeia3" }, "exists": false } ] }, "then": [
+      { "do": "order", "units": { "player": 2, "military": true }, "order": { "type": "move", "at": { "start": 2, "dy": 5 } } } ] },
+    { "id": "volta4", "when": { "all": [ { "fired": "rota4" }, { "not": { "fired": "isca" } }, { "entity": { "tag": "aldeia4" }, "exists": false } ] }, "then": [
+      { "do": "order", "units": { "player": 2, "military": true }, "order": { "type": "move", "at": { "start": 2, "dy": 5 } } } ] },
+    { "id": "recolher", "repeat": true, "when": { "all": [ { "every": { "seconds": 10 } }, { "not": { "fired": "isca" } }, { "entity": { "tag": "acampamento" }, "exists": true } ] }, "then": [
+      { "do": "order", "units": { "player": 2, "military": true, "state": "idle" }, "order": { "type": "move", "at": { "start": 2, "dy": 5 } } } ] },
+    { "id": "perda1", "when": { "entity": { "tag": "aldeia1" }, "exists": false }, "then": [ { "do": "addVar", "name": "aldeias_perdidas", "delta": 1 } ] },
+    { "id": "perda2", "when": { "entity": { "tag": "aldeia2" }, "exists": false }, "then": [ { "do": "addVar", "name": "aldeias_perdidas", "delta": 1 } ] },
+    { "id": "perda3", "when": { "entity": { "tag": "aldeia3" }, "exists": false }, "then": [ { "do": "addVar", "name": "aldeias_perdidas", "delta": 1 } ] },
+    { "id": "perda4", "when": { "entity": { "tag": "aldeia4" }, "exists": false }, "then": [ { "do": "addVar", "name": "aldeias_perdidas", "delta": 1 } ] },
+    { "id": "aldeias_caem", "when": { "objective": "aldeias", "is": "failed" }, "then": [
+      { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
+        "text": { "pt": "Três aldeias em cinzas. O canto de Aquiles cresce a cada fogueira, arconte, e o seu povo paga os versos.", "en": "Three villages in ashes. Achilles' song grows with every fire, archon, and your people pay for the verses." } } ] },
+    { "id": "tetis", "repeat": true, "when": { "all": [ { "entity": { "tag": "aquiles" }, "exists": false }, { "entity": { "tag": "acampamento" }, "exists": true } ] }, "then": [
+      { "do": "spawn", "player": 2, "units": ["achilles"], "at": { "entity": { "tag": "acampamento" }, "dy": 4 }, "tag": "aquiles" },
+      { "do": "addVar", "name": "resgates", "delta": 1 } ] },
+    { "id": "tetis_fala", "when": { "var": "resgates", "gte": 1 }, "then": [
+      { "do": "say", "speaker": { "pt": "Tétis", "en": "Thetis" }, "icon": "🌊",
+        "text": { "pt": "Ainda não, meu filho. O mar ainda não terminou de cantar você.", "en": "Not yet, my son. The sea has not finished singing of you." } },
+      { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
+        "text": { "pt": "Tétis arrancou o filho da morte e o levou de volta às naus. Enquanto elas estiverem na praia, arconte, a mãe o devolverá à guerra.", "en": "Thetis snatched her son from death and carried him back to the ships. While they stay on the beach, archon, his mother will send him back to war." } } ] },
+    { "id": "tetis_batedor", "repeat": true, "when": { "all": [ { "var": "resgates", "gte": 2 }, { "var": "resgates", "gt": { "var": "resgates_avisados" } } ] }, "then": [
+      { "do": "setVar", "name": "resgates_avisados", "value": { "var": "resgates" } },
+      { "do": "say", "speaker": { "pt": "Batedor", "en": "Scout" }, "icon": "🐎",
+        "text": { "pt": "As ondas levaram Aquiles de volta às naus! Enquanto elas estiverem na praia, ele volta.", "en": "The waves carried Achilles back to the ships! While they stay on the beach, he comes back." } } ] },
+    { "id": "reforco", "repeat": true, "when": { "all": [ { "every": { "seconds": 120, "after": 240 } }, { "entity": { "tag": "acampamento" }, "exists": true },
+        { "units": { "player": 2, "military": true }, "lt": { "var": "teto" } } ] }, "then": [
+      { "do": "spawn", "player": 2, "units": ["myrmidon", "myrmidon", "peltast"], "at": { "start": 2, "dy": 6 } } ] },
+    { "id": "isca", "when": { "objective": "acampamento", "is": "done" }, "then": [
+      { "do": "order", "units": { "player": 2, "military": true }, "order": { "type": "attackMove", "at": { "tc": 0 } } },
+      { "do": "say", "speaker": { "pt": "Aquiles", "en": "Achilles" }, "icon": "🔥",
+        "text": { "pt": "Queimaram minhas naus? Então vou até o seu trono, arconte, e não levo pressa nem medo.", "en": "You burned my ships? Then I'm coming to your throne, archon, with neither haste nor fear." } } ] },
+    { "id": "queda", "when": { "objective": "aquiles", "is": "done" }, "then": [
+      { "do": "say", "speaker": { "pt": "Mirmidão", "en": "Myrmidon" }, "icon": "🗡️",
+        "text": { "pt": "Nosso senhor caiu cantado, como queria. Voltamos ao mar.", "en": "Our lord fell in song, as he wished. We return to the sea." } } ] }
+  ],
+  "victory": { "objective": "aquiles", "is": "done" },
+  "defeat": { "all": [ { "time": { "gte": 5 } }, { "buildings": { "player": 0, "type": "town_center" }, "eq": 0 } ] }
+}
