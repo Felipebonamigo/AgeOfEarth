@@ -7,6 +7,9 @@ import { Audio } from './audio/audio';
 import { Session } from './game/session';
 import type { GameConfig } from './core/types';
 import { SCENARIOS, HORDE } from './core/scenario/campaign';
+import { migrateMap, validateMap, canonicalize } from './core/map/fixed';
+import { putMap, slugify } from './game/maps';
+import { issueText } from './ui/menu';
 import type { Difficulty } from './core/constants';
 import { NetworkScheduler, LocalScheduler } from './core/net/lockstep';
 import type { NetClient } from './net/client';
@@ -52,7 +55,12 @@ async function boot() {
     onExport: () => { if (!session) return; void exportText(`age-of-earth-${new Date().toISOString().slice(0, 10)}.json`, session.save()).then((ok) => { if (ok) hud.toast(t('msg.saved'), 'good'); }); },
     onImport: () => { void importText().then((json) => { if (!json) return; try { session = Session.load(json); replaySaved = false; renderer.setState(session.state); hud.setSession(session); hud.setVisible(true); menu.hide(); hud.toast(t('msg.loaded'), 'good'); } catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); } }); },
     getOptions: () => options,
-    onExportMap: () => { if (!session) return; const data = mapToData(session.state.map, `mapa-${session.state.seed}`); void exportText(`age-of-earth-mapa-${session.state.seed}.map.json`, JSON.stringify(data)).then((ok) => { if (ok) hud.toast(t('msg.mapExported'), 'good'); }); },
+    onExportMap: () => { if (!session) return; const data = canonicalize({ ...mapToData(session.state.map, `mapa-${session.state.seed}`), id: `mapa-${session.state.seed}` }); void exportText(`age-of-earth-mapa-${session.state.seed}.map.json`, JSON.stringify(data)).then((ok) => { if (ok) hud.toast(t('msg.mapExported'), 'good'); }); },
+    onSaveMapLocal: () => {
+      if (!session) return;
+      const name = (window.prompt(t('main.fixedMapSel'), session.state.config.map?.name ?? `mapa-${session.state.seed}`) ?? '').trim(); if (!name) return;
+      try { const entry = putMap({ ...mapToData(session.state.map, name), id: slugify(name) }); hud.toast(t('msg.mapSaved', { name: entry.name }), 'good'); } catch { hud.toast(t('msg.mapQuota'), 'warn'); }
+    },
     onDiagnostic: () => { void exportText(`age-of-earth-diagnostico-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`, diagnostic()).then((ok) => { if (ok) hud.toast(t('msg.diagnosticSaved'), 'good'); }); },
     onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); if (session) { hud.setSession(session); hud.refreshTop(); } },
     onLoad: () => loadGame(),
@@ -112,6 +120,13 @@ async function boot() {
   };
   let hostResumeCheck: (() => void) | null = null;
   const startNetworkGame = (client: NetClient, config: GameConfig, slots: number[], delay = 4) => {
+    // Dado de outro par: o mapa fixo recebido em `start` é migrado e validado antes de criar a sessão
+    if (config.map) {
+      try { config.map = migrateMap(config.map); } catch { config.map = undefined; menu.showNetError(t('mp.mapInvalid', { reason: t('main.fixedMapBad') })); return; }
+      const issues = validateMap(config.map, { players: config.players.length, mode: config.mode });
+      const errors = issues.filter((i) => i.level === 'error');
+      if (errors.length) { menu.showNetError(t('mp.mapInvalid', { reason: errors.slice(0, 2).map(issueText).join('; ') })); return; }
+    }
     const spectator = client.isSpectator || slots.indexOf(client.slot) < 0;
     const local = spectator ? Math.max(0, config.players.findIndex((p) => !p.isAI)) : slots.indexOf(client.slot);   // espectador assiste pela perspectiva do primeiro humano, com o mapa revelado
     session = Session.newGame(config, local); session.spectator = spectator;

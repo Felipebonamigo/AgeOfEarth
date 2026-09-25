@@ -345,7 +345,7 @@ Estimativas de horas do agente; cada etapa é um ou mais commits em português c
   - `createGame({ map })`: `startKit:false` → nenhum CC; `startKit:[true,false]` → só o jogador 0 tem kit; entidades: edifício completo com `buildingAt` preenchido e `popCap` contando, portão completo com `gateTeam`, unidade com pop, dono inválido ignorado; `stats.buildingsBuilt === 0` e `events` vazio após o setup; `startOrder` troca os inícios; `relics:false` → `state.relics` vazio; `koth` do arquivo respeitado; `regicide` sem kit não lança.
   - Determinismo: duas partidas com o mesmo `config.map` e IA ativa → `serialize` idêntico após 1500 ticks (padrão de `tests/determinism.test.ts`); a regex continua varrendo `fixed.ts` e `mapgen.ts`; regressão `serialize(quickGame())` idêntico antes/depois das extrações.
   - Lockstep: dois `NetworkScheduler` em memória com `config.map` → hashes iguais por 400 ticks; **negativo**: um tile diferente num par → `onDesync` no tick 100.
-  - `npx tsx scripts/missions.ts`, `scripts/horde.ts`, `npm run smoke 5 42 --map <arquivo>`.
+  - `npx tsx scripts/missions.ts`, `scripts/horde.ts`, `npm run smoke 5 42 -- --map <arquivo>` (o `--` é necessário: o npm engole `--map`; ou `npx tsx scripts/headless.ts 5 42 --map <arquivo>`).
 - **Pronto quando**: tudo verde; `scripts/mapcheck.ts` valida um mapa gerado e roda 2 min de IA sem erro.
 
 ### Etapa 2 — Jogar mapas fixos em todo lugar (3.3‑b) (8 h)

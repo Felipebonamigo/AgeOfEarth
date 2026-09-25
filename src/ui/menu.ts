@@ -7,11 +7,14 @@ import { SCENARIOS } from '../core/scenario/campaign';
 import { NetClient, type LobbyState, type RoomSummary } from '../net/client';
 import { t, getLocale, setLocale, LOCALE_NAMES, type Locale } from '../i18n';
 import { optionsHTML, bindOptions, type OptionsContext } from './options';
-import type { FixedMapData } from '../core/map/fixed';
-import { importText } from '../game/files';
+import { mapHash, validateMap, type FixedMapData, type MapIssue } from '../core/map/fixed';
+import { allMaps, getMap, hasErrors, importMapFile, mapName, putMap, startOrderFor } from '../game/maps';
 import { esc } from './html';
 
-const fixedMapLabel = (d: { name?: string; w: number; h: number; starts: number | unknown[] }) => t('main.fixedMapInfo', { name: esc(d.name ?? 'mapa'), w: d.w, h: d.h, n: Array.isArray(d.starts) ? d.starts.length : d.starts });
+const fixedMapLabel = (d: { name?: string; nameEn?: string; id?: string; w: number; h: number; starts: number | unknown[]; hash?: number }) => t('main.fixedMapInfo', { name: esc(mapName(d)), w: d.w, h: d.h, n: Array.isArray(d.starts) ? d.starts.length : d.starts }) + (d.hash !== undefined ? ` <span style="color:#6b7690">#${(d.hash >>> 0).toString(16).slice(0, 6)}</span>` : '');
+/** Texto de um problema de validação (código traduzido + posição). */
+export const issueText = (i: MapIssue) => t(`map.issue.${i.code}`, i.params ?? {}) + (i.x !== undefined && i.y !== undefined ? ' ' + t('map.issues.at', { x: i.x, y: i.y }) : '');
+const issuesSummary = (issues: MapIssue[]) => { const e = issues.filter((i) => i.level === 'error').length, w = issues.length - e; return e === 0 && w === 0 ? t('map.issues.ok') : [e ? t('map.issues.errors', { n: e }) : '', w ? t('map.issues.warnings', { n: w }) : ''].filter(Boolean).join(' · '); };
 
 export interface MenuCallbacks { onStart: (config: GameConfig) => void; onLoad: () => void; hasSave: () => boolean; onHelp: () => void; onEncyclopedia: () => void; onMission: (id: string, difficulty: 'easy' | 'normal' | 'hard') => void; onNetworkStart: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onNetworkRejoin: (client: NetClient, config: GameConfig, slots: number[], delay: number, dropped?: number[]) => void; onHorde: (god: string, difficulty: Difficulty) => void; onReplay: () => void; hasReplay: () => boolean; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onHotkeys?: () => void }
 
@@ -24,6 +27,8 @@ export class MainMenu {
   private showOptions = false;
   /** Mapa fixo carregado de arquivo para a próxima partida rápida (null = gerar). */
   fixedMap: FixedMapData | null = null;
+  fixedMapId: string | null = null;
+  fixedIssues: MapIssue[] = [];
   private browsing: NetClient | null = null;   // conexão só para listar salas
   private browseTimer: ReturnType<typeof setInterval> | null = null;
   private roomList: RoomSummary[] | null = null;
@@ -32,19 +37,46 @@ export class MainMenu {
     this.root = root;
     this.el = document.createElement('div'); this.el.id = 'menu';
     root.appendChild(this.el);
+    this.restoreFixedMap();
     this.render();
   }
   show() { this.el.classList.remove('hidden'); this.render(); }
+  /** Mensagem de erro na aba multiplayer (ex.: mapa fixo inválido recebido do anfitrião). */
+  showNetError(msg: string) { this.netStatus = msg; this.tab = 'multiplayer'; this.show(); }
   /** Dificuldade escolhida na aba Campanha (guardada em aoe_campaign_diff). */
   campaignDifficulty(): 'easy' | 'normal' | 'hard' {
     try { const d = localStorage.getItem('aoe_campaign_diff'); if (d === 'easy' || d === 'hard') return d; } catch { /* ignore */ }
     return 'normal';
   }
   /** Define o mapa fixo (skirmish e lobby); o anfitrião avisa a sala pelo relay (só o resumo — o mapa inteiro vai em `start`). */
-  setFixedMap(d: FixedMapData | null) {
-    this.fixedMap = d;
-    if (this.net?.isHost && this.net.lobby) this.net.settings({ fixedMap: d ? { name: d.name, w: d.w, h: d.h, starts: d.starts.length } : null });
+  setFixedMap(d: FixedMapData | null, id: string | null = d?.id ?? null) {
+    this.fixedMap = d; this.fixedMapId = d ? id : null;
+    this.fixedIssues = d ? validateMap(d) : [];
+    try { const setup = JSON.parse(localStorage.getItem('aoe_setup') ?? '{}'); setup.fixedMapId = this.fixedMapId; localStorage.setItem('aoe_setup', JSON.stringify(setup)); } catch { /* ignore */ }
+    if (this.net?.isHost && this.net.lobby) this.net.settings({ fixedMap: d ? { id: this.fixedMapId ?? undefined, name: mapName(d), w: d.w, h: d.h, starts: d.starts.length, hash: mapHash(d) } : null });
     this.render();
+  }
+  /** Seletor de mapa: aleatório, mapas do jogo, Meus mapas e importar. */
+  private mapSelectHTML(id: string, enabled: boolean): string {
+    const groups = [['builtin', allMaps().filter((m) => m.builtin)], ['mine', allMaps().filter((m) => !m.builtin)]] as const;
+    return `<select id="${id}" ${enabled ? '' : 'disabled'}><option value="random" ${this.fixedMap ? '' : 'selected'}>${t('main.fixedMapRandom')}</option>${groups.map(([g, list]) => list.length ? `<optgroup label="${t(g === 'builtin' ? 'main.fixedMapBuiltin' : 'main.fixedMapMine')}">${list.map((m) => `<option value="${esc(m.id)}" ${this.fixedMapId === m.id ? 'selected' : ''}>${esc(mapName(m))} (${m.w}×${m.h}, ${m.starts})</option>`).join('')}</optgroup>` : '').join('')}<option value="import">${t('main.fixedMapImport')}</option></select>`;
+  }
+  private issuesHTML(id: string): string {
+    if (!this.fixedMap) return '';
+    const err = hasErrors(this.fixedIssues);
+    return `<div id="${id}" style="font-size:12px;color:${err ? '#ef4444' : this.fixedIssues.length ? '#f2c14e' : '#7ad27a'};margin:-4px 0 6px">${issuesSummary(this.fixedIssues)}${this.fixedIssues.slice(0, 3).map((i) => `<div style="color:${i.level === 'error' ? '#ef4444' : '#9aa5b8'}">· ${esc(issueText(i))}</div>`).join('')}</div>`;
+  }
+  private bindMapSelect(id: string) {
+    (this.el.querySelector(`#${id}`) as HTMLSelectElement | null)?.addEventListener('change', (e) => {
+      const v = (e.target as HTMLSelectElement).value;
+      if (v === 'random') this.setFixedMap(null);
+      else if (v === 'import') void this.loadFixedMap();
+      else { const d = getMap(v); if (d) this.setFixedMap(d, v); else this.setFixedMap(null); }
+    });
+  }
+  /** Restaura o mapa escolhido na última vez (aoe_setup.fixedMapId). */
+  private restoreFixedMap() {
+    try { const id = JSON.parse(localStorage.getItem('aoe_setup') ?? '{}').fixedMapId; if (typeof id === 'string') { const d = getMap(id); if (d) { this.fixedMap = d; this.fixedMapId = id; this.fixedIssues = validateMap(d); } } } catch { /* ignore */ }
   }
   private roomListHTML(): string {
     if (!this.browsing) return '';
@@ -81,8 +113,13 @@ export class MainMenu {
     this.roomList = null;
   }
   private async loadFixedMap() {
-    const json = await importText(); if (!json) return;
-    try { const d = JSON.parse(json) as FixedMapData; if (d.v !== 1 || !d.terrain || !d.starts) throw new Error('bad'); this.setFixedMap(d); } catch { alert(t('main.fixedMapBad')); }
+    let res: { data: FixedMapData; issues: MapIssue[] } | null;
+    try { res = await importMapFile(); } catch { alert(t('main.fixedMapBad')); this.render(); return; }
+    if (!res) { this.render(); return; }
+    if (hasErrors(res.issues)) { alert(`${t('main.fixedMapErrors')}\n${res.issues.filter((i) => i.level === 'error').slice(0, 5).map(issueText).join('\n')}`); this.render(); return; }
+    let id = res.data.id ?? null;
+    try { id = putMap(res.data).id; } catch { alert(t('msg.mapQuota')); }   // guarda em Meus mapas (cota cheia: só usa em memória)
+    this.setFixedMap(res.data, id);
   }
   private renderChatLog() { const log = this.el.querySelector('#mp-chat-log'); if (!log) { this.render(); return; } log.innerHTML = this.chatLog.map((m) => `<div><b>${esc(m.name)}:</b> ${esc(m.text)}</div>`).join(''); log.scrollTop = log.scrollHeight; }
   hide() { this.el.classList.add('hidden'); }
@@ -114,9 +151,10 @@ export class MainMenu {
           <label>${t('main.seed')}</label><input id="m-seed" placeholder="${t('main.random')}">
         </div>
         <div>
-          <label>${t('main.fixedMap')}</label><div style="display:flex;gap:6px;align-items:center"><span id="m-fixed" style="flex:1;font-size:12px;color:${this.fixedMap ? '#f2c14e' : '#9aa5b8'}">${this.fixedMap ? fixedMapLabel(this.fixedMap) : t('main.fixedMapNone')}</span><button class="btn" id="m-fixed-load" style="padding:4px 8px;font-size:12px">${t('main.fixedMapLoad')}</button>${this.fixedMap ? `<button class="btn" id="m-fixed-clear" style="padding:4px 8px;font-size:12px">${t('main.fixedMapClear')}</button>` : ''}</div>
+          <label>${t('main.fixedMapSel')}</label><div style="display:flex;gap:6px;align-items:center">${this.mapSelectHTML('m-fixed-sel', true)}<button class="btn" id="m-fixed-load" title="${t('main.fixedMapImport')}" style="padding:4px 8px;font-size:12px">📂</button>${this.fixedMap ? `<button class="btn" id="m-fixed-clear" style="padding:4px 8px;font-size:12px">${t('main.fixedMapClear')}</button>` : ''}</div>
+          <div id="m-fixed" style="font-size:12px;color:${this.fixedMap ? '#f2c14e' : '#9aa5b8'};margin:-4px 0 4px">${this.fixedMap ? fixedMapLabel({ ...this.fixedMap, hash: mapHash(this.fixedMap) }) : t('main.fixedMapNone')}</div>${this.issuesHTML('m-fixed-issues')}
           <label>${t('main.mapSize')}</label><select id="m-map" ${this.fixedMap ? 'disabled' : ''}>${Object.entries(MAP_SIZES).map(([k, v]) => `<option value="${k}" ${(saved.map ?? 'medium') === k ? 'selected' : ''}>${t(`map.${k}`)} (${v.w}×${v.h})</option>`).join('')}</select>
-          <label>${t('main.opponents')}</label><select id="m-ais">${[1, 2, 3].map((n) => `<option value="${n}" ${(saved.ais ?? 1) === n ? 'selected' : ''}>${n}</option>`).join('')}</select>
+          <label>${t('main.opponents')}</label><select id="m-ais">${[1, 2, 3].filter((n) => !this.fixedMap || n <= this.fixedMap.starts.length - 1).map((n, _i, arr) => `<option value="${n}" ${Math.min(saved.ais ?? 1, arr[arr.length - 1]) === n ? 'selected' : ''}>${n}</option>`).join('')}</select>
           <label>${t('main.difficulty')}</label><select id="m-diff">${Object.keys(DIFFICULTIES).map((k) => `<option value="${k}" ${(saved.diff ?? 'normal') === k ? 'selected' : ''}>${t(`diff.${k}`)}</option>`).join('')}</select>
           <label>${t('main.teams')}</label><select id="m-teams"><option value="ffa" ${(saved.teams ?? 'ffa') === 'ffa' ? 'selected' : ''}>${t('main.teams.ffa')}</option><option value="coop" ${saved.teams === 'coop' ? 'selected' : ''}>${t('main.teams.coop')}</option><option value="alliance" ${saved.teams === 'alliance' ? 'selected' : ''}>${t('main.teams.alliance')}</option></select>
           <label>${t('main.mode')}</label><select id="m-mode">${GAME_MODES.map((m) => `<option value="${m}" ${(saved.mode ?? 'conquest') === m ? 'selected' : ''}>${t(`mode.${m}`)}</option>`).join('')}</select>
@@ -160,12 +198,17 @@ export class MainMenu {
       }
       const mode = q('#m-mode').value as GameMode, mapType = q('#m-maptype').value as MapType;
       try { localStorage.setItem('aoe_setup', JSON.stringify({ name, god: this.god, map, ais, diff, teams, mode, mapType })); } catch { /* ignore */ }
-      if (this.fixedMap && this.fixedMap.starts.length < players.length) { alert(t('main.fixedMapBad')); return; }
-      this.cb.onStart({ seed, mapSize: map, players, revealMap: q('#m-reveal').checked, mode, mapType, map: this.fixedMap ?? undefined });
+      const fixed = this.fixedMap ?? undefined;
+      if (fixed) {
+        const issues = validateMap(fixed, { players: players.length, mode, ai: players.map((p) => p.isAI) });
+        if (hasErrors(issues)) { this.fixedIssues = issues; alert(`${t('main.fixedMapErrors')}\n${issues.filter((i) => i.level === 'error').slice(0, 5).map(issueText).join('\n')}`); this.render(); return; }
+      }
+      this.cb.onStart({ seed, mapSize: map, players, revealMap: q('#m-reveal').checked, mode, mapType, map: fixed, mapHash: fixed ? mapHash(fixed) : undefined, startOrder: fixed && teams !== 'ffa' ? startOrderFor(fixed, players.map((p) => p.team ?? 0)) : undefined });
     });
     q('#m-load').addEventListener('click', () => this.cb.onLoad());
     q('#m-fixed-load').addEventListener('click', () => void this.loadFixedMap());
     this.el.querySelector('#m-fixed-clear')?.addEventListener('click', () => this.setFixedMap(null));
+    this.bindMapSelect('m-fixed-sel');
     q('#m-horde').addEventListener('click', () => this.cb.onHorde(this.god, q('#m-diff').value as Difficulty));
     q('#m-replay').addEventListener('click', () => this.cb.onReplay());
     q('#m-help').addEventListener('click', () => this.cb.onHelp());
@@ -195,11 +238,12 @@ export class MainMenu {
       <table style="width:100%;font-size:13px;margin:8px 0;border-collapse:collapse"><tr style="color:#9aa5b8"><th align="left">${t('mp.player')}</th><th align="left">${t('mp.god')}</th><th align="left">${t('mp.team')}</th><th align="left">${t('mp.ping')}</th><th></th></tr>${rows}</table>
       ${lobby.spectators?.length ? `<div id="mp-spectators" style="font-size:12px;color:#9aa5b8;margin:-4px 0 8px">${t('mp.spectators', { names: lobby.spectators.map((s) => `${esc(s.name)}${s.slot === me ? ` ${t('mp.you')}` : ''}${host ? ` <button class="btn" data-kick="${s.slot}" style="padding:0 6px;font-size:11px">${t('mp.kick')}</button>` : ''}`).join(', ') })}</div>` : ''}
       <div class="grid"><div>
-        <label>${t('main.fixedMap')}</label><div style="display:flex;gap:6px;align-items:center"><span id="mp-fixed" style="flex:1;font-size:12px;color:${st.fixedMap ? '#f2c14e' : '#9aa5b8'}">${st.fixedMap ? fixedMapLabel(st.fixedMap) : t('main.fixedMapNone')}</span>${host ? `<button class="btn" id="mp-fixed-load" style="padding:4px 8px;font-size:12px">${t('main.fixedMapLoad')}</button>${st.fixedMap ? `<button class="btn" id="mp-fixed-clear" style="padding:4px 8px;font-size:12px">${t('main.fixedMapClear')}</button>` : ''}` : ''}</div>
+        <label>${t('main.fixedMapSel')}</label><div style="display:flex;gap:6px;align-items:center">${host ? `${this.mapSelectHTML('mp-fixed-sel', true)}<button class="btn" id="mp-fixed-load" title="${t('main.fixedMapImport')}" style="padding:4px 8px;font-size:12px">📂</button>${st.fixedMap ? `<button class="btn" id="mp-fixed-clear" style="padding:4px 8px;font-size:12px">${t('main.fixedMapClear')}</button>` : ''}` : ''}</div>
+        <div id="mp-fixed" style="font-size:12px;color:${st.fixedMap ? '#f2c14e' : '#9aa5b8'};margin:-4px 0 4px">${st.fixedMap ? fixedMapLabel(st.fixedMap) : t('main.fixedMapNone')}</div>${host ? this.issuesHTML('mp-fixed-issues') : ''}
         <label>${t('main.mapSize')}</label><select id="mp-map" ${host && !st.fixedMap ? '' : 'disabled'}>${Object.keys(MAP_SIZES).map((k) => `<option value="${k}" ${st.mapSize === k ? 'selected' : ''}>${t(`map.${k}`)}</option>`).join('')}</select>
         <label>${t('main.mode')}</label><select id="mp-mode" ${host ? '' : 'disabled'}>${GAME_MODES.map((m) => `<option value="${m}" ${(st.mode ?? 'conquest') === m ? 'selected' : ''}>${t(`mode.${m}`)}</option>`).join('')}</select>
         <label>${t('main.mapType')}</label><select id="mp-maptype" ${host && !st.fixedMap ? '' : 'disabled'}>${MAP_TYPES.map((m) => `<option value="${m}" ${(st.mapType ?? 'continental') === m ? 'selected' : ''}>${t(`maptype.${m}`)}</option>`).join('')}</select>
-        <label>${t('mp.ais')}</label><select id="mp-ais" ${host ? '' : 'disabled'}>${[0, 1, 2, 3].map((n) => `<option value="${n}" ${st.ais === n ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+        <label>${t('mp.ais')}</label><select id="mp-ais" ${host ? '' : 'disabled'}>${[0, 1, 2, 3].filter((n) => !st.fixedMap || n <= Math.max(0, st.fixedMap.starts - lobby.players.length)).map((n) => `<option value="${n}" ${st.ais === n ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
         <div><label>${t('mp.aiDiff')}</label><select id="mp-diff" ${host ? '' : 'disabled'}>${Object.keys(DIFFICULTIES).map((k) => `<option value="${k}" ${st.difficulty === k ? 'selected' : ''}>${t(`diff.${k}`)}</option>`).join('')}</select>
         <label><input type="checkbox" id="mp-horde" ${host ? '' : 'disabled'} ${st.horde ? 'checked' : ''}> ${t('mp.horde')}</label>${st.horde && st.fixedMap ? `<div style="font-size:12px;color:#f2c14e">${t('mp.fixedMapHorde')}</div>` : ''}
         <label><input type="checkbox" id="mp-public" ${host ? '' : 'disabled'} ${st.public !== false ? 'checked' : ''}> ${t('mp.public')}</label>
@@ -238,6 +282,7 @@ export class MainMenu {
     const settingsChanged = () => { if (!this.net?.isHost) return; this.net.settings({ mapSize: q('#mp-map')!.value, ais: Number(q('#mp-ais')!.value), difficulty: q('#mp-diff')!.value, horde: !!q('#mp-horde')?.checked, public: !!q('#mp-public')?.checked, mode: q('#mp-mode')!.value, mapType: q('#mp-maptype')!.value }); };
     q('#mp-fixed-load')?.addEventListener('click', () => void this.loadFixedMap());
     q('#mp-fixed-clear')?.addEventListener('click', () => this.setFixedMap(null));
+    this.bindMapSelect('mp-fixed-sel');
     q('#mp-mode')?.addEventListener('change', settingsChanged); q('#mp-maptype')?.addEventListener('change', settingsChanged);
     q('#mp-map')?.addEventListener('change', settingsChanged); q('#mp-ais')?.addEventListener('change', settingsChanged); q('#mp-diff')?.addEventListener('change', settingsChanged); q('#mp-horde')?.addEventListener('change', settingsChanged); q('#mp-public')?.addEventListener('change', settingsChanged);
     q('#mp-mygod')?.addEventListener('change', () => this.net?.player({ god: q('#mp-mygod')!.value }));
@@ -254,12 +299,19 @@ export class MainMenu {
       if (st.horde) {
         const humans: GameConfig['players'] = lobby.players.map((p) => ({ name: p.name, god: p.god, isAI: false, difficulty: st.difficulty as Difficulty, team: 0 }));
         humans.push({ name: 'Tártaro', god: 'hades', isAI: false, difficulty: 'normal', team: 9 });
-        net.start({ seed: st.seed >>> 0, mapSize: st.mapSize as MapSize, players: humans, scenario: 'horde', startingResources: { food: 600, wood: 500, gold: 300, favor: 20 } }, delay);
+        const hordeMap = map && map.starts.length >= humans.length ? map : undefined;   // a Horda aceita mapa fixo com início para cada humano + Tártaro
+        net.start({ seed: st.seed >>> 0, mapSize: st.mapSize as MapSize, players: humans, scenario: 'horde', startingResources: { food: 600, wood: 500, gold: 300, favor: 20 }, map: hordeMap, mapHash: hordeMap ? mapHash(hordeMap) : undefined }, delay);
         return;
       }
       if (players.length > 4) { this.netStatus = t('mp.max4'); this.render(); return; }
       if (map && map.starts.length < players.length) { this.netStatus = t('mp.fixedMapStarts', { n: map.starts.length, p: players.length }); this.render(); return; }
-      net.start({ seed: st.seed >>> 0, mapSize: st.mapSize as MapSize, players, mode: (st.mode ?? 'conquest') as GameMode, mapType: (st.mapType ?? 'continental') as MapType, map }, delay);
+      if (map) {
+        const mode = (st.mode ?? 'conquest') as GameMode;
+        const issues = validateMap(map, { players: players.length, mode, ai: players.map((p) => p.isAI) });
+        if (hasErrors(issues)) { this.fixedIssues = issues; this.netStatus = t('main.fixedMapErrors') + ' ' + issues.filter((i) => i.level === 'error').slice(0, 2).map(issueText).join('; '); this.render(); return; }
+      }
+      const teamsUsed = new Set(players.map((p) => p.team ?? 0)).size;
+      net.start({ seed: st.seed >>> 0, mapSize: st.mapSize as MapSize, players, mode: (st.mode ?? 'conquest') as GameMode, mapType: (st.mapType ?? 'continental') as MapType, map, mapHash: map ? mapHash(map) : undefined, startOrder: map && teamsUsed < players.length ? startOrderFor(map, players.map((p) => p.team ?? 0)) : undefined }, delay);
     });
   }
 }
