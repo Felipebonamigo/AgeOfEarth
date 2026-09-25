@@ -295,6 +295,14 @@ export class Renderer {
         const r = UNITS[e.type].radius * TILE * 1.4;
         g.ellipse(ix * TILE, iy * TILE + r * 0.3, r, r * 0.6).stroke({ width: 2, color, alpha: 0.9 });
         if (ui.showRanges) { const st = getUnitStats(state, state.players[e.owner], e.type); if (st.range >= 1.6) g.circle(ix * TILE, iy * TILE, st.range * TILE).stroke({ width: 1, color: 0xffffff, alpha: 0.25 }); }
+        // waypoints: destino atual + ordens enfileiradas (Shift)
+        if (e.owner === local && (e.state === 'move' || e.state === 'attackMove' || e.queue.length > 0)) {
+          let lx = ix * TILE, ly = iy * TILE;
+          const pts: { x: number; y: number; atk: boolean }[] = [];
+          if (e.state === 'move' || e.state === 'attackMove') pts.push({ x: e.tx, y: e.ty, atk: e.state === 'attackMove' });
+          for (const o of e.queue) if (o.x !== undefined && o.y !== undefined) pts.push({ x: o.x, y: o.y, atk: o.type === 'attackMove' });
+          for (const p of pts) { g.moveTo(lx, ly).lineTo(p.x * TILE, p.y * TILE).stroke({ width: 1, color: p.atk ? 0xff7b7b : 0x8ff58f, alpha: 0.45 }); g.circle(p.x * TILE, p.y * TILE, 3).fill({ color: p.atk ? 0xff7b7b : 0x8ff58f, alpha: 0.7 }); lx = p.x * TILE; ly = p.y * TILE; }
+        }
       } else {
         g.rect(e.tx * TILE - 2, e.ty * TILE - 2, e.w * TILE + 4, e.h * TILE + 4).stroke({ width: 2, color, alpha: 0.9 });
         if (e.owner === local && e.rallyX >= 0) {

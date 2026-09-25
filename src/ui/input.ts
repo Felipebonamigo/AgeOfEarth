@@ -224,6 +224,7 @@ export class Input {
     if (this.hud.modalOpen) { if (k === 'escape') this.hud.hideModal(); return; }
     if (k === 'escape') { if (s.ui.mode !== 'normal') this.hud.cancelMode(); else if (s.selection.size > 0) s.select([]); else this.hud.showMenu(); return; }
     if (k === 'f1') { e.preventDefault(); this.hud.showHelp(); return; }
+    if (k === 'f11') { e.preventDefault(); const d = (window as unknown as { desktop?: { toggleFullscreen?: () => void } }).desktop; if (d?.toggleFullscreen) d.toggleFullscreen(); else if (document.fullscreenElement) void document.exitFullscreen(); else void document.documentElement.requestFullscreen?.(); return; }
     if (k === 'f2') { e.preventDefault(); this.hud.showEncyclopedia(); return; }
     if (k === 'p' || k === 'pause') { s.paused = !s.paused; this.hud.refreshTop(); return; }
     if (k === '+' || k === '=') { s.speed = Math.min(3, s.speed + 0.5); this.hud.refreshTop(); return; }
