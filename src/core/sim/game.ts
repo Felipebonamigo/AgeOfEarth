@@ -4,6 +4,7 @@ import { MAJOR_GODS, UNITS } from '../data';
 import { RNG } from '../rng';
 import type { Command, GameConfig, GameState, Player } from '../types';
 import { generateMap, resetNodeSeq } from '../map/mapgen';
+import { mapFromData } from '../map/fixed';
 import { placeBuilding, recomputePop, spawnUnit } from './entities';
 import { defaultMods, recomputeMods } from './modifiers';
 import { recomputeTerritory } from './territory';
@@ -25,10 +26,12 @@ const PATH_BUDGET_PER_TICK = 48;
 const MAX_EVENTS = 200;
 
 export function createGame(config: GameConfig): GameState {
-  const size = MAP_SIZES[config.mapSize];
   resetNodeSeq();
   const mode = config.mode ?? 'conquest';
-  const map = generateMap(size.w, size.h, config.seed, config.players.length, config.mapType ?? 'continental', mode === 'koth');
+  // Mapa fixo (editor/arquivo) ou gerado pelo seed
+  const map = config.map ? mapFromData(config.map) : generateMap(MAP_SIZES[config.mapSize].w, MAP_SIZES[config.mapSize].h, config.seed, config.players.length, config.mapType ?? 'continental', mode === 'koth');
+  const size = { w: map.w, h: map.h };
+  if (config.map && map.starts.length < config.players.length) throw new Error(`mapa fixo tem ${map.starts.length} posições iniciais para ${config.players.length} jogadores`);
   const state: GameState = {
     config, seed: config.seed, tick: 0, time: 0, map,
     players: [], units: new Map(), buildings: new Map(), nextId: 1,

@@ -160,6 +160,7 @@ export interface GameConfig {
   players: { name: string; god: string; isAI: boolean; difficulty: Difficulty; team?: number }[];
   revealMap?: boolean; startingAge?: number; startingResources?: Partial<Record<ResourceType, number>>;
   mode?: GameMode; mapType?: MapType;
+  map?: FixedMapData;                                   // mapa fixo (editor/arquivo); se ausente, gera pelo seed
 }
 
 export interface GameState {
@@ -184,6 +185,7 @@ export interface GameState {
   relics: { x: number; y: number; carrier: number; templeId: number }[];
 }
 import type { ScenarioState } from './scenario/types';
+import type { FixedMapData } from './map/fixed';
 
 // ---------------- Comandos (a única forma de alterar o estado a partir de fora) ----------------
 export type Command =
