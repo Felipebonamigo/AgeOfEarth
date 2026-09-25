@@ -27,6 +27,9 @@ export class HUD {
   objPanel!: HTMLElement; dlgPanel!: HTMLElement;
   top!: HTMLElement; bottom!: HTMLElement; selPanel!: HTMLElement; cmdPanel!: HTMLElement; godsPanel!: HTMLElement; msgPanel!: HTMLElement; tooltip!: HTMLElement; modalBack!: HTMLElement; modal!: HTMLElement; idleBtn!: HTMLElement;
   minimap!: Minimap;
+  chatEl!: HTMLInputElement;
+  /** Definido pelo boot em partidas online: envia a mensagem para a sala. */
+  onChat: ((text: string) => void) | null = null;
   private session: Session | null = null;
   private acc = 0; private mmAcc = 0;
   private lastSelKey = '';
@@ -83,6 +86,10 @@ export class HUD {
     this.tooltip = el('div'); this.tooltip.id = 'tooltip'; this.tooltip.classList.add('hidden'); hud.appendChild(this.tooltip);
     this.modalBack = el('div'); this.modalBack.id = 'modal-back'; this.modalBack.classList.add('hidden');
     this.modal = el('div'); this.modal.id = 'modal'; this.modalBack.appendChild(this.modal);
+    this.chatEl = el('input', 'hidden') as HTMLInputElement; this.chatEl.id = 'chat'; this.chatEl.maxLength = 200; this.chatEl.placeholder = t('mp.chatPlaceholder');
+    this.chatEl.style.cssText = 'position:fixed;left:50%;bottom:190px;transform:translateX(-50%);width:420px;background:#0f1628;color:#e5e7eb;border:1px solid #f2c14e;border-radius:6px;padding:6px 10px;font-size:14px;z-index:35';
+    this.chatEl.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { const v = this.chatEl.value.trim(); if (v && this.onChat) this.onChat(v); this.closeChat(); } else if (e.key === 'Escape') this.closeChat(); });
+    hud.appendChild(this.chatEl);
     this.modalBack.addEventListener('mousedown', (e) => { if (e.target === this.modalBack && this.modalDismissable) this.hideModal(); });
     this.root.appendChild(hud);
     this.root.appendChild(this.modalBack);   // fora do #hud: os modais (ajuda, atalhos) também servem ao menu principal
@@ -472,6 +479,10 @@ export class HUD {
   }
 
   // ---------------- Modais ----------------
+  get chatOpen() { return !this.chatEl.classList.contains('hidden'); }
+  openChat() { if (!this.onChat) return; this.chatEl.classList.remove('hidden'); this.chatEl.value = ''; this.chatEl.focus(); }
+  closeChat() { this.chatEl.classList.add('hidden'); this.chatEl.blur(); }
+
   showModal(html: string, dismissable = true) { this.modal.innerHTML = html; this.modalBack.classList.remove('hidden'); this.modalDismissable = dismissable; }
   hideModal() {
     this.modalBack.classList.add('hidden');

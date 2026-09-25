@@ -45,7 +45,7 @@ async function boot() {
     getOptions: () => options,
     onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); if (session) { hud.setSession(session); hud.refreshTop(); } },
     onLoad: () => loadGame(),
-    onQuit: () => { saveReplay(); session = null; hud.setSession(null); hud.setVisible(false); menu.show(); document.body.className = ''; },
+    onQuit: () => { saveReplay(); session = null; hud.onChat = null; hud.closeChat(); hud.setSession(null); hud.setVisible(false); menu.show(); document.body.className = ''; },
     onNextMission: (id) => { const i = SCENARIOS.findIndex((m) => m.id === id); const next = SCENARIOS[i + 1]; if (next) startMission(next.id); else { session = null; hud.setSession(null); hud.setVisible(false); menu.show(); } },
   });
   hud.setVisible(false);
@@ -89,11 +89,13 @@ async function boot() {
     startGame({ ...def.config, scenario: id });
     if (session) { session.paused = true; hud.showIntro(id, () => { if (session) session.paused = false; }); }
   };
-  const startNetworkGame = (client: NetClient, config: GameConfig, slots: number[]) => {
+  const startNetworkGame = (client: NetClient, config: GameConfig, slots: number[], delay = 4) => {
     const local = slots.indexOf(client.slot);
     session = Session.newGame(config, local);
     const humans = slots.map((_, i) => i);
-    const sched = new NetworkScheduler(local, humans, 4, { sendCmds: (t, c) => client.sendCmds(t, c), sendHash: (t, h) => client.sendHash(t, h) });
+    const sched = new NetworkScheduler(local, humans, delay, { sendCmds: (t, c) => client.sendCmds(t, c), sendHash: (t, h) => client.sendHash(t, h) });
+    hud.onChat = (text) => client.chat(text);
+    client.on('chat', (m) => hud.toast(`💬 ${String(m.name ?? '?')}: ${String(m.text ?? '')}`, 'info'));
     sched.onDesync = (tk) => hud.toast(t('msg.desync', { tick: tk }), 'warn');
     client.on('cmds', (m) => { const idx = slots.indexOf(Number(m.slot)); if (idx >= 0) sched.receive(idx, Number(m.tick), (m.cmds as Command[]) ?? []); });
     client.on('hash', (m) => { const idx = slots.indexOf(Number(m.slot)); if (idx >= 0) sched.receiveHash(idx, Number(m.tick), Number(m.hash)); });
@@ -106,6 +108,7 @@ async function boot() {
     if (home) renderer.cam.centerOn(home.x, home.y);
     hud.setSession(session); hud.setVisible(true); menu.hide();
     hud.toast(t('msg.online', { n: config.players.filter((p) => !p.isAI).length, name: config.players[local].name }), 'gold');
+    hud.toast(t('mp.delayInfo', { n: delay, ms: delay * 50 }) + ' · ' + t('msg.chatHint'), 'info');
   };
   const startHorde = (god: string, difficulty: GameConfig['players'][number]['difficulty']) => {
     const cfg: GameConfig = { ...HORDE.config, seed: (Math.floor(Math.random() * 1e9)) >>> 0, scenario: HORDE.id, players: HORDE.config.players.map((p, i) => (i === 0 ? { ...p, god, difficulty } : p)) };

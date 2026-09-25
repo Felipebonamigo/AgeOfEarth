@@ -8,7 +8,7 @@ import { NetClient, type LobbyState } from '../net/client';
 import { t, getLocale, setLocale, LOCALE_NAMES, type Locale } from '../i18n';
 import { optionsHTML, bindOptions, type OptionsContext } from './options';
 
-export interface MenuCallbacks { onStart: (config: GameConfig) => void; onLoad: () => void; hasSave: () => boolean; onHelp: () => void; onEncyclopedia: () => void; onMission: (id: string) => void; onNetworkStart: (client: NetClient, config: GameConfig, slots: number[]) => void; onHorde: (god: string, difficulty: Difficulty) => void; onReplay: () => void; hasReplay: () => boolean; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onHotkeys?: () => void }
+export interface MenuCallbacks { onStart: (config: GameConfig) => void; onLoad: () => void; hasSave: () => boolean; onHelp: () => void; onEncyclopedia: () => void; onMission: (id: string) => void; onNetworkStart: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onHorde: (god: string, difficulty: Difficulty) => void; onReplay: () => void; hasReplay: () => boolean; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onHotkeys?: () => void }
 
 export class MainMenu {
   root: HTMLElement; el: HTMLElement;
@@ -17,6 +17,7 @@ export class MainMenu {
   net: NetClient | null = null;
   private netStatus = '';
   private showOptions = false;
+  private chatLog: { name: string; text: string }[] = [];
   constructor(root: HTMLElement, private cb: MenuCallbacks) {
     this.root = root;
     this.el = document.createElement('div'); this.el.id = 'menu';
@@ -24,6 +25,7 @@ export class MainMenu {
     this.render();
   }
   show() { this.el.classList.remove('hidden'); this.render(); }
+  private renderChatLog() { const log = this.el.querySelector('#mp-chat-log'); if (!log) { this.render(); return; } log.innerHTML = this.chatLog.map((m) => `<div><b>${m.name}:</b> ${m.text}</div>`).join(''); log.scrollTop = log.scrollHeight; }
   hide() { this.el.classList.add('hidden'); }
 
   private render() {
@@ -113,17 +115,18 @@ export class MainMenu {
         <div class="actions"><button class="btn primary" id="mp-join">${t('mp.join')}</button><span style="color:#ef4444;font-size:13px">${this.netStatus}</span></div>`;
     }
     const me = this.net.slot; const host = lobby.host === me;
-    const rows = lobby.players.map((p) => `<tr><td>${p.slot === lobby.host ? '👑 ' : ''}${p.name}${p.slot === me ? ` ${t('mp.you')}` : ''}</td><td>${MAJOR_GODS[p.god]?.icon ?? ''} ${MAJOR_GODS[p.god]?.name ?? p.god}</td><td>${host ? `<select data-team="${p.slot}">${[0, 1, 2, 3].map((k) => `<option value="${k}" ${p.team === k ? 'selected' : ''}>${t('mp.teamN', { n: k + 1 })}</option>`).join('')}</select>` : t('mp.teamN', { n: p.team + 1 })}</td></tr>`).join('');
+    const rows = lobby.players.map((p) => `<tr><td>${p.slot === lobby.host ? '👑 ' : ''}${p.name}${p.slot === me ? ` ${t('mp.you')}` : ''}</td><td>${MAJOR_GODS[p.god]?.icon ?? ''} ${MAJOR_GODS[p.god]?.name ?? p.god}</td><td>${host ? `<select data-team="${p.slot}">${[0, 1, 2, 3].map((k) => `<option value="${k}" ${p.team === k ? 'selected' : ''}>${t('mp.teamN', { n: k + 1 })}</option>`).join('')}</select>` : t('mp.teamN', { n: p.team + 1 })}</td><td class="ping">${(p.ping ?? -1) >= 0 ? `${p.ping} ms` : '…'}</td><td>${host && p.slot !== me ? `<button class="btn" data-kick="${p.slot}" style="padding:2px 8px;font-size:12px">${t('mp.kick')}</button>` : ''}</td></tr>`).join('');
+    const chat = `<div id="mp-chat" style="margin-top:10px"><div style="font-size:12px;color:#9aa5b8">${t('mp.chat')}</div><div id="mp-chat-log" style="height:96px;overflow:auto;background:#0f1628;border:1px solid var(--border);border-radius:6px;padding:6px;font-size:13px">${this.chatLog.map((m) => `<div><b>${m.name}:</b> ${m.text}</div>`).join('')}</div><div style="display:flex;gap:6px;margin-top:6px"><input id="mp-chat-input" placeholder="${t('mp.chatPlaceholder')}" maxlength="200" style="flex:1"><button class="btn" id="mp-chat-send">${t('mp.send')}</button></div></div>`;
     const st = lobby.settings;
     return `<h3 style="margin:0;color:#f2c14e">${t('mp.roomTitle', { room: this.net.room })} <small style="color:#9aa5b8;font-weight:normal">${t('mp.connected', { n: lobby.players.length })}</small></h3>
-      <table style="width:100%;font-size:13px;margin:8px 0;border-collapse:collapse"><tr style="color:#9aa5b8"><th align="left">${t('mp.player')}</th><th align="left">${t('mp.god')}</th><th align="left">${t('mp.team')}</th></tr>${rows}</table>
+      <table style="width:100%;font-size:13px;margin:8px 0;border-collapse:collapse"><tr style="color:#9aa5b8"><th align="left">${t('mp.player')}</th><th align="left">${t('mp.god')}</th><th align="left">${t('mp.team')}</th><th align="left">${t('mp.ping')}</th><th></th></tr>${rows}</table>
       <div class="grid"><div>
         <label>${t('main.mapSize')}</label><select id="mp-map" ${host ? '' : 'disabled'}>${Object.keys(MAP_SIZES).map((k) => `<option value="${k}" ${st.mapSize === k ? 'selected' : ''}>${t(`map.${k}`)}</option>`).join('')}</select>
         <label>${t('mp.ais')}</label><select id="mp-ais" ${host ? '' : 'disabled'}>${[0, 1, 2, 3].map((n) => `<option value="${n}" ${st.ais === n ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
         <div><label>${t('mp.aiDiff')}</label><select id="mp-diff" ${host ? '' : 'disabled'}>${Object.keys(DIFFICULTIES).map((k) => `<option value="${k}" ${st.difficulty === k ? 'selected' : ''}>${t(`diff.${k}`)}</option>`).join('')}</select>
         <label><input type="checkbox" id="mp-horde" ${host ? '' : 'disabled'} ${st.horde ? 'checked' : ''}> ${t('mp.horde')}</label>
         <label>${t('mp.myGod')}</label><select id="mp-mygod">${MAJOR_GOD_LIST.map((g) => `<option value="${g}" ${lobby.players.find((p) => p.slot === me)?.god === g ? 'selected' : ''}>${MAJOR_GODS[g].icon} ${MAJOR_GODS[g].name}</option>`).join('')}</select></div></div>
-      <div class="actions">${host ? `<button class="btn primary" id="mp-start">${t('mp.start')}</button>` : `<span style="color:#9aa5b8">${t('mp.waitingHost')}</span>`}<button class="btn" id="mp-leave">${t('mp.leave')}</button><span style="color:#ef4444;font-size:13px">${this.netStatus}</span></div>`;
+      <div class="actions">${host ? `<button class="btn primary" id="mp-start">${t('mp.start')}</button>` : `<span style="color:#9aa5b8">${t('mp.waitingHost')}</span>`}<button class="btn" id="mp-leave">${t('mp.leave')}</button><span style="color:#ef4444;font-size:13px">${this.netStatus}</span></div>${chat}`;
   }
 
   private bindMultiplayer() {
@@ -135,13 +138,19 @@ export class MainMenu {
       net.on('lobby', () => { if (this.tab === 'multiplayer') this.render(); });
       net.on('error', (m) => { this.netStatus = String(m.msg); this.render(); });
       net.on('close', () => { if (this.net === net) { this.net = null; this.netStatus = t('mp.closed'); if (!this.el.classList.contains('hidden')) this.render(); } });
-      net.on('start', (m) => { this.cb.onNetworkStart(net, m.config as GameConfig, m.slots as number[]); });
+      net.on('start', (m) => { this.cb.onNetworkStart(net, m.config as GameConfig, m.slots as number[], Number(m.delay) || 4); });
+      net.on('chat', (m) => { this.chatLog.push({ name: String(m.name ?? '?'), text: String(m.text ?? '') }); if (this.chatLog.length > 60) this.chatLog.shift(); if (this.tab === 'multiplayer' && !this.el.classList.contains('hidden')) this.renderChatLog(); });
+      this.chatLog = [];
       this.netStatus = t('mp.connecting'); this.render();
       try { await net.connect(url); } catch (e) { this.netStatus = (e as Error).message; this.render(); return; }
       this.net = net; this.netStatus = '';
       net.join(room, name, god);
     });
     q('#mp-leave')?.addEventListener('click', () => { this.net?.close(); this.net = null; this.netStatus = ''; this.render(); });
+    const sendChat = () => { const inp = q('#mp-chat-input'); if (!inp || !this.net) return; this.net.chat(inp.value); inp.value = ''; };
+    q('#mp-chat-send')?.addEventListener('click', sendChat);
+    q('#mp-chat-input')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendChat(); } e.stopPropagation(); });
+    this.el.querySelectorAll('[data-kick]').forEach((b) => b.addEventListener('click', () => this.net?.kick(Number((b as HTMLElement).dataset.kick))));
     const settingsChanged = () => { if (!this.net?.isHost) return; this.net.settings({ mapSize: q('#mp-map')!.value, ais: Number(q('#mp-ais')!.value), difficulty: q('#mp-diff')!.value, horde: !!q('#mp-horde')?.checked }); };
     q('#mp-map')?.addEventListener('change', settingsChanged); q('#mp-ais')?.addEventListener('change', settingsChanged); q('#mp-diff')?.addEventListener('change', settingsChanged); q('#mp-horde')?.addEventListener('change', settingsChanged);
     q('#mp-mygod')?.addEventListener('change', () => this.net?.player({ god: q('#mp-mygod')!.value }));
@@ -149,6 +158,7 @@ export class MainMenu {
     q('#mp-start')?.addEventListener('click', () => {
       const net = this.net; const lobby = net?.lobby; if (!net || !lobby) return;
       const st = lobby.settings;
+      const delay = NetClient.delayFor(lobby.players.map((p) => p.ping ?? -1));   // atraso do lockstep pela pior latência da sala
       const players: GameConfig['players'] = lobby.players.map((p) => ({ name: p.name, god: p.god, isAI: false, difficulty: st.difficulty as Difficulty, team: p.team }));
       const names = ['Leônidas', 'Péricles', 'Agamenon', 'Temístocles'];
       const usedTeams = new Set(players.map((p) => p.team));
@@ -156,11 +166,11 @@ export class MainMenu {
       if (st.horde) {
         const humans: GameConfig['players'] = lobby.players.map((p) => ({ name: p.name, god: p.god, isAI: false, difficulty: st.difficulty as Difficulty, team: 0 }));
         humans.push({ name: 'Tártaro', god: 'hades', isAI: false, difficulty: 'normal', team: 9 });
-        net.start({ seed: st.seed >>> 0, mapSize: st.mapSize as MapSize, players: humans, scenario: 'horde', startingResources: { food: 600, wood: 500, gold: 300, favor: 20 } });
+        net.start({ seed: st.seed >>> 0, mapSize: st.mapSize as MapSize, players: humans, scenario: 'horde', startingResources: { food: 600, wood: 500, gold: 300, favor: 20 } }, delay);
         return;
       }
       if (players.length > 4) { this.netStatus = t('mp.max4'); this.render(); return; }
-      net.start({ seed: st.seed >>> 0, mapSize: st.mapSize as MapSize, players });
+      net.start({ seed: st.seed >>> 0, mapSize: st.mapSize as MapSize, players }, delay);
     });
   }
 }

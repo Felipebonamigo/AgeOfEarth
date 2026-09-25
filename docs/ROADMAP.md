@@ -60,7 +60,7 @@ Marco **M3 (semana 20)**: campanha completa jogável.
 ## Fase 4 — Multiplayer robusto · semanas 8–22
 | # | Passo | Resp. | Semanas |
 |---|---|---|---|
-| 4.1 | Lobby público: lista de salas, chat, kick, espectadores, ping/latência, atraso dinâmico | A | 8–11 |
+| 4.1 | Lobby: ✅ chat (sala e partida, Enter), ✅ remover jogador (anfitrião), ✅ ping por jogador medido pelo relay, ✅ atraso do lockstep escolhido pela pior latência (2–12 ticks). Pendente: lista pública de salas, espectadores | A | 8–11 |
 | 4.2 | Reconexão por snapshot (já temos serialização) e pausa por queda | A | 11–13 |
 | 4.3 | Integração Steam Networking Sockets + lobbies e convites da Steam (`steamworks.js`) | A | 16–19 |
 | 4.4 | Testes de carga com bots e jogadores reais (4 jogadores, 40 min) | A + V | 19–22 |

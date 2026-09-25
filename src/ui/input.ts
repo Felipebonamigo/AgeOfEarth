@@ -222,6 +222,7 @@ export class Input {
     const tag = (e.target as HTMLElement).tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
     const s = this.getSession(); if (!s) return;
+    if (k === 'enter' && this.hud.onChat && !this.hud.chatOpen) { e.preventDefault(); this.hud.openChat(); return; }   // bate-papo (partidas online)
     this.keys.add(k);
     if (k === 'escape') { if (s.ui.mode !== 'normal') this.hud.cancelMode(); else if (s.selection.size > 0) s.select([]); else this.hud.showMenu(); return; }
     if (k === 'f1') { e.preventDefault(); this.hud.showHelp(); return; }
