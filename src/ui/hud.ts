@@ -13,9 +13,10 @@ import type { Renderer } from '../render/renderer';
 import { Minimap } from '../render/minimap';
 import type { Audio } from '../audio/audio';
 import { getScenario } from '../core/scenario/runner';
-import { t, getLocale, setLocale, LOCALE_NAMES, type Locale } from '../i18n';
+import { t } from '../i18n';
+import { optionsHTML, bindOptions, type OptionsContext } from './options';
 
-export interface HUDCallbacks { onSave: () => void; onLoad: () => void; onQuit: () => void; hasSave: () => boolean; onNextMission?: (currentId: string) => void; onExport?: () => void; onImport?: () => void; getEdgeScroll?: () => boolean; setEdgeScroll?: (v: boolean) => void; onLocaleChanged?: () => void }
+export interface HUDCallbacks { onSave: () => void; onLoad: () => void; onQuit: () => void; hasSave: () => boolean; onNextMission?: (currentId: string) => void; onExport?: () => void; onImport?: () => void; onLocaleChanged?: () => void; getOptions?: () => OptionsContext }
 
 const el = (tag: string, cls?: string, html?: string): HTMLElement => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const fmtCost = (cost: Record<string, number>, player?: { resources: Record<string, number> }) => Object.entries(cost).filter(([, v]) => v > 0).map(([k, v]) => `<span class="${player && player.resources[k] < v ? 'miss' : ''}">${RESOURCE_ICONS[k as ResourceType]} ${v}</span>`).join('');
@@ -83,8 +84,8 @@ export class HUD {
     this.modalBack = el('div'); this.modalBack.id = 'modal-back'; this.modalBack.classList.add('hidden');
     this.modal = el('div'); this.modal.id = 'modal'; this.modalBack.appendChild(this.modal);
     this.modalBack.addEventListener('mousedown', (e) => { if (e.target === this.modalBack && this.modalDismissable) this.hideModal(); });
-    hud.appendChild(this.modalBack);
     this.root.appendChild(hud);
+    this.root.appendChild(this.modalBack);   // fora do #hud: os modais (ajuda, atalhos) também servem ao menu principal
     // tooltips genéricos
     hud.addEventListener('mouseover', (e) => { const t = (e.target as HTMLElement).closest('[data-tip]') as HTMLElement | null; if (t) this.showTooltip(t.dataset.tip!, e.clientX, e.clientY); });
     hud.addEventListener('mousemove', (e) => { const t = (e.target as HTMLElement).closest('[data-tip]') as HTMLElement | null; if (t) this.positionTooltip(e.clientX, e.clientY); else this.tooltip.classList.add('hidden'); });
@@ -488,6 +489,7 @@ export class HUD {
   showMenu() {
     const s = this.session; if (!s) return;
     s.paused = true;
+    const opts = this.cb.getOptions?.();
     this.showModal(`<h2>${t('menu.title')}</h2>
       <div class="row" style="flex-direction:column">
         <button class="btn primary" id="m-continue">${t('menu.continue')}</button>
@@ -496,10 +498,8 @@ export class HUD {
         <div style="display:flex;gap:8px"><button class="btn" id="m-export" style="flex:1">📤 → arquivo / file</button><button class="btn" id="m-import" style="flex:1">📥 ← arquivo / file</button></div>
         <button class="btn" id="m-help">${t('menu.help')}</button>
         <button class="btn" id="m-enc">${t('menu.enc')}</button>
-        <label style="font-size:12px;color:#9aa5b8;margin-top:8px">${t('menu.volume')} <input type="range" id="m-vol" min="0" max="1" step="0.05" value="${this.audio.volume}"></label>
+        <div style="margin-top:8px">${opts ? optionsHTML(opts) : ''}</div>
         <label style="font-size:12px;color:#9aa5b8"><input type="checkbox" id="m-ranges" ${s.ui.showRanges ? 'checked' : ''}> ${t('menu.ranges')}</label>
-        <label style="font-size:12px;color:#9aa5b8"><input type="checkbox" id="m-edge" ${(this.cb.getEdgeScroll?.() ?? true) ? 'checked' : ''}> ${t('menu.edgeScroll')}</label>
-        <label style="font-size:12px;color:#9aa5b8">${t('menu.language')} <select id="m-lang">${(Object.keys(LOCALE_NAMES) as Locale[]).map((l) => `<option value="${l}" ${getLocale() === l ? 'selected' : ''}>${LOCALE_NAMES[l]}</option>`).join('')}</select></label>
         <button class="btn danger" id="m-quit">${t('menu.quit')}</button>
       </div>`);
     const q = (id: string) => this.modal.querySelector(id) as HTMLElement;
@@ -508,10 +508,8 @@ export class HUD {
     q('#m-load').addEventListener('click', () => { this.hideModal(); this.cb.onLoad(); });
     q('#m-help').addEventListener('click', () => this.showHelp());
     q('#m-enc').addEventListener('click', () => this.showEncyclopedia());
-    q('#m-vol').addEventListener('input', (e) => this.audio.setVolume(Number((e.target as HTMLInputElement).value)));
+    if (opts) bindOptions(this.modal, opts, () => this.showMenu());
     q('#m-ranges').addEventListener('change', (e) => { s.ui.showRanges = (e.target as HTMLInputElement).checked; });
-    q('#m-edge').addEventListener('change', (e) => { this.cb.setEdgeScroll?.((e.target as HTMLInputElement).checked); });
-    q('#m-lang').addEventListener('change', (e) => { setLocale((e.target as HTMLSelectElement).value as Locale); this.cb.onLocaleChanged?.(); this.showMenu(); });
     q('#m-export').addEventListener('click', () => { this.cb.onExport?.(); });
     q('#m-import').addEventListener('click', () => { this.hideModal(); this.cb.onImport?.(); });
     q('#m-quit').addEventListener('click', () => { if (confirm(t('menu.quitConfirm'))) { this.hideModal(); this.cb.onQuit(); } });
@@ -522,18 +520,42 @@ export class HUD {
 
   showHelp() {
     this.showModal(`<h2>${t('help.title')}</h2>
-      <h3>Objetivo</h3><p>Destrua todos os edifícios e cidadãos inimigos (Conquista) ou construa uma Maravilha e a mantenha de pé por ${WONDER_VICTORY_SECONDS / 60} minutos. Avance pelas Idades, escolha deuses menores, treine heróis e criaturas míticas e use poderes divinos.</p>
-      <h3>Economia</h3><p>Cidadãos coletam Comida (frutas, caça, fazendas), Madeira (árvores) e Ouro (veios). Rezando em um Templo geram <b>Favor</b> (para criaturas míticas e heróis). Filósofos na Academia geram <b>Conhecimento</b> (para pesquisas e Idades). Pontos de entrega (Celeiro, Serraria, Mina) perto dos recursos aceleram a coleta.</p>
-      <h3>Fronteiras e atrito (estilo Rise of Nations)</h3><p>Centros Cívicos, Fortalezas, Templos e Torres projetam fronteiras. Só é possível construir dentro delas (exceto novos Centros Cívicos em terra neutra). Tropas inimigas dentro das suas fronteiras sofrem <b>atrito</b> contínuo. Pesquise <b>Civismo</b> na Academia para expandir as fronteiras e permitir mais Centros Cívicos.</p>
-      <h3>Combate</h3><p>Infantaria vence cavalaria, cavalaria vence arqueiros, arqueiros vencem infantaria. Cerco derruba edifícios. Heróis causam dano triplo em criaturas míticas; criaturas míticas devastam humanos.</p>
-      <h3>Controles</h3>
-      <table><tr><td><kbd>Clique</kbd></td><td>Selecionar · <kbd>Arrastar</kbd> seleção em área · <kbd>Duplo clique</kbd> todos do mesmo tipo · <kbd>Ctrl</kbd>+clique adiciona</td></tr>
-      <tr><td><kbd>Botão direito</kbd></td><td>Mover / atacar / coletar / construir / reparar / rezar (conforme o alvo) · <kbd>Shift</kbd> enfileira ordens</td></tr>
-      <tr><td><kbd>A</kbd></td><td>Atacar-mover · <kbd>S</kbd> Parar · <kbd>Delete</kbd> dispensar</td></tr>
-      <tr><td><kbd>Q W E R T A S D F G Z X C V N M B</kbd></td><td>Atalhos de construção (com cidadãos selecionados) e treino (com edifício selecionado)</td></tr>
-      <tr><td><kbd>Ctrl</kbd>+<kbd>1-9</kbd> / <kbd>1-9</kbd></td><td>Criar / selecionar grupo de controle</td></tr>
-      <tr><td><kbd>WASD</kbd> / setas / borda da tela / botão do meio</td><td>Mover câmera · <kbd>Roda</kbd> zoom · <kbd>H</kbd> ir ao Centro Cívico · <kbd>Espaço</kbd> ir ao último evento · <kbd>.</kbd> cidadão ocioso</td></tr>
-      <tr><td><kbd>P</kbd> / <kbd>+</kbd> <kbd>-</kbd></td><td>Pausar / velocidade · <kbd>Esc</kbd> cancelar / menu · <kbd>F1</kbd> ajuda · <kbd>F2</kbd> enciclopédia · <kbd>F5</kbd>/<kbd>F9</kbd> salvar/carregar</td></tr></table>
+      <h3>${t('help.goalTitle')}</h3><p>${t('help.goal', { min: WONDER_VICTORY_SECONDS / 60 })}</p>
+      <h3>${t('help.econTitle')}</h3><p>${t('help.econ')}</p>
+      <h3>${t('help.bordersTitle')}</h3><p>${t('help.borders')}</p>
+      <h3>${t('help.combatTitle')}</h3><p>${t('help.combat')}</p>
+      <h3>${t('help.controlsTitle')}</h3><p>${t('help.controls')} <button class="btn" id="m-hotkeys">${t('menu.hotkeys')}</button></p>
+      <div class="actions"><button class="btn primary" id="m-close">${t('modal.close')}</button></div>`);
+    this.modal.querySelector('#m-close')!.addEventListener('click', () => this.hideModal());
+    this.modal.querySelector('#m-hotkeys')!.addEventListener('click', () => this.showHotkeys());
+  }
+
+  /** Tela de atalhos: controles gerais (traduzidos) e teclas de construção/treino geradas a partir dos dados. */
+  showHotkeys() {
+    const k = (...keys: string[]) => keys.map((x) => `<kbd>${x}</kbd>`).join(' ');
+    const general: [string, string][] = [
+      [`${k(t('hk.k.click'))} · ${k(t('hk.k.drag'))} · ${k(t('hk.k.dbl'))} · ${k('Ctrl')}+${k(t('hk.k.click'))}`, t('hk.select')],
+      [`${k(t('hk.k.right'))} · ${k('Shift')}+${k(t('hk.k.right'))}`, t('hk.right')],
+      [k('A'), t('hk.attackMove')], [k('S'), t('hk.stop')], [k('G'), t('hk.garrison')], [k('Delete'), t('hk.delete')],
+      [k('Tab'), t('hk.tab')], [`${k('Ctrl')}+${k('A')}`, t('hk.selectMilitary')],
+      [`${k('Ctrl')}+${k('1-9')} · ${k('1-9')} · ${k('Alt')}+${k('1-9')}`, t('hk.groups')],
+      [`${k('W A S D')} · ${k(t('hk.k.arrows'))} · ${t('hk.k.edge')} · ${k(t('hk.k.middle'))}`, t('hk.camera')], [k(t('hk.k.wheel')), t('hk.zoom')],
+      [k('H'), t('hk.home')], [k(t('hk.k.space')), t('hk.lastEvent')], [k('.'), t('hk.idle')],
+      [`${k('P')} · ${k('+')} ${k('-')}`, t('hk.speed')], [`${k('Ctrl')}+${k('M')}`, t('hk.mute')],
+      [`${k('F1')} ${k('F2')} ${k('F5')} ${k('F9')} ${k('F11')}`, t('hk.fkeys')], [k('Esc'), t('hk.esc')],
+    ];
+    const buildingSel: [string, string][] = [[k('R'), t('hk.rally')], [k('U'), t('hk.release')], [k('Q'), t('hk.scholar')]];
+    const builds = Object.entries(BUILDINGS).filter(([, b]) => b.hotkey && !b.notBuildable).sort((a, b) => a[1].age - b[1].age || a[1].hotkey!.localeCompare(b[1].hotkey!));
+    const byKey = new Map<string, string[]>();
+    for (const [id, b] of builds) byKey.set(b.hotkey!, [...(byKey.get(b.hotkey!) ?? []), id]);
+    const buildRows = [...byKey.entries()].map(([key, ids]) => `<tr><td>${k(key)}</td><td>${ids.map((id) => `${BUILDINGS[id].icon} ${BUILDINGS[id].name} <small style="color:#9aa5b8">(${AGES[BUILDINGS[id].age].short})</small>`).join(' · ')}${ids.length > 1 ? ` <small style="color:#9aa5b8">— ${t('hk.wonderCycle')}</small>` : ''}</td></tr>`).join('');
+    const trainRows = Object.entries(BUILDINGS).filter(([, b]) => b.trains && b.trains.length > 0).map(([, b]) => `<tr><td>${b.icon} ${b.name}</td><td>${b.trains!.filter((u) => UNITS[u].hotkey).map((u) => `${k(UNITS[u].hotkey!)} ${UNITS[u].icon} ${UNITS[u].name}`).join(' · ')}</td></tr>`).join('');
+    const rows = (list: [string, string][]) => list.map(([a, b]) => `<tr><td style="white-space:nowrap">${a}</td><td>${b}</td></tr>`).join('');
+    this.showModal(`<h2>${t('hk.title')}</h2>
+      <h3>${t('hk.general')}</h3><table>${rows(general)}</table>
+      <h3>${t('hk.buildingSel')}</h3><table>${rows(buildingSel)}</table>
+      <h3>${t('hk.build')}</h3><table>${buildRows}</table>
+      <h3>${t('hk.train')}</h3><table>${trainRows}</table>
       <div class="actions"><button class="btn primary" id="m-close">${t('modal.close')}</button></div>`);
     this.modal.querySelector('#m-close')!.addEventListener('click', () => this.hideModal());
   }

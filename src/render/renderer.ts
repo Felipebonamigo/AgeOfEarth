@@ -84,6 +84,13 @@ export class Renderer {
   }
 
   resize(): void { this.cam.resize(this.app.screen.width, this.app.screen.height); }
+  /** Qualidade de renderização: fração da resolução nativa (0.5–1). Menos pixels = mais leve em GPUs fracas. */
+  setRenderScale(scale: number): void {
+    const s = Math.max(0.25, Math.min(1, scale));
+    this.app.renderer.resolution = Math.min(2, window.devicePixelRatio || 1) * s;
+    this.app.resize();
+    this.resize();
+  }
 
   // ---------------- Terreno em chunks ----------------
   private chunkKey(cx: number, cy: number) { return `${cx},${cy}`; }

@@ -23,7 +23,7 @@ await page.keyboard.press('Escape');
 await page.screenshot({ path: '/tmp/en.png' });
 // menu in-game: idioma de volta para PT
 await page.click('#top button:has-text("Menu")'); await page.waitForTimeout(300);
-await page.selectOption('#m-lang', 'pt'); await page.waitForTimeout(300);
+await page.selectOption('#modal #o-lang', 'pt'); await page.waitForTimeout(300);
 console.log('menu PT:', (await page.textContent('#modal h2'))?.trim(), (await page.textContent('#m-continue'))?.trim());
 await page.keyboard.press('Escape'); await page.waitForTimeout(200);
 console.log('age button PT:', (await page.textContent('#top .btn.gold'))?.trim());

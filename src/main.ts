@@ -16,6 +16,8 @@ import { Achievements } from './game/achievements';
 import { detectLocale, setLocale, t } from './i18n';
 import { loadSettings, saveSettings } from './game/settings';
 import { exportText, importText } from './game/files';
+import { applyUiScale, initDisplay, isFullscreen, setFullscreen, desktop } from './game/display';
+import type { OptionsContext } from './ui/options';
 import { MAJOR_GODS } from './core/data';
 
 const SAVE_KEY = 'aoe_save_v1';
@@ -40,14 +42,24 @@ async function boot() {
     onSave: () => { if (!session) return; try { localStorage.setItem(SAVE_KEY, session.save()); hud.toast(t('msg.saved'), 'good'); } catch (e) { hud.toast(t('msg.saveFail', { err: (e as Error).message }), 'warn'); } },
     onExport: () => { if (!session) return; void exportText(`age-of-earth-${new Date().toISOString().slice(0, 10)}.json`, session.save()).then((ok) => { if (ok) hud.toast(t('msg.saved'), 'good'); }); },
     onImport: () => { void importText().then((json) => { if (!json) return; try { session = Session.load(json); renderer.setState(session.state); hud.setSession(session); hud.setVisible(true); menu.hide(); hud.toast(t('msg.loaded'), 'good'); } catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); } }); },
-    getEdgeScroll: (): boolean => input.edgeScroll,
-    setEdgeScroll: (v) => { input.edgeScroll = v; settings.edgeScroll = v; saveSettings(settings); },
+    getOptions: () => options,
     onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); if (session) { hud.setSession(session); hud.refreshTop(); } },
     onLoad: () => loadGame(),
     onQuit: () => { saveReplay(); session = null; hud.setSession(null); hud.setVisible(false); menu.show(); document.body.className = ''; },
     onNextMission: (id) => { const i = SCENARIOS.findIndex((m) => m.id === id); const next = SCENARIOS[i + 1]; if (next) startMission(next.id); else { session = null; hud.setSession(null); hud.setVisible(false); menu.show(); } },
   });
   hud.setVisible(false);
+  // Opções compartilhadas (menu principal e menu da partida)
+  const options: OptionsContext = {
+    settings,
+    getVolume: () => audio.volume, setVolume: (v) => { audio.setVolume(v); settings.volume = v; saveSettings(settings); },
+    setEdgeScroll: (v) => { input.edgeScroll = v; settings.edgeScroll = v; saveSettings(settings); },
+    setUiScale: (v) => { settings.uiScale = v; saveSettings(settings); applyUiScale(v); },
+    setRenderScale: (v) => { settings.renderScale = v; saveSettings(settings); renderer.setRenderScale(v); },
+    setFullscreen: (v) => { settings.fullscreen = v; saveSettings(settings); setFullscreen(v); },
+    onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); if (session) { hud.setSession(session); hud.refreshTop(); } },
+    onHotkeys: () => hud.showHotkeys(),
+  };
   achievements.onUnlock = (a) => { hud.toast(`🏅 Conquista: ${a.icon} ${a.name} — ${a.desc}`, 'gold'); audio.play('complete'); };
   const input: Input = new Input(renderer.canvas, () => session, renderer, hud, audio);
 
@@ -112,8 +124,13 @@ async function boot() {
       hud.toast(t('msg.replay'), 'gold');
     } catch (e) { hud.toast(t('msg.replayFail', { err: (e as Error).message }), 'warn'); }
   };
-  const menu = new MainMenu(root, { onStart: (cfg) => { replaySaved = false; startGame(cfg); }, onLoad: loadGame, hasSave, onHelp: () => hud.showHelp(), onEncyclopedia: () => hud.showEncyclopedia(), onMission: startMission, onNetworkStart: startNetworkGame, onHorde: startHorde, onReplay: watchReplay, hasReplay, onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); } });
+  const menu = new MainMenu(root, { onStart: (cfg) => { replaySaved = false; startGame(cfg); }, onLoad: loadGame, hasSave, onHelp: () => hud.showHelp(), onEncyclopedia: () => hud.showEncyclopedia(), onMission: startMission, onNetworkStart: startNetworkGame, onHorde: startHorde, onReplay: watchReplay, hasReplay, onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); }, getOptions: () => options, onHotkeys: () => hud.showHotkeys() });
   input.edgeScroll = settings.edgeScroll;
+  // Tela, escala e qualidade salvas
+  initDisplay((v) => { if (settings.fullscreen !== v) { settings.fullscreen = v; saveSettings(settings); } });
+  applyUiScale(settings.uiScale);
+  if (settings.renderScale !== 1) renderer.setRenderScale(settings.renderScale);
+  if (desktop()?.setFullscreen && settings.fullscreen !== isFullscreen()) setFullscreen(settings.fullscreen);
 
   window.addEventListener('keydown', (e) => {
     if (!session) return;

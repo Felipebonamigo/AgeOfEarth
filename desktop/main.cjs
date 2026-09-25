@@ -21,7 +21,7 @@ function createWindow() {
     title: 'Age of Earth', backgroundColor: '#0b1020', autoHideMenuBar: true, show: false,
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
-  win.once('ready-to-show', () => { win.show(); if (app.isPackaged) win.setFullScreen(true); });
+  win.once('ready-to-show', () => { win.show(); });   // tela cheia é decidida pelo jogo (opções salvas)
   win.loadFile(path.join(__dirname, app.isPackaged ? 'app/index.html' : '../dist/index.html'));
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
   win.on('enter-full-screen', () => win.webContents.send('fullscreen', true));
@@ -31,6 +31,8 @@ function createWindow() {
 ipcMain.handle('steam:name', () => (steam ? steam.localplayer.getName() : null));
 ipcMain.handle('steam:achievement', (_e, id) => { try { if (steam) { steam.achievement.activate(id); return true; } } catch { /* ignore */ } return false; });
 ipcMain.handle('window:toggleFullscreen', (e) => { const w = BrowserWindow.fromWebContents(e.sender); if (w) w.setFullScreen(!w.isFullScreen()); });
+ipcMain.handle('window:setFullscreen', (e, v) => { const w = BrowserWindow.fromWebContents(e.sender); if (w) w.setFullScreen(!!v); });
+ipcMain.handle('window:isFullscreen', (e) => { const w = BrowserWindow.fromWebContents(e.sender); return w ? w.isFullScreen() : false; });
 ipcMain.handle('window:quit', () => app.quit());
 ipcMain.handle('file:save', async (e, name, content) => {
   const w = BrowserWindow.fromWebContents(e.sender);

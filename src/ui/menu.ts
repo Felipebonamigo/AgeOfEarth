@@ -6,8 +6,9 @@ import { hashString } from '../core/rng';
 import { SCENARIOS } from '../core/scenario/campaign';
 import { NetClient, type LobbyState } from '../net/client';
 import { t, getLocale, setLocale, LOCALE_NAMES, type Locale } from '../i18n';
+import { optionsHTML, bindOptions, type OptionsContext } from './options';
 
-export interface MenuCallbacks { onStart: (config: GameConfig) => void; onLoad: () => void; hasSave: () => boolean; onHelp: () => void; onEncyclopedia: () => void; onMission: (id: string) => void; onNetworkStart: (client: NetClient, config: GameConfig, slots: number[]) => void; onHorde: (god: string, difficulty: Difficulty) => void; onReplay: () => void; hasReplay: () => boolean; onLocaleChanged?: () => void }
+export interface MenuCallbacks { onStart: (config: GameConfig) => void; onLoad: () => void; hasSave: () => boolean; onHelp: () => void; onEncyclopedia: () => void; onMission: (id: string) => void; onNetworkStart: (client: NetClient, config: GameConfig, slots: number[]) => void; onHorde: (god: string, difficulty: Difficulty) => void; onReplay: () => void; hasReplay: () => boolean; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onHotkeys?: () => void }
 
 export class MainMenu {
   root: HTMLElement; el: HTMLElement;
@@ -15,6 +16,7 @@ export class MainMenu {
   private tab: 'skirmish' | 'campaign' | 'multiplayer' = 'skirmish';
   net: NetClient | null = null;
   private netStatus = '';
+  private showOptions = false;
   constructor(root: HTMLElement, private cb: MenuCallbacks) {
     this.root = root;
     this.el = document.createElement('div'); this.el.id = 'menu';
@@ -31,6 +33,7 @@ export class MainMenu {
     let completed: string[] = [];
     try { completed = JSON.parse(localStorage.getItem('aoe_campaign') ?? '{"completed":[]}').completed ?? []; } catch { /* ignore */ }
     const campaign = `<h3 style="margin:0 0 4px;color:#f2c14e">${t('main.campaignTitle')}</h3><p style="color:#9aa5b8;margin:0 0 8px;font-size:13px">${t('main.campaignDesc')}</p><div class="missions">${SCENARIOS.map((m, i) => { const locked = i > 0 && !completed.includes(SCENARIOS[i - 1].id); const done = completed.includes(m.id); return `<div class="mission ${locked ? 'locked' : ''}" data-id="${m.id}"><span class="ic">${m.icon}</span><div><b>${m.title} ${done ? '✅' : ''}</b><small>${m.subtitle}${locked ? ` · ${t('main.locked')}` : ''}</small></div></div>`; }).join('')}</div>`;
+    const opts = this.cb.getOptions?.();
     this.el.innerHTML = `<div class="box">
       <h1>AGE OF EARTH</h1>
       <div class="sub">${t('main.sub')}</div>
@@ -60,7 +63,9 @@ export class MainMenu {
         <button class="btn" id="m-load" ${this.cb.hasSave() ? '' : 'disabled'}>${t('main.load')}</button>
         <button class="btn" id="m-help">${t('main.help')}</button>
         <button class="btn" id="m-enc">${t('main.enc')}</button>
+        <button class="btn" id="m-options">${this.showOptions ? t('menu.optionsHide') : t('menu.options')}</button>
       </div>
+      <div id="m-options-panel" class="${this.showOptions ? '' : 'hidden'}" style="margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--panel)">${opts ? optionsHTML(opts) : ''}</div>
       <div class="credits">${t('main.credits')}</div>
     </div>`;
     (this.el.querySelector('#m-locale') as HTMLSelectElement | null)?.addEventListener('change', (e) => { setLocale((e.target as HTMLSelectElement).value as Locale); this.cb.onLocaleChanged?.(); this.render(); });
@@ -91,6 +96,8 @@ export class MainMenu {
     q('#m-replay').addEventListener('click', () => this.cb.onReplay());
     q('#m-help').addEventListener('click', () => this.cb.onHelp());
     q('#m-enc').addEventListener('click', () => this.cb.onEncyclopedia());
+    q('#m-options').addEventListener('click', () => { this.showOptions = !this.showOptions; this.render(); });
+    if (opts) bindOptions(this.el, opts, () => this.render());
   }
 
   // ---------------- Multiplayer (lobby via relay WebSocket) ----------------
