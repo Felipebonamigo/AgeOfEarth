@@ -1,12 +1,15 @@
 // Missão 6, A Estátua de Zeus (docs/STORY.md §5.3): setup da ficha, variações por dificuldade (G3), contador da guarda,
-// quedas da Estátua, Colossos e segredo, e o paliativo do Portal dos Titãs (sem G6). Partidas curtas no mapa real (6606);
-// a viabilidade longa (passiva e roteiro dentro da janela) fica em scripts/missions.ts e tests/missions.test.ts.
+// quedas da Estátua, limiar de vitória, Colossos e segredo, Micenas, povo, Estátua murada e o paliativo do Portal dos Titãs
+// (sem G6). Partidas curtas no mapa real (6606). A passiva de 6 min roda em tests/missions.test.ts; o roteiro longo (vitória
+// dentro da janela) só em scripts/missions.ts.
 import { describe, it, expect } from 'vitest';
 import { TICK_RATE } from '../src/core/constants';
 import { createGame, tick } from '../src/core/sim/game';
 import { destroyBuilding, killUnit } from '../src/core/sim/combat';
 import { missionRunConfig } from '../src/core/scenario/testing';
-import { placeNear, tagIds, townCenter } from '../src/core/scenario/helpers';
+import { advanceBuild, placeExact, placeNear, setRaidObserver, tagIds, townCenter, type RaidRecord } from '../src/core/scenario/helpers';
+import { spawnUnit } from '../src/core/sim/entities';
+import { isPassable } from '../src/core/map/grid';
 import type { CampaignDifficulty } from '../src/core/scenario/schema';
 import type { Building, GameState } from '../src/core/types';
 
@@ -62,7 +65,7 @@ describe('m6_estatua', () => {
     expect(s.scenario!.vars.estatua_s).toBe(0);
     expect(s.scenario!.vars.quedas).toBe(1);
     expect(s.scenario!.outcome).toBe('playing');
-    expect(lines(s).some((t) => t.includes('Não haverá terceira vez'))).toBe(true);
+    expect(lines(s).some((t) => t.includes('não haverá terceira vez'))).toBe(true);
     w = statue(s, true);
     run(s, 3);
     destroyBuilding(s, w, 3);
@@ -80,6 +83,127 @@ describe('m6_estatua', () => {
     run(s, 2);
     expect(s.scenario!.vars.quedas).toBe(1);
     expect(s.scenario!.outcome).toBe('defeat');
+  }, 60_000);
+
+  it('limiar da guarda: vitória com a var guarda (300 s no Fácil, 360 no Normal e no Difícil); a obra não conta', () => {
+    for (const d of ['easy', 'normal', 'hard'] as const) {
+      const s = start(d);
+      run(s, 2);
+      statue(s, false);
+      run(s, 10);
+      expect(s.scenario!.vars.estatua_s ?? 0, d).toBe(0);   // Estátua em obra: a guarda não conta nem há queda
+      expect(s.scenario!.vars.quedas ?? 0, d).toBe(0);
+      statue(s, true);
+      s.players[0].age = 3;
+      s.scenario!.vars.estatua_s = 296;
+      run(s, 6);
+      expect(s.scenario!.outcome, d).toBe(d === 'easy' ? 'victory' : 'playing');
+      if (d === 'easy') continue;
+      s.scenario!.vars.estatua_s = 356;
+      run(s, 6);
+      expect(s.scenario!.outcome, d).toBe('victory');
+    }
+  }, 120_000);
+
+  it('povo: cumprido com 20 cidadãos ao fim da guarda, falhado com menos', () => {
+    for (const want of ['done', 'failed'] as const) {
+      const s = start('easy');
+      run(s, 2);
+      const tc = townCenter(s, 0)!;
+      const vills = alive(s, 0, 'villager');
+      if (want === 'done') for (let i = vills.length; i < 22; i++) spawnUnit(s, 0, 'villager', tc.x, tc.y + 4);
+      else for (const u of vills.slice(15)) killUnit(s, u, 3);
+      statue(s, true);
+      s.scenario!.vars.estatua_s = 297;
+      run(s, 5);
+      expect(s.scenario!.objectives.povo, want).toBe(want);
+    }
+  }, 60_000);
+
+  it('Micenas cai com o Centro Cívico (fundação nova não conta) e o reforço de Micenas vira um punhado de sobreviventes', () => {
+    const s = start('normal');
+    run(s, 6);
+    destroyBuilding(s, townCenter(s, 2)!, 1);
+    run(s, 2);
+    expect(s.scenario!.objectives.micenas).toBe('failed');
+    const before = [...s.units.values()].filter((u) => u.owner === 0 && !u.dead).length;
+    statue(s, true);
+    run(s, 2);
+    expect(s.scenario!.fired).toContain('estatua_pronta_sem_micenas');
+    expect(s.scenario!.fired).not.toContain('estatua_pronta');
+    expect([...s.units.values()].filter((u) => u.owner === 0 && !u.dead).length - before).toBe(3);
+    expect(lines(s).some((t) => t.includes('Micenas lembra'))).toBe(false);
+    // com Micenas de pé, as lanças de Micenas chegam com a fala do Rei Atreu
+    const s2 = start('normal');
+    run(s2, 6);
+    statue(s2, true);
+    run(s2, 2);
+    expect(s2.scenario!.fired).toContain('estatua_pronta');
+    expect(lines(s2).some((t) => t.includes('Micenas lembra'))).toBe(true);
+  }, 60_000);
+
+  it('Maravilha da Liga: a Pítia desfaz o engano e o evento não anuncia contagem de vitória em cenário', () => {
+    const s = start('normal');
+    run(s, 2);
+    const tc = townCenter(s, 1)!;
+    expect(placeNear(s, 1, 'wonder_colossus', tc.x + 8, tc.y - 8, true)).not.toBeNull();
+    run(s, 2);
+    expect(lines(s).some((t) => t.includes('Zeus não conta bronze alheio'))).toBe(true);
+    const ev = s.events.filter((e) => e.type === 'wonder');
+    expect(ev.length).toBeGreaterThan(0);
+    for (const e of ev) expect(e.text).not.toContain('Contagem');
+  }, 60_000);
+
+  it('G3: no Difícil, Zeus avisa na metade da obra que uma queda basta; no Normal, não', () => {
+    for (const d of ['normal', 'hard'] as const) {
+      const s = start(d);
+      run(s, 2);
+      const w = statue(s, false);
+      run(s, 2);
+      advanceBuild(s, w, 125);
+      run(s, 2);
+      expect(lines(s).some((t) => t.includes('não haverá segunda')), d).toBe(d === 'hard');
+      expect(s.scenario!.outcome, d).toBe('playing');
+    }
+  }, 60_000);
+
+  it('as falas da guarda voltam depois de uma queda (Normal)', () => {
+    const s = start('normal');
+    run(s, 2);
+    let w = statue(s, true);
+    s.scenario!.vars.estatua_s = 118;
+    run(s, 3);
+    const n = () => lines(s).filter((t) => t.includes('Faltam quatro minutos')).length;
+    expect(n()).toBe(1);
+    destroyBuilding(s, w, 3);
+    run(s, 2);
+    expect(s.scenario!.vars.quedas).toBe(1);
+    w = statue(s, true);
+    run(s, 1);
+    s.scenario!.vars.estatua_s = 118;
+    run(s, 3);
+    expect(n()).toBe(2);
+  }, 60_000);
+
+  it('Estátua cercada de muralha sem portão: o cerco da Frota nasce assim mesmo e bate na muralha', () => {
+    const s = start('normal');
+    const raids: RaidRecord[] = [];
+    setRaidObserver((r) => raids.push(r));
+    try {
+      run(s, 2);
+      const w = statue(s, true);
+      let walls = 0;
+      for (let y = w.ty - 1; y <= w.ty + w.h; y++) for (let x = w.tx - 1; x <= w.tx + w.w; x++) {
+        if (x >= w.tx && x < w.tx + w.w && y >= w.ty && y < w.ty + w.h) continue;
+        if (isPassable(s.map, x, y) && placeExact(s, 0, 'wall', x, y, true)) walls++;
+      }
+      expect(walls).toBeGreaterThan(0);
+      run(s, 120);
+      const cerco = raids.filter((r) => r.owner === 3);
+      expect(cerco.length).toBeGreaterThan(0);
+      expect(cerco.every((r) => r.spawned > 0)).toBe(true);
+      expect(w.hp < w.maxHp || [...s.buildings.values()].some((b) => b.owner === 0 && b.type === 'wall' && (b.dead || b.hp < b.maxHp))).toBe(true);
+    } finally { setRaidObserver(null); }
   }, 60_000);
 
   it('a obra chama o 1º Colosso da Frota; aos 180 s de guarda vem o 2º (não no Fácil); os dois caídos revelam e cumprem o segredo', () => {

@@ -73,7 +73,7 @@ export function onBuildingComplete(state: GameState, b: Building): void {
   b.progress = getBuildingStats(state, player, b.type).buildTime;
   if (def.gate) for (let y = b.ty; y < b.ty + b.h; y++) for (let x = b.tx; x < b.tx + b.w; x++) state.map.gateTeam[idx(state.map, x, y)] = player.team;
   if (def.territory) state.territoryDirty = true;
-  if (def.wonder) { b.wonderStart = state.tick; state.events.push({ tick: state.tick, type: 'wonder', player: b.owner, x: b.x, y: b.y, text: t('ev.wonder', { player: player.name, name: def.name }) }); }
+  if (def.wonder) { b.wonderStart = state.tick; state.events.push({ tick: state.tick, type: 'wonder', player: b.owner, x: b.x, y: b.y, text: t(state.scenario ? 'ev.wonderScenario' : 'ev.wonder', { player: player.name, name: def.name }) }); }   // cenário: sem vitória nativa por Maravilha (G2)
   if (def.titanGate) state.events.push({ tick: state.tick, type: 'titan', player: b.owner, x: b.x, y: b.y, text: t('ev.titanGate', { player: player.name }) });
   player.stats.buildingsBuilt++;
   recomputePop(state, player);
