@@ -38,11 +38,13 @@ export class Session {
   static load(json: string): Session {
     const st = deserialize(json);
     const s = new Session(st, st.config.players.findIndex((p) => !p.isAI));
+    try { const g = (JSON.parse(json) as { uiGroups?: [number, number[]][] }).uiGroups; if (g) s.groups = new Map(g); } catch { /* save antigo */ }
     s.replayBase = json;
     s.eventCursor = st.events.length;   // eventos antigos do save não são reexibidos como novos
     return s;
   }
-  save(): string { return serialize(this.state); }
+  /** Estado + grupos de controle (só interface; ignorados pela simulação e pelo hash). */
+  save(): string { const o = JSON.parse(serialize(this.state)) as Record<string, unknown>; o.uiGroups = [...this.groups.entries()]; return JSON.stringify(o); }
 
   issue(cmd: Command): void { if (this.spectator) return; this.scheduler.issue(cmd); }
 
@@ -79,9 +81,10 @@ export class Session {
   ownSelectedUnits(): Unit[] { return this.selectedUnits().filter((u) => u.owner === this.local); }
   ownSelectedBuilding(): Building | null { const b = this.selectedBuildings().find((x) => x.owner === this.local); return b ?? null; }
 
-  select(ids: number[], additive = false): void {
+  /** additive: Ctrl. toggle=true alterna (clique numa entidade); toggle=false só acrescenta (caixa de seleção, duplo clique). */
+  select(ids: number[], additive = false, toggle = true): void {
     if (!additive) this.selection.clear();
-    for (const id of ids) { if (additive && this.selection.has(id)) this.selection.delete(id); else this.selection.add(id); }
+    for (const id of ids) { if (additive && toggle && this.selection.has(id)) this.selection.delete(id); else this.selection.add(id); }
     this.pruneSelection();
     this.onSelectionChanged?.();
   }

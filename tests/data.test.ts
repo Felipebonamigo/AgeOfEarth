@@ -44,12 +44,13 @@ describe('integridade dos dados', () => {
     const hotkeys = new Map<string, string[]>();
     for (const b of BUILD_MENU) { const hk = BUILDINGS[b].hotkey!; hotkeys.set(hk, [...(hotkeys.get(hk) ?? []), b]); }
     for (const [hk, list] of hotkeys) if (list.length > 1) expect(list.every((x) => x.startsWith('wonder_')), `atalho ${hk} duplicado: ${list}`).toBe(true);
+    expect(hotkeys.has('A'), 'A é atacar-mover: nenhum edifício pode usá-lo').toBe(false);
     expect(AGES.length).toBe(5);
     for (const a of AGES) if (a.requires.building) expect(BUILDINGS[a.requires.building]).toBeDefined();
     // atalhos de treino únicos por edifício
     for (const b of Object.values(BUILDINGS)) {
       const seen = new Set<string>();
-      for (const t of b.trains ?? []) { const hk = UNITS[t].hotkey; if (!hk) continue; if (UNITS[t].god) continue; expect(seen.has(hk), `atalho ${hk} duplicado em ${b.id}`).toBe(false); seen.add(hk); }
+      for (const t of b.trains ?? []) { const hk = UNITS[t].hotkey; if (!hk) continue; expect(hk === 'R' || hk === 'U', `atalho ${hk} de ${t} colide com ponto de encontro (R) / liberar (U)`).toBe(false); if (b.scholars) expect(hk, `atalho Q de ${t} colide com filósofo em ${b.id}`).not.toBe('Q'); if (UNITS[t].god) continue; expect(seen.has(hk), `atalho ${hk} duplicado em ${b.id}`).toBe(false); seen.add(hk); }
     }
   });
 });

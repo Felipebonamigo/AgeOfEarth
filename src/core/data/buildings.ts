@@ -32,7 +32,7 @@ export const BUILDINGS: Record<string, BuildingDef> = {
   },
   market: { id: 'market',
     name: 'Mercado', icon: '⚖️', cost: { wood: 150, gold: 50 }, hp: 800, w: 3, h: 3, buildTime: 45, armor: BARMOR,
-    age: 1, limit: 1, hotkey: 'A', trade: true, desc: 'Compra e venda de recursos por ouro. Preços flutuam com o uso.',
+    age: 1, limit: 1, hotkey: 'J', trade: true, desc: 'Compra e venda de recursos por ouro. Preços flutuam com o uso.',
   },
   temple: { id: 'temple',
     name: 'Templo', icon: '⚡', cost: { wood: 200, gold: 50 }, hp: 1200, w: 3, h: 3, buildTime: 60, armor: BARMOR,

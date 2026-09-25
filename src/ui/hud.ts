@@ -92,6 +92,7 @@ export class HUD {
     hud.addEventListener('mouseout', () => this.tooltip.classList.add('hidden'));
   }
   private modalDismissable = true;
+  private menuOpen = false; private pausedBeforeMenu = false;
 
   get hudVisible() { return !this.root.querySelector('#hud')!.classList.contains('hidden'); }
   setVisible(v: boolean) { (this.root.querySelector('#hud') as HTMLElement).classList.toggle('hidden', !v); }
@@ -248,7 +249,7 @@ export class HUD {
     const s = this.session; if (!s) return;
     s.pruneSelection();
     const units = s.selectedUnits(), blds = s.selectedBuildings();
-    const key = [...s.selection].join(',') + '|' + units.map((u) => `${u.hp}`).join(',') + '|' + blds.map((b) => `${b.hp}${b.complete}${b.queue.map((q) => q.id + Math.floor(q.elapsed)).join('.')}${b.scholars}`).join(',') + '|' + s.ui.mode + s.ui.placeType + '|' + s.player.age + s.player.techs.length + Math.floor(s.state.tick / 10);
+    const key = [...s.selection].join(',') + '|' + units.map((u) => `${u.hp}`).join(',') + '|' + blds.map((b) => `${b.hp}${b.complete}${b.queue.map((q) => q.id + Math.floor(q.elapsed)).join('.')}${b.scholars}g${b.garrison.length}`).join(',') + '|' + s.ui.mode + s.ui.placeType + '|' + s.player.age + s.player.techs.length + Math.floor(s.state.tick / 10);
     if (!force && key === this.lastSelKey) return;
     this.lastSelKey = key;
     this.selPanel.innerHTML = '';
@@ -333,7 +334,7 @@ export class HUD {
     const s = this.session; if (!s) return;
     const p = s.player;
     const units = s.ownSelectedUnits(); const b = s.ownSelectedBuilding();
-    const key = `${[...s.selection].join(',')}|${s.ui.mode}|${s.ui.placeType}|${p.age}|${p.techs.length}|${p.minorGods.length}|${Object.values(p.resources).map((v) => Math.floor(v / 25)).join(',')}|${p.pop}/${p.popCap}|${b?.queue.length}|${b?.scholars}`;
+    const key = `${[...s.selection].join(',')}|${s.ui.mode}|${s.ui.placeType}|${p.age}|${p.techs.length}|${p.minorGods.length}|${b?.garrison.length ?? 0}|${Object.values(p.resources).map((v) => Math.floor(v / 25)).join(',')}|${p.pop}/${p.popCap}|${b?.queue.length}|${b?.scholars}`;
     if (!force && key === this.lastCmdKey) return;
     this.lastCmdKey = key;
     this.cmdPanel.innerHTML = '';
@@ -472,7 +473,10 @@ export class HUD {
 
   // ---------------- Modais ----------------
   showModal(html: string, dismissable = true) { this.modal.innerHTML = html; this.modalBack.classList.remove('hidden'); this.modalDismissable = dismissable; }
-  hideModal() { this.modalBack.classList.add('hidden'); }
+  hideModal() {
+    this.modalBack.classList.add('hidden');
+    if (this.menuOpen) { this.menuOpen = false; if (this.session) this.session.paused = this.pausedBeforeMenu; }   // Esc ou clique fora do menu: volta ao estado anterior
+  }
   get modalOpen() { return !this.modalBack.classList.contains('hidden'); }
 
   showMinorGodChoice(options: string[], cb: (god: string) => void) {
@@ -488,6 +492,8 @@ export class HUD {
 
   showMenu() {
     const s = this.session; if (!s) return;
+    if (!this.menuOpen) this.pausedBeforeMenu = s.paused;
+    this.menuOpen = true;
     s.paused = true;
     const opts = this.cb.getOptions?.();
     this.showModal(`<h2>${t('menu.title')}</h2>
@@ -503,8 +509,8 @@ export class HUD {
         <button class="btn danger" id="m-quit">${t('menu.quit')}</button>
       </div>`);
     const q = (id: string) => this.modal.querySelector(id) as HTMLElement;
-    q('#m-continue').addEventListener('click', () => { this.hideModal(); s.paused = false; });
-    q('#m-save').addEventListener('click', () => { this.cb.onSave(); this.hideModal(); s.paused = false; });
+    q('#m-continue').addEventListener('click', () => { this.menuOpen = false; this.hideModal(); s.paused = false; });
+    q('#m-save').addEventListener('click', () => { this.cb.onSave(); this.menuOpen = false; this.hideModal(); s.paused = false; });
     q('#m-load').addEventListener('click', () => { this.hideModal(); this.cb.onLoad(); });
     q('#m-help').addEventListener('click', () => this.showHelp());
     q('#m-enc').addEventListener('click', () => this.showEncyclopedia());
@@ -514,8 +520,6 @@ export class HUD {
     q('#m-import').addEventListener('click', () => { this.hideModal(); this.cb.onImport?.(); });
     q('#m-quit').addEventListener('click', () => { if (confirm(t('menu.quitConfirm'))) { this.hideModal(); this.cb.onQuit(); } });
     this.modalDismissable = true;
-    const onHide = () => { s.paused = false; };
-    this.modalBack.addEventListener('transitionend', onHide, { once: true });
   }
 
   showHelp() {

@@ -100,7 +100,7 @@ export class Input {
     if (!s || !this.mouse.down) { this.mouse.down = false; return; }
     this.mouse.down = false;
     if (e.button !== 0) return;
-    if (s.ui.mode === 'place' && s.ui.placeType === 'wall' && s.ui.wallStart) { const w = this.worldAt(e.clientX, e.clientY); this.placeWallLine(s.ui.wallStart, { x: Math.floor(w.x), y: Math.floor(w.y) }, e.shiftKey); s.ui.wallStart = null; return; }
+    if (s.ui.mode === 'place' && s.ui.placeType === 'wall') { const w = this.worldAt(e.clientX, e.clientY); const end = { x: Math.floor(w.x), y: Math.floor(w.y) }; if (!this.overHud(e)) this.placeWallLine(s.ui.wallStart ?? end, end, e.shiftKey); s.ui.wallStart = null; return; }
     if (s.ui.mode !== 'normal') return;
     if (this.mouse.dragging) {
       const a = this.worldAt(Math.min(this.mouse.downX, e.clientX), Math.min(this.mouse.downY, e.clientY));
@@ -110,7 +110,7 @@ export class Input {
       // se houver militares na área, ignora cidadãos (facilita selecionar exército)
       const mil = ids.filter((id) => isMilitary(s.state.units.get(id)!));
       const final = mil.length > 0 && mil.length < ids.length && !e.altKey ? mil : ids;
-      if (final.length > 0 || !e.ctrlKey) s.select(final, e.ctrlKey);
+      if (final.length > 0 || !e.ctrlKey) s.select(final, e.ctrlKey, false);
       if (final.length > 0) this.audio.play('select');
       this.mouse.dragging = false;
       return;
@@ -125,7 +125,7 @@ export class Input {
         const vt = this.renderer.cam.visibleTiles();
         const ids: number[] = [];
         for (const u of s.state.units.values()) if (u.owner === s.local && u.type === ent.type && u.x >= vt.x0 && u.x <= vt.x1 && u.y >= vt.y0 && u.y <= vt.y1) ids.push(u.id);
-        s.select(ids, e.ctrlKey);
+        s.select(ids, e.ctrlKey, false);
       } else s.select([ent.id], e.ctrlKey);
       this.audio.play('select');
     } else if (!e.ctrlKey) s.select([]);
@@ -156,12 +156,12 @@ export class Input {
       const builders = units.filter((u) => UNITS[u.type].canBuild);
       const canEnter = units.filter((u) => ['civilian', 'infantry', 'archer', 'skirmisher', 'hero'].some((t) => UNITS[u.type].tags.includes(t)) && !UNITS[u.type].tags.includes('cavalry') && !UNITS[u.type].tags.includes('myth'));
       if (!target.complete && builders.length > 0) cmd = { type: 'build', player: s.local, ids: builders.map((u) => u.id), building: target.type, tx: target.tx, ty: target.ty, queue };
+      else if (target.hp < target.maxHp && builders.length > 0) cmd = { type: 'repair', player: s.local, ids: builders.map((u) => u.id), targetId: target.id, queue };   // danificado: reparar (guarnecer é G / botão)
       else if (def.farm && builders.length > 0) cmd = { type: 'gather', player: s.local, ids: builders.map((u) => u.id), targetId: target.id, queue };
       else if (def.worship && builders.length > 0) cmd = { type: 'pray', player: s.local, ids: builders.map((u) => u.id), targetId: target.id, queue };
-      else if (def.garrison && canEnter.length > 0 && target.garrison.length < def.garrison) cmd = { type: 'garrison', player: s.local, ids: canEnter.map((u) => u.id), targetId: target.id, queue };
-      else if (target.hp < target.maxHp && builders.length > 0) cmd = { type: 'repair', player: s.local, ids: builders.map((u) => u.id), targetId: target.id, queue };
+      else if (def.garrison && target.complete && canEnter.length > 0 && target.garrison.length < def.garrison) cmd = { type: 'garrison', player: s.local, ids: canEnter.map((u) => u.id), targetId: target.id, queue };
       else cmd = { type: 'move', player: s.local, ids, x, y, queue };
-    } else if (target && target.kind === 'building' && s.state.players[target.owner].team === s.player.team && BUILDINGS[target.type].garrison) {
+    } else if (target && target.kind === 'building' && target.complete && s.state.players[target.owner].team === s.player.team && BUILDINGS[target.type].garrison) {
       const canEnter = units.filter((u) => ['civilian', 'infantry', 'archer', 'skirmisher', 'hero'].some((t) => UNITS[u.type].tags.includes(t)) && !UNITS[u.type].tags.includes('cavalry') && !UNITS[u.type].tags.includes('myth'));
       cmd = canEnter.length > 0 ? { type: 'garrison', player: s.local, ids: canEnter.map((u) => u.id), targetId: target.id, queue } : { type: 'move', player: s.local, ids, x, y, queue };
     } else {
@@ -198,7 +198,7 @@ export class Input {
   private placeWallLine(a: { x: number; y: number }, b: { x: number; y: number }, keep: boolean) {
     const s = this.getSession()!;
     const builders = s.ownSelectedUnits().filter((u) => UNITS[u.type].canBuild).map((u) => u.id);
-    if (builders.length === 0) return;
+    if (builders.length === 0) { this.hud.toast(t('msg.selectBuilders'), 'warn'); this.hud.cancelMode(); return; }
     const tiles = lineTiles(a, b);
     let n = 0;
     for (const t of tiles) { if (this.hud.canPlaceHere('wall', t.x, t.y)) { s.issue({ type: 'build', player: s.local, ids: builders, building: 'wall', tx: t.x, ty: t.y, queue: n > 0 }); n++; } }
@@ -217,10 +217,10 @@ export class Input {
   }
 
   private onKey(e: KeyboardEvent) {
+    const k = e.key.toLowerCase();
+    if (this.hud.modalOpen) { if (k === 'escape') { (e.target as HTMLElement).blur?.(); this.hud.hideModal(); } return; }   // também no menu principal e com foco num campo do modal
     const tag = (e.target as HTMLElement).tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-    const k = e.key.toLowerCase();
-    if (this.hud.modalOpen) { if (k === 'escape') this.hud.hideModal(); return; }   // também no menu principal (ajuda, atalhos)
     const s = this.getSession(); if (!s) return;
     this.keys.add(k);
     if (k === 'escape') { if (s.ui.mode !== 'normal') this.hud.cancelMode(); else if (s.selection.size > 0) s.select([]); else this.hud.showMenu(); return; }
@@ -257,18 +257,25 @@ export class Input {
     } else if (b) {
       const def = BUILDINGS[b.type];
       const keyU = e.key.toUpperCase();
-      if (def.trains) for (const ut of def.trains) if (UNITS[ut].hotkey === keyU) { this.hud.issueChecked({ type: 'train', player: s.local, buildingId: b.id, unit: ut }); return; }
-      if (def.scholars && keyU === 'Q') { this.hud.issueChecked({ type: 'hireScholar', player: s.local, buildingId: b.id }); return; }
       if (keyU === 'R') { s.ui.mode = 'rally'; document.body.className = 'cur-attack'; return; }
       if (keyU === 'U' && (BUILDINGS[b.type].garrison || BUILDINGS[b.type].worship)) { s.issue({ type: 'ungarrison', player: s.local, buildingId: b.id }); return; }
+      if (def.scholars && keyU === 'Q') { this.hud.issueChecked({ type: 'hireScholar', player: s.local, buildingId: b.id }); return; }
+      if (def.trains) for (const ut of def.trains) if (UNITS[ut].hotkey === keyU) { this.hud.issueChecked({ type: 'train', player: s.local, buildingId: b.id, unit: ut }); return; }
     }
   }
 
+  private tabPool: { ids: number[]; idx: number; last: string } | null = null;
+  /** Tab alterna o tipo mostrado dentro da seleção original (guardada na 1ª pressão); qualquer outra seleção zera o ciclo. */
   private cycleSelectionType() {
-    const s = this.getSession()!; const units = s.ownSelectedUnits(); if (units.length < 2) return;
+    const s = this.getSession()!;
+    const cur = [...s.selection].sort((a, b) => a - b).join(',');
+    if (!this.tabPool || this.tabPool.last !== cur) this.tabPool = { ids: s.ownSelectedUnits().map((u) => u.id), idx: 0, last: cur };
+    const units = this.tabPool.ids.map((id) => s.state.units.get(id)).filter((u): u is Unit => !!u && !u.dead);
     const types = [...new Set(units.map((u) => u.type))]; if (types.length < 2) return;
-    const cur = units[0].type; const next = types[(types.indexOf(cur) + 1) % types.length];
+    this.tabPool.idx = (this.tabPool.idx + 1) % types.length;
+    const next = types[this.tabPool.idx];
     s.select(units.filter((u) => u.type === next).map((u) => u.id));
+    this.tabPool.last = [...s.selection].sort((a, b) => a - b).join(',');
   }
 
   /** Rolagem por borda/teclado. */
@@ -276,10 +283,11 @@ export class Input {
     const s = this.getSession(); if (!s || this.hud.modalOpen) return;
     const cam = this.renderer.cam; const speed = 900 * dtReal;
     let dx = 0, dy = 0;
-    if (this.keys.has('arrowleft') || (this.keys.has('a') && this.keys.size === 1 && s.ownSelectedUnits().length === 0)) dx -= 1;
-    if (this.keys.has('arrowright') || (this.keys.has('d') && s.ownSelectedUnits().length === 0)) dx += 1;
-    if (this.keys.has('arrowup') || (this.keys.has('w') && s.ownSelectedUnits().length === 0)) dy -= 1;
-    if (this.keys.has('arrowdown') || (this.keys.has('s') && s.ownSelectedUnits().length === 0)) dy += 1;
+    const free = s.selection.size === 0;   // com unidades ou edifício selecionados, W/A/S/D são atalhos
+    if (this.keys.has('arrowleft') || (this.keys.has('a') && this.keys.size === 1 && free)) dx -= 1;
+    if (this.keys.has('arrowright') || (this.keys.has('d') && free)) dx += 1;
+    if (this.keys.has('arrowup') || (this.keys.has('w') && free)) dy -= 1;
+    if (this.keys.has('arrowdown') || (this.keys.has('s') && free)) dy += 1;
     if (this.edgeScroll && this.mouse.inside && document.hasFocus() && !this.middleDrag) {
       const m = 14; const W = window.innerWidth, H = window.innerHeight;
       if (this.mouse.x <= m) dx -= 1; if (this.mouse.x >= W - m) dx += 1;

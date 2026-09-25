@@ -57,7 +57,7 @@ export const UNITS: Record<string, UnitDef> = {
     name: 'Hipaspista', plural: 'Hipaspistas', icon: '⚔️', cls: 'infantry',
     cost: { food: 70, gold: 50 }, hp: 150, attack: 13, attackType: 'hack',
     armor: { hack: 0.3, pierce: 0.3, crush: 0.1 }, range: 0.6, speed: 2.2, los: 7, trainTime: 16, pop: 2, radius: 0.3,
-    tags: ['infantry', 'human', 'military'], bonus: { cavalry: 1.5 }, building: 'barracks', age: 2, hotkey: 'R',
+    tags: ['infantry', 'human', 'military'], bonus: { cavalry: 1.5 }, building: 'barracks', age: 2, hotkey: 'F',
     desc: 'Infantaria pesada de elite. Forte contra cavalaria.',
   },
   cretan_archer: { id: 'cretan_archer',

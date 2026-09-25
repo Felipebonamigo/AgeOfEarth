@@ -18,7 +18,7 @@ Objetivo: partida rápida e missões divertidas para um jogador humano, sem trav
 | # | Passo | Resp. | Semanas |
 |---|---|---|---|
 | 1.1 | Playtests seus (10+ partidas), registrando o que travou, ficou lento ou fácil | V | 1–5 (contínuo) |
-| 1.2 | ✅ Formações de grupo (corpo a corpo à frente, arqueiros, cerco); empurrão suave; destino bloqueado por unidade. Caçada a bugs por agentes: lentes de economia, movimento, combate/IA, produção/tecnologia e estado/rede concluídas (33 achados corrigidos, 29 testes de regressão); restantes: cenários e interface | A | 1–2 |
+| 1.2 | ✅ Formações de grupo (corpo a corpo à frente, arqueiros, cerco); empurrão suave; destino bloqueado por unidade. Caçada a bugs por agentes concluída: 7 lentes (economia, movimento, combate/IA, produção/tecnologia, estado/rede, cenários, interface), 48 achados corrigidos, 34 testes de regressão + playtests no navegador. Próxima rodada após os playtests humanos | A | 1–2 |
 | 1.3 | ✅ Guarnição (Centro Cívico, Fortaleza, Torre; flechas extras; cura; liberar com retorno ao trabalho) e portões. Fila com Shift e auto-coleta já existiam. Pendente: waypoints visuais | A | 2–3 |
 | 1.4 | ✅ Dificuldade Muito difícil; IA abriga cidadãos em ataques e libera depois; IA aliada defende centros/fortalezas/templos do time. Pendente: ataques coordenados entre IAs aliadas | A | 3–4 |
 | 1.5 | Balanceamento por dados (`npm run balance`, 18 sementes por versão). Após a caça a bugs a IA deixou de travar: Clássica ~5 min, Heroica 12–18, Mítica 19–26, Titãs 27–30; partidas terminam em 30 min em ~40% das sementes. Pendente: ajustar custos/tempos com base nos playtests humanos | A | 2–5 |

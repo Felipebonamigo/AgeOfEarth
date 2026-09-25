@@ -46,9 +46,15 @@ await page.uncheck('#modal #o-fs'); await page.waitForTimeout(200);
 const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('aoe_settings_v1') ?? '{}'));
 console.log('persistido:', JSON.stringify({ uiScale: saved.uiScale, renderScale: saved.renderScale, fullscreen: saved.fullscreen, edgeScroll: saved.edgeScroll }));
 await page.keyboard.press('Escape'); await page.waitForTimeout(200);
-// a partida continua e o HUD responde após as trocas
-await page.waitForTimeout(800);
-console.log('tick avança:', await page.evaluate(() => window.aoe.session.state.tick) > 0);
+// fechar o menu com Esc despausa (regressão: ficava pausado para sempre)
+const tA = await page.evaluate(() => window.aoe.session.state.tick); await page.waitForTimeout(600);
+const tB = await page.evaluate(() => window.aoe.session.state.tick);
+console.log('após Esc no menu, a partida continua:', tB > tA ? 'ok' : 'FALHOU (pausada)', '| pausado=', await page.evaluate(() => window.aoe.session.paused));
+// pausa manual (P) sobrevive a abrir/fechar o menu
+await page.keyboard.press('p'); await page.waitForTimeout(100);
+await page.click('#top button:has-text("Menu")'); await page.waitForTimeout(200); await page.keyboard.press('Escape'); await page.waitForTimeout(200);
+console.log('pausa manual preservada após menu:', await page.evaluate(() => window.aoe.session.paused) ? 'ok' : 'FALHOU');
+await page.keyboard.press('p'); await page.waitForTimeout(100);
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(300);
 console.log('após recarregar, zoom do menu:', await page.evaluate(() => document.getElementById('menu').style.zoom));
 await page.screenshot({ path: '/tmp/options.png' });

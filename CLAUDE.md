@@ -23,14 +23,15 @@ Idioma da interface e dos comentários: português (Brasil). Código em inglês.
 `src/core` (simulação) · `src/render` (PixiJS: texturas procedurais, chunks, névoa, efeitos) · `src/ui` (HUD/menus/entrada em DOM) · `src/game/session.ts` · `src/net` + `server/relay.mjs` (multiplayer lockstep) · `desktop/` (Electron/Steam) · `docs/`.
 
 ## Convenções
-- Atalhos de construção/treino são únicos por contexto (teste em `tests/data.test.ts`).
+- Atalhos de construção/treino são únicos por contexto e nunca usam A (atacar-mover), R (ponto de encontro) ou U (liberar); teste em `tests/data.test.ts`.
+- Regiões conexas do mapa (`src/core/map/components.ts`): use `rectReachable` antes de mandar unidades a um alvo e `wouldSeal` antes de a IA construir; o movimento físico usa `canStep` (sem cortar cantos).
 - Ao mudar balanceamento, rode `npm run balance` e observe minutos das idades (Clássica ~5, Heroica ~15-20, Mítica ~20-28).
 - Commits em português, com o rodapé de atribuição exigido pela sessão.
 
 ## Memória do projeto (ler primeiro em toda sessão)
 - **Plano completo e cronograma**: `docs/ROADMAP.md` (fases 0–7, passos numerados, responsáveis V/A/T, marcos M1–M6, custos, riscos). É o documento vivo: ao concluir um passo, marque-o lá.
 - **Design e arquitetura**: `docs/DESIGN.md` · **Publicação na Steam**: `docs/STEAM.md` e `desktop/README.md`.
-- **Estado atual**: Fase 0 concluída (fatia vertical: skirmish, campanha com 3 missões, Horda, multiplayer lockstep, replays, Electron). Fase 1 (jogabilidade sólida) quase concluída: guarnição, portões, formações, IA "Muito difícil", i18n PT/EN, opções (tela cheia, escala, qualidade), atalhos e caça a bugs (economia corrigida). Pendentes: lentes de cenários e interface da caça a bugs, ataques coordenados entre IAs aliadas, balanceamento contínuo (`npm run balance`). Depois: Fase 3.2/3.3 (editor de cenários e mapas fixos) e Fase 4.1 (lobby).
+- **Estado atual**: Fase 0 concluída (fatia vertical: skirmish, campanha com 3 missões, Horda, multiplayer lockstep, replays, Electron). Fase 1 (jogabilidade sólida) quase concluída: guarnição, portões, formações, IA "Muito difícil", i18n PT/EN, opções (tela cheia, escala, qualidade), atalhos e caça a bugs (economia corrigida). Caça a bugs (7 lentes, 48 correções) concluída. Pendentes: ataques coordenados entre IAs aliadas, balanceamento contínuo (`npm run balance`). Depois: Fase 3.2/3.3 (editor de cenários e mapas fixos) e Fase 4.1 (lobby).
 - **Rotina combinada com o dono do projeto**: ele joga 2–3 partidas por semana e manda uma lista curta de problemas; o agente entrega correções + uma feature com testes e balanceamento automático; a cada duas semanas o roteiro é revisado.
 - **Decisões tomadas**: TypeScript + PixiJS + Electron (não Unity/Godot) para que o agente construa e verifique tudo sozinho; simulação determinística separada da renderização para multiplayer/replays; arte procedural como placeholder até a Fase 2; interface em PT-BR primeiro, EN na Fase 1.7.
 - **Pendências que dependem do dono**: horas semanais disponíveis, orçamento de arte, conta Steamworks/empresa (Fase 6).
