@@ -98,7 +98,11 @@ async function boot() {
     const sched = new NetworkScheduler(local, humans, delay, { sendCmds: (t, c) => client.sendCmds(t, c), sendHash: (t, h) => client.sendHash(t, h) });
     hud.onChat = (text) => client.chat(text);
     client.on('chat', (m) => hud.toast(`💬 ${String(m.name ?? '?')}: ${String(m.text ?? '')}`, 'info'));
-    sched.onDesync = (tk) => hud.toast(t('msg.desync', { tick: tk }), 'warn');
+    sched.onDesync = (tk) => {
+      hud.toast(t('msg.desync', { tick: tk }), 'warn');
+      // relatório de dessincronização (para depuração): hashes, configuração e o estado local no momento
+      try { if (session) localStorage.setItem('aoe_desync_v1', JSON.stringify({ when: new Date().toISOString(), local, slots, delay, desync: sched.lastDesync, config, state: session.save() })); } catch { /* ignore */ }
+    };
     client.on('cmds', (m) => { const idx = slots.indexOf(Number(m.slot)); if (idx >= 0) sched.receive(idx, Number(m.tick), (m.cmds as Command[]) ?? []); });
     client.on('hash', (m) => { const idx = slots.indexOf(Number(m.slot)); if (idx >= 0) sched.receiveHash(idx, Number(m.tick), Number(m.hash)); });
     // Queda de um jogador: todos pausam aguardando a reconexão; o anfitrião pode seguir sem ele (P → 'resume' para todos)

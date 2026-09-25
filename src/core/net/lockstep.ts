@@ -57,6 +57,8 @@ export class NetworkScheduler implements CommandScheduler {
   private localHashes = new Map<number, number>();
   onDesync: ((tick: number) => void) | null = null;
   desynced = false;
+  /** Detalhes da primeira dessincronização (para o relatório): tick, hash local e hashes dos outros pares. */
+  lastDesync: { tick: number; mine: number; theirs: [number, number][] } | null = null;
   waiting = 0;   // ticks consecutivos aguardando (para a interface mostrar "aguardando jogadores")
   /** Jogador reconectado: seus comandos só são exigidos a partir do tick guardado (todos os pares usam o mesmo valor). */
   private rejoinAt = new Map<number, number>();
@@ -100,7 +102,7 @@ export class NetworkScheduler implements CommandScheduler {
   private checkHash(t: number) {
     const mine = this.localHashes.get(t); const others = this.hashes.get(t);
     if (mine === undefined || !others) return;
-    for (const [slot, h] of others) if (h !== mine && !this.desynced) { this.desynced = true; this.onDesync?.(t); void slot; }
+    for (const [, h] of others) if (h !== mine && !this.desynced) { this.desynced = true; this.lastDesync = { tick: t, mine, theirs: [...others.entries()] }; this.onDesync?.(t); }
     if (others.size >= this.humans.size - 1) { this.hashes.delete(t); this.localHashes.delete(t); }
   }
 
