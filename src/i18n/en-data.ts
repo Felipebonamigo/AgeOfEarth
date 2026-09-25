@@ -1,0 +1,160 @@
+// Tradução para inglês do conteúdo do jogo (unidades, edifícios, tecnologias, deuses, poderes, idades).
+// Chaveado por id; os dados canônicos em português ficam em src/core/data.
+export interface TextOverlay { name?: string; plural?: string; desc?: string; title?: string; short?: string; perks?: string[] }
+
+export const EN_UNITS: Record<string, TextOverlay> = {
+  villager: { name: 'Citizen', plural: 'Citizens', desc: 'Gathers resources, builds and repairs buildings, and prays at temples to generate Favor.' },
+  kataskopos: { name: 'Scout', plural: 'Scouts', desc: 'Light, fast rider. Excellent for exploring the map, weak in combat.' },
+  hoplite: { name: 'Hoplite', plural: 'Hoplites', desc: 'Spear-and-shield infantry. Strong against cavalry, weak against archers.' },
+  toxotes: { name: 'Toxotes', plural: 'Toxotai', desc: 'Archer. Strong against infantry, weak against cavalry.' },
+  peltast: { name: 'Peltast', plural: 'Peltasts', desc: 'Javelin skirmisher. Strong against archers, weak against infantry and cavalry.' },
+  hippeus: { name: 'Hippeus', plural: 'Hippeis', desc: 'Light cavalry. Strong against archers and siege, weak against infantry.' },
+  hypaspist: { name: 'Hypaspist', plural: 'Hypaspists', desc: 'Elite heavy infantry. Strong against cavalry.' },
+  cretan_archer: { name: 'Cretan Archer', plural: 'Cretan Archers', desc: 'Elite archer with long range. Strong against infantry.' },
+  hetairoi: { name: 'Hetairos', plural: 'Hetairoi', desc: "Heavy cavalry of the king's companions. Strong against archers and siege." },
+  petrobolos: { name: 'Petrobolos', plural: 'Petroboloi', desc: 'Catapult. Devastating against buildings, fragile against cavalry.' },
+  myrmidon: { name: 'Myrmidon', plural: 'Myrmidons', desc: "Achilles' warriors. Supreme infantry with bonus damage against mythic creatures." },
+  helepolis: { name: 'Helepolis', plural: 'Helepoleis', desc: 'Armored siege tower. Brings down walls and fortresses.' },
+  militia: { name: 'Militia', plural: 'Militia', desc: 'Citizens hastily armed by Poseidon when a building falls.' },
+  jason: { name: 'Jason', plural: 'Jason', desc: 'Leader of the Argonauts. Heroes deal triple damage to mythic creatures.' },
+  odysseus: { name: 'Odysseus', plural: 'Odysseus', desc: 'The cunning king of Ithaca and his bow. Ranged hero.' },
+  heracles: { name: 'Heracles', plural: 'Heracles', desc: 'The greatest of heroes. His club also brings down buildings.' },
+  achilles: { name: 'Achilles', plural: 'Achilles', desc: 'Invulnerable except for his heel. Fast and deadly.' },
+  perseus: { name: 'Perseus', plural: 'Perseus', desc: 'Slayer of Medusa. Bonus damage against Titans.' },
+  pegasus: { name: 'Pegasus', plural: 'Pegasi', desc: "Zeus's winged horse. Flies over any terrain and sees very far." },
+  minotaur: { name: 'Minotaur', plural: 'Minotaurs', desc: 'The beast of the labyrinth. Gores human soldiers with its horns.' },
+  centaur: { name: 'Centaur', plural: 'Centaurs', desc: 'Swift archer, half man and half horse.' },
+  cyclops: { name: 'Cyclops', plural: 'Cyclopes', desc: 'One-eyed giant. Crushes men and walls alike.' },
+  manticore: { name: 'Manticore', plural: 'Manticores', desc: 'Lion with a scorpion tail that fires venomous spines.' },
+  hydra: { name: 'Hydra', plural: 'Hydras', desc: 'Grows a head every 3 kills (up to 5), increasing its attack.' },
+  nemean_lion: { name: 'Nemean Lion', plural: 'Nemean Lions', desc: 'Impenetrable hide: very high armor against ordinary weapons.' },
+  medusa: { name: 'Medusa', plural: 'Medusas', desc: 'Her gaze has a 12% chance to instantly petrify humans (except heroes).' },
+  colossus: { name: 'Colossus', plural: 'Colossi', desc: 'Bronze statue animated by Hephaestus. Slow, colossal, razes buildings.' },
+  chimera: { name: 'Chimera', plural: 'Chimeras', desc: 'Breathes fire in an area, hitting several enemies at once.' },
+  cerberus: { name: 'Cerberus', plural: 'Cerberi', desc: "Hades's three-headed hound. Hunts heroes voraciously." },
+  sentinel: { name: 'Sentinel', plural: 'Sentinels', desc: 'Guardian statue summoned by Hades. Immobile, but shoots from afar.' },
+  shade: { name: 'Shade', plural: 'Shades', desc: 'Spirit of a fallen warrior who returns from the underworld to fight for Hades.' },
+  prometheus: { name: 'Prometheus', plural: 'Prometheus', desc: 'Titan of fire, freed by Zeus. His passage sets armies and cities ablaze.' },
+  oceanus: { name: 'Oceanus', plural: 'Oceanus', desc: 'Titan of the primordial waters, summoned by Poseidon.' },
+  cronus: { name: 'Cronus', plural: 'Cronus', desc: 'King of the Titans, torn from Tartarus by Hades.' },
+};
+
+export const EN_BUILDINGS: Record<string, TextOverlay> = {
+  town_center: { name: 'Town Center', desc: 'Heart of the city. Trains citizens, receives resources, projects borders and advances the Ages. Shelters up to 15 units, which reinforce its arrows.' },
+  house: { name: 'House', desc: 'Supports 10 population.' },
+  farm: { name: 'Farm', desc: 'Infinite food source for 1 citizen. Slower than hunting and berries.' },
+  granary: { name: 'Granary', desc: 'Food drop-off point and farming research.' },
+  lumber_camp: { name: 'Lumber Camp', desc: 'Wood drop-off point and woodcutting research.' },
+  mine: { name: 'Mine', desc: 'Gold drop-off point and mining research.' },
+  market: { name: 'Market', desc: 'Buy and sell resources for gold. Prices shift with use.' },
+  temple: { name: 'Temple', desc: 'Citizens pray here to generate Favor. Trains heroes and mythic creatures. Required for the Classical Age.' },
+  barracks: { name: 'Barracks', desc: 'Trains infantry and archers.' },
+  stable: { name: 'Stable', desc: 'Trains cavalry.' },
+  siege_workshop: { name: 'Siege Workshop', desc: 'Builds siege engines.' },
+  academy: { name: 'Academy', desc: 'Hire philosophers to generate Knowledge and research the Civic, Commerce, Military and Science lines.' },
+  tower: { name: 'Watchtower', desc: 'Ranged defense that also slightly extends your borders.' },
+  wall: { name: 'Wall', desc: 'Blocks passage. Click and drag to build in a line.' },
+  gate: { name: 'Gate', desc: 'Wall segment that lets your units and allies through but blocks enemies.' },
+  fortress: { name: 'Fortress', desc: 'Bastion that projects borders, trains elite troops and defends with volleys of arrows.' },
+  wonder_zeus: { name: 'Statue of Zeus', desc: 'Wonder. Favor +50%. Holding any wonder for 6 minutes wins the game.' },
+  wonder_artemis: { name: 'Temple of Artemis', desc: 'Wonder. Mythic creatures +25% health. Hold it for 6 minutes to win.' },
+  wonder_colossus: { name: 'Colossus of Rhodes', desc: 'Wonder. Borders +4 and buildings +20% health. Hold it for 6 minutes to win.' },
+  titan_gate: { name: 'Titan Gate', desc: "When completed, frees your major god's Titan. Can only be built once." },
+  cornucopia: { name: 'Cornucopia', desc: "Hephaestus's gift: generates food, wood and gold continuously." },
+};
+
+const line = (name: string, desc: string): Record<string, TextOverlay> => {
+  const out: Record<string, TextOverlay> = {};
+  const key = { Civics: 'civic', Commerce: 'commerce', Military: 'military', Science: 'science' }[name]!;
+  ['I', 'II', 'III', 'IV', 'V'].forEach((r, i) => { out[`${key}${i + 1}`] = { name: `${name} ${r}`, desc }; });
+  return out;
+};
+
+export const EN_TECHS: Record<string, TextOverlay> = {
+  ...line('Civics', 'Borders +2, +1 Town Center allowed, attrition +0.25/s, population +10.'),
+  ...line('Commerce', 'All resource gathering +8% and lower Market fees.'),
+  ...line('Military', 'All military units +6% health and attack.'),
+  ...line('Science', 'Knowledge +15%, research 8% cheaper and line of sight +1.'),
+  masonry: { name: 'Masonry', desc: 'All buildings +20% health.' },
+  ballista_towers: { name: 'Ballista Towers', desc: 'Towers, fortresses and town centers +50% attack; towers and fortresses +1 range.' },
+  logistics: { name: 'Logistics', desc: 'Your troops suffer 50% less attrition in enemy territory and train 15% faster.' },
+  wheel: { name: 'Wheel', desc: 'Citizens move 15% faster.' },
+  hunting_dogs: { name: 'Hunting Dogs', desc: 'Hunting 25% faster.' },
+  fortified_towns: { name: 'Fortified Towns', desc: 'Town Centers +30% health and +50% attack.' },
+  census: { name: 'Census', desc: 'Population cap +20.' },
+  harvest1: { name: 'Harvest I', desc: 'Food gathering +15%.' }, harvest2: { name: 'Harvest II', desc: 'Food gathering +15%.' }, harvest3: { name: 'Harvest III', desc: 'Food gathering +15%.' },
+  irrigation: { name: 'Irrigation', desc: 'Farms yield 30% more.' },
+  axes1: { name: 'Bronze Axes', desc: 'Woodcutting +15%.' }, axes2: { name: 'Iron Axes', desc: 'Woodcutting +15%.' }, axes3: { name: 'Saws', desc: 'Woodcutting +15%.' },
+  picks1: { name: 'Pickaxes', desc: 'Mining +15%.' }, picks2: { name: 'Galleries', desc: 'Mining +15%.' }, picks3: { name: 'Smelting', desc: 'Mining +15%.' },
+  coinage: { name: 'Coinage', desc: 'Market fees 30% lower.' },
+  oracles: { name: 'Oracles', desc: 'Favor generation +20%.' },
+  sacred_rites: { name: 'Sacred Rites', desc: 'Favor generation +25%.' },
+  mythic_blood: { name: 'Mythic Blood', desc: 'Mythic creatures +15% health.' },
+  divine_arms: { name: 'Divine Arms', desc: 'Heroes +25% attack and +15% health.' },
+  phalanx: { name: 'Phalanx', desc: 'Infantry +15% health.' },
+  bronze_armor: { name: 'Bronze Armor', desc: 'Infantry and archers +10% armor.' },
+  iron_weapons: { name: 'Iron Weapons', desc: 'Infantry +15% attack.' },
+  composite_bows: { name: 'Composite Bows', desc: 'Archers +1 range and +10% attack.' },
+  horse_breeding: { name: 'Horse Breeding', desc: 'Cavalry +10% speed and health.' },
+  barding: { name: 'Barding', desc: 'Cavalry +10% armor.' },
+  ballistics: { name: 'Ballistics', desc: 'Siege +1 range and +15% attack.' },
+  aegis: { name: 'Aegis', desc: "Athena's shield: infantry +15% pierce armor." },
+  wisdom: { name: "Athena's Wisdom", desc: 'Knowledge +30%.' },
+  winged_sandals: { name: 'Winged Sandals', desc: 'Cavalry +15% and citizens +10% speed.' },
+  caduceus: { name: 'Caduceus', desc: 'Far more profitable Market and units regenerate 0.5 health/s.' },
+  fury: { name: 'Fury of Ares', desc: 'Infantry +20% attack.' },
+  war_drums: { name: 'War Drums', desc: 'Units train 25% faster.' },
+  delphi: { name: 'Oracle of Delphi', desc: 'Favor +30% and line of sight +2 for everything.' },
+  golden_bow: { name: 'Golden Bow', desc: 'Archers +1 range and +15% attack.' },
+  bacchanal: { name: 'Bacchanal', desc: 'Military +10% health and farms +20%.' },
+  anthropomorphic: { name: 'Titan Blood', desc: 'Heroes +30% health.' },
+  charm: { name: 'Charm', desc: 'Citizens 25% cheaper and build 20% faster.' },
+  ambrosia: { name: 'Ambrosia', desc: 'All units regenerate 1 health per second.' },
+  royalty: { name: "Hera's Royalty", desc: 'Borders +3; Town Centers and Fortresses +25% health.' },
+  crown: { name: 'Divine Crown', desc: 'Mythic creatures +20% health and +15% attack.' },
+  divine_forge: { name: 'Divine Forge', desc: 'All military units +10% armor.' },
+  automatons: { name: 'Automatons', desc: 'Siege engines +40% health and +20% attack.' },
+  moon_arrows: { name: 'Moon Arrows', desc: 'All ranged units +20% attack.' },
+  great_hunt: { name: 'Great Hunt', desc: 'Hunting +50% and all food +10%.' },
+};
+
+export const EN_POWERS: Record<string, TextOverlay> = {
+  bolt: { name: "Zeus's Bolt", desc: 'A lightning bolt instantly kills any enemy unit (Titans lose half their health).' },
+  lure: { name: "Poseidon's Lure", desc: 'Raises a sacred stone holding 800 food, hunted quickly by your citizens.' },
+  sentinel: { name: 'Sentinels', desc: 'Four guardian statues rise around one of your buildings and defend it with arrows.' },
+  restoration: { name: 'Restoration', desc: 'Fully heals your units and buildings in an area.' },
+  ceasefire: { name: 'Ceasefire', desc: 'Nobody can attack for 30 seconds. Ideal to retreat or buy time.' },
+  pestilence: { name: 'Pestilence', desc: 'Enemy military buildings in the area stop producing for 60 seconds.' },
+  oracle: { name: 'Oracle', desc: 'Reveals the whole map for 60 seconds.' },
+  bronze: { name: 'Bronze Skin', desc: 'All your units gain +30% armor for 45 seconds.' },
+  curse: { name: 'Curse', desc: 'Up to 8 enemy human soldiers in the area turn into boars (food for whoever hunts them).' },
+  lightning_storm: { name: 'Lightning Storm', desc: 'For 8 seconds, bolts strike enemies in the area, each dealing 200 damage.' },
+  plenty: { name: 'Plenty', desc: 'Creates a Cornucopia that generates food, wood and gold forever.' },
+  earthquake: { name: 'Earthquake', desc: 'Shakes the earth: buildings in the area lose up to 1500 health and units 60.' },
+};
+
+export const EN_MINOR_GODS: Record<string, TextOverlay> = {
+  athena: { name: 'Athena', title: 'Goddess of Wisdom', desc: 'Restoration heals your army; Minotaurs; sturdier infantry and more Knowledge.' },
+  hermes: { name: 'Hermes', title: 'Messenger of the Gods', desc: 'Global Ceasefire; Centaurs; faster cavalry and citizens, profitable market and regeneration.' },
+  ares: { name: 'Ares', title: 'God of War', desc: 'Pestilence halts enemy production; Cyclopes; stronger infantry and faster training.' },
+  apollo: { name: 'Apollo', title: 'God of the Sun and Prophecy', desc: 'Oracle reveals the map; Manticores; more Favor, more sight and deadly archers.' },
+  dionysus: { name: 'Dionysus', title: 'God of Wine and Ecstasy', desc: 'Bronze Skin protects the army; Hydras; sturdier military and stronger heroes.' },
+  aphrodite: { name: 'Aphrodite', title: 'Goddess of Love', desc: 'Curse turns enemies into boars; Nemean Lions; cheap citizens and regeneration.' },
+  hera: { name: 'Hera', title: 'Queen of Olympus', desc: 'Lightning Storm; petrifying Medusas; larger borders and superior mythic creatures.' },
+  hephaestus: { name: 'Hephaestus', title: 'God of the Forge', desc: 'Plenty generates endless resources; Colossi; superior armor and siege engines.' },
+  artemis: { name: 'Artemis', title: 'Goddess of the Hunt', desc: 'Earthquake razes cities; Chimeras; stronger ranged units and abundant hunting.' },
+};
+
+export const EN_MAJOR_GODS: Record<string, TextOverlay> = {
+  zeus: { name: 'Zeus', title: 'King of the Gods', desc: 'The lord of Olympus favors armies of devout hoplites and legendary heroes.', perks: ['Favor +25%', 'Infantry +10% attack', 'Heroes 20% cheaper', 'Pegasi at the Temple from the Archaic Age', 'Power: Bolt'] },
+  poseidon: { name: 'Poseidon', title: 'God of the Seas and Horses', desc: 'The earth-shaker commands swift cavalry and a trading economy.', perks: ['Cavalry 15% cheaper and 10% faster', 'Resource gathering +8% (the bounty of the seas)', 'Market with lower fees', 'Militia rises when one of your buildings is destroyed', 'Power: Lure'] },
+  hades: { name: 'Hades', title: 'Lord of the Underworld', desc: 'The king of the dead raises impregnable walls and an army that returns from Tartarus.', perks: ['Buildings +25% health', 'Archers +10% attack', 'Attrition +0.3/s in your territory', 'Fallen warriors may return as Shades', 'Cerberus at the Temple from the Heroic Age', 'Power: Sentinels'] },
+};
+
+export const EN_AGES: Record<string, TextOverlay> = {
+  '0': { name: 'Archaic Age', short: 'Archaic', desc: 'The dawn of civilization: villages, hunting and the first hoplites.' },
+  '1': { name: 'Classical Age', short: 'Classical', desc: 'Philosophy, cavalry and the first minor gods. Requires a Temple.' },
+  '2': { name: 'Heroic Age', short: 'Heroic', desc: 'Legendary heroes, siege engines and fortresses. Requires an Academy and 2 Academy line researches.' },
+  '3': { name: 'Mythic Age', short: 'Mythic', desc: 'Colossal creatures, wonders of the world and divine power. Requires 4 Academy line researches.' },
+  '4': { name: 'Age of Titans', short: 'Titans', desc: 'The apex: open the Titan Gate and free a Titan. Requires a Fortress and 6 Academy line researches.' },
+};
