@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import { generateMap } from '../src/core/map/mapgen';
-import { blankMap, mapHash, mapToData, type FixedMapData } from '../src/core/map/fixed';
+import { blankMap, mapHash, mapToData, resizeMapData, startResourcesOf, validateMap, type FixedMapData } from '../src/core/map/fixed';
 import { TERRAIN } from '../src/core/constants';
 import { UNITS } from '../src/core/data';
 import { idx } from '../src/core/map/grid';
@@ -546,11 +546,16 @@ describe('editor: MapEditor', () => {
     expect(ed.key('2', { shift: true })).toBe(true); expect(ui.player).toBe(1);
     expect(ed.key('$', { shift: true })).toBe(true); expect(ui.player).toBe(3);
     expect(ed.key('G')).toBe(true); expect(ui.showGrid).toBe(true);
-    expect(ed.key('R')).toBe(true); expect(ui.showRegions).toBe(true);
+    expect(ed.key('L')).toBe(true); expect(ui.showRegions).toBe(true);
+    for (const k of ['A', 'R', 'U', 'a', 'r', 'u']) expect(ed.key(k), `tecla ${k} não é atalho do editor`).toBe(false);
+    expect(ed.key('m')).toBe(true); expect(ui.tool).toBe('unit');
+    ed.key('t');
     expect(ed.key('O')).toBe(true); expect(ui.showPassable).toBe(true);
     expect(ed.key('K')).toBe(true); expect(ui.showKit).toBe(false);
     expect(ed.key('C')).toBe(true); expect(ui.complete).toBe(false);
-    expect(ed.key('P')).toBe(false);
+    expect(ed.key('P')).toBe(true); expect(ui.eyedrop).toBe(true);   // conta-gotas armado
+    expect(ed.key('P')).toBe(true); expect(ui.eyedrop).toBe(false);
+    expect(ed.key('Q')).toBe(false);
     ed.apply({ kind: 'addNode', type: 'tree', x: 5, y: 5 });
     expect(ed.key('z', { ctrl: true })).toBe(true); expect(ed.map.nodes.size).toBe(0);
     expect(ed.key('y', { ctrl: true })).toBe(true); expect(ed.map.nodes.size).toBe(1);
@@ -631,3 +636,200 @@ describe('editor: MapEditor', () => {
     expect(ed.snapshot()).toBe(before);
   });
 });
+
+describe('editor: Etapa 4 (balde, conta-gotas, correções, recursos por início, redimensionar)', () => {
+  const twoStarts = (): FixedMapData => ({ ...blankMap(80, 80, 2, 1), starts: [[15, 40], [65, 40]] });
+  it('balde: com ui.bucket o clique preenche a região contígua (um passo; a inversa restaura inclusive os nós removidos)', () => {
+    const ed = editorOf(twoStarts());
+    const map = ed.map;
+    const sand = brushTiles(40, 20, 4, 'square', 80, 80);
+    ed.apply({ kind: 'paint', tiles: sand, terrain: TERRAIN.SAND });
+    ed.apply({ kind: 'addNode', type: 'tree', x: 40, y: 20 });
+    ed.apply({ kind: 'addNode', type: 'gold', x: 42, y: 22 });
+    const before = ed.snapshot(), depth = ed.undoDepth;
+    ed.ui.tool = 'terrain'; ed.ui.bucket = true; ed.ui.terrain = TERRAIN.WATER;
+    ed.pointerDown(38, 18, 0); ed.pointerMove(50, 50, 0); ed.pointerUp(50, 50, 0);   // arrastar com o balde não pinta
+    for (const i of sand) expect([TERRAIN.WATER, TERRAIN.DEEP]).toContain(map.terrain[i]);
+    expect(map.terrain[tile(map, 40, 20)]).toBe(TERRAIN.DEEP);   // interior derivado
+    expect(map.terrain[tile(map, 50, 50)]).toBe(TERRAIN.GRASS);
+    expect(map.terrain[tile(map, 35, 20)]).toBe(TERRAIN.GRASS);   // fora da região
+    expect(map.nodeAt[tile(map, 40, 20)]).toBe(-1); expect(map.nodeAt[tile(map, 42, 22)]).toBe(-1);
+    expect(ed.undoDepth).toBe(depth + 1);
+    ed.undo();
+    expect(ed.snapshot()).toBe(before);
+    // Shift+clique com o balde ligado continua traçando linha
+    ed.ui.lineFrom = { x: 5, y: 5 }; ed.ui.terrain = TERRAIN.DIRT;
+    ed.pointerDown(5, 12, 0, { shift: true }); ed.pointerUp(5, 12, 0, { shift: true });
+    expect(map.terrain[tile(map, 5, 9)]).toBe(TERRAIN.DIRT);
+    expect(map.terrain[tile(map, 30, 60)]).toBe(TERRAIN.GRASS);
+  });
+  it('conta-gotas: P arma um clique que copia edifício (tipo, dono, completo), nó (quantidade), unidade ou terreno, sem editar', () => {
+    const ed = editorOf(twoStarts());
+    const ui = ed.ui;
+    ed.apply({ kind: 'paint', tiles: brushTiles(10, 10, 1, 'square', 80, 80), terrain: TERRAIN.DIRT });
+    ed.apply({ kind: 'addNode', type: 'berry', x: 20, y: 20, amount: 333 });
+    ed.apply({ kind: 'placeEntity', entity: { kind: 'building', type: 'barracks', owner: 2, x: 30, y: 30, complete: false } });
+    ed.apply({ kind: 'placeEntity', entity: { kind: 'unit', type: 'toxotes', owner: 3, x: 50, y: 50 } });
+    const snap = ed.snapshot(), depth = ed.undoDepth;
+    ui.tool = 'erase';   // o conta-gotas armado vale mesmo com a borracha
+    expect(ed.key('p')).toBe(true); expect(ui.eyedrop).toBe(true);
+    ed.pointerDown(30, 30, 0); ed.pointerUp(30, 30, 0);
+    expect(ui.eyedrop).toBe(false);   // um clique só
+    expect(ui.tool).toBe('building'); expect(ui.buildingType).toBe('barracks'); expect(ui.player).toBe(2); expect(ui.complete).toBe(false);
+    ed.key('P'); ed.pointerDown(20, 20, 0); ed.pointerUp(20, 20, 0);
+    expect(ui.tool).toBe('node'); expect(ui.nodeType).toBe('berry'); expect(ui.nodeAmount).toBe(333);
+    ed.key('P'); ed.pointerDown(50, 50, 0); ed.pointerUp(50, 50, 0);
+    expect(ui.tool).toBe('unit'); expect(ui.unitType).toBe('toxotes'); expect(ui.player).toBe(3);
+    ed.key('P'); ed.pointerDown(10, 10, 0); ed.pointerUp(10, 10, 0);
+    expect(ui.tool).toBe('terrain'); expect(ui.terrain).toBe(TERRAIN.DIRT);
+    expect(ed.snapshot()).toBe(snap); expect(ed.undoDepth).toBe(depth);
+    // botão direito desarma sem apagar; trocar de ferramenta desarma
+    ed.key('P'); ed.pointerDown(50, 50, 2); ed.pointerUp(50, 50, 2);
+    expect(ui.eyedrop).toBe(false); expect(ed.state.units.size).toBe(1);
+    ed.key('P'); ed.key('B'); expect(ui.eyedrop).toBe(false);
+  });
+  it('Alargar gargalos abre também gargalos de terreno perto de um início (o aviso some) e é desfazível', () => {
+    const ed = editorOf(twoStarts());
+    const map = ed.map;
+    const wall: number[] = [];
+    for (let y = 0; y < 80; y++) if (y !== 40) wall.push(y * 80 + 22);   // montanha em x = 22 com passagem de 1 tile a 7 do início 1
+    ed.apply({ kind: 'paint', tiles: wall, terrain: TERRAIN.MOUNTAIN });
+    const chokes = () => ed.validate().filter((i) => i.code === 'chokepoint');
+    expect(chokes().length).toBe(1);
+    expect(chokes()[0].y).toBe(40); expect([21, 22, 23]).toContain(chokes()[0].x);   // o ponto de articulação mais perto do início
+    const before = ed.snapshot();
+    expect(ed.widenChokepoints()).toBe(true);
+    expect(chokes()).toEqual([]);
+    expect(map.terrain[tile(map, 22, 39)]).toBe(TERRAIN.DIRT); expect(map.terrain[tile(map, 22, 41)]).toBe(TERRAIN.DIRT);
+    expect(map.terrain[tile(map, 22, 30)]).toBe(TERRAIN.MOUNTAIN);   // só em volta do gargalo
+    ed.undo();
+    expect(ed.snapshot()).toBe(before);
+    expect(chokes().length).toBe(1);
+  });
+  it('correções: fechar bolsão, remover recurso sem acesso, ligar a colina, trazer início para dentro, maravilha em obra, Centro Cívico sem kit', () => {
+    const ed = editorOf(twoStarts());
+    const map = ed.map;
+    const codes = () => ed.validate().map((i) => i.code);
+    const undoable = (fix: () => boolean, code: string) => {
+      expect(codes()).toContain(code);
+      const before = ed.snapshot();
+      expect(fix()).toBe(true);
+      expect(codes()).not.toContain(code);
+      ed.undo(); expect(ed.snapshot()).toBe(before); expect(codes()).toContain(code);
+      ed.redo(); expect(codes()).not.toContain(code);
+    };
+    // bolsão de 2 tiles cercado de água
+    const ring = rectTiles(48, 18, 53, 22).filter(([x, y]) => !(y === 20 && (x === 50 || x === 51))).map(([x, y]) => y * 80 + x);
+    ed.apply({ kind: 'paint', tiles: ring, terrain: TERRAIN.WATER });
+    undoable(() => ed.fillPocket(50, 20), 'pocket');
+    expect([TERRAIN.WATER, TERRAIN.DEEP]).toContain(map.terrain[tile(map, 50, 20)]);
+    // ouro cercado por 8 árvores
+    ed.apply({ kind: 'addNode', type: 'gold', x: 60, y: 60 });
+    ed.apply({ kind: 'batch', ops: rectTiles(59, 59, 61, 61).filter(([x, y]) => x !== 60 || y !== 60).map(([x, y]): EditOp => ({ kind: 'addNode', type: 'tree', x, y })) });
+    undoable(() => ed.removeNodeAt(60, 60), 'nodeNoAccess');
+    // colina numa ilha
+    ed.setMeta({ koth: [40, 10] });
+    expect(ed.ui.koth).toEqual({ x: 40, y: 10 });
+    const moat: number[] = [];
+    for (let y = 2; y <= 18; y++) for (let x = 32; x <= 48; x++) { const dd = (x - 40) ** 2 + (y - 10) ** 2; if (dd > 16 && dd <= 36) moat.push(y * 80 + x); }
+    ed.apply({ kind: 'paint', tiles: moat, terrain: TERRAIN.WATER });
+    undoable(() => ed.connectKoth(), 'kothUnreachable');
+    ed.setMeta({ koth: undefined });
+    expect(ed.ui.koth).toBeNull();
+    // início perto da borda (erro) → trazido para a margem de 8 tiles
+    ed.apply({ kind: 'setStart', index: 1, x: 76, y: 40 });
+    undoable(() => ed.moveStartInside(1), 'startOut');
+    expect(map.starts[1]).toEqual({ x: 71, y: 40 });
+    // maravilha completa → em obra
+    ed.apply({ kind: 'placeEntity', entity: { kind: 'building', type: 'wonder_zeus', owner: 0, x: 25, y: 60 } });
+    undoable(() => ed.setInProgressAt(25, 60), 'wonderComplete');
+    // sem kit inicial: o jogador 1 tem a maravilha (em obra) como base; o 2 recebe um Centro Cívico no início dele
+    ed.setMeta({ startKit: false });
+    const noBase = () => ed.validate().filter((i) => i.code === 'noBase').map((i) => i.params?.player);
+    expect(noBase()).toEqual([2]);
+    expect(ed.placeTownCenter(1)).toBe(true);
+    expect(noBase()).toEqual([]);
+    expect([...ed.state.buildings.values()].find((b) => b.type === 'town_center')?.owner).toBe(1);
+  });
+  it('tabela de recursos por início (raio 16): cache até a próxima op e igual à do arquivo', () => {
+    const ed = editorOf(twoStarts());
+    const zero = { food: 0, wood: 0, gold: 0, foodNodes: 0, woodNodes: 0, goldNodes: 0 };
+    expect(ed.startResources()).toEqual([zero, zero]);
+    const first = ed.startResources();
+    expect(ed.startResources()).toBe(first);
+    ed.apply({ kind: 'addNode', type: 'gold', x: 20, y: 40 });
+    ed.apply({ kind: 'addNode', type: 'berry', x: 15, y: 30, amount: 100 });
+    ed.apply({ kind: 'addNode', type: 'tree', x: 40, y: 40 });   // a 25 de ambos: fora do raio
+    ed.apply({ kind: 'addNode', type: 'deer', x: 65, y: 56 });   // exatamente a 16 do início 2
+    const rows = ed.startResources();
+    expect(rows).not.toBe(first);
+    expect(rows[0]).toEqual({ food: 100, wood: 0, gold: 900, foodNodes: 1, woodNodes: 0, goldNodes: 1 });
+    expect(rows[1]).toEqual({ food: 140, wood: 0, gold: 0, foodNodes: 1, woodNodes: 0, goldNodes: 0 });
+    expect(startResourcesOf(ed.toFile())).toEqual(rows);
+  });
+  it('resizeMapData: cresce e encolhe pela âncora, corta o que sai, traz inícios para dentro, recoloca a colina e nunca deixa água profunda na borda', () => {
+    const ed = editorOf(twoStarts());
+    ed.apply({ kind: 'paint', tiles: rectTiles(10, 10, 30, 30).map(([x, y]) => y * 80 + x), terrain: TERRAIN.WATER });
+    const file: FixedMapData = { ...ed.toFile(), starts: [[12, 40], [70, 40]], koth: [75, 75], nodes: [['gold', 2, 2, 900], ['tree', 40, 40, 150]], entities: [{ kind: 'building', type: 'tower', owner: 0, x: 70, y: 10 }, { kind: 'unit', type: 'hoplite', owner: 1, x: 5, y: 70 }] };
+    const g = resizeMapData(file, 100, 96, 'c');
+    expect(g.report).toEqual({ nodes: 0, entities: 0, startsMoved: [], kothReset: false, dx: 10, dy: 8 });
+    expect([g.data.w, g.data.h]).toEqual([100, 96]);
+    expect(g.data.starts).toEqual([[22, 48], [80, 48]]);
+    expect(g.data.nodes).toEqual([['gold', 12, 10, 900], ['tree', 50, 48, 150]]);
+    expect(g.data.koth).toEqual([85, 83]);
+    expect(g.data.entities).toEqual([{ kind: 'building', type: 'tower', owner: 0, x: 80, y: 18 }, { kind: 'unit', type: 'hoplite', owner: 1, x: 15, y: 78 }]);
+    expect(validateMap(g.data, { players: 2 }).filter((i) => i.level === 'error')).toEqual([]);
+    const ge = editorOf(g.data);
+    expect(ge.map.terrain[tile(ge.map, 30, 28)]).toBe(TERRAIN.DEEP);   // antigo (20, 20), dentro do lago
+    expect(ge.map.terrain[tile(ge.map, 5, 5)]).toBe(TERRAIN.GRASS);    // tile novo
+    // encolher ancorado no topo à esquerda: corta a torre e o hoplita, traz o início 2 para dentro, a colina volta ao centro
+    const s = resizeMapData(file, 60, 60, 'nw');
+    expect(s.report).toEqual({ nodes: 0, entities: 2, startsMoved: [1], kothReset: true, dx: 0, dy: 0 });
+    expect(s.data.starts).toEqual([[12, 40], [51, 40]]);
+    expect(s.data.koth).toBeUndefined(); expect(s.data.entities).toBeUndefined();
+    // ancorado embaixo à direita: o lago fica no canto e a borda nova não tem água profunda
+    const se = resizeMapData(file, 60, 60, 'se');
+    expect(se.report).toEqual({ nodes: 1, entities: 2, startsMoved: [0], kothReset: false, dx: -20, dy: -20 });
+    const sm = editorOf(se.data).map;
+    for (let x = 0; x < 60; x++) { expect(sm.terrain[x]).not.toBe(TERRAIN.DEEP); expect(sm.terrain[x * 60]).not.toBe(TERRAIN.DEEP); }
+    expect(sm.terrain[tile(sm, 0, 0)]).toBe(TERRAIN.WATER); expect(sm.terrain[tile(sm, 5, 5)]).toBe(TERRAIN.DEEP);
+    expect(() => resizeMapData(file, 40, 80, 'c')).toThrow();
+    expect(() => resizeMapData(file, 161, 100, 'c')).toThrow();
+    expect(() => resizeMapData(file, 160, 161, 'c')).toThrow();
+  });
+  it('MapEditor.resized: nova instância como um passo de desfazer (Ctrl+Z volta à anterior com a pilha intacta, Ctrl+Y refaz)', () => {
+    const ed = editorOf(twoStarts());
+    let shown: MapEditor | null = null;
+    ed.onSwitch = (to) => { shown = to; };
+    ed.ui.tool = 'node'; ed.ui.brushRadius = 5; ed.ui.showRegions = true;
+    ed.apply({ kind: 'addNode', type: 'gold', x: 30, y: 30 });
+    ed.apply({ kind: 'addNode', type: 'tree', x: 6, y: 6 }); ed.undo();   // um refazer pendente…
+    expect(ed.redoDepth).toBe(1);
+    const snap = ed.snapshot();
+    const { editor: next, report } = ed.resized(100, 100, 'c');
+    expect(ed.redoDepth).toBe(1);   // …que o redimensionamento (ação nova) descarta: sobra só refazer o próprio redimensionamento
+    expect(report.dx).toBe(10);
+    expect([next.map.w, next.map.h]).toEqual([100, 100]);
+    expect(next.map.nodes.get(next.map.nodeAt[tile(next.map, 40, 40)])?.type).toBe('gold');
+    expect(next.dirty).toBe(true); expect(next.undoDepth).toBe(1); expect(next.redoDepth).toBe(0);
+    expect(next.ui.tool).toBe('node'); expect(next.ui.brushRadius).toBe(5); expect(next.ui.showRegions).toBe(true);
+    expect(next.onSwitch).toBe(ed.onSwitch);
+    // Ctrl+Z na nova, sem edições: volta à anterior, que continua com a própria pilha
+    expect(next.key('z', { ctrl: true })).toBe(true);
+    expect(shown).toBe(ed);
+    expect(ed.snapshot()).toBe(snap); expect(ed.undoDepth).toBe(1); expect(ed.redoDepth).toBe(1);
+    ed.undo(); expect(ed.map.nodes.size).toBe(0);
+    ed.redo(); expect(ed.map.nodes.size).toBe(1);
+    shown = null;
+    expect(ed.redo()).toBe(true); expect(shown).toBe(next);   // refazer o redimensionamento
+    // desfazer de novo e editar a anterior descarta o refazer
+    next.undo(); expect(shown).toBe(ed);
+    ed.apply({ kind: 'addNode', type: 'tree', x: 5, y: 5 });
+    expect(ed.redoDepth).toBe(0); shown = null;
+    expect(ed.redo()).toBe(false); expect(shown).toBeNull();
+    expect(() => ed.resized(20, 20, 'c')).toThrow();
+  });
+});
+
+/** Tiles do retângulo [x0..x1]×[y0..y1]. */
+function rectTiles(x0: number, y0: number, x1: number, y1: number): [number, number][] { const out: [number, number][] = []; for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) out.push([x, y]); return out; }

@@ -7,7 +7,7 @@ import { BUILDINGS, BUILD_MENU, MAJOR_GODS, MAJOR_GOD_LIST, UNITS } from '../cor
 import { GAME_MODES, DIFFICULTIES } from '../core/constants';
 import type { UnitClass } from '../core/types';
 import { NODE_AMOUNT } from '../core/map/mapgen';
-import type { MapIssue } from '../core/map/fixed';
+import { MAP_LIMITS, RESIZE_ANCHORS, resizeMapData, type MapIssue, type ResizeAnchor } from '../core/map/fixed';
 import { idx, inBounds } from '../core/map/grid';
 import { exportMapFile, putMap, mapName, slugify } from '../game/maps';
 import type { HUD } from '../ui/hud';
@@ -51,10 +51,10 @@ function scenarioTemplate(id: ScenarioTemplateId): ScenarioTemplate {
 }
 /** Id livre na lista (acrescenta 2, 3… se já existir). */
 function uniqueId(base: string, used: Set<string>): string { let id = base, n = 2; while (used.has(id)) id = `${base}${n++}`; used.add(id); return id; }
-export interface EditorPanelCallbacks { onTest: (opts: TestOpts) => void; onExit: () => void }
+export interface EditorPanelCallbacks { onTest: (opts: TestOpts) => void; onExit: () => void; onResize?: (w: number, h: number, anchor: ResizeAnchor) => void }
 
 const TOOLS: { id: EditorTool; key: string; icon: string }[] = [
-  { id: 'terrain', key: 'T', icon: '🖌' }, { id: 'node', key: 'N', icon: '🌲' }, { id: 'building', key: 'B', icon: '🏛' }, { id: 'unit', key: 'U', icon: '⚔' },
+  { id: 'terrain', key: 'T', icon: '🖌' }, { id: 'node', key: 'N', icon: '🌲' }, { id: 'building', key: 'B', icon: '🏛' }, { id: 'unit', key: 'M', icon: '⚔' },
   { id: 'start', key: 'I', icon: '🚩' }, { id: 'select', key: 'V', icon: '🖱' }, { id: 'erase', key: 'E', icon: '🧽' },
 ];
 /** Subpaleta de terreno na ordem das teclas 1..6 (grama, areia, terra, água, montanha, água profunda). */
@@ -76,8 +76,8 @@ function buildingCategory(id: string): 'economy' | 'military' | 'culture' | 'spe
 export class EditorPanel {
   readonly top: HTMLElement;
   readonly root: HTMLElement;
-  private toolsEl!: HTMLElement; private paletteEl!: HTMLElement; private brushEl!: HTMLElement; private playerEl!: HTMLElement; private overlayEl!: HTMLElement; private inspEl!: HTMLElement; private issuesEl!: HTMLElement; private issuesHead!: HTMLElement;
-  private keys = { top: '', tools: '', palette: '', brush: '', player: '', overlay: '', insp: '' };
+  private toolsEl!: HTMLElement; private paletteEl!: HTMLElement; private brushEl!: HTMLElement; private playerEl!: HTMLElement; private overlayEl!: HTMLElement; private inspEl!: HTMLElement; private issuesEl!: HTMLElement; private issuesHead!: HTMLElement; private resEl!: HTMLElement;
+  private keys = { top: '', tools: '', palette: '', brush: '', player: '', overlay: '', insp: '', eyedrop: '' };
   private issues: MapIssue[] = [];
   private validateTimer: ReturnType<typeof setTimeout> | null = null;
   private autosaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -111,17 +111,22 @@ export class EditorPanel {
     const q = (id: string) => this.root.querySelector(id) as HTMLElement;
     this.root.innerHTML = `<div class="col tools" id="ed-tools"></div>
       <div class="col mid"><div id="ed-palette" class="chips"></div><div id="ed-brush" class="row"></div><div class="row"><div id="ed-player" class="row"></div><span class="sep"></span><div id="ed-overlays" class="row"></div></div></div>
-      <div class="col right"><div id="ed-insp"></div><div class="issues-head" id="ed-issues-head"></div><ul class="issues" id="ed-issues"></ul></div>`;
-    this.toolsEl = q('#ed-tools'); this.paletteEl = q('#ed-palette'); this.brushEl = q('#ed-brush'); this.playerEl = q('#ed-player'); this.overlayEl = q('#ed-overlays'); this.inspEl = q('#ed-insp'); this.issuesEl = q('#ed-issues') as HTMLElement; this.issuesHead = q('#ed-issues-head');
+      <div class="col right"><div id="ed-insp"></div><div class="issues-head" id="ed-issues-head"></div><ul class="issues" id="ed-issues"></ul><div class="res-table" id="ed-res"></div></div>`;
+    this.toolsEl = q('#ed-tools'); this.paletteEl = q('#ed-palette'); this.brushEl = q('#ed-brush'); this.playerEl = q('#ed-player'); this.overlayEl = q('#ed-overlays'); this.inspEl = q('#ed-insp'); this.issuesEl = q('#ed-issues') as HTMLElement; this.issuesHead = q('#ed-issues-head'); this.resEl = q('#ed-res');
     // ferramentas (fixas)
     for (const tool of TOOLS) {
       const b = el('button', 'tool', `<span class="ic">${tool.icon}</span><span class="lbl">${t(`editor.tool.${tool.id}`)}</span><kbd>${tool.key}</kbd>`);
       b.dataset.tool = tool.id;
-      b.addEventListener('click', () => { this.cancelPick(); this.editor.ui.tool = tool.id; this.editor.ui.selected = tool.id === 'select' ? this.editor.ui.selected : null; this.renderAll(); });
+      b.addEventListener('click', () => { this.cancelPick(); this.editor.ui.tool = tool.id; this.editor.ui.eyedrop = false; this.editor.ui.selected = tool.id === 'select' ? this.editor.ui.selected : null; this.renderAll(); });
       this.toolsEl.appendChild(b);
     }
+    // conta-gotas (um clique): copia terreno, recurso, edifício ou unidade sob o cursor para a ferramenta correspondente
+    const drop = el('button', 'tool', `<span class="ic">💧</span><span class="lbl">${t('editor.eyedrop')}</span><kbd>P</kbd>`); drop.id = 'ed-eyedrop'; drop.title = t('editor.eyedropTip');
+    drop.addEventListener('click', () => { this.cancelPick(); this.editor.ui.eyedrop = !this.editor.ui.eyedrop; this.update(); });
+    this.toolsEl.appendChild(drop);
     // pincel (construído uma vez; valores atualizados em renderBrush para não perder o arraste do controle)
-    this.brushEl.innerHTML = `<span class="lbl">${t('editor.brushRadius')}</span><input type="range" id="ed-radius" min="1" max="8" step="1"><b id="ed-radius-v"></b><button class="btn" id="ed-shape"></button><span class="hint" id="ed-hint"></span>`;
+    this.brushEl.innerHTML = `<span class="lbl">${t('editor.brushRadius')}</span><input type="range" id="ed-radius" min="1" max="8" step="1"><b id="ed-radius-v"></b><button class="btn" id="ed-shape"></button><button class="btn" id="ed-bucket" title="${t('editor.bucketTip')}">🪣 ${t('editor.bucket')}</button><span class="hint" id="ed-hint"></span>`;
+    this.brushEl.querySelector('#ed-bucket')!.addEventListener('click', () => { const ui = this.editor.ui; ui.bucket = !ui.bucket; this.keys.brush = ''; this.renderBrush(); });
     (this.brushEl.querySelector('#ed-radius') as HTMLInputElement).addEventListener('change', (e) => (e.target as HTMLElement).blur());   // devolve os atalhos ao canvas
     (this.brushEl.querySelector('#ed-radius') as HTMLInputElement).addEventListener('input', (e) => { this.editor.ui.brushRadius = Math.max(1, Math.min(8, Number((e.target as HTMLInputElement).value) || 1)); this.renderBrush(); });
     this.brushEl.querySelector('#ed-shape')!.addEventListener('click', () => { const ui = this.editor.ui; ui.brushShape = ui.brushShape === 'circle' ? 'square' : 'circle'; this.renderBrush(); });
@@ -133,7 +138,7 @@ export class EditorPanel {
     }
     const comp = el('button', 'btn', ''); comp.id = 'ed-complete'; comp.title = 'C'; comp.addEventListener('click', () => { this.editor.ui.complete = !this.editor.ui.complete; this.renderPlayer(); }); this.playerEl.appendChild(comp);
     // sobreposições
-    for (const [id, key, prop] of [['grid', 'G', 'showGrid'], ['regions', 'R', 'showRegions'], ['passable', 'O', 'showPassable'], ['kit', 'K', 'showKit']] as const) {
+    for (const [id, key, prop] of [['grid', 'G', 'showGrid'], ['regions', 'L', 'showRegions'], ['passable', 'O', 'showPassable'], ['kit', 'K', 'showKit']] as const) {
       const b = el('button', 'btn ov', `${t(`editor.${id}`)} <kbd>${key}</kbd>`); b.dataset.ov = prop;
       b.addEventListener('click', () => { const ui = this.editor.ui; ui[prop] = !ui[prop]; this.renderOverlays(); });
       this.overlayEl.appendChild(b);
@@ -160,10 +165,10 @@ export class EditorPanel {
     if (this.destroyed) return;
     this.renderTop(); this.renderTools(); this.renderPalette(); this.renderBrush(); this.renderPlayer(); this.renderOverlays(); this.renderInspector();
     const ui = this.editor.ui;
-    const cur = ui.tool === 'erase' ? 'cur-erase' : ui.tool === 'terrain' || ui.tool === 'node' ? 'cur-brush' : ui.tool === 'select' ? '' : 'cur-place';
+    const cur = ui.eyedrop ? 'cur-eyedrop' : ui.tool === 'erase' ? 'cur-erase' : ui.tool === 'terrain' || ui.tool === 'node' ? 'cur-brush' : ui.tool === 'select' ? '' : 'cur-place';
     if (document.body.className !== cur && !this.hud.modalOpen) document.body.className = cur;
   }
-  private renderAll(): void { this.keys = { top: '', tools: '', palette: '', brush: '', player: '', overlay: '', insp: '' }; this.update(); this.renderIssues(); }
+  private renderAll(): void { this.keys = { top: '', tools: '', palette: '', brush: '', player: '', overlay: '', insp: '', eyedrop: '' }; this.update(); this.renderIssues(); }
 
   private mapTitle(): string { return this.editor.meta.name?.trim() || t('editor.untitled'); }
   private statusText(): string {
@@ -181,9 +186,11 @@ export class EditorPanel {
     st.textContent = this.statusText(); st.className = `status ${errors ? 'err' : this.issues.length ? 'warn' : 'ok'}`;
   }
   private renderTools(): void {
-    const key = this.editor.ui.tool;
+    const ui = this.editor.ui;
+    const key = `${ui.tool}|${ui.eyedrop}`;
     if (key === this.keys.tools) return; this.keys.tools = key;
-    this.toolsEl.querySelectorAll('.tool').forEach((b) => b.classList.toggle('active', (b as HTMLElement).dataset.tool === key));
+    this.toolsEl.querySelectorAll('.tool[data-tool]').forEach((b) => b.classList.toggle('active', !ui.eyedrop && (b as HTMLElement).dataset.tool === ui.tool));
+    this.toolsEl.querySelector('#ed-eyedrop')?.classList.toggle('active', ui.eyedrop);
   }
   private renderPalette(): void {
     const ui = this.editor.ui;
@@ -221,14 +228,16 @@ export class EditorPanel {
   }
   private renderBrush(): void {
     const ui = this.editor.ui;
-    const key = `${ui.tool}|${ui.brushRadius}|${ui.brushShape}`;
+    const key = `${ui.tool}|${ui.brushRadius}|${ui.brushShape}|${ui.bucket}|${ui.nodeType}`;
     if (key === this.keys.brush) return; this.keys.brush = key;
     const show = ui.tool === 'terrain' || (ui.tool === 'node' && ui.nodeType === 'tree');
     this.brushEl.classList.toggle('hidden', !show);
+    const bucket = this.brushEl.querySelector('#ed-bucket') as HTMLElement;
+    bucket.classList.toggle('hidden', ui.tool !== 'terrain'); bucket.classList.toggle('active', ui.bucket);
     const r = this.brushEl.querySelector('#ed-radius') as HTMLInputElement; if (r.value !== String(ui.brushRadius)) r.value = String(ui.brushRadius);
     (this.brushEl.querySelector('#ed-radius-v') as HTMLElement).textContent = String(ui.brushRadius);
     (this.brushEl.querySelector('#ed-shape') as HTMLElement).textContent = t(`editor.shape.${ui.brushShape}`) + ' (X)';
-    (this.brushEl.querySelector('#ed-hint') as HTMLElement).textContent = ui.tool === 'terrain' ? t('editor.fillHint') : '';
+    (this.brushEl.querySelector('#ed-hint') as HTMLElement).textContent = ui.tool === 'terrain' ? t(ui.bucket ? 'editor.bucketHint' : 'editor.fillHint') : '';
   }
   private renderPlayer(): void {
     const ui = this.editor.ui;
@@ -278,27 +287,45 @@ export class EditorPanel {
     q('#ed-remove')?.addEventListener('click', () => { ed.deleteSelected(); this.keys.insp = ''; });
   }
   private renderIssues(): void {
-    const ed = this.editor;
     const ul = this.issuesEl; ul.innerHTML = '';
     this.issuesHead.textContent = `${t('editor.issues')} · ${this.statusText()}`;
-    if (this.issues.length === 0) { ul.appendChild(el('li', 'ok', t('editor.issuesNone'))); return; }
+    if (this.issues.length === 0) ul.appendChild(el('li', 'ok', t('editor.issuesNone')));
     for (const it of this.issues) {
       const li = el('li', it.level, `<span class="tx">${esc(issueText(it))}</span>`);
-      if (it.x !== undefined && it.y !== undefined) { const b = el('button', 'btn', t('editor.goTo')); b.addEventListener('click', () => this.goTo(it.x!, it.y!)); li.appendChild(b); }
+      li.dataset.code = it.code;
+      if (it.x !== undefined && it.y !== undefined) { const b = el('button', 'btn goto', t('editor.goTo')); b.addEventListener('click', () => this.goTo(it.x!, it.y!)); li.appendChild(b); }
       const fix = this.fixFor(it);
-      if (fix) { const b = el('button', 'btn gold', fix.label); b.addEventListener('click', () => { const ok = fix.run(); this.hud.toast(ok ? t('editor.fixed') : t('editor.fixNone'), ok ? 'good' : 'info'); this.validateNow(); }); li.appendChild(b); }
+      if (fix) { const b = el('button', 'btn gold fix', fix.label); b.addEventListener('click', () => { const ok = fix.run(); this.hud.toast(ok ? t('editor.fixed') : t('editor.fixNone'), ok ? 'good' : 'info'); this.validateNow(); }); li.appendChild(b); }
       ul.appendChild(li);
     }
+    this.renderResources();
   }
-  /** "Corrigir" quando cabe: ligar inícios, alargar gargalos, recursos padrão do início N, limpar raio 8. */
+  /** Tabela de comida/madeira/ouro a até 16 tiles de cada início; valores abaixo de 80 % do maior ficam em vermelho. */
+  private renderResources(): void {
+    const rows = this.editor.startResources();
+    if (rows.length === 0) { this.resEl.innerHTML = ''; return; }
+    const kinds = ['food', 'wood', 'gold'] as const;
+    const max = Object.fromEntries(kinds.map((k) => [k, Math.max(...rows.map((r) => r[k]))])) as Record<typeof kinds[number], number>;
+    const cell = (r: (typeof rows)[number], k: typeof kinds[number]) => `<td class="${max[k] > 0 && r[k] < max[k] * 0.8 ? 'low' : ''}" title="${t('editor.resNodes', { n: r[`${k}Nodes`] })}">${r[k]}</td>`;
+    this.resEl.innerHTML = `<div class="ttl">${t('editor.resTitle', { r: 16 })}</div><table><tr><th></th><th title="${t('res.food')}">🍖</th><th title="${t('res.wood')}">🌲</th><th title="${t('res.gold')}">⛏</th></tr>${rows.map((r, i) => `<tr data-start="${i}"><th style="color:${PLAYER_COLORS[i % PLAYER_COLORS.length].hex}">🚩 ${i + 1}</th>${kinds.map((k) => cell(r, k)).join('')}</tr>`).join('')}</table>`;
+  }
+  /** "Corrigir" quando cabe (docs/EDITOR.md §4.4): cada aviso/erro com uma correção automática desfazível (um passo de Ctrl+Z). */
   private fixFor(it: MapIssue): { label: string; run: () => boolean } | null {
     const ed = this.editor;
     const start = Number(it.params?.start ?? it.params?.player ?? 0) - 1;
+    const startAt = () => ed.map.starts.findIndex((s) => s.x === it.x && s.y === it.y);
+    const has = it.x !== undefined && it.y !== undefined;
     switch (it.code) {
       case 'startsDisconnected': return { label: t('editor.fix.connect'), run: () => ed.fixConnectivity() };
       case 'chokepoint': return { label: t('editor.fix.widen'), run: () => ed.widenChokepoints() };
       case 'lowStartFood': case 'lowStartWood': return start >= 0 ? { label: t('editor.fix.resources', { n: start + 1 }), run: () => ed.placeStartResources(start, (Math.floor(Math.random() * 1e9)) >>> 0) } : null;
-      case 'startBlocked': { const i = ed.map.starts.findIndex((s) => s.x === it.x && s.y === it.y); return i >= 0 ? { label: t('editor.fix.clear'), run: () => ed.clearRadius(i) } : null; }
+      case 'startBlocked': { const i = startAt(); return i >= 0 ? { label: t('editor.fix.clear'), run: () => ed.clearRadius(i) } : null; }
+      case 'startOut': { const i = startAt(); return i >= 0 ? { label: t('editor.fix.inside'), run: () => ed.moveStartInside(i) } : null; }
+      case 'pocket': return has ? { label: t('editor.fix.pocket'), run: () => ed.fillPocket(it.x!, it.y!) } : null;
+      case 'nodeNoAccess': return has ? { label: t('editor.fix.removeNode'), run: () => ed.removeNodeAt(it.x!, it.y!) } : null;
+      case 'kothUnreachable': return { label: t('editor.fix.koth'), run: () => ed.connectKoth() };
+      case 'wonderComplete': return has ? { label: t('editor.fix.inProgress'), run: () => ed.setInProgressAt(it.x!, it.y!) } : null;
+      case 'noBase': case 'aiNoTc': return start >= 0 ? { label: t('editor.fix.tc', { n: start + 1 }), run: () => ed.placeTownCenter(start) } : null;
       default: return null;
     }
   }
@@ -406,6 +433,12 @@ export class EditorPanel {
         <div>${t('editor.propKoth')}: <b id="ep-koth">${meta.koth ? `(${meta.koth[0]}, ${meta.koth[1]})` : t('editor.propKothCenter')}</b> <button class="btn" id="ep-koth-pick">${t('editor.propKothPick')}</button> <button class="btn" id="ep-koth-clear">${t('main.fixedMapClear')}</button></div>
         <label><input type="checkbox" id="ep-relics" ${meta.relics === false ? '' : 'checked'}> ${t('editor.propRelics')}</label>
         <div><button class="btn" id="ep-vary">${t('editor.propVary')}</button></div>
+        <fieldset class="ep-resize" style="border:1px solid #334;border-radius:6px;padding:6px 8px"><legend>${t('editor.resizeTitle')}</legend>
+          <div class="row" style="gap:6px;align-items:center"><input type="number" id="ep-w" min="${MAP_LIMITS.minSide}" max="${MAP_LIMITS.maxSide}" value="${ed.map.w}" style="width:64px"> × <input type="number" id="ep-h" min="${MAP_LIMITS.minSide}" max="${MAP_LIMITS.maxSide}" value="${ed.map.h}" style="width:64px">
+          <label>${t('editor.resizeAnchor')} <select id="ep-anchor">${RESIZE_ANCHORS.map((a) => `<option value="${a}" ${a === 'c' ? 'selected' : ''}>${t(`editor.anchor.${a}`)}</option>`).join('')}</select></label>
+          <button class="btn" id="ep-resize">${t('editor.resizeBtn')}</button></div>
+          <small id="ep-resize-info" style="color:#9aa5b8">${t('editor.resizeHint', { max: MAP_LIMITS.maxTiles })}</small>
+        </fieldset>
       </div>
       <div class="actions"><button class="btn primary" id="ep-ok">${t('editor.propOk')}</button></div>`);
     const m = this.hud.modal; const q = (id: string) => m.querySelector(id) as HTMLInputElement;
@@ -425,6 +458,23 @@ export class EditorPanel {
       this.setPick((x, y) => { ed.setMeta({ koth: [x, y] }); this.hud.toast(t('editor.propKothSet', { x, y }), 'good'); });
     });
     q('#ep-vary').addEventListener('click', () => { ed.varyDecor((Math.floor(Math.random() * 1e9)) >>> 0); this.hud.toast(t('editor.propVaried'), 'good'); });
+    // Redimensionar: prévia do que será cortado (resizeMapData), confirmação e troca de instância (Ctrl+Z volta)
+    const resizeArgs = () => ({ w: Math.round(Number(q('#ep-w').value)), h: Math.round(Number(q('#ep-h').value)), anchor: q('#ep-anchor').value as ResizeAnchor });
+    const preview = () => {
+      const a = resizeArgs(); const info = m.querySelector('#ep-resize-info') as HTMLElement;
+      if (a.w === ed.map.w && a.h === ed.map.h) { info.textContent = t('editor.resizeHint', { max: MAP_LIMITS.maxTiles }); return null; }
+      try { const r = resizeMapData(ed.toFile(), a.w, a.h, a.anchor).report; info.textContent = this.resizeText(r); return r; }
+      catch { info.textContent = t('editor.resizeBad', { min: MAP_LIMITS.minSide, max: MAP_LIMITS.maxSide, tiles: MAP_LIMITS.maxTiles }); return null; }
+    };
+    for (const id of ['#ep-w', '#ep-h', '#ep-anchor']) q(id).addEventListener('input', preview);
+    q('#ep-resize').addEventListener('click', () => {
+      const a = resizeArgs(); const r = preview();
+      if (!r) { this.hud.toast(a.w === ed.map.w && a.h === ed.map.h ? t('editor.resizeSame') : t('editor.resizeBad', { min: MAP_LIMITS.minSide, max: MAP_LIMITS.maxSide, tiles: MAP_LIMITS.maxTiles }), 'warn'); return; }
+      if (!confirm(t('editor.resizeConfirm', { w: a.w, h: a.h, what: this.resizeText(r) }))) return;
+      if (apply() === false) return;
+      this.hud.hideModal();
+      this.cb.onResize?.(a.w, a.h, a.anchor);
+    });
     q('#ep-ok').addEventListener('click', () => { if (apply() === false) return; this.hud.hideModal(); });
   }
   // ---------------------------------------------------------------------------------------------------------
@@ -525,8 +575,18 @@ export class EditorPanel {
   private setPick(fn: (x: number, y: number) => void): void { this.pendingPick = fn; document.body.classList.add('cur-pick'); this.hud.toast(t('editor.pickPending'), 'gold'); }
   cancelPick(): void { this.pendingPick = null; document.body.classList.remove('cur-pick'); }
 
+  /** Resumo do que um redimensionamento corta/desloca (prévia e confirmação). */
+  private resizeText(r: { nodes: number; entities: number; startsMoved: number[]; kothReset: boolean }): string {
+    const parts: string[] = [];
+    if (r.nodes) parts.push(t('editor.resizeNodes', { n: r.nodes }));
+    if (r.entities) parts.push(t('editor.resizeEntities', { n: r.entities }));
+    if (r.startsMoved.length) parts.push(t('editor.resizeStarts', { list: r.startsMoved.map((i) => i + 1).join(', ') }));
+    if (r.kothReset) parts.push(t('editor.resizeKoth'));
+    return parts.length ? parts.join(' · ') : t('editor.resizeNothing');
+  }
+
   showMenu(): void {
-    this.cancelPick();
+    this.cancelPick(); this.editor.ui.eyedrop = false;
     this.hud.showModal(`<h2>${t('editor.menuTitle')}</h2><p style="color:#f2c14e">${esc(this.mapTitle())}${this.editor.dirty ? ' •' : ''}</p>
       <div class="row" style="flex-direction:column">
         <button class="btn primary" id="em-continue">${t('editor.menuContinue')}</button>
@@ -552,9 +612,9 @@ export class EditorPanel {
   showHotkeys(): void {
     const k = (...keys: string[]) => keys.map((x) => `<kbd>${x}</kbd>`).join(' ');
     const rows: [string, string][] = [
-      [k('T', 'N', 'B', 'U', 'I', 'V', 'E'), t('editor.hk.tools')], [k('1', '2', '3', '4', '5', '6'), t('editor.hk.terrain')], [`${k('[', ']')} · ${k('X')}`, t('editor.hk.brush')], [k('F'), t('editor.hk.fill')],
-      [`${k('Shift')}+${k(t('hk.k.click'))} · ${k('Alt')}+${k(t('hk.k.click'))}`, t('editor.hk.line')], [`${k('Shift')}+${k('1-4')}`, t('editor.hk.player')], [k('C'), t('editor.hk.complete')], [k('Tab'), t('editor.hk.startCycle')],
-      [k('G', 'R', 'O', 'K'), t('editor.hk.overlays')], [`${k('Ctrl')}+${k('Z')} · ${k('Ctrl')}+${k('Y')}`, t('editor.hk.undo')], [`${k('Ctrl')}+${k('S')} · ${k('Ctrl')}+${k('Enter')}`, t('editor.hk.save')],
+      [k('T', 'N', 'B', 'M', 'I', 'V', 'E'), t('editor.hk.tools')], [k('1', '2', '3', '4', '5', '6'), t('editor.hk.terrain')], [`${k('[', ']')} · ${k('X')}`, t('editor.hk.brush')], [`${k('F')} · 🪣`, t('editor.hk.fill')],
+      [`${k('Shift')}+${k(t('hk.k.click'))}`, t('editor.hk.line')], [`${k('P')} · ${k('Alt')}+${k(t('hk.k.click'))}`, t('editor.hk.eyedrop')], [`${k('Shift')}+${k('1-4')}`, t('editor.hk.player')], [k('C'), t('editor.hk.complete')], [k('Tab'), t('editor.hk.startCycle')],
+      [k('G', 'L', 'O', 'K'), t('editor.hk.overlays')], [`${k('Ctrl')}+${k('Z')} · ${k('Ctrl')}+${k('Y')}`, t('editor.hk.undo')], [`${k('Ctrl')}+${k('S')} · ${k('Ctrl')}+${k('Enter')}`, t('editor.hk.save')],
       [k(t('hk.k.right')), t('editor.hk.erase')], [k('Delete'), t('editor.hk.delete')], [`${k('W A S D')} · ${k(t('hk.k.arrows'))} · ${t('hk.k.edge')} · ${k(t('hk.k.middle'))} · ${k(t('hk.k.wheel'))}`, t('editor.hk.camera')], [`${k('Esc')} · ${k('H')}`, t('editor.hk.esc')],
     ];
     this.hud.showModal(`<h2>${t('editor.hkTitle')}</h2><table>${rows.map(([a, b]) => `<tr><td style="white-space:nowrap">${a}</td><td>${b}</td></tr>`).join('')}</table><div class="actions"><button class="btn primary" id="m-close">${t('modal.close')}</button></div>`);

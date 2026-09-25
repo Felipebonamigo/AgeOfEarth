@@ -21,12 +21,15 @@ export interface EditorUI {
   ghostOk: boolean;                                  // o fantasma de edifício/unidade cabe no tile sob o cursor?
   lineFrom: { x: number; y: number } | null;         // Shift+clique: linha desde este tile
   showGrid: boolean; showRegions: boolean; showPassable: boolean; showKit: boolean;
+  bucket: boolean;                                   // terreno: o clique preenche a região contígua (balde) em vez de pintar com o pincel
+  eyedrop: boolean;                                  // conta-gotas armado: o próximo clique copia o que está sob o cursor (P ou Alt+clique)
+  koth: { x: number; y: number } | null;             // colina do Rei da Colina do arquivo (null = centro do mapa); o editor mantém em dia
   selected: { kind: 'unit' | 'building' | 'node' | 'start'; id: number } | null;   // inspetor (start: id = índice do início)
   flash: { x: number; y: number; until: number } | null;   // "ir até": tile a piscar (until = performance.now() alvo)
 }
 
 export function defaultEditorUI(): EditorUI {
-  return { tool: 'terrain', terrain: 0, brushRadius: 2, brushShape: 'circle', nodeType: 'tree', nodeAmount: null, buildingType: 'tower', unitType: 'hoplite', player: 0, complete: true, hover: null, ghostOk: false, lineFrom: null, showGrid: false, showRegions: false, showPassable: false, showKit: true, selected: null, flash: null };
+  return { tool: 'terrain', terrain: 0, brushRadius: 2, brushShape: 'circle', nodeType: 'tree', nodeAmount: null, buildingType: 'tower', unitType: 'hoplite', player: 0, complete: true, hover: null, ghostOk: false, lineFrom: null, showGrid: false, showRegions: false, showPassable: false, showKit: true, bucket: false, eyedrop: false, koth: null, selected: null, flash: null };
 }
 
 /** Operações do editor. Cada uma tem inversa exata (applyEditOp devolve-a). Tiles são índices y*w+x.

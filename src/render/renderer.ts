@@ -635,7 +635,9 @@ export class Renderer {
       g.circle(cx, cy, START_RING_RADIUS * TILE).fill({ color, alpha: sel ? 0.08 : 0.04 }).stroke({ width: (sel ? 3 : 1.5) * lw, color, alpha: sel ? 0.95 : 0.7 });
       if (sel) g.circle(cx, cy, START_RING_RADIUS * TILE + 3 * lw).stroke({ width: 1.5 * lw, color: 0xffffff, alpha: 0.85 });
       if (ed.showKit) {
+        // anel de recursos (raio 16: a tabela de recursos por início do painel) e o fantasma do kit inicial:
         // CC 3×3 em (x-1, y-1) e os 6 pontos onde createGame põe cidadãos (amarelo) e batedor (azul-claro)
+        g.circle(cx, cy, 16 * TILE).stroke({ width: lw, color, alpha: 0.35 });
         g.rect((s.x - 1) * TILE, (s.y - 1) * TILE, 3 * TILE, 3 * TILE).fill({ color, alpha: 0.2 }).stroke({ width: 1.5 * lw, color, alpha: 0.8 });
         KIT_SPOTS.forEach(([dx, dy], k) => {
           const px = Math.floor(s.x + 0.5 + dx) + 0.5, py = Math.floor(s.y + 0.5 + dy) + 0.5;
@@ -651,6 +653,11 @@ export class Renderer {
       l.visible = true; l.position.set(cx, cy); l.scale.set(mk);
     }
     for (let i = starts.length; i < this.edLabels.length; i++) this.edLabels[i].visible = false;
+    // Colina do Rei da Colina: a do arquivo (dourada) ou o centro do mapa (apagada)
+    const kh = ed.koth ?? { x: Math.floor(w / 2), y: Math.floor(h / 2) };
+    const kx = (kh.x + 0.5) * TILE, ky = (kh.y + 0.5) * TILE, ka = ed.koth ? 0.95 : 0.4;
+    g.circle(kx, ky, 2.5 * TILE).stroke({ width: 1.5 * lw, color: 0xfde68a, alpha: ka });
+    g.poly([kx, ky - 8 * mk, kx + 7 * mk, ky + 5 * mk, kx - 7 * mk, ky + 5 * mk]).fill({ color: 0xfde68a, alpha: ka * 0.8 }).stroke({ width: lw, color: 0x000000, alpha: ka * 0.6 });
     // Cursor: pincel, linha, fantasmas
     const hv = ed.hover;
     if (hv) {

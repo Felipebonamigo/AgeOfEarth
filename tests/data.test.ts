@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { AGES, BUILDINGS, BUILD_MENU, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS } from '../src/core/data';
 import { BUILTIN_MAPS } from '../src/core/data/maps';
-import { validateMap, mapHash, canonicalize } from '../src/core/map/fixed';
+import { validateMap, mapHash, canonicalize, startResourcesOf } from '../src/core/map/fixed';
+import { checkMap } from '../src/core/map/check';
+import { EDITOR_KEYS, TOOL_KEYS, TERRAIN_KEYS } from '../src/editor/editor';
+import { buildEstreito } from '../scripts/maps/estreito';
+import { buildEgeu } from '../scripts/maps/egeu';
 
 describe('integridade dos dados', () => {
   it('unidades referenciam edifícios que as treinam', () => {
@@ -46,6 +50,10 @@ describe('integridade dos dados', () => {
     const hotkeys = new Map<string, string[]>();
     for (const b of BUILD_MENU) { const hk = BUILDINGS[b].hotkey!; hotkeys.set(hk, [...(hotkeys.get(hk) ?? []), b]); }
     for (const [hk, list] of hotkeys) if (list.length > 1) expect(list.every((x) => x.startsWith('wonder_')), `atalho ${hk} duplicado: ${list}`).toBe(true);
+    // editor de mapas: uma tecla por ação, sem A (atacar-mover), R (ponto de encontro), U (liberar) nem W/S/D (câmera)
+    const edKeys = [...Object.keys(TOOL_KEYS), ...Object.keys(EDITOR_KEYS), ...Object.keys(TERRAIN_KEYS)];
+    expect(new Set(edKeys).size, `atalhos do editor repetidos: ${edKeys}`).toBe(edKeys.length);
+    for (const k of ['A', 'R', 'U', 'W', 'S', 'D']) expect(edKeys, `atalho ${k} no editor`).not.toContain(k);
     expect(hotkeys.has('A'), 'A é atacar-mover: nenhum edifício pode usá-lo').toBe(false);
     expect(AGES.length).toBe(5);
     for (const a of AGES) if (a.requires.building) expect(BUILDINGS[a.requires.building]).toBeDefined();
@@ -68,5 +76,30 @@ describe('mapas embutidos', () => {
       expect(mapHash(canonicalize(m)), key).toBe(mapHash(m));
       expect(canonicalize(m), `${key}: o arquivo deve estar na forma canônica`).toEqual(m);
     }
+  });
+  it('mapcheck (src/core/map/check.ts): sem erros e 2 min de IA x IA sem IA parada nem partida encerrada em cada embutido', () => {
+    for (const [key, m] of Object.entries(BUILTIN_MAPS)) {
+      const r = checkMap(m, { minutes: 2 });
+      expect(r.failures, `${key}: ${r.failures.join('; ')}`).toEqual([]);
+      expect(r.errors, key).toBe(0);
+      expect(r.players.length, key).toBe(m.starts.length);
+      for (const p of r.players) { expect(p.trained, `${key}: ${p.name}`).toBeGreaterThan(0); expect(p.built, `${key}: ${p.name}`).toBeGreaterThan(0); }
+    }
+  });
+  it('mapas oficiais: sem avisos, recursos idênticos por início (raio 16) e times sugeridos coerentes', () => {
+    for (const [key, m] of Object.entries(BUILTIN_MAPS)) {
+      expect(validateMap(m, { players: m.starts.length, mode: 'conquest', ai: m.starts.map(() => true) }), key).toEqual([]);
+      const res = startResourcesOf(m);
+      for (const r of res) expect(r, `${key}: ${JSON.stringify(res)}`).toEqual(res[0]);
+      expect(res[0].food, key).toBeGreaterThan(2000); expect(res[0].wood, key).toBeGreaterThan(8000); expect(res[0].gold, key).toBeGreaterThan(5000);
+      if (m.startTeams) { expect(m.startTeams.length, key).toBe(m.starts.length); expect(new Set(m.startTeams).size, key).toBeGreaterThan(1); }
+    }
+    expect(BUILTIN_MAPS.estreito.starts.length).toBe(2); expect([BUILTIN_MAPS.estreito.w, BUILTIN_MAPS.estreito.h]).toEqual([80, 80]);
+    expect(BUILTIN_MAPS.egeu.starts.length).toBe(4); expect([BUILTIN_MAPS.egeu.w, BUILTIN_MAPS.egeu.h]).toEqual([112, 112]);
+    expect(BUILTIN_MAPS.egeu.startTeams).toEqual([0, 0, 1, 1]);
+  });
+  it('mapas oficiais são reprodutíveis: scripts/maps/<id>.ts gera exatamente o arquivo embutido', () => {
+    expect(buildEstreito().file).toEqual(BUILTIN_MAPS.estreito);
+    expect(buildEgeu().file).toEqual(BUILTIN_MAPS.egeu);
   });
 });
