@@ -30,6 +30,7 @@ export class NetClient {
         const t = String(msg.t);
         if (t === 'joined') { this.slot = Number(msg.slot); this.room = String(msg.room); this.isHost = !!msg.host; this.isSpectator = !!msg.spectator; }
         if (t === 'lobby') { this.lobby = msg as unknown as LobbyState; this.isHost = this.lobby.host === this.slot; }
+        if (t === 'host') this.isHost = Number(msg.slot) === this.slot;   // o anfitrião caiu durante a partida: outro assume
         if (t === 'pong') { this.rtt = Math.max(0, Math.round(performance.now() - Number(msg.ts))); this.send({ t: 'player', ping: this.rtt }); }
         this.emit(t, msg);
       };
@@ -43,7 +44,7 @@ export class NetClient {
   kick(slot: number) { this.send({ t: 'kick', slot }); }
   resume() { this.send({ t: 'resume' }); }
   /** Atraso do lockstep (em ticks de 50 ms) a partir da pior latência da sala: metade da ida e volta + folga, entre 2 e 12. */
-  static delayFor(pings: number[]): number { const worst = Math.max(0, ...pings.filter((p) => p >= 0)); return Math.max(2, Math.min(12, Math.ceil((worst / 2 + 60) / 50))); }
+  static delayFor(pings: number[]): number { const worst = Math.max(0, ...pings.filter((p) => p >= 0)); return Math.max(2, Math.min(12, Math.ceil((worst / 2 + 85) / 50))); }   // +25 ms de folga (teste de carga: atraso 2 travava 2–4 % dos quadros com 20–80 ms de variação)
   /** Pede a lista de salas públicas abertas; a resposta chega no evento 'rooms'. */
   list() { this.send({ t: 'list' }); }
   settings(s: Record<string, unknown>) { this.send({ t: 'settings', settings: s }); }

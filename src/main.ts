@@ -200,6 +200,7 @@ async function boot() {
     client.on('hash', (m) => { const idx = slots.indexOf(Number(m.slot)); if (idx >= 0) sched.receiveHash(idx, Number(m.tick), Number(m.hash)); });
     // Queda de um jogador: todos pausam aguardando a reconexão; o anfitrião pode seguir sem ele (P → 'resume' para todos)
     let awaiting = -1;
+    client.on('host', (m) => { if (Number(m.slot) === client.slot && !client.isSpectator) hud.toast(t('msg.youAreHost'), 'gold'); });
     client.on('left', (m) => {
       const idx = slots.indexOf(Number(m.slot)); if (idx < 0 || !session) return;
       sched.dropPlayer(idx);

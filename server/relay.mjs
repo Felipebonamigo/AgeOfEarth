@@ -3,7 +3,7 @@
 import { WebSocketServer } from 'ws';
 
 const port = Number(process.argv[2] ?? process.env.PORT ?? 8787);
-const wss = new WebSocketServer({ port, maxPayload: 2 * 1024 * 1024 });   // mapa fixo inline em `start` cabe com folga (≤ ~120 KB)
+const wss = new WebSocketServer({ port, maxPayload: 8 * 1024 * 1024 });   // instantâneo de reconexão chega a ~1,5 MB no fim de partidas grandes; `start` continua limitado a 1 MB abaixo
 const MAX_START_BYTES = 1_000_000;
 const rooms = new Map(); // code -> { clients: Map<slot, {ws, name, god, team, ready}>, host, settings, started, nextSlot }
 
@@ -80,7 +80,7 @@ wss.on('connection', (ws) => {
     room.clients.delete(slot);
     if (room.started && gone) room.gone.set(slot, gone.name);   // pode reconectar com o mesmo nome
     if (room.clients.size === 0) { for (const s of room.spectators.values()) { send(s.ws, { t: 'error', msg: 'A sala foi encerrada.' }); s.ws.close(); } for (const [code, r] of rooms) if (r === room) rooms.delete(code); return; }
-    if (room.host === slot) room.host = [...room.clients.keys()][0];
+    if (room.host === slot) { room.host = [...room.clients.keys()][0]; broadcast(room, { t: 'host', slot: room.host }); }   // novo anfitrião avisado antes do 'left' (pode seguir sem quem caiu)
     broadcast(room, { t: 'left', slot });
     if (!room.started) broadcast(room, lobbyState(room));
   });
