@@ -3,7 +3,7 @@ import { Renderer } from './render/renderer';
 import { HUD } from './ui/hud';
 import { Input } from './ui/input';
 import { MainMenu } from './ui/menu';
-import { Audio } from './audio/audio';
+import { Audio, viewFromCamera } from './audio/audio';
 import { Session } from './game/session';
 import type { GameConfig } from './core/types';
 import { SCENARIOS, HORDE } from './core/scenario/campaign';
@@ -61,7 +61,10 @@ async function boot() {
     perf.setVisible(perfParam || settings.showFps);
   };
   applyQuality();
-  const audio = new Audio();
+  // Áudio sintetizado (docs/DESIGN.md, "Áudio"): volumes por barramento vindos das configurações, persistidos a cada mudança
+  const audio = new Audio({ master: settings.volume, sfx: settings.sfxVolume, music: settings.musicVolume, ambience: settings.ambienceVolume, muted: settings.muted }, (v) => {
+    settings.volume = v.master; settings.sfxVolume = v.sfx; settings.musicVolume = v.music; settings.ambienceVolume = v.ambience; settings.muted = v.muted; saveSettings(settings);
+  });
   let session: Session | null = null;
   const achievements = new Achievements();
   const hasSave = () => { try { return !!localStorage.getItem(SAVE_KEY); } catch { return false; } };
@@ -103,7 +106,8 @@ async function boot() {
   // Opções compartilhadas (menu principal e menu da partida)
   const options: OptionsContext = {
     settings,
-    getVolume: () => audio.volume, setVolume: (v) => { audio.setVolume(v); settings.volume = v; saveSettings(settings); },
+    getVolume: () => audio.volume, setVolume: (v) => audio.setVolume(v),
+    getAudio: () => audio.volumes, setAudio: (v) => audio.setVolumes(v),
     setEdgeScroll: (v) => { input.edgeScroll = v; settings.edgeScroll = v; saveSettings(settings); },
     setUiScale: (v) => { settings.uiScale = v; saveSettings(settings); applyUiScale(v); },
     setRenderScale: (v) => { settings.renderScale = v; saveSettings(settings); renderer.setRenderScale(v); },
@@ -413,15 +417,16 @@ async function boot() {
         if (lowered) { renderer.setQuality(resolveQuality('auto', { level: lowered, showFps: settings.showFps, teamOutline: settings.teamOutline })); hud.toast(t('msg.qualityLowered', { level: t(`quality.${lowered}`) }), 'info'); }
       }
       hud.update(dt);
+      audio.update(dt, { state: session.state, local: session.local, view: viewFromCamera(renderer.cam), revealAll: renderer.revealAll, paused: session.paused, editor: editing });
       if (editing) editorPanel?.update();
       if (editing) setPresence(t('presence.menu'));
       else if (session.state.tick % 200 === 0) setPresence(t('presence.playing', { age: AGES[session.player.age].name, min: Math.floor(session.state.time / 60) }));
-    } else setPresence(t('presence.menu'));
+    } else { setPresence(t('presence.menu')); audio.update(dt, null); }
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
   // Expõe para depuração/testes automatizados
-  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, perf, settings, applyQuality, startGame, loadGame, diagnostic, menu, startEditor, exitEditor, testFromEditor, startScenarioFile, get editor() { return editor; }, get editorPanel() { return editorPanel; }, mapData: () => (session ? mapToData(session.state.map) : null), debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; } };
+  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, perf, settings, audio, applyQuality, startGame, loadGame, diagnostic, menu, startEditor, exitEditor, testFromEditor, startScenarioFile, get editor() { return editor; }, get editorPanel() { return editorPanel; }, mapData: () => (session ? mapToData(session.state.map) : null), debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; } };
 }
 
 boot().catch((e) => { console.error(e); document.body.innerHTML = `<pre style="color:#f88;padding:20px">Erro ao iniciar: ${(e as Error).stack}</pre>`; });

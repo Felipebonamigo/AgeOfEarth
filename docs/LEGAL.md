@@ -71,7 +71,8 @@ Contato: [e-mail] · Responsável: [nome/empresa, CNPJ]
 | Vite, TypeScript, Vitest, Playwright | MIT / Apache-2.0 | Ferramentas de desenvolvimento (não distribuídas) |
 | pixelmatch | ISC | Comparação de capturas (`scripts/artdiff.mjs`; devDependency, não distribuída) |
 | pngjs | MIT | Leitura/escrita de PNG nos scripts de captura (devDependency, não distribuída) |
-| Fontes, música e efeitos sonoros | [preencher ao adquirir os assets — Fase 2] | Arte e áudio |
+| Música, efeitos sonoros e ambiente | Áudio sintetizado pelo próprio código (WebAudio em `src/audio/`, sem gravações nem amostras de terceiros); mesma licença do jogo | Áudio |
+| Fontes | [preencher ao adquirir os assets — Fase 2] | Arte |
 
 Mantenha os textos de licença MIT dos pacotes distribuídos em `desktop/THIRD_PARTY.txt` (gerar com `npx license-checker --production`
 antes de cada build).

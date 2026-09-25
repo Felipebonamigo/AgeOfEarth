@@ -46,6 +46,9 @@ export class HUD {
   private lastSelKey = '';
   private lastCmdKey = '';
   private gameOverShown = false;
+  private muteBtn: HTMLElement | null = null;
+  /** Último evento consumido (o cursor por índice se perde quando o núcleo descarta eventos antigos). */
+  private lastEv: GameEvent | null = null;
   private renderer: Renderer;
   private audio: Audio;
   private cb: HUDCallbacks;
@@ -63,7 +66,7 @@ export class HUD {
   }
 
   setSession(s: Session | null) {
-    this.session = s; this.lastSelKey = ''; this.lastCmdKey = ''; this.lastObjKey = ''; this.gameOverShown = false;   // lastObjKey: outra partida do mesmo cenário precisa redesenhar (e reexibir) o painel de objetivos
+    this.session = s; this.lastEv = null; this.lastSelKey = ''; this.lastCmdKey = ''; this.lastObjKey = ''; this.gameOverShown = false;   // lastObjKey: outra partida do mesmo cenário precisa redesenhar (e reexibir) o painel de objetivos
     this.msgPanel.innerHTML = '';
     if (s) { s.onSelectionChanged = () => { this.refreshSelection(true); }; this.refreshGods(); this.refreshTop(); }
   }
@@ -84,7 +87,7 @@ export class HUD {
     this.speedEl = el('div', '', ''); this.speedEl.id = 'speed'; this.top.appendChild(this.speedEl);
     const speedBtns = [['⏸', 0], ['1×', 1], ['2×', 2], ['3×', 3]] as const;
     for (const [lbl, sp] of speedBtns) { const b = el('button', 'btn', lbl); b.addEventListener('click', () => { if (!this.session) return; if (sp === 0) this.session.paused = !this.session.paused; else { this.session.speed = sp; this.session.paused = false; } this.refreshTop(); }); this.speedEl.appendChild(b); }
-    const mute = el('button', 'btn', this.audio.muted ? '🔇' : '🔊'); mute.addEventListener('click', () => { mute.textContent = this.audio.toggleMute() ? '🔇' : '🔊'; }); this.top.appendChild(mute);
+    const mute = el('button', 'btn', this.audio.muted ? '🔇' : '🔊'); mute.addEventListener('click', () => { mute.textContent = this.audio.toggleMute() ? '🔇' : '🔊'; }); this.top.appendChild(mute); this.muteBtn = mute;
     const menuBtn = el('button', 'btn', t('top.menu')); menuBtn.id = 'top-menu'; menuBtn.addEventListener('click', () => this.showMenu()); this.top.appendChild(menuBtn);
     hud.appendChild(this.top);
 
@@ -174,6 +177,8 @@ export class HUD {
 
   private drainEvents() {
     const s = this.session!; const st = s.state;
+    // O núcleo descarta eventos acima de 200 (MAX_EVENTS) e os índices andam: reposiciona o cursor pelo último evento visto
+    if (this.lastEv) { const i = st.events.lastIndexOf(this.lastEv); s.eventCursor = i >= 0 ? i + 1 : 0; }
     while (s.eventCursor < st.events.length) {
       const e: GameEvent = st.events[s.eventCursor++];
       const mine = e.player === s.local;
@@ -188,23 +193,16 @@ export class HUD {
       if (e.type === 'age' || e.type === 'wonder' || e.type === 'titan' || e.type === 'power' || e.type === 'powerUsed') kind = 'gold';
       if (e.x !== undefined && e.y !== undefined) s.lastEvent = { x: e.x, y: e.y };
       if (e.text) this.toast(e.text, kind, e.x !== undefined && e.y !== undefined ? { x: e.x, y: e.y } : undefined);
-      if (e.type === 'underAttack' && mine) { this.audio.play('alert'); if (e.x !== undefined && e.y !== undefined) this.minimap.ping(e.x, e.y); }
-      else if (e.type === 'age') this.audio.play('age');
-      else if (e.type === 'built' || e.type === 'research') this.audio.play('complete');
-      else if (e.type === 'powerUsed') this.audio.play('power');
+      if (e.type === 'underAttack' && mine && e.x !== undefined && e.y !== undefined) this.minimap.ping(e.x, e.y);
       if (e.type === 'age' && mine) { this.refreshGods(); this.lastCmdKey = ''; }
     }
-    // efeitos sonoros do mundo (limitados)
-    for (const fx of st.effects) {
-      if (fx.ttl !== fx.total) continue;
-      if (fx.type === 'hit' || fx.type === 'projectile') this.audio.play('attack');
-      else if (fx.type === 'death') this.audio.play('death');
-      else if (fx.type === 'bolt') this.audio.play('bolt');
-    }
+    // Sons do mundo e dos eventos (posicionais, com névoa e agregação): src/audio/events.ts, chamado pelo laço em main.ts
+    this.lastEv = s.eventCursor > 0 ? st.events[s.eventCursor - 1] ?? null : null;
   }
 
   refreshTop() {
     const s = this.session; if (!s) return;
+    if (this.muteBtn) { const icon = this.audio.muted ? '🔇' : '🔊'; if (this.muteBtn.textContent !== icon) this.muteBtn.textContent = icon; }   // mudo pelas opções ou Ctrl+M
     const p = s.player;
     for (const r of RESOURCES) { const e = this.resEls[r]; e.querySelector('b')!.textContent = String(Math.floor(p.resources[r])); e.classList.toggle('low', p.resources[r] < 50 && r !== 'knowledge' && r !== 'favor'); }
     this.popEl.querySelector('b')!.textContent = `${p.pop}/${p.popCap}`; this.popEl.classList.toggle('low', p.pop >= p.popCap);
