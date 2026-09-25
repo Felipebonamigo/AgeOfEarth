@@ -12,7 +12,8 @@ import type { ObjectiveDef, ObjectiveStatus, ScenarioDef, ScenarioHudDef, Trigge
 import type { Action, BuildingFilter, Cmp, Condition, EntityRef, PlayerSel, Point, ScenarioFile, UnitFilter, Value } from './schema';
 import { validateScenario } from './schema';
 import { tx } from './text';
-import { advanceBuild, ceasefire, count, give, grantTech, military, nearCount, notifyRaid, placeExact, placeNear, prayAt, raid, removeAllOf, scaledGroup, spawnGroup, tagIds, townCenter } from './helpers';
+import { advanceBuild, ceasefire, count, give, grantTech, localHumanIndex, scenarioAlive, military, nearCount, notifyRaid, placeExact, placeNear, prayAt, raid, removeAllOf, scaledGroup, spawnGroup, tagIds, townCenter } from './helpers';
+import { defeatPlayer } from '../sim/victory';
 import { kingAlive } from '../sim/modes';
 
 /** Contexto de avaliação: estado + segundos inteiros + jogador/índice do forEachPlayer ('$p', k). */
@@ -36,7 +37,7 @@ function envOf(state: GameState, ctx?: TriggerCtx): Env {
 function player(env: Env, sel: PlayerSel): number {
   const ps = env.state.players;
   if (typeof sel === 'number') return sel >= 0 && sel < ps.length ? sel : -1;
-  if (sel === 'local') return ps.findIndex((p) => !p.isAI);
+  if (sel === 'local') return localHumanIndex(env.state.config);   // primeiro humano que não é marionete
   if (sel === '$p') return env.p;
   if (sel && typeof sel === 'object') return ps.findIndex((p) => p.team === sel.team);
   return -1;
@@ -93,7 +94,7 @@ function value(env: Env, v: Value): number {
     if (v.stat === 'difficulty') return difficultyIndex(env.state);
     const p = env.state.players[player(env, v.player)]; if (!p) return 0;
     switch (v.stat) {
-      case 'age': return p.age; case 'pop': return p.pop; case 'popCap': return p.popCap; case 'alive': return p.alive ? 1 : 0;
+      case 'age': return p.age; case 'pop': return p.pop; case 'popCap': return p.popCap; case 'alive': return scenarioAlive(env.state, p.id) ? 1 : 0;
       case 'food': case 'wood': case 'gold': case 'favor': case 'knowledge': return p.resources[v.stat];
       default: return 0;
     }
@@ -202,7 +203,7 @@ function evalCondition(env: Env, c: Condition): boolean {
   if ('koth' in c) { const k = s.koth; return cmp(env, c, k && k.team === c.koth.team ? k.seconds : 0); }
   if ('wonderHeld' in c) { const p = player(env, c.wonderHeld.player); return cmp(env, c, p >= 0 ? wonderHeldSeconds(s, p) : 0); }
   if ('kingAlive' in c) { const p = player(env, c.kingAlive); return p >= 0 && kingAlive(s, p); }
-  if ('alive' in c) { const p = player(env, c.alive); return p >= 0 && s.players[p].alive; }
+  if ('alive' in c) { const p = player(env, c.alive); return p >= 0 && scenarioAlive(s, p); }   // marionete: tem entidade viva
   if ('difficulty' in c) { const d = s.config.campaignDifficulty ?? 'normal'; return Array.isArray(c.difficulty) ? c.difficulty.includes(d) : c.difficulty === d; }
   return false;
 }
@@ -293,6 +294,13 @@ function runAction(env: Env, ctx: TriggerCtx, a: Action): void {
     }
     case 'kill': { const e = entity(env, a.entity); if (!e) return; if (e.kind === 'unit') killUnit(s, e, -1); else destroyBuilding(s, e, -1); return; }
     case 'ceasefire': ceasefire(s, a.seconds); return;
+    case 'defeat': {   // derrota roteirizada: alive=false, evento de derrota e tudo do jogador some (marionete ou não)
+      const owner = player(env, a.player); const p = s.players[owner]; if (!p) return;
+      if (p.alive) defeatPlayer(s, p);
+      removeAllOf(s, (o) => o === owner);
+      p.alive = false;
+      return;
+    }
     case 'forEachPlayer': {
       let k = 0;
       for (const p of s.players) {

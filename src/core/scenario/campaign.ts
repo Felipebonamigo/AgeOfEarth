@@ -7,7 +7,7 @@ import type { ScenarioFile } from './schema';
 import { compileScenarioCached } from './compile';
 import { CAMPAIGN_PLAN, PROLOGUE_IDS, type CampaignAct } from './official';
 import { getLocale } from '../../i18n';
-import { count, countBuildings, military, townCenter, raid, give, grantTech, placeNear, spawnGroup } from './helpers';
+import { count, countBuildings, military, townCenter, raid, give, grantTech, placeNear, spawnGroup, localHumanIndex } from './helpers';
 import { onBuildingComplete } from '../sim/entities';
 import { rectReachable } from '../map/components';
 import type { Unit } from '../types';
@@ -33,7 +33,7 @@ export const HORDE: ScenarioDef = {
   id: 'horde', title: 'Modo Horda', subtitle: 'Sobreviva a 20 ondas do Tártaro (solo ou cooperativo)', icon: '💀',
   intro: ['As portas do Tártaro se abriram. A cada 100 segundos uma onda maior e mais monstruosa marcha contra sua cidade. Fortifique-se, avance de Idade e sobreviva a 20 ondas. Em cooperativo, cada jogador defende sua própria cidade e pode socorrer o aliado.'],
   outro: ['Vinte ondas do Tártaro quebraram contra suas muralhas. Os deuses aplaudem.'],
-  config: { seed: 4404, mapSize: 'medium', players: [{ name: 'Defensor', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 }, { name: 'Tártaro', god: 'hades', isAI: false, difficulty: 'normal', team: 9 }], startingResources: { food: 600, wood: 500, gold: 300, favor: 20 } },
+  config: { seed: 4404, mapSize: 'medium', players: [{ name: 'Defensor', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 }, { name: 'Tártaro', god: 'hades', isAI: false, difficulty: 'normal', team: 9, puppet: true }], startingResources: { food: 600, wood: 500, gold: 300, favor: 20 } },
   setup: (state) => {
     // O Tártaro não tem cidade: remove o que o gerador criou para ele
     const t = state.players.findIndex((p) => p.team === 9);
@@ -60,6 +60,16 @@ export const HORDE: ScenarioDef = {
   defeat: (s) => s.players.filter((p) => p.team === 0).every((p) => countBuildings(s, p.id, 'town_center') === 0) && s.tick > 5 * TICK_RATE,
 };
 
+/**
+ * m3: números de dificuldade (sem mudar texto). O Culto começava na Mítica com 4000 de cada recurso e atacava em ~2 min: nem a
+ * IA "difícil" jogando por Argos passava dos 5 min (o Culto arrasava os Aliados e depois Argos). Agora o estoque inicial e a
+ * "calma" (segundos até a IA do Culto poder lançar a 1ª onda, além do intervalo normal; as invasões roteirizadas continuam)
+ * dependem da dificuldade da campanha, e o ritual leva ~20 min (0,15 s de obra/s) em vez de ~10, casando com os 25–30 min da
+ * §4 de docs/STORY.md (a corrida contra o Portal era impossível de perder por tempo e de vencer por força).
+ */
+const M3_BALANCE: Record<'easy' | 'normal' | 'hard', { stock: number; calm: number }> = { easy: { stock: 1500, calm: 600 }, normal: { stock: 2000, calm: 540 }, hard: { stock: 2500, calm: 480 } };
+const M3_RITUAL_RATE = 0.125;
+
 /** Prólogo em TS (m1–m3). Use campaignMissions()/campaignMission(id) para a campanha inteira. */
 export const PROLOGUE: ScenarioDef[] = [
   {
@@ -69,7 +79,7 @@ export const PROLOGUE: ScenarioDef[] = [
       'Zeus exige provas de que sua cidade merece proteção: cresça, honre-o com um Templo e alcance a Idade Clássica. Bandos de saqueadores rondam as colinas.',
     ],
     outro: ['Argos prospera e o Olimpo tomou nota. Mas os batedores relatam um exército de Hades marchando do sul...'],
-    config: { seed: 1101, mapSize: 'small', players: [{ name: 'Argos', god: 'zeus', isAI: false, difficulty: 'easy' }, { name: 'Saqueadores', god: 'hades', isAI: false, difficulty: 'easy' }], startingResources: { food: 400, wood: 300, gold: 150 } },
+    config: { seed: 1101, mapSize: 'small', players: [{ name: 'Argos', god: 'zeus', isAI: false, difficulty: 'easy', team: 0 }, { name: 'Saqueadores', god: 'hades', isAI: false, difficulty: 'easy', team: 1, puppet: true }], startingResources: { food: 400, wood: 300, gold: 150 } },
     setup: (state) => {
       // Os saqueadores não têm cidade: só um acampamento distante com uma torre e alguns hoplitas
       const tc = townCenter(state, 1);
@@ -106,7 +116,7 @@ export const PROLOGUE: ScenarioDef[] = [
       'Resista por 12 minutos até que os reforços de Esparta cheguem. Torres, muralhas e a Fortaleza serão suas melhores amigas. Depois, contra-ataque.',
     ],
     outro: ['Os espartanos chegaram, e Argos resistiu. Mas os sacerdotes de Hades falam de um Portal... e do que dorme atrás dele.'],
-    config: { seed: 2202, mapSize: 'medium', players: [{ name: 'Argos', god: 'zeus', isAI: false, difficulty: 'normal' }, { name: 'Legião de Hades', god: 'hades', isAI: true, difficulty: 'normal' }], startingAge: 1, startingResources: { food: 900, wood: 800, gold: 500, favor: 40 } },
+    config: { seed: 2202, mapSize: 'medium', players: [{ name: 'Argos', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 }, { name: 'Legião de Hades', god: 'hades', isAI: true, difficulty: 'normal', team: 1 }], startingAge: 1, startingResources: { food: 900, wood: 800, gold: 500, favor: 40 } },
     setup: (state) => {
       const tc = townCenter(state, ME);
       if (tc) {
@@ -153,7 +163,7 @@ export const PROLOGUE: ScenarioDef[] = [
       grantTech(state, ME, 'civic1'); grantTech(state, ME, 'civic2'); grantTech(state, ME, 'science1');
       const tc = townCenter(state, ME);
       if (tc) { placeNear(state, ME, 'temple', tc.x + 6, tc.y, true); placeNear(state, ME, 'academy', tc.x - 6, tc.y, true); placeNear(state, ME, 'barracks', tc.x, tc.y + 6, true); spawnGroup(state, ME, ['heracles', 'hypaspist', 'hypaspist', 'cretan_archer', 'cretan_archer', 'minotaur'], tc.x, tc.y - 5); }
-      const e = state.players[1]; e.age = 3; e.resources.food = 4000; e.resources.wood = 4000; e.resources.gold = 4000; e.resources.favor = 300; e.minorGods.push('ares', 'aphrodite', 'hera'); e.techs.push('civic1', 'civic2', 'civic3', 'military1', 'military2', 'masonry');
+      const e = state.players[1]; e.age = 3; const bal = M3_BALANCE[state.config.campaignDifficulty ?? 'normal']; e.resources.food = bal.stock; e.resources.wood = bal.stock; e.resources.gold = bal.stock; e.resources.favor = 300; if (e.ai) e.ai.lastAttack = bal.calm * TICK_RATE; e.minorGods.push('ares', 'aphrodite', 'hera'); e.techs.push('civic1', 'civic2', 'civic3', 'military1', 'military2', 'masonry');
       const et = townCenter(state, 1);
       if (et) { placeNear(state, 1, 'fortress', et.x + 8, et.y, true); placeNear(state, 1, 'temple', et.x - 6, et.y, true); placeNear(state, 1, 'barracks', et.x, et.y + 6, true); placeNear(state, 1, 'tower', et.x + 4, et.y - 6, true); placeNear(state, 1, 'tower', et.x - 4, et.y - 6, true); placeNear(state, 1, 'titan_gate', et.x, et.y - 10, false); spawnGroup(state, 1, ['hoplite', 'hoplite', 'hoplite', 'hoplite', 'toxotes', 'toxotes', 'hetairoi', 'hetairoi', 'medusa', 'cerberus', 'villager', 'villager', 'villager'], et.x, et.y - 6); }
       const gate = [...state.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate');
@@ -169,8 +179,8 @@ export const PROLOGUE: ScenarioDef[] = [
     triggers: [
       { id: 'start', when: (_s, c) => c.seconds >= 1, then: (_s, c) => c.say('Héracles', 'O Portal está ao norte da cidade deles, guardado por torres e uma Fortaleza. Seus cidadãos o constroem lentamente; matá-los atrasa a obra.', '💪') },
       { id: 'gate_progress', repeat: false, when: (s) => { const g = [...s.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate'); return !!g && g.progress > 90; }, then: (_s, c) => c.say('Oráculo de Delfos', 'O Portal está pela metade! Os sacerdotes cantam sem parar. Apresse-se!', '🔮') },
-      // O ritual avança 0,3 s de obra por segundo enquanto houver sacerdotes (cidadãos) a até 6 tiles do Portal: ~10 minutos.
-      { id: 'ritual', repeat: true, when: (_s, c) => c.seconds > 0, then: (s) => { const g = [...s.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate'); if (!g || g.complete) return; const priests = count(s, 1, (u) => u.type === 'villager' && (u.x - g.x) ** 2 + (u.y - g.y) ** 2 < 36); if (priests > 0) g.progress += 0.3; if (g.progress >= 180) { g.hp = g.maxHp; onBuildingComplete(s, g); } } },
+      // O ritual avança M3_RITUAL_RATE (0,125) s de obra por segundo enquanto houver sacerdotes (cidadãos) a até 6 tiles do Portal: ~24 minutos.
+      { id: 'ritual', repeat: true, when: (_s, c) => c.seconds > 0, then: (s) => { const g = [...s.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate'); if (!g || g.complete) return; const priests = count(s, 1, (u) => u.type === 'villager' && (u.x - g.x) ** 2 + (u.y - g.y) ** 2 < 36); if (priests > 0) g.progress += M3_RITUAL_RATE; if (g.progress >= 180) { g.hp = g.maxHp; onBuildingComplete(s, g); } } },
       { id: 'priests', repeat: true, when: (_s, c) => c.seconds % 40 === 0 && c.seconds > 0, then: (s) => { const g = [...s.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate'); if (!g || g.complete) return; const priests = count(s, 1, (u) => u.type === 'villager' && (u.x - g.x) ** 2 + (u.y - g.y) ** 2 < 36); if (priests < 3) { const v = spawnGroup(s, 1, ['villager', 'villager'], g.x, g.y + g.h / 2 + 1); for (const u of v) { u.state = 'pray'; u.nodeId = -g.id; } } } },
       { id: 'cronus_rises', when: (s) => count(s, 1, (u) => u.type === 'cronus') >= 1, then: (_s, c) => { c.objective('gate', 'failed'); c.reveal('cronus'); c.say('Zeus', 'Cronos caminha novamente sobre a terra! Só um Titã ou uma nação inteira poderá detê-lo. Perseu tem dano extra contra Titãs.', '⚡'); } },
       { id: 'harass', repeat: true, when: (_s, c) => c.seconds >= 180 && c.seconds % 200 === 0, then: (s) => { const tc = townCenter(s, ME); if (tc) raid(s, 1, ['hetairoi', 'hetairoi', 'medusa', 'hypaspist', 'hypaspist'], tc.x, tc.y, 5, 26); } },
@@ -247,7 +257,7 @@ export function enemyDifficulty(d: Difficulty, c: 'easy' | 'normal' | 'hard'): D
  * estão — deixá-las fáceis no Fácil puniria o jogador.
  */
 export function withCampaignDifficulty(config: GameConfig, diff: 'easy' | 'normal' | 'hard'): GameConfig {
-  const human = config.players.findIndex((p) => !p.isAI);
+  const human = localHumanIndex(config);
   const humanTeam = human >= 0 ? (config.players[human].team ?? human) : -1;
   return { ...config, campaignDifficulty: diff, players: config.players.map((p, i) => (p.isAI && (p.team ?? i) !== humanTeam ? { ...p, difficulty: enemyDifficulty(p.difficulty, diff) } : p)) };
 }

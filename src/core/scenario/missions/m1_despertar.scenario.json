@@ -22,8 +22,8 @@
   "map": { "gen": { "mapSize": "small", "seed": 1101 } },
   "config": {
     "players": [
-      { "name": "Argos", "god": "zeus", "isAI": false, "difficulty": "easy" },
-      { "name": "Saqueadores", "god": "hades", "isAI": false, "difficulty": "easy" }
+      { "name": "Argos", "god": "zeus", "isAI": false, "difficulty": "easy", "team": 0 },
+      { "name": "Saqueadores", "god": "hades", "isAI": false, "difficulty": "easy", "team": 1, "puppet": true }
     ],
     "startingResources": { "food": 400, "wood": 300, "gold": 150 }
   },

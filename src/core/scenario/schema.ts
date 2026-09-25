@@ -60,6 +60,7 @@ export type Action =
   | { do: 'storeEntity'; var: string; entity: EntityRef } | { do: 'advanceBuild'; entity: EntityRef; seconds: number }
   | { do: 'order'; units: { tag: string } | UnitFilter; order: { type: 'move' | 'attackMove'; at: Point } | { type: 'attack' | 'gather' | 'pray' | 'repair'; target: EntityRef } }
   | { do: 'kill'; entity: EntityRef } | { do: 'ceasefire'; seconds: number }
+  | { do: 'defeat'; player: PlayerSel }                                        // derrota roteirizada: alive=false e tudo do jogador some
   | { do: 'forEachPlayer'; team?: number; alive?: boolean; then: Action[] };   // dentro: '$p' = jogador, índice k para angle.perIndex
 
 export type ScenarioHud =
@@ -164,6 +165,8 @@ export function validateScenario(file: unknown, opts: ValidateScenarioOpts = {})
         if (typeof p.isAI !== 'boolean') err(`${path}.isAI`, 'esperado true/false');
         if (typeof p.difficulty !== 'string' || !has(DIFFICULTIES, p.difficulty)) err(`${path}.difficulty`, `dificuldade desconhecida: '${String(p.difficulty)}'`);
         if (p.team !== undefined && !isInt(p.team)) err(`${path}.team`, 'esperado um inteiro');
+        if (p.puppet !== undefined && typeof p.puppet !== 'boolean') err(`${path}.puppet`, 'esperado true/false');
+        else if (p.puppet === true && p.isAI === true) err(`${path}.puppet`, 'marionete não pode ser IA (isAI: false)');
       });
     }
     if (c.seed !== undefined && !isInt(c.seed)) err('config.seed', 'esperado um inteiro');
@@ -493,6 +496,7 @@ class Validator {
       }
       case 'kill': this.entity(a.entity, `${path}.entity`, inLoop); return;
       case 'ceasefire': if (!isNum(a.seconds)) this.err(`${path}.seconds`, 'esperado um número'); return;
+      case 'defeat': this.player(a.player, `${path}.player`, inLoop); return;
       case 'forEachPlayer':
         if (a.team !== undefined && !isInt(a.team)) this.err(`${path}.team`, 'esperado um inteiro');
         if (a.alive !== undefined && typeof a.alive !== 'boolean') this.err(`${path}.alive`, 'esperado true/false');
@@ -512,12 +516,17 @@ class Validator {
  *    ausente (exists:false, contagem que aceita 0, ou o contrário sob `not`) sem { fired: <gatilho que a cria> } num
  *    `all` acima dela — senão a condição vale no segundo 1;
  * 2) objetivo `hidden` sem done/failed e sem gatilho que o revele ou conclua (nunca aparece);
- * 3) fala (`say`) sem `en` ou com mais de MAX_LINE_CHARS caracteres.
+ * 3) fala (`say`) sem `en` ou com mais de MAX_LINE_CHARS caracteres;
+ * 4) objetivo `hidden` com done/failed que algum gatilho revela (reveal), sem { fired: <esse gatilho> } no `all` da
+ *    condição — com G1 ele é avaliado desde o segundo 1 e seria cumprido (e revelado) antes da hora;
+ * 5) jogador sem IA fora do time do primeiro humano sem o campo `puppet`: numa partida local ninguém o controla. Marque
+ *    `puppet: true` (facção roteirizada) ou `puppet: false` (adversário humano, cenário em rede).
  */
 function lint(f: Record<string, unknown>, warn: (path: string, message: string) => void): void {
   const setupTags = new Set<string>();
   const triggerTags = new Map<string, Set<string>>();       // tag → gatilhos que a criam
   const touchedObjectives = new Set<string>();              // reveal/objective em gatilhos ou setup
+  const revealedBy = new Map<string, Set<string>>();         // objetivo → gatilhos que o revelam
   const eachAction = (list: unknown, path: string, visit: (a: Record<string, unknown>, path: string) => void): void => {
     if (!Array.isArray(list)) return;
     list.forEach((a, i) => {
@@ -535,6 +544,7 @@ function lint(f: Record<string, unknown>, warn: (path: string, message: string) 
       else { const set = triggerTags.get(a.tag) ?? new Set<string>(); set.add(trig); triggerTags.set(a.tag, set); }
     }
     if ((a.do === 'reveal' || a.do === 'objective') && typeof a.id === 'string') touchedObjectives.add(a.id);
+    if (a.do === 'reveal' && typeof a.id === 'string' && trig !== null) { const set = revealedBy.get(a.id) ?? new Set<string>(); set.add(trig); revealedBy.set(a.id, set); }
   };
   eachAction(f.setup, 'setup', collect(null));
   const triggers = Array.isArray(f.triggers) ? f.triggers : [];
@@ -588,6 +598,35 @@ function lint(f: Record<string, unknown>, warn: (path: string, message: string) 
     if (!isObj(o) || o.hidden !== true || typeof o.id !== 'string') return;
     if (o.done === undefined && o.failed === undefined && !touchedObjectives.has(o.id)) warn(`objectives[${i}]`, `objetivo oculto '${o.id}' sem done/failed e sem gatilho que o revele (reveal) ou conclua (objective): nunca aparece`);
   });
+
+  // 4) oculto revelado por gatilho, avaliado antes do reveal (G1): exige { fired: <gatilho que revela> } num all da condição
+  const allGuards = (c: unknown, out: Set<string>): Set<string> => {
+    if (isObj(c) && Array.isArray(c.all)) for (const x of c.all) { if (isObj(x) && typeof x.fired === 'string') out.add(x.fired); else allGuards(x, out); }
+    return out;
+  };
+  objectives.forEach((o, i) => {
+    if (!isObj(o) || o.hidden !== true || typeof o.id !== 'string') return;
+    const by = revealedBy.get(o.id); if (!by) return;
+    for (const k of ['done', 'failed'] as const) {
+      if (o[k] === undefined) continue;
+      const guards = allGuards(o[k], new Set());
+      if ([...by].some((id) => guards.has(id))) continue;
+      const first = [...by][0];
+      warn(`objectives[${i}].${k}`, `objetivo oculto '${o.id}' é revelado pelo gatilho '${[...by].join("', '")}', mas o ${k} é avaliado desde o início (G1): use { "all": [ { "fired": "${first}" }, … ] } para só contar depois do reveal (segredo sem reveal dispensa a guarda)`);
+    }
+  });
+
+  // 5) humano sem IA em outro time sem `puppet` explícito
+  const players = isObj(f.config) && Array.isArray(f.config.players) ? f.config.players : [];
+  const first = players.findIndex((p) => isObj(p) && p.isAI === false && p.puppet !== true);
+  if (first >= 0) {
+    const teamOf = (p: Record<string, unknown>, i: number) => (isInt(p.team) ? p.team : i);
+    const localTeam = teamOf(players[first] as Record<string, unknown>, first);
+    players.forEach((p, i) => {
+      if (!isObj(p) || p.isAI !== false || p.puppet !== undefined || i === first || teamOf(p, i) === localTeam) return;
+      warn(`config.players[${i}]`, `jogador '${String(p.name)}' sem IA e fora do time do primeiro humano, sem "puppet": marque "puppet": true se for facção roteirizada (numa partida local ninguém o controla) ou "puppet": false se for um adversário humano em rede`);
+    });
+  }
 
   // 3) falas
   const sayCheck = (a: Record<string, unknown>, path: string) => {

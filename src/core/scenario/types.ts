@@ -48,6 +48,9 @@ export interface ScenarioState {
   objectives: Record<string, ObjectiveStatus>;
   hidden: Record<string, boolean>;
   fired: string[];
+  /** Resultado do ponto de vista do time do primeiro humano da config (igual em todos os clientes). */
   outcome: 'playing' | 'victory' | 'defeat';
+  /** Time vencedor ao terminar (-1 = ninguém/em jogo). A tela de fim decide vitória/derrota pelo time do jogador local. */
+  winnerTeam: number;
   vars: Record<string, number>;          // valores guardados pelo cenário (ex.: id do Centro Cívico alvo)
 }

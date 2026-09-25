@@ -5,6 +5,8 @@ import type { ScenarioDef, ScenarioState, TriggerCtx } from './types';
 import { HORDE, campaignMission } from './campaign';
 import { compileScenarioCached } from './compile';
 import { eliminatePlayers } from '../sim/victory';
+import { hasAnyEntity, isPuppetConfig, localHumanIndex } from './helpers';
+export { scenarioAlive } from './helpers';
 import { t } from '../../i18n';
 
 /** Cenário embutido (Horda ou missão do registro da campanha, TS ou JSON) por id. Continua servindo o HUD e a campanha. */
@@ -24,7 +26,7 @@ export function getScenarioFor(state: GameState): ScenarioDef | undefined {
 export function initScenarioState(def: ScenarioDef): ScenarioState {
   const objectives: Record<string, 'pending'> = {}; const hidden: Record<string, boolean> = {};
   for (const o of def.objectives) { objectives[o.id] = 'pending'; hidden[o.id] = !!o.hidden; }
-  return { id: def.id, objectives, hidden, fired: [], outcome: 'playing', vars: {} };
+  return { id: def.id, objectives, hidden, fired: [], outcome: 'playing', winnerTeam: -1, vars: {} };
 }
 
 export function runScenario(state: GameState): void {
@@ -49,30 +51,64 @@ export function runScenario(state: GameState): void {
     if (!t.repeat) sc.fired.push(t.id);
     t.then(state, ctx);
   }
-  const local = localHuman(state);
-  if (def.victory(state)) { sc.outcome = 'victory'; state.gameOver = true; state.winner = state.config.players.findIndex((p) => !p.isAI); state.events.push({ tick: state.tick, type: 'victory', player: state.winner, text: t('ev.missionDone', { title: def.title }) }); }
-  // derrota implícita: todos os humanos do time local eliminados (eliminateInScenario zera alive)
-  else if (def.defeat?.(state) || (local >= 0 && state.players.filter((p) => !p.isAI && p.team === state.players[local].team).every((p) => !p.alive))) { sc.outcome = 'defeat'; state.gameOver = true; state.winner = -2; state.events.push({ tick: state.tick, type: 'defeated', player: -1, text: t('ev.missionFailed', { title: def.title }) }); }
+  // Fim do cenário. A vitória/derrota do arquivo é do ponto de vista do time do primeiro humano (não marionete); com humanos
+  // em times diferentes (cenário em rede), o resultado vale POR TIME: winnerTeam fica no estado e cada cliente decide pela sua.
+  const local = localHumanIndex(state.config);
+  const localTeam = local >= 0 ? state.players[local].team : -1;
+  const humans = state.players.filter((p) => !p.isAI && !isScenarioPuppet(state, p.id));
+  const humanTeams = new Set(humans.map((p) => p.team));
+  const aliveTeams = new Set(humans.filter((p) => p.alive).map((p) => p.team));
+  const others = [...aliveTeams].filter((tm) => tm !== localTeam);
+  if (aliveTeams.has(localTeam) && def.victory(state)) endScenario(state, def, localTeam, humanTeams.size > 1);
+  else if (def.defeat?.(state)) endScenario(state, def, others.length === 1 ? others[0] : -1, humanTeams.size > 1);   // o time local perdeu: vence o outro time humano, se só restar um
+  // derrota implícita: nenhum humano de pé (eliminateInScenario zera alive); em rede, o último time humano de pé vence
+  else if (humanTeams.size > 0 && aliveTeams.size === 0) endScenario(state, def, -1, humanTeams.size > 1);
+  else if (humanTeams.size > 1 && aliveTeams.size === 1) endScenario(state, def, [...aliveTeams][0], true);
 }
 
-/** Primeiro humano da configuração (o "jogador local" dos cenários); -1 se não houver. */
-function localHuman(state: GameState): number { return state.config.players.findIndex((p) => !p.isAI); }
+/** Encerra o cenário com o time vencedor (-1 = ninguém). outcome segue o time do primeiro humano; o HUD usa winnerTeam. */
+function endScenario(state: GameState, def: ScenarioDef, winnerTeam: number, versus: boolean): void {
+  const sc = state.scenario!;
+  const local = localHumanIndex(state.config);
+  const localTeam = local >= 0 ? state.players[local].team : -1;
+  const winners = winnerTeam >= 0 ? state.players.filter((p) => p.team === winnerTeam && !p.isAI && !isScenarioPuppet(state, p.id)) : [];
+  sc.winnerTeam = winnerTeam;
+  sc.outcome = winnerTeam >= 0 && winnerTeam === localTeam ? 'victory' : 'defeat';
+  state.gameOver = true;
+  state.winner = winners.length ? (winners.find((p) => p.alive) ?? winners[0]).id : -2;
+  if (winnerTeam < 0) state.events.push({ tick: state.tick, type: 'defeated', player: -1, text: t('ev.missionFailed', { title: def.title }) });
+  else if (!versus) state.events.push({ tick: state.tick, type: 'victory', player: state.winner, text: t('ev.missionDone', { title: def.title }) });
+  else {   // humanos em times diferentes: o texto do evento nomeia os vencedores (é o mesmo em todos os clientes)
+    const names = winners.filter((p) => p.alive).map((p) => p.name);
+    state.events.push({ tick: state.tick, type: 'victory', player: state.winner, text: names.length > 1 ? t('ev.victoryAlliance', { players: names.join(' & ') }) : t('ev.victoryConquest', { player: names[0] ?? winners[0].name }) });
+  }
+}
 
-/**
- * Marionete roteirizada: jogador sem IA fora do time local (Saqueadores da m1, Tártaro da Horda, guardas do mapa). Age só
- * por gatilhos e costuma não ter cidade — nunca é eliminada automaticamente (o cenário decide com `alive`/`kill`).
- */
-export function isScenarioPuppet(state: GameState, id: number): boolean {
-  const p = state.players[id]; const local = localHuman(state);
-  return !!p && !p.isAI && local >= 0 && p.team !== state.players[local].team;
+/** Vitória do cenário para quem joga no time `team` (tela de fim de cada cliente): winnerTeam decide; sem ele (save antigo), outcome. */
+export function scenarioWon(sc: Pick<ScenarioState, 'outcome'> & { winnerTeam?: number }, team: number): boolean {
+  if (sc.outcome === 'playing') return false;
+  return sc.winnerTeam !== undefined ? sc.winnerTeam >= 0 && sc.winnerTeam === team : sc.outcome === 'victory';
+}
+
+/** Marionete roteirizada: jogador marcado com `puppet: true` na config (Saqueadores da m1, Tártaro da Horda, guardas do mapa). */
+export function isScenarioPuppet(state: GameState, id: number): boolean { return isPuppetConfig(state.config, id); }
+
+/** Sincroniza o `alive` das marionetes com scenarioAlive (combate e IA ignoram jogadores mortos). Sem eventos: é o ritmo do roteiro. */
+export function refreshPuppets(state: GameState): void {
+  for (const p of state.players) {
+    if (!isScenarioPuppet(state, p.id)) continue;
+    const alive = hasAnyEntity(state, p.id);
+    if (alive !== p.alive) { p.alive = alive; p.defeatedTick = alive ? -1 : state.tick; }
+  }
 }
 
 /**
- * G2: eliminação dentro de cenário, uma vez por segundo antes do runner. Mesma regra de checkVictory (sem edifícios que
- * contam e sem cidadãos, respeitando hasStartKit; Regicídio sem rei), com os eventos de derrota, mas sem declarar vencedor
- * global: quem encerra a partida é o runner (vitória/derrota do cenário ou derrota implícita do time local).
+ * G2: eliminação dentro de cenário, uma vez por segundo antes do runner. Jogador comum é eliminado sem edifício que conta e
+ * sem NENHUMA unidade viva (anyUnit; Regicídio sem rei), com os eventos de derrota, mas sem declarar vencedor global: quem
+ * encerra a partida é o runner. Marionetes seguem scenarioAlive (refreshPuppets).
  */
 export function eliminateInScenario(state: GameState): void {
   const sc = state.scenario; if (!sc || sc.outcome !== 'playing' || state.gameOver) return;
-  eliminatePlayers(state, (p) => isScenarioPuppet(state, p.id));
+  eliminatePlayers(state, (p) => isScenarioPuppet(state, p.id), true);
+  refreshPuppets(state);
 }
