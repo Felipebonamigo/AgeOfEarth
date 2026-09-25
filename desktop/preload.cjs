@@ -6,4 +6,6 @@ contextBridge.exposeInMainWorld('desktop', {
   toggleFullscreen: () => ipcRenderer.invoke('window:toggleFullscreen'),
   quit: () => ipcRenderer.invoke('window:quit'),
   onFullscreen: (cb) => ipcRenderer.on('fullscreen', (_e, v) => cb(v)),
+  saveFile: (name, content) => ipcRenderer.invoke('file:save', name, content),
+  openFile: () => ipcRenderer.invoke('file:open'),
 });

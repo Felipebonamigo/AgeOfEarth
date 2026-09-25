@@ -12,6 +12,7 @@ import type { NetClient } from './net/client';
 import type { Command } from './core/types';
 import { spawnUnit } from './core/sim/entities';
 import { nearestFreeTile } from './core/map/pathfinding';
+import { Achievements } from './game/achievements';
 
 const SAVE_KEY = 'aoe_save_v1';
 const REPLAY_KEY = 'aoe_replay_v1';
@@ -22,6 +23,7 @@ async function boot() {
   await renderer.init(root);
   const audio = new Audio();
   let session: Session | null = null;
+  const achievements = new Achievements();
   const hasSave = () => { try { return !!localStorage.getItem(SAVE_KEY); } catch { return false; } };
   const hasReplay = () => { try { return !!localStorage.getItem(REPLAY_KEY); } catch { return false; } };
   let replaySaved = false;
@@ -35,10 +37,12 @@ async function boot() {
     onNextMission: (id) => { const i = SCENARIOS.findIndex((m) => m.id === id); const next = SCENARIOS[i + 1]; if (next) startMission(next.id); else { session = null; hud.setSession(null); hud.setVisible(false); menu.show(); } },
   });
   hud.setVisible(false);
+  achievements.onUnlock = (a) => { hud.toast(`🏅 Conquista: ${a.icon} ${a.name} — ${a.desc}`, 'gold'); audio.play('complete'); };
   const input = new Input(renderer.canvas, () => session, renderer, hud, audio);
 
   const startGame = (config: GameConfig) => {
     session = Session.newGame(config);
+    achievements.recordGod(config.players[session.local]?.god ?? 'zeus');
     renderer.setState(session.state);
     const home = [...session.state.buildings.values()].find((b) => b.owner === session!.local && b.type === 'town_center');
     if (home) renderer.cam.centerOn(home.x, home.y);
@@ -112,6 +116,7 @@ async function boot() {
     if (session) {
       const alpha = session.step(dt);
       if (session.state.gameOver && !replaySaved) saveReplay();
+      if (!session.spectator) achievements.update(session.state, session.local, dt);
       input.update(dt);
       renderer.render(session.state, alpha, input.renderUI(), dt);
       hud.update(dt);

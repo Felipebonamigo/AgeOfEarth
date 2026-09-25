@@ -1,6 +1,7 @@
 // Processo principal do Electron: janela do jogo, tela cheia, integração opcional com Steamworks.
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 const path = require('node:path');
+const fs = require('node:fs/promises');
 
 let steam = null;
 function initSteam() {
@@ -31,6 +32,19 @@ ipcMain.handle('steam:name', () => (steam ? steam.localplayer.getName() : null))
 ipcMain.handle('steam:achievement', (_e, id) => { try { if (steam) { steam.achievement.activate(id); return true; } } catch { /* ignore */ } return false; });
 ipcMain.handle('window:toggleFullscreen', (e) => { const w = BrowserWindow.fromWebContents(e.sender); if (w) w.setFullScreen(!w.isFullScreen()); });
 ipcMain.handle('window:quit', () => app.quit());
+ipcMain.handle('file:save', async (e, name, content) => {
+  const w = BrowserWindow.fromWebContents(e.sender);
+  const r = await dialog.showSaveDialog(w, { defaultPath: path.join(app.getPath('documents'), name), filters: [{ name: 'Age of Earth', extensions: ['aoe.json', 'json'] }] });
+  if (r.canceled || !r.filePath) return false;
+  await fs.writeFile(r.filePath, content, 'utf8');
+  return true;
+});
+ipcMain.handle('file:open', async (e) => {
+  const w = BrowserWindow.fromWebContents(e.sender);
+  const r = await dialog.showOpenDialog(w, { properties: ['openFile'], filters: [{ name: 'Age of Earth', extensions: ['json'] }] });
+  if (r.canceled || r.filePaths.length === 0) return null;
+  return fs.readFile(r.filePaths[0], 'utf8');
+});
 
 app.whenReady().then(() => {
   initSteam();
