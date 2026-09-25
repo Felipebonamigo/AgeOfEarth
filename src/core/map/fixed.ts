@@ -124,7 +124,7 @@ function canonEntity(e: MapEntity): MapEntity {
   const out: MapEntity = e.kind === 'building'
     ? { kind: 'building', type: e.type, owner: e.owner, x: e.x, y: e.y }
     : { kind: 'unit', type: e.type, owner: e.owner, x: e.x, y: e.y };
-  if (e.kind === 'building' && out.kind === 'building' && e.complete === false) out.complete = false;
+  if (e.kind === 'building' && out.kind === 'building' && (e.complete === false || (e.complete as unknown) === 0)) out.complete = false;   // 0 escrito à mão também vale como 'em obra'
   if (typeof e.tag === 'string' && e.tag.length > 0) out.tag = e.tag;
   return out;
 }
@@ -347,6 +347,8 @@ export function validateMap(input: FixedMapData, opts: ValidateOpts = {}): MapIs
   const buildingAt = new Int32Array(n).fill(-1);
   const gateAt = new Int8Array(n).fill(-1);
   const tcOf = new Set<number>();
+  const baseOf = new Set<number>();      // jogadores com algum edifício que conta para sobreviver (não muralha/fazenda)
+  const villagerOf = new Set<number>();
   let entIndex = 0;
   for (const e of data.entities ?? []) {
     const k = entIndex++;
@@ -372,9 +374,11 @@ export function validateMap(input: FixedMapData, opts: ValidateOpts = {}): MapIs
         if (bdef.gate) gateAt[i] = e.owner;
       }
       if (e.type === 'town_center') tcOf.add(e.owner);
+      if (!bdef.wall && !bdef.farm) baseOf.add(e.owner);
       if (bdef.wonder && e.complete !== false) warn('wonderComplete', e.x, e.y, { type: e.type });
     } else {
       if (e.x < 0 || e.y < 0 || e.x >= w || e.y >= h || isSolid(terrain[e.y * w + e.x])) err('entityOverlap', e.x, e.y, { type: e.type });
+      else if (e.type === 'villager') villagerOf.add(e.owner);
     }
   }
 
@@ -383,6 +387,7 @@ export function validateMap(input: FixedMapData, opts: ValidateOpts = {}): MapIs
   const playersToCheck = Math.min(starts.length, nPlayers > 0 ? nPlayers : starts.length);
   if (mode === 'regicide' && !kit) for (let p = 0; p < playersToCheck; p++) if (!tcOf.has(p)) err('regicideNoTc', starts[p]?.[0], starts[p]?.[1], { player: p + 1 });
   if (opts.ai && !kit) for (let p = 0; p < playersToCheck; p++) if (opts.ai[p] && !tcOf.has(p)) warn('aiNoTc', starts[p]?.[0], starts[p]?.[1], { player: p + 1 });
+  if (!kit) for (let p = 0; p < playersToCheck; p++) if (!baseOf.has(p) && !villagerOf.has(p)) warn('noBase', starts[p]?.[0], starts[p]?.[1], { player: p + 1 });   // só sobrevive enquanto tiver unidades
 
   // ---- análise espacial (só se não houver erro estrutural nos inícios) ----
   // Mapa temporário para components.ts: terreno sólido, nós e edifícios (exceto passáveis) bloqueiam; portões contam como passáveis

@@ -44,7 +44,7 @@ export function placeBuilding(state: GameState, owner: number, type: string, tx:
 
 /** Empurra unidades que estejam sobre a área do edifício para o tile livre mais próximo. */
 /** Tile passável que não seja um bolsão minúsculo (região com pelo menos 8 tiles), para não prender unidades. */
-function openTile(state: GameState, x: number, y: number): boolean {
+export function openTile(state: GameState, x: number, y: number): boolean {
   return isPassable(state.map, x, y) && componentSize(state.map, componentAt(state.map, x, y)) >= 8;
 }
 function pushUnitsOut(state: GameState, b: Building) {
@@ -228,7 +228,7 @@ export function removeBuildingNow(state: GameState, b: Building): void {
   if (!def.passable) invalidateComponents(map);
   state.territoryDirty = true;
   const owner = state.players[b.owner];
-  if (owner) recomputePop(state, owner);
+  if (owner) { recomputePop(state, owner); if (def.wonder) { const { recomputeMods, refreshMaxHp } = requireMods(); owner.wonderVictoryAt = -1; recomputeMods(state, owner); refreshMaxHp(state, owner); } }
 }
 
 /** Remove uma unidade na hora: sai da guarnição (se estiver dentro), apaga do Map e recalcula a população. Sem efeitos nem estatísticas. */

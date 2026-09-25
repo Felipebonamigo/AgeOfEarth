@@ -93,6 +93,7 @@ export interface Building {
   tx: number; ty: number; w: number; h: number; x: number; y: number;  // tiles e centro em coordenadas de tile
   hp: number; maxHp: number;
   complete: boolean; progress: number;                 // segundos de obra acumulados
+  unpaid?: boolean;                                    // obra pré-colocada pelo mapa/cenário: cancelar ou excluir não reembolsa
   queue: QueueItem[]; rallyX: number; rallyY: number;
   scholars: number; disabledUntil: number; wonderStart: number; cooldown: number;
   dead: boolean; builtTick: number; lastDamageTick: number;

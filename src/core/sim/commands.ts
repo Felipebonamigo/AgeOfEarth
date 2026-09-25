@@ -196,7 +196,7 @@ export function applyCommand(state: GameState, cmd: Command): CommandResult {
       const b = ownedBuilding(state, cmd.player, cmd.buildingId);
       if (!b) return { ok: false };
       if (cmd.index === -1) { // cancela construção inteira
-        if (!b.complete) { refund(player, getBuildingStats(state, player, b.type).cost, 1); destroyBuilding(state, b, -1); return { ok: true }; }
+        if (!b.complete) { if (!b.unpaid) refund(player, getBuildingStats(state, player, b.type).cost, 1); destroyBuilding(state, b, -1); return { ok: true }; }
         return { ok: false };
       }
       // por uid quando informado (o índice pode ter mudado entre o clique e a execução, ex.: lockstep)
@@ -226,7 +226,7 @@ export function applyCommand(state: GameState, cmd: Command): CommandResult {
         const u = state.units.get(id);
         if (u && u.owner === cmd.player && !u.dead) { killUnit(state, u, -1); continue; }
         const b = state.buildings.get(id);
-        if (b && b.owner === cmd.player && !b.dead) { if (!b.complete) refund(player, getBuildingStats(state, player, b.type).cost, 1); destroyBuilding(state, b, -1); }
+        if (b && b.owner === cmd.player && !b.dead) { if (!b.complete && !b.unpaid) refund(player, getBuildingStats(state, player, b.type).cost, 1); destroyBuilding(state, b, -1); }
       }
       return { ok: true };
     }

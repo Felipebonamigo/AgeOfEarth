@@ -1,7 +1,9 @@
 // Partida em mapa fixo (docs/EDITOR.md §3.1): kit inicial, entidades pré-colocadas, startOrder, relíquias, KotH,
 // regicídio sem kit e remoção imediata de entidades (removeBuildingNow/removeUnitNow).
 import { describe, it, expect } from 'vitest';
-import { createGame } from '../src/core/sim/game';
+import { createGame, tick } from '../src/core/sim/game';
+import { applyCommand } from '../src/core/sim/commands';
+import { validateMap } from '../src/core/map/fixed';
 import { generateMap } from '../src/core/map/mapgen';
 import { mapToData, mapFromData, type FixedMapData } from '../src/core/map/fixed';
 import { enterGarrison, removeBuildingNow, removeUnitNow } from '../src/core/sim/entities';
@@ -200,5 +202,27 @@ describe('remoção imediata', () => {
     expect(tower.owner).toBe(1);   // o jogador 1 começa em starts[0]
     const tc1 = [...s.buildings.values()].find((b) => b.type === 'town_center' && b.owner === 1)!;
     expect(Math.abs(tc1.x - s0.x) < 3 && Math.abs(tc1.y - s0.y) < 3).toBe(true);
+  });
+  it('obra pré-colocada não reembolsa ao cancelar; mapa de batalha sem kit sobrevive pelas unidades; rei pré-colocado não é duplicado', () => {
+    const { data, map } = baseData();
+    const s0 = map.starts[0], s1 = map.starts[1];
+    const spot = freeRect(map, s0.x + 6, s0.y, BUILDINGS.fortress.w, BUILDINGS.fortress.h), spotU = freeRect(map, s1.x, s1.y + 4, 2, 1);
+    data.startKit = false;
+    data.entities = [
+      { kind: 'building', type: 'fortress', owner: 0, x: spot.x, y: spot.y, complete: false },
+      { kind: 'unit', type: 'hoplite', owner: 1, x: spotU.x, y: spotU.y },
+      { kind: 'unit', type: 'basileus', owner: 1, x: spotU.x + 1, y: spotU.y },
+    ];
+    const issues = validateMap(data, { players: 2 });
+    expect(issues.some((i) => i.code === 'noBase' && i.params?.player === 2)).toBe(true);
+    const s = createGame({ seed: 1, mapSize: 'small', players, map: data, mode: 'regicide' });
+    const fort = [...s.buildings.values()].find((b) => b.type === 'fortress')!;
+    expect(fort.complete).toBe(false); expect(fort.unpaid).toBe(true);
+    const before = { ...s.players[0].resources };
+    applyCommand(s, { type: 'cancel', player: 0, buildingId: fort.id, index: -1 } as never);
+    expect(s.players[0].resources.wood).toBe(before.wood); expect(s.players[0].resources.gold).toBe(before.gold);
+    expect([...s.units.values()].filter((u) => u.owner === 1 && u.type === 'basileus').length).toBe(1);   // o rei do mapa, sem segundo
+    for (let i = 0; i < 40; i++) tick(s);
+    expect(s.players[1].alive).toBe(true);   // só tem exército, mas sem kit isso basta
   });
 });

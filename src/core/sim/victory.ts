@@ -4,6 +4,7 @@ import { KOTH_SECONDS } from '../constants';
 import type { GameState } from '../types';
 import { t } from '../../i18n';
 import { kingAlive, teamNames } from './modes';
+import { hasStartKit } from './game';
 
 export function checkVictory(state: GameState): void {
   if (state.gameOver) return;
@@ -11,7 +12,7 @@ export function checkVictory(state: GameState): void {
     if (!p.alive) continue;
     let hasBuilding = false, hasVillager = false;
     for (const b of state.buildings.values()) if (b.owner === p.id && !b.dead && !BUILDINGS[b.type].wall && !BUILDINGS[b.type].farm) { hasBuilding = true; break; }
-    if (!hasBuilding) for (const u of state.units.values()) if (u.owner === p.id && !u.dead && u.type === 'villager') { hasVillager = true; break; }
+    if (!hasBuilding) for (const u of state.units.values()) if (u.owner === p.id && !u.dead && (u.type === 'villager' || !hasStartKit(state.config, p.id))) { hasVillager = true; break; }   // sem kit inicial (mapa de batalha), qualquer unidade viva mantém o jogador
     const kingDead = state.config.mode === 'regicide' && !kingAlive(state, p.id);   // Regicídio: sem rei, o reino cai
     if (kingDead) state.events.push({ tick: state.tick, type: 'kingDied', player: p.id, text: t('ev.kingDied', { player: p.name }) });
     if ((!hasBuilding && !hasVillager) || kingDead) {

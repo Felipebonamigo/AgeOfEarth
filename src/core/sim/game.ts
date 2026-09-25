@@ -5,7 +5,7 @@ import { RNG } from '../rng';
 import type { Command, GameConfig, GameState, Player } from '../types';
 import { generateMap, resetNodeSeq } from '../map/mapgen';
 import { mapFromData } from '../map/fixed';
-import { canPlaceBuilding, placeBuilding, recomputePop, removeBuildingNow, removeUnitNow, spawnUnit } from './entities';
+import { canPlaceBuilding, openTile, placeBuilding, recomputePop, removeBuildingNow, removeUnitNow, spawnUnit } from './entities';
 import { defaultMods, recomputeMods } from './modifiers';
 import { recomputeTerritory } from './territory';
 import { updateFog } from './fog';
@@ -61,7 +61,7 @@ export function createGame(config: GameConfig): GameState {
   // Mapa fixo: ordem dos inícios (config.startOrder só vale se for uma permutação válida de índices de map.starts) e kit inicial por jogador
   const order = validStartOrder(config.startOrder, map.starts.length, state.players.length);
   const startOf = (i: number) => map.starts[order ? order[i] : i];
-  const kit = (i: number): boolean => Array.isArray(config.startKit) ? (config.startKit[i] ?? true) : (config.startKit ?? config.map?.startKit ?? true);
+  const kit = (i: number): boolean => hasStartKit(config, i);
   // Posições iniciais: centro cívico + cidadãos + batedor
   state.players.forEach((p, i) => {
     const s = startOf(i);
@@ -75,10 +75,6 @@ export function createGame(config: GameConfig): GameState {
         spawnUnit(state, p.id, k < 5 ? 'villager' : 'kataskopos', px, py);
       });
       if (mode === 'regicide') { const t = spiralSearch(Math.floor(tc.x), Math.floor(tc.y) + 3, 6, (a, b) => isPassable(map, a, b)); spawnUnit(state, p.id, 'basileus', t ? t.x + 0.5 : tc.x, t ? t.y + 0.5 : tc.y + 3.5); }
-    } else if (mode === 'regicide') {
-      // Sem kit inicial o basileus nasce no tile passável mais próximo do início (validateMap avisa se não houver CC)
-      const t = spiralSearch(s.x, s.y, 6, (a, b) => isPassable(map, a, b));
-      spawnUnit(state, p.id, 'basileus', t ? t.x + 0.5 : s.x + 0.5, t ? t.y + 0.5 : s.y + 0.5);
     }
     recomputePop(state, p);
   });
@@ -90,22 +86,30 @@ export function createGame(config: GameConfig): GameState {
     const playerAtStart = new Map<number, number>();
     for (let i = 0; i < state.players.length; i++) playerAtStart.set(order ? order[i] : i, i);
     for (let e of Array.isArray(config.map.entities) ? config.map.entities : []) {
+      if (!e || typeof e !== 'object') continue;
       const pi = Number.isInteger(e.owner) ? playerAtStart.get(e.owner) : undefined;
       if (pi === undefined) continue;
       e = { ...e, owner: pi };
       const owner = state.players[pi];
       if (e.kind === 'building') {
         if (typeof e.type !== 'string' || !Object.prototype.hasOwnProperty.call(BUILDINGS, e.type) || !canPlaceBuilding(state, owner, e.type, e.x, e.y, true, true).ok) continue;
-        const b = placeBuilding(state, e.owner, e.type, e.x, e.y, e.complete ?? true);
+        const b = placeBuilding(state, e.owner, e.type, e.x, e.y, e.complete !== false);
+        if (!b.complete) b.unpaid = true;   // obra do mapa: cancelar/excluir não devolve recursos
         if (e.tag) tags.set(e.tag, b.id);
       } else if (e.kind === 'unit') {
         if (typeof e.type !== 'string' || !Object.prototype.hasOwnProperty.call(UNITS, e.type)) continue;
-        const t = nearestFreeTile(map, e.x, e.y, 6);
+        const t = spiralSearch(e.x, e.y, 6, (a, b) => openTile(state, a, b)) ?? nearestFreeTile(map, e.x, e.y, 6);   // prefere região com ≥ 8 tiles (não nasce presa)
         if (!t) continue;
         const u = spawnUnit(state, e.owner, e.type, t.x + 0.5, t.y + 0.5);
         if (e.tag) tags.set(e.tag, u.id);
       }
     }
+    // Regicídio sem kit: o basileus nasce perto do início só se o mapa não o pré-colocou
+    if (mode === 'regicide') state.players.forEach((p, i) => {
+      if (kit(i) || [...state.units.values()].some((u) => u.owner === p.id && u.type === 'basileus')) return;
+      const s = startOf(i); const t = spiralSearch(s.x, s.y, 6, (a, b) => isPassable(map, a, b));
+      spawnUnit(state, p.id, 'basileus', t ? t.x + 0.5 : s.x + 0.5, t ? t.y + 0.5 : s.y + 0.5);
+    });
     // O setup não conta como construção/treino nem gera avisos na partida
     for (const p of state.players) { recomputePop(state, p); p.stats.buildingsBuilt = 0; p.stats.unitsTrained = 0; }
     state.events = [];
@@ -207,4 +211,9 @@ export function summarize(state: GameState): string {
     const r = RESOURCES.map((k) => `${k[0]}=${Math.floor(p.resources[k])}`).join(' ');
     return `${p.name}[${p.alive ? 'vivo' : 'morto'}] idade=${p.age} vill=${v} mil=${m} edif=${b} pop=${p.pop}/${p.popCap} techs=${p.techs.length} ${r}`;
   }).join('\n');
+}
+
+/** O jogador i começa com o kit inicial (CC + cidadãos + batedor)? Sem kit, ele só é derrotado quando perde também as unidades. */
+export function hasStartKit(config: GameConfig, i: number): boolean {
+  return Array.isArray(config.startKit) ? (config.startKit[i] ?? true) : (config.startKit ?? config.map?.startKit ?? true);
 }
