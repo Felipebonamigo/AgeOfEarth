@@ -138,6 +138,18 @@ const pt = {
   'main.customScenarioImport': '📂 Importar .map.json com cenário', 'main.customScenarioNo': 'O arquivo não contém um cenário embutido.', 'main.customScenarioBad': 'Cenário inválido:', 'main.customScenarioPlay': '▶ Jogar', 'main.customScenarioInfo': '{map} · {w}×{h} · {n} jogadores',
   // multiplayer: cenário embutido no mapa fixo
   'mp.scenario': '📜 Cenário: {title}', 'mp.scenarioInvalid': 'Cenário inválido: {reason}', 'mp.scenarioPlayers': 'O cenário tem só {n} vagas para {p} jogadores humanos.', 'mp.scenarioAis': 'Com cenário, as IAs e os times vêm do próprio cenário; os humanos ocupam as primeiras vagas.',
+  // controle (Steam Deck / Xbox; src/ui/gamepad.ts)
+  'pad.connected': '🎮 Controle conectado: {name}', 'pad.disconnected': '🎮 Controle desconectado', 'pad.noGroups': 'Nenhum grupo de controle (LT + ▲ salva a seleção).', 'pad.noArmy': 'Nenhuma unidade militar.', 'pad.noPower': 'Nenhum poder divino disponível.', 'pad.noSelection': 'Selecione algo antes de salvar um grupo.', 'pad.groupSaved': 'Grupo {n} salvo ({count} selecionados).',
+  'pad.powerGlobal': '{power}: {confirm} invoca · ▼ próximo · {cancel} cancela',
+  'pad.hint.select': 'Selecionar', 'pad.hint.order': 'Ordem', 'pad.hint.attackMove': 'Atacar-mover', 'pad.hint.stop': 'Parar', 'pad.hint.commands': 'Comandos', 'pad.hint.groups': 'Grupos/tipos', 'pad.hint.dpad': 'Ocioso · Exército · Centro · Poder', 'pad.hint.menu': 'Menu',
+  'pad.hint.panel': 'Botões do painel', 'pad.hint.page': 'Página {n}/{m}', 'pad.hint.saveGroup': 'Salvar grupo', 'pad.hint.zoom': 'Zoom', 'pad.hint.build': 'Construir', 'pad.hint.cancel': 'Cancelar', 'pad.hint.target': 'Alvo', 'pad.hint.cast': 'Invocar {power}', 'pad.hint.next': 'Próximo',
+  'pad.hint.move': 'Mover', 'pad.hint.confirm': 'Confirmar', 'pad.hint.back': 'Voltar', 'pad.hint.tabs': 'Abas', 'pad.hint.change': 'Trocar', 'pad.hint.ok': 'OK',
+  'pad.act.cursor': 'Cursor (acelera ao segurar; freia sobre unidades)', 'pad.act.camera': 'Câmera (com LT: zoom)', 'pad.act.primary': 'Selecionar / confirmar (clique esquerdo; segurar e mover: retângulo)', 'pad.act.context': 'Ordem contextual (clique direito) · cancela o modo', 'pad.act.attackMove': 'Atacar-mover no cursor', 'pad.act.stop': 'Parar',
+  'pad.act.modifier': 'Modificador: A/B/X/Y acionam 4 botões do painel de comandos; LB/RB trocam a página; ▲ salva um grupo', 'pad.act.groups': 'Próximo grupo de controle', 'pad.act.cycleType': 'Alternar tipo dentro da seleção', 'pad.act.idle': 'Cidadão ocioso', 'pad.act.army': 'Exército inteiro', 'pad.act.home': 'Centro Cívico', 'pad.act.power': 'Habilidade do herói ou poder divino (alterna)',
+  'pad.act.menu': 'Menu da partida', 'pad.act.overview': 'Visão geral do mapa (segurar; solte com o cursor num ponto para ir até ele)', 'pad.act.sameType': 'Todos do mesmo tipo na tela', 'pad.act.menus': 'Menus: D-pad move o foco, confirmar, voltar, abas',
+  'pad.scheme.standard': 'Padrão (Xbox / Steam Deck)', 'pad.scheme.alt': 'Alternativo (A↔B e analógicos trocados)',
+  'menu.pad': '🎮 Controle', 'menu.padNone': 'Nenhum controle detectado (aperte um botão do controle).', 'menu.padDetected': 'Detectado: {name}', 'menu.padSens': 'Sensibilidade do cursor', 'menu.padScheme': 'Esquema de botões', 'menu.padInvert': 'Inverter eixo vertical da câmera', 'menu.padVibration': 'Vibrar ao sofrer ataque',
+  'hk.pad': '🎮 Controle (Steam Deck / Xbox)',
 } as const;
 
 const en: Record<keyof typeof pt, string> = {
@@ -265,6 +277,17 @@ const en: Record<keyof typeof pt, string> = {
   'main.customScenarios': 'Custom scenarios', 'main.customScenariosDesc': 'Maps from My maps with an embedded scenario (Editor → Triggers). They do not count towards campaign progress or achievements.', 'main.customScenariosNone': 'None yet: create one in the Editor (Triggers) or import a .map.json file with a scenario.',
   'main.customScenarioImport': '📂 Import .map.json with scenario', 'main.customScenarioNo': 'The file has no embedded scenario.', 'main.customScenarioBad': 'Invalid scenario:', 'main.customScenarioPlay': '▶ Play', 'main.customScenarioInfo': '{map} · {w}×{h} · {n} players',
   'mp.scenario': '📜 Scenario: {title}', 'mp.scenarioInvalid': 'Invalid scenario: {reason}', 'mp.scenarioPlayers': 'The scenario only has {n} slots for {p} human players.', 'mp.scenarioAis': 'With a scenario, AIs and teams come from the scenario itself; humans take the first slots.',
+  'pad.connected': '🎮 Controller connected: {name}', 'pad.disconnected': '🎮 Controller disconnected', 'pad.noGroups': 'No control groups (LT + ▲ saves the selection).', 'pad.noArmy': 'No military units.', 'pad.noPower': 'No god power available.', 'pad.noSelection': 'Select something before saving a group.', 'pad.groupSaved': 'Group {n} saved ({count} selected).',
+  'pad.powerGlobal': '{power}: {confirm} casts · ▼ next · {cancel} cancels',
+  'pad.hint.select': 'Select', 'pad.hint.order': 'Order', 'pad.hint.attackMove': 'Attack-move', 'pad.hint.stop': 'Stop', 'pad.hint.commands': 'Commands', 'pad.hint.groups': 'Groups/types', 'pad.hint.dpad': 'Idle · Army · Center · Power', 'pad.hint.menu': 'Menu',
+  'pad.hint.panel': 'Panel buttons', 'pad.hint.page': 'Page {n}/{m}', 'pad.hint.saveGroup': 'Save group', 'pad.hint.zoom': 'Zoom', 'pad.hint.build': 'Build', 'pad.hint.cancel': 'Cancel', 'pad.hint.target': 'Target', 'pad.hint.cast': 'Cast {power}', 'pad.hint.next': 'Next',
+  'pad.hint.move': 'Move', 'pad.hint.confirm': 'Confirm', 'pad.hint.back': 'Back', 'pad.hint.tabs': 'Tabs', 'pad.hint.change': 'Change', 'pad.hint.ok': 'OK',
+  'pad.act.cursor': 'Cursor (speeds up when held; slows over units)', 'pad.act.camera': 'Camera (with LT: zoom)', 'pad.act.primary': 'Select / confirm (left click; hold and move: box)', 'pad.act.context': 'Context order (right click) · cancels the mode', 'pad.act.attackMove': 'Attack-move at the cursor', 'pad.act.stop': 'Stop',
+  'pad.act.modifier': 'Modifier: A/B/X/Y press 4 command panel buttons; LB/RB change the page; ▲ saves a group', 'pad.act.groups': 'Next control group', 'pad.act.cycleType': 'Cycle type within the selection', 'pad.act.idle': 'Idle citizen', 'pad.act.army': 'Whole army', 'pad.act.home': 'Town Center', 'pad.act.power': 'Hero ability or god power (cycles)',
+  'pad.act.menu': 'Match menu', 'pad.act.overview': 'Map overview (hold; release with the cursor on a spot to go there)', 'pad.act.sameType': 'All of the same type on screen', 'pad.act.menus': 'Menus: D-pad moves the focus, confirm, back, tabs',
+  'pad.scheme.standard': 'Standard (Xbox / Steam Deck)', 'pad.scheme.alt': 'Alternative (A↔B and sticks swapped)',
+  'menu.pad': '🎮 Controller', 'menu.padNone': 'No controller detected (press a controller button).', 'menu.padDetected': 'Detected: {name}', 'menu.padSens': 'Cursor sensitivity', 'menu.padScheme': 'Button layout', 'menu.padInvert': 'Invert camera vertical axis', 'menu.padVibration': 'Vibrate when under attack',
+  'hk.pad': '🎮 Controller (Steam Deck / Xbox)',
 };
 
 export const STRINGS = { pt, en };

@@ -1,8 +1,9 @@
 // Bloco de opções compartilhado entre o menu principal e o menu da partida:
 // volume, tela cheia, rolagem na borda, tamanho da interface, preset de qualidade, resolução de renderização,
-// avançado (contador de desempenho, contorno de time), idioma e atalhos.
+// avançado (contador de desempenho, contorno de time), controle (sensibilidade, eixo, esquema, vibração), idioma e atalhos.
 import { t, getLocale, setLocale, LOCALE_NAMES, type Locale } from '../i18n';
-import type { Settings } from '../game/settings';
+import { PAD_SCHEMES, PAD_SENSITIVITIES, type Settings, type PadScheme } from '../game/settings';
+import { esc } from './html';
 import { isFullscreen, UI_SCALES, RENDER_SCALES } from '../game/display';
 import { QUALITY_PRESETS, type QualityPreset } from '../render/quality';
 
@@ -18,6 +19,14 @@ export interface OptionsContext {
   setFullscreen: (v: boolean) => void;
   onLocaleChanged: () => void;
   onHotkeys: () => void;
+  /** Opções do controle (src/ui/gamepad.ts lê `settings` a cada quadro). */
+  setPad?: (patch: Partial<Pick<Settings, 'padSensitivity' | 'padInvertY' | 'padScheme' | 'padVibration'>>) => void;
+}
+
+/** Nome do primeiro controle conectado ('' se nenhum). */
+function padName(): string {
+  try { for (const g of (typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [])) if (g && g.connected) return g.id.replace(/\s*\(.*$/, '').trim() || g.id; } catch { /* sem Gamepad API */ }
+  return '';
 }
 
 const LBL = 'font-size:12px;color:#9aa5b8';
@@ -36,9 +45,21 @@ export function optionsHTML(ctx: OptionsContext): string {
       <label style="${LBL};display:block;margin-top:4px"><input type="checkbox" id="o-fps" ${s.showFps ? 'checked' : ''}> ${t('menu.showFps')}</label>
       <label style="${LBL};display:block" title="${t('menu.teamOutlineTip')}"><input type="checkbox" id="o-outline" ${s.teamOutline ? 'checked' : ''}> ${t('menu.teamOutline')}</label>
     </details>
+    ${ctx.setPad ? padOptionsHTML(s) : ''}
     <label style="${LBL}">${t('menu.language')} <select id="o-lang">${(Object.keys(LOCALE_NAMES) as Locale[]).map((l) => `<option value="${l}" ${getLocale() === l ? 'selected' : ''}>${LOCALE_NAMES[l]}</option>`).join('')}</select></label>
     <button class="btn" id="o-hotkeys">${t('menu.hotkeys')}</button>
   </div>`;
+}
+
+function padOptionsHTML(s: Settings): string {
+  const name = padName();
+  return `<details style="${LBL}" id="o-pad"><summary style="cursor:pointer">${t('menu.pad')}</summary>
+      <div style="margin-top:4px">${name ? t('menu.padDetected', { name: esc(name) }) : t('menu.padNone')}</div>
+      <label style="${LBL};display:block">${t('menu.padSens')} <select id="o-pad-sens">${PAD_SENSITIVITIES.map((v) => `<option value="${v}" ${near(v, s.padSensitivity) ? 'selected' : ''}>${Math.round(v * 100)}%</option>`).join('')}</select></label>
+      <label style="${LBL};display:block">${t('menu.padScheme')} <select id="o-pad-scheme">${PAD_SCHEMES.map((v) => `<option value="${v}" ${s.padScheme === v ? 'selected' : ''}>${t(`pad.scheme.${v}`)}</option>`).join('')}</select></label>
+      <label style="${LBL};display:block"><input type="checkbox" id="o-pad-invert" ${s.padInvertY ? 'checked' : ''}> ${t('menu.padInvert')}</label>
+      <label style="${LBL};display:block"><input type="checkbox" id="o-pad-vib" ${s.padVibration ? 'checked' : ''}> ${t('menu.padVibration')}</label>
+    </details>`;
 }
 
 export function bindOptions(root: ParentNode, ctx: OptionsContext, rerender: () => void): void {
@@ -53,4 +74,8 @@ export function bindOptions(root: ParentNode, ctx: OptionsContext, rerender: () 
   q('#o-outline')?.addEventListener('change', (e) => ctx.setTeamOutline((e.target as HTMLInputElement).checked));
   q('#o-lang')?.addEventListener('change', (e) => { setLocale((e.target as HTMLSelectElement).value as Locale); ctx.onLocaleChanged(); rerender(); });
   q('#o-hotkeys')?.addEventListener('click', () => ctx.onHotkeys());
+  q('#o-pad-sens')?.addEventListener('change', (e) => ctx.setPad?.({ padSensitivity: Number((e.target as HTMLSelectElement).value) }));
+  q('#o-pad-scheme')?.addEventListener('change', (e) => ctx.setPad?.({ padScheme: (e.target as HTMLSelectElement).value as PadScheme }));
+  q('#o-pad-invert')?.addEventListener('change', (e) => ctx.setPad?.({ padInvertY: (e.target as HTMLInputElement).checked }));
+  q('#o-pad-vib')?.addEventListener('change', (e) => ctx.setPad?.({ padVibration: (e.target as HTMLInputElement).checked }));
 }

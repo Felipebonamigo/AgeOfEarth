@@ -13,6 +13,9 @@ import type { MapEditor } from '../editor/editor';
 
 /** Ganchos da camada DOM do editor (menu por Esc, atalhos por H, Ctrl+S/Ctrl+Enter e "escolher no mapa"). */
 export interface EditorHooks { menu?: () => void; hotkeys?: () => void; save?: () => void; test?: () => void; pickTile?: (x: number, y: number) => boolean }
+/** Modificadores do ponteiro (Shift enfileira, Ctrl acrescenta à seleção, Alt inclui cidadãos na caixa). */
+export interface PointerMods { shift: boolean; alt: boolean; ctrl: boolean }
+const NO_MODS: PointerMods = { shift: false, alt: false, ctrl: false };
 
 const BUILD_HOTKEYS: Record<string, string> = {};
 for (const [id, b] of Object.entries(BUILDINGS)) if (b.hotkey && !b.notBuildable) BUILD_HOTKEYS[b.hotkey] = BUILD_HOTKEYS[b.hotkey] ? BUILD_HOTKEYS[b.hotkey] + ',' + id : id;
@@ -34,7 +37,7 @@ export class Input {
   setEditor(ed: MapEditor | null, hooks: EditorHooks | null = null) { this.editor = ed; this.editorHooks = hooks; }
   private inEditor(s: Session): boolean { return s.ui.mode === 'editor' && this.editor !== null; }
   private tileAt(sx: number, sy: number) { const w = this.worldAt(sx, sy); return { x: Math.floor(w.x), y: Math.floor(w.y) }; }
-  private mods(e: { shiftKey: boolean; altKey: boolean; ctrlKey: boolean }) { return { shift: e.shiftKey, alt: e.altKey, ctrl: e.ctrlKey }; }
+  private mods(e: { shiftKey: boolean; altKey: boolean; ctrlKey: boolean }): PointerMods { return { shift: e.shiftKey, alt: e.altKey, ctrl: e.ctrlKey }; }
 
   constructor(canvas: HTMLCanvasElement, getSession: () => Session | null, renderer: Renderer, hud: HUD, audio: Audio) {
     this.canvas = canvas; this.getSession = getSession; this.renderer = renderer; this.hud = hud; this.audio = audio;
@@ -64,100 +67,111 @@ export class Input {
   }
 
   private onDown(e: PointerEvent) {
-    const s = this.getSession(); if (!s || this.hud.modalOpen) return;
     if (this.overHud(e)) return;
-    this.mouse.down = true; this.mouse.button = e.button; this.mouse.downX = e.clientX; this.mouse.downY = e.clientY; this.mouse.dragging = false;
-    if (e.button === 1) { this.middleDrag = { x: e.clientX, y: e.clientY }; e.preventDefault(); return; }
+    if (e.button === 1) e.preventDefault();
+    this.pointerPress(e.clientX, e.clientY, e.button, this.mods(e));
+  }
+  private onMove(e: PointerEvent) { this.pointerMoveTo(e.clientX, e.clientY, this.mods(e)); }
+  private onUp(e: PointerEvent) { this.pointerRelease(e.clientX, e.clientY, e.button, this.mods(e), this.overHud(e)); }
+
+  // ---------------- Ponteiro (mouse ou cursor virtual do controle: src/ui/gamepad.ts) ----------------
+  /** Posição atual do ponteiro em pixels de tela (a do mouse ou a do cursor virtual). */
+  get pointer(): { x: number; y: number; down: boolean; button: number } { return { x: this.mouse.x, y: this.mouse.y, down: this.mouse.down, button: this.mouse.button }; }
+  /** Há elemento de interface (e não o mapa) sob o ponto? Avisos e tooltip não contam como HUD. */
+  hudAt(x: number, y: number): boolean { const t = document.elementFromPoint(x, y); return !!t && t !== this.canvas && !t.closest('#messages, #tooltip'); }
+
+  /** Botão pressionado sobre o mapa (0 esquerdo, 1 meio, 2 direito): seleção, colocação, alvo de poder ou ordem contextual. */
+  pointerPress(x: number, y: number, button: number, m: PointerMods = NO_MODS) {
+    const s = this.getSession(); if (!s || this.hud.modalOpen) return;
+    this.mouse.down = true; this.mouse.button = button; this.mouse.downX = x; this.mouse.downY = y; this.mouse.dragging = false;
+    if (button === 1) { this.middleDrag = { x, y }; return; }
     if (this.inEditor(s)) {
-      const tile = this.tileAt(e.clientX, e.clientY);
-      if (e.button === 0 && this.editorHooks?.pickTile?.(tile.x, tile.y)) return;   // "escolher no mapa" (colina do KotH)
-      if (e.button === 0 || e.button === 2) this.editor!.pointerDown(tile.x, tile.y, e.button, this.mods(e));
+      const tile = this.tileAt(x, y);
+      if (button === 0 && this.editorHooks?.pickTile?.(tile.x, tile.y)) return;   // "escolher no mapa" (colina do KotH)
+      if (button === 0 || button === 2) this.editor!.pointerDown(tile.x, tile.y, button, m);
       return;
     }
-    const w = this.worldAt(e.clientX, e.clientY);
-    if (e.button === 0) {
-      if (s.ui.mode === 'place' && s.ui.placeType) { this.placeAt(w.x, w.y, e.shiftKey); return; }
-      if (s.ui.mode === 'attackMove') { this.attackMove(w.x, w.y, e.shiftKey); this.hud.cancelMode(); return; }
+    const w = this.worldAt(x, y);
+    if (button === 0) {
+      if (s.ui.mode === 'place' && s.ui.placeType) { this.placeAt(w.x, w.y, m.shift); return; }
+      if (s.ui.mode === 'attackMove') { this.attackMove(w.x, w.y, m.shift); this.hud.cancelMode(); return; }
       if (s.ui.mode === 'rally') { const b = s.ownSelectedBuilding(); if (b) s.issue({ type: 'rally', player: s.local, buildingId: b.id, x: w.x, y: w.y }); this.hud.cancelMode(); return; }
       if (s.ui.mode === 'power' && s.ui.powerId) { this.usePowerAt(w.x, w.y); return; }
-    } else if (e.button === 2) {
+    } else if (button === 2) {
       if (s.ui.mode !== 'normal') { this.hud.cancelMode(); return; }
-      this.contextCommand(w.x, w.y, e.shiftKey);
+      this.contextCommand(w.x, w.y, m.shift);
     }
   }
 
-  private onMove(e: PointerEvent) {
-    this.mouse.x = e.clientX; this.mouse.y = e.clientY; this.mouse.inside = true;
+  /** Ponteiro moveu: arrastar (caixa de seleção, muralha, câmera pelo botão do meio), editor e dica sob o cursor. */
+  pointerMoveTo(x: number, y: number, m: PointerMods = NO_MODS) {
+    this.mouse.x = x; this.mouse.y = y; this.mouse.inside = true;
     const s = this.getSession(); if (!s) return;
-    if (this.middleDrag) { this.renderer.cam.pan(-(e.clientX - this.middleDrag.x), -(e.clientY - this.middleDrag.y)); this.middleDrag = { x: e.clientX, y: e.clientY }; return; }
+    if (this.middleDrag) { this.renderer.cam.pan(-(x - this.middleDrag.x), -(y - this.middleDrag.y)); this.middleDrag = { x, y }; return; }
+    const overHud = this.hudAt(x, y);
     if (this.inEditor(s)) {
-      if (this.overHudPoint(e)) {
+      if (overHud) {
         // saiu do canvas: encerra o traço em curso (não liga em linha reta ao voltar)
-        if (this.mouse.down && this.lastEditorTile) { this.editor!.pointerUp(this.lastEditorTile.x, this.lastEditorTile.y, this.mouse.button === 2 ? 2 : 0, this.mods(e)); this.mouse.down = false; }
+        if (this.mouse.down && this.lastEditorTile) { this.editor!.pointerUp(this.lastEditorTile.x, this.lastEditorTile.y, this.mouse.button === 2 ? 2 : 0, m); this.mouse.down = false; }
         this.editor!.setHover(null); this.hud.hideTooltip(); return;
       }
-      const tile = this.tileAt(e.clientX, e.clientY); this.lastEditorTile = tile;
-      this.editor!.pointerMove(tile.x, tile.y, this.mouse.down && this.mouse.button === 2 ? 2 : 0, this.mods(e));
+      const tile = this.tileAt(x, y); this.lastEditorTile = tile;
+      this.editor!.pointerMove(tile.x, tile.y, this.mouse.down && this.mouse.button === 2 ? 2 : 0, m);
     }
     if (this.mouse.down && this.mouse.button === 0 && s.ui.mode === 'normal') {
-      if (Math.abs(e.clientX - this.mouse.downX) + Math.abs(e.clientY - this.mouse.downY) > 6) this.mouse.dragging = true;
+      if (Math.abs(x - this.mouse.downX) + Math.abs(y - this.mouse.downY) > 6) this.mouse.dragging = true;
     }
     if (this.mouse.down && this.mouse.button === 0 && s.ui.mode === 'place' && s.ui.placeType === 'wall' && s.ui.wallStart === null) {
       const w = this.worldAt(this.mouse.downX, this.mouse.downY); s.ui.wallStart = { x: Math.floor(w.x), y: Math.floor(w.y) };
     }
     // hover
-    if (!this.overHudPoint(e)) {
-      const w = this.worldAt(e.clientX, e.clientY);
+    if (!overHud) {
+      const w = this.worldAt(x, y);
       const ent = this.renderer.pick(s.state, w.x, w.y, s.local);
       this.hoverId = ent ? ent.id : -1;
-      if (ent) this.hud.showTooltip(this.hud.describeEntityTip(ent), e.clientX, e.clientY);
+      if (ent) this.hud.showTooltip(this.hud.describeEntityTip(ent), x, y);
       else {
         const tx = Math.floor(w.x), ty = Math.floor(w.y);
         const nid = tx >= 0 && ty >= 0 && tx < s.state.map.w && ty < s.state.map.h ? s.state.map.nodeAt[ty * s.state.map.w + tx] : -1;
         const vis = s.state.players[s.local].visibility;
-        if (nid !== -1 && (s.state.config.revealMap || vis[ty * s.state.map.w + tx] >= 1)) { const n = s.state.map.nodes.get(nid)!; this.hud.showTooltip(`<b>${t(`node.${n.type}`)}</b><div class="desc">${t('node.remaining', { n: Math.round(n.amount) })}</div>`, e.clientX, e.clientY); }
+        if (nid !== -1 && (s.state.config.revealMap || vis[ty * s.state.map.w + tx] >= 1)) { const n = s.state.map.nodes.get(nid)!; this.hud.showTooltip(`<b>${t(`node.${n.type}`)}</b><div class="desc">${t('node.remaining', { n: Math.round(n.amount) })}</div>`, x, y); }
         else this.hud.hideTooltip();
       }
     }
   }
-  private overHudPoint(e: PointerEvent): boolean { const t = document.elementFromPoint(e.clientX, e.clientY); return !!t && t !== this.canvas && !t.closest('#messages, #tooltip'); }   // avisos e tooltip não contam como HUD
 
-  private onUp(e: PointerEvent) {
+  /** Botão solto: fim da caixa de seleção, muralha, clique simples/duplo numa entidade. `overHud`: soltou sobre a interface. */
+  pointerRelease(x: number, y: number, button: number, m: PointerMods = NO_MODS, overHud = false) {
     const s = this.getSession();
-    if (e.button === 1) { this.middleDrag = null; }
+    if (button === 1) { this.middleDrag = null; }
     if (!s || !this.mouse.down) { this.mouse.down = false; return; }
     this.mouse.down = false;
-    if (this.inEditor(s)) { const tile = this.tileAt(e.clientX, e.clientY); if (e.button === 0 || e.button === 2) this.editor!.pointerUp(tile.x, tile.y, e.button, this.mods(e)); return; }
-    if (e.button !== 0) return;
-    if (s.ui.mode === 'place' && s.ui.placeType === 'wall') { const w = this.worldAt(e.clientX, e.clientY); const end = { x: Math.floor(w.x), y: Math.floor(w.y) }; if (!this.overHud(e)) this.placeWallLine(s.ui.wallStart ?? end, end, e.shiftKey); s.ui.wallStart = null; return; }
+    if (this.inEditor(s)) { const tile = this.tileAt(x, y); if (button === 0 || button === 2) this.editor!.pointerUp(tile.x, tile.y, button, m); return; }
+    if (button !== 0) return;
+    if (s.ui.mode === 'place' && s.ui.placeType === 'wall') { const w = this.worldAt(x, y); const end = { x: Math.floor(w.x), y: Math.floor(w.y) }; if (!overHud) this.placeWallLine(s.ui.wallStart ?? end, end, m.shift); s.ui.wallStart = null; return; }
     if (s.ui.mode !== 'normal') return;
     if (this.mouse.dragging) {
-      const a = this.worldAt(Math.min(this.mouse.downX, e.clientX), Math.min(this.mouse.downY, e.clientY));
-      const b = this.worldAt(Math.max(this.mouse.downX, e.clientX), Math.max(this.mouse.downY, e.clientY));
+      const a = this.worldAt(Math.min(this.mouse.downX, x), Math.min(this.mouse.downY, y));
+      const b = this.worldAt(Math.max(this.mouse.downX, x), Math.max(this.mouse.downY, y));
       const ids: number[] = [];
       for (const u of s.state.units.values()) if (u.owner === s.local && u.x >= a.x && u.x <= b.x && u.y >= a.y && u.y <= b.y) ids.push(u.id);
       // se houver militares na área, ignora cidadãos (facilita selecionar exército)
       const mil = ids.filter((id) => isMilitary(s.state.units.get(id)!));
-      const final = mil.length > 0 && mil.length < ids.length && !e.altKey ? mil : ids;
-      if (final.length > 0 || !e.ctrlKey) s.select(final, e.ctrlKey, false);
+      const final = mil.length > 0 && mil.length < ids.length && !m.alt ? mil : ids;
+      if (final.length > 0 || !m.ctrl) s.select(final, m.ctrl, false);
       if (final.length > 0) this.audio.play('select');
       this.mouse.dragging = false;
       return;
     }
-    if (this.overHud(e)) return;
-    const w = this.worldAt(e.clientX, e.clientY);
+    if (overHud) return;
+    const w = this.worldAt(x, y);
     const ent = this.renderer.pick(s.state, w.x, w.y, s.local);
     const now = performance.now();
     if (ent) {
-      if (now - this.lastClick < 450 && this.lastClickId === ent.id && ent.kind === 'unit' && ent.owner === s.local) {
-        // duplo clique: todas do mesmo tipo visíveis na tela
-        const vt = this.renderer.cam.visibleTiles();
-        const ids: number[] = [];
-        for (const u of s.state.units.values()) if (u.owner === s.local && u.type === ent.type && u.x >= vt.x0 && u.x <= vt.x1 && u.y >= vt.y0 && u.y <= vt.y1) ids.push(u.id);
-        s.select(ids, e.ctrlKey, false);
-      } else s.select([ent.id], e.ctrlKey);
+      if (now - this.lastClick < 450 && this.lastClickId === ent.id && ent.kind === 'unit' && ent.owner === s.local) this.selectTypeOnScreen(ent.type, m.ctrl);   // duplo clique: todas do mesmo tipo visíveis na tela
+      else s.select([ent.id], m.ctrl);
       this.audio.play('select');
-    } else if (!e.ctrlKey) s.select([]);
+    } else if (!m.ctrl) s.select([]);
     this.lastClick = now; this.lastClickId = ent ? ent.id : -1;
   }
 
@@ -205,10 +219,11 @@ export class Input {
     }
   }
 
-  private attackMove(x: number, y: number, queue: boolean) {
+  private attackMove(x: number, y: number, queue: boolean): boolean {
     const s = this.getSession()!; const ids = s.ownSelectedUnits().map((u) => u.id);
-    if (ids.length === 0) return;
+    if (ids.length === 0) return false;
     s.issue({ type: 'attackMove', player: s.local, ids, x, y, queue, formation: s.ui.formation }); this.audio.play('command');
+    return true;
   }
 
   private placeAt(x: number, y: number, keep: boolean) {
@@ -268,7 +283,7 @@ export class Input {
     }
     if (k === 'enter' && this.hud.onChat && !this.hud.chatOpen) { e.preventDefault(); this.hud.openChat(); return; }   // bate-papo (partidas online)
     this.keys.add(k);
-    if (k === 'escape') { if (s.ui.mode !== 'normal') this.hud.cancelMode(); else if (s.selection.size > 0) s.select([]); else this.hud.showMenu(); return; }
+    if (k === 'escape') { this.escape(); return; }
     if (k === 'f1') { e.preventDefault(); this.hud.showHelp(); return; }
     if (k === 'f11') { e.preventDefault(); toggleFullscreen(); return; }
     if (k === 'f2') { e.preventDefault(); this.hud.showEncyclopedia(); return; }
@@ -277,19 +292,19 @@ export class Input {
     if (k === '-' || k === '_') { s.speed = Math.max(0.5, s.speed - 0.5); this.hud.refreshTop(); return; }
     if (k === 'm' && e.ctrlKey) { this.audio.toggleMute(); return; }
     if (k === ' ') { e.preventDefault(); if (s.lastEvent) this.renderer.cam.centerOn(s.lastEvent.x, s.lastEvent.y); return; }
-    if (k === 'h') { const tc = [...s.state.buildings.values()].find((b) => b.owner === s.local && b.type === 'town_center'); if (tc) { this.renderer.cam.centerOn(tc.x, tc.y); if (e.shiftKey) s.select([tc.id]); } return; }
+    if (k === 'h') { this.goHome(e.shiftKey); return; }
     if (k === '.' || k === ',') { this.hud.selectIdleVillager(); return; }
     if (k === 'delete' || k === 'backspace') { const ids = [...s.selection].filter((id) => { const u = s.state.units.get(id); const b = s.state.buildings.get(id); return (u && u.owner === s.local) || (b && b.owner === s.local); }); if (ids.length) { s.issue({ type: 'delete', player: s.local, ids }); s.select([]); } return; }
-    if (/^[1-9]$/.test(k)) { if (e.ctrlKey || e.shiftKey) s.setGroup(Number(k)); else { s.recallGroup(Number(k)); const us = s.selectedUnits(); if (us.length && e.altKey) this.renderer.cam.centerOn(us[0].x, us[0].y); } e.preventDefault(); return; }
+    if (/^[1-9]$/.test(k)) { if (e.ctrlKey || e.shiftKey) s.setGroup(Number(k)); else this.recallGroup(Number(k), e.altKey); e.preventDefault(); return; }
     if (k === 'tab') { e.preventDefault(); this.cycleSelectionType(); return; }
-    if (k === 'a' && e.ctrlKey) { e.preventDefault(); const vt = this.renderer.cam.visibleTiles(); const ids: number[] = []; for (const u of s.state.units.values()) if (u.owner === s.local && isMilitary(u) && u.x >= vt.x0 && u.x <= vt.x1 && u.y >= vt.y0 && u.y <= vt.y1) ids.push(u.id); if (ids.length) { s.select(ids); this.audio.play('select'); } return; }
+    if (k === 'a' && e.ctrlKey) { e.preventDefault(); this.selectMilitaryOnScreen(); return; }
     const units = s.ownSelectedUnits(); const b = s.ownSelectedBuilding();
     if (units.length > 0) {
       const villagersOnly = units.every((u) => !!UNITS[u.type].canBuild);
-      if (k === 's' && (!villagersOnly || e.shiftKey)) { s.issue({ type: 'stop', player: s.local, ids: units.map((u) => u.id) }); return; }
-      if (k === 'a' && !villagersOnly) { s.ui.mode = 'attackMove'; document.body.className = 'cur-attack'; this.hud.refreshCommands(true); return; }
+      if (k === 's' && (!villagersOnly || e.shiftKey)) { this.stopSelected(); return; }
+      if (k === 'a' && !villagersOnly) { this.enterAttackMove(); return; }
       if (k === 'g' && !villagersOnly) { this.hud.garrisonNearest(units); return; }
-      if (k === 'q' && !villagersOnly) { const h = units.find((x) => UNITS[x.type].ability && s.state.tick >= x.abilityReadyAt) ?? units.find((x) => UNITS[x.type].ability); if (h) { this.hud.issueChecked({ type: 'ability', player: s.local, unitId: h.id }); return; } }
+      if (k === 'q' && !villagersOnly) { if (this.useAbility()) return; }
       if (villagersOnly && !e.ctrlKey && !e.altKey) {
         const keyU = e.key.toUpperCase();
         const cands = (BUILD_HOTKEYS[keyU] ?? '').split(',').filter(Boolean);
@@ -299,7 +314,7 @@ export class Input {
           this.hud.startPlacement(type); return;
         }
       }
-      if (k === 'a' && villagersOnly) { s.ui.mode = 'attackMove'; document.body.className = 'cur-attack'; return; }
+      if (k === 'a' && villagersOnly) { this.enterAttackMove(); return; }
     } else if (b) {
       const def = BUILDINGS[b.type];
       const keyU = e.key.toUpperCase();
@@ -310,9 +325,86 @@ export class Input {
     }
   }
 
+  // ---------------- Ações (teclado e controle chamam as mesmas) ----------------
+  /** Esc: cancela o modo atual, depois limpa a seleção, depois abre o menu. */
+  escape() { const s = this.getSession(); if (!s) return; if (s.ui.mode !== 'normal') this.hud.cancelMode(); else if (s.selection.size > 0) s.select([]); else this.hud.showMenu(); }
+  /** H: centra no Centro Cívico (e o seleciona com Shift / no controle). */
+  goHome(select: boolean) { const s = this.getSession(); if (!s) return; const tc = [...s.state.buildings.values()].find((b) => b.owner === s.local && b.type === 'town_center'); if (tc) { this.renderer.cam.centerOn(tc.x, tc.y); if (select) s.select([tc.id]); } }
+  /** S: para as unidades próprias selecionadas. */
+  stopSelected(): boolean { const s = this.getSession(); if (!s) return false; const ids = s.ownSelectedUnits().map((u) => u.id); if (!ids.length) return false; s.issue({ type: 'stop', player: s.local, ids }); return true; }
+  /** A: modo atacar-mover (o próximo clique esquerdo escolhe o ponto). */
+  enterAttackMove() { const s = this.getSession(); if (!s) return; s.ui.mode = 'attackMove'; document.body.className = 'cur-attack'; this.hud.refreshCommands(true); }
+  /** Atacar-mover direto no ponteiro (controle: X); devolve false sem unidades ou sobre a interface. */
+  attackMoveAtPointer(queue = false): boolean {
+    const s = this.getSession(); if (!s || this.hudAt(this.mouse.x, this.mouse.y)) return false;
+    const w = this.worldAt(this.mouse.x, this.mouse.y);
+    if (!this.attackMove(w.x, w.y, queue)) return false;
+    if (s.ui.mode === 'attackMove') this.hud.cancelMode();
+    s.state.effects.push({ type: 'spawn', x: w.x, y: w.y, ttl: 8, total: 8 });
+    return true;
+  }
+  /** Q: habilidade do herói selecionado (a pronta primeiro). */
+  useAbility(): boolean {
+    const s = this.getSession(); if (!s) return false;
+    const units = s.ownSelectedUnits();
+    const h = units.find((x) => UNITS[x.type].ability && s.state.tick >= x.abilityReadyAt) ?? units.find((x) => UNITS[x.type].ability);
+    if (!h) return false;
+    this.hud.issueChecked({ type: 'ability', player: s.local, unitId: h.id });
+    return true;
+  }
+  /** Ctrl+A: militares visíveis na tela. */
+  selectMilitaryOnScreen() { const s = this.getSession(); if (!s) return; const vt = this.renderer.cam.visibleTiles(); const ids: number[] = []; for (const u of s.state.units.values()) if (u.owner === s.local && isMilitary(u) && u.x >= vt.x0 && u.x <= vt.x1 && u.y >= vt.y0 && u.y <= vt.y1) ids.push(u.id); if (ids.length) { s.select(ids); this.audio.play('select'); } }
+  /** Todo o exército (militares próprios no mapa inteiro); centra a câmera no grupo. */
+  selectArmy(): boolean {
+    const s = this.getSession(); if (!s) return false;
+    const us = [...s.state.units.values()].filter((u) => u.owner === s.local && !u.dead && u.inside === -1 && isMilitary(u));
+    if (!us.length) return false;
+    s.select(us.map((u) => u.id)); this.audio.play('select');
+    this.renderer.cam.centerOn(us.reduce((a, u) => a + u.x, 0) / us.length, us.reduce((a, u) => a + u.y, 0) / us.length);
+    return true;
+  }
+  /** Duplo clique: todas as unidades próprias do tipo visíveis na tela. */
+  selectTypeOnScreen(type: string, additive = false) {
+    const s = this.getSession(); if (!s) return;
+    const vt = this.renderer.cam.visibleTiles();
+    const ids: number[] = [];
+    for (const u of s.state.units.values()) if (u.owner === s.local && u.type === type && u.x >= vt.x0 && u.x <= vt.x1 && u.y >= vt.y0 && u.y <= vt.y1) ids.push(u.id);
+    s.select(ids, additive, false);
+  }
+  /** Mesmo tipo da unidade própria sob o ponteiro (ou da primeira selecionada) na tela; controle: clique do analógico esquerdo. */
+  selectSameTypeAtPointer(): boolean {
+    const s = this.getSession(); if (!s) return false;
+    const w = this.worldAt(this.mouse.x, this.mouse.y);
+    const ent = this.hudAt(this.mouse.x, this.mouse.y) ? null : this.renderer.pick(s.state, w.x, w.y, s.local);
+    const type = ent && ent.kind === 'unit' && ent.owner === s.local ? ent.type : s.ownSelectedUnits()[0]?.type;
+    if (!type) return false;
+    this.selectTypeOnScreen(type); this.audio.play('select');
+    return true;
+  }
+  /** 1–9: recupera o grupo (Alt/controle: centra a câmera nele). */
+  recallGroup(n: number, center: boolean) { const s = this.getSession(); if (!s) return; s.recallGroup(n); const us = s.selectedUnits(); if (us.length && center) this.renderer.cam.centerOn(us[0].x, us[0].y); }
+  /** Próximo grupo de controle salvo (com algo vivo), em ordem; devolve o número ou 0 se não houver. */
+  cycleGroups(dir = 1): number {
+    const s = this.getSession(); if (!s) return 0;
+    const alive = (n: number) => (s.groups.get(n) ?? []).some((id) => { const u = s.state.units.get(id); const b = s.state.buildings.get(id); return (!!u && !u.dead) || (!!b && !b.dead); });
+    const nums = [...s.groups.keys()].filter(alive).sort((a, b) => a - b); if (!nums.length) return 0;
+    const i = nums.indexOf(this.lastGroup);
+    const next = nums[i < 0 ? (dir > 0 ? 0 : nums.length - 1) : (i + dir + nums.length) % nums.length];
+    this.lastGroup = next; this.recallGroup(next, true); this.audio.play('select');
+    return next;
+  }
+  /** Salva a seleção no primeiro número livre (1–9; tudo ocupado: substitui o 9); devolve o número ou 0 sem seleção. */
+  saveNewGroup(): number {
+    const s = this.getSession(); if (!s || s.selection.size === 0) return 0;
+    let n = 1; while (n < 9 && s.groups.has(n)) n++;
+    s.setGroup(n); this.lastGroup = n;
+    return n;
+  }
+  private lastGroup = 0;
+
   private tabPool: { ids: number[]; idx: number; last: string } | null = null;
   /** Tab alterna o tipo mostrado dentro da seleção original (guardada na 1ª pressão); qualquer outra seleção zera o ciclo. */
-  private cycleSelectionType() {
+  cycleSelectionType() {
     const s = this.getSession()!;
     const cur = [...s.selection].sort((a, b) => a - b).join(',');
     if (!this.tabPool || this.tabPool.last !== cur) this.tabPool = { ids: s.ownSelectedUnits().map((u) => u.id), idx: 0, last: cur };

@@ -73,6 +73,34 @@ Heróis têm uma habilidade ativa (`data/abilities.ts`, comando `ability`, tecla
 cunha) são escolhidas no painel e enviadas com a ordem. Relíquias (`state.relics`) ficam no chão; heróis as recolhem e guardam num Templo,
 que rende favor por segundo enquanto estiver de pé.
 
+## Controle (Steam Deck / Xbox)
+`src/ui/gamepad.ts` lê `navigator.getGamepads()` uma vez por quadro no laço de `main.ts` (sem eventos; funciona no Electron e no
+navegador) e trabalha com o mapeamento "standard" (índices A=0 … D-pad 12–15). Analógicos: zona morta radial (15 %, reescalada
+para não ter degrau) e curva de resposta (expoente 1,7). Nada de regra de jogo nova: o controle só chama os mesmos métodos que o
+mouse e o teclado — `Input.pointerPress/pointerMoveTo/pointerRelease` (clique, retângulo de seleção, colocação, alvos de poder,
+ordem contextual) e as ações públicas extraídas dos atalhos (`escape`, `stopSelected`, `attackMoveAtPointer`, `useAbility`,
+`selectArmy`, `cycleSelectionType`, `cycleGroups`…); comandos continuam passando por `Session.issue` (determinismo e multiplayer
+intactos).
+- **Partida**: um cursor virtual (`#pad-cursor`, DOM acima do canvas, mesmas coordenadas de tela do mouse) anda com o analógico
+  esquerdo (aceleração ao segurar no máximo, freio e ímã leve sobre unidades); o direito rola a câmera (LT + vertical: zoom).
+  Tabela de ações configurável (`SCHEMES`: "padrão" e "alternativo" com A↔B e analógicos trocados): A/RT selecionar (segurar e
+  mover = retângulo), B ordem contextual/cancelar, X atacar-mover no cursor, Y parar, LB grupos de controle, RB tipos da seleção,
+  LT modificador (A/B/X/Y acionam a página atual de 4 botões do painel, LB/RB trocam a página, ▲ salva a seleção num grupo),
+  D-pad ◀ ocioso ▶ exército ▲ Centro Cívico ▼ habilidade/poder (poder global pede A para confirmar), Start menu, ⧉ segurado
+  visão geral (`fitMap` temporário; soltar com o cursor num ponto leva a câmera até lá), L3 mesmo tipo na tela. Sobre o HUD,
+  A clica o botão sob o cursor (dicas aparecem como no mouse) e o minimapa recebe o mesmo `pointerdown`.
+- **Menus e modais**: foco navegável (`.pad-focus`, anel dourado) em ordem visual (`navPick`, navegação espacial); A ativa
+  (listas: A entra na edição, ✚ troca, A confirma e só então dispara `change`; faixas: ◀▶ ajustam), B fecha/volta
+  (`#m-continue`/`#m-close`/`#m-cancel`, `MainMenu.navBack`), LB/RB trocam abas. `confirm`/`alert`/`prompt` disparados por um
+  clique do controle viram um diálogo navegável (`#pad-dialog`) — os nativos travariam o laço.
+- **Prioridade** (`DeviceArbiter`): qualquer uso do controle o ativa (`html.pad-active` esconde o cursor do sistema e mostra as
+  dicas `#pad-hints`/`#pad-nav-hints`); mover o mouse ≥ 8 px numa rajada ou clicar devolve tudo ao mouse.
+- **Opções** (`Settings.padSensitivity/padInvertY/padScheme/padVibration`, com padrões para saves antigos) e vibração curta
+  (`vibrationActuator`, no máximo a cada 1,5 s) no alerta de ataque (`HUD.onAlert`).
+- **Legibilidade no Deck (1280×800, interface a 130 %)**: com largura útil < 1180 px o HUD entra em `#hud.narrow` (barra superior
+  compacta, nada quebra linha) e `--uiz` compensa o `vh` multiplicado pelo zoom para o menu e os modais caberem na tela.
+- O editor de mapas continua só com mouse/teclado nesta etapa (o controle apenas navega os modais dele).
+
 ## Times e co-op
 `Player.team` define alianças: aliados não se atacam, compartilham visão, não sofrem atrito no território um do
 outro e vencem juntos (conquista ou maravilha). A IA reconhece aliados e escolhe inimigos por time.
