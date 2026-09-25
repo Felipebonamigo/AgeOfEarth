@@ -95,6 +95,25 @@ describe('harness do jogador roteirizado', () => {
     expect(never.hash).toBe(free.hash);
   }, 180_000);
 
+  it('destacamento (detach): a IA do jogador não comanda as unidades destacadas; destacamento vazio não muda nada', () => {
+    const steps = MISSION_SCRIPTS.m1_despertar.steps;
+    const free = runScripted('m1_despertar', { minutes: 2, difficulty: 'normal', steps, deterministic: false });
+    const empty = runScripted('m1_despertar', { minutes: 2, difficulty: 'normal', steps, deterministic: false, detach: () => [] });
+    expect(empty.hash).toBe(free.hash);
+    // o batedor: a IA o manda explorar; destacado, ele fica onde nasceu (os passos veem e observam tudo)
+    const scoutTrail = (detached: boolean) => {
+      const at: { x: number; y: number }[] = [];
+      const scout = (st: import('../src/core/types').GameState) => [...st.units.values()].find((u) => u.owner === 0 && !u.dead && u.type === 'kataskopos');
+      const obs = { label: 'obs', when: { time: { gte: 1 } }, every: 10, command: (st: import('../src/core/types').GameState) => { const k = scout(st); if (k) at.push({ x: k.x, y: k.y }); return null; } };
+      const r = runScripted('m1_despertar', { minutes: 2, difficulty: 'normal', steps: [...steps, obs], deterministic: false, ...(detached ? { detach: (st: import('../src/core/types').GameState) => { const k = scout(st); return k ? [k.id] : []; } } : {}) });
+      expect(r.checks.noException).toBe(true);
+      const d = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
+      return Math.max(...at.map((p) => d(p, at[0])));
+    };
+    expect(scoutTrail(false)).toBeGreaterThan(10);
+    expect(scoutTrail(true)).toBeLessThan(0.5);
+  }, 180_000);
+
   it('as checagens pegam os defeitos de autoria: objetivo no segundo 1 (tag futura), invasão sem alvo e dois Titãs iguais', () => {
     const file: ScenarioFile = {
       format: 'aoe-scenario', version: 1, id: 'defeitos', title: 'Defeitos', intro: ['x'],
