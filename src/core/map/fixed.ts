@@ -228,18 +228,25 @@ export function blankMap(w: number, h: number, nStarts: number, seed: number): F
 
 /**
  * Converte uma partida (editor ou jogo) em arquivo: mapToData + entidades a partir dos edifícios (canto, completo, dono)
- * e unidades vivas (tile inteiro, dono) + metadados. O resultado já é canônico.
+ * e unidades vivas (tile inteiro, dono) + metadados. tagOf(id) (editor) devolve a tag de uma entidade, se houver.
+ * O resultado já é canônico.
  */
-export function saveMap(state: GameState, meta: MapMeta = {}): FixedMapData {
+export function saveMap(state: GameState, meta: MapMeta = {}, tagOf?: (id: number) => string | undefined): FixedMapData {
   const data = mapToData(state.map, meta.name);
   const entities: MapEntity[] = [];
   for (const b of state.buildings.values()) {
     if (b.dead) continue;
-    entities.push({ kind: 'building', type: b.type, owner: b.owner, x: b.tx, y: b.ty, complete: b.complete });
+    const e: MapEntity = { kind: 'building', type: b.type, owner: b.owner, x: b.tx, y: b.ty, complete: b.complete };
+    const tag = tagOf?.(b.id);
+    if (tag) e.tag = tag;
+    entities.push(e);
   }
   for (const u of state.units.values()) {
     if (u.dead) continue;
-    entities.push({ kind: 'unit', type: u.type, owner: u.owner, x: Math.floor(u.x), y: Math.floor(u.y) });
+    const e: MapEntity = { kind: 'unit', type: u.type, owner: u.owner, x: Math.floor(u.x), y: Math.floor(u.y) };
+    const tag = tagOf?.(u.id);
+    if (tag) e.tag = tag;
+    entities.push(e);
   }
   return canonicalize({
     ...data, entities,
