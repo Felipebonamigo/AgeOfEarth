@@ -1,9 +1,11 @@
 // Minimapa em canvas 2D: terreno, fronteiras, edifícios, unidades, névoa e retângulo da câmera.
-import { TERRAIN, TILE, PLAYER_COLORS } from '../core/constants';
+import { TILE, PLAYER_COLORS } from '../core/constants';
 import type { GameState } from '../core/types';
 import type { Camera } from './camera';
+import { terrainColor } from './palette';
 
-const TERRAIN_COLORS: Record<number, string> = { [TERRAIN.GRASS]: '#4f8a34', [TERRAIN.WATER]: '#2f79b5', [TERRAIN.DEEP]: '#1f5a8f', [TERRAIN.SAND]: '#d8c78c', [TERRAIN.DIRT]: '#8a6b40', [TERRAIN.MOUNTAIN]: '#74736c' };
+/** Opções de desenho: no editor, inícios numerados e nada de névoa. */
+export interface MinimapDrawOpts { editor?: boolean }
 
 export class Minimap {
   /** Espectador: mostra tudo. */
@@ -20,9 +22,8 @@ export class Minimap {
     const ctx = c.getContext('2d')!;
     const img = ctx.createImageData(w, h);
     for (let i = 0; i < w * h; i++) {
-      const t = state.map.terrain[i];
-      const col = TERRAIN_COLORS[t] ?? '#ff00ff';
-      let r = parseInt(col.slice(1, 3), 16), g = parseInt(col.slice(3, 5), 16), b = parseInt(col.slice(5, 7), 16);
+      const col = terrainColor(state.map.terrain[i]);
+      let r = (col >> 16) & 255, g = (col >> 8) & 255, b = col & 255;
       const nid = state.map.nodeAt[i];
       if (nid !== -1) { const n = state.map.nodes.get(nid); if (n) { if (n.type === 'tree') { r = 0x2f; g = 0x6a; b = 0x2a; } else if (n.type === 'gold') { r = 0xf2; g = 0xc1; b = 0x4e; } else if (n.type === 'berry') { r = 0xd2; g = 0x2a; b = 0x3c; } else { r = 0x9a; g = 0x6b; b = 0x3c; } } }
       img.data[i * 4] = r; img.data[i * 4 + 1] = g; img.data[i * 4 + 2] = b; img.data[i * 4 + 3] = 255;
@@ -31,11 +32,15 @@ export class Minimap {
     this.base = c; this.baseNodes = state.map.nodes.size;
   }
 
+  /** Editor: o terreno ou os nós mudaram; a base é reconstruída no próximo draw. */
+  invalidate(): void { this.base = null; this.baseNodes = -1; }
+
   pings: { x: number; y: number; until: number }[] = [];
   ping(x: number, y: number) { this.pings.push({ x, y, until: performance.now() + 6000 }); if (this.pings.length > 8) this.pings.shift(); }
 
-  draw(state: GameState, cam: Camera, local: number): void {
+  draw(state: GameState, cam: Camera, local: number, opts?: MinimapDrawOpts): void {
     const { w, h } = state.map;
+    const editor = opts?.editor === true;
     if (!this.base || this.baseNodes !== state.map.nodes.size) this.buildBase(state);
     const ctx = this.ctx, S = this.size;
     const sx = S / w, sy = S / h;
@@ -51,7 +56,7 @@ export class Minimap {
       ctx.fillRect(x * sx, y * sy, sx + 0.5, sy + 0.5);
     }
     const vis = state.players[local].visibility;
-    const reveal = state.config.revealMap || this.revealAll;
+    const reveal = state.config.revealMap || this.revealAll || editor;
     for (const b of state.buildings.values()) {
       const i = Math.floor(b.y) * w + Math.floor(b.x);
       if (!reveal && b.owner !== local && vis[i] < 1) continue;
@@ -81,6 +86,16 @@ export class Minimap {
     const now = performance.now();
     this.pings = this.pings.filter((p) => p.until > now);
     for (const p of this.pings) { const r = 4 + ((now / 150) % 6); ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x * sx, p.y * sy, r, 0, Math.PI * 2); ctx.stroke(); }
+    // editor: inícios numerados (disco na cor do slot + número)
+    if (editor) {
+      ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      state.map.starts.forEach((st, i) => {
+        const px = (st.x + 0.5) * sx, py = (st.y + 0.5) * sy;
+        ctx.fillStyle = PLAYER_COLORS[i % PLAYER_COLORS.length].hex; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(px, py, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#ffffff'; ctx.fillText(String(i + 1), px, py + 0.5);
+      });
+    }
     // câmera
     ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1;
     ctx.strokeRect((cam.x / TILE) * sx, (cam.y / TILE) * sy, (cam.width / cam.zoom / TILE) * sx, (cam.height / cam.zoom / TILE) * sy);
