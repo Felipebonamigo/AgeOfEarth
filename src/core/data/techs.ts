@@ -6,8 +6,13 @@
 //   { type:'player', stat:'territory'|'cityLimit'|'attrition'|'favorRate'|'knowledgeRate'|'researchCost'|'buildSpeed'|'trainSpeed'|'popCap'|'los'|'tradeTax'|'regen', mult?|add? }
 //   { type:'cost', match:{tags:[..]}|{types:[..]}|'buildings', mult }
 
-const line = (key, name, count, opts) => {
-  const out = {};
+import type { TechDef, Effect, Cost } from '../types';
+
+type TechInput = Omit<TechDef, 'id' | 'prereq'> & { prereq?: string[] };
+interface LineOpts { cost: (l: number) => Cost; time: (l: number) => number; effects: (l: number) => Effect[]; icon: string; desc: string }
+
+const line = (key: string, name: string, count: number, opts: LineOpts): Record<string, TechInput> => {
+  const out: Record<string, TechInput> = {};
   for (let lvl = 1; lvl <= count; lvl++) {
     out[`${key}${lvl}`] = {
       name: `${name} ${['I', 'II', 'III', 'IV', 'V'][lvl - 1]}`,
@@ -19,7 +24,7 @@ const line = (key, name, count, opts) => {
   return out;
 };
 
-export const TECHS = {
+const RAW: Record<string, TechInput> = {
   // ---------- Linhas da Academia (estilo Biblioteca do Rise of Nations) ----------
   ...line('civic', 'Civismo', 5, {
     icon: '🏛️', cost: (l) => ({ knowledge: 60 + 90 * l, gold: 40 + 60 * l }), time: (l) => 30 + 12 * l,
@@ -132,6 +137,7 @@ export const TECHS = {
   moon_arrows: { name: 'Flechas Lunares', icon: '🌙', building: 'temple', age: 3, god: 'artemis', cost: { wood: 300, favor: 40 }, time: 50, effects: [{ type: 'unit', match: { tags: ['ranged'] }, stat: 'attack', mult: 1.2 }], desc: 'Todas as unidades à distância +20% de ataque.' },
   great_hunt: { name: 'Grande Caçada', icon: '🦌', building: 'temple', age: 3, god: 'artemis', cost: { food: 300, favor: 30 }, time: 45, effects: [{ type: 'gather', resource: 'hunt', mult: 1.5 }, { type: 'gather', resource: 'food', mult: 1.1 }], desc: 'Caça +50% e toda comida +10%.' },
 };
-for (const [id, t] of Object.entries(TECHS)) { t.id = id; if (!t.prereq) t.prereq = []; }
+export const TECHS: Record<string, TechDef> = {};
+for (const [id, t] of Object.entries(RAW)) TECHS[id] = { ...t, id, prereq: t.prereq ?? [] };
 
-export const ACADEMY_LINES = ['civic', 'commerce', 'military', 'science'];
+export const ACADEMY_LINES: string[] = ['civic', 'commerce', 'military', 'science'];

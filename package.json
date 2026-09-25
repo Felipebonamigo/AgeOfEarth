@@ -1,12 +1,28 @@
 {
   "name": "age-of-earth",
   "version": "0.1.0",
-  "description": "RTS no estilo Rise of Nations com mitologia grega (Age of Mythology), em HTML5 Canvas e JavaScript puro.",
+  "description": "RTS de alta qualidade misturando Rise of Nations (idades, fronteiras, atrito) com Age of Mythology (deuses, favor, unidades míticas, heróis e poderes divinos). TypeScript + PixiJS, empacotado com Electron para a Steam.",
   "type": "module",
+  "private": true,
   "scripts": {
-    "start": "node server.js",
-    "test": "node --test tests/",
-    "smoke": "node scripts/headless.js"
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "smoke": "tsx scripts/headless.ts",
+    "balance": "tsx scripts/balance.ts"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "pixi.js": "^8.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.3",
+    "vitest": "^3.2.7"
+  }
 }
