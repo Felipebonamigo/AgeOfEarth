@@ -67,6 +67,10 @@ export type GameMode = 'conquest' | 'deathmatch' | 'regicide' | 'koth';
 export const GAME_MODES: GameMode[] = ['conquest', 'deathmatch', 'regicide', 'koth'];
 export type MapType = 'continental' | 'mountains' | 'forest' | 'desert' | 'lakes';
 export const MAP_TYPES: MapType[] = ['continental', 'mountains', 'forest', 'desert', 'lakes'];
+// Veterania: patentes por abates (unidades militares, exceto Titãs); cada patente dá +10% de ataque e de vida
+export const VETERAN_KILLS = [3, 8, 15];
+export const VETERAN_BONUS = 0.1;
+export function rankOf(kills: number): number { let r = 0; for (const k of VETERAN_KILLS) if (kills >= k) r++; return r; }
 export const KOTH_RADIUS = 6;          // raio da colina (tiles)
 export const KOTH_SECONDS = 240;       // segundos seguidos segurando a colina sozinho para vencer
 export const DEATHMATCH_RESOURCES = { food: 4000, wood: 4000, gold: 3000, knowledge: 300, favor: 150 } as const;

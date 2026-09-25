@@ -1,6 +1,6 @@
 // Renderizador PixiJS: chunks de terreno, fronteiras, entidades interpoladas, efeitos, névoa e overlays.
 import { Application, Container, Graphics, Sprite, Texture, Rectangle, Text, TextStyle } from 'pixi.js';
-import { TILE, TICK_RATE, PLAYER_COLORS, KOTH_RADIUS } from '../core/constants';
+import { TILE, TICK_RATE, PLAYER_COLORS, KOTH_RADIUS, rankOf } from '../core/constants';
 import { BUILDINGS, UNITS } from '../core/data';
 import type { Building, GameState, Unit, VisualEffect } from '../core/types';
 import { Camera } from './camera';
@@ -9,7 +9,7 @@ import { getUnitStats, getBuildingStats } from '../core/sim/modifiers';
 
 const CHUNK = 16;
 
-interface EntityView { root: Container; body: Sprite; type: string; color: number; complete: boolean; angle: number; carry: Sprite | null; label?: Text }
+interface EntityView { root: Container; body: Sprite; type: string; color: number; complete: boolean; angle: number; carry: Sprite | null; label?: Text; rank?: Graphics; rankShown?: number }
 
 export interface RenderUI {
   localPlayer: number;
@@ -277,6 +277,14 @@ export class Renderer {
       if (UNITS[u.type].flying) v.body.position.y = -6 + Math.sin(this.time * 3 + u.id) * 2;
       v.body.tint = state.tick - u.lastDamageTick < 3 ? 0xff8080 : (state.tick < state.players[u.owner].bronzeUntil ? 0xffd28a : 0xffffff);
       v.body.alpha = u.type === 'shade' ? 0.7 : 1;
+      // patente de veterano (estrelas acima da unidade)
+      const rk = UNITS[u.type].tags.includes('military') && !UNITS[u.type].tags.includes('titan') ? rankOf(u.kills) : 0;
+      if (rk !== (v.rankShown ?? 0)) {
+        v.rankShown = rk;
+        if (!v.rank) { v.rank = new Graphics(); v.root.addChild(v.rank); }
+        v.rank.clear();
+        for (let i = 0; i < rk; i++) v.rank.star(-6 + i * 6 - (rk - 1) * 3 + 3, -16, 4, 3, 1.5).fill({ color: 0xfde047 });
+      }
       // carga
       if (u.carry && u.carryAmt > 0) {
         if (!v.carry) { v.carry = new Sprite(this.tex.disc(3.5, 0xffffff)); v.carry.anchor.set(0.5); v.root.addChild(v.carry); }

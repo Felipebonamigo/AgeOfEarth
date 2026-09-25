@@ -1,11 +1,11 @@
 // Combate: aquisição de alvos, cálculo de dano (tipos de ataque x armadura x bônus por tag),
 // habilidades especiais (petrificação, cabeças da Hidra, dano em área) e morte de unidades/edifícios.
-import { TICK_RATE } from '../constants';
+import { TICK_RATE, VETERAN_BONUS, rankOf } from '../constants';
 import { BUILDINGS, UNITS } from '../data';
 import type { Building, GameState, Unit } from '../types';
 import { idx } from '../map/grid';
 import { invalidateComponents } from '../map/components';
-import { getBuildingStats, getUnitStats } from './modifiers';
+import { getBuildingStats, getUnitStats, unitMaxHp } from './modifiers';
 import { getRuntime } from './runtime';
 import { distanceTo, isEnemy } from './queries';
 import { recomputePop, spawnUnit, ejectGarrison } from './entities';
@@ -77,6 +77,7 @@ export function computeDamage(state: GameState, attacker: Unit | Building, targe
     const def = UNITS[attacker.type];
     attack = st.attack; attackType = def.attackType; bonus = def.bonus;
     if (def.special === 'heads') attack *= 1 + 0.2 * (attacker.heads - 1);
+    if (def.tags.includes('military') && !def.tags.includes('titan')) attack *= 1 + VETERAN_BONUS * rankOf(attacker.kills);   // veterania
   } else {
     const st = getBuildingStats(state, state.players[attacker.owner], attacker.type);
     attack = st.attack; attackType = BUILDINGS[attacker.type].attackType ?? 'pierce';
@@ -159,8 +160,13 @@ export function killUnit(state: GameState, u: Unit, killerOwner: number, killer?
     const kp = state.players[killerOwner];
     kp.stats.kills++;
     if (killer && killer.kind === 'unit') {
+      const rankBefore = rankOf(killer.kills - 0);
       killer.kills++;
       if (UNITS[killer.type].special === 'heads') killer.heads = Math.min(5, 1 + Math.floor(killer.kills / 3));
+      if (rankOf(killer.kills) > rankBefore) {   // subiu de patente: vida máxima cresce e a diferença é curada
+        const nm = unitMaxHp(state, kp, killer); const gain = nm - killer.maxHp; if (gain > 0) { killer.maxHp = nm; killer.hp = Math.min(nm, killer.hp + gain); }
+        if (!kp.isAI) state.events.push({ tick: state.tick, type: 'rank', player: kp.id, x: killer.x, y: killer.y, text: t('ev.rankUp', { name: UNITS[killer.type].name, rank: rankOf(killer.kills) }) });
+      }
     }
   }
   if (def.tags.includes('hero')) state.events.push({ tick: state.tick, type: 'heroDied', player: u.owner, x: u.x, y: u.y, text: t('ev.heroDied', { name: def.name }) });

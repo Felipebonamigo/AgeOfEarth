@@ -1,6 +1,6 @@
 // Interface em DOM: barra de recursos, painel de seleção, grade de comandos, poderes divinos,
 // minimapa, mensagens, tooltips e modais (deuses menores, menu, ajuda, enciclopédia, fim de jogo).
-import { RESOURCES, RESOURCE_ICONS, STANCES, TICK_RATE, MAX_SCHOLARS, SCHOLAR_COST, WONDER_VICTORY_SECONDS, KOTH_SECONDS, type ResourceType, type Stance } from '../core/constants';
+import { RESOURCES, RESOURCE_ICONS, STANCES, TICK_RATE, MAX_SCHOLARS, SCHOLAR_COST, WONDER_VICTORY_SECONDS, KOTH_SECONDS, rankOf, type ResourceType, type Stance } from '../core/constants';
 import { teamNames } from '../core/sim/modes';
 import { AGES, BUILDINGS, BUILD_MENU, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS, ACADEMY_LINES } from '../core/data';
 import type { Building, GameEvent, Unit } from '../core/types';
@@ -297,6 +297,7 @@ export class HUD {
     stats.push(`${t('sel.speed')} <b>${st.speed.toFixed(1)}</b>`);
     if (def.special === 'heads') stats.push(`${t('sel.heads')} <b>${u.heads}</b>`);
     if (u.kills > 0) stats.push(`${t('sel.kills')} <b>${u.kills}</b>`);
+    if (rankOf(u.kills) > 0 && UNITS[u.type].tags.includes('military') && !UNITS[u.type].tags.includes('titan')) stats.push(`${t('sel.rank')} <b>${'⭐'.repeat(rankOf(u.kills))}</b>`);
     if (u.owner === s.local) stats.push(`${t('sel.stance')} <b>${t(`stance.${u.stance}`)}</b>`);
     if (u.carry && u.carryAmt > 0) stats.push(`${t('sel.carry')} <b>${RESOURCE_ICONS[u.carry]} ${Math.floor(u.carryAmt)}</b>`);
     if (u.owner === s.local) stats.push(`${t('sel.state')} <b>${t(`state.${u.state}`)}</b>`);

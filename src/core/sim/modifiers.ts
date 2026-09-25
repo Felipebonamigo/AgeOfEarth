@@ -1,6 +1,7 @@
 // Modificadores de jogador: agrega bônus de deus, tecnologias, maravilhas e idade em multiplicadores,
 // e calcula os atributos finais de unidades e edifícios (com cache por versão).
-import { RESOURCES, DIFFICULTIES, type ResourceType } from '../constants';
+import { RESOURCES, DIFFICULTIES, VETERAN_BONUS, rankOf, type ResourceType } from '../constants';
+import type { Unit } from '../types';
 import { BUILDINGS, MAJOR_GODS, TECHS, UNITS } from '../data';
 import type { Effect, EffectMatch, GameState, Player, PlayerMods, PlayerStat } from '../types';
 import { getRuntime, type BuildingStats, type UnitStats } from './runtime';
@@ -119,14 +120,22 @@ function applyStat(obj: Record<string, unknown>, stat: string, mult?: number, ad
 export function refreshMaxHp(state: GameState, player: Player): void {
   for (const u of state.units.values()) {
     if (u.owner !== player.id || u.dead) continue;
-    const st = getUnitStats(state, player, u.type);
-    if (st.hp !== u.maxHp) { const frac = u.hp / u.maxHp; u.maxHp = st.hp; u.hp = Math.round(st.hp * frac); }
+    const target = unitMaxHp(state, player, u);
+    if (target !== u.maxHp) { const frac = u.hp / u.maxHp; u.maxHp = target; u.hp = Math.round(target * frac); }
   }
   for (const b of state.buildings.values()) {
     if (b.owner !== player.id || b.dead) continue;
     const st = getBuildingStats(state, player, b.type);
     if (st.hp !== b.maxHp) { const frac = b.hp / b.maxHp; b.maxHp = st.hp; b.hp = Math.round(st.hp * frac); }
   }
+}
+
+/** Vida máxima de uma unidade: estatística do tipo × bônus de veterania (patente por abates). */
+export function unitMaxHp(state: GameState, player: Player, u: Unit): number {
+  const base = getUnitStats(state, player, u.type).hp;
+  const def = UNITS[u.type];
+  const vet = def.tags.includes('military') && !def.tags.includes('titan') ? rankOf(u.kills) : 0;
+  return Math.round(base * (1 + VETERAN_BONUS * vet));
 }
 
 export function techCost(player: Player, techId: string): Record<string, number> {

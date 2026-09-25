@@ -25,6 +25,10 @@ await back();
 const r = await start('regicide', 'mountains', 32);
 console.log('Regicídio:', JSON.stringify(r), r.king ? 'ok (rei presente)' : 'FALHOU');
 console.log('aviso do rei:', (await page.textContent('#messages'))?.includes('rei') ? 'ok' : 'FALHOU');
+// veterania: unidade com abates mostra estrelas (renderizador) e a patente no painel
+await page.evaluate(() => { const s = window.aoe.session; const tc = [...s.state.buildings.values()].find((b) => b.owner === s.local); const u = window.aoe.debugSpawn(s.local, 'hoplite', tc.x + 4, tc.y + 4); u.kills = 9; s.select([u.id]); });
+await page.waitForTimeout(400);
+console.log('veterania no painel:', (await page.textContent('#selection'))?.includes('⭐⭐') ? 'ok' : 'FALHOU');
 await back();
 const d = await start('deathmatch', 'desert', 33);
 console.log('Deathmatch:', JSON.stringify(d), d.age === 1 && d.food >= 3000 ? 'ok' : 'FALHOU');

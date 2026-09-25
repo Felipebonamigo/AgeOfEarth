@@ -78,3 +78,25 @@ describe('modos de jogo', () => {
     }
   });
 });
+
+describe('veterania', () => {
+  it('abates dão patentes: +10% de ataque e de vida por patente; tecnologias não apagam o bônus', async () => {
+    const { computeDamage } = await import('../src/core/sim/combat');
+    const { refreshMaxHp } = await import('../src/core/sim/modifiers');
+    const { rankOf } = await import('../src/core/constants');
+    const s = createGame(base());
+    const a = spawnUnit(s, 0, 'hoplite', 20.5, 20.5);
+    const target = spawnUnit(s, 1, 'hoplite', 21.5, 20.5);
+    const d0 = computeDamage(s, a, target);
+    const hp0 = a.maxHp;
+    for (let i = 0; i < 3; i++) { const v = spawnUnit(s, 1, 'villager', 30, 30); killUnit(s, v, 0, a); }
+    expect(rankOf(a.kills)).toBe(1);
+    expect(computeDamage(s, a, target)).toBeCloseTo(d0 * 1.1, 5);
+    expect(a.maxHp).toBe(Math.round(hp0 * 1.1));
+    refreshMaxHp(s, s.players[0]);
+    expect(a.maxHp).toBe(Math.round(hp0 * 1.1));
+    for (let i = 0; i < 12; i++) { const v = spawnUnit(s, 1, 'villager', 30, 30); killUnit(s, v, 0, a); }
+    expect(rankOf(a.kills)).toBe(3);
+    expect(s.events.filter((e) => e.type === 'rank').length).toBe(3);
+  });
+});
