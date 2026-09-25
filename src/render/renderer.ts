@@ -98,6 +98,24 @@ export class Renderer {
       s.position.set((x - x0) * TILE, (y - y0) * TILE);
       c.addChild(s);
     }
+    // Transições suaves entre terrenos (areia/grama/água) e espuma nas margens
+    const blend = new Graphics();
+    const TCOL: Record<number, number> = { 0: 0x5a9438, 1: 0x2f79b5, 2: 0x7f7e77, 3: 0xdccd93, 4: 0x927346, 5: 0x1f5a8f };
+    for (let y = y0; y < Math.min(map.h, y0 + CHUNK); y++) for (let x = x0; x < Math.min(map.w, x0 + CHUNK); x++) {
+      const t = map.terrain[y * map.w + x];
+      const px = (x - x0) * TILE, py = (y - y0) * TILE;
+      const nb: [number, number, number, number, number, number][] = [[x + 1, y, px + TILE - 8, py, 8, TILE], [x - 1, y, px, py, 8, TILE], [x, y + 1, px, py + TILE - 8, TILE, 8], [x, y - 1, px, py, TILE, 8]];
+      for (const [nx, ny, rx, ry, rw, rh] of nb) {
+        if (nx < 0 || ny < 0 || nx >= map.w || ny >= map.h) continue;
+        const nt = map.terrain[ny * map.w + nx];
+        if (nt === t) continue;
+        const water = t === 1 || t === 5, nwater = nt === 1 || nt === 5;
+        if (water && !nwater) { blend.rect(rx, ry, rw, rh).fill({ color: 0xbfe3f7, alpha: 0.35 }); continue; }   // espuma
+        if (!water && nwater) { blend.rect(rx, ry, rw, rh).fill({ color: 0xe9dfb0, alpha: 0.25 }); continue; }   // margem
+        blend.rect(rx, ry, rw, rh).fill({ color: TCOL[nt] ?? 0x000000, alpha: 0.28 });
+      }
+    }
+    c.addChild(blend);
     for (let y = y0; y < Math.min(map.h, y0 + CHUNK); y++) for (let x = x0; x < Math.min(map.w, x0 + CHUNK); x++) {
       const id = map.nodeAt[y * map.w + x];
       if (id === -1) continue;

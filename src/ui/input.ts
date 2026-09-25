@@ -230,6 +230,7 @@ export class Input {
     if (k === 'delete' || k === 'backspace') { const ids = [...s.selection].filter((id) => { const u = s.state.units.get(id); const b = s.state.buildings.get(id); return (u && u.owner === s.local) || (b && b.owner === s.local); }); if (ids.length) { s.issue({ type: 'delete', player: s.local, ids }); s.select([]); } return; }
     if (/^[1-9]$/.test(k)) { if (e.ctrlKey || e.shiftKey) s.setGroup(Number(k)); else { s.recallGroup(Number(k)); const us = s.selectedUnits(); if (us.length && e.altKey) this.renderer.cam.centerOn(us[0].x, us[0].y); } e.preventDefault(); return; }
     if (k === 'tab') { e.preventDefault(); this.cycleSelectionType(); return; }
+    if (k === 'a' && e.ctrlKey) { e.preventDefault(); const vt = this.renderer.cam.visibleTiles(); const ids: number[] = []; for (const u of s.state.units.values()) if (u.owner === s.local && isMilitary(u) && u.x >= vt.x0 && u.x <= vt.x1 && u.y >= vt.y0 && u.y <= vt.y1) ids.push(u.id); if (ids.length) { s.select(ids); this.audio.play('select'); } return; }
     const units = s.ownSelectedUnits(); const b = s.ownSelectedBuilding();
     if (units.length > 0) {
       const villagersOnly = units.every((u) => !!UNITS[u.type].canBuild);

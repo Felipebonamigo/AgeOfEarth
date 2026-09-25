@@ -29,6 +29,9 @@ export class Minimap {
     this.base = c; this.baseNodes = state.map.nodes.size;
   }
 
+  pings: { x: number; y: number; until: number }[] = [];
+  ping(x: number, y: number) { this.pings.push({ x, y, until: performance.now() + 6000 }); if (this.pings.length > 8) this.pings.shift(); }
+
   draw(state: GameState, cam: Camera, local: number): void {
     const { w, h } = state.map;
     if (!this.base || this.baseNodes !== state.map.nodes.size) this.buildBase(state);
@@ -72,6 +75,10 @@ export class Minimap {
       }
       ctx.putImageData(img, 0, 0);
     }
+    // alertas de ataque
+    const now = performance.now();
+    this.pings = this.pings.filter((p) => p.until > now);
+    for (const p of this.pings) { const r = 4 + ((now / 150) % 6); ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x * sx, p.y * sy, r, 0, Math.PI * 2); ctx.stroke(); }
     // câmera
     ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1;
     ctx.strokeRect((cam.x / TILE) * sx, (cam.y / TILE) * sy, (cam.width / cam.zoom / TILE) * sx, (cam.height / cam.zoom / TILE) * sy);

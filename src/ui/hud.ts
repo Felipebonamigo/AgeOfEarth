@@ -139,7 +139,7 @@ export class HUD {
       if (e.type === 'age' || e.type === 'wonder' || e.type === 'titan' || e.type === 'power' || e.type === 'powerUsed') kind = 'gold';
       if (e.x !== undefined && e.y !== undefined) s.lastEvent = { x: e.x, y: e.y };
       if (e.text) this.toast(e.text, kind, e.x !== undefined && e.y !== undefined ? { x: e.x, y: e.y } : undefined);
-      if (e.type === 'underAttack' && mine) this.audio.play('alert');
+      if (e.type === 'underAttack' && mine) { this.audio.play('alert'); if (e.x !== undefined && e.y !== undefined) this.minimap.ping(e.x, e.y); }
       else if (e.type === 'age') this.audio.play('age');
       else if (e.type === 'built' || e.type === 'research') this.audio.play('complete');
       else if (e.type === 'powerUsed') this.audio.play('power');
@@ -167,7 +167,8 @@ export class HUD {
     (this.ageBtn as HTMLButtonElement).disabled = inProgress || p.age >= AGES.length - 1;
     this.ageBtn.dataset.tip = p.age >= AGES.length - 1 ? 'Você alcançou a Idade dos Titãs.' : `<b>${AGES[p.age + 1].name}</b><div class="cost">${fmtCost(AGES[p.age + 1].cost as Record<string, number>, p)}</div><div class="desc">${AGES[p.age + 1].desc}</div>${adv.ok ? '' : `<div style="color:#ef4444;margin-top:4px">${adv.reason ?? ''}</div>`}`;
     this.ageBtn.classList.toggle('primary', adv.ok);
-    this.clockEl.textContent = fmtTime(s.state.time) + (s.paused ? ' ⏸' : s.speed !== 1 ? ` ${s.speed}×` : '');
+    const waiting = (s.scheduler as { waiting?: number }).waiting ?? 0;
+    this.clockEl.textContent = fmtTime(s.state.time) + (s.paused ? ' ⏸' : s.speed !== 1 ? ` ${s.speed}×` : '') + (waiting > 10 ? ' ⏳ aguardando jogadores' : '');
     let idle = 0;
     for (const u of s.state.units.values()) if (u.owner === p.id && u.type === 'villager' && u.state === 'idle' && !u.order) idle++;
     this.idleBtn.textContent = `👤 Ociosos: ${idle}`;
