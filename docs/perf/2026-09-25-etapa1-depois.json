@@ -1,0 +1,100 @@
+{
+  "date": "2026-09-25-etapa1-depois",
+  "commit": "f424655",
+  "label": "etapa1 depois (retomada)",
+  "url": "http://localhost:4186/",
+  "note": "Chromium headless + swiftshader (software): ms/fps pessimistas, sem GPU; comparar antes/depois. Ver docs/ART.md §6.",
+  "scenario": {
+    "seed": 42,
+    "tick": 12002,
+    "minutes": 10,
+    "units": 260,
+    "buildings": 103,
+    "map": "144×144",
+    "quality": "medium",
+    "resolution": 1,
+    "viewport": "1600×900",
+    "warmMinutes": 10,
+    "spawned": 114,
+    "measureMs": 4000
+  },
+  "results": {
+    "zoom1": {
+      "name": "zoom1",
+      "title": "zoom 1 (cidade do jogador)",
+      "fps": 1.2,
+      "render": {
+        "avg": 0.56,
+        "p95": 0.8,
+        "max": 0.8,
+        "n": 5
+      },
+      "drawCalls": 5,
+      "drawCallsMax": 6,
+      "textureMB": 14.4,
+      "textures": 27,
+      "sprites": 92,
+      "chunks": 12,
+      "resolution": 1,
+      "canvas": "1600×900"
+    },
+    "zoomOut": {
+      "name": "zoomOut",
+      "title": "zoom mínimo (mapa inteiro)",
+      "fps": 1.4,
+      "render": {
+        "avg": 0.66,
+        "p95": 1.2,
+        "max": 1.2,
+        "n": 7
+      },
+      "drawCalls": 5,
+      "drawCallsMax": 5,
+      "textureMB": 14.4,
+      "textures": 28,
+      "sprites": 94,
+      "chunks": 81,
+      "resolution": 1,
+      "canvas": "1600×900"
+    },
+    "battle": {
+      "name": "battle",
+      "title": "zoom 1,5 (maior aglomerado)",
+      "fps": 0,
+      "render": {
+        "avg": 0.73,
+        "p95": 1.8,
+        "max": 1.8,
+        "n": 4
+      },
+      "drawCalls": 4,
+      "drawCallsMax": 4,
+      "textureMB": 14.5,
+      "textures": 29,
+      "sprites": 1,
+      "chunks": 8,
+      "resolution": 1,
+      "canvas": "1600×900"
+    },
+    "scroll": {
+      "name": "scroll",
+      "title": "rolagem contínua (chunks novos)",
+      "fps": 1.2,
+      "render": {
+        "avg": 1.44,
+        "p95": 5.3,
+        "max": 5.3,
+        "n": 5
+      },
+      "drawCalls": 4,
+      "drawCallsMax": 4,
+      "textureMB": 14.5,
+      "textures": 29,
+      "sprites": 2,
+      "chunks": 12,
+      "resolution": 1,
+      "canvas": "1600×900"
+    }
+  },
+  "errors": []
+}

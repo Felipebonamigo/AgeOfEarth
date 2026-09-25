@@ -1,19 +1,19 @@
-// Renderizador PixiJS: chunks de terreno, fronteiras, entidades interpoladas, efeitos, névoa e overlays.
-import { Application, Container, Graphics, Sprite, Texture, Rectangle, Text, TextStyle } from 'pixi.js';
+// Renderizador PixiJS: terreno por shader (com fronteiras), nós como sprites, entidades interpoladas, efeitos, névoa e overlays.
+import { Application, Container, Graphics, Sprite, Texture, Text, TextStyle } from 'pixi.js';
 import { effectiveResolution, resolveQuality, type Quality } from './quality';
 import { TILE, TICK_RATE, PLAYER_COLORS, KOTH_RADIUS, rankOf } from '../core/constants';
 import { BUILDINGS, UNITS } from '../core/data';
 import type { Building, GameState, Unit, VisualEffect } from '../core/types';
 import { Camera } from './camera';
-import { TextureCache, darken, paintChunkBase, drawChunkDetail, SUB, CHUNK_MARGIN } from './textures';
+import { TextureCache, darken, NODE_ANCHOR } from './textures';
 import { getUnitStats, getBuildingStats } from '../core/sim/modifiers';
 import { componentAt } from '../core/map/components';
 import type { EditorUI } from '../editor/types';
 import { terrainColor, regionColor, SHADOW_ALPHA } from './palette';
-import { FogMesh, TerritoryMesh } from './fog';
-import { unitShadow, buildingShadow, nodeShadow } from './shadows';
+import { FogMesh } from './fog';
+import { unitShadow, buildingShadow } from './shadows';
+import { ChunkMesh, CHUNK, materialSizeFor, prewarmTerrain } from './terrain/ChunkMesh';
 
-const CHUNK = 16;
 /** Zoom mínimo padrão da partida; em mapas grandes/telas pequenas cai até enquadrar o mapa inteiro (ver updateMinZoom). */
 const DEFAULT_MIN_ZOOM = 0.35;
 /** Raio (em tiles) do anel de cada início no editor: o gerador limpa esse raio e o kit inicial cabe dentro dele. */
@@ -28,6 +28,9 @@ export function buildingCorner(type: string, x: number, y: number): { tx: number
   if (!def) return { tx: x, ty: y };
   return { tx: x - Math.floor(def.w / 2), ty: y - Math.floor(def.h / 2) };
 }
+
+/** Um nó do mapa (árvore, mina, arbusto, animal) desenhado como sprite na camada 'props' (sombra SE assada no quadro). */
+interface PropView { sprite: Sprite; type: string; x: number; y: number; chunk: number }
 
 /** Vista de uma entidade: corpo (gira com a unidade) e sombra separada na camada 'shadows' (não gira; cai para sudeste). */
 interface EntityView { root: Container; body: Sprite; shadow: Sprite | null; type: string; color: number; complete: boolean; angle: number; carry: Sprite | null; label?: Text; rank?: Graphics; rankShown?: number }
@@ -49,16 +52,20 @@ export class Renderer {
   tex!: TextureCache;
   cam = new Camera();
   world = new Container();
-  /** Ordem (docs/ART.md §3.7): terrain → territory → shadows → ground → buildings → units → fx → hp → editor → fog.
-   *  'shadows' é inserida antes de 'ground' em setState (init() monta o resto). */
-  layers = { terrain: new Container(), territory: new Container(), shadows: new Container(), ground: new Graphics(), buildings: new Container(), units: new Container(), fx: new Container(), hp: new Graphics(), editor: new Container(), fog: new Container() };
+  /** Ordem (docs/ART.md §3.7): terrain (shader: chão, água e fronteiras) → shadows → props (nós) → ground →
+   *  buildings → units → fx → hp → editor → fog. */
+  layers = { terrain: new Container(), shadows: new Container(), props: new Container(), ground: new Graphics(), buildings: new Container(), units: new Container(), fx: new Container(), hp: new Graphics(), editor: new Container(), fog: new Container() };
   overlay = new Graphics();
-  /** Quantos chunks de terreno ficam em cache antes de descartar os fora da tela (60 na partida; no editor, todos). */
+  /** Compatibilidade com o editor (antes: chunks assados em cache). O terreno por shader não tem cache: no-op. */
   chunkCacheLimit = 60;
-  private chunks = new Map<string, Sprite>();
-  private chunkNodeCount = new Map<string, number>();
-  /** Ids dos nós desenhados em cada chunk (inclui a margem de 1 tile): se algum sumir, o chunk é regenerado. */
-  private chunkNodes = new Map<string, number[]>();
+  /** Terreno por shader (um quad por chunk num Mesh só). */
+  private terrain: ChunkMesh | null = null;
+  /** Chunks de terreno desenhados no último quadro (overlay ?perf=1). */
+  get visibleChunks(): number { return this.terrain?.visibleChunks ?? 0; }
+  /** Nós como sprites: por id; um Container por faixa de chunks (linha cy), filhos ordenados por zIndex = y. */
+  private props = new Map<number, PropView>();
+  private propRows: Container[] = [];
+  private propFrame = 0;
   // Sobreposições do editor: texturas w×h de regiões/passabilidade (como a névoa), gráfico por quadro e rótulos dos inícios
   private edGfx = new Graphics();
   private edLabels: Text[] = [];
@@ -70,10 +77,9 @@ export class Renderer {
   /** Espectador: tudo visível (só na renderização; a simulação não muda). */
   revealAll = false;
   private fog: FogMesh | null = null; private fogVersion = -1;
-  private terr: TerritoryMesh | null = null; private terrVersion = -1;
+  private terrVersion = -1;
   private fxViews = new Map<VisualEffect, Container>();
   private deathViews: { c: Container; ttl: number; total: number; kind: string }[] = [];
-  private lastNodeCount = -1;
   private state: GameState | null = null;
   time = 0;
 
@@ -84,7 +90,7 @@ export class Renderer {
     parent.appendChild(this.app.canvas);
     this.tex = new TextureCache(this.app.renderer);
     this.app.stage.addChild(this.world, this.overlay);
-    this.world.addChild(this.layers.terrain, this.layers.territory, this.layers.ground, this.layers.buildings, this.layers.units, this.layers.fx, this.layers.hp, this.layers.editor, this.layers.fog);
+    this.world.addChild(this.layers.terrain, this.layers.shadows, this.layers.props, this.layers.ground, this.layers.buildings, this.layers.units, this.layers.fx, this.layers.hp, this.layers.editor, this.layers.fog);
     this.layers.editor.visible = false;
     this.layers.units.sortableChildren = true;
     this.layers.buildings.sortableChildren = true;
@@ -97,24 +103,21 @@ export class Renderer {
     this.state = state;
     this.cam.setMap(state.map.w, state.map.h);
     this.cam.resize(this.app.screen.width, this.app.screen.height);
-    for (const s of this.chunks.values()) s.destroy({ texture: true });
-    this.chunks.clear(); this.chunkNodeCount.clear(); this.chunkNodes.clear();
     for (const v of this.views.values()) this.destroyView(v);
     this.views.clear();
-    // Camada de sombras entre territory e ground (init() monta as demais; aqui só se ainda não estiver no mundo)
-    if (this.layers.shadows.parent !== this.world) this.world.addChildAt(this.layers.shadows, this.world.getChildIndex(this.layers.ground));
     this.layers.shadows.removeChildren();
     for (const v of this.fxViews.values()) v.destroy({ children: true });
     this.fxViews.clear();
     for (const d of this.deathViews) d.c.destroy({ children: true });
     this.deathViews = [];
-    this.layers.territory.removeChildren();
     this.layers.fog.removeChildren();
-    this.fog?.destroy(); this.terr?.destroy();
+    this.layers.terrain.removeChildren();
+    this.fog?.destroy(); this.terrain?.destroy();
     const { w, h } = state.map;
-    // Névoa e fronteiras: malhas w×h por shader (fog.ts), atualizadas só quando fogVersion/territoryVersion mudam
+    // Terreno (e fronteiras) por shader: texturas w×h escritas a partir do mapa; névoa: malha w×h própria (fog.ts)
+    this.terrain = new ChunkMesh(state.map, this.quality); this.layers.terrain.addChild(this.terrain.mesh);
     this.fog = new FogMesh(w, h); this.layers.fog.addChild(this.fog.mesh);
-    this.terr = new TerritoryMesh(w, h); this.layers.territory.addChild(this.terr.mesh);
+    this.resetProps(state);
     // Camada do editor: regiões e passabilidade como texturas w×h (regeneradas só quando algo muda), gráfico e rótulos
     this.layers.editor.removeChildren();
     for (const l of this.edLabels) l.destroy(); this.edLabels = [];
@@ -128,7 +131,7 @@ export class Renderer {
     this.layers.editor.addChild(this.regSprite, this.passSprite, this.edGfx);
     this.layers.editor.visible = false;
     this.regKey = ''; this.passKey = ''; this.editVersion++;
-    this.fogVersion = -1; this.terrVersion = -1; this.lastNodeCount = -1; this.revealAll = false;
+    this.fogVersion = -1; this.terrVersion = -1; this.revealAll = false;
     this.updateMinZoom();
     // Mapa sem inícios (editor, mapa em branco): centra no meio
     const start = state.map.starts[0] ?? { x: w / 2, y: h / 2 };
@@ -159,9 +162,9 @@ export class Renderer {
   }
 
   /**
-   * Editor: o terreno/nós mudaram no retângulo de tiles [x0,x1]×[y0,y1] (inclusivo). Destrói só os chunks tocados
-   * (regenerados no próximo quadro se estiverem na tela), atualiza a contagem de nós desses chunks e marca as
-   * texturas do editor (regiões/passabilidade) para regenerar. O resto do mapa não é tocado.
+   * Editor: o terreno/nós mudaram no retângulo de tiles [x0,x1]×[y0,y1] (inclusivo). Reescreve só os bytes desse
+   * retângulo (mais a vizinhança que a profundidade/altura leem) nas texturas do terreno, re-sincroniza os sprites de
+   * nós do retângulo e marca as texturas do editor (regiões/passabilidade) para regenerar. Nenhum mesh é recriado.
    */
   invalidateRect(x0: number, y0: number, x1: number, y1: number): void {
     const st = this.state; if (!st) return;
@@ -170,16 +173,8 @@ export class Renderer {
     const ax1 = Math.min(map.w - 1, Math.max(x0, x1)), ay1 = Math.min(map.h - 1, Math.max(y0, y1));
     this.editVersion++;
     if (ax1 < ax0 || ay1 < ay0) return;
-    for (let cy = Math.floor(ay0 / CHUNK); cy <= Math.floor(ay1 / CHUNK); cy++) for (let cx = Math.floor(ax0 / CHUNK); cx <= Math.floor(ax1 / CHUNK); cx++) {
-      const k = this.chunkKey(cx, cy);
-      const sp = this.chunks.get(k);
-      if (sp) { sp.destroy({ texture: true }); this.chunks.delete(k); this.chunkNodes.delete(k); this.layers.terrain.removeChild(sp); }
-      // Recontagem de nós do chunk: mantém refreshChunksIfNeeded coerente sem regenerar os outros chunks
-      let nodes = 0;
-      for (let y = cy * CHUNK; y < Math.min(map.h, (cy + 1) * CHUNK); y++) for (let x = cx * CHUNK; x < Math.min(map.w, (cx + 1) * CHUNK); x++) if (map.nodeAt[y * map.w + x] !== -1) nodes++;
-      this.chunkNodeCount.set(k, nodes);
-    }
-    this.lastNodeCount = map.nodes.size;
+    this.terrain?.invalidateRect(ax0, ay0, ax1, ay1);
+    this.syncPropsRect(st, ax0, ay0, ax1, ay1);
   }
   /** Preset de qualidade em vigor (docs/ART.md §3.9); as etapas seguintes leem daqui sombras, partículas, água e shader. */
   quality: Quality = resolveQuality('auto');
@@ -194,114 +189,115 @@ export class Renderer {
     this.renderScale = Math.max(0.25, Math.min(1, scale));
     this.applyResolution();
   }
-  /** Aplica um preset de qualidade (teto de resolução agora; sombras/partículas/água/shader pelas etapas seguintes). */
+  /** Aplica um preset de qualidade: teto de resolução e, no terreno, shader completo/simples, normais e água animada. */
   setQuality(q: Quality): void {
     this.quality = q;
+    this.terrain?.setQuality(q);
+    // materiais do preset gerados em segundo plano (um por macrotarefa, ≈ 250 ms no total a 512²) enquanto o menu está
+    // aberto; main.ts chama setQuality logo após init, então a primeira partida já os encontra prontos
+    prewarmTerrain(materialSizeFor(q));
     this.applyResolution();
   }
 
-  // ---------------- Terreno em chunks ----------------
-  private chunkKey(cx: number, cy: number) { return `${cx},${cy}`; }
-  /**
-   * Gera a textura de um chunk (16×16 tiles): camada de cor contínua (canvas a SUB px/tile ampliado com filtro
-   * bilinear — sem grade), detalhes de alta frequência por tile, sombras dos nós (assadas aqui, caindo para sudeste
-   * pela regra de shadows.ts) e os sprites dos nós. Nós numa margem de 1 tile também são desenhados (recortados pela
-   * moldura) para que árvores/sombras que cruzam a borda apareçam iguais nos dois chunks vizinhos.
-   */
-  private buildChunk(state: GameState, cx: number, cy: number): Sprite {
-    const map = state.map;
-    const c = new Container();
-    const x0 = cx * CHUNK, y0 = cy * CHUNK;
-    const tw = Math.min(map.w - x0, CHUNK), th = Math.min(map.h - y0, CHUNK);
-    // cor-base (baixa frequência)
-    const baseTex = Texture.from(paintChunkBase(map, x0, y0, tw, th));
-    baseTex.source.scaleMode = 'linear';
-    const base = new Sprite(baseTex);
-    base.scale.set(TILE / SUB);
-    base.position.set(-CHUNK_MARGIN * TILE / SUB, -CHUNK_MARGIN * TILE / SUB);
-    c.addChild(base);
-    // detalhes (alta frequência) e sombras dos nós
-    const detail = new Graphics();
-    drawChunkDetail(detail, map, x0, y0, tw, th);
-    c.addChild(detail);
-    const shadows = new Graphics();
-    let anyShadow = false;
-    const ids: number[] = [];
-    let nodes = 0;
-    const nodeSprites: Sprite[] = [];
-    for (let y = y0 - 1; y <= y0 + th; y++) for (let x = x0 - 1; x <= x0 + tw; x++) {
-      if (x < 0 || y < 0 || x >= map.w || y >= map.h) continue;
-      const id = map.nodeAt[y * map.w + x];
-      if (id === -1) continue;
-      const n = map.nodes.get(id)!;
-      const own = x >= x0 && y >= y0 && x < x0 + tw && y < y0 + th;
-      if (own) nodes++;
-      ids.push(id);
-      const decor = map.decor[y * map.w + x] % 256;
-      const k = n.type === 'tree' ? 0.85 + (decor % 40) / 100 : 1;
-      const px = (x - x0 + 0.5) * TILE, py = (y - y0 + 0.5) * TILE;
-      const sh = nodeShadow(n.type, k);
-      if (sh) { shadows.ellipse(px + sh.dx, py + sh.dy, sh.rx, sh.ry); anyShadow = true; }
-      const s = new Sprite(this.tex.node(n.type, decor));
-      s.anchor.set(0.5, 0.6);
-      s.position.set(px, py);
-      s.scale.set(k);
-      s.zIndex = y;
-      nodeSprites.push(s);
-    }
-    if (anyShadow) shadows.fill({ color: 0x000000, alpha: SHADOW_ALPHA });   // um fill só para todas as elipses
-    c.addChild(shadows);
-    nodeSprites.sort((a, b) => a.zIndex - b.zIndex);
-    for (const s of nodeSprites) c.addChild(s);
-    const tex = this.app.renderer.generateTexture({ target: c, resolution: 1, frame: new Rectangle(0, 0, tw * TILE, th * TILE) });
-    base.destroy({ texture: true, textureSource: true });
-    c.destroy({ children: true });
-    const sp = new Sprite(tex);
-    sp.position.set(x0 * TILE, y0 * TILE);
-    const key = this.chunkKey(cx, cy);
-    this.chunkNodeCount.set(key, nodes);
-    this.chunkNodes.set(key, ids);
-    return sp;
+  // ---------------- Terreno (shader) e fronteiras ----------------
+  private updateTerrain(state: GameState, local: number): void {
+    const t = this.terrain; if (!t) return;
+    t.cull(this.cam.visibleTiles());
+    t.frame(this.time, this.cam.zoom);
+    // Fronteiras: só uOwner é reescrito quando o território muda
+    if (state.territoryVersion !== this.terrVersion) { this.terrVersion = state.territoryVersion; t.updateOwner(state.territory); }
+    this.updateProps(state, local);
   }
 
-  private dropChunk(k: string, sp: Sprite): void {
-    sp.destroy({ texture: true }); this.chunks.delete(k); this.chunkNodes.delete(k); this.layers.terrain.removeChild(sp);
-  }
-
-  private refreshChunksIfNeeded(state: GameState): void {
-    if (state.map.nodes.size === this.lastNodeCount) return;
+  // ---------------- Nós (camada 'props') ----------------
+  // Um Sprite por nó (quadro do atlas de nós com a sombra SE assada). Os sprites vivem num Container por FAIXA de chunks
+  // (16 linhas de tiles), ordenado por zIndex = y: a ordem por y vale para o mapa inteiro (faixas em ordem crescente de
+  // y, e dentro da faixa o sort do Pixi), sem costura de ordenação nas colunas de chunk. O culling é por chunk
+  // (sprite.visible dos nós do chunk ao entrar/sair da tela) e um nó num tile nunca explorado fica oculto (senão a copa
+  // das árvores da borda do mapa escaparia da névoa, que cobre só o retângulo do mapa). A conferência é sempre por
+  // chunk (≤ 256 tiles, nunca O(nós do mapa), para cortar árvores não dar pico): os chunks visíveis quando
+  // map.nodes.size muda (corte/caça esgotando um nó, poderes que criam nós) e a cada 30 quadros; um chunk que volta à
+  // tela é conferido antes de aparecer; invalidateRect (editor) confere os chunks do retângulo. Nada de generateTexture.
+  private lastNodeCount = -1;
+  /** Ids dos props de cada chunk (índice cy · cw + cx). */
+  private propIds: Set<number>[] = [];
+  /** Chunks de props na tela no último quadro (1), chave da névoa já aplicada aos props e jogador local. */
+  private propVis = new Uint8Array(0);
+  private propFogKey = -1;
+  private propLocal = 0;
+  private propCw = 0;
+  private resetProps(state: GameState): void {
+    for (const c of this.propRows) c.destroy({ children: true });
+    this.props.clear();
+    this.layers.props.removeChildren();
+    const cw = Math.ceil(state.map.w / CHUNK), ch = Math.ceil(state.map.h / CHUNK);
+    this.propCw = cw;
+    this.propRows = []; this.propIds = []; this.propVis = new Uint8Array(cw * ch); this.propFogKey = -1;
+    for (let r = 0; r < ch; r++) { const c = new Container(); c.sortableChildren = true; c.visible = false; this.propRows.push(c); this.layers.props.addChild(c); }
+    for (let i = 0; i < cw * ch; i++) this.propIds.push(new Set());
+    for (const n of state.map.nodes.values()) this.addProp(state, n.id);
     this.lastNodeCount = state.map.nodes.size;
-    // Recontagem por chunk; chunks cuja contagem mudou ou cujo algum nó desenhado (inclusive na margem) sumiu são regenerados
-    const counts = new Map<string, number>();
-    for (const n of state.map.nodes.values()) { const k = this.chunkKey(Math.floor(n.x / CHUNK), Math.floor(n.y / CHUNK)); counts.set(k, (counts.get(k) ?? 0) + 1); }
-    for (const [k, sp] of this.chunks) {
-      if ((counts.get(k) ?? 0) !== (this.chunkNodeCount.get(k) ?? 0)) { this.dropChunk(k, sp); continue; }
-      const ids = this.chunkNodes.get(k);
-      if (ids) for (const id of ids) if (!state.map.nodes.has(id)) { this.dropChunk(k, sp); break; }
-    }
   }
-
-  private updateTerrain(state: GameState): void {
-    this.refreshChunksIfNeeded(state);
-    const v = this.cam.visibleTiles();
-    const cx0 = Math.floor(v.x0 / CHUNK), cy0 = Math.floor(v.y0 / CHUNK), cx1 = Math.floor(Math.min(state.map.w - 1, v.x1) / CHUNK), cy1 = Math.floor(Math.min(state.map.h - 1, v.y1) / CHUNK);
-    const wanted = new Set<string>();
-    for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) {
-      const k = this.chunkKey(cx, cy);
-      wanted.add(k);
-      if (!this.chunks.has(k)) { const sp = this.buildChunk(state, cx, cy); this.chunks.set(k, sp); this.layers.terrain.addChild(sp); }
-    }
-    // descarta chunks distantes quando há muitos em cache
-    if (this.chunks.size > this.chunkCacheLimit) for (const [k, sp] of this.chunks) if (!wanted.has(k)) this.dropChunk(k, sp);
+  private addProp(state: GameState, id: number): void {
+    const map = state.map, n = map.nodes.get(id);
+    if (!n) return;
+    const decor = map.decor[n.y * map.w + n.x] % 256;
+    const s = new Sprite(this.tex.node(n.type, decor));
+    s.anchor.set(NODE_ANCHOR.x, NODE_ANCHOR.y);
+    s.position.set((n.x + 0.5) * TILE, (n.y + 0.5) * TILE);
+    s.scale.set(n.type === 'tree' ? 0.85 + (decor % 40) / 100 : 1);
+    s.zIndex = n.y;
+    const cy = Math.floor(n.y / CHUNK), chunk = cy * this.propCw + Math.floor(n.x / CHUNK);
+    s.visible = this.propVis[chunk] === 1 && this.propExplored(state, n.x, n.y);
+    this.propRows[cy]?.addChild(s);
+    this.propIds[chunk]?.add(id);
+    this.props.set(id, { sprite: s, type: n.type, x: n.x, y: n.y, chunk });
   }
-
-  // ---------------- Fronteiras (linha fina + tingimento, por shader em fog.ts) ----------------
-  private updateTerritory(state: GameState): void {
-    const t = this.terr; if (!t) return;
-    t.setZoom(this.cam.zoom);
-    if (state.territoryVersion === this.terrVersion) return;
-    this.terrVersion = state.territoryVersion;
-    t.update(state.territory);
+  private dropProp(id: number, v: PropView): void { v.sprite.destroy(); this.props.delete(id); this.propIds[v.chunk]?.delete(id); }
+  /** O jogador local já viu o tile (ou o mapa está revelado): só então o nó aparece. */
+  private propExplored(state: GameState, x: number, y: number): boolean {
+    if (this.revealAll || state.config.revealMap) return true;
+    const vis = state.players[this.propLocal]?.visibility;
+    return !vis || vis[y * state.map.w + x] > 0;
+  }
+  /** Confere um chunk contra o mapa: some o prop cujo tile não aponta mais para ele (ou mudou de tipo); nasce o que falta. */
+  private syncPropChunk(state: GameState, chunk: number): void {
+    const map = state.map, cw = this.propCw;
+    const ids = this.propIds[chunk]; if (!ids) return;
+    for (const id of ids) { const v = this.props.get(id)!; const n = map.nodes.get(id); if (!n || n.type !== v.type || map.nodeAt[v.y * map.w + v.x] !== id) this.dropProp(id, v); }
+    const cx = chunk % cw, cy = (chunk - cx) / cw;
+    const x0 = cx * CHUNK, y0 = cy * CHUNK, x1 = Math.min(map.w, x0 + CHUNK), y1 = Math.min(map.h, y0 + CHUNK);
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const id = map.nodeAt[y * map.w + x]; if (id !== -1 && !this.props.has(id)) this.addProp(state, id); }
+  }
+  /** Visibilidade dos sprites de um chunk: na tela e em tile explorado. */
+  private showPropChunk(state: GameState, chunk: number, on: boolean): void {
+    const ids = this.propIds[chunk]; if (!ids) return;
+    for (const id of ids) { const v = this.props.get(id); if (v) v.sprite.visible = on && this.propExplored(state, v.x, v.y); }
+  }
+  /** Editor: confere os chunks que tocam o retângulo. */
+  private syncPropsRect(state: GameState, x0: number, y0: number, x1: number, y1: number): void {
+    const cw = this.propCw;
+    for (let cy = Math.floor(y0 / CHUNK); cy <= Math.floor(y1 / CHUNK); cy++) for (let cx = Math.floor(x0 / CHUNK); cx <= Math.floor(x1 / CHUNK); cx++) this.syncPropChunk(state, cy * cw + cx);
+  }
+  private updateProps(state: GameState, local: number): void {
+    const changed = state.map.nodes.size !== this.lastNodeCount || ++this.propFrame % 30 === 0;
+    this.lastNodeCount = state.map.nodes.size;
+    // névoa: um tile recém-explorado revela os nós dele (só nos chunks na tela; os outros são conferidos ao voltar)
+    const fogKey = this.revealAll || state.config.revealMap ? -2 : state.fogVersion * 8 + local;
+    const fogChanged = fogKey !== this.propFogKey;
+    this.propFogKey = fogKey; this.propLocal = local;
+    // Culling por chunk (1 tile de folga: copas e sombras passam da borda do tile)
+    const v = this.cam.visibleTiles(), cw = this.propCw;
+    const cx0 = Math.floor((v.x0 - 1) / CHUNK), cy0 = Math.floor((v.y0 - 1) / CHUNK), cx1 = Math.floor((v.x1 + 1) / CHUNK), cy1 = Math.floor((v.y1 + 1) / CHUNK);
+    for (let i = 0; i < this.propVis.length; i++) {
+      const cx = i % cw, cy = (i - cx) / cw;
+      const vis = cx >= cx0 && cx <= cx1 && cy >= cy0 && cy <= cy1;
+      const was = this.propVis[i] === 1;
+      this.propVis[i] = vis ? 1 : 0;
+      if (vis && (changed || !was)) this.syncPropChunk(state, i);
+      if (vis !== was || (vis && fogChanged)) this.showPropChunk(state, i, vis);
+    }
+    for (let r = 0; r < this.propRows.length; r++) this.propRows[r].visible = r >= cy0 && r <= cy1;
   }
 
   // ---------------- Névoa (bordas macias por shader em fog.ts) ----------------
@@ -709,8 +705,7 @@ export class Renderer {
     if (this.cam.shake > 0) this.cam.shake = Math.max(0, this.cam.shake - dtReal * 12);
     this.world.scale.set(this.cam.zoom);
     this.world.position.set(-this.cam.x * this.cam.zoom + sx, -this.cam.y * this.cam.zoom + sy);
-    this.updateTerrain(state);
-    this.updateTerritory(state);
+    this.updateTerrain(state, ui.localPlayer);
     this.updateEntities(state, alpha, ui);
     this.updateGround(state, alpha, ui);
     this.updateEffects(state, ui);

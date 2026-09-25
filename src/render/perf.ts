@@ -14,7 +14,7 @@ export interface PerfSnapshot {
   drawCalls: number; drawCallsMax: number;
   /** Texturas residentes na GPU (estimativa: largura × altura × 4 bytes, ×4/3 com mipmaps). */
   textureMB: number; textures: number;
-  /** Sprites visíveis na cena e chunks de terreno em cache. */
+  /** Sprites visíveis na cena e chunks de terreno desenhados (quads do ChunkMesh no último quadro). */
   sprites: number; chunks: number;
   /** Resolução do canvas e tamanho em pixels. */
   resolution: number; canvas: string;
@@ -84,8 +84,10 @@ export class PerfMonitor {
     const sys = (this.renderer.app?.renderer as unknown as { texture?: { managedTextures?: readonly { pixelWidth: number; pixelHeight: number; autoGenerateMipmaps?: boolean }[] } })?.texture;
     const list = sys?.managedTextures ?? [];
     let bytes = 0;
-    for (const t of list) bytes += t.pixelWidth * t.pixelHeight * 4 * (t.autoGenerateMipmaps ? 4 / 3 : 1);
-    return { mb: bytes / 1048576, n: list.length };
+    // a lista do Pixi pode ter buracos (null) deixados por texturas destruídas
+    let n = 0;
+    for (const t of list) { if (!t) continue; n++; bytes += t.pixelWidth * t.pixelHeight * 4 * (t.autoGenerateMipmaps ? 4 / 3 : 1); }
+    return { mb: bytes / 1048576, n };
   }
   private countSprites(): number {
     let n = 0;
@@ -106,7 +108,7 @@ export class PerfMonitor {
       render: { avg: +avg.toFixed(2), p95: +percentile(sorted, 0.95).toFixed(2), max: +(sorted[sorted.length - 1] ?? 0).toFixed(2), n: sorted.length },
       drawCalls: Math.round(dAvg), drawCallsMax: Math.max(0, ...this.draws),
       textureMB: +tex.mb.toFixed(1), textures: tex.n,
-      sprites: this.countSprites(), chunks: this.renderer.layers?.terrain?.children.length ?? 0,
+      sprites: this.countSprites(), chunks: this.renderer.visibleChunks ?? 0,
       resolution: app?.renderer?.resolution ?? 1, canvas: app ? `${app.canvas.width}×${app.canvas.height}` : '',
     };
   }
