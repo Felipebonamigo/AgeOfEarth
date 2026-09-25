@@ -23,6 +23,8 @@ export interface Quality {
   antialias: false;
   showFps: boolean;
   teamOutline: boolean;
+  /** Arte assada (atlas do bake, docs/ART.md §3.7) onde houver; false = exatamente o visual procedural. */
+  bakedArt: boolean;
 }
 
 export const QUALITY_LEVELS: readonly QualityLevel[] = ['low', 'medium', 'high'];
@@ -46,13 +48,13 @@ export function isSoftwareRenderer(renderer: string | null | undefined): boolean
 /** Orçamento de partículas por nível (índice = Quality.particles). */
 export const PARTICLE_BUDGET = [200, 800, 2000] as const;
 
-type LevelSettings = Omit<Quality, 'preset' | 'showFps' | 'teamOutline' | 'antialias'>;
+type LevelSettings = Omit<Quality, 'preset' | 'showFps' | 'teamOutline' | 'antialias' | 'bakedArt'>;
 const LEVELS: Record<QualityLevel, LevelSettings> = {
   // Baixo / Steam Deck: 1×, sombras ligadas, partículas médias, água estática, shader simples, sem normais, cap 1
   low: { atlasScale: 1, shadows: true, particles: 1, water: 'static', terrainShader: 'simple', normalMaps: false, post: false, resolutionCap: 1 },
   // Médio (padrão do 'auto'): 1×, água animada, shader completo, normais, cap 1
   medium: { atlasScale: 1, shadows: true, particles: 2, water: 'animated', terrainShader: 'full', normalMaps: true, post: false, resolutionCap: 1 },
-  // Alto: 2× quando disponível, cap min(2, dpr), pós-processamento
+  // Alto: atlas 2× quando disponível (o único preset com 2×), cap min(2, dpr), pós-processamento
   high: { atlasScale: 2, shadows: true, particles: 2, water: 'animated', terrainShader: 'full', normalMaps: true, post: true, resolutionCap: 2 },
 };
 
@@ -62,12 +64,12 @@ export function levelOf(preset: QualityPreset): QualityLevel { return preset ===
 /** Um nível abaixo ('low' fica 'low'). */
 export function lowerLevel(level: QualityLevel): QualityLevel { const i = QUALITY_LEVELS.indexOf(level); return QUALITY_LEVELS[Math.max(0, i - 1)]; }
 
-export interface QualityOptions { showFps?: boolean; teamOutline?: boolean; level?: QualityLevel }
+export interface QualityOptions { showFps?: boolean; teamOutline?: boolean; level?: QualityLevel; /** padrão true em todos os presets */ bakedArt?: boolean }
 
 /** Quality completa a partir do preset salvo e dos toggles avançados; `level` sobrepõe o nível (auto já rebaixado). */
 export function resolveQuality(preset: QualityPreset, opts: QualityOptions = {}): Quality {
   const level = opts.level ?? levelOf(preset);
-  return { preset, ...LEVELS[level], antialias: false, showFps: !!opts.showFps, teamOutline: !!opts.teamOutline };
+  return { preset, ...LEVELS[level], antialias: false, showFps: !!opts.showFps, teamOutline: !!opts.teamOutline, bakedArt: opts.bakedArt !== false };
 }
 
 /** Resolução do canvas: min(teto, dpr) · renderScale (renderScale limitado a 0,25–1). */

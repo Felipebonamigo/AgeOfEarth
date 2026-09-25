@@ -19,6 +19,8 @@ export interface Settings {
   showFps: boolean;
   /** Contorno na cor do time (daltonismo e zoom baixo; desenho na Etapa 7). */
   teamOutline: boolean;
+  /** Arte assada (sprites do bake: hoplita, cidadão, templo, árvores e nós); desligada = visual procedural. */
+  bakedArt: boolean;
   /** Controle: multiplicador da velocidade do cursor virtual (0,5–2). */
   padSensitivity: number;
   /** Controle: inverte o eixo vertical do analógico da câmera. */
@@ -30,7 +32,7 @@ export interface Settings {
 }
 const KEY = 'aoe_settings_v1';
 // Tela cheia por padrão no Electron (Steam); no navegador só a pedido (exige gesto do usuário).
-export const DEFAULT_SETTINGS: Settings = { volume: 0.5, muted: false, sfxVolume: 0.8, musicVolume: 0.5, ambienceVolume: 0.6, edgeScroll: true, showRanges: false, locale: 'pt', uiScale: 1, fullscreen: typeof window !== 'undefined' && !!(window as unknown as { desktop?: unknown }).desktop, renderScale: 1, quality: 'auto', showFps: false, teamOutline: false, padSensitivity: 1, padInvertY: false, padScheme: 'standard', padVibration: true };
+export const DEFAULT_SETTINGS: Settings = { volume: 0.5, muted: false, sfxVolume: 0.8, musicVolume: 0.5, ambienceVolume: 0.6, edgeScroll: true, showRanges: false, locale: 'pt', uiScale: 1, fullscreen: typeof window !== 'undefined' && !!(window as unknown as { desktop?: unknown }).desktop, renderScale: 1, quality: 'auto', showFps: false, teamOutline: false, bakedArt: true, padSensitivity: 1, padInvertY: false, padScheme: 'standard', padVibration: true };
 
 /** Corrige campos ausentes ou inválidos (saves antigos e JSON editado à mão) para os padrões. */
 export function sanitizeSettings(raw: Partial<Settings> | null | undefined): Settings {
@@ -41,6 +43,7 @@ export function sanitizeSettings(raw: Partial<Settings> | null | undefined): Set
   s.muted = !!s.muted;
   if (!QUALITY_PRESETS.includes(s.quality)) s.quality = 'auto';
   s.showFps = !!s.showFps; s.teamOutline = !!s.teamOutline;
+  s.bakedArt = s.bakedArt !== false;   // saves antigos (sem o campo) ligam a arte assada
   if (typeof s.padSensitivity !== 'number' || !Number.isFinite(s.padSensitivity)) s.padSensitivity = 1;
   s.padSensitivity = Math.max(0.25, Math.min(3, s.padSensitivity));
   s.padInvertY = !!s.padInvertY;

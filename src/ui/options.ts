@@ -1,5 +1,5 @@
 // Bloco de opções compartilhado entre o menu principal e o menu da partida:
-// áudio (geral, efeitos, música, ambiente, sem som), tela cheia, rolagem na borda, tamanho da interface, preset de qualidade, resolução de renderização,
+// áudio (geral, efeitos, música, ambiente, sem som), tela cheia, rolagem na borda, tamanho da interface, preset de qualidade, resolução de renderização, arte assada,
 // avançado (contador de desempenho, contorno de time), controle (sensibilidade, eixo, esquema, vibração), idioma e atalhos.
 import { t, getLocale, setLocale, LOCALE_NAMES, type Locale } from '../i18n';
 import { PAD_SCHEMES, PAD_SENSITIVITIES, type Settings, type PadScheme } from '../game/settings';
@@ -19,6 +19,8 @@ export interface OptionsContext {
   setQuality: (v: QualityPreset) => void;
   setShowFps: (v: boolean) => void;
   setTeamOutline: (v: boolean) => void;
+  /** Arte assada (sprites do bake) ligada/desligada; desligada = visual procedural. */
+  setBakedArt?: (v: boolean) => void;
   setFullscreen: (v: boolean) => void;
   onLocaleChanged: () => void;
   onHotkeys: () => void;
@@ -50,6 +52,7 @@ export function optionsHTML(ctx: OptionsContext): string {
     <label style="${LBL}">${t('menu.uiScale')} <select id="o-ui">${UI_SCALES.map((v) => `<option value="${v}" ${near(v, s.uiScale) ? 'selected' : ''}>${Math.round(v * 100)}%</option>`).join('')}</select></label>
     <label style="${LBL}" title="${t('menu.qualityTip')}">${t('menu.quality')} <select id="o-quality">${QUALITY_PRESETS.map((v) => `<option value="${v}" ${s.quality === v ? 'selected' : ''}>${t(`quality.${v}`)}</option>`).join('')}</select></label>
     <label style="${LBL}" title="${t('menu.renderTip')}">${t('menu.renderScale')} <select id="o-render">${RENDER_SCALES.map((v) => `<option value="${v}" ${near(v, s.renderScale) ? 'selected' : ''}>${Math.round(v * 100)}%</option>`).join('')}</select></label>
+    <label style="${LBL}" title="${t('menu.bakedArtTip')}"><input type="checkbox" id="o-baked" ${s.bakedArt ? 'checked' : ''}> ${t('menu.bakedArt')}</label>
     <details style="${LBL}"><summary style="cursor:pointer">${t('menu.advanced')}</summary>
       <label style="${LBL};display:block;margin-top:4px"><input type="checkbox" id="o-fps" ${s.showFps ? 'checked' : ''}> ${t('menu.showFps')}</label>
       <label style="${LBL};display:block" title="${t('menu.teamOutlineTip')}"><input type="checkbox" id="o-outline" ${s.teamOutline ? 'checked' : ''}> ${t('menu.teamOutline')}</label>
@@ -84,6 +87,7 @@ export function bindOptions(root: ParentNode, ctx: OptionsContext, rerender: () 
   q('#o-quality')?.addEventListener('change', (e) => ctx.setQuality((e.target as HTMLSelectElement).value as QualityPreset));
   q('#o-fps')?.addEventListener('change', (e) => ctx.setShowFps((e.target as HTMLInputElement).checked));
   q('#o-outline')?.addEventListener('change', (e) => ctx.setTeamOutline((e.target as HTMLInputElement).checked));
+  q('#o-baked')?.addEventListener('change', (e) => ctx.setBakedArt?.((e.target as HTMLInputElement).checked));
   q('#o-lang')?.addEventListener('change', (e) => { setLocale((e.target as HTMLSelectElement).value as Locale); ctx.onLocaleChanged(); rerender(); });
   q('#o-hotkeys')?.addEventListener('click', () => ctx.onHotkeys());
   q('#o-pad-sens')?.addEventListener('change', (e) => ctx.setPad?.({ padSensitivity: Number((e.target as HTMLSelectElement).value) }));

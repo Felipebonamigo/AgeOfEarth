@@ -78,7 +78,7 @@ const pt = {
   'menu.fullscreen': 'Tela cheia', 'menu.uiScale': 'Tamanho da interface', 'menu.renderScale': 'Resolução de renderização', 'menu.hotkeys': '⌨ Atalhos de teclado', 'menu.options': '⚙ Opções', 'menu.optionsHide': '⚙ Ocultar opções', 'menu.renderTip': 'Menor = mais leve em computadores fracos',
   'menu.quality': 'Qualidade gráfica', 'menu.qualityTip': 'Automática: começa em Média e desce para Baixa se a partida engasgar. Nunca sobe sozinha.', 'quality.auto': 'Automática', 'quality.low': 'Baixa', 'quality.medium': 'Média', 'quality.high': 'Alta',
   'menu.audio': 'Áudio', 'menu.sfxVolume': 'Efeitos', 'menu.musicVolume': 'Música', 'menu.ambienceVolume': 'Ambiente', 'menu.mute': 'Sem som (Ctrl+M)',
-  'menu.advanced': 'Avançado', 'menu.showFps': 'Mostrar desempenho (fps, ms, draw calls)', 'menu.teamOutline': 'Contorno na cor do time', 'menu.teamOutlineTip': 'Ajuda no daltonismo e no zoom baixo (o desenho chega na Etapa 7 da arte)',
+  'menu.advanced': 'Avançado', 'menu.showFps': 'Mostrar desempenho (fps, ms, draw calls)', 'menu.teamOutline': 'Contorno na cor do time', 'menu.teamOutlineTip': 'Ajuda no daltonismo e no zoom baixo (o desenho chega na Etapa 7 da arte)', 'menu.bakedArt': 'Arte assada (beta)', 'menu.bakedArtTip': 'Sprites renderizados de modelos 3D (hoplita, cidadão, templo, árvores e recursos). Desligada: o visual procedural antigo.',
   'msg.qualityLowered': 'Qualidade automática: ajustada para {level} para manter a fluidez (mude em Opções).',
   // menu principal
   'main.sub': 'Idades, fronteiras e atrito no estilo Rise of Nations · deuses, favor, heróis e criaturas míticas no estilo Age of Mythology.',
@@ -232,7 +232,7 @@ const en: Record<keyof typeof pt, string> = {
   'menu.fullscreen': 'Fullscreen', 'menu.uiScale': 'Interface size', 'menu.renderScale': 'Render resolution', 'menu.hotkeys': '⌨ Keyboard shortcuts', 'menu.options': '⚙ Options', 'menu.optionsHide': '⚙ Hide options', 'menu.renderTip': 'Lower = lighter on weak computers',
   'menu.quality': 'Graphics quality', 'menu.qualityTip': 'Auto: starts at Medium and drops to Low if the match stutters. Never goes up on its own.', 'quality.auto': 'Auto', 'quality.low': 'Low', 'quality.medium': 'Medium', 'quality.high': 'High',
   'menu.audio': 'Audio', 'menu.sfxVolume': 'Effects', 'menu.musicVolume': 'Music', 'menu.ambienceVolume': 'Ambience', 'menu.mute': 'Mute (Ctrl+M)',
-  'menu.advanced': 'Advanced', 'menu.showFps': 'Show performance (fps, ms, draw calls)', 'menu.teamOutline': 'Team-colored outline', 'menu.teamOutlineTip': 'Helps with color blindness and low zoom (drawn from art Step 7 on)',
+  'menu.advanced': 'Advanced', 'menu.showFps': 'Show performance (fps, ms, draw calls)', 'menu.teamOutline': 'Team-colored outline', 'menu.teamOutlineTip': 'Helps with color blindness and low zoom (drawn from art Step 7 on)', 'menu.bakedArt': 'Baked art (beta)', 'menu.bakedArtTip': 'Sprites rendered from 3D models (hoplite, villager, temple, trees and resources). Off: the old procedural look.',
   'msg.qualityLowered': 'Auto quality: set to {level} to keep the game smooth (change it in Options).',
   'main.sub': 'Ages, borders and attrition in the style of Rise of Nations · gods, favor, heroes and mythic creatures in the style of Age of Mythology.',
   'main.skirmish': '⚔️ Skirmish', 'main.campaign': '📜 Campaign', 'main.multiplayer': '🌐 Multiplayer', 'main.name': 'Your name', 'main.god': 'Major god', 'main.seed': 'Map seed (optional)', 'main.random': 'random',

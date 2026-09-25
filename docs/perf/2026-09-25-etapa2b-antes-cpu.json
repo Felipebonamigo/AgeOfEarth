@@ -1,0 +1,138 @@
+{
+  "date": "2026-09-25",
+  "commit": "8d9808d",
+  "label": "etapa2b-antes",
+  "url": "http://localhost:4192/",
+  "quality": "low",
+  "frames": 150,
+  "note": "CPU por quadro (ms) em laço síncrono, resolução 0,25 (sem rasterização relevante); render = renderer.render, pixi = app.renderer.render.",
+  "scenario": {
+    "units": 260,
+    "buildings": 152,
+    "localAlive": false,
+    "warmMinutes": 20
+  },
+  "results": [
+    {
+      "baked": false,
+      "view": "zoom1",
+      "render": {
+        "avg": 0.507,
+        "med": 0.3,
+        "p95": 1.4
+      },
+      "pixi": {
+        "avg": 1.065,
+        "med": 0.5,
+        "p95": 3.3
+      },
+      "sprites": 496
+    },
+    {
+      "baked": false,
+      "view": "zoomOut",
+      "render": {
+        "avg": 0.932,
+        "med": 0.6,
+        "p95": 2.7
+      },
+      "pixi": {
+        "avg": 1.931,
+        "med": 1.8,
+        "p95": 2.9
+      },
+      "sprites": 3391
+    },
+    {
+      "baked": false,
+      "view": "battle",
+      "render": {
+        "avg": 0.454,
+        "med": 0.3,
+        "p95": 1
+      },
+      "pixi": {
+        "avg": 1.017,
+        "med": 0.5,
+        "p95": 4.5
+      },
+      "sprites": 550
+    },
+    {
+      "baked": false,
+      "view": "scroll",
+      "render": {
+        "avg": 0.203,
+        "med": 0.2,
+        "p95": 0.4
+      },
+      "pixi": {
+        "avg": 0.696,
+        "med": 0.5,
+        "p95": 1.3
+      },
+      "sprites": 417
+    },
+    {
+      "baked": false,
+      "view": "zoom1",
+      "render": {
+        "avg": 0.275,
+        "med": 0.2,
+        "p95": 0.6
+      },
+      "pixi": {
+        "avg": 0.517,
+        "med": 0.5,
+        "p95": 0.8
+      },
+      "sprites": 506
+    },
+    {
+      "baked": false,
+      "view": "zoomOut",
+      "render": {
+        "avg": 0.527,
+        "med": 0.5,
+        "p95": 0.8
+      },
+      "pixi": {
+        "avg": 1.68,
+        "med": 1.6,
+        "p95": 2
+      },
+      "sprites": 3367
+    },
+    {
+      "baked": false,
+      "view": "battle",
+      "render": {
+        "avg": 0.265,
+        "med": 0.2,
+        "p95": 0.5
+      },
+      "pixi": {
+        "avg": 0.765,
+        "med": 0.5,
+        "p95": 1.6
+      },
+      "sprites": 410
+    },
+    {
+      "baked": false,
+      "view": "scroll",
+      "render": {
+        "avg": 0.248,
+        "med": 0.2,
+        "p95": 0.5
+      },
+      "pixi": {
+        "avg": 0.877,
+        "med": 0.6,
+        "p95": 1.4
+      },
+      "sprites": 413
+    }
+  ],
+  "errors": []
+}

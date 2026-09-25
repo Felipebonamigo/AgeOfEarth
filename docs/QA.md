@@ -83,6 +83,73 @@ por chunk num único Mesh, culling pelo índice, 1 draw call) + shader completo 
 - Presets trocados em partida (`low → high → medium → auto → low → medium`): o shader alterna `simple:256` ↔ `full:512`,
   `uNormals`/`uWaterAnim` seguem o preset, sem erro no console.
 
+## Desempenho do renderizador — Etapa 2B da arte (sprites assados, 25/09/2026)
+
+Hoplita, cidadão, templo, árvores/tocos e nós assados (`src/render/art/`, `views/`, `props.ts`); antes = build da base
+(commit 8d9808d, porta própria) e depois = esta etapa, rodadas uma após a outra na mesma máquina. A máquina é
+compartilhada (4 CPUs, carga 4–7 de outras sessões), então os números por software oscilam ±30–50 % entre rodadas iguais:
+leia tendências, não décimos. Mudanças no método desta vez: `renderperf.mjs` reaplica o preset depois de começar a
+partida (o automático rebaixava o preset fixo para Baixo no começo de toda partida — defeito de `src/main.ts` anotado à
+parte) e ganhou `--reveal` (aos 20 min o jogador local, parado, já perdeu a cidade para as 3 IAs; sem revelar, "cidade" e
+"aglomerado" mediam só terreno e nós) e `--quality/--measure`; o aglomerado agora ignora unidades guarnecidas.
+
+**`renderperf` no preset Baixo** (o que o automático escolhe sem GPU), 12 s por cenário, `--reveal`
+(`docs/perf/2026-09-25-etapa2b-{antes,depois,depois-baixo-procedural}-baixo.json`; "sem arte" = esta build com a opção
+desligada):
+
+| Cenário | fps antes → depois (sem arte) | render média ms antes → depois (sem arte) | p95 antes → depois | draw calls | tex MB | sprites |
+|---|---|---|---|---|---|---|
+| zoom 1 (cidade) | 1,8 → 1,8 (2,1) | 2,39 → 1,47 (2,59) | 7,6 → 6,0 | 3 → 8 | 7,1 → 25,1 | 481 → 778 |
+| mapa inteiro | 2,5 → 2,6 (3,1) | 3,79 → 3,05 (2,33) | 14,2 → 8,0 | 6 → 15 | 11 → 28,7 | 3 379 → 5 209 |
+| zoom 1,5 aglomerado | 1,2 → 2,0 (2,2) | 2,89 → 1,54 (1,37) | 21,2 → 5,1 | 4 → 8 | 11 → 28,7 | 547 → 759 |
+| rolagem | 1,5 → 2,3 (2,6) | 0,68 → 1,54 (1,78) | 1,2 → 4,9 | 4 → 8 | 11 → 28,7 | 668 → 997 |
+
+No preset Médio (shader completo do terreno) o software faz < 1 fps e entram 5–12 quadros por cenário
+(`…-medio.json`): render 1,19 → 1,83 / 3,42 → 4,55 / 3,03 → 2,56 / 0,92 → 2,23 ms — só ruído a essa amostragem.
+
+**CPU sem rasterização** (`node scripts/rendercpu.mjs`, novo: laço síncrono de 150 quadros por cenário com resolução
+0,25, `render` = nosso `renderer.render`, `pixi` = `app.renderer.render`; `docs/perf/2026-09-25-etapa2b-{antes,depois}-cpu.json`,
+segunda passada de cada página, mediana em ms):
+
+| Cenário | render antes → assada (sem arte) | Pixi antes → assada (sem arte) | sprites antes → assada |
+|---|---|---|---|
+| zoom 1 (cidade) | 0,2 → 0,2 (0,2) | 0,5 → 0,6 (0,4) | 506 → 617 |
+| mapa inteiro | 0,5 → 0,6 (0,6) | 1,6 → 2,4 (1,1) | 3 367 → 4 920 |
+| zoom 1,5 aglomerado | 0,2 → 0,4 (0,2) | 0,5 → 0,7 (0,3) | 410 → 680 |
+| rolagem | 0,2 → 0,2 (0,2) | 0,6 → 0,6 (0,3) | 413 → 622 |
+
+Leitura:
+- **Nosso código** (`renderer.render`) fica igual com a arte assada (vistas assadas escolhem quadro só quando muda a pose ou
+  o quadro; props trocam de estágio por um número, sem recalcular nomes). O que cresce é o trabalho do **Pixi**, proporcional
+  aos sprites: sombras dos props e máscaras de time somam +20–50 % de sprites e, com unidades andando, as faixas (props +
+  entidades, ordenadas por y) refazem as instruções a cada quadro. Para conter isso o mundo, os props e as sombras dos props
+  viraram grupos de render do Pixi 8 e as árvores no miolo do bosque não desenham sombra (−20 % de sprites num bosque denso).
+  Resultado (Pixi, mediana): zoom 1 +0,1 ms (+20 %), rolagem igual, aglomerado +0,2 ms (+40 % de um número pequeno) e
+  **mapa inteiro +0,8 ms (+50 %, 4 900 sprites)** — acima dos ~15 % pedidos nesses dois cenários, mas dentro do orçamento
+  absoluto de §6 do ART.md (CPU do quadro ≤ 3 ms). Com a opção
+  desligada o custo fica **abaixo** da base (os grupos de render ajudam o visual procedural também).
+- **Rasterização por software** (fps): no preset Baixo empata ou melhora (1,8 → 1,8; 2,5 → 2,6; 1,2 → 2,0; 1,5 → 2,3), graças
+  aos grupos de render (menos CPU disputando com o swiftshader) e ao filtro de mipmap `nearest` no atlas 1× (o trilinear
+  custava ~40 % do fps da cena por software). Em GPU real isso é irrelevante; **pendente do dono**: `?perf=1` no PC e no Deck.
+- **Draw calls** 3–6 → 8–15 nesta medição; boa parte disso **não** vinha da arte, e sim das faixas como grupos de render
+  (cada grupo é um lote próprio) — ver as correções abaixo: 6–9. **Texturas** +18 MB (atlas 1× de units, buildings e props
+  com os três passes e mipmaps; o 2× do preset alto soma ≈ 40 MB), longe do orçamento de 160 MB.
+- **Desligada = visual idêntico**: `artshot --procedural` desta build × a build base dá 0 px de diferença em 5 das 6
+  capturas e 103 px (0,008 %, efeito animado) na "cidade".
+
+**Correções da revisão da Etapa 2B** (mesma sessão, build anterior × corrigida, preset Baixo, `--reveal`, 12 s por cenário;
+`docs/perf/2026-09-25-etapa2b-correcoes-{baixo,cpu}.json`):
+- **Faixas sem grupo de render**: draw calls 8 → 6 (zoom 1), 15 → 9 (mapa inteiro), 8 → 6 (aglomerado), 9 → 7 (rolagem).
+  CPU (`rendercpu`, mediana das duas passadas): nosso código 0,2–0,3 / 0,6–0,8 / 0,3–0,4 / 0,2–0,3 ms e Pixi 0,5–0,6 /
+  2,1–2,5 / 0,5–0,7 / 0,5–0,6 ms, contra 0,2–0,3 / 0,6 / 0,2–0,3 / 0,2 e 0,5 / 1,8–2,1 / 0,4–0,7 / 0,5–0,6 na build anterior
+  — dentro do ruído de uma passada para outra: os grupos por faixa não poupavam CPU (com unidades andando todas as faixas
+  refaziam as instruções a cada quadro).
+- **Primeira partida sem troca de visual**: os atlas carregam no menu (`configure` → manifesto → grupos) e sobem para a GPU
+  um por quadro no ticker; ao `startGame` a arte já é servida (0 reconstruções; antes, ≈ 3,4 s depois do início, um quadro de
+  30–53 ms refazia os props do mapa inteiro e o seguinte fazia o upload de 5 atlas em 19–27 ms). Os props nascem por chunk
+  quando ele entra na tela: `PropLayer.reset` do 144×144 caiu de 30–53 ms para 0,3–0,5 ms (260 sprites na tela inicial
+  contra 2 806 do mapa inteiro). Ligar a opção no meio da partida reconstrói uma vez só (antes, duas).
+
 ## Matriz manual (por versão candidata)
 
 | Ambiente | Mínimo | Verificar |
