@@ -7,3 +7,4 @@ dist/
 !docs/screenshot.png
 .claude/worktrees/
 scripts/_tmp-*
+!docs/art/**/*.png
