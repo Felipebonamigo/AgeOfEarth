@@ -1,6 +1,9 @@
-// Editor de mapas (docs/EDITOR.md §5 Etapa 3): aba Editor → mapa gerado 80×80 → pintar lago e bosque com o mouse,
+// Editor de mapas (docs/EDITOR.md §5 Etapas 3 e 4): aba Editor → mapa gerado 80×80 → pintar lago e bosque com o mouse,
 // torre e hoplita do jogador 2, mover o início 2, desfazer/refazer, validação, salvar, testar (partida real) e voltar
-// ao editor com a mesma instância, exportar, P/F5 sem efeito, Esc abre o menu do editor. Captura em $3 (opcional).
+// ao editor com a mesma instância, exportar, P/F5 sem pausar nem salvar, Esc abre o menu do editor; Etapa 4: balde,
+// conta-gotas, "Corrigir" um gargalo (o aviso some), tabela de recursos, redimensionar (Ctrl+Z volta à instância
+// anterior) e cada mapa oficial aberto no editor (sem avisos), testado e de volta, com captura do mapa inteiro em
+// docs/art/editor-<id>.png. Captura extra em $3 (opcional).
 import { chromium } from 'playwright';
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const shot = process.argv[3] ?? '';
@@ -61,7 +64,7 @@ await look(spot.x, spot.y);
 let p = await screenOf(spot.x, spot.y); await page.mouse.move(p.x, p.y); await page.waitForTimeout(80); await page.mouse.click(p.x, p.y); await page.waitForTimeout(200);
 st = await info();
 ok('torre do jogador 2 colocada', st.buildings.includes('tower@1'), `| edifícios: ${st.buildings.join(',')}`);
-await page.keyboard.press('u'); await page.waitForTimeout(80);
+await page.keyboard.press('m'); await page.waitForTimeout(80);
 await page.click('#editor .chip[data-unit="hoplite"]'); await page.waitForTimeout(80);
 const uspot = await ed(([sx, sy]) => { const e = window.aoe.editor; for (let dy = -6; dy <= 6; dy++) for (let dx = -6; dx <= 6; dx++) { const x = sx + dx, y = sy + dy; if ((dx || dy) && e.canPlaceAt(x, y) && e.pickAt(x, y) === null) return { x, y }; } return null; }, [spot.x, spot.y]);
 p = await screenOf(uspot.x, uspot.y); await page.mouse.move(p.x, p.y); await page.waitForTimeout(80); await page.mouse.click(p.x, p.y); await page.waitForTimeout(200);
@@ -99,9 +102,10 @@ ok('Salvar → aoe_maps_v1', index.includes('teste-editor') && !(await info()).d
 ok('toast de salvo', (await page.textContent('#messages'))?.includes('Teste Editor'));
 // captura do editor
 if (shot) { await look(st.starts[1][0], st.starts[1][1]); await ed(() => { window.aoe.editor.ui.tool = 'building'; window.aoe.editor.ui.showGrid = true; }); await page.mouse.move(640, 300); await page.waitForTimeout(400); await page.screenshot({ path: shot }); console.log('captura:', shot); }
-// 9) P não pausa/despausa; F5 não grava save
+// 9) P arma o conta-gotas (não pausa); F5 não grava save
 await page.keyboard.press('p'); await page.waitForTimeout(80);
-ok('P não altera a pausa do editor', await ed(() => window.aoe.session.paused === true));
+ok('P não altera a pausa do editor (arma o conta-gotas)', await ed(() => window.aoe.session.paused === true && window.aoe.editor.ui.eyedrop === true));
+await page.keyboard.press('p'); await page.waitForTimeout(50);
 await page.keyboard.press('F5'); await page.waitForTimeout(200);
 ok('F5 não grava save', await ed(() => localStorage.getItem('aoe_save_v1') === null));
 // 10) Esc abre o menu do editor
@@ -138,9 +142,96 @@ await page.click('#ed-props'); await page.waitForTimeout(150);
 ok('modal Propriedades', await page.isVisible('#modal #ep-ok') && (await page.inputValue('#ep-id')) === 'teste-editor');
 await page.fill('#ep-author', 'Playwright'); await page.click('#ep-ok'); await page.waitForTimeout(100);
 ok('autor gravado nos metadados', await ed(() => window.aoe.editor.meta.author === 'Playwright' && window.aoe.editor.dirty));
+// 16) Etapa 4 — balde: botão 🪣 com a ferramenta Terreno, areia (2), clique no lago pintado → a região contígua vira areia
+await page.keyboard.press('t'); await page.keyboard.press('2'); await page.waitForTimeout(80);
+await page.click('#ed-bucket'); await page.waitForTimeout(80);
+ok('balde ligado (botão ativo)', await ed(() => window.aoe.editor.ui.bucket === true) && await page.$eval('#ed-bucket', (e) => e.classList.contains('active')));
+const lakeRow = () => ed(() => { const m = window.aoe.editor.map; return [...Array(13).keys()].map((k) => m.terrain[24 * m.w + 20 + k]); });
+const lakeBefore = await lakeRow();
+const u0 = (await info()).undo;
+await look(26, 24); p = await screenOf(26, 24); await page.mouse.move(p.x, p.y); await page.waitForTimeout(80); await page.mouse.click(p.x, p.y); await page.waitForTimeout(250);
+const lakeAfter = await lakeRow();
+ok('balde preenche a região contígua (lago → areia) num passo', lakeAfter.every((t) => t === 3) && (await info()).undo === u0 + 1, `| antes=${lakeBefore.join('')} depois=${lakeAfter.join('')}`);
+await page.keyboard.press('Control+z'); await page.waitForTimeout(150);
+ok('Ctrl+Z desfaz o balde', (await lakeRow()).join('') === lakeBefore.join(''));
+await page.click('#ed-bucket'); await page.waitForTimeout(50);
+// 17) conta-gotas: botão 💧 e clique na torre → ferramenta Edifícios, torre, jogador 2
+await ed(() => { window.aoe.editor.ui.player = 0; window.aoe.editor.ui.buildingType = 'barracks'; });
+await page.click('#ed-eyedrop'); await page.waitForTimeout(80);
+ok('conta-gotas armado (botão ativo, cursor)', await page.$eval('#ed-eyedrop', (e) => e.classList.contains('active')) && await ed(() => document.body.className === 'cur-eyedrop'));
+await look(spot.x, spot.y); p = await screenOf(spot.x, spot.y); await page.mouse.move(p.x, p.y); await page.waitForTimeout(80); await page.mouse.click(p.x, p.y); await page.waitForTimeout(150);
+st = await info();
+ok('conta-gotas copia a torre do jogador 2 sem editar', st.tool === 'building' && st.player === 1 && await ed(() => window.aoe.editor.ui.buildingType === 'tower' && !window.aoe.editor.ui.eyedrop) && st.buildings.filter((x) => x === 'tower@1').length === 1);
+// 18) "Corrigir" gargalo: cerca de montanha em volta do início 1 com uma passagem de 1 tile → aviso → Alargar gargalos → some
+const s1 = st.starts[0];
+await ed(([sx, sy]) => { const e = window.aoe.editor; const m = e.map; const tiles = []; for (let dy = -7; dy <= 7; dy++) for (let dx = -7; dx <= 7; dx++) { if (Math.max(Math.abs(dx), Math.abs(dy)) !== 7 || (dx === 7 && dy === 0)) continue; const x = sx + dx, y = sy + dy; if (x >= 0 && y >= 0 && x < m.w && y < m.h && m.buildingAt[y * m.w + x] === -1) tiles.push(y * m.w + x); } e.apply({ kind: 'paint', tiles, terrain: 2 }); }, s1);
+await page.click('#ed-validate'); await page.waitForTimeout(400);
+const chokeNear = () => ed(([sx, sy]) => window.aoe.editor.validate().filter((i) => i.code === 'chokepoint' && (i.x - sx) ** 2 + (i.y - sy) ** 2 <= 100).length, s1);
+const chokeLi = () => page.$$eval('#editor .issues li[data-code="chokepoint"]', (l) => l.map((x) => x.querySelector('.tx').textContent));
+ok('aviso de gargalo perto do início 1 na lista, com "Corrigir"', (await chokeNear()) === 1 && (await page.$$('#editor .issues li[data-code="chokepoint"] .fix')).length > 0, `| ${(await chokeLi()).join(' ; ')}`);
+const nChokeBefore = (await chokeLi()).length;
+await (await page.$('#editor .issues li[data-code="chokepoint"] .fix')).click(); await page.waitForTimeout(400);
+ok('Corrigir (Alargar gargalos) faz o aviso sumir', (await chokeNear()) === 0 && (await chokeLi()).length < nChokeBefore, `| restantes: ${(await chokeLi()).join(' ; ') || 'nenhum'}`);
+await page.keyboard.press('Control+z'); await page.waitForTimeout(150);
+ok('Ctrl+Z desfaz a correção (o aviso volta)', (await chokeNear()) === 1);
+await page.keyboard.press('Control+z'); await page.waitForTimeout(150);
+ok('Ctrl+Z desfaz a cerca', (await chokeNear()) === 0);
+// 19) tabela de recursos por início
+ok('tabela de recursos por início (uma linha por início)', (await page.$$('#ed-res tr[data-start]')).length === st.starts.length, `| ${(await page.$eval('#ed-res', (e) => e.textContent)).replace(/\s+/g, ' ').slice(0, 120)}`);
+// 20) redimensionar pelas Propriedades: 96×96 no centro; Ctrl+Z volta à instância anterior, Ctrl+Y refaz
+await page.click('#ed-props'); await page.waitForTimeout(150);
+await page.fill('#ep-w', '96'); await page.fill('#ep-h', '96'); await page.selectOption('#ep-anchor', 'c'); await page.waitForTimeout(80);
+const preview = await page.textContent('#ep-resize-info');
+ok('prévia do redimensionamento', preview.length > 5, `| ${preview}`);
+page.once('dialog', (d) => d.accept()); await page.click('#ep-resize'); await page.waitForTimeout(800);
+st = await info();
+ok('redimensionado para 96×96 (nova instância, painel de volta)', st.w === 96 && st.h === 96 && st.mode === 'editor' && await ed(() => window.aoe.editor.__mark === undefined) && await page.isVisible('#editor'), `| ${st.w}×${st.h}, undo=${st.undo}`);
+const draftW = () => ed(() => JSON.parse(localStorage.getItem('aoe_editor_autosave') ?? 'null')?.w ?? null);
+ok('o rascunho passa a ser o da instância redimensionada', (await draftW()) === 96, `| rascunho ${await draftW()}`);
+await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
+st = await info();
+ok('Ctrl+Z volta à instância de 80×80 com a pilha intacta', st.w === 80 && await ed(() => window.aoe.editor.__mark === 'instancia-1') && st.redo >= 1, `| ${st.w}×${st.h}, undo=${st.undo}, redo=${st.redo}`);
+ok('o rascunho acompanha o Ctrl+Z (80×80)', (await draftW()) === 80, `| rascunho ${await draftW()}`);
+await page.keyboard.press('Control+y'); await page.waitForTimeout(800);
+ok('Ctrl+Y refaz o redimensionamento', (await info()).w === 96);
+await page.keyboard.press('Control+s'); await page.waitForTimeout(300);
+ok('Ctrl+S depois do Ctrl+Y grava o rascunho de 96×96', (await draftW()) === 96 && await ed(() => window.aoe.editor.dirty === false), `| rascunho ${await draftW()}`);
+await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
+ok('Ctrl+Z de novo: o rascunho volta a 80×80', (await draftW()) === 80, `| rascunho ${await draftW()}`);
 // 15) sair do editor → menu principal (confirmação por dirty) → rascunho disponível
 page.once('dialog', (d) => d.accept()); await page.click('#ed-exit'); await page.waitForTimeout(400);
 ok('Sair volta ao menu com "Continuar rascunho"', await page.isVisible('#menu') && await page.isVisible('#ed-resume') && await ed(() => window.aoe.session === null));
 ok('mapa salvo aparece em Meus mapas e no seletor da Partida rápida', (await page.$$eval('#ed-mine .mapcard', (l) => l.map((x) => x.dataset.id))).includes('teste-editor') && await ed(() => { document.querySelector('#menu [data-tab="skirmish"]').click(); return [...document.querySelectorAll('#m-fixed-sel option')].some((o) => o.value === 'teste-editor'); }));
+// 21) mapas oficiais: abrir no editor (cópia), sem avisos, captura do mapa inteiro, Testar contra IAs e voltar
+page.removeAllListeners('dialog'); page.on('dialog', (d) => { d.accept().catch(() => {}); });   // daqui em diante toda confirmação é aceita
+for (const [id, w, n] of [['estreito', 80, 2], ['egeu', 113, 4]]) {
+  await page.setViewportSize({ width: 1600, height: 1000 }); await page.waitForTimeout(200);
+  await page.click('#menu [data-tab="editor"]'); await page.waitForTimeout(200);
+  await page.click(`#ed-builtin .mapcard[data-id="${id}"] [data-act="copy"]`); await page.waitForTimeout(1500);
+  st = await info();
+  const issuesN = await ed(() => window.aoe.editor.validate().length);
+  ok(`${id}: aberto no editor (${w}×${w}, ${n} inícios, sem avisos)`, st.mode === 'editor' && st.w === w && st.starts.length === n && issuesN === 0 && (await page.textContent('#ed-status')).includes('✔'), `| ${st.nodes} nós, avisos=${issuesN}`);
+  const res = await page.$$eval('#ed-res tr[data-start]', (l) => l.map((r) => [...r.querySelectorAll('td')].map((td) => td.textContent).join('/')));
+  ok(`${id}: recursos iguais em todos os inícios`, res.length === n && res.every((r) => r === res[0]) && (await page.$$('#ed-res td.low')).length === 0, `| ${res[0]}`);
+  if (id === 'egeu') ok('egeu: times sugeridos no arquivo', await ed(() => JSON.stringify(window.aoe.editor.toFile().startTeams) === '[0,0,1,1]'));
+  // visão inteira: o rodapé do editor (minimapa, ferramentas, validação) sai da frente só durante a captura e o mapa
+  // inteiro fica logo abaixo da barra do editor (fitMap enquadra na janela toda)
+  await ed(() => { const r = window.aoe.renderer, m = window.aoe.editor.map; r.fitMap(); r.cam.minZoom = Math.min(r.cam.minZoom, r.cam.zoom * 0.9); r.cam.zoom *= 0.93; r.cam.centerOn(m.w / 2, m.h / 2); const u = window.aoe.editor.ui; u.hover = null; u.tool = 'select'; for (const q of ['#bottom', '#messages']) document.querySelector(q).style.visibility = 'hidden'; });
+  await page.mouse.move(800, 5); await page.waitForTimeout(900);
+  await page.screenshot({ path: `docs/art/editor-${id}.png` }); console.log(`captura: docs/art/editor-${id}.png`);
+  await ed(() => { for (const q of ['#bottom', '#messages']) document.querySelector(q).style.visibility = ''; window.aoe.renderer.fitMap(); });
+  // Testar: como início 1, os outros IA normal
+  await page.click('#ed-test'); await page.waitForTimeout(300);
+  await page.selectOption('#et-as', '0'); for (let i = 1; i < n; i++) await page.selectOption(`#modal [data-slot="${i}"]`, 'normal'); await page.selectOption('#et-mode', 'conquest');
+  await page.click('#et-go'); await page.waitForTimeout(2000);
+  const tg = await ed(() => { const s = window.aoe.session; return { mode: s.ui.mode, w: s.state.map.w, players: s.state.players.length, tick: s.state.tick, tcs: [...s.state.buildings.values()].filter((b) => b.type === 'town_center').length }; });
+  ok(`${id}: partida de teste no mapa oficial`, tg.mode === 'normal' && tg.w === w && tg.players === n && tg.tcs === n && tg.tick > 0, JSON.stringify(tg));
+  await page.click('#top-menu'); await page.waitForTimeout(200);
+  await page.click('#modal #m-quit'); await page.waitForTimeout(700);
+  st = await info();
+  ok(`${id}: de volta ao editor após o teste`, st.mode === 'editor' && st.w === w && await page.isVisible('#editor'));
+  await page.click('#ed-exit'); await page.waitForTimeout(400);
+  ok(`${id}: fora do editor, menu de volta`, await page.isVisible('#menu') && await ed(() => window.aoe.session === null));
+}
 console.log('errors:', errors.length ? errors.join('\n') : 'none');
 await browser.close();

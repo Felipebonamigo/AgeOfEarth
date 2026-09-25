@@ -144,5 +144,5 @@ pequenas funções, sem tocar no motor; o editor interno e os cenários em JSON 
 4. ✅ Jogabilidade sólida: guarnição, portões, formações, IA "Muito difícil" e aliadas coordenadas, idiomas PT-BR/EN, opções, caça a bugs (48 correções).
 5. ✅ Multiplayer robusto: lobby com chat/ping/kick, atraso dinâmico, reconexão por instantâneo, anti-trapaça básico.
 6. ✅ Modos (Deathmatch, Regicídio, Rei da Colina) e tipos de mapa.
-7. Editor de cenários + mapas fixos (em curso, `docs/EDITOR.md`); campanha completa (Titanomaquia em 3 atos).
+7. Editor de cenários + mapas fixos (concluído: `docs/EDITOR.md`, Etapas 0–5; mapas oficiais por `scripts/maps/`); campanha completa (Titanomaquia em 3 atos).
 8. Arte final (sprites 2.5D), animações, música; Steam (Networking Sockets, conquistas, cloud saves, Workshop).

@@ -12,10 +12,10 @@ import { recomputeTerritory } from '../core/sim/territory';
 import { serialize } from '../core/serialize';
 import { RNG, makeNoise } from '../core/rng';
 import { idx, inBounds, isPassable } from '../core/map/grid';
-import { invalidateComponents } from '../core/map/components';
+import { articulationPoints, componentAt, invalidateComponents } from '../core/map/components';
 import { nearestFreeTile } from '../core/map/pathfinding';
-import { ensureConnectivity, placeStartResources as genStartResources, widenChokepoints as genWidenChokepoints } from '../core/map/mapgen';
-import { migrateMap, saveMap, validateMap, type FixedMapData, type MapIssue, type MapMeta } from '../core/map/fixed';
+import { ensureConnectivity, placeStartResources as genStartResources } from '../core/map/mapgen';
+import { migrateMap, resizeMapData, saveMap, startResourceTable, validateMap, START_RESOURCE_RADIUS, type FixedMapData, type MapIssue, type MapMeta, type ResizeAnchor, type ResizeReport, type StartResources } from '../core/map/fixed';
 import { Session } from '../game/session';
 import { defaultEditorUI, type EditOp, type EditorTool, type EditorUI, type EditorView } from './types';
 import { applyEditOp, brushTiles, dirtyRectOf, EditError, floodRegion, lineTiles, unionRect, type Rect, type TagMap } from './ops';
@@ -37,7 +37,11 @@ const SOLID = new Set<number>([TERRAIN.WATER, TERRAIN.DEEP, TERRAIN.MOUNTAIN]);
 /** Subpaleta de terreno: teclas 1..6 (grama, areia, terra, água, montanha, água profunda). */
 export const TERRAIN_KEYS: Record<string, number> = { '1': TERRAIN.GRASS, '2': TERRAIN.SAND, '3': TERRAIN.DIRT, '4': TERRAIN.WATER, '5': TERRAIN.MOUNTAIN, '6': TERRAIN.DEEP };
 const PLAYER_KEYS: Record<string, number> = { '1': 0, '2': 1, '3': 2, '4': 3, '!': 0, '@': 1, '#': 2, '$': 3 };
-const TOOL_KEYS: Record<string, EditorTool> = { T: 'terrain', N: 'node', B: 'building', U: 'unit', I: 'start', V: 'select', E: 'erase' };
+/** Ferramentas por tecla. Como na partida, A, R e U ficam de fora (atacar-mover, ponto de encontro, liberar): unidades = M. */
+export const TOOL_KEYS: Record<string, EditorTool> = { T: 'terrain', N: 'node', B: 'building', M: 'unit', I: 'start', V: 'select', E: 'erase' };
+/** Demais atalhos de uma tecla do editor (docs/EDITOR.md §4.3); tests/data.test.ts confere que são únicos e sem A/R/U. */
+export const EDITOR_KEYS: Record<string, string> = { F: 'fill', P: 'eyedrop', X: 'shape', C: 'complete', G: 'grid', L: 'regions', O: 'passable', K: 'kit', H: 'hotkeys' };
+const CHOKE_RADIUS = 10;   // o mesmo raio do aviso chokepoint de validateMap
 const TREE_DENSITY = 60;   // % dos tiles do pincel de árvores que recebem uma árvore (determinístico por posição)
 const FLASH_MS = 1500;
 
@@ -46,6 +50,24 @@ export function buildingCorner(type: string, tx: number, ty: number): { x: numbe
   const def = BUILDINGS[type];
   const w = def?.w ?? 1, h = def?.h ?? 1;
   return { x: Math.floor(tx + 1 - w / 2), y: Math.floor(ty + 1 - h / 2) };
+}
+/** Remove o nó do tile i de um mapa (cópia de trabalho das correções). */
+function removeNodeOf(m: GameMap, i: number): void {
+  const id = m.nodeAt[i];
+  if (id === -1) return;
+  m.nodes.delete(id); m.nodeAt[i] = -1; m.blocked[i] = 0;
+}
+/** Abre a colina (raio 1) sobre terreno sólido: água → areia, montanha → terra, sem nós (como carveCorridor). */
+function carveHill(m: GameMap, x: number, y: number): void {
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    if (!inBounds(m, x + dx, y + dy)) continue;
+    const i = idx(m, x + dx, y + dy), t = m.terrain[i];
+    if (m.buildingAt[i] !== -1) continue;
+    removeNodeOf(m, i);
+    if (t === TERRAIN.WATER || t === TERRAIN.DEEP) m.terrain[i] = TERRAIN.SAND; else if (t === TERRAIN.MOUNTAIN) m.terrain[i] = TERRAIN.DIRT;
+    m.blocked[i] = 0;
+  }
+  invalidateComponents(m);
 }
 /** Densidade determinística por posição do pincel de árvores (sem rng: a mesma pincelada dá o mesmo bosque). */
 export function treeAt(x: number, y: number): boolean {
@@ -67,6 +89,11 @@ export class MapEditor {
   onChange?: () => void;
   /** Op recusada por uma ferramenta (pintar sob edifício, sem espaço…): a camada DOM mostra um toast. */
   onError?: (e: EditError) => void;
+  /** Troca de documento (desfazer/refazer um redimensionamento): a camada DOM passa a mostrar `to` (src/main.ts). */
+  onSwitch?: (to: MapEditor) => void;
+  /** Redimensionamento como passo de desfazer: a instância de antes (com a própria pilha intacta) e a de depois. */
+  resizedFrom: MapEditor | null = null;
+  resizedTo: MapEditor | null = null;
 
   private undoStack: EditOp[] = [];
   private redoStack: EditOp[] = [];
@@ -74,6 +101,7 @@ export class MapEditor {
   private dirtyRect: Rect | null = null;
   private minimapDirty = false;
   private issues: MapIssue[] | null = null;
+  private resources: StartResources[] | null = null;
   private now: () => number;
   private drag: Drag | null = null;
 
@@ -100,6 +128,7 @@ export class MapEditor {
     this.session.paused = true;
     this.session.ui.mode = 'editor';
     this.session.ui.editor = defaultEditorUI();
+    this.syncKoth();
     // Entidades do arquivo na ordem do arquivo, com as mesmas regras de createGame (unidade cai no tile livre mais próximo;
     // inválidas são ignoradas — validateMap aponta). Tags ficam em this.tags.
     for (const e of src.entities ?? []) {
@@ -118,8 +147,8 @@ export class MapEditor {
   get state(): GameState { return this.session.state; }
   get map(): GameMap { return this.session.state.map; }
   get ui(): EditorUI { return this.session.ui.editor!; }
-  get undoDepth(): number { return this.undoStack.length + (this.stroke && this.stroke.length > 0 ? 1 : 0); }
-  get redoDepth(): number { return this.redoStack.length; }
+  get undoDepth(): number { return this.undoStack.length + (this.stroke && this.stroke.length > 0 ? 1 : 0) + (this.resizedFrom ? 1 : 0); }
+  get redoDepth(): number { return this.redoStack.length + (this.resizedTo ? 1 : 0); }
 
   // ---------------------------------------------------------------------------------------------------------
   // Ops, desfazer/refazer, traços
@@ -131,6 +160,7 @@ export class MapEditor {
     const before = dirtyRectOf(op, state.map.w, state);
     const inv = applyEditOp(state, op, this.tags);
     this.redoStack.length = 0;
+    this.resizedTo = null;   // refazer o redimensionamento deixa de valer (como a pilha de refazer)
     if (this.stroke) this.stroke.push(inv); else this.undoStack.push(inv);
     this.changed(before, dirtyRectOf(inv, state.map.w, state));
     return inv;
@@ -138,7 +168,14 @@ export class MapEditor {
   undo(): boolean {
     if (this.stroke) this.endStroke();
     const inv = this.undoStack.pop();
-    if (!inv) return false;
+    if (!inv) {
+      // no início da pilha de um mapa redimensionado: volta à instância de antes (pilha dela intacta)
+      const prev = this.resizedFrom;
+      if (!prev) return false;
+      prev.resizedTo = this;
+      this.onSwitch?.(prev);
+      return true;
+    }
     const state = this.state;
     const before = dirtyRectOf(inv, state.map.w, state);
     const redo = applyEditOp(state, inv, this.tags);
@@ -149,7 +186,12 @@ export class MapEditor {
   redo(): boolean {
     if (this.stroke) this.endStroke();
     const op = this.redoStack.pop();
-    if (!op) return false;
+    if (!op) {
+      const next = this.resizedTo;
+      if (!next) return false;
+      this.onSwitch?.(next);
+      return true;
+    }
     const state = this.state;
     const before = dirtyRectOf(op, state.map.w, state);
     const inv = applyEditOp(state, op, this.tags);
@@ -181,7 +223,7 @@ export class MapEditor {
     for (const r of rects) if (r) this.dirtyRect = this.dirtyRect ? unionRect(this.dirtyRect, r) : r;
     this.minimapDirty = true;
     this.dirty = true;
-    this.issues = null;
+    this.issues = null; this.resources = null;
     const h = this.ui.hover;
     if (h) this.ui.ghostOk = this.canPlaceAt(h.x, h.y);
     this.onChange?.();
@@ -202,6 +244,11 @@ export class MapEditor {
     if (!this.issues) this.issues = validateMap(this.toFile(), { players: this.map.starts.length, mode: 'conquest' });
     return this.issues;
   }
+  /** Tabela de comida/madeira/ouro a até 16 tiles de cada início (startResourceTable), com cache até a próxima op. */
+  startResources(): StartResources[] {
+    if (!this.resources) this.resources = startResourceTable(this.map.starts, this.map.nodes.values(), START_RESOURCE_RADIUS);
+    return this.resources;
+  }
   setMeta(partial: Partial<MapMeta>): void {
     for (const k of Object.keys(partial) as (keyof MapMeta)[]) {
       const v = partial[k];
@@ -209,7 +256,30 @@ export class MapEditor {
     }
     this.dirty = true;
     this.issues = null;
+    this.resizedTo = null;
+    this.syncKoth();
     this.onChange?.();
+  }
+  /** Copia a colina dos metadados para a interface (o renderizador marca o ponto; null = centro do mapa). */
+  private syncKoth(): void { const k = this.meta.koth; this.ui.koth = k ? { x: k[0], y: k[1] } : null; }
+
+  /**
+   * Redimensiona (Propriedades): cria uma instância nova a partir do arquivo redimensionado (resizeMapData) e liga as
+   * duas como um passo de desfazer — Ctrl+Z no início da pilha da nova volta a esta, com a pilha intacta; Ctrl+Y refaz.
+   * As preferências da interface (ferramenta, pincel, sobreposições) seguem para a nova. Lança se o tamanho for inválido.
+   */
+  resized(w: number, h: number, anchor: ResizeAnchor, seed = 1): { editor: MapEditor; report: ResizeReport } {
+    if (this.stroke) this.endStroke();
+    const { data, report } = resizeMapData(this.toFile(), w, h, anchor, seed);
+    const next = new MapEditor(data, this.view, { now: this.now });
+    this.redoStack.length = 0;   // redimensionar é uma ação nova: o refazer antigo deixa de valer (como em apply)
+    const keep = this.ui, ui = next.ui;
+    for (const k of ['tool', 'terrain', 'brushRadius', 'brushShape', 'nodeType', 'nodeAmount', 'buildingType', 'unitType', 'player', 'complete', 'showGrid', 'showRegions', 'showPassable', 'showKit', 'bucket'] as const) (ui as unknown as Record<string, unknown>)[k] = keep[k];
+    next.onSwitch = this.onSwitch;
+    next.resizedFrom = this;
+    this.resizedTo = next;
+    next.dirty = true;
+    return { editor: next, report };
   }
   /** "Ir até": pisca o tile (a câmera é da camada DOM). */
   goTo(x: number, y: number): void { this.ui.flash = { x, y, until: this.now() + FLASH_MS }; }
@@ -286,15 +356,18 @@ export class MapEditor {
     const ui = this.ui, map = this.map;
     this.setHover(tx, ty);
     if (!inBounds(map, tx, ty)) return;
+    // conta-gotas (Alt+clique ou armado por P / botão): copia e não edita; o botão direito só o desarma
+    if (button === 0 && (mods.alt || ui.eyedrop)) { ui.eyedrop = false; this.eyedrop(tx, ty); this.drag = { kind: 'none' }; return; }
+    if (button === 2 && ui.eyedrop) { ui.eyedrop = false; this.drag = { kind: 'none' }; return; }
     if (button === 2 || ui.tool === 'erase') {
       this.beginStroke();
       this.eraseAt(tx, ty);
       this.drag = { kind: 'erase', last: { x: tx, y: ty } };
       return;
     }
-    if (mods.alt) { this.eyedrop(tx, ty); return; }
     switch (ui.tool) {
       case 'terrain': {
+        if (ui.bucket && !mods.shift) { this.fill(tx, ty); this.drag = { kind: 'none' }; return; }
         this.beginStroke();
         const from = mods.shift && ui.lineFrom ? ui.lineFrom : { x: tx, y: ty };
         const d: Drag = { kind: 'paint', last: { x: tx, y: ty }, warned: false };
@@ -530,18 +603,19 @@ export class MapEditor {
       return false;
     }
     if (mods.shift && k in PLAYER_KEYS) { ui.player = PLAYER_KEYS[k]; this.refreshGhost(); return true; }
-    if (k in TOOL_KEYS) { ui.tool = TOOL_KEYS[k]; this.refreshGhost(); return true; }
+    if (k in TOOL_KEYS) { ui.tool = TOOL_KEYS[k]; ui.eyedrop = false; this.refreshGhost(); return true; }
     if (ui.tool === 'terrain' && k in TERRAIN_KEYS) { ui.terrain = TERRAIN_KEYS[k]; return true; }
     switch (k) {
       case '[': ui.brushRadius = Math.max(1, ui.brushRadius - 1); return true;
       case ']': ui.brushRadius = Math.min(8, ui.brushRadius + 1); return true;
       case 'X': ui.brushShape = ui.brushShape === 'circle' ? 'square' : 'circle'; return true;
       case 'F': { const h = ui.hover; if (h) this.fill(h.x, h.y); return true; }
+      case 'P': ui.eyedrop = !ui.eyedrop; return true;
       case 'C': ui.complete = !ui.complete; return true;
       case 'Tab': return this.cycleStart();
       case 'Delete': case 'Backspace': this.deleteSelected(); return true;
       case 'G': ui.showGrid = !ui.showGrid; return true;
-      case 'R': ui.showRegions = !ui.showRegions; return true;
+      case 'L': ui.showRegions = !ui.showRegions; return true;
       case 'O': ui.showPassable = !ui.showPassable; return true;
       case 'K': ui.showKit = !ui.showKit; return true;
     }
@@ -555,8 +629,120 @@ export class MapEditor {
 
   /** "Ligar inícios": ensureConnectivity do gerador (corredores de areia/terra, nós removidos). */
   fixConnectivity(): boolean { return this.runMapFix((m) => ensureConnectivity(m)); }
-  /** "Alargar gargalos": widenChokepoints do gerador (remove nós ao redor dos pontos de articulação). */
-  widenChokepoints(): boolean { return this.runMapFix((m) => genWidenChokepoints(m)); }
+  /**
+   * "Alargar gargalos": para os gargalos a até 10 tiles de um início (os que validateMap aponta, com o Centro Cívico do
+   * kit bloqueando), remove os nós em volta e abre o terreno (água → areia, montanha → terra, como os corredores do
+   * gerador), sem mexer sob edifícios nem no 3×3 do Centro Cívico. Repete até não sobrar gargalo perto de início ou não
+   * haver mais o que abrir. Nada longe dos inícios muda (o widenChokepoints global do gerador tiraria bosques do mapa
+   * inteiro e desfaria o equilíbrio de recursos de um mapa desenhado).
+   */
+  widenChokepoints(): boolean {
+    const kit = this.meta.startKit !== false;
+    const buildingAt = this.map.buildingAt;
+    return this.runMapFix((m) => {
+      const cc = new Uint8Array(m.w * m.h);
+      if (kit) for (const s of m.starts) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inBounds(m, s.x + dx, s.y + dy)) cc[idx(m, s.x + dx, s.y + dy)] = 1;
+      for (let pass = 0; pass < 6; pass++) {
+        // mapa de sondagem: bloqueio real (terreno, nós, edifícios) + o 3×3 do Centro Cívico do kit, como validateMap
+        const probe: GameMap = { ...m, blocked: m.blocked.slice() };
+        for (let i = 0; i < cc.length; i++) if (cc[i]) probe.blocked[i] = 1;
+        const ap = articulationPoints(probe);
+        let opened = 0;
+        for (let i = 0; i < ap.length; i++) {
+          if (!ap[i]) continue;
+          const x = i % m.w, y = (i - x) / m.w;
+          if (!m.starts.some((s) => (s.x - x) * (s.x - x) + (s.y - y) * (s.y - y) <= CHOKE_RADIUS * CHOKE_RADIUS)) continue;
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+            const xx = x + dx, yy = y + dy;
+            if (!inBounds(m, xx, yy)) continue;
+            const j = idx(m, xx, yy);
+            if (buildingAt[j] !== -1 || cc[j]) continue;
+            const t = m.terrain[j];
+            if (m.nodeAt[j] !== -1) { removeNodeOf(m, j); opened++; }
+            if (t === TERRAIN.WATER || t === TERRAIN.DEEP) { m.terrain[j] = TERRAIN.SAND; opened++; }
+            else if (t === TERRAIN.MOUNTAIN) { m.terrain[j] = TERRAIN.DIRT; opened++; }
+            else continue;
+            m.blocked[j] = 0;
+          }
+        }
+        invalidateComponents(m);
+        if (opened === 0) break;
+      }
+    });
+  }
+  /**
+   * "Fechar bolsão": preenche a região pequena que contém (x, y) com o terreno sólido que mais a cerca (água ou montanha).
+   * Com kit inicial, o 3×3 do Centro Cívico de cada início bloqueia a busca (como em validateMap), senão um bolsão colado
+   * ao Centro Cívico se ligaria pela base à região do início e nunca seria fechado.
+   */
+  fillPocket(x: number, y: number): boolean {
+    const map = this.map;
+    const cc = new Set<number>();
+    if (this.meta.startKit !== false) for (const s of map.starts) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inBounds(map, s.x + dx, s.y + dy)) cc.add(idx(map, s.x + dx, s.y + dy));
+    if (!inBounds(map, x, y) || map.blocked[idx(map, x, y)] || cc.has(idx(map, x, y))) return false;
+    const label = componentAt(map, x, y);
+    const tiles: number[] = [];
+    let water = 0, mountain = 0;
+    const seen = new Set<number>([idx(map, x, y)]);
+    const stack = [idx(map, x, y)];
+    while (stack.length && tiles.length < 64) {
+      const c = stack.pop()!;
+      tiles.push(c);
+      const cx = c % map.w, cy = (c - cx) / map.w;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = cx + dx, ny = cy + dy;
+        if (!inBounds(map, nx, ny)) continue;
+        const ni = idx(map, nx, ny);
+        const t = map.terrain[ni];
+        if (map.blocked[ni]) { if (t === TERRAIN.WATER || t === TERRAIN.DEEP) water++; else if (t === TERRAIN.MOUNTAIN) mountain++; continue; }
+        if (cc.has(ni) || seen.has(ni) || componentAt(map, nx, ny) !== label) continue;
+        seen.add(ni); stack.push(ni);
+      }
+    }
+    if (tiles.length >= 64) return false;   // não é bolsão
+    const free = tiles.filter((i) => map.buildingAt[i] === -1).sort((a, b) => a - b);
+    if (free.length === 0) return false;
+    return this.tryApply({ kind: 'paint', tiles: free, terrain: water > mountain ? TERRAIN.WATER : TERRAIN.MOUNTAIN });
+  }
+  /** "Ligar a colina": corredores até a colina do Rei da Colina (ou o centro) a partir do início 1, como generateMap faz. */
+  connectKoth(): boolean {
+    const k = this.meta.koth, map = this.map;
+    const hill = { x: k ? k[0] : Math.floor(map.w / 2), y: k ? k[1] : Math.floor(map.h / 2) };
+    if (!inBounds(map, hill.x, hill.y) || map.starts.length === 0) return false;
+    return this.runMapFix((m) => {
+      // a colina entra como um início a mais para ensureConnectivity; se ela estiver sobre terreno sólido, um corredor chega até ela
+      m.starts.push(hill);
+      if (m.blocked[idx(m, hill.x, hill.y)] && this.map.buildingAt[idx(m, hill.x, hill.y)] === -1) carveHill(m, hill.x, hill.y);
+      ensureConnectivity(m);
+      m.starts.pop();
+    });
+  }
+  /** "Trazer para dentro": move o início para a margem mínima de 8 tiles da borda. */
+  moveStartInside(index: number): boolean {
+    const map = this.map, s = map.starts[index];
+    if (!s) return false;
+    const x = Math.min(map.w - 9, Math.max(8, s.x)), y = Math.min(map.h - 9, Math.max(8, s.y));
+    if (x === s.x && y === s.y) return false;
+    return this.tryApply({ kind: 'setStart', index, x, y });
+  }
+  /** "Remover recurso": apaga o nó em (x, y) (recurso sem tile livre ao redor). */
+  removeNodeAt(x: number, y: number): boolean {
+    const map = this.map;
+    return inBounds(map, x, y) && map.nodeAt[idx(map, x, y)] !== -1 && this.tryApply({ kind: 'removeNode', x, y });
+  }
+  /** "Marcar em obra": o edifício em (x, y) (maravilha completa) volta a "em obra". */
+  setInProgressAt(x: number, y: number): boolean {
+    const map = this.map;
+    if (!inBounds(map, x, y)) return false;
+    const b = this.state.buildings.get(map.buildingAt[idx(map, x, y)]);
+    return !!b && b.complete && this.tryApply({ kind: 'setEntity', id: b.id, complete: false });
+  }
+  /** "Pôr Centro Cívico": Centro Cívico completo do jogador no início dele (mapas sem kit inicial). */
+  placeTownCenter(index: number): boolean {
+    const s = this.map.starts[index];
+    if (!s || !this.state.players[index]) return false;
+    return this.tryApply({ kind: 'placeEntity', entity: { kind: 'building', type: 'town_center', owner: index, x: s.x - 1, y: s.y - 1 } });
+  }
   /** "Recursos padrão do início N": bosque, frutas, ouro e caça como o gerador, com a semente dada. */
   placeStartResources(startIndex: number, seed: number): boolean {
     const s = this.map.starts[startIndex];

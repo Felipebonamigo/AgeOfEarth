@@ -491,6 +491,157 @@ export function validateMap(input: FixedMapData, opts: ValidateOpts = {}): MapIs
   return issues.filter((i) => i.level === 'error').concat(issues.filter((i) => i.level === 'warn'));
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// Recursos por início (tabela do editor, mapas oficiais, testes de simetria)
+// ---------------------------------------------------------------------------------------------------------------
+
+/** Raio padrão da tabela de recursos por início (o mesmo da madeira nas ordens iniciais de createGame). */
+export const START_RESOURCE_RADIUS = 16;
+export interface StartResources { food: number; wood: number; gold: number; foodNodes: number; woodNodes: number; goldNodes: number }
+type NodeLike = { type: string; x: number; y: number; amount: number };
+
+/**
+ * Soma, para cada início, a quantidade de comida (frutas, cervos, javalis, pedra de Poseidon), madeira e ouro dos nós a
+ * até `radius` tiles (distância euclidiana entre tiles, como validateMap). Aceita os nós de um GameMap ou de um arquivo.
+ */
+export function startResourceTable(starts: readonly { x: number; y: number }[], nodes: Iterable<NodeLike>, radius = START_RESOURCE_RADIUS): StartResources[] {
+  const out = starts.map((): StartResources => ({ food: 0, wood: 0, gold: 0, foodNodes: 0, woodNodes: 0, goldNodes: 0 }));
+  const r2 = radius * radius;
+  for (const n of nodes) {
+    const kind = n.type === 'tree' ? 'wood' : n.type === 'gold' ? 'gold' : FOOD_NODES.has(n.type) ? 'food' : null;
+    if (!kind) continue;
+    const amount = Math.round(n.amount);
+    starts.forEach((s, i) => {
+      const dx = n.x - s.x, dy = n.y - s.y;
+      if (dx * dx + dy * dy > r2) return;
+      const row = out[i];
+      row[kind] += amount;
+      row[`${kind}Nodes`]++;
+    });
+  }
+  return out;
+}
+/** startResourceTable a partir de um arquivo de mapa (nós como tuplas). */
+export function startResourcesOf(data: FixedMapData, radius = START_RESOURCE_RADIUS): StartResources[] {
+  const starts = (data.starts ?? []).filter((s) => Array.isArray(s)).map(([x, y]) => ({ x, y }));
+  const nodes = (data.nodes ?? []).filter((n) => Array.isArray(n)).map(([type, x, y, amount]) => ({ type, x, y, amount: amount ?? NODE_AMOUNT[type] ?? 0 }));
+  return startResourceTable(starts, nodes, radius);
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Redimensionar (Propriedades do editor)
+// ---------------------------------------------------------------------------------------------------------------
+
+/** Âncora do redimensionamento: onde o conteúdo antigo fica no mapa novo (n = norte/topo, w = oeste/esquerda…). */
+export type ResizeAnchor = 'nw' | 'n' | 'ne' | 'w' | 'c' | 'e' | 'sw' | 's' | 'se';
+export const RESIZE_ANCHORS: ResizeAnchor[] = ['nw', 'n', 'ne', 'w', 'c', 'e', 'sw', 's', 'se'];
+/**
+ * O que o redimensionamento cortou ou deslocou (a interface avisa antes de aplicar). scenarioPoints: pontos { at } do
+ * cenário embutido que caem fora do mapa novo; scenarioTags: tags de entidades cortadas que o cenário usa.
+ */
+export interface ResizeReport { nodes: number; entities: number; startsMoved: number[]; kothReset: boolean; dx: number; dy: number; scenarioPoints: number; scenarioTags: string[] }
+
+/** Deslocamento (dx, dy) do conteúdo antigo dentro do mapa novo para a âncora dada. */
+export function resizeOffset(oldW: number, oldH: number, w: number, h: number, anchor: ResizeAnchor): { dx: number; dy: number } {
+  const col = anchor.endsWith('w') ? 0 : anchor.endsWith('e') ? 2 : 1;
+  const row = anchor.startsWith('n') ? 0 : anchor.startsWith('s') ? 2 : 1;
+  const off = (o: number, n: number, k: number) => (k === 0 ? 0 : k === 2 ? n - o : Math.floor((n - o) / 2));
+  return { dx: off(oldW, w, col), dy: off(oldH, h, row) };
+}
+
+/**
+ * Cópia do cenário com todo ponto absoluto { at: [x, y] } deslocado por (dx, dy), na mesma ordem de chaves (o hash do
+ * mapa usa o JSON do cenário). Devolve também quantos pontos caem fora de w×h e as tags que o cenário cita (tag,
+ * excludeTag e { var: '#tag' }). Os demais pontos são relativos (início, Centro Cívico, entidade) e acompanham sozinhos.
+ */
+function shiftScenario(sc: ScenarioFile, dx: number, dy: number, w: number, h: number): { scenario: ScenarioFile; outside: number; tags: Set<string> } {
+  let outside = 0;
+  const tags = new Set<string>();
+  const walk = (v: unknown, key: string): unknown => {
+    if (Array.isArray(v)) return v.map((x) => walk(x, ''));
+    if (typeof v === 'string') {
+      if (key === 'tag' || key === 'excludeTag') tags.add(v);
+      else if (key === 'var' && v.startsWith('#')) tags.add(v.slice(1).replace(/\[\d+\]$/, ''));
+      return v;
+    }
+    if (!v || typeof v !== 'object') return v;
+    const o = v as Record<string, unknown>, r: Record<string, unknown> = {};
+    for (const k of Object.keys(o)) {
+      const a = o[k];
+      if (k === 'at' && Array.isArray(a) && a.length === 2 && typeof a[0] === 'number' && typeof a[1] === 'number') {
+        const x = a[0] + dx, y = a[1] + dy;
+        if (!(x >= 0 && y >= 0 && x < w && y < h)) outside++;
+        r[k] = [x, y];
+      } else r[k] = walk(a, k);
+    }
+    return r;
+  };
+  return { scenario: walk(sc, '') as ScenarioFile, outside, tags };
+}
+
+/**
+ * Redimensiona um arquivo de mapa para w×h mantendo o conteúdo na âncora: tiles novos viram grama (decoração pelo
+ * mesmo ruído de blankMap com a semente `seed`), nós e entidades que saem do mapa são cortados, inícios são trazidos
+ * para dentro da margem de 8 tiles (nunca somem: donos e times continuam valendo) e a colina volta ao centro se sair.
+ * Os pontos absolutos do cenário embutido são deslocados junto; o relatório conta os que saem do mapa e as tags de
+ * entidades cortadas que o cenário usa.
+ * Lança se o tamanho novo estiver fora de MAP_LIMITS ou o arquivo tiver tamanho inválido. Resultado canônico.
+ */
+export function resizeMapData(input: FixedMapData, w: number, h: number, anchor: ResizeAnchor, seed = 1): { data: FixedMapData; report: ResizeReport } {
+  const src = migrateMap(input);
+  if (!sizeOk(src.w, src.h)) throw new Error(`mapa com tamanho inválido (${src.w}x${src.h})`);
+  if (!sizeOk(w, h)) throw new Error(`tamanho novo inválido (${w}x${h}); limites ${MAP_LIMITS.minSide}..${MAP_LIMITS.maxSide} por lado e ${MAP_LIMITS.maxTiles} tiles`);
+  const ow = src.w, oh = src.h;
+  const { dx, dy } = resizeOffset(ow, oh, w, h, anchor);
+  const oldT = base64ToBytes(src.terrain, ow * oh), oldD = base64ToBytes(src.decor, ow * oh);
+  const terrain = new Uint8Array(w * h), decor = new Uint8Array(w * h);   // TERRAIN.GRASS = 0
+  const noise = makeNoise(seed + 202);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const sx = x - dx, sy = y - dy, i = y * w + x;
+    if (sx >= 0 && sy >= 0 && sx < ow && sy < oh) { terrain[i] = oldT[sy * ow + sx]; decor[i] = oldD[sy * ow + sx]; }
+    else decor[i] = Math.floor(noise.noise(x * 0.9, y * 0.9) * 255);
+  }
+  // a borda do mapa nunca é água profunda (deriveDeepWater): recalcula tudo quando há água profunda no arquivo
+  if (terrain.some((t) => t === TERRAIN.DEEP)) {
+    const tmp: GameMap = { w, h, terrain, blocked: new Uint8Array(0), nodeAt: new Int32Array(0), buildingAt: new Int32Array(0), gateTeam: new Int8Array(0), nodes: new Map(), starts: [], decor };
+    for (let x = 0; x < w; x++) for (const y of [0, h - 1]) if (terrain[y * w + x] === TERRAIN.DEEP) terrain[y * w + x] = TERRAIN.WATER;
+    for (let y = 0; y < h; y++) for (const x of [0, w - 1]) if (terrain[y * w + x] === TERRAIN.DEEP) terrain[y * w + x] = TERRAIN.WATER;
+    deriveDeepWater(tmp);
+  }
+  const inside = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h;
+  const report: ResizeReport = { nodes: 0, entities: 0, startsMoved: [], kothReset: false, dx, dy, scenarioPoints: 0, scenarioTags: [] };
+  const nodes: FixedMapData['nodes'] = [];
+  for (const nd of src.nodes) {
+    if (!Array.isArray(nd)) continue;
+    const [type, x, y, amount] = nd;
+    if (inside(x + dx, y + dy)) nodes.push([type, x + dx, y + dy, amount]); else report.nodes++;
+  }
+  const starts: [number, number][] = src.starts.map(([x, y], i) => {
+    const nx = Math.min(w - 1 - START_MARGIN, Math.max(START_MARGIN, x + dx)), ny = Math.min(h - 1 - START_MARGIN, Math.max(START_MARGIN, y + dy));
+    if (nx !== x + dx || ny !== y + dy) report.startsMoved.push(i);
+    return [nx, ny];
+  });
+  const shifted = src.scenario ? shiftScenario(src.scenario, dx, dy, w, h) : null;
+  if (shifted) report.scenarioPoints = shifted.outside;
+  const entities: MapEntity[] = [];
+  const cutTags = new Set<string>();
+  for (const e of src.entities ?? []) {
+    if (!e || (e.kind !== 'building' && e.kind !== 'unit')) continue;
+    const def = e.kind === 'building' && Object.prototype.hasOwnProperty.call(BUILDINGS, e.type) ? BUILDINGS[e.type] : null;
+    const bw = def?.w ?? 1, bh = def?.h ?? 1;
+    const x = e.x + dx, y = e.y + dy;
+    if (inside(x, y) && inside(x + bw - 1, y + bh - 1)) entities.push({ ...e, x, y });
+    else { report.entities++; if (e.tag && shifted?.tags.has(e.tag)) cutTags.add(e.tag); }
+  }
+  report.scenarioTags = [...cutTags].sort();
+  let koth = src.koth ? [src.koth[0] + dx, src.koth[1] + dy] as [number, number] : undefined;
+  if (koth && !inside(koth[0], koth[1])) { koth = undefined; report.kothReset = true; }
+  const out: FixedMapData = { ...src, w, h, terrain: bytesToBase64(terrain), decor: bytesToBase64(decor), nodes, starts, entities };
+  if (koth) out.koth = koth; else delete out.koth;
+  if (shifted) out.scenario = shifted.scenario;
+  return { data: canonicalize(out), report };
+}
+
 /** Um bolsão (região pequena) é reportado só se algum vizinho bloqueado for terreno sólido ou edifício (não apenas nós). */
 function pocketBoundedByTerrain(map: GameMap, sx: number, sy: number, label: number): boolean {
   const stack = [idx(map, sx, sy)];

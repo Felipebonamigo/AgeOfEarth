@@ -24,12 +24,21 @@ for (const seed of seeds) {
   const state = createGame({ seed, mapSize: 'medium', map, players: gods.slice(0, nPlayers).map((g, i) => ({ name: `${g}${i}`, god: g, isAI: true, difficulty: 'normal' as const })) });
   const ageAt: Record<string, number[]> = {}; for (const p of state.players) ageAt[p.name] = [0];
   const t0 = Date.now();
+  let at5 = '';
   for (let i = 0; i < minutes * 60 * TICK_RATE && !state.gameOver; i++) {
     tick(state);
     for (const p of state.players) if (ageAt[p.name].length <= p.age) ageAt[p.name].push(Math.round(state.time / 60));
+    // aos 5 min: nenhuma IA pode estar parada (nada treinado/construído desde o início ou todos os cidadãos ociosos)
+    if (state.tick === 5 * 60 * TICK_RATE) at5 = state.players.map((p) => {
+      let vill = 0, idle = 0;
+      for (const u of state.units.values()) if (u.owner === p.id && !u.dead && u.type === 'villager') { vill++; if (u.state === 'idle') idle++; }
+      const stalled = (p.stats.unitsTrained === 0 && p.stats.buildingsBuilt === 0) || (vill > 0 && idle === vill);
+      return `${p.name} cidadãos=${vill} (ociosos ${idle}) treinados=${p.stats.unitsTrained} construídos=${p.stats.buildingsBuilt}${stalled ? ' <-- PARADA' : ''}`;
+    }).join(' · ');
   }
   const ms = Date.now() - t0;
   console.log(`\n=== semente ${seed} · ${Math.round(state.time / 60)} min de jogo em ${(ms / 1000).toFixed(1)}s reais · ${(ms / state.tick).toFixed(2)} ms/tick ===`);
+  if (at5) console.log(`aos 5 min: ${at5}`);
   for (const p of state.players) {
     console.log(`${p.name.padEnd(10)} ${p.alive ? 'vivo ' : 'morto'} idade=${AGES[p.age].short.padEnd(8)} idades aos minutos [${ageAt[p.name].join(', ')}] ondas=${p.ai?.waves} abates=${p.stats.kills} perdas=${p.stats.losses} destruídos=${p.stats.razed} território=${p.territoryTiles} techs=${p.techs.length}`);
   }

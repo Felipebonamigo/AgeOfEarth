@@ -212,6 +212,14 @@ body.cur-pick canvas { cursor: crosshair; }
 #editor .issues li .btn { padding: 1px 6px; font-size: 11px; color: var(--text); }
 body.cur-brush #app canvas { cursor: crosshair; }
 body.cur-erase #app canvas { cursor: not-allowed; }
+body.cur-eyedrop #app canvas { cursor: copy; }
+#editor .btn.active { border-color: var(--gold); color: var(--gold); }
+#editor .res-table { flex: 0 0 auto; border-top: 1px solid var(--border); padding-top: 3px; font-size: 11px; }
+#editor .res-table .ttl { color: var(--gold); font-weight: 600; }
+#editor .res-table table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+#editor .res-table th, #editor .res-table td { padding: 0 4px; text-align: right; font-weight: normal; }
+#editor .res-table tr > th:first-child { text-align: left; font-weight: 600; }
+#editor .res-table td.low { color: var(--danger); font-weight: 600; }
 /* aba Editor do menu principal */
 #menu .mapcards { display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow: auto; margin-top: 6px; }
 #menu .mapcard { display: flex; gap: 10px; align-items: center; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; }

@@ -8,7 +8,7 @@ import { Audio, viewFromCamera } from './audio/audio';
 import { Session } from './game/session';
 import type { GameConfig } from './core/types';
 import { HORDE, campaignMission, missionConfig, nextCampaignMission } from './core/scenario/campaign';
-import { migrateMap, validateMap, canonicalize, mapHash, type FixedMapData } from './core/map/fixed';
+import { migrateMap, validateMap, canonicalize, mapHash, type FixedMapData, type ResizeAnchor } from './core/map/fixed';
 import { validateScenario } from './core/scenario/schema';
 import { gameConfigFor } from './core/scenario/compile';
 import { localHumanIndex, migrateLegacyPuppets } from './core/scenario/helpers';
@@ -300,7 +300,7 @@ async function boot() {
     renderer.setState(ed.state);
     if (cam) { renderer.cam.zoom = cam.zoom; renderer.cam.x = cam.x; renderer.cam.y = cam.y; renderer.cam.clamp(); } else renderer.fitMap();
     hud.setSession(ed.session); hud.setEditorMode(true); hud.setRevealAll(true); hud.setVisible(true); hud.setTestMode(null);
-    editorPanel = new EditorPanel(ed, hud, renderer, { onTest: (opts) => testFromEditor(opts), onExit: () => exitEditor() });
+    editorPanel = new EditorPanel(ed, hud, renderer, { onTest: (opts) => testFromEditor(opts), onExit: () => exitEditor(), onResize: (w, h, anchor) => resizeEditor(w, h, anchor) });
     const panel = editorPanel;
     input.setEditor(ed, { menu: () => panel.showMenu(), hotkeys: () => panel.showHotkeys(), save: () => { panel.save(); }, test: () => panel.showTest(), pickTile: (x, y) => panel.pickTile(x, y) });
     menu.hide();
@@ -314,9 +314,28 @@ async function boot() {
     returnToEditor = false;
     document.body.className = '';
   };
+  /** Troca a instância exibida (desfazer/refazer um redimensionamento): a outra instância volta com a pilha intacta. */
+  const switchEditor = (ed: MapEditor, msg = 'editor.sizeSwitched') => {
+    if (!editor || session !== editor.session) return;
+    editorPanel?.autosaveNow();
+    leaveEditorView();
+    editor = ed; ed.onSwitch = (to) => switchEditor(to); editorCam = null;
+    showEditor(ed, null);
+    // o painel novo nasce sem edições: marca-o como tocado para que o rascunho (agora e ao salvar/sair) seja o desta instância
+    editorPanel?.markTouched(); editorPanel?.autosaveNow();
+    hud.toast(t(msg, { w: ed.map.w, h: ed.map.h }), 'gold');
+  };
+  /** Redimensionar (Propriedades): nova instância a partir do arquivo redimensionado; Ctrl+Z volta à anterior. */
+  const resizeEditor = (w: number, h: number, anchor: ResizeAnchor) => {
+    const ed = editor; if (!ed || session !== ed.session) return;
+    let next: MapEditor;
+    try { next = ed.resized(w, h, anchor, (Math.floor(Math.random() * 1e9)) >>> 0).editor; } catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); return; }
+    switchEditor(next, 'editor.resized');
+  };
   const startEditor = (file: FixedMapData) => {
     let ed: MapEditor;
     try { ed = new MapEditor(file, editorView); } catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); menu.show(); return; }
+    ed.onSwitch = (to) => switchEditor(to);
     // O cenário embutido acompanha o mapa no editor (MapEditor só copia os metadados do terreno; setMeta não deve sujar o documento aqui)
     if (editorOrTest()) leaveEditorView();
     editor = ed; returnToEditor = false; editorCam = null;
