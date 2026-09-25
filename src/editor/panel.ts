@@ -19,7 +19,7 @@ import { t } from '../i18n';
 import type { MapEditor } from './editor';
 import type { EditError } from './ops';
 import type { EditorTool } from './types';
-import { validateScenario, type ScenarioFile, type ScenarioIssue, type ScenarioObjectiveDef, type ScenarioTriggerDef, type ScenarioHud, type Condition } from '../core/scenario/schema';
+import { lintScenario, validateScenario, type ScenarioFile, type ScenarioIssue, type ScenarioObjectiveDef, type ScenarioTriggerDef, type ScenarioHud, type Condition } from '../core/scenario/schema';
 
 export const AUTOSAVE_KEY = 'aoe_editor_autosave';
 const TEST_OPTS_KEY = 'aoe_editor_test';
@@ -462,7 +462,12 @@ export class EditorPanel {
       current = this.parseScenarioText(ta.value);
       ta.classList.toggle('bad', current.issues.length > 0);
       saveBtn.disabled = current.issues.length > 0;
-      if (current.file) issuesEl.innerHTML = `<li class="ok">${t('editor.triggersValid', { n: current.file.objectives.length, m: current.file.triggers.length })}</li>`;
+      if (current.file) {
+        // lint (G7): avisos não bloqueiam salvar (tag futura sem { fired }, oculto que nunca aparece, fala longa ou sem en)
+        const warns = lintScenario(current.file);
+        issuesEl.innerHTML = `<li class="ok">${t('editor.triggersValid', { n: current.file.objectives.length, m: current.file.triggers.length })}</li>`
+          + (warns.length ? `<li class="warn">${t('editor.triggersWarnings', { n: warns.length })}</li>` + warns.slice(0, 20).map((i) => `<li class="warn"><code>${esc(i.path || '$')}</code> — ${esc(i.message)}</li>`).join('') : '');
+      }
       else issuesEl.innerHTML = `<li>${t('editor.triggersErrors', { n: current.issues.length })}</li>` + current.issues.slice(0, 20).map((i) => `<li><code>${esc(i.path || '$')}</code> — ${esc(i.message)}</li>`).join('');
     };
     const schedule = () => { if (this.esTimer) clearTimeout(this.esTimer); this.esTimer = setTimeout(() => { this.esTimer = null; validate(); }, VALIDATE_MS); };

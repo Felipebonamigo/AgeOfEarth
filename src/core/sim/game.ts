@@ -19,7 +19,7 @@ import { aiThink } from './ai';
 import { checkVictory } from './victory';
 import { spiralSearch, isPassable } from '../map/grid';
 import { nearestFreeTile } from '../map/pathfinding';
-import { getScenarioFor, initScenarioState, runScenario } from '../scenario/runner';
+import { eliminateInScenario, getScenarioFor, initScenarioState, runScenario } from '../scenario/runner';
 import { updateKoth } from './modes';
 import { placeRelics, updateRelics } from './relics';
 
@@ -79,8 +79,10 @@ export function createGame(config: GameConfig): GameState {
     recomputePop(state, p);
   });
   // Entidades pré-colocadas do mapa fixo, na ordem do arquivo. Dono fora do intervalo ou tipo inexistente são ignorados
-  // (validateMap avisa antes; aqui é só robustez). Tags viram vars do cenário ('#tag' → id) depois de initScenarioState.
-  const tags = new Map<string, number>();
+  // (validateMap avisa antes; aqui é só robustez). Tags viram vars do cenário depois de initScenarioState: entidades com a
+  // mesma tag formam um grupo, como spawn/place (G5): '#tag' = primeiro id (ordem do arquivo) e '#tag[k]' = k-ésimo.
+  const tags = new Map<string, number[]>();
+  const addTag = (tag: string, id: number) => { const list = tags.get(tag); if (list) list.push(id); else tags.set(tag, [id]); };
   if (config.map) {
     // 'owner' no arquivo é o índice do INÍCIO (o autor coloca a torre ao lado de starts[k] para quem começar ali); com startOrder o jogador desse início muda
     const playerAtStart = new Map<number, number>();
@@ -95,13 +97,13 @@ export function createGame(config: GameConfig): GameState {
         if (typeof e.type !== 'string' || !Object.prototype.hasOwnProperty.call(BUILDINGS, e.type) || !canPlaceBuilding(state, owner, e.type, e.x, e.y, true, true).ok) continue;
         const b = placeBuilding(state, e.owner, e.type, e.x, e.y, e.complete !== false);
         if (!b.complete) b.unpaid = true;   // obra do mapa: cancelar/excluir não devolve recursos
-        if (e.tag) tags.set(e.tag, b.id);
+        if (e.tag) addTag(e.tag, b.id);
       } else if (e.kind === 'unit') {
         if (typeof e.type !== 'string' || !Object.prototype.hasOwnProperty.call(UNITS, e.type)) continue;
         const t = spiralSearch(e.x, e.y, 6, (a, b) => openTile(state, a, b)) ?? nearestFreeTile(map, e.x, e.y, 6);   // prefere região com ≥ 8 tiles (não nasce presa)
         if (!t) continue;
         const u = spawnUnit(state, e.owner, e.type, t.x + 0.5, t.y + 0.5);
-        if (e.tag) tags.set(e.tag, u.id);
+        if (e.tag) addTag(e.tag, u.id);
       }
     }
     // Regicídio sem kit: o basileus nasce perto do início só se o mapa não o pré-colocou
@@ -127,7 +129,7 @@ export function createGame(config: GameConfig): GameState {
     const def = getScenarioFor(state);
     if (def) {
       state.scenario = initScenarioState(def);
-      for (const [tag, id] of tags) state.scenario.vars['#' + tag] = id;
+      for (const [tag, ids] of tags) { state.scenario.vars['#' + tag] = ids[0]; ids.forEach((id, k) => { state.scenario!.vars[`#${tag}[${k}]`] = id; }); }
       def.setup?.(state);
       for (const u of state.units.values()) if (u.dead) removeUnitNow(state, u);
       for (const b of state.buildings.values()) if (b.dead) removeBuildingNow(state, b);
@@ -185,7 +187,8 @@ export function tick(state: GameState, commands: Command[] = []): void {
   // Economia e IA a cada segundo (defasadas para distribuir custo)
   if (state.tick % TICK_RATE === 0) { economySecond(state); if (state.koth) updateKoth(state); updateRelics(state); }
   for (const p of state.players) if (p.isAI && p.alive) aiThink(state, p);
-  if (state.scenario) { if (state.tick % TICK_RATE === TICK_RATE - 1) runScenario(state); }
+  // Cenário: eliminação sem vencedor global (G2) e depois objetivos/gatilhos; fora dele, a vitória padrão
+  if (state.scenario) { if (state.tick % TICK_RATE === TICK_RATE - 1) { eliminateInScenario(state); runScenario(state); } }
   else if (state.tick % TICK_RATE === TICK_RATE - 1) checkVictory(state);
   // Território e névoa
   if (state.territoryDirty) recomputeTerritory(state);

@@ -44,7 +44,7 @@
     { "id": "age", "text": { "pt": "Avance para a Idade Clássica", "en": "Advance to the Classical Age" },
       "done": { "value": { "stat": "age", "player": 0 }, "gte": 1 } },
     { "id": "camp", "text": { "pt": "Destrua o acampamento dos saqueadores", "en": "Destroy the raiders' camp" }, "hidden": true,
-      "done": { "buildings": { "player": 1, "complete": true }, "eq": 0 } }
+      "done": { "all": [ { "fired": "reveal_camp" }, { "buildings": { "player": 1, "complete": true }, "eq": 0 } ] } }
   ],
   "triggers": [
     { "id": "start", "when": { "time": { "gte": 1 } }, "then": [

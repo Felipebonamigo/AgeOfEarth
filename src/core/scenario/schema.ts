@@ -5,6 +5,7 @@ import { DIFFICULTIES, GAME_MODES, MAP_SIZES, MAP_TYPES, MAX_PLAYERS, RESOURCES,
 import { BUILDINGS, MAJOR_GODS, MAX_AGE, MINOR_GODS, TECHS, UNITS } from '../data';
 import type { GameConfig, UnitState } from '../types';
 import { validateMap, type FixedMapData } from '../map/fixed';
+import { CAMPAIGN_PLAN } from './official';
 
 // ---------------------------------------------------------------------------------------------------------------
 // Tipos (contrato de §2.3)
@@ -15,13 +16,16 @@ export type Text = string | { pt: string; en?: string };
 /** Jogador: índice; 'local' = primeiro humano; { team } = primeiro do time; '$p' = jogador do forEachPlayer. */
 export type PlayerSel = number | 'local' | { team: number } | '$p';
 export type EntityRef =
-  | { tag: string } | { var: string } | { tc: PlayerSel }
+  | { tag: string; pick?: 'first' | 'nearest' | 'alive'; near?: Point }                // grupo da tag: first = vars['#tag']; alive = primeiro vivo; nearest = mais perto de near
+  | { var: string } | { tc: PlayerSel }
   | { player: PlayerSel; type: string; pick?: 'first' | 'nearest'; near?: Point };   // first = menor id; nearest desempata por id
 export type Point =
   | { at: [number, number] } | { start: number; dx?: number; dy?: number }
   | { tc: PlayerSel; dx?: number; dy?: number } | { entity: EntityRef; dx?: number; dy?: number };
-export type StatName = 'age' | 'pop' | 'popCap' | 'food' | 'wood' | 'gold' | 'favor' | 'knowledge' | 'alive';
-export type Value = number | { stat: StatName; player: PlayerSel } | { var: string } | { add: [Value, number] };
+export type StatName = 'age' | 'pop' | 'popCap' | 'food' | 'wood' | 'gold' | 'favor' | 'knowledge' | 'alive' | 'difficulty';
+/** { stat: 'difficulty' } dispensa player: 0 = Fácil, 1 = Normal, 2 = Difícil (config.campaignDifficulty). */
+export type Value = number | { stat: Exclude<StatName, 'difficulty'>; player: PlayerSel } | { stat: 'difficulty'; player?: PlayerSel } | { var: string } | { add: [Value, number] };
+export type CampaignDifficulty = 'easy' | 'normal' | 'hard';
 export interface Cmp { gte?: Value; lte?: Value; eq?: Value; gt?: Value; lt?: Value }
 
 export interface UnitFilter {
@@ -30,20 +34,24 @@ export interface UnitFilter {
   near?: { point: Point; radius: number };                     // dx²+dy² < r², sem trigonometria
   reachable?: { buildingsOf: BuildingFilter };                 // rectReachable (objetivo da Horda)
 }
-export interface BuildingFilter { player?: PlayerSel; team?: number; notTeam?: number; type?: string | string[]; complete?: boolean }
+export interface BuildingFilter { player?: PlayerSel; team?: number; notTeam?: number; type?: string | string[]; complete?: boolean; tag?: string }   // tag: o grupo inteiro (#tag[k])
 
 export type Condition =
   | { all: Condition[] } | { any: Condition[] } | { not: Condition }
   | { time: Cmp } | { every: { seconds: number; after?: number } }          // ctx.seconds inteiro; seconds % n === 0
   | { objective: string; is: 'pending' | 'done' | 'failed' } | { fired: string } | ({ firedCount: { prefix: string } } & Cmp)
   | ({ units: UnitFilter } & Cmp) | ({ buildings: BuildingFilter } & Cmp) | ({ value: Value } & Cmp) | ({ var: string } & Cmp)
-  | { entity: EntityRef; exists: boolean; complete?: boolean; progress?: Cmp };
+  | { entity: EntityRef; exists: boolean; complete?: boolean; progress?: Cmp }
+  // G2: fim de partida em cenário (segundos segurados da colina pelo time T; segundos com a Maravilha de pé; rei vivo; jogador vivo)
+  | ({ koth: { team: number } } & Cmp) | ({ wonderHeld: { player: PlayerSel } } & Cmp) | { kingAlive: PlayerSel } | { alive: PlayerSel }
+  // G3: dificuldade da campanha (config.campaignDifficulty; ausente = normal)
+  | { difficulty: CampaignDifficulty | CampaignDifficulty[] };
 
 export type Action =
   | { do: 'say'; speaker: Text; text: Text; icon?: string }
   | { do: 'objective'; id: string; status: 'done' | 'failed' | 'pending' } | { do: 'reveal'; id: string }
   | { do: 'raid'; player: PlayerSel; units: string[]; target: Point; angle: number | { base: number; perIndex: number }; distance?: number }
-  | { do: 'spawn'; player: PlayerSel; units: string[]; at: Point; tag?: string; state?: 'pray'; prayAt?: EntityRef }
+  | { do: 'spawn'; player: PlayerSel; units: string[]; at: Point; tag?: string; state?: 'pray'; prayAt?: EntityRef; scaled?: boolean }   // scaled: escala como raid (scaledGroup)
   | { do: 'place'; player: PlayerSel; building: string; at: Point; exact?: boolean; complete?: boolean; progress?: number; tag?: string }
   | { do: 'give'; player: PlayerSel; resources: Partial<Record<ResourceType, number>> }
   | { do: 'set'; player: PlayerSel; age?: number; resources?: Partial<Record<ResourceType, number>>; techs?: string[]; minorGods?: string[] }
@@ -79,19 +87,27 @@ export interface ScenarioFile {
 
 /** Limites de um arquivo de cenário. */
 export const SCENARIO_LIMITS = { maxJsonBytes: 256 * 1024, maxDepth: 8, maxObjectives: 64, maxTriggers: 256 } as const;
-/** Ids reservados (campanha/Horda/conquistas) para arquivos externos; prefixo 'wave' é reservado em gatilhos. */
-export const RESERVED_SCENARIO_IDS: readonly string[] = ['horde', 'm1_despertar', 'm2_cerco', 'm3_portal'];
+/** Ids reservados (campanha/Horda/conquistas) para arquivos externos, inclusive as missões oficiais ainda sem arquivo; prefixo 'wave' é reservado em gatilhos. */
+export const RESERVED_SCENARIO_IDS: readonly string[] = ['horde', ...CAMPAIGN_PLAN.map((m) => m.id)];
 export const RESERVED_TRIGGER_PREFIX = 'wave';
 
-export interface ScenarioIssue { path: string; message: string }
-export interface ValidateScenarioOpts { allowReserved?: boolean }
+/** Problema de validação. level ausente = 'error' (API antiga); 'warn' só aparece com opts.warnings (lint, G7). */
+export interface ScenarioIssue { path: string; message: string; level?: 'error' | 'warn' }
+export interface ValidateScenarioOpts { allowReserved?: boolean; warnings?: boolean }
+/** Só os erros (issues sem level ou com level 'error'). */
+export function scenarioErrors(issues: ScenarioIssue[]): ScenarioIssue[] { return issues.filter((i) => i.level !== 'warn'); }
+/** Avisos do lint (G7): tag futura sem { fired }, objetivo oculto que nunca aparece, falas longas ou sem en. */
+export function lintScenario(file: unknown): ScenarioIssue[] { return validateScenario(file, { allowReserved: true, warnings: true }).filter((i) => i.level === 'warn'); }
+/** Tamanho máximo de uma fala (say) antes do aviso do lint. */
+export const MAX_LINE_CHARS = 200;
 
 // ---------------------------------------------------------------------------------------------------------------
 // Validação
 // ---------------------------------------------------------------------------------------------------------------
 
 const CMP_KEYS = ['gte', 'lte', 'eq', 'gt', 'lt'] as const;
-const STATS: readonly string[] = ['age', 'pop', 'popCap', 'food', 'wood', 'gold', 'favor', 'knowledge', 'alive'];
+const STATS: readonly string[] = ['age', 'pop', 'popCap', 'food', 'wood', 'gold', 'favor', 'knowledge', 'alive', 'difficulty'];
+const CAMPAIGN_DIFFS: readonly string[] = ['easy', 'normal', 'hard'];
 const UNIT_STATES: readonly string[] = ['idle', 'move', 'attackMove', 'attack', 'gather', 'return', 'build', 'pray', 'hold', 'garrison'];
 const OBJ_STATUS: readonly string[] = ['pending', 'done', 'failed'];
 const ORDER_POINT = ['move', 'attackMove'], ORDER_TARGET = ['attack', 'gather', 'pray', 'repair'];
@@ -242,6 +258,7 @@ export function validateScenario(file: unknown, opts: ValidateScenarioOpts = {})
       else err(`${path}.type`, "esperado 'countdown' ou 'progress'");
     });
   }
+  if (opts.warnings) { try { lint(f, (path, message) => issues.push({ path, message, level: 'warn' })); } catch { /* arquivo malformado: os erros acima já dizem */ } }
   return issues;
 }
 
@@ -281,7 +298,13 @@ class Validator {
 
   entity(e: unknown, path: string, inLoop: boolean): void {
     if (!isObj(e)) { this.err(path, 'referência de entidade inválida'); return; }
-    if (has(e, 'tag')) { if (typeof e.tag !== 'string') this.err(`${path}.tag`, 'esperado texto'); return; }
+    if (has(e, 'tag')) {
+      if (typeof e.tag !== 'string') this.err(`${path}.tag`, 'esperado texto');
+      if (e.pick !== undefined && e.pick !== 'first' && e.pick !== 'nearest' && e.pick !== 'alive') this.err(`${path}.pick`, "esperado 'first', 'nearest' ou 'alive'");
+      if (e.pick === 'nearest' && e.near === undefined) this.err(`${path}.near`, "'nearest' exige um ponto em near");
+      if (e.near !== undefined) this.point(e.near, `${path}.near`, inLoop);
+      return;
+    }
     if (has(e, 'var')) { if (typeof e.var !== 'string') this.err(`${path}.var`, 'esperado texto'); return; }
     if (has(e, 'tc')) { this.player(e.tc, `${path}.tc`, inLoop); return; }
     if (has(e, 'player')) {
@@ -310,7 +333,11 @@ class Validator {
     if (isNum(v)) return;
     if (!isObj(v)) { this.err(path, 'valor inválido (número, { stat, player }, { var } ou { add })'); return; }
     if (!this.depthOk(depth, path)) return;
-    if (has(v, 'stat')) { if (!STATS.includes(v.stat as string)) this.err(`${path}.stat`, `estatística desconhecida: '${String(v.stat)}'`); this.player(v.player, `${path}.player`, inLoop); return; }
+    if (has(v, 'stat')) {
+      if (!STATS.includes(v.stat as string)) this.err(`${path}.stat`, `estatística desconhecida: '${String(v.stat)}'`);
+      if (v.stat !== 'difficulty' || v.player !== undefined) this.player(v.player, `${path}.player`, inLoop);   // difficulty dispensa player
+      return;
+    }
     if (has(v, 'var')) { if (typeof v.var !== 'string') this.err(`${path}.var`, 'esperado texto'); return; }
     if (has(v, 'add')) {
       if (!Array.isArray(v.add) || v.add.length !== 2 || !isNum(v.add[1])) { this.err(`${path}.add`, 'esperado [valor, número]'); return; }
@@ -350,6 +377,7 @@ class Validator {
     if (b.notTeam !== undefined && !isInt(b.notTeam)) this.err(`${path}.notTeam`, 'esperado um inteiro');
     if (b.type !== undefined) this.typeList(b.type, `${path}.type`, 'building');
     if (b.complete !== undefined && typeof b.complete !== 'boolean') this.err(`${path}.complete`, 'esperado true/false');
+    if (b.tag !== undefined && typeof b.tag !== 'string') this.err(`${path}.tag`, 'esperado texto');
   }
 
   objectiveRef(id: unknown, path: string): void {
@@ -386,6 +414,16 @@ class Validator {
       if (c.progress !== undefined) { if (!isObj(c.progress)) this.err(`${path}.progress`, 'esperada uma comparação'); else this.cmp(c.progress, `${path}.progress`, inLoop, true); }
       return;
     }
+    if (has(c, 'koth')) { if (!isObj(c.koth) || !isInt(c.koth.team)) this.err(`${path}.koth`, 'esperado { team (inteiro) }'); this.cmp(c, path, inLoop, true); return; }
+    if (has(c, 'wonderHeld')) { if (!isObj(c.wonderHeld)) this.err(`${path}.wonderHeld`, 'esperado { player }'); else this.player(c.wonderHeld.player, `${path}.wonderHeld.player`, inLoop); this.cmp(c, path, inLoop, true); return; }
+    if (has(c, 'kingAlive')) { this.player(c.kingAlive, `${path}.kingAlive`, inLoop); return; }
+    if (has(c, 'alive')) { this.player(c.alive, `${path}.alive`, inLoop); return; }
+    if (has(c, 'difficulty')) {
+      const d = c.difficulty;
+      const ok = typeof d === 'string' ? CAMPAIGN_DIFFS.includes(d) : Array.isArray(d) && d.length > 0 && d.every((x) => typeof x === 'string' && CAMPAIGN_DIFFS.includes(x));
+      if (!ok) this.err(`${path}.difficulty`, "esperado 'easy', 'normal', 'hard' ou uma lista deles");
+      return;
+    }
     this.err(path, `operador de condição desconhecido: ${Object.keys(c).join(', ') || '(vazio)'}`);
   }
 
@@ -416,6 +454,7 @@ class Validator {
         if (a.state !== undefined && a.state !== 'pray') this.err(`${path}.state`, "esperado 'pray'");
         if (a.prayAt !== undefined) this.entity(a.prayAt, `${path}.prayAt`, inLoop);
         if (a.state === 'pray' && a.prayAt === undefined) this.err(`${path}.prayAt`, "state 'pray' exige prayAt");
+        if (a.scaled !== undefined && typeof a.scaled !== 'boolean') this.err(`${path}.scaled`, 'esperado true/false');
         return;
       case 'place':
         this.player(a.player, `${path}.player`, inLoop); this.buildingType(a.building, `${path}.building`); this.point(a.at, `${path}.at`, inLoop);
@@ -462,4 +501,103 @@ class Validator {
       default: this.err(`${path}.do`, `ação desconhecida: '${String(a.do)}'`);
     }
   }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Lint (G7): avisos que não impedem o arquivo de rodar, mas quase sempre são erro de autoria
+// ---------------------------------------------------------------------------------------------------------------
+
+/**
+ * 1) tag que só nasce num gatilho (spawn/place com tag dentro de `then`), usada numa condição que vale com o grupo
+ *    ausente (exists:false, contagem que aceita 0, ou o contrário sob `not`) sem { fired: <gatilho que a cria> } num
+ *    `all` acima dela — senão a condição vale no segundo 1;
+ * 2) objetivo `hidden` sem done/failed e sem gatilho que o revele ou conclua (nunca aparece);
+ * 3) fala (`say`) sem `en` ou com mais de MAX_LINE_CHARS caracteres.
+ */
+function lint(f: Record<string, unknown>, warn: (path: string, message: string) => void): void {
+  const setupTags = new Set<string>();
+  const triggerTags = new Map<string, Set<string>>();       // tag → gatilhos que a criam
+  const touchedObjectives = new Set<string>();              // reveal/objective em gatilhos ou setup
+  const eachAction = (list: unknown, path: string, visit: (a: Record<string, unknown>, path: string) => void): void => {
+    if (!Array.isArray(list)) return;
+    list.forEach((a, i) => {
+      if (!isObj(a)) return;
+      visit(a, `${path}[${i}]`);
+      if (a.do === 'forEachPlayer') eachAction(a.then, `${path}[${i}].then`, visit);
+    });
+  };
+  // mapa fixo no arquivo: tags das entidades existem desde o início
+  const map = isObj(f.map) && isObj(f.map.data) ? f.map.data : undefined;
+  if (map && Array.isArray(map.entities)) for (const e of map.entities) if (isObj(e) && typeof e.tag === 'string') setupTags.add(e.tag);
+  const collect = (trig: string | null) => (a: Record<string, unknown>) => {
+    if ((a.do === 'spawn' || a.do === 'place') && typeof a.tag === 'string') {
+      if (trig === null) setupTags.add(a.tag);
+      else { const set = triggerTags.get(a.tag) ?? new Set<string>(); set.add(trig); triggerTags.set(a.tag, set); }
+    }
+    if ((a.do === 'reveal' || a.do === 'objective') && typeof a.id === 'string') touchedObjectives.add(a.id);
+  };
+  eachAction(f.setup, 'setup', collect(null));
+  const triggers = Array.isArray(f.triggers) ? f.triggers : [];
+  for (const tr of triggers) if (isObj(tr) && typeof tr.id === 'string') eachAction(tr.then, '', collect(tr.id));
+
+  // 1) tags futuras
+  const zeroPasses = (c: Record<string, unknown>): boolean => {
+    for (const k of CMP_KEYS) {
+      const v = c[k]; if (v === undefined) continue;
+      if (!isNum(v)) return true;   // valor dinâmico: pode aceitar 0
+      if ((k === 'gte' && !(0 >= v)) || (k === 'lte' && !(0 <= v)) || (k === 'eq' && v !== 0) || (k === 'gt' && !(0 > v)) || (k === 'lt' && !(0 < v))) return false;
+    }
+    return true;
+  };
+  const check = (tag: unknown, risky: boolean, guards: Set<string>, path: string) => {
+    if (typeof tag !== 'string' || !risky || setupTags.has(tag)) return;
+    const creators = triggerTags.get(tag); if (!creators) return;
+    for (const id of creators) if (guards.has(id)) return;
+    const first = [...creators][0];
+    warn(path, `tag '${tag}' só nasce no gatilho '${[...creators].join("', '")}': proteja a condição com { "fired": "${first}" } no mesmo all (senão ela vale no segundo 1)`);
+  };
+  const pointTag = (p: unknown): unknown => (isObj(p) && isObj(p.entity) ? p.entity.tag : undefined);
+  const walk = (c: unknown, path: string, guards: Set<string>, negated: boolean): void => {
+    if (!isObj(c)) return;
+    if (Array.isArray(c.all)) {
+      const g = new Set(guards);
+      for (const x of c.all) if (isObj(x) && typeof x.fired === 'string') g.add(x.fired);
+      c.all.forEach((x, i) => walk(x, `${path}.all[${i}]`, g, negated));
+      return;
+    }
+    if (Array.isArray(c.any)) { c.any.forEach((x, i) => walk(x, `${path}.any[${i}]`, guards, negated)); return; }
+    if (has(c, 'not')) { walk(c.not, `${path}.not`, guards, !negated); return; }
+    if (isObj(c.entity)) { check(c.entity.tag, (c.exists === false) !== negated, guards, `${path}.entity.tag`); return; }
+    if (isObj(c.units)) {
+      const risky = zeroPasses(c) !== negated;
+      check(c.units.tag, risky, guards, `${path}.units.tag`);
+      if (isObj(c.units.near)) check(pointTag(c.units.near.point), risky, guards, `${path}.units.near.point`);
+      return;
+    }
+    if (isObj(c.buildings)) check(c.buildings.tag, zeroPasses(c) !== negated, guards, `${path}.buildings.tag`);
+  };
+  const objectives = Array.isArray(f.objectives) ? f.objectives : [];
+  objectives.forEach((o, i) => { if (!isObj(o)) return; walk(o.done, `objectives[${i}].done`, new Set(), false); walk(o.failed, `objectives[${i}].failed`, new Set(), false); });
+  triggers.forEach((tr, i) => { if (isObj(tr)) walk(tr.when, `triggers[${i}].when`, new Set(), false); });
+  walk(f.victory, 'victory', new Set(), false);
+  walk(f.defeat, 'defeat', new Set(), false);
+  if (Array.isArray(f.hud)) f.hud.forEach((h, i) => { if (isObj(h)) walk(h.while, `hud[${i}].while`, new Set(), false); });
+
+  // 2) objetivo oculto que nunca aparece
+  objectives.forEach((o, i) => {
+    if (!isObj(o) || o.hidden !== true || typeof o.id !== 'string') return;
+    if (o.done === undefined && o.failed === undefined && !touchedObjectives.has(o.id)) warn(`objectives[${i}]`, `objetivo oculto '${o.id}' sem done/failed e sem gatilho que o revele (reveal) ou conclua (objective): nunca aparece`);
+  });
+
+  // 3) falas
+  const sayCheck = (a: Record<string, unknown>, path: string) => {
+    if (a.do !== 'say') return;
+    const t = a.text;
+    if (typeof t === 'string') { warn(`${path}.text`, 'fala sem en (use { "pt", "en" })'); if (t.length > MAX_LINE_CHARS) warn(`${path}.text`, `fala com ${t.length} caracteres (máximo ${MAX_LINE_CHARS})`); return; }
+    if (!isObj(t)) return;
+    if (typeof t.en !== 'string' || t.en.length === 0) warn(`${path}.text.en`, 'fala sem en');
+    for (const k of ['pt', 'en'] as const) { const v = t[k]; if (typeof v === 'string' && v.length > MAX_LINE_CHARS) warn(`${path}.text.${k}`, `fala com ${v.length} caracteres (máximo ${MAX_LINE_CHARS})`); }
+  };
+  eachAction(f.setup, 'setup', sayCheck);
+  triggers.forEach((tr, i) => { if (isObj(tr)) eachAction(tr.then, `triggers[${i}].then`, sayCheck); });
 }

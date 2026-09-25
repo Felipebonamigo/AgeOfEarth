@@ -2,6 +2,30 @@
 import { AGES, UNITS } from '../core/data';
 import type { GameState } from '../core/types';
 import { desktop } from './files';
+import { CAMPAIGN, CAMPAIGN_PLAN, PROLOGUE_IDS } from '../core/scenario/campaign';
+import { actMissionIds, type CampaignAct } from '../core/scenario/official';
+
+/**
+ * Conquistas geradas do registro da campanha (G0): uma por missão nova registrada (as do prólogo são feitas à mão acima),
+ * "Ato I/II/III completo" (todas as missões oficiais do ato — só destrava quando o ato inteiro estiver registrado) e
+ * "Campanha no Difícil" (as 12 missões oficiais no Difícil).
+ */
+function campaignAchievements(): AchievementDef[] {
+  const out: AchievementDef[] = [];
+  for (const e of CAMPAIGN) {
+    if (PROLOGUE_IDS.includes(e.id) || !e.file) continue;
+    const n = CAMPAIGN_PLAN.findIndex((m) => m.id === e.id) + 1;
+    const title = typeof e.file.title === 'string' ? e.file.title : e.file.title.pt;
+    out.push({ id: e.id, name: title, desc: `Complete a missão ${n} da campanha.`, icon: e.file.icon ?? '📜', check: (_s, _l, c) => c.missionsDone.includes(e.id) });
+  }
+  const acts: [CampaignAct, string, string, string][] = [[1, 'I', 'A Sombra dos Titãs', '⛓️'], [2, 'II', 'A Maré de Poseidon', '🌊'], [3, 'III', 'A Queda de Cronos', '⏳']];
+  for (const [act, roman, name, icon] of acts) {
+    const ids = actMissionIds(act);
+    out.push({ id: `campaign_act${act}`, name: `Ato ${roman} completo: ${name}`, desc: `Complete todas as missões do Ato ${roman}.`, icon, check: (_s, _l, c) => ids.every((m) => c.missionsDone.includes(m)) });
+  }
+  out.push({ id: 'campaign_all_hard', name: 'Titanomaquia no Difícil', desc: 'Complete as 12 missões da campanha no Difícil.', icon: '🏛️', check: (_s, _l, c) => CAMPAIGN_PLAN.every((m) => c.missionsHard.includes(m.id)) });
+  return out;
+}
 
 export interface AchievementDef { id: string; name: string; desc: string; icon: string; check: (s: GameState, local: number, ctx: AchievementCtx) => boolean }
 export interface AchievementCtx { godsPlayed: string[]; hordeWaves: number; missionsDone: string[]; missionsHard: string[] }
@@ -37,6 +61,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'campaign_hard', name: 'Forjado no Fogo', desc: 'Complete o prólogo da campanha no Difícil.', icon: '🔥', check: (_s, _l, c) => ['m1_despertar', 'm2_cerco', 'm3_portal'].every((m) => c.missionsHard.includes(m)) },
   { id: 'horde_hard', name: 'Muralha de Bronze', desc: 'Vença o Modo Horda no Difícil ou acima.', icon: '🛡️', check: (s) => s.scenario?.id === 'horde' && s.scenario.outcome === 'victory' && s.config.campaignDifficulty === 'hard' },
   { id: 'garrison_defense', name: 'Portas Fechadas', desc: 'Tenha 15 unidades guarnecidas em um único edifício.', icon: '🏰', check: (s, l) => [...s.buildings.values()].some((b) => b.owner === l && b.garrison.length >= 15) },
+  ...campaignAchievements(),
 ];
 
 const KEY = 'aoe_achievements_v1';

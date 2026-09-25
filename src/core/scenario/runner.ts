@@ -2,12 +2,13 @@
 import { TICK_RATE } from '../constants';
 import type { GameState } from '../types';
 import type { ScenarioDef, ScenarioState, TriggerCtx } from './types';
-import { SCENARIOS, HORDE } from './campaign';
+import { HORDE, campaignMission } from './campaign';
 import { compileScenarioCached } from './compile';
+import { eliminatePlayers } from '../sim/victory';
 import { t } from '../../i18n';
 
-/** Cenário embutido (campanha/Horda) por id. Continua servindo o HUD e a campanha. */
-export function getScenario(id: string): ScenarioDef | undefined { return id === HORDE.id ? HORDE : SCENARIOS.find((s) => s.id === id); }
+/** Cenário embutido (Horda ou missão do registro da campanha, TS ou JSON) por id. Continua servindo o HUD e a campanha. */
+export function getScenario(id: string): ScenarioDef | undefined { return id === HORDE.id ? HORDE : campaignMission(id); }
 
 /**
  * Cenário da partida: config.scenarioData (JSON) compilado com cache por (hash, idioma), senão o registro embutido
@@ -36,8 +37,9 @@ export function runScenario(state: GameState): void {
     seconds: Math.floor((state.tick + 1) / TICK_RATE),   // inteiro: o runner roda no último tick de cada segundo
     fired: (id) => sc.fired.includes(id),
   };
+  // G1: objetivos ocultos também são avaliados; ao mudar de estado, ctx.objective os revela (segredos com done/failed)
   for (const o of def.objectives) {
-    if (!o.check || sc.objectives[o.id] !== 'pending' || sc.hidden[o.id]) continue;
+    if (!o.check || sc.objectives[o.id] !== 'pending') continue;
     const st = o.check(state);
     if (st !== 'pending') ctx.objective(o.id, st);
   }
@@ -47,6 +49,30 @@ export function runScenario(state: GameState): void {
     if (!t.repeat) sc.fired.push(t.id);
     t.then(state, ctx);
   }
+  const local = localHuman(state);
   if (def.victory(state)) { sc.outcome = 'victory'; state.gameOver = true; state.winner = state.config.players.findIndex((p) => !p.isAI); state.events.push({ tick: state.tick, type: 'victory', player: state.winner, text: t('ev.missionDone', { title: def.title }) }); }
-  else if (def.defeat?.(state) || state.players.filter((p) => !p.isAI && p.team === state.players[state.config.players.findIndex((q) => !q.isAI)].team).every((p) => !p.alive)) { sc.outcome = 'defeat'; state.gameOver = true; state.winner = -2; state.events.push({ tick: state.tick, type: 'defeated', player: -1, text: t('ev.missionFailed', { title: def.title }) }); }
+  // derrota implícita: todos os humanos do time local eliminados (eliminateInScenario zera alive)
+  else if (def.defeat?.(state) || (local >= 0 && state.players.filter((p) => !p.isAI && p.team === state.players[local].team).every((p) => !p.alive))) { sc.outcome = 'defeat'; state.gameOver = true; state.winner = -2; state.events.push({ tick: state.tick, type: 'defeated', player: -1, text: t('ev.missionFailed', { title: def.title }) }); }
+}
+
+/** Primeiro humano da configuração (o "jogador local" dos cenários); -1 se não houver. */
+function localHuman(state: GameState): number { return state.config.players.findIndex((p) => !p.isAI); }
+
+/**
+ * Marionete roteirizada: jogador sem IA fora do time local (Saqueadores da m1, Tártaro da Horda, guardas do mapa). Age só
+ * por gatilhos e costuma não ter cidade — nunca é eliminada automaticamente (o cenário decide com `alive`/`kill`).
+ */
+export function isScenarioPuppet(state: GameState, id: number): boolean {
+  const p = state.players[id]; const local = localHuman(state);
+  return !!p && !p.isAI && local >= 0 && p.team !== state.players[local].team;
+}
+
+/**
+ * G2: eliminação dentro de cenário, uma vez por segundo antes do runner. Mesma regra de checkVictory (sem edifícios que
+ * contam e sem cidadãos, respeitando hasStartKit; Regicídio sem rei), com os eventos de derrota, mas sem declarar vencedor
+ * global: quem encerra a partida é o runner (vitória/derrota do cenário ou derrota implícita do time local).
+ */
+export function eliminateInScenario(state: GameState): void {
+  const sc = state.scenario; if (!sc || sc.outcome !== 'playing' || state.gameOver) return;
+  eliminatePlayers(state, (p) => isScenarioPuppet(state, p.id));
 }

@@ -1,6 +1,12 @@
-// Campanha "A Sombra dos Titãs" — prólogo em três missões.
-import { TICK_RATE } from '../constants';
+// Campanha "Titanomaquia" (docs/STORY.md): registro das missões por ato (G0) e o prólogo "A Sombra dos Titãs" em TS (m1–m3).
+// Missões novas (m4…m12) são arquivos JSON em missions/<id>.scenario.json importados estaticamente e listados em CAMPAIGN.
+import { TICK_RATE, type Difficulty } from '../constants';
+import type { GameConfig } from '../types';
 import type { ScenarioDef } from './types';
+import type { ScenarioFile } from './schema';
+import { compileScenarioCached } from './compile';
+import { CAMPAIGN_PLAN, PROLOGUE_IDS, type CampaignAct } from './official';
+import { getLocale } from '../../i18n';
 import { count, countBuildings, military, townCenter, raid, give, grantTech, placeNear, spawnGroup } from './helpers';
 import { onBuildingComplete } from '../sim/entities';
 import { rectReachable } from '../map/components';
@@ -54,7 +60,8 @@ export const HORDE: ScenarioDef = {
   defeat: (s) => s.players.filter((p) => p.team === 0).every((p) => countBuildings(s, p.id, 'town_center') === 0) && s.tick > 5 * TICK_RATE,
 };
 
-export const SCENARIOS: ScenarioDef[] = [
+/** Prólogo em TS (m1–m3). Use campaignMissions()/campaignMission(id) para a campanha inteira. */
+export const PROLOGUE: ScenarioDef[] = [
   {
     id: 'm1_despertar', title: 'O Despertar de Argos', subtitle: 'Missão 1 · Fundamentos', icon: '🏺',
     intro: [
@@ -78,7 +85,8 @@ export const SCENARIOS: ScenarioDef[] = [
       { id: 'temple', text: 'Construa um Templo e ponha 3 cidadãos para rezar', check: (s) => (countBuildings(s, ME, 'temple') >= 1 && count(s, ME, (u) => u.state === 'pray') >= 3 ? 'done' : 'pending') },
       { id: 'army', text: 'Treine 6 unidades militares no Quartel', check: (s) => (count(s, ME, military) >= 6 ? 'done' : 'pending') },
       { id: 'age', text: 'Avance para a Idade Clássica', check: (s) => (s.players[ME].age >= 1 ? 'done' : 'pending') },
-      { id: 'camp', text: 'Destrua o acampamento dos saqueadores', hidden: true, check: (s) => (countBuildings(s, 1) === 0 ? 'done' : 'pending') },
+      // G1 avalia objetivos ocultos: a guarda pelo gatilho que o revela mantém o comportamento de antes (só conta depois da Idade Clássica)
+      { id: 'camp', text: 'Destrua o acampamento dos saqueadores', hidden: true, check: (s) => (s.scenario!.fired.includes('reveal_camp') && countBuildings(s, 1) === 0 ? 'done' : 'pending') },
     ],
     triggers: [
       { id: 'start', when: (_s, c) => c.seconds >= 1, then: (_s, c) => { c.say('Oráculo de Delfos', 'Arconte, a terra é fértil e os deuses observam. Comece pelos cidadãos: selecione o Centro Cívico e treine-os (tecla Q). Mande-os às frutas e às árvores com o botão direito.', '🔮'); } },
@@ -116,7 +124,8 @@ export const SCENARIOS: ScenarioDef[] = [
     objectives: [
       { id: 'survive', text: 'Resista por 12 minutos (o Centro Cívico não pode cair)', check: (s) => (s.tick >= 12 * 60 * TICK_RATE ? 'done' : 'pending') },
       { id: 'fortress', text: 'Construa uma Fortaleza', optional: true, check: (s) => (countBuildings(s, ME, 'fortress') >= 1 ? 'done' : 'pending') },
-      { id: 'counter', text: 'Destrua o Centro Cívico original da Legião de Hades', hidden: true, check: (s) => { const id = s.scenario!.vars.targetTc; const b = id !== undefined ? s.buildings.get(id) : undefined; return (id !== undefined ? !b || b.dead : countBuildings(s, 1, 'town_center') === 0) ? 'done' : 'pending'; } },
+      // oculto até os reforços (G1: guarda por 'reinforce' para não vencer antes dos 12 minutos)
+      { id: 'counter', text: 'Destrua o Centro Cívico original da Legião de Hades', hidden: true, check: (s) => { if (!s.scenario!.fired.includes('reinforce')) return 'pending'; const id = s.scenario!.vars.targetTc; const b = id !== undefined ? s.buildings.get(id) : undefined; return (id !== undefined ? !b || b.dead : countBuildings(s, 1, 'town_center') === 0) ? 'done' : 'pending'; } },
     ],
     triggers: [
       { id: 'start', when: (_s, c) => c.seconds >= 1, then: (_s, c) => c.say('Jasão', 'Eles virão em ondas, arconte. Torres nas entradas, hoplitas na frente, arqueiros atrás. Atena nos concedeu a Restauração: use-a quando a linha estiver por cair.', '🦁') },
@@ -138,7 +147,7 @@ export const SCENARIOS: ScenarioDef[] = [
       'Você tem a liberdade de escolher o caminho: destrua o Portal antes que se conclua, ou alcance a Idade dos Titãs e liberte Prometeu para enfrentá-lo.',
     ],
     outro: ['O Portal caiu e o mundo respira. Por enquanto. As guerras dos deuses estão apenas começando... (Fim do prólogo)'],
-    config: { seed: 3303, mapSize: 'medium', players: [{ name: 'Argos', god: 'zeus', isAI: false, difficulty: 'normal' }, { name: 'Culto de Cronos', god: 'hades', isAI: true, difficulty: 'normal' }, { name: 'Aliados de Poseidon', god: 'poseidon', isAI: true, difficulty: 'normal' }], startingAge: 2, startingResources: { food: 1200, wood: 1000, gold: 800, favor: 80, knowledge: 200 } },
+    config: { seed: 3303, mapSize: 'medium', players: [{ name: 'Argos', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 }, { name: 'Culto de Cronos', god: 'hades', isAI: true, difficulty: 'normal', team: 1 }, { name: 'Aliados de Poseidon', god: 'poseidon', isAI: true, difficulty: 'normal', team: 0 }], startingAge: 2, startingResources: { food: 1200, wood: 1000, gold: 800, favor: 80, knowledge: 200 } },
     setup: (state) => {
       const p = state.players[ME]; p.minorGods.push('athena', 'apollo'); p.powers.push({ id: 'restoration', used: false }, { id: 'oracle', used: false });
       grantTech(state, ME, 'civic1'); grantTech(state, ME, 'civic2'); grantTech(state, ME, 'science1');
@@ -154,7 +163,8 @@ export const SCENARIOS: ScenarioDef[] = [
     objectives: [
       { id: 'gate', text: 'Destrua o Portal dos Titãs do Culto de Cronos antes que se conclua', check: (s) => { const g = [...s.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate'); if (!g) return 'done'; return 'pending'; } },
       { id: 'titan', text: 'Ou: alcance a Idade dos Titãs e liberte Prometeu', optional: true, check: (s) => (count(s, ME, (u) => u.type === 'prometheus') >= 1 ? 'done' : 'pending') },
-      { id: 'cronus', text: 'Derrote Cronos', hidden: true, check: (s) => { const c = [...s.units.values()].find((u) => u.owner === 1 && u.type === 'cronus'); return c ? 'pending' : 'done'; } },
+      // oculto até Cronos surgir (G1: sem a guarda por 'cronus_rises' valeria no segundo 1, pois ainda não há Cronos)
+      { id: 'cronus', text: 'Derrote Cronos', hidden: true, check: (s) => { if (!s.scenario!.fired.includes('cronus_rises')) return 'pending'; const c = [...s.units.values()].find((u) => u.owner === 1 && u.type === 'cronus'); return c ? 'pending' : 'done'; } },
     ],
     triggers: [
       { id: 'start', when: (_s, c) => c.seconds >= 1, then: (_s, c) => c.say('Héracles', 'O Portal está ao norte da cidade deles, guardado por torres e uma Fortaleza. Seus cidadãos o constroem lentamente; matá-los atrasa a obra.', '💪') },
@@ -171,3 +181,78 @@ export const SCENARIOS: ScenarioDef[] = [
     hud: [{ type: 'progress', entity: (s) => { const g = [...s.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate'); return g && !g.complete ? g.progress : -1; }, max: 180, label: '🌋 Ritual do Portal' }],
   },
 ];
+
+/** @deprecated alias compatível do prólogo em TS; a campanha inteira vem de campaignMissions(). */
+export const SCENARIOS = PROLOGUE;
+
+// ---------------------------------------------------------------------------------------------------------------
+// Registro da campanha (G0)
+// ---------------------------------------------------------------------------------------------------------------
+
+/** Uma missão registrada: ato, id, origem (TS do prólogo ou JSON em missions/) e selo "Prólogo". */
+export interface CampaignEntry { act: CampaignAct; id: string; source: 'ts' | 'json'; file?: ScenarioFile; prologue?: boolean }
+
+/**
+ * Missões jogáveis, na ordem de desbloqueio. Para registrar uma missão nova: crie missions/<id>.scenario.json (id da §4 de
+ * docs/STORY.md, já reservado em RESERVED_SCENARIO_IDS), importe-o aqui e acrescente
+ * `{ act, id, source: 'json', file: arquivo as unknown as ScenarioFile }` na posição dela. A conquista da missão nasce do
+ * registro (achievements.ts) e tests/missions.test.ts passa a testá-la nas três dificuldades.
+ * O m1 em JSON (missions/m1_despertar.scenario.json) fica fora: a versão TS é a oficial (teste de paridade).
+ */
+export const CAMPAIGN: readonly CampaignEntry[] = [
+  { act: 1, id: 'm1_despertar', source: 'ts', prologue: true },
+  { act: 1, id: 'm2_cerco', source: 'ts', prologue: true },
+  { act: 1, id: 'm3_portal', source: 'ts', prologue: true },
+];
+
+/** Entrada do registro por id (undefined = não é missão oficial registrada). */
+export function campaignEntry(id: string): CampaignEntry | undefined { return CAMPAIGN.find((e) => e.id === id); }
+export function isCampaignMission(id: string): boolean { return CAMPAIGN.some((e) => e.id === id); }
+
+const compiled = new Map<string, ScenarioDef>();   // `${id}:${idioma}` → ScenarioDef (JSON compilado no idioma atual)
+
+/** Missão do registro por id: TS do prólogo ou JSON compilado (cache por idioma). Lança se o JSON oficial for inválido. */
+export function campaignMission(id: string): ScenarioDef | undefined {
+  const e = campaignEntry(id); if (!e) return undefined;
+  if (e.source === 'ts') return PROLOGUE.find((m) => m.id === id);
+  if (!e.file) return undefined;
+  const key = `${id}:${getLocale()}`;
+  let def = compiled.get(key);
+  if (!def) { def = compileScenarioCached(e.file); compiled.set(key, def); }
+  return def;
+}
+
+/** Todas as missões do registro, na ordem (menu, HUD, "Próxima missão", harness de testes). */
+export function campaignMissions(): ScenarioDef[] {
+  return CAMPAIGN.map((e) => campaignMission(e.id)).filter((d): d is ScenarioDef => !!d);
+}
+
+/** Próxima missão do registro depois de `id` (undefined na última ou fora do registro). */
+export function nextCampaignMission(id: string): ScenarioDef | undefined {
+  const i = CAMPAIGN.findIndex((e) => e.id === id);
+  return i >= 0 && i + 1 < CAMPAIGN.length ? campaignMission(CAMPAIGN[i + 1].id) : undefined;
+}
+
+/** Ids oficiais do plano (§4), registrados ou não; e os do prólogo. */
+export { CAMPAIGN_PLAN, PROLOGUE_IDS };
+
+/** Dificuldade da campanha nas IAs inimigas: Fácil → fácil; Difícil sobe um degrau (normal→difícil, difícil→muito difícil). */
+export function enemyDifficulty(d: Difficulty, c: 'easy' | 'normal' | 'hard'): Difficulty {
+  return c === 'easy' ? 'easy' : c === 'hard' ? ({ easy: 'normal', normal: 'hard', hard: 'brutal', brutal: 'brutal' } as Record<Difficulty, Difficulty>)[d] : d;
+}
+
+/**
+ * Aplica a dificuldade da campanha a uma config: config.campaignDifficulty (raids, spawn scaled, condição difficulty — G3) e
+ * as IAs INIMIGAS ajustadas por enemyDifficulty. IAs aliadas do primeiro humano (ex.: Aliados de Poseidon na m3) ficam como
+ * estão — deixá-las fáceis no Fácil puniria o jogador.
+ */
+export function withCampaignDifficulty(config: GameConfig, diff: 'easy' | 'normal' | 'hard'): GameConfig {
+  const human = config.players.findIndex((p) => !p.isAI);
+  const humanTeam = human >= 0 ? (config.players[human].team ?? human) : -1;
+  return { ...config, campaignDifficulty: diff, players: config.players.map((p, i) => (p.isAI && (p.team ?? i) !== humanTeam ? { ...p, difficulty: enemyDifficulty(p.difficulty, diff) } : p)) };
+}
+
+/** GameConfig de uma missão oficial (ou da Horda) na dificuldade da campanha (withCampaignDifficulty). */
+export function missionConfig(def: ScenarioDef, diff: 'easy' | 'normal' | 'hard'): GameConfig {
+  return withCampaignDifficulty({ ...def.config, scenario: def.id }, diff);
+}

@@ -36,8 +36,16 @@ export function scaledGroup(state: GameState, types: string[]): string[] {
   return types;
 }
 
-/** Invoca um esquadrão a distância do alvo e o manda atacar-mover até ele (tamanho escalado pela dificuldade da campanha). */
-export function raid(state: GameState, owner: number, group: string[], targetX: number, targetY: number, fromAngleIndex: number, distance = 22): void {
+/** Registro de uma invasão roteirizada (harness de testes §7.2 f): quantas unidades pedidas e quantas nasceram. */
+export interface RaidRecord { owner: number; requested: number; spawned: number; noTarget?: boolean }
+let raidObserver: ((r: RaidRecord) => void) | null = null;
+/** Observa cada raid (só testes/harness; não muda o estado, então não afeta o determinismo). null desliga. */
+export function setRaidObserver(fn: ((r: RaidRecord) => void) | null): void { raidObserver = fn; }
+/** Avisa o observador (também usado pelo raid JSON quando o alvo não existe). */
+export function notifyRaid(r: RaidRecord): void { raidObserver?.(r); }
+
+/** Invoca um esquadrão a distância do alvo e o manda atacar-mover até ele (tamanho escalado pela dificuldade da campanha). Devolve quantas nasceram. */
+export function raid(state: GameState, owner: number, group: string[], targetX: number, targetY: number, fromAngleIndex: number, distance = 22): number {
   const types = scaledGroup(state, group);
   const dirs: [number, number][] = [[1, 0], [0.7, 0.7], [0, 1], [-0.7, 0.7], [-1, 0], [-0.7, -0.7], [0, -1], [0.7, -0.7]];
   const [dx, dy] = dirs[((fromAngleIndex % 8) + 8) % 8];
@@ -49,15 +57,18 @@ export function raid(state: GameState, owner: number, group: string[], targetX: 
     oy = Math.max(2, Math.min(state.map.h - 3, Math.round(targetY + dy * d)));
     origin = spiralSearch(ox, oy, 8, connected);
   }
-  if (!origin) return;
-  types.forEach((t, i) => {
+  let spawned = 0;
+  if (origin) types.forEach((t, i) => {
     const spot = spiralSearch(origin!.x + (i % 4), origin!.y + Math.floor(i / 4), 8, connected);
     if (!spot) return;
+    spawned++;
     const u = spawnUnit(state, owner, t, spot.x + 0.5, spot.y + 0.5);
     u.stance = 'aggressive';
     giveOrder(state, u, { type: 'attackMove', x: targetX, y: targetY });
     state.effects.push({ type: 'spawn', x: u.x, y: u.y, ttl: 20, total: 20 });
   });
+  notifyRaid({ owner, requested: types.length, spawned });
+  return spawned;
 }
 
 export function give(state: GameState, owner: number, res: Partial<Record<'food' | 'wood' | 'gold' | 'favor' | 'knowledge', number>>): void {
