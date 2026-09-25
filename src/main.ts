@@ -7,8 +7,11 @@ import { Audio } from './audio/audio';
 import { Session } from './game/session';
 import type { GameConfig } from './core/types';
 import { SCENARIOS, HORDE } from './core/scenario/campaign';
-import { migrateMap, validateMap, canonicalize } from './core/map/fixed';
+import { migrateMap, validateMap, canonicalize, mapHash, type FixedMapData } from './core/map/fixed';
 import { putMap, slugify } from './game/maps';
+import { MapEditor } from './editor/editor';
+import { EditorPanel, type TestOpts } from './editor/panel';
+import type { EditorView } from './editor/types';
 import { issueText } from './ui/menu';
 import type { Difficulty } from './core/constants';
 import { NetworkScheduler, LocalScheduler } from './core/net/lockstep';
@@ -22,7 +25,7 @@ import { loadSettings, saveSettings } from './game/settings';
 import { exportText, importText } from './game/files';
 import { applyUiScale, initDisplay, isFullscreen, setFullscreen, desktop, setPresence } from './game/display';
 import type { OptionsContext } from './ui/options';
-import { MAJOR_GODS, AGES } from './core/data';
+import { MAJOR_GODS, MAJOR_GOD_LIST, AGES } from './core/data';
 import { serialize, deserialize } from './core/serialize';
 import { mapToData } from './core/map/fixed';
 
@@ -47,7 +50,14 @@ async function boot() {
   const hasSave = () => { try { return !!localStorage.getItem(SAVE_KEY); } catch { return false; } };
   const hasReplay = () => { try { return !!localStorage.getItem(REPLAY_KEY); } catch { return false; } };
   let replaySaved = false;
-  const saveReplay = () => { if (!session || session.spectator) return; const json = session.replayJSON(); if (!json) return; try { localStorage.setItem(REPLAY_KEY, json); replaySaved = true; } catch { /* ignore */ } };
+  // Editor de mapas: a instância vive enquanto o editor estiver aberto ou uma partida de teste estiver rodando (reaproveitada ao voltar)
+  let editor: MapEditor | null = null;
+  let editorPanel: EditorPanel | null = null;
+  let returnToEditor = false;                 // a partida atual é um teste do editor: sem conquistas, replay ou F5
+  let editorCam: { x: number; y: number; zoom: number } | null = null;
+  const inEditor = () => !!session && session.ui.mode === 'editor';
+  const editorOrTest = () => returnToEditor || inEditor();
+  const saveReplay = () => { if (!session || session.spectator || editorOrTest()) return; const json = session.replayJSON(); if (!json) return; try { localStorage.setItem(REPLAY_KEY, json); replaySaved = true; } catch { /* ignore */ } };
 
   const hud: HUD = new HUD(root, renderer, audio, {
     hasSave,
@@ -64,7 +74,7 @@ async function boot() {
     onDiagnostic: () => { void exportText(`age-of-earth-diagnostico-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`, diagnostic()).then((ok) => { if (ok) hud.toast(t('msg.diagnosticSaved'), 'good'); }); },
     onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); if (session) { hud.setSession(session); hud.refreshTop(); } },
     onLoad: () => loadGame(),
-    onQuit: () => { saveReplay(); session = null; hostResumeCheck = null; hud.onChat = null; hud.closeChat(); hud.setSession(null); hud.setVisible(false); menu.show(); document.body.className = ''; },
+    onQuit: () => { if (returnToEditor && editor) { returnFromTest(); return; } saveReplay(); session = null; hostResumeCheck = null; hud.onChat = null; hud.closeChat(); hud.setSession(null); hud.setVisible(false); menu.show(); document.body.className = ''; },
     onNextMission: (id) => { const i = SCENARIOS.findIndex((m) => m.id === id); const next = SCENARIOS[i + 1]; if (next) startMission(next.id); else { session = null; hud.setSession(null); hud.setVisible(false); menu.show(); } },
   });
   hud.setVisible(false);
@@ -102,6 +112,7 @@ async function boot() {
   const loadGame = () => {
     try {
       const json = localStorage.getItem(SAVE_KEY); if (!json) return;
+      if (editorOrTest()) leaveEditorView();   // carregar um save encerra o editor/teste (o rascunho fica no autosave)
       session = Session.load(json); replaySaved = false;
       renderer.setState(session.state);
       const tc = [...session.state.buildings.values()].find((b) => b.owner === session!.local && b.type === 'town_center');
@@ -223,7 +234,80 @@ async function boot() {
       hud.toast(t('msg.replay'), 'gold');
     } catch (e) { hud.toast(t('msg.replayFail', { err: (e as Error).message }), 'warn'); }
   };
-  const menu = new MainMenu(root, { onStart: (cfg) => { replaySaved = false; startGame(cfg); }, onLoad: loadGame, hasSave, onHelp: () => hud.showHelp(), onEncyclopedia: () => hud.showEncyclopedia(), onMission: startMission, onNetworkStart: startNetworkGame, onNetworkRejoin: rejoinNetworkGame, onHorde: startHorde, onReplay: watchReplay, hasReplay, onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); }, getOptions: () => options, onHotkeys: () => hud.showHotkeys() });
+  // ---------------- Editor de mapas (docs/EDITOR.md §4) ----------------
+  const editorView: EditorView = { invalidateRect: (x0, y0, x1, y1) => renderer.invalidateRect(x0, y0, x1, y1), invalidateMinimap: () => hud.minimap.invalidate() };
+  /** Mostra a instância do editor (nova ou de volta do teste): sessão pausada, HUD em modo editor, painel e entrada delegada. */
+  const showEditor = (ed: MapEditor, cam: { x: number; y: number; zoom: number } | null) => {
+    session = ed.session; hostResumeCheck = null; hud.onChat = null; hud.closeChat();
+    const { w, h } = ed.map;
+    renderer.chunkCacheLimit = Math.ceil(w / 16) * Math.ceil(h / 16);
+    renderer.setState(ed.state);
+    if (cam) { renderer.cam.zoom = cam.zoom; renderer.cam.x = cam.x; renderer.cam.y = cam.y; renderer.cam.clamp(); } else renderer.fitMap();
+    hud.setSession(ed.session); hud.setEditorMode(true); hud.setRevealAll(true); hud.setVisible(true); hud.setTestMode(null);
+    editorPanel = new EditorPanel(ed, hud, renderer, { onTest: (opts) => testFromEditor(opts), onExit: () => exitEditor() });
+    const panel = editorPanel;
+    input.setEditor(ed, { menu: () => panel.showMenu(), hotkeys: () => panel.showHotkeys(), save: () => { panel.save(); }, test: () => panel.showTest(), pickTile: (x, y) => panel.pickTile(x, y) });
+    menu.hide();
+  };
+  /** Desmonta o painel e devolve renderer/HUD/entrada ao modo de partida (a MapEditor continua em `editor`). */
+  const leaveEditorView = () => {
+    editorPanel?.destroy(); editorPanel = null;
+    input.setEditor(null);
+    hud.setEditorMode(false); hud.setTestMode(null);
+    renderer.chunkCacheLimit = 60;
+    returnToEditor = false;
+    document.body.className = '';
+  };
+  const startEditor = (file: FixedMapData) => {
+    let ed: MapEditor;
+    try { ed = new MapEditor(file, editorView); } catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); menu.show(); return; }
+    if (editorOrTest()) leaveEditorView();
+    editor = ed; returnToEditor = false; editorCam = null;
+    showEditor(ed, null);
+    hud.toast(t('editor.opened', { name: ed.meta.name ?? t('editor.untitled') }), 'gold');
+  };
+  const exitEditor = () => {
+    const ed = editor; if (!ed) return;
+    if (ed.dirty && !confirm(t('editor.exitConfirm'))) return;
+    leaveEditorView();
+    editor = null; session = null; hud.setSession(null); hud.setVisible(false); menu.show();
+  };
+  /** Testar: partida real a partir do arquivo (mesmo createGame do multiplayer); ao sair volta ao editor com a mesma instância. */
+  const testFromEditor = (opts: TestOpts) => {
+    const ed = editor; if (!ed || session !== ed.session) return;
+    const file = ed.toFile();
+    const starts = file.starts.length;
+    if (starts < 2) { hud.toast(t('editor.testNeedStarts'), 'warn'); return; }
+    let saved: { name?: string } = {}; try { saved = JSON.parse(localStorage.getItem('aoe_setup') ?? '{}'); } catch { /* ignore */ }
+    const names = ['Leônidas', 'Péricles', 'Agamenon', 'Odisseu'];
+    const as = Math.max(0, Math.min(starts - 1, opts.as | 0));
+    const players: GameConfig['players'] = [{ name: saved.name ?? t('main.player'), god: opts.god, isAI: false, difficulty: 'normal', team: 0 }];
+    const order = [as];
+    for (let i = 0; i < starts; i++) {
+      if (i === as) continue;
+      const d = opts.slots[i]; if (!d || d === 'empty') continue;
+      players.push({ name: `${names[order.length % names.length]} (IA)`, god: MAJOR_GOD_LIST[(as + order.length) % MAJOR_GOD_LIST.length], isAI: true, difficulty: d, team: order.length });
+      order.push(i);
+    }
+    const issues = validateMap(file, { players: players.length, mode: opts.mode, ai: players.map((p) => p.isAI) });
+    const errors = issues.filter((i) => i.level === 'error');
+    if (errors.length) { hud.toast(`${t('editor.testErrors')} ${errors.slice(0, 3).map(issueText).join('; ')}`, 'warn'); return; }
+    editorPanel?.autosaveNow();
+    editorCam = { x: renderer.cam.x, y: renderer.cam.y, zoom: renderer.cam.zoom };
+    leaveEditorView();
+    returnToEditor = true; replaySaved = true;
+    startGame({ seed: (Math.floor(Math.random() * 1e9)) >>> 0, mapSize: 'medium', players, mode: opts.mode, revealMap: opts.reveal, map: file, mapHash: mapHash(file), startOrder: order });
+    hud.setTestMode(() => returnFromTest());
+  };
+  /** Volta ao editor após o teste (menu → sair ou fim de partida): documento, câmera e pilha de desfazer intactos. */
+  const returnFromTest = () => {
+    const ed = editor;
+    if (!ed) { returnToEditor = false; hud.setTestMode(null); return; }
+    leaveEditorView();
+    showEditor(ed, editorCam);
+  };
+
+  const menu = new MainMenu(root, { onStart: (cfg) => { replaySaved = false; startGame(cfg); }, onLoad: loadGame, hasSave, onEditor: startEditor, onHelp: () => hud.showHelp(), onEncyclopedia: () => hud.showEncyclopedia(), onMission: startMission, onNetworkStart: startNetworkGame, onNetworkRejoin: rejoinNetworkGame, onHorde: startHorde, onReplay: watchReplay, hasReplay, onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); }, getOptions: () => options, onHotkeys: () => hud.showHotkeys() });
   input.edgeScroll = settings.edgeScroll;
   // Tela, escala e qualidade salvas
   initDisplay((v) => { if (settings.fullscreen !== v) { settings.fullscreen = v; saveSettings(settings); } });
@@ -233,6 +317,7 @@ async function boot() {
 
   window.addEventListener('keydown', (e) => {
     if (!session) return;
+    if (editorOrTest()) { if (e.key === 'F5' || e.key === 'F9') e.preventDefault(); return; }   // editor/teste: nada de salvar ou carregar
     if (e.key === 'F5') { e.preventDefault(); try { localStorage.setItem(SAVE_KEY, session.save()); hud.toast(t('msg.savedF5'), 'good'); } catch { /* ignore */ } }
     if (e.key === 'F9') { e.preventDefault(); loadGame(); }
   });
@@ -244,18 +329,22 @@ async function boot() {
     if (session) {
       hostResumeCheck?.();
       const alpha = session.step(dt);
-      if (session.state.gameOver && !replaySaved) saveReplay();
-      if (!session.spectator) achievements.update(session.state, session.local, dt);
+      const editing = editor !== null && session === editor.session;
+      if (editing) editor!.flush();   // uma vez por quadro: retângulo sujo → renderer/minimapa
+      if (session.state.gameOver && !replaySaved && !editorOrTest()) saveReplay();
+      if (!session.spectator && !editorOrTest()) achievements.update(session.state, session.local, dt);
       input.update(dt);
       renderer.render(session.state, alpha, input.renderUI(), dt);
       hud.update(dt);
-      if (session.state.tick % 200 === 0) setPresence(t('presence.playing', { age: AGES[session.player.age].name, min: Math.floor(session.state.time / 60) }));
+      if (editing) editorPanel?.update();
+      if (editing) setPresence(t('presence.menu'));
+      else if (session.state.tick % 200 === 0) setPresence(t('presence.playing', { age: AGES[session.player.age].name, min: Math.floor(session.state.time / 60) }));
     } else setPresence(t('presence.menu'));
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
   // Expõe para depuração/testes automatizados
-  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, startGame, loadGame, diagnostic, menu, mapData: () => (session ? mapToData(session.state.map) : null), debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; } };
+  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, startGame, loadGame, diagnostic, menu, startEditor, exitEditor, testFromEditor, get editor() { return editor; }, get editorPanel() { return editorPanel; }, mapData: () => (session ? mapToData(session.state.map) : null), debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; } };
 }
 
 boot().catch((e) => { console.error(e); document.body.innerHTML = `<pre style="color:#f88;padding:20px">Erro ao iniciar: ${(e as Error).stack}</pre>`; });

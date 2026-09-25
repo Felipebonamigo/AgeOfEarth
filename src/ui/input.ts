@@ -9,6 +9,10 @@ import type { Audio } from '../audio/audio';
 import { isMilitary, isEnemy } from '../core/sim/queries';
 import { t } from '../i18n';
 import { toggleFullscreen } from '../game/display';
+import type { MapEditor } from '../editor/editor';
+
+/** Ganchos da camada DOM do editor (menu por Esc, atalhos por H, Ctrl+S/Ctrl+Enter e "escolher no mapa"). */
+export interface EditorHooks { menu?: () => void; hotkeys?: () => void; save?: () => void; test?: () => void; pickTile?: (x: number, y: number) => boolean }
 
 const BUILD_HOTKEYS: Record<string, string> = {};
 for (const [id, b] of Object.entries(BUILDINGS)) if (b.hotkey && !b.notBuildable) BUILD_HOTKEYS[b.hotkey] = BUILD_HOTKEYS[b.hotkey] ? BUILD_HOTKEYS[b.hotkey] + ',' + id : id;
@@ -23,6 +27,13 @@ export class Input {
   private lastClick = 0; private lastClickId = -1;
   edgeScroll = true;
   private middleDrag: { x: number; y: number } | null = null;
+  /** Editor de mapas ativo: quando s.ui.mode === 'editor', ponteiro e teclas são delegados a ele (a câmera continua aqui). */
+  private editor: MapEditor | null = null;
+  private editorHooks: EditorHooks | null = null;
+  setEditor(ed: MapEditor | null, hooks: EditorHooks | null = null) { this.editor = ed; this.editorHooks = hooks; }
+  private inEditor(s: Session): boolean { return s.ui.mode === 'editor' && this.editor !== null; }
+  private tileAt(sx: number, sy: number) { const w = this.worldAt(sx, sy); return { x: Math.floor(w.x), y: Math.floor(w.y) }; }
+  private mods(e: { shiftKey: boolean; altKey: boolean; ctrlKey: boolean }) { return { shift: e.shiftKey, alt: e.altKey, ctrl: e.ctrlKey }; }
 
   constructor(canvas: HTMLCanvasElement, getSession: () => Session | null, renderer: Renderer, hud: HUD, audio: Audio) {
     this.canvas = canvas; this.getSession = getSession; this.renderer = renderer; this.hud = hud; this.audio = audio;
@@ -46,6 +57,7 @@ export class Input {
   private onMinimap(e: PointerEvent) {
     const s = this.getSession(); if (!s) return;
     const w = this.hud.minimap.toWorld(s.state, e.clientX, e.clientY);
+    if (this.inEditor(s)) { this.renderer.cam.centerOn(w.x, w.y); return; }   // editor: clique centra; botão direito não emite ordens
     if (e.button === 2 || (e.buttons & 2)) { this.contextCommand(w.x, w.y, e.shiftKey); return; }
     this.renderer.cam.centerOn(w.x, w.y);
   }
@@ -55,6 +67,12 @@ export class Input {
     if (this.overHud(e)) return;
     this.mouse.down = true; this.mouse.button = e.button; this.mouse.downX = e.clientX; this.mouse.downY = e.clientY; this.mouse.dragging = false;
     if (e.button === 1) { this.middleDrag = { x: e.clientX, y: e.clientY }; e.preventDefault(); return; }
+    if (this.inEditor(s)) {
+      const tile = this.tileAt(e.clientX, e.clientY);
+      if (e.button === 0 && this.editorHooks?.pickTile?.(tile.x, tile.y)) return;   // "escolher no mapa" (colina do KotH)
+      if (e.button === 0 || e.button === 2) this.editor!.pointerDown(tile.x, tile.y, e.button, this.mods(e));
+      return;
+    }
     const w = this.worldAt(e.clientX, e.clientY);
     if (e.button === 0) {
       if (s.ui.mode === 'place' && s.ui.placeType) { this.placeAt(w.x, w.y, e.shiftKey); return; }
@@ -71,6 +89,11 @@ export class Input {
     this.mouse.x = e.clientX; this.mouse.y = e.clientY; this.mouse.inside = true;
     const s = this.getSession(); if (!s) return;
     if (this.middleDrag) { this.renderer.cam.pan(-(e.clientX - this.middleDrag.x), -(e.clientY - this.middleDrag.y)); this.middleDrag = { x: e.clientX, y: e.clientY }; return; }
+    if (this.inEditor(s)) {
+      if (this.overHudPoint(e)) { this.editor!.setHover(null); this.hud.hideTooltip(); return; }
+      const tile = this.tileAt(e.clientX, e.clientY);
+      this.editor!.pointerMove(tile.x, tile.y, this.mouse.down && this.mouse.button === 2 ? 2 : 0, this.mods(e));
+    }
     if (this.mouse.down && this.mouse.button === 0 && s.ui.mode === 'normal') {
       if (Math.abs(e.clientX - this.mouse.downX) + Math.abs(e.clientY - this.mouse.downY) > 6) this.mouse.dragging = true;
     }
@@ -99,6 +122,7 @@ export class Input {
     if (e.button === 1) { this.middleDrag = null; }
     if (!s || !this.mouse.down) { this.mouse.down = false; return; }
     this.mouse.down = false;
+    if (this.inEditor(s)) { const tile = this.tileAt(e.clientX, e.clientY); if (e.button === 0 || e.button === 2) this.editor!.pointerUp(tile.x, tile.y, e.button, this.mods(e)); return; }
     if (e.button !== 0) return;
     if (s.ui.mode === 'place' && s.ui.placeType === 'wall') { const w = this.worldAt(e.clientX, e.clientY); const end = { x: Math.floor(w.x), y: Math.floor(w.y) }; if (!this.overHud(e)) this.placeWallLine(s.ui.wallStart ?? end, end, e.shiftKey); s.ui.wallStart = null; return; }
     if (s.ui.mode !== 'normal') return;
@@ -222,6 +246,20 @@ export class Input {
     const tag = (e.target as HTMLElement).tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
     const s = this.getSession(); if (!s) return;
+    if (this.inEditor(s)) {
+      // Editor: nada de pausa, velocidade, grupos, Delete de unidades ou F5; WASD/setas continuam movendo a câmera
+      if (k === 'escape') { this.editorHooks?.menu?.(); return; }
+      if (k === 'f1') { e.preventDefault(); this.hud.showHelp(); return; }
+      if (k === 'f11') { e.preventDefault(); toggleFullscreen(); return; }
+      if (k === 'f2') { e.preventDefault(); this.hud.showEncyclopedia(); return; }
+      if (e.ctrlKey && k === 'm') { this.audio.toggleMute(); return; }
+      if (e.ctrlKey && k === 's') { e.preventDefault(); this.editorHooks?.save?.(); return; }
+      if (e.ctrlKey && k === 'enter') { e.preventDefault(); this.editorHooks?.test?.(); return; }
+      if (k === 'h' && !e.ctrlKey && !e.altKey) { this.editorHooks?.hotkeys?.(); return; }
+      if (!e.ctrlKey && !e.altKey && ['w', 'a', 's', 'd', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(k)) { this.keys.add(k); return; }
+      if (this.editor!.key(e.key, this.mods(e))) e.preventDefault();
+      return;
+    }
     if (k === 'enter' && this.hud.onChat && !this.hud.chatOpen) { e.preventDefault(); this.hud.openChat(); return; }   // bate-papo (partidas online)
     this.keys.add(k);
     if (k === 'escape') { if (s.ui.mode !== 'normal') this.hud.cancelMode(); else if (s.selection.size > 0) s.select([]); else this.hud.showMenu(); return; }
@@ -285,7 +323,7 @@ export class Input {
     const s = this.getSession(); if (!s || this.hud.modalOpen) return;
     const cam = this.renderer.cam; const speed = 900 * dtReal;
     let dx = 0, dy = 0;
-    const free = s.selection.size === 0;   // com unidades ou edifício selecionados, W/A/S/D são atalhos
+    const free = s.selection.size === 0 || this.inEditor(s);   // com unidades ou edifício selecionados, W/A/S/D são atalhos
     if (this.keys.has('arrowleft') || (this.keys.has('a') && this.keys.size === 1 && free)) dx -= 1;
     if (this.keys.has('arrowright') || (this.keys.has('d') && free)) dx += 1;
     if (this.keys.has('arrowup') || (this.keys.has('w') && free)) dy -= 1;
