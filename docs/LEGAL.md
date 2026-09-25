@@ -11,6 +11,7 @@
 | Saves, replays, grupos de controle | `localStorage` e arquivos exportados pelo jogador | Continuar partidas | Até o jogador apagar |
 | Conquistas | Steam (Steamworks) quando disponível | Conquistas na Steam | Conforme a Steam |
 | Nome de jogador, deus escolhido, sala, latência (ping) | Servidor de retransmissão (`server/relay.mjs`), **só em memória** durante a partida | Lobby e multiplayer em lockstep | Descartado ao fechar a sala |
+| Código da sala, nome do anfitrião, vagas e modo (salas marcadas como públicas) | Servidor de retransmissão, só em memória; visível a qualquer jogador conectado ao mesmo servidor que abra a lista de salas | Lista pública de salas | Some quando a sala fecha, inicia ou o anfitrião a torna privada |
 | Comandos da partida (ordens de unidades) e hashes do estado | Retransmitidos entre os jogadores pelo relay; não são gravados no servidor | Sincronizar a partida | Não são armazenados |
 | Mensagens de bate-papo | Retransmitidas pelo relay; não são gravadas | Comunicação na sala/partida | Não são armazenadas |
 | Relatório de dessincronização e diagnóstico | Só no computador do jogador; enviado **apenas** se o jogador exportar e mandar manualmente | Suporte | Controlado pelo jogador |

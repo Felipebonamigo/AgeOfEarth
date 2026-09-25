@@ -1,8 +1,9 @@
 // Cliente WebSocket do lobby/relay (lado do navegador).
 import type { Command, GameConfig } from '../core/types';
 
+export interface RoomSummary { code: string; players: number; host: string; mode: string; mapSize: string; fixedMap: string | null }
 export interface LobbyPlayer { slot: number; name: string; god: string; team: number; ready: boolean; ping?: number }
-export interface LobbyState { host: number; settings: { mapSize: string; ais: number; difficulty: string; seed: number; teams?: string; horde?: boolean; mode?: string; mapType?: string; fixedMap?: { name?: string; w: number; h: number; starts: number } | null }; players: LobbyPlayer[] }
+export interface LobbyState { host: number; settings: { mapSize: string; ais: number; difficulty: string; seed: number; teams?: string; horde?: boolean; mode?: string; mapType?: string; public?: boolean; fixedMap?: { name?: string; w: number; h: number; starts: number } | null }; players: LobbyPlayer[] }
 type Handler = (msg: Record<string, unknown>) => void;
 
 export class NetClient {
@@ -41,6 +42,8 @@ export class NetClient {
   resume() { this.send({ t: 'resume' }); }
   /** Atraso do lockstep (em ticks de 50 ms) a partir da pior latência da sala: metade da ida e volta + folga, entre 2 e 12. */
   static delayFor(pings: number[]): number { const worst = Math.max(0, ...pings.filter((p) => p >= 0)); return Math.max(2, Math.min(12, Math.ceil((worst / 2 + 60) / 50))); }
+  /** Pede a lista de salas públicas abertas; a resposta chega no evento 'rooms'. */
+  list() { this.send({ t: 'list' }); }
   settings(s: Record<string, unknown>) { this.send({ t: 'settings', settings: s }); }
   player(p: Record<string, unknown>) { this.send({ t: 'player', ...p }); }
   start(config: GameConfig, delay = 4) { this.send({ t: 'start', config, delay }); }

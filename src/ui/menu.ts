@@ -4,7 +4,7 @@ import { MAJOR_GODS, MAJOR_GOD_LIST } from '../core/data';
 import type { GameConfig } from '../core/types';
 import { hashString } from '../core/rng';
 import { SCENARIOS } from '../core/scenario/campaign';
-import { NetClient, type LobbyState } from '../net/client';
+import { NetClient, type LobbyState, type RoomSummary } from '../net/client';
 import { t, getLocale, setLocale, LOCALE_NAMES, type Locale } from '../i18n';
 import { optionsHTML, bindOptions, type OptionsContext } from './options';
 import type { FixedMapData } from '../core/map/fixed';
@@ -23,6 +23,9 @@ export class MainMenu {
   private showOptions = false;
   /** Mapa fixo carregado de arquivo para a próxima partida rápida (null = gerar). */
   fixedMap: FixedMapData | null = null;
+  private browsing: NetClient | null = null;   // conexão só para listar salas
+  private browseTimer: ReturnType<typeof setInterval> | null = null;
+  private roomList: RoomSummary[] | null = null;
   private chatLog: { name: string; text: string }[] = [];
   constructor(root: HTMLElement, private cb: MenuCallbacks) {
     this.root = root;
@@ -37,6 +40,31 @@ export class MainMenu {
     if (this.net?.isHost && this.net.lobby) this.net.settings({ fixedMap: d ? { name: d.name, w: d.w, h: d.h, starts: d.starts.length } : null });
     this.render();
   }
+  private roomListHTML(): string {
+    if (!this.browsing) return '';
+    if (!this.roomList) return `<div style="font-size:12px;color:#9aa5b8;margin-top:6px">${t('mp.connecting')}</div>`;
+    if (this.roomList.length === 0) return `<div style="font-size:12px;color:#9aa5b8;margin-top:6px">${t('mp.roomsNone')}</div>`;
+    const modeName = (m: string) => (m === 'horde' ? t('mp.horde') : t(`mode.${m}`)).split(/[:(]/)[0].trim();
+    return `<div style="font-size:12px;color:#9aa5b8;margin-top:6px">${t('mp.roomsTitle')}</div><table style="width:100%;font-size:13px;border-collapse:collapse">${this.roomList.map((r) => `<tr><td><b>${r.code}</b></td><td style="color:#9aa5b8">${t('mp.roomInfo', { host: r.host, n: r.players, mode: modeName(r.mode), map: r.fixedMap ?? t(`map.${r.mapSize}`) })}</td><td align="right"><button class="btn" data-room="${r.code}" style="padding:2px 10px;font-size:12px">${t('mp.enter')}</button></td></tr>`).join('')}</table>`;
+  }
+  private bindRoomList(joinRoom: (room: string) => Promise<void>) {
+    this.el.querySelectorAll('[data-room]').forEach((b) => b.addEventListener('click', () => void joinRoom(String((b as HTMLElement).dataset.room))));
+  }
+  /** Abre uma conexão só para consultar as salas públicas (atualiza a cada 3 s até entrar numa sala ou fechar a lista). */
+  private async startBrowsing(url: string, joinRoom: (room: string) => Promise<void>) {
+    this.stopBrowsing();
+    const net = new NetClient(); this.browsing = net; this.roomList = null; this.netStatus = ''; this.render();
+    net.on('rooms', (m) => { if (this.browsing !== net) return; this.roomList = (m.rooms as RoomSummary[]) ?? []; const box = this.el.querySelector('#mp-rooms'); if (box) { box.innerHTML = this.roomListHTML(); this.bindRoomList(joinRoom); } });
+    net.on('close', () => { if (this.browsing === net) { this.stopBrowsing(); this.netStatus = t('mp.closed'); this.render(); } });
+    try { await net.connect(url); } catch (e) { this.browsing = null; this.netStatus = (e as Error).message; this.render(); return; }
+    net.list();
+    this.browseTimer = setInterval(() => net.list(), 3000);
+  }
+  private stopBrowsing() {
+    if (this.browseTimer) { clearInterval(this.browseTimer); this.browseTimer = null; }
+    if (this.browsing) { const b = this.browsing; this.browsing = null; b.close(); }
+    this.roomList = null;
+  }
   private async loadFixedMap() {
     const json = await importText(); if (!json) return;
     try { const d = JSON.parse(json) as FixedMapData; if (d.v !== 1 || !d.terrain || !d.starts) throw new Error('bad'); this.setFixedMap(d); } catch { alert(t('main.fixedMapBad')); }
@@ -45,6 +73,7 @@ export class MainMenu {
   hide() { this.el.classList.add('hidden'); }
 
   private render() {
+    if (this.tab !== 'multiplayer' && this.browsing) this.stopBrowsing();
     let saved: Partial<{ name: string; god: string; map: string; ais: number; diff: string; teams: string; mode: string; mapType: string }> = {};
     try { saved = JSON.parse(localStorage.getItem('aoe_setup') ?? '{}'); } catch { /* ignore */ }
     this.god = saved.god ?? this.god;
@@ -135,7 +164,8 @@ export class MainMenu {
       return `<p style="color:#9aa5b8;font-size:13px;margin:0 0 8px">${t('mp.intro')}</p>
         <div class="grid"><div><label>${t('mp.server')}</label><input id="mp-url" value="${defaultUrl}"><label>${t('mp.room')}</label><input id="mp-room" value="${saved.room ?? 'OLIMPO'}" maxlength="12"></div>
         <div><label>${t('main.name')}</label><input id="mp-name" value="${saved.name ?? t('main.player')}" maxlength="18"><label>${t('main.god')}</label><select id="mp-god">${MAJOR_GOD_LIST.map((g) => `<option value="${g}">${MAJOR_GODS[g].icon} ${MAJOR_GODS[g].name}</option>`).join('')}</select></div></div>
-        <div class="actions"><button class="btn primary" id="mp-join">${t('mp.join')}</button><span style="color:#ef4444;font-size:13px">${this.netStatus}</span></div>`;
+        <div class="actions"><button class="btn primary" id="mp-join">${t('mp.join')}</button><button class="btn" id="mp-browse">${this.browsing ? t('mp.browseClose') : t('mp.browse')}</button><span style="color:#ef4444;font-size:13px">${this.netStatus}</span></div>
+        <div id="mp-rooms">${this.roomListHTML()}</div>`;
     }
     const me = this.net.slot; const host = lobby.host === me;
     const rows = lobby.players.map((p) => `<tr><td>${p.slot === lobby.host ? '👑 ' : ''}${p.name}${p.slot === me ? ` ${t('mp.you')}` : ''}</td><td>${MAJOR_GODS[p.god]?.icon ?? ''} ${MAJOR_GODS[p.god]?.name ?? p.god}</td><td>${host ? `<select data-team="${p.slot}">${[0, 1, 2, 3].map((k) => `<option value="${k}" ${p.team === k ? 'selected' : ''}>${t('mp.teamN', { n: k + 1 })}</option>`).join('')}</select>` : t('mp.teamN', { n: p.team + 1 })}</td><td class="ping">${(p.ping ?? -1) >= 0 ? `${p.ping} ms` : '…'}</td><td>${host && p.slot !== me ? `<button class="btn" data-kick="${p.slot}" style="padding:2px 8px;font-size:12px">${t('mp.kick')}</button>` : ''}</td></tr>`).join('');
@@ -151,15 +181,17 @@ export class MainMenu {
         <label>${t('mp.ais')}</label><select id="mp-ais" ${host ? '' : 'disabled'}>${[0, 1, 2, 3].map((n) => `<option value="${n}" ${st.ais === n ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
         <div><label>${t('mp.aiDiff')}</label><select id="mp-diff" ${host ? '' : 'disabled'}>${Object.keys(DIFFICULTIES).map((k) => `<option value="${k}" ${st.difficulty === k ? 'selected' : ''}>${t(`diff.${k}`)}</option>`).join('')}</select>
         <label><input type="checkbox" id="mp-horde" ${host ? '' : 'disabled'} ${st.horde ? 'checked' : ''}> ${t('mp.horde')}</label>${st.horde && st.fixedMap ? `<div style="font-size:12px;color:#f2c14e">${t('mp.fixedMapHorde')}</div>` : ''}
+        <label><input type="checkbox" id="mp-public" ${host ? '' : 'disabled'} ${st.public !== false ? 'checked' : ''}> ${t('mp.public')}</label>
         <label>${t('mp.myGod')}</label><select id="mp-mygod">${MAJOR_GOD_LIST.map((g) => `<option value="${g}" ${lobby.players.find((p) => p.slot === me)?.god === g ? 'selected' : ''}>${MAJOR_GODS[g].icon} ${MAJOR_GODS[g].name}</option>`).join('')}</select></div></div>
       <div class="actions">${host ? `<button class="btn primary" id="mp-start">${t('mp.start')}</button>` : `<span style="color:#9aa5b8">${t('mp.waitingHost')}</span>`}<button class="btn" id="mp-leave">${t('mp.leave')}</button><span style="color:#ef4444;font-size:13px">${this.netStatus}</span></div>${chat}`;
   }
 
   private bindMultiplayer() {
     const q = (id: string) => this.el.querySelector(id) as HTMLInputElement | null;
-    q('#mp-join')?.addEventListener('click', async () => {
-      const url = q('#mp-url')!.value.trim(), room = q('#mp-room')!.value.trim() || 'OLIMPO', name = q('#mp-name')!.value.trim() || t('main.player'), god = q('#mp-god')!.value;
+    const joinRoom = async (room: string) => {
+      const url = q('#mp-url')!.value.trim(), name = q('#mp-name')!.value.trim() || t('main.player'), god = q('#mp-god')!.value;
       try { localStorage.setItem('aoe_mp', JSON.stringify({ url, room, name })); } catch { /* ignore */ }
+      this.stopBrowsing();
       const net = new NetClient();
       net.on('lobby', () => { if (this.tab === 'multiplayer') this.render(); });
       net.on('error', (m) => { this.netStatus = String(m.msg); this.render(); });
@@ -172,17 +204,20 @@ export class MainMenu {
       try { await net.connect(url); } catch (e) { this.netStatus = (e as Error).message; this.render(); return; }
       this.net = net; this.netStatus = '';
       net.join(room, name, god);
-    });
+    };
+    q('#mp-join')?.addEventListener('click', () => void joinRoom(q('#mp-room')!.value.trim() || 'OLIMPO'));
+    q('#mp-browse')?.addEventListener('click', () => { if (this.browsing) { this.stopBrowsing(); this.render(); return; } void this.startBrowsing(q('#mp-url')!.value.trim(), joinRoom); });
+    this.bindRoomList(joinRoom);
     q('#mp-leave')?.addEventListener('click', () => { this.net?.close(); this.net = null; this.netStatus = ''; this.render(); });
     const sendChat = () => { const inp = q('#mp-chat-input'); if (!inp || !this.net) return; this.net.chat(inp.value); inp.value = ''; };
     q('#mp-chat-send')?.addEventListener('click', sendChat);
     q('#mp-chat-input')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendChat(); } e.stopPropagation(); });
     this.el.querySelectorAll('[data-kick]').forEach((b) => b.addEventListener('click', () => this.net?.kick(Number((b as HTMLElement).dataset.kick))));
-    const settingsChanged = () => { if (!this.net?.isHost) return; this.net.settings({ mapSize: q('#mp-map')!.value, ais: Number(q('#mp-ais')!.value), difficulty: q('#mp-diff')!.value, horde: !!q('#mp-horde')?.checked, mode: q('#mp-mode')!.value, mapType: q('#mp-maptype')!.value }); };
+    const settingsChanged = () => { if (!this.net?.isHost) return; this.net.settings({ mapSize: q('#mp-map')!.value, ais: Number(q('#mp-ais')!.value), difficulty: q('#mp-diff')!.value, horde: !!q('#mp-horde')?.checked, public: !!q('#mp-public')?.checked, mode: q('#mp-mode')!.value, mapType: q('#mp-maptype')!.value }); };
     q('#mp-fixed-load')?.addEventListener('click', () => void this.loadFixedMap());
     q('#mp-fixed-clear')?.addEventListener('click', () => this.setFixedMap(null));
     q('#mp-mode')?.addEventListener('change', settingsChanged); q('#mp-maptype')?.addEventListener('change', settingsChanged);
-    q('#mp-map')?.addEventListener('change', settingsChanged); q('#mp-ais')?.addEventListener('change', settingsChanged); q('#mp-diff')?.addEventListener('change', settingsChanged); q('#mp-horde')?.addEventListener('change', settingsChanged);
+    q('#mp-map')?.addEventListener('change', settingsChanged); q('#mp-ais')?.addEventListener('change', settingsChanged); q('#mp-diff')?.addEventListener('change', settingsChanged); q('#mp-horde')?.addEventListener('change', settingsChanged); q('#mp-public')?.addEventListener('change', settingsChanged);
     q('#mp-mygod')?.addEventListener('change', () => this.net?.player({ god: q('#mp-mygod')!.value }));
     this.el.querySelectorAll('[data-team]').forEach((sel) => sel.addEventListener('change', () => this.net?.player({ slot: Number((sel as HTMLElement).dataset.team), team: Number((sel as HTMLSelectElement).value) })));
     q('#mp-start')?.addEventListener('click', () => {

@@ -39,6 +39,10 @@ wss.on('connection', (ws) => {
       broadcast(r, lobbyState(r));
       return;
     }
+    if (msg.t === 'list') {   // salas públicas abertas (antes de entrar em alguma)
+      const open = [...rooms.entries()].filter(([, r]) => r.settings.public !== false && !r.started && r.clients.size > 0);
+      return send(ws, { t: 'rooms', rooms: open.map(([code, r]) => ({ code, players: r.clients.size, host: r.clients.get(r.host)?.name ?? '?', mode: r.settings.horde ? 'horde' : (r.settings.mode ?? 'conquest'), mapSize: r.settings.mapSize, fixedMap: r.settings.fixedMap?.name ?? null })) });
+    }
     if (!room) return;
     switch (msg.t) {
       case 'settings': if (slot === room.host && msg.settings) { room.settings = { ...room.settings, ...msg.settings }; broadcast(room, lobbyState(room)); } break;

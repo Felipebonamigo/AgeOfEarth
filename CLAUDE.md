@@ -9,7 +9,7 @@ Idioma da interface e dos comentários: português (Brasil). Código em inglês.
 - `npm run smoke 20 42` — IA x IA por 20 min de jogo (semente 42) sem interface · `npm run balance 35 1,2,3`
 - `npx tsx scripts/missions.ts` — valida as missões da campanha · `npx tsx scripts/horde.ts` — valida o Modo Horda
 - `npm run relay` — servidor de multiplayer (porta 8787)
-- `node scripts/playtest.mjs` / `playtest-campaign.mjs` / `playtest-mp.mjs` / `playtest-reconnect.mjs` / `playtest-options.mjs` / `playtest-i18n.mjs` / `playtest-modes.mjs` / `playtest-horde-replay.mjs` / `playtest-fixedmap.mjs` / `playtest-mp-fixedmap.mjs` / `actionshot.mjs` — Chromium headless (Playwright); exigem `npm run preview` e, para o multiplayer, `npm run relay`
+- `node scripts/playtest.mjs` / `playtest-campaign.mjs` / `playtest-mp.mjs` / `playtest-reconnect.mjs` / `playtest-options.mjs` / `playtest-i18n.mjs` / `playtest-modes.mjs` / `playtest-horde-replay.mjs` / `playtest-fixedmap.mjs` / `playtest-mp-fixedmap.mjs` / `playtest-rooms.mjs` / `actionshot.mjs` — Chromium headless (Playwright); exigem `npm run preview` e, para o multiplayer, `npm run relay`
 - Chromium do Playwright: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` neste ambiente; use `--use-gl=swiftshader --enable-unsafe-swiftshader`
 
 ## Regras do núcleo (`src/core`)
