@@ -56,7 +56,7 @@ button { font-family: inherit; cursor: pointer; }
 .cmd:disabled { opacity: 0.4; }
 .cmd.active { border-color: var(--ok); box-shadow: 0 0 0 1px var(--ok) inset; }
 .cmd.used { opacity: 0.35; }
-.cmd .lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.cmd .lbl { max-width: 100%; text-align: center; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 9.5px; }
 
 #gods { position: absolute; right: 10px; top: 52px; display: flex; flex-direction: column; gap: 6px; }
 #gods .pw { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; cursor: pointer; font-size: 12px; min-width: 190px; }

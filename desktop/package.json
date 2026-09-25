@@ -1,0 +1,31 @@
+{
+  "name": "age-of-earth-desktop",
+  "version": "0.1.0",
+  "description": "Empacotamento desktop (Electron) do Age of Earth para Steam/Windows/Linux/macOS.",
+  "main": "main.cjs",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win --x64",
+    "dist:linux": "electron-builder --linux --x64",
+    "dist:mac": "electron-builder --mac"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "optionalDependencies": {
+    "steamworks.js": "^0.4.0"
+  },
+  "build": {
+    "appId": "com.ageofearth.game",
+    "productName": "Age of Earth",
+    "files": ["main.cjs", "preload.cjs", "steam_appid.txt", { "from": "../dist", "to": "app" }],
+    "directories": { "output": "release" },
+    "win": { "target": ["dir"], "icon": "icon.ico" },
+    "linux": { "target": ["dir"], "category": "Game" },
+    "mac": { "target": ["dir"], "category": "public.app-category.games" },
+    "asar": true,
+    "asarUnpack": ["node_modules/steamworks.js/**"]
+  }
+}

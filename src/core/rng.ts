@@ -1,4 +1,4 @@
-// Gerador pseudoaleatório determinístico (mulberry32) e ruído 2D. Sem Math.random.
+// Gerador pseudoaleatório determinístico (mulberry32) e ruído 2D. Nunca usa a aleatoriedade nativa do JS.
 
 export function hashString(str: string): number {
   let h = 2166136261 >>> 0;

@@ -62,7 +62,7 @@ export function startOrder(state: GameState, u: Unit, order: Order): void {
       if (!def.canGather) { finishOrder(state, u); return; }
       const b = state.buildings.get(order.targetId!);
       if (!b || b.dead || b.owner !== u.owner || !BUILDINGS[b.type].worship || !b.complete) { finishOrder(state, u); return; }
-      u.state = 'move'; u.targetId = b.id; u.nodeId = 0; break;   // ao chegar adjacente vira 'pray'
+      u.state = 'move'; u.targetId = b.id; u.nodeId = 0; u.tx = b.x; u.ty = b.y; break;   // ao chegar adjacente vira 'pray'
     }
   }
 }
@@ -96,14 +96,15 @@ export function updateUnit(state: GameState, rt: Runtime, u: Unit, dt: number): 
       return;
     }
     case 'move': {
-      const arrived = moveTowards(state, rt, u, stats.speed * dt, u.tx, u.ty, null);
-      if (arrived) {
-        if (u.order?.type === 'pray') {
-          const b = state.buildings.get(u.targetId);
-          if (b && !b.dead) { u.state = 'pray'; u.nodeId = -b.id; u.path = null; return; }
-        }
-        finishOrder(state, u);
+      if (u.order?.type === 'pray') {
+        const b = state.buildings.get(u.targetId);
+        if (!b || b.dead) { finishOrder(state, u); return; }
+        const arrived = moveTowards(state, rt, u, stats.speed * dt, b.x, b.y, { tx: b.tx, ty: b.ty, w: b.w, h: b.h }, 0.95, true);
+        if (arrived) { u.state = 'pray'; u.nodeId = -b.id; u.path = null; u.order = null; }
+        return;
       }
+      const arrived = moveTowards(state, rt, u, stats.speed * dt, u.tx, u.ty, null);
+      if (arrived) finishOrder(state, u);
       return;
     }
     case 'attackMove': {

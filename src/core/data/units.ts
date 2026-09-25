@@ -71,7 +71,7 @@ export const UNITS: Record<string, UnitDef> = {
     name: 'Hetairo', plural: 'Hetairoi', icon: '🐎', cls: 'cavalry',
     cost: { food: 100, gold: 80 }, hp: 190, attack: 14, attackType: 'hack',
     armor: { hack: 0.25, pierce: 0.3, crush: 0.1 }, range: 0.7, speed: 3.4, los: 8, trainTime: 22, pop: 3, radius: 0.36,
-    tags: ['cavalry', 'human', 'military'], bonus: { archer: 1.5, skirmisher: 1.5, siege: 1.5 }, building: 'stable', age: 2, hotkey: 'W',
+    tags: ['cavalry', 'human', 'military'], bonus: { archer: 1.5, skirmisher: 1.5, siege: 1.5 }, building: 'stable', age: 2, hotkey: 'E',
     desc: 'Cavalaria pesada dos companheiros do rei. Forte contra arqueiros e cerco.',
   },
   petrobolos: { id: 'petrobolos',

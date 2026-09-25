@@ -327,7 +327,7 @@ export class HUD {
           const tip = `<b>${def.name}</b><div class="cost">${fmtCost(cost, p)}</div><div class="desc">${def.desc}</div>${reasons.length ? `<div style="color:#ef4444;margin-top:4px">${reasons.join(' · ')}</div>` : ''}`;
           add(def.icon, def.name, tip, def.hotkey ?? null, () => this.startPlacement(type), { disabled: reasons.length > 0, active: s.ui.mode === 'place' && s.ui.placeType === type });
         }
-        add('✋', 'Parar', '<b>Parar</b><div class="desc">Cancela a ordem atual.</div>', 'S', () => { s.issue({ type: 'stop', player: s.local, ids: units.map((u) => u.id) }); });
+        add('✋', 'Parar', '<b>Parar</b><div class="desc">Cancela a ordem atual (Shift+S com cidadãos).</div>', '⇧S', () => { s.issue({ type: 'stop', player: s.local, ids: units.map((u) => u.id) }); });
       } else {
         const ids = units.map((u) => u.id);
         add('⚔️', 'Atacar-mover', '<b>Atacar-mover</b><div class="desc">Move atacando qualquer inimigo no caminho.</div>', 'A', () => { s.ui.mode = 'attackMove'; document.body.className = 'cur-attack'; this.lastCmdKey = ''; this.refreshCommands(true); }, { active: s.ui.mode === 'attackMove' });

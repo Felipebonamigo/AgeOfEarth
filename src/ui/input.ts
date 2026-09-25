@@ -119,7 +119,7 @@ export class Input {
     const ent = this.renderer.pick(s.state, w.x, w.y, s.local);
     const now = performance.now();
     if (ent) {
-      if (now - this.lastClick < 350 && this.lastClickId === ent.id && ent.kind === 'unit' && ent.owner === s.local) {
+      if (now - this.lastClick < 450 && this.lastClickId === ent.id && ent.kind === 'unit' && ent.owner === s.local) {
         // duplo clique: todas do mesmo tipo visíveis na tela
         const vt = this.renderer.cam.visibleTiles();
         const ids: number[] = [];
@@ -233,9 +233,9 @@ export class Input {
     const units = s.ownSelectedUnits(); const b = s.ownSelectedBuilding();
     if (units.length > 0) {
       const villagersOnly = units.every((u) => !!UNITS[u.type].canBuild);
-      if (k === 's') { s.issue({ type: 'stop', player: s.local, ids: units.map((u) => u.id) }); return; }
+      if (k === 's' && (!villagersOnly || e.shiftKey)) { s.issue({ type: 'stop', player: s.local, ids: units.map((u) => u.id) }); return; }
       if (k === 'a' && !villagersOnly) { s.ui.mode = 'attackMove'; document.body.className = 'cur-attack'; this.hud.refreshCommands(true); return; }
-      if (villagersOnly) {
+      if (villagersOnly && !e.ctrlKey && !e.altKey) {
         const keyU = e.key.toUpperCase();
         const cands = (BUILD_HOTKEYS[keyU] ?? '').split(',').filter(Boolean);
         if (cands.length > 0) {
