@@ -81,7 +81,7 @@ export class MapEditor {
     const src = migrateMap(file);
     this.view = view;
     this.now = opts.now ?? (() => (typeof performance !== 'undefined' ? performance.now() : Date.now()));
-    this.meta = { id: src.id, name: src.name, nameEn: src.nameEn, author: src.author, description: src.description, startKit: src.startKit, startTeams: src.startTeams?.slice(), koth: src.koth ? [src.koth[0], src.koth[1]] : undefined, relics: src.relics };
+    this.meta = { id: src.id, name: src.name, nameEn: src.nameEn, author: src.author, description: src.description, startKit: src.startKit, startTeams: src.startTeams?.slice(), koth: src.koth ? [src.koth[0], src.koth[1]] : undefined, relics: src.relics, scenario: src.scenario && typeof src.scenario === 'object' ? src.scenario : undefined };   // cenário embutido (Etapa 5) viaja com o mapa
     for (const k of Object.keys(this.meta) as (keyof MapMeta)[]) if (this.meta[k] === undefined) delete this.meta[k];
     // A sessão nasce com MAX_PLAYERS jogadores fictícios (humanos, deuses em rodízio) para que qualquer início que o
     // autor acrescente já tenha um Player; createGame exige um início por jogador, então os inícios são preenchidos

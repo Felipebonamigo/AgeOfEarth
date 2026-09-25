@@ -290,7 +290,6 @@ async function boot() {
     let ed: MapEditor;
     try { ed = new MapEditor(file, editorView); } catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); menu.show(); return; }
     // O cenário embutido acompanha o mapa no editor (MapEditor só copia os metadados do terreno; setMeta não deve sujar o documento aqui)
-    if (file.scenario && typeof file.scenario === 'object' && !ed.meta.scenario) { ed.setMeta({ scenario: file.scenario }); ed.dirty = false; }
     if (editorOrTest()) leaveEditorView();
     editor = ed; returnToEditor = false; editorCam = null;
     showEditor(ed, null);
