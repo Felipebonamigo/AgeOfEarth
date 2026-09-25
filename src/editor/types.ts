@@ -29,16 +29,18 @@ export function defaultEditorUI(): EditorUI {
   return { tool: 'terrain', terrain: 0, brushRadius: 2, brushShape: 'circle', nodeType: 'tree', nodeAmount: null, buildingType: 'tower', unitType: 'hoplite', player: 0, complete: true, hover: null, ghostOk: false, lineFrom: null, showGrid: false, showRegions: false, showPassable: false, showKit: true, selected: null, flash: null };
 }
 
-/** Operações do editor. Cada uma tem inversa exata (applyEditOp devolve-a). Tiles são índices y*w+x. */
+/** Operações do editor. Cada uma tem inversa exata (applyEditOp devolve-a). Tiles são índices y*w+x.
+ *  Os campos opcionais (terrains, id, nextId, insert) são preenchidos pelas inversas para restaurar o estado byte a byte;
+ *  a interface normalmente não os usa. */
 export type EditOp =
-  | { kind: 'paint'; tiles: number[]; terrain: number }
-  | { kind: 'addNode'; type: NodeType; x: number; y: number; amount?: number }
+  | { kind: 'paint'; tiles: number[]; terrain: number; terrains?: number[] }   // terrains: terreno por tile (inversa); senão terrain para todos
+  | { kind: 'addNode'; type: NodeType; x: number; y: number; amount?: number; id?: number }   // id: força o id do nó (inversa de removeNode)
   | { kind: 'removeNode'; x: number; y: number }
   | { kind: 'setNodeAmount'; x: number; y: number; amount: number }
-  | { kind: 'setStart'; index: number; x: number; y: number }     // index === starts.length acrescenta um início
+  | { kind: 'setStart'; index: number; x: number; y: number; insert?: boolean }   // index === starts.length acrescenta um início; insert desloca os seguintes
   | { kind: 'removeStart'; index: number }
-  | { kind: 'placeEntity'; entity: MapEntity }
-  | { kind: 'removeEntity'; id: number }                            // id de unidade ou edifício vivo
+  | { kind: 'placeEntity'; entity: MapEntity; id?: number }         // id: força o id (inversa de removeEntity)
+  | { kind: 'removeEntity'; id: number; nextId?: number }            // id de unidade ou edifício vivo; nextId: restaura state.nextId (inversa de placeEntity)
   | { kind: 'setEntity'; id: number; owner?: number; complete?: boolean; tag?: string | null }
   | { kind: 'moveEntity'; id: number; x: number; y: number }        // edifício: canto; unidade: tile
   | { kind: 'batch'; ops: EditOp[] };
