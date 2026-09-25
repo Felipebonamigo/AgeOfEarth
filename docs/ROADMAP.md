@@ -71,7 +71,7 @@ Marco **M4 (semana 22)**: partidas online estáveis pela Steam.
 ## Fase 5 — Profundidade e conteúdo · semanas 14–26
 | # | Passo | Resp. | Semanas |
 |---|---|---|---|
-| 5.1 | Novos modos: Regicídio, Rei da Colina, Deathmatch; mapas por tipo (ilhas, montanhas, deserto) | A | 14–18 |
+| 5.1 | ✅ Modos Deathmatch, Regicídio (rei 👑 por jogador; a IA o guarnece) e Rei da Colina (colina central, 4 min); tipos de mapa Continental, Montanhoso, Florestas, Deserto e Lagos (skirmish e lobby). Pendente: ilhas (depende do naval, 5.3) | A | 14–18 |
 | 5.2 | Heróis com habilidades ativas e veterania; relíquias; formações de exército | A | 16–22 |
 | 5.3 | Naval (água navegável, transportes, trirremes) — opcional; se não couber, fica pós-lançamento | A | 20–26 |
 | 5.4 | Segundo panteão (Egípcio ou Nórdico) — planejar como DLC pós-lançamento | A + T | pós-lançamento |

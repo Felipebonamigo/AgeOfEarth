@@ -1,6 +1,6 @@
 // Renderizador PixiJS: chunks de terreno, fronteiras, entidades interpoladas, efeitos, névoa e overlays.
 import { Application, Container, Graphics, Sprite, Texture, Rectangle, Text, TextStyle } from 'pixi.js';
-import { TILE, TICK_RATE, PLAYER_COLORS } from '../core/constants';
+import { TILE, TICK_RATE, PLAYER_COLORS, KOTH_RADIUS } from '../core/constants';
 import { BUILDINGS, UNITS } from '../core/data';
 import type { Building, GameState, Unit, VisualEffect } from '../core/types';
 import { Camera } from './camera';
@@ -293,6 +293,15 @@ export class Renderer {
     const g = this.layers.ground; g.clear();
     const hp = this.layers.hp; hp.clear();
     const local = ui.localPlayer;
+    if (state.koth) {   // Rei da Colina: anel da colina na cor do time que a segura
+      const k = state.koth;
+      const holder = k.team === -1 ? null : state.players.find((p) => p.team === k.team);
+      const color = holder ? PLAYER_COLORS[holder.id % PLAYER_COLORS.length].num : 0xf2c14e;
+      const pulse = 1 + 0.03 * Math.sin(performance.now() / 300);
+      g.circle(k.x * TILE, k.y * TILE, KOTH_RADIUS * TILE * pulse).stroke({ width: 3, color, alpha: 0.85 });
+      g.circle(k.x * TILE, k.y * TILE, KOTH_RADIUS * TILE).fill({ color, alpha: 0.08 });
+      g.circle(k.x * TILE, k.y * TILE, 6).fill({ color: 0xf2c14e, alpha: 0.9 });
+    }
     for (const id of ui.selection) {
       const e = state.units.get(id) ?? state.buildings.get(id);
       if (!e) continue;

@@ -1,7 +1,9 @@
 // Condições de vitória: conquista (eliminar todos) ou maravilha mantida por 6 minutos.
 import { BUILDINGS } from '../data';
+import { KOTH_SECONDS } from '../constants';
 import type { GameState } from '../types';
 import { t } from '../../i18n';
+import { kingAlive, teamNames } from './modes';
 
 export function checkVictory(state: GameState): void {
   if (state.gameOver) return;
@@ -10,7 +12,9 @@ export function checkVictory(state: GameState): void {
     let hasBuilding = false, hasVillager = false;
     for (const b of state.buildings.values()) if (b.owner === p.id && !b.dead && !BUILDINGS[b.type].wall && !BUILDINGS[b.type].farm) { hasBuilding = true; break; }
     if (!hasBuilding) for (const u of state.units.values()) if (u.owner === p.id && !u.dead && u.type === 'villager') { hasVillager = true; break; }
-    if (!hasBuilding && !hasVillager) {
+    const kingDead = state.config.mode === 'regicide' && !kingAlive(state, p.id);   // Regicídio: sem rei, o reino cai
+    if (kingDead) state.events.push({ tick: state.tick, type: 'kingDied', player: p.id, text: t('ev.kingDied', { player: p.name }) });
+    if ((!hasBuilding && !hasVillager) || kingDead) {
       p.alive = false; p.defeatedTick = state.tick;
       state.events.push({ tick: state.tick, type: 'defeated', player: p.id, text: t('ev.defeated', { player: p.name }) });
       // unidades restantes do derrotado desaparecem
@@ -25,6 +29,11 @@ export function checkVictory(state: GameState): void {
     state.gameOver = true; state.winner = w.id;
     state.events.push({ tick: state.tick, type: 'victory', player: w.id, text: alive.length > 1 ? t('ev.victoryAlliance', { players: alive.map((p) => p.name).join(' & ') }) : t('ev.victoryConquest', { player: w.name }) });
     return;
+  }
+  if (state.koth && state.koth.team !== -1 && state.koth.seconds >= KOTH_SECONDS) {
+    const tm = state.koth.team;
+    const w = alive.find((p) => p.team === tm && !p.isAI) ?? alive.find((p) => p.team === tm);
+    if (w) { state.gameOver = true; state.winner = w.id; state.events.push({ tick: state.tick, type: 'victory', player: w.id, text: t('ev.victoryKoth', { players: teamNames(state, tm) }) }); return; }
   }
   for (const p of alive) if (p.wonderVictoryAt >= 0) {
     state.gameOver = true; state.winner = p.id;

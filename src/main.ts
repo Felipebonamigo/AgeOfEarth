@@ -72,6 +72,8 @@ async function boot() {
     if (home) renderer.cam.centerOn(home.x, home.y);
     hud.setSession(session); hud.setVisible(true); menu.hide();
     hud.toast(t('msg.welcome', { name: session.player.name, god: MAJOR_GODS[session.state.players[session.local].god]?.name ?? '' }), 'gold');
+    if (config.mode === 'regicide') hud.toast(t('msg.regicideStart'), 'info');
+    if (config.mode === 'koth') hud.toast(t('msg.kothStart', { min: 4 }), 'info');
   };
   const loadGame = () => {
     try {

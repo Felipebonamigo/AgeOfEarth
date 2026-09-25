@@ -1,5 +1,5 @@
 // Menu principal: configuração da partida (nome, deus, mapa, oponentes, dificuldade, semente).
-import { DIFFICULTIES, MAP_SIZES, type Difficulty, type MapSize } from '../core/constants';
+import { DIFFICULTIES, MAP_SIZES, GAME_MODES, MAP_TYPES, type Difficulty, type MapSize, type GameMode, type MapType } from '../core/constants';
 import { MAJOR_GODS, MAJOR_GOD_LIST } from '../core/data';
 import type { GameConfig } from '../core/types';
 import { hashString } from '../core/rng';
@@ -29,7 +29,7 @@ export class MainMenu {
   hide() { this.el.classList.add('hidden'); }
 
   private render() {
-    let saved: Partial<{ name: string; god: string; map: string; ais: number; diff: string; teams: string }> = {};
+    let saved: Partial<{ name: string; god: string; map: string; ais: number; diff: string; teams: string; mode: string; mapType: string }> = {};
     try { saved = JSON.parse(localStorage.getItem('aoe_setup') ?? '{}'); } catch { /* ignore */ }
     this.god = saved.god ?? this.god;
     let completed: string[] = [];
@@ -54,6 +54,8 @@ export class MainMenu {
           <label>${t('main.opponents')}</label><select id="m-ais">${[1, 2, 3].map((n) => `<option value="${n}" ${(saved.ais ?? 1) === n ? 'selected' : ''}>${n}</option>`).join('')}</select>
           <label>${t('main.difficulty')}</label><select id="m-diff">${Object.keys(DIFFICULTIES).map((k) => `<option value="${k}" ${(saved.diff ?? 'normal') === k ? 'selected' : ''}>${t(`diff.${k}`)}</option>`).join('')}</select>
           <label>${t('main.teams')}</label><select id="m-teams"><option value="ffa" ${(saved.teams ?? 'ffa') === 'ffa' ? 'selected' : ''}>${t('main.teams.ffa')}</option><option value="coop" ${saved.teams === 'coop' ? 'selected' : ''}>${t('main.teams.coop')}</option><option value="alliance" ${saved.teams === 'alliance' ? 'selected' : ''}>${t('main.teams.alliance')}</option></select>
+          <label>${t('main.mode')}</label><select id="m-mode">${GAME_MODES.map((m) => `<option value="${m}" ${(saved.mode ?? 'conquest') === m ? 'selected' : ''}>${t(`mode.${m}`)}</option>`).join('')}</select>
+          <label>${t('main.mapType')}</label><select id="m-maptype">${MAP_TYPES.map((m) => `<option value="${m}" ${(saved.mapType ?? 'continental') === m ? 'selected' : ''}>${t(`maptype.${m}`)}</option>`).join('')}</select>
           <label>${t('main.aiGods')}</label><select id="m-aigod"><option value="random">${t('main.randomGods')}</option>${MAJOR_GOD_LIST.map((g) => `<option value="${g}">${MAJOR_GODS[g].name}</option>`).join('')}</select>
           <label><input type="checkbox" id="m-reveal"> ${t('main.reveal')}</label>
         </div>
@@ -90,8 +92,9 @@ export class MainMenu {
         const team = teams === 'ffa' ? i + 1 : teams === 'coop' ? (i === 0 ? 0 : i + 1) : 1;
         players.push({ name: `${names[(seed + i) % names.length]} (IA)`, god: aiGod === 'random' ? gods[(seed + i * 7) % gods.length] : aiGod, isAI: true, difficulty: diff, team });
       }
-      try { localStorage.setItem('aoe_setup', JSON.stringify({ name, god: this.god, map, ais, diff, teams })); } catch { /* ignore */ }
-      this.cb.onStart({ seed, mapSize: map, players, revealMap: q('#m-reveal').checked });
+      const mode = q('#m-mode').value as GameMode, mapType = q('#m-maptype').value as MapType;
+      try { localStorage.setItem('aoe_setup', JSON.stringify({ name, god: this.god, map, ais, diff, teams, mode, mapType })); } catch { /* ignore */ }
+      this.cb.onStart({ seed, mapSize: map, players, revealMap: q('#m-reveal').checked, mode, mapType });
     });
     q('#m-load').addEventListener('click', () => this.cb.onLoad());
     q('#m-horde').addEventListener('click', () => this.cb.onHorde(this.god, q('#m-diff').value as Difficulty));
@@ -122,6 +125,8 @@ export class MainMenu {
       <table style="width:100%;font-size:13px;margin:8px 0;border-collapse:collapse"><tr style="color:#9aa5b8"><th align="left">${t('mp.player')}</th><th align="left">${t('mp.god')}</th><th align="left">${t('mp.team')}</th><th align="left">${t('mp.ping')}</th><th></th></tr>${rows}</table>
       <div class="grid"><div>
         <label>${t('main.mapSize')}</label><select id="mp-map" ${host ? '' : 'disabled'}>${Object.keys(MAP_SIZES).map((k) => `<option value="${k}" ${st.mapSize === k ? 'selected' : ''}>${t(`map.${k}`)}</option>`).join('')}</select>
+        <label>${t('main.mode')}</label><select id="mp-mode" ${host ? '' : 'disabled'}>${GAME_MODES.map((m) => `<option value="${m}" ${(st.mode ?? 'conquest') === m ? 'selected' : ''}>${t(`mode.${m}`)}</option>`).join('')}</select>
+        <label>${t('main.mapType')}</label><select id="mp-maptype" ${host ? '' : 'disabled'}>${MAP_TYPES.map((m) => `<option value="${m}" ${(st.mapType ?? 'continental') === m ? 'selected' : ''}>${t(`maptype.${m}`)}</option>`).join('')}</select>
         <label>${t('mp.ais')}</label><select id="mp-ais" ${host ? '' : 'disabled'}>${[0, 1, 2, 3].map((n) => `<option value="${n}" ${st.ais === n ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
         <div><label>${t('mp.aiDiff')}</label><select id="mp-diff" ${host ? '' : 'disabled'}>${Object.keys(DIFFICULTIES).map((k) => `<option value="${k}" ${st.difficulty === k ? 'selected' : ''}>${t(`diff.${k}`)}</option>`).join('')}</select>
         <label><input type="checkbox" id="mp-horde" ${host ? '' : 'disabled'} ${st.horde ? 'checked' : ''}> ${t('mp.horde')}</label>
@@ -152,7 +157,8 @@ export class MainMenu {
     q('#mp-chat-send')?.addEventListener('click', sendChat);
     q('#mp-chat-input')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendChat(); } e.stopPropagation(); });
     this.el.querySelectorAll('[data-kick]').forEach((b) => b.addEventListener('click', () => this.net?.kick(Number((b as HTMLElement).dataset.kick))));
-    const settingsChanged = () => { if (!this.net?.isHost) return; this.net.settings({ mapSize: q('#mp-map')!.value, ais: Number(q('#mp-ais')!.value), difficulty: q('#mp-diff')!.value, horde: !!q('#mp-horde')?.checked }); };
+    const settingsChanged = () => { if (!this.net?.isHost) return; this.net.settings({ mapSize: q('#mp-map')!.value, ais: Number(q('#mp-ais')!.value), difficulty: q('#mp-diff')!.value, horde: !!q('#mp-horde')?.checked, mode: q('#mp-mode')!.value, mapType: q('#mp-maptype')!.value }); };
+    q('#mp-mode')?.addEventListener('change', settingsChanged); q('#mp-maptype')?.addEventListener('change', settingsChanged);
     q('#mp-map')?.addEventListener('change', settingsChanged); q('#mp-ais')?.addEventListener('change', settingsChanged); q('#mp-diff')?.addEventListener('change', settingsChanged); q('#mp-horde')?.addEventListener('change', settingsChanged);
     q('#mp-mygod')?.addEventListener('change', () => this.net?.player({ god: q('#mp-mygod')!.value }));
     this.el.querySelectorAll('[data-team]').forEach((sel) => sel.addEventListener('change', () => this.net?.player({ slot: Number((sel as HTMLElement).dataset.team), team: Number((sel as HTMLSelectElement).value) })));
@@ -171,7 +177,7 @@ export class MainMenu {
         return;
       }
       if (players.length > 4) { this.netStatus = t('mp.max4'); this.render(); return; }
-      net.start({ seed: st.seed >>> 0, mapSize: st.mapSize as MapSize, players }, delay);
+      net.start({ seed: st.seed >>> 0, mapSize: st.mapSize as MapSize, players, mode: (st.mode ?? 'conquest') as GameMode, mapType: (st.mapType ?? 'continental') as MapType }, delay);
     });
   }
 }

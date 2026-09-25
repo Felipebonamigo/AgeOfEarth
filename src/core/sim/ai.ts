@@ -37,6 +37,7 @@ export function aiThink(state: GameState, player: Player): void {
   const snap = snapshot(state, player);
   if (!snap.tc && snap.villagers.length === 0) return;
   tryAdvanceAge(state, player, snap);
+  manageKing(state, player, snap);
   manageEconomy(state, player, snap);
   manageBuilding(state, player, snap);
   manageTraining(state, player, snap);
@@ -70,6 +71,16 @@ function snapshot(state: GameState, player: Player): Snapshot {
     buildings, byType, tc: tcs.find((b) => b.complete) ?? tcs[0] ?? null, underConstruction: buildings.filter((b) => !b.complete),
     gatherers, enemies: state.players.filter((p) => isEnemy(state, player.id, p.id) && p.alive),
   };
+}
+
+// ---------------- Regicídio ----------------
+/** Rei fora de um edifício vai para o Centro Cívico/Fortaleza mais próximo com vaga. */
+function manageKing(state: GameState, player: Player, snap: Snapshot): void {
+  if (state.config.mode !== 'regicide') return;
+  const king = [...state.units.values()].find((u) => u.owner === player.id && !u.dead && UNITS[u.type].tags.includes('king'));
+  if (!king || king.inside !== -1 || king.state === 'move') return;
+  const shelter = snap.buildings.filter((b) => b.complete && (b.type === 'fortress' || b.type === 'town_center') && b.garrison.length < (BUILDINGS[b.type].garrison ?? 0)).sort((a, b) => dist(a.x, a.y, king.x, king.y) - dist(b.x, b.y, king.x, king.y))[0];
+  if (shelter) applyCommand(state, { type: 'garrison', player: player.id, ids: [king.id], targetId: shelter.id });
 }
 
 // ---------------- Economia ----------------
@@ -532,6 +543,7 @@ function manageArmy(state: GameState, player: Player, snap: Snapshot): void {
   const tc = snap.tc;
   const dir = enemyDirection(state, player, tc);
   ai.rallyX = tc.x + dir.x * 7; ai.rallyY = tc.y + dir.y * 7;
+  if (state.koth) { ai.rallyX = state.koth.x; ai.rallyY = state.koth.y; }   // Rei da Colina: o exército se reúne na colina e a disputa
   // 1) Ameaças perto dos meus edifícios e dos edifícios de aliados
   let threat: Unit | null = null, threatD = Infinity;
   const guarded: Building[] = [...snap.buildings];

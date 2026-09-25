@@ -62,6 +62,14 @@ export type Stance = keyof typeof STANCES;
 
 export const GARRISON_TAGS: ReadonlySet<string> = new Set(['civilian', 'infantry', 'archer', 'skirmisher', 'hero']);
 export const GARRISON_HEAL = 1;          // vida/s recuperada dentro de um edifício
+// Modos de jogo e tipos de mapa (Fase 5.1)
+export type GameMode = 'conquest' | 'deathmatch' | 'regicide' | 'koth';
+export const GAME_MODES: GameMode[] = ['conquest', 'deathmatch', 'regicide', 'koth'];
+export type MapType = 'continental' | 'mountains' | 'forest' | 'desert' | 'lakes';
+export const MAP_TYPES: MapType[] = ['continental', 'mountains', 'forest', 'desert', 'lakes'];
+export const KOTH_RADIUS = 6;          // raio da colina (tiles)
+export const KOTH_SECONDS = 240;       // segundos seguidos segurando a colina sozinho para vencer
+export const DEATHMATCH_RESOURCES = { food: 4000, wood: 4000, gold: 3000, knowledge: 300, favor: 150 } as const;
 export const MARKET_BASE_PRICE = 100;   // ouro por 100 unidades
 export const MARKET_TRADE_LOT = 100;
 export const MARKET_TAX = 0.3;

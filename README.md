@@ -26,7 +26,7 @@ Versão otimizada: `npm run build` e `npm run preview`.
 - Opções (menu principal e menu da partida): volume, tela cheia (F11), tamanho da interface, qualidade de renderização, idioma (PT-BR/EN).
 
 ## Modos de jogo
-- **Partida rápida**: você contra 1–3 IAs, todos contra todos, cooperativo (você + IA aliada) ou contra uma aliança.
+- **Partida rápida**: você contra 1–3 IAs, todos contra todos, cooperativo (você + IA aliada) ou contra uma aliança. Modos: **Conquista**, **Deathmatch** (cofres cheios), **Regicídio** (proteja o rei) e **Rei da Colina** (segure a colina central por 4 min). Tipos de mapa: continental, montanhoso, florestas, deserto e lagos.
 - **Campanha** "A Sombra dos Titãs": prólogo em 3 missões com objetivos, diálogos e gatilhos (tutorial → cerco → corrida contra o Portal dos Titãs).
 - **Modo Horda**: sobreviva a 20 ondas do Tártaro, solo ou em cooperativo online (todos no mesmo time).
 - **Replays**: a última partida local fica gravada (só os comandos) e pode ser assistida no menu.

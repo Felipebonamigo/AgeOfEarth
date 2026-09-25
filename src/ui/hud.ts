@@ -1,6 +1,7 @@
 // Interface em DOM: barra de recursos, painel de seleção, grade de comandos, poderes divinos,
 // minimapa, mensagens, tooltips e modais (deuses menores, menu, ajuda, enciclopédia, fim de jogo).
-import { RESOURCES, RESOURCE_ICONS, STANCES, TICK_RATE, MAX_SCHOLARS, SCHOLAR_COST, WONDER_VICTORY_SECONDS, type ResourceType, type Stance } from '../core/constants';
+import { RESOURCES, RESOURCE_ICONS, STANCES, TICK_RATE, MAX_SCHOLARS, SCHOLAR_COST, WONDER_VICTORY_SECONDS, KOTH_SECONDS, type ResourceType, type Stance } from '../core/constants';
+import { teamNames } from '../core/sim/modes';
 import { AGES, BUILDINGS, BUILD_MENU, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS, ACADEMY_LINES } from '../core/data';
 import type { Building, GameEvent, Unit } from '../core/types';
 import { getUnitStats, getBuildingStats, techCost } from '../core/sim/modifiers';
@@ -39,7 +40,7 @@ export class HUD {
   private audio: Audio;
   private cb: HUDCallbacks;
   private resEls: Record<string, HTMLElement> = {};
-  private popEl!: HTMLElement; private ageEl!: HTMLElement; private clockEl!: HTMLElement; private speedEl!: HTMLElement; private ageBtn!: HTMLElement;
+  private popEl!: HTMLElement; private ageEl!: HTMLElement; private clockEl!: HTMLElement; private modeEl!: HTMLElement; private speedEl!: HTMLElement; private ageBtn!: HTMLElement;
 
   constructor(root: HTMLElement, renderer: Renderer, audio: Audio, cb: HUDCallbacks) {
     this.root = root; this.renderer = renderer; this.audio = audio; this.cb = cb;
@@ -62,6 +63,7 @@ export class HUD {
     this.ageEl = el('div', 'age', ''); this.top.appendChild(this.ageEl);
     this.ageBtn = el('button', 'btn gold', t('top.advance')); this.ageBtn.addEventListener('click', () => this.tryAdvanceAge()); this.top.appendChild(this.ageBtn);
     this.clockEl = el('div', 'clock', '0:00'); this.top.appendChild(this.clockEl);
+    this.modeEl = el('div', 'clock', ''); this.modeEl.style.color = '#f2c14e'; this.top.appendChild(this.modeEl);
     this.speedEl = el('div', '', ''); this.top.appendChild(this.speedEl);
     const speedBtns = [['⏸', 0], ['1×', 1], ['2×', 2], ['3×', 3]] as const;
     for (const [lbl, sp] of speedBtns) { const b = el('button', 'btn', lbl); b.addEventListener('click', () => { if (!this.session) return; if (sp === 0) this.session.paused = !this.session.paused; else { this.session.speed = sp; this.session.paused = false; } this.refreshTop(); }); this.speedEl.appendChild(b); }
@@ -176,6 +178,8 @@ export class HUD {
     (this.ageBtn as HTMLButtonElement).disabled = inProgress || p.age >= AGES.length - 1;
     this.ageBtn.dataset.tip = p.age >= AGES.length - 1 ? t('top.maxAgeTip') : `<b>${AGES[p.age + 1].name}</b><div class="cost">${fmtCost(AGES[p.age + 1].cost as Record<string, number>, p)}</div><div class="desc">${AGES[p.age + 1].desc}</div>${adv.ok ? '' : `<div style="color:#ef4444;margin-top:4px">${adv.reason ?? ''}</div>`}`;
     this.ageBtn.classList.toggle('primary', adv.ok);
+    const k = s.state.koth;
+    this.modeEl.textContent = k ? (k.team === -1 ? t('top.kothNone') : t('top.koth', { who: teamNames(s.state, k.team), s: k.seconds, total: KOTH_SECONDS })) : '';
     const waiting = (s.scheduler as { waiting?: number }).waiting ?? 0;
     this.clockEl.textContent = fmtTime(s.state.time) + (s.paused ? ' ⏸' : s.speed !== 1 ? ` ${s.speed}×` : '') + (waiting > 10 ? ' ' + t('top.waiting') : '');
     let idle = 0;

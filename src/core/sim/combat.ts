@@ -166,7 +166,7 @@ export function killUnit(state: GameState, u: Unit, killerOwner: number, killer?
   if (def.tags.includes('hero')) state.events.push({ tick: state.tick, type: 'heroDied', player: u.owner, x: u.x, y: u.y, text: t('ev.heroDied', { name: def.name }) });
   if (def.tags.includes('titan')) state.events.push({ tick: state.tick, type: 'titanDied', player: u.owner, x: u.x, y: u.y, text: t('ev.titanDied', { name: def.name }) });
   // Hades: sombras
-  if (victim.god === 'hades' && def.tags.includes('human') && def.tags.includes('military') && !def.tags.includes('hero') && state.rng.chance(0.25)) {
+  if (victim.god === 'hades' && killerOwner !== -1 && def.tags.includes('human') && def.tags.includes('military') && !def.tags.includes('hero') && state.rng.chance(0.25)) {   // só mortes em combate/atrito (dispensar não gera sombras)
     const s = spawnUnit(state, u.owner, 'shade', u.x, u.y);
     s.stance = 'aggressive';
     state.effects.push({ type: 'spawn', x: u.x, y: u.y, ttl: 12, total: 12 });

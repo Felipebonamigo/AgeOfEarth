@@ -9,7 +9,7 @@ Idioma da interface e dos comentários: português (Brasil). Código em inglês.
 - `npm run smoke 20 42` — IA x IA por 20 min de jogo (semente 42) sem interface · `npm run balance 35 1,2,3`
 - `npx tsx scripts/missions.ts` — valida as missões da campanha · `npx tsx scripts/horde.ts` — valida o Modo Horda
 - `npm run relay` — servidor de multiplayer (porta 8787)
-- `node scripts/playtest.mjs` / `playtest-campaign.mjs` / `playtest-mp.mjs` / `playtest-reconnect.mjs` / `playtest-options.mjs` / `playtest-i18n.mjs` / `playtest-horde-replay.mjs` / `actionshot.mjs` — Chromium headless (Playwright); exigem `npm run preview` e, para o multiplayer, `npm run relay`
+- `node scripts/playtest.mjs` / `playtest-campaign.mjs` / `playtest-mp.mjs` / `playtest-reconnect.mjs` / `playtest-options.mjs` / `playtest-i18n.mjs` / `playtest-modes.mjs` / `playtest-horde-replay.mjs` / `actionshot.mjs` — Chromium headless (Playwright); exigem `npm run preview` e, para o multiplayer, `npm run relay`
 - Chromium do Playwright: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` neste ambiente; use `--use-gl=swiftshader --enable-unsafe-swiftshader`
 
 ## Regras do núcleo (`src/core`)
@@ -31,7 +31,7 @@ Idioma da interface e dos comentários: português (Brasil). Código em inglês.
 ## Memória do projeto (ler primeiro em toda sessão)
 - **Plano completo e cronograma**: `docs/ROADMAP.md` (fases 0–7, passos numerados, responsáveis V/A/T, marcos M1–M6, custos, riscos). É o documento vivo: ao concluir um passo, marque-o lá.
 - **Design e arquitetura**: `docs/DESIGN.md` · **Publicação na Steam**: `docs/STEAM.md` e `desktop/README.md`.
-- **Estado atual**: Fase 0 concluída (fatia vertical: skirmish, campanha com 3 missões, Horda, multiplayer lockstep, replays, Electron). Fase 1 (jogabilidade sólida) quase concluída: guarnição, portões, formações, IA "Muito difícil", i18n PT/EN, opções (tela cheia, escala, qualidade), atalhos e caça a bugs (economia corrigida). Caça a bugs (7 lentes, 48 correções) concluída. Pendente: balanceamento contínuo (`npm run balance`) com base nos playtests humanos. Depois: Fase 3.2/3.3 (editor de cenários e mapas fixos) e Fase 4.1 (lobby).
+- **Estado atual**: Fase 0 concluída (fatia vertical: skirmish, campanha com 3 missões, Horda, multiplayer lockstep, replays, Electron). Fase 1 (jogabilidade sólida) quase concluída: guarnição, portões, formações, IA "Muito difícil", i18n PT/EN, opções (tela cheia, escala, qualidade), atalhos e caça a bugs (economia corrigida). Caça a bugs (7 lentes, 48 correções) concluída. Pendente: balanceamento contínuo (`npm run balance`) com base nos playtests humanos. Feitos: lobby (chat, ping, kick, atraso dinâmico), reconexão por instantâneo, modos de jogo e tipos de mapa (5.1). Em curso: Fase 3.2/3.3 (editor de cenários e mapas fixos; design em `docs/EDITOR.md`).
 - **Rotina combinada com o dono do projeto**: ele joga 2–3 partidas por semana e manda uma lista curta de problemas; o agente entrega correções + uma feature com testes e balanceamento automático; a cada duas semanas o roteiro é revisado.
 - **Decisões tomadas**: TypeScript + PixiJS + Electron (não Unity/Godot) para que o agente construa e verifique tudo sozinho; simulação determinística separada da renderização para multiplayer/replays; arte procedural como placeholder até a Fase 2; interface em PT-BR primeiro, EN na Fase 1.7.
 - **Pendências que dependem do dono**: horas semanais disponíveis, orçamento de arte, conta Steamworks/empresa (Fase 6).

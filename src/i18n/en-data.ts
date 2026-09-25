@@ -16,6 +16,7 @@ export const EN_UNITS: Record<string, TextOverlay> = {
   myrmidon: { name: 'Myrmidon', plural: 'Myrmidons', desc: "Achilles' warriors. Supreme infantry with bonus damage against mythic creatures." },
   helepolis: { name: 'Helepolis', plural: 'Helepoleis', desc: 'Armored siege tower. Brings down walls and fortresses.' },
   militia: { name: 'Militia', plural: 'Militia', desc: 'Citizens hastily armed by Poseidon when a building falls.' },
+  basileus: { name: 'King', plural: 'Kings', desc: 'Regicide: if the king dies, the kingdom falls. Garrison him in a Town Center or a Fortress.' },
   jason: { name: 'Jason', plural: 'Jason', desc: 'Leader of the Argonauts. Heroes deal triple damage to mythic creatures.' },
   odysseus: { name: 'Odysseus', plural: 'Odysseus', desc: 'The cunning king of Ithaca and his bow. Ranged hero.' },
   heracles: { name: 'Heracles', plural: 'Heracles', desc: 'The greatest of heroes. His club also brings down buildings.' },

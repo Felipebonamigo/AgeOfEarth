@@ -1,5 +1,5 @@
 // Tipos centrais da simulação. Tudo aqui é serializável (salvar/carregar e replays).
-import type { ResourceType, NodeType, Stance, Difficulty } from './constants';
+import type { ResourceType, NodeType, Stance, Difficulty, GameMode, MapType } from './constants';
 import type { RNG } from './rng';
 
 export type Cost = Partial<Record<ResourceType, number>>;
@@ -157,6 +157,7 @@ export interface GameConfig {
   scenario?: string;
   players: { name: string; god: string; isAI: boolean; difficulty: Difficulty; team?: number }[];
   revealMap?: boolean; startingAge?: number; startingResources?: Partial<Record<ResourceType, number>>;
+  mode?: GameMode; mapType?: MapType;
 }
 
 export interface GameState {
@@ -175,6 +176,8 @@ export interface GameState {
   fogVersion: number;
   ceasefireBy: number;
   scenario?: ScenarioState;
+  /** Rei da Colina: posição da colina, time que a segura sozinho e há quantos segundos. */
+  koth?: { x: number; y: number; team: number; seconds: number };
 }
 import type { ScenarioState } from './scenario/types';
 

@@ -1,6 +1,6 @@
 // Geração procedural de mapas: lagos, montanhas, florestas, veios de ouro, frutas e caça,
 // com áreas iniciais justas e garantia de conectividade entre todos os jogadores.
-import { TERRAIN, type NodeType } from '../constants';
+import { TERRAIN, type NodeType, type MapType } from '../constants';
 import { RNG, makeNoise } from '../rng';
 import type { GameMap, ResourceNode } from '../types';
 import { idx, inBounds, dist } from './grid';
@@ -8,7 +8,17 @@ import { articulationPoints, invalidateComponents } from './components';
 
 const NODE_AMOUNT: Record<NodeType, number> = { tree: 150, berry: 175, gold: 900, deer: 140, boar: 260, lure: 800 };
 
-export function generateMap(w: number, h: number, seed: number, playerCount: number): GameMap {
+/** Parâmetros por tipo de mapa: limiares do ruído de elevação, densidade de bosques e terreno base. */
+const MAP_PRESETS: Record<MapType, { water: number; sand: number; dirt: number; mountain: number; forest: number; forestDensity: number; base: number; goldRoll: number }> = {
+  continental: { water: 0.34, sand: 0.37, dirt: 0.66, mountain: 0.73, forest: 0.58, forestDensity: 0.85, base: TERRAIN.GRASS, goldRoll: 0.3 },
+  mountains: { water: 0.30, sand: 0.33, dirt: 0.56, mountain: 0.62, forest: 0.60, forestDensity: 0.85, base: TERRAIN.GRASS, goldRoll: 0.35 },
+  forest: { water: 0.33, sand: 0.36, dirt: 0.70, mountain: 0.78, forest: 0.50, forestDensity: 0.9, base: TERRAIN.GRASS, goldRoll: 0.3 },
+  desert: { water: 0.31, sand: 0.34, dirt: 0.62, mountain: 0.70, forest: 0.66, forestDensity: 0.6, base: TERRAIN.SAND, goldRoll: 0.45 },
+  lakes: { water: 0.42, sand: 0.45, dirt: 0.70, mountain: 0.78, forest: 0.58, forestDensity: 0.85, base: TERRAIN.GRASS, goldRoll: 0.3 },
+};
+
+export function generateMap(w: number, h: number, seed: number, playerCount: number, mapType: MapType = 'continental', clearCenter = false): GameMap {
+  const P = MAP_PRESETS[mapType] ?? MAP_PRESETS.continental;
   const rng = new RNG(seed ^ 0x5bd1e995);
   const elev = makeNoise(seed);
   const forest = makeNoise(seed + 101);
@@ -22,11 +32,11 @@ export function generateMap(w: number, h: number, seed: number, playerCount: num
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const e = elev.fbm(x * scale, y * scale, 5, 2.1, 0.5);
     const i = idx(map, x, y);
-    let t: number = TERRAIN.GRASS;
-    if (e < 0.34) t = TERRAIN.WATER;
-    else if (e < 0.37) t = TERRAIN.SAND;
-    else if (e > 0.73) t = TERRAIN.MOUNTAIN;
-    else if (e > 0.66) t = TERRAIN.DIRT;
+    let t: number = P.base;
+    if (e < P.water) t = TERRAIN.WATER;
+    else if (e < P.sand) t = TERRAIN.SAND;
+    else if (e > P.mountain) t = TERRAIN.MOUNTAIN;
+    else if (e > P.dirt) t = TERRAIN.DIRT;
     terrain[i] = t;
     decor[i] = Math.floor(decorN.noise(x * 0.9, y * 0.9) * 255);
   }
@@ -61,10 +71,10 @@ export function generateMap(w: number, h: number, seed: number, playerCount: num
   // 3) Florestas (ruído) fora das áreas iniciais
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const i = idx(map, x, y);
-    if (terrain[i] !== TERRAIN.GRASS && terrain[i] !== TERRAIN.DIRT) continue;
+    if (terrain[i] !== TERRAIN.GRASS && terrain[i] !== TERRAIN.DIRT && !(P.base === TERRAIN.SAND && terrain[i] === TERRAIN.SAND)) continue;
     if (nearStart(map, x, y, 6.5)) continue;
     const f = forest.fbm(x * 0.09, y * 0.09, 3);
-    if (f > 0.58 && rng.float() < 0.85) addNode(map, 'tree', x, y);
+    if (f > P.forest && rng.float() < P.forestDensity) addNode(map, 'tree', x, y);
   }
 
   // 4) Recursos garantidos perto de cada início
@@ -93,7 +103,7 @@ export function generateMap(w: number, h: number, seed: number, playerCount: num
     const x = rng.int(4, w - 5), y = rng.int(4, h - 5);
     if (nearStart(map, x, y, 16)) continue;
     const roll = rng.float();
-    if (roll < 0.3) placeCluster(map, rng, 'gold', x, y, 1.4, 5);
+    if (roll < P.goldRoll) placeCluster(map, rng, 'gold', x, y, 1.4, 5);
     else if (roll < 0.6) placeCluster(map, rng, 'berry', x, y, 1.5, 6);
     else if (roll < 0.85) placeCluster(map, rng, 'deer', x, y, 1.8, 5);
     else placeCluster(map, rng, 'boar', x, y, 1.2, 2);
@@ -101,6 +111,21 @@ export function generateMap(w: number, h: number, seed: number, playerCount: num
 
   // 6) Bloqueio e conectividade
   rebuildBlocked(map);
+  if (clearCenter) {
+    // Rei da Colina: clareira no centro do mapa, ligada por terra a todos os inícios
+    const cx0 = Math.floor(w / 2), cy0 = Math.floor(h / 2);
+    for (let dy = -5; dy <= 5; dy++) for (let dx = -5; dx <= 5; dx++) {
+      const x = cx0 + dx, y = cy0 + dy;
+      if (!inBounds(map, x, y) || dx * dx + dy * dy > 26) continue;
+      const i = idx(map, x, y);
+      terrain[i] = TERRAIN.GRASS;
+      if (map.nodeAt[i] !== -1) removeNode(map, map.nodeAt[i]);
+    }
+    rebuildBlocked(map);
+    map.starts.push({ x: cx0, y: cy0 });
+    ensureConnectivity(map);
+    map.starts.pop();
+  }
   ensureConnectivity(map);
   rebuildBlocked(map);
   widenChokepoints(map);

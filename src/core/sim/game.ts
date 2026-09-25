@@ -1,5 +1,5 @@
 // Criação da partida e laço principal da simulação (passo fixo, determinístico).
-import { DT, MAP_SIZES, RESOURCES, TICK_RATE, MARKET_BASE_PRICE, PLAYER_COLORS, type ResourceType } from '../constants';
+import { DT, MAP_SIZES, RESOURCES, TICK_RATE, MARKET_BASE_PRICE, PLAYER_COLORS, type ResourceType, DEATHMATCH_RESOURCES } from '../constants';
 import { MAJOR_GODS, UNITS } from '../data';
 import { RNG } from '../rng';
 import type { Command, GameConfig, GameState, Player } from '../types';
@@ -18,6 +18,7 @@ import { aiThink } from './ai';
 import { checkVictory } from './victory';
 import { spiralSearch, isPassable } from '../map/grid';
 import { getScenario, initScenarioState, runScenario } from '../scenario/runner';
+import { updateKoth } from './modes';
 
 const PATH_BUDGET_PER_TICK = 48;
 const MAX_EVENTS = 200;
@@ -25,7 +26,8 @@ const MAX_EVENTS = 200;
 export function createGame(config: GameConfig): GameState {
   const size = MAP_SIZES[config.mapSize];
   resetNodeSeq();
-  const map = generateMap(size.w, size.h, config.seed, config.players.length);
+  const mode = config.mode ?? 'conquest';
+  const map = generateMap(size.w, size.h, config.seed, config.players.length, config.mapType ?? 'continental', mode === 'koth');
   const state: GameState = {
     config, seed: config.seed, tick: 0, time: 0, map,
     players: [], units: new Map(), buildings: new Map(), nextId: 1,
@@ -35,11 +37,12 @@ export function createGame(config: GameConfig): GameState {
   };
   config.players.forEach((pc, i) => {
     const resources = { food: 300, wood: 250, gold: 120, knowledge: 0, favor: 0 } as Record<ResourceType, number>;
+    if (mode === 'deathmatch') for (const r of RESOURCES) resources[r] = DEATHMATCH_RESOURCES[r];   // Deathmatch: cofres cheios
     for (const r of RESOURCES) if (config.startingResources?.[r] !== undefined) resources[r] = config.startingResources[r]!;
     const god = MAJOR_GODS[pc.god] ? pc.god : 'zeus';
     const p: Player = {
       id: i, name: pc.name, color: PLAYER_COLORS[i % PLAYER_COLORS.length].num, isAI: pc.isAI, difficulty: pc.difficulty, team: pc.team ?? i,
-      god, minorGods: [], age: config.startingAge ?? 0, resources, techs: [], powers: [{ id: MAJOR_GODS[god].power, used: false }],
+      god, minorGods: [], age: config.startingAge ?? (mode === 'deathmatch' ? 1 : 0), resources, techs: [], powers: [{ id: MAJOR_GODS[god].power, used: false }],
       pop: 0, popCap: 0, alive: true, defeatedTick: -1, mods: defaultMods(),
       stats: { kills: 0, losses: 0, unitsTrained: 0, buildingsBuilt: 0, buildingsLost: 0, razed: 0, gathered: { food: 0, wood: 0, gold: 0, knowledge: 0, favor: 0 } },
       prices: { food: MARKET_BASE_PRICE, wood: MARKET_BASE_PRICE, gold: MARKET_BASE_PRICE, knowledge: MARKET_BASE_PRICE, favor: MARKET_BASE_PRICE },
@@ -61,8 +64,13 @@ export function createGame(config: GameConfig): GameState {
       const px = t ? t.x + 0.5 : x, py = t ? t.y + 0.5 : y;
       spawnUnit(state, p.id, k < 5 ? 'villager' : 'kataskopos', px, py);
     });
+    if (mode === 'regicide') { const t = spiralSearch(Math.floor(tc.x), Math.floor(tc.y) + 3, 6, (a, b) => isPassable(map, a, b)); spawnUnit(state, p.id, 'basileus', t ? t.x + 0.5 : tc.x, t ? t.y + 0.5 : tc.y + 3.5); }
     recomputePop(state, p);
   });
+  if (mode === 'koth') {
+    const c = spiralSearch(Math.floor(size.w / 2), Math.floor(size.h / 2), 8, (a, b) => isPassable(map, a, b));
+    state.koth = { x: (c ? c.x : Math.floor(size.w / 2)) + 0.5, y: (c ? c.y : Math.floor(size.h / 2)) + 0.5, team: -1, seconds: 0 };
+  }
   // Cenário (campanha): posicionamento extra e estado de objetivos
   if (config.scenario) {
     const def = getScenario(config.scenario);
@@ -115,7 +123,7 @@ export function tick(state: GameState, commands: Command[] = []): void {
   // Edifícios
   for (const b of state.buildings.values()) if (!b.dead) updateBuilding(state, rt, b, DT);
   // Economia e IA a cada segundo (defasadas para distribuir custo)
-  if (state.tick % TICK_RATE === 0) economySecond(state);
+  if (state.tick % TICK_RATE === 0) { economySecond(state); if (state.koth) updateKoth(state); }
   for (const p of state.players) if (p.isAI && p.alive) aiThink(state, p);
   if (state.scenario) { if (state.tick % TICK_RATE === TICK_RATE - 1) runScenario(state); }
   else if (state.tick % TICK_RATE === TICK_RATE - 1) checkVictory(state);
