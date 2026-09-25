@@ -9,11 +9,13 @@ page.on('console', (m) => { if (m.type() === 'error') errors.push(`${m.type()}: 
 await page.goto(url, { waitUntil: 'networkidle' });
 await page.click('[data-tab="campaign"]'); await page.waitForTimeout(300);
 await page.screenshot({ path: `${out}-1-menu.png` });
+await page.selectOption('#m-cdiff', 'hard'); await page.waitForTimeout(100);
 await page.click('.mission'); await page.waitForTimeout(1500);
 await page.screenshot({ path: `${out}-2-intro.png` });
 await page.click('#m-go'); await page.waitForTimeout(2500);
 await page.screenshot({ path: `${out}-3-play.png` });
-const info = await page.evaluate(() => { const s = window.aoe.session; return { scenario: s.state.scenario, tick: s.state.tick, paused: s.paused }; });
+const info = await page.evaluate(() => { const s = window.aoe.session; return { scenario: s.state.scenario, tick: s.state.tick, paused: s.paused, campaignDifficulty: s.state.config.campaignDifficulty, savedDiff: localStorage.getItem('aoe_campaign_diff') }; });
+console.log('dificuldade da campanha:', info.campaignDifficulty === 'hard' && info.savedDiff === 'hard' ? 'ok (difícil)' : `FALHOU ${info.campaignDifficulty}/${info.savedDiff}`);
 console.log(JSON.stringify(info));
 console.log('errors:', errors.length ? errors.join('\n') : 'none');
 await browser.close();

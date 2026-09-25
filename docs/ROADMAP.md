@@ -53,7 +53,7 @@ Objetivo: a Titanomaquia em 3 atos, 12–15 missões.
 | 3.3 | 🔶 Mapas fixos: formato compacto (`FixedMapData`, terreno/decoração em base64), `GameConfig.map` carregado por `createGame`, exportar o mapa da partida (menu) e carregar no skirmish (`Mapa fixo`). No lobby o anfitrião carrega o mapa, a sala vê o resumo e todos recebem o mapa em `start` (reconexão inclusa). Pendente: integrar ao editor (3.2) | A | 8–9 |
 | 3.4 | Produção das missões (2 por semana) com objetivos variados: escolta, defesa, caça ao herói, corrida, maravilha, cerco | A | 9–18 |
 | 3.5 | Testes automatizados por missão (viabilidade sem jogador e com jogador roteirizado) | A | 9–18 |
-| 3.6 | Dificuldades da campanha e conquistas por missão | A | 18–20 |
+| 3.6 | ✅ Dificuldade da campanha (Fácil/Normal/Difícil na aba Campanha: invasões roteirizadas 2/3 ou 1,5× e IAs inimigas um degrau acima; vale para a Horda) e conquistas por missão (uma por missão, prólogo no Difícil, Horda no Difícil); missões concluídas no Difícil ganham 🔥 | A | 18–20 |
 
 Marco **M3 (semana 20)**: campanha completa jogável.
 

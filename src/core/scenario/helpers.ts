@@ -26,8 +26,17 @@ export function military(u: Unit): boolean { return UNITS[u.type].tags.includes(
 export function localPlayer(state: GameState): number { return state.config.players.findIndex((p) => !p.isAI); }
 export function townCenter(state: GameState, owner: number) { return [...state.buildings.values()].find((b) => b.owner === owner && b.type === 'town_center' && !b.dead) ?? null; }
 
-/** Invoca um esquadrão a distância do alvo e o manda atacar-mover até ele. */
-export function raid(state: GameState, owner: number, types: string[], targetX: number, targetY: number, fromAngleIndex: number, distance = 22): void {
+/** Escala um grupo roteirizado pela dificuldade da campanha: Fácil ≈ 2/3 (mínimo 1), Difícil ≈ 1,5× (repete os primeiros). */
+export function scaledGroup(state: GameState, types: string[]): string[] {
+  const d = state.config.campaignDifficulty ?? 'normal';
+  if (d === 'easy') return types.slice(0, Math.max(1, Math.ceil((types.length * 2) / 3)));
+  if (d === 'hard') return types.concat(types.slice(0, Math.floor(types.length / 2)));
+  return types;
+}
+
+/** Invoca um esquadrão a distância do alvo e o manda atacar-mover até ele (tamanho escalado pela dificuldade da campanha). */
+export function raid(state: GameState, owner: number, group: string[], targetX: number, targetY: number, fromAngleIndex: number, distance = 22): void {
+  const types = scaledGroup(state, group);
   const dirs: [number, number][] = [[1, 0], [0.7, 0.7], [0, 1], [-0.7, 0.7], [-1, 0], [-0.7, -0.7], [0, -1], [0.7, -0.7]];
   const [dx, dy] = dirs[((fromAngleIndex % 8) + 8) % 8];
   // tile de origem: passável e na mesma região do alvo (nunca numa ilha ou bolsão); se não houver, aproxima-se do alvo

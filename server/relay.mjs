@@ -3,7 +3,8 @@
 import { WebSocketServer } from 'ws';
 
 const port = Number(process.argv[2] ?? process.env.PORT ?? 8787);
-const wss = new WebSocketServer({ port });
+const wss = new WebSocketServer({ port, maxPayload: 2 * 1024 * 1024 });   // mapa fixo inline em `start` cabe com folga (≤ ~120 KB)
+const MAX_START_BYTES = 1_000_000;
 const rooms = new Map(); // code -> { clients: Map<slot, {ws, name, god, team, ready}>, host, settings, started, nextSlot }
 
 const send = (ws, msg) => { if (ws.readyState === 1) ws.send(JSON.stringify(msg)); };
@@ -45,12 +46,16 @@ wss.on('connection', (ws) => {
     }
     if (!room) return;
     switch (msg.t) {
-      case 'settings': if (slot === room.host && msg.settings) { room.settings = { ...room.settings, ...msg.settings }; broadcast(room, lobbyState(room)); } break;
+      case 'settings': if (slot === room.host && msg.settings) {
+        const st = { ...msg.settings };
+        if (st.fixedMap && typeof st.fixedMap === 'object') st.fixedMap = { name: String(st.fixedMap.name ?? '').slice(0, 40), w: Number(st.fixedMap.w) | 0, h: Number(st.fixedMap.h) | 0, starts: Number(st.fixedMap.starts) | 0, hash: Number(st.fixedMap.hash) >>> 0 };   // só metadados no lobby; o mapa inteiro vai em `start`
+        room.settings = { ...room.settings, ...st }; broadcast(room, lobbyState(room));
+      } break;
       case 'player': { const c = room.clients.get(slot); if (c) { if (msg.god) c.god = msg.god; if (msg.ready !== undefined) c.ready = !!msg.ready; if (typeof msg.ping === 'number') c.ping = Math.max(0, Math.min(9999, Math.round(msg.ping))); } if (slot === room.host && msg.team !== undefined && room.clients.has(msg.slot)) room.clients.get(msg.slot).team = msg.team; if (!room.started) broadcast(room, lobbyState(room)); break; }
       case 'ping': send(ws, { t: 'pong', ts: msg.ts }); break;
       case 'resume': if (slot === room.host) broadcast(room, { t: 'resume' }); break;   // anfitrião decide seguir sem quem caiu   // medição de latência (ida e volta pelo relay)
       case 'kick': { if (slot !== room.host) break; const c = room.clients.get(msg.slot); if (c && msg.slot !== slot) { send(c.ws, { t: 'error', msg: 'Você foi removido da sala pelo anfitrião.' }); c.ws.close(); } break; }
-      case 'start': if (slot === room.host && msg.config) { room.started = true; room.config = msg.config; room.slots = [...room.clients.keys()]; room.delay = Number(msg.delay) || 4; broadcast(room, { t: 'start', config: msg.config, slots: room.slots, delay: room.delay }); } break;
+      case 'start': if (slot === room.host && msg.config) { if (JSON.stringify(msg.config).length > MAX_START_BYTES) { send(ws, { t: 'error', msg: 'Configuração da partida grande demais (mapa fixo acima do limite).' }); break; } room.started = true; room.config = msg.config; room.slots = [...room.clients.keys()]; room.delay = Number(msg.delay) || 4; broadcast(room, { t: 'start', config: msg.config, slots: room.slots, delay: room.delay }); } break;
       case 'snapshot': { if (slot !== room.host) break; const c = room.clients.get(msg.slot); if (c) send(c.ws, { t: 'snapshot', data: msg.data, tick: msg.tick }); broadcast(room, { t: 'rejoined', slot: msg.slot, tick: msg.tick }, c ? c.ws : null); break; }
       case 'cmds': broadcast(room, { t: 'cmds', slot, tick: msg.tick, cmds: msg.cmds ?? [] }, ws); break;
       case 'hash': broadcast(room, { t: 'hash', slot, tick: msg.tick, hash: msg.hash }, ws); break;

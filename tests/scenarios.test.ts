@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { TICK_RATE } from '../src/core/constants';
 import { createGame, tick } from '../src/core/sim/game';
 import { buildingsOf, unitsOf, spawnUnit } from '../src/core/sim/entities';
-import { raid } from '../src/core/scenario/helpers';
+import { raid, scaledGroup } from '../src/core/scenario/helpers';
 import { HORDE, SCENARIOS } from '../src/core/scenario/campaign';
 import { componentAt, invalidateComponents } from '../src/core/map/components';
 import { idx } from '../src/core/map/grid';
@@ -82,5 +82,17 @@ describe('cenários', () => {
     const tc = buildingsOf(s, 0)[0];
     spawnUnit(s, tartaro, 'hoplite', tc.x, tc.y + tc.h + 2);
     expect(HORDE.objectives.find((o) => o.id === 'waves')!.check!(s)).toBe('pending');
+  });
+  it('dificuldade da campanha escala as invasões roteirizadas: Fácil < Normal < Difícil', () => {
+    const group = ['hoplite', 'hoplite', 'toxotes', 'toxotes', 'hoplite', 'toxotes'];
+    const sizes = (['easy', 'normal', 'hard'] as const).map((campaignDifficulty) => {
+      const s = mission('m1_despertar'); s.config = { ...s.config, campaignDifficulty };
+      expect(scaledGroup(s, group).length).toBe(campaignDifficulty === 'easy' ? 4 : campaignDifficulty === 'hard' ? 9 : 6);
+      const tc = buildingsOf(s, 0)[0]; const before = unitsOf(s, 1).length;
+      raid(s, 1, group, tc.x, tc.y, 2, 16);
+      return unitsOf(s, 1).length - before;
+    });
+    expect(sizes[0]).toBeLessThan(sizes[1]); expect(sizes[1]).toBeLessThan(sizes[2]); expect(sizes[1]).toBe(6);
+    expect(scaledGroup(mission('m1_despertar'), ['minotaur']).length).toBe(1);   // Fácil nunca zera um grupo
   });
 });

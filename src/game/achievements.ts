@@ -4,7 +4,7 @@ import type { GameState } from '../core/types';
 import { desktop } from './files';
 
 export interface AchievementDef { id: string; name: string; desc: string; icon: string; check: (s: GameState, local: number, ctx: AchievementCtx) => boolean }
-export interface AchievementCtx { godsPlayed: string[]; hordeWaves: number; missionsDone: string[] }
+export interface AchievementCtx { godsPlayed: string[]; hordeWaves: number; missionsDone: string[]; missionsHard: string[] }
 
 const p = (s: GameState, l: number) => s.players[l];
 const wonBy = (s: GameState, l: number) => s.gameOver && s.winner >= 0 && s.players[s.winner].team === p(s, l).team;
@@ -30,7 +30,12 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'all_gods', name: 'Ecumênico', desc: 'Jogue partidas com Zeus, Poseidon e Hades.', icon: '🌐', check: (_s, _l, c) => ['zeus', 'poseidon', 'hades'].every((g) => c.godsPlayed.includes(g)) },
   { id: 'horde_10', name: 'Guardião das Portas', desc: 'Sobreviva a 10 ondas no Modo Horda.', icon: '🚪', check: (s) => s.scenario?.id === 'horde' && s.scenario.fired.filter((f) => f.startsWith('wave')).length >= 10 && !s.gameOver },
   { id: 'horde_20', name: 'Senhor do Tártaro', desc: 'Vença o Modo Horda.', icon: '👑', check: (s) => s.scenario?.id === 'horde' && s.scenario.outcome === 'victory' },
+  { id: 'm1_despertar', name: 'O Despertar de Argos', desc: 'Complete a missão 1 da campanha.', icon: '🏺', check: (_s, _l, c) => c.missionsDone.includes('m1_despertar') },
+  { id: 'm2_cerco', name: 'Muralhas de Argos', desc: 'Complete a missão 2 da campanha.', icon: '🏰', check: (_s, _l, c) => c.missionsDone.includes('m2_cerco') },
+  { id: 'm3_portal', name: 'O Portal Selado', desc: 'Complete a missão 3 da campanha.', icon: '🌀', check: (_s, _l, c) => c.missionsDone.includes('m3_portal') },
   { id: 'campaign_prologue', name: 'A Sombra dos Titãs', desc: 'Complete o prólogo da campanha.', icon: '📜', check: (_s, _l, c) => ['m1_despertar', 'm2_cerco', 'm3_portal'].every((m) => c.missionsDone.includes(m)) },
+  { id: 'campaign_hard', name: 'Forjado no Fogo', desc: 'Complete o prólogo da campanha no Difícil.', icon: '🔥', check: (_s, _l, c) => ['m1_despertar', 'm2_cerco', 'm3_portal'].every((m) => c.missionsHard.includes(m)) },
+  { id: 'horde_hard', name: 'Muralha de Bronze', desc: 'Vença o Modo Horda no Difícil ou acima.', icon: '🛡️', check: (s) => s.scenario?.id === 'horde' && s.scenario.outcome === 'victory' && s.config.campaignDifficulty === 'hard' },
   { id: 'garrison_defense', name: 'Portas Fechadas', desc: 'Tenha 15 unidades guarnecidas em um único edifício.', icon: '🏰', check: (s, l) => [...s.buildings.values()].some((b) => b.owner === l && b.garrison.length >= 15) },
 ];
 
@@ -41,9 +46,9 @@ export class Achievements {
   private acc = 0;
   constructor() { try { for (const id of JSON.parse(localStorage.getItem(KEY) ?? '[]')) this.unlocked.add(id); } catch { /* ignore */ } }
   private ctx(): AchievementCtx {
-    let godsPlayed: string[] = [], missionsDone: string[] = [];
-    try { godsPlayed = JSON.parse(localStorage.getItem('aoe_gods_played') ?? '[]'); missionsDone = JSON.parse(localStorage.getItem('aoe_campaign') ?? '{"completed":[]}').completed ?? []; } catch { /* ignore */ }
-    return { godsPlayed, hordeWaves: 0, missionsDone };
+    let godsPlayed: string[] = [], missionsDone: string[] = [], missionsHard: string[] = [];
+    try { godsPlayed = JSON.parse(localStorage.getItem('aoe_gods_played') ?? '[]'); const prog = JSON.parse(localStorage.getItem('aoe_campaign') ?? '{"completed":[]}'); missionsDone = prog.completed ?? []; missionsHard = prog.hard ?? []; } catch { /* ignore */ }
+    return { godsPlayed, hordeWaves: 0, missionsDone, missionsHard };
   }
   recordGod(god: string) { try { const g: string[] = JSON.parse(localStorage.getItem('aoe_gods_played') ?? '[]'); if (!g.includes(god)) { g.push(god); localStorage.setItem('aoe_gods_played', JSON.stringify(g)); } } catch { /* ignore */ } }
   /** Chamar a cada quadro; avalia uma vez por segundo. */

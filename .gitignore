@@ -5,3 +5,4 @@ scratch/
 dist/
 *.png
 !docs/screenshot.png
+.claude/worktrees/

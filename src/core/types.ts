@@ -163,6 +163,7 @@ export interface GameConfig {
   map?: FixedMapData;                                   // mapa fixo (editor/arquivo); se ausente, gera pelo seed
   mapHash?: number;                                     // mapHash(map): identificação no lobby/replay/biblioteca (não é segurança)
   startOrder?: number[];                                // jogador i usa map.starts[startOrder[i]]; padrão identidade
+  campaignDifficulty?: 'easy' | 'normal' | 'hard';      // campanha/Horda: escala das invasões roteirizadas e das IAs inimigas
   startKit?: boolean | boolean[];                       // kit inicial (CC + cidadãos + batedor) por partida ou por jogador; padrão map?.startKit ?? true
 }
 

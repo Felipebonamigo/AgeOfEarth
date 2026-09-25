@@ -7,6 +7,7 @@ import { Audio } from './audio/audio';
 import { Session } from './game/session';
 import type { GameConfig } from './core/types';
 import { SCENARIOS, HORDE } from './core/scenario/campaign';
+import type { Difficulty } from './core/constants';
 import { NetworkScheduler, LocalScheduler } from './core/net/lockstep';
 import type { NetClient } from './net/client';
 import type { Command } from './core/types';
@@ -101,10 +102,12 @@ async function boot() {
       hud.toast(t('msg.loaded'), 'good');
     } catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); }
   };
-  const startMission = (id: string) => {
+  // Dificuldade da campanha: Fácil deixa as IAs inimigas fáceis; Difícil sobe um degrau (normal→difícil, difícil→muito difícil); as invasões roteirizadas escalam em helpers.raid
+  const enemyDifficulty = (d: Difficulty, c: 'easy' | 'normal' | 'hard'): Difficulty => (c === 'easy' ? 'easy' : c === 'hard' ? ({ easy: 'normal', normal: 'hard', hard: 'brutal', brutal: 'brutal' } as Record<Difficulty, Difficulty>)[d] : d);
+  const startMission = (id: string, diff: 'easy' | 'normal' | 'hard' = 'normal') => {
     const def = id === HORDE.id ? HORDE : SCENARIOS.find((m) => m.id === id); if (!def) return;
     replaySaved = false;
-    startGame({ ...def.config, scenario: id });
+    startGame({ ...def.config, scenario: id, campaignDifficulty: diff, players: def.config.players.map((p) => (p.isAI ? { ...p, difficulty: enemyDifficulty(p.difficulty, diff) } : p)) });
     if (session) { session.paused = true; hud.showIntro(id, () => { if (session) session.paused = false; }); }
   };
   let hostResumeCheck: (() => void) | null = null;
@@ -184,7 +187,7 @@ async function boot() {
     });
   };
   const startHorde = (god: string, difficulty: GameConfig['players'][number]['difficulty']) => {
-    const cfg: GameConfig = { ...HORDE.config, seed: (Math.floor(Math.random() * 1e9)) >>> 0, scenario: HORDE.id, players: HORDE.config.players.map((p, i) => (i === 0 ? { ...p, god, difficulty } : p)) };
+    const cfg: GameConfig = { ...HORDE.config, seed: (Math.floor(Math.random() * 1e9)) >>> 0, scenario: HORDE.id, campaignDifficulty: difficulty === 'easy' ? 'easy' : difficulty === 'normal' ? 'normal' : 'hard', players: HORDE.config.players.map((p, i) => (i === 0 ? { ...p, god, difficulty } : p)) };
     replaySaved = false;
     startGame(cfg);
     if (session) { session.paused = true; hud.showIntro(HORDE.id, () => { if (session) session.paused = false; }); }

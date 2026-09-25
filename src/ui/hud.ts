@@ -625,7 +625,7 @@ export class HUD {
     const s = this.session!; const st = s.state; const sc = st.scenario!; const def = getScenario(sc.id)!;
     const won = sc.outcome === 'victory';
     this.audio.play(won ? 'victory' : 'defeat');
-    if (won) { try { const prog = JSON.parse(localStorage.getItem('aoe_campaign') ?? '{"completed":[]}'); if (!prog.completed.includes(sc.id)) prog.completed.push(sc.id); localStorage.setItem('aoe_campaign', JSON.stringify(prog)); } catch { /* ignore */ } }
+    if (won) { try { const prog = JSON.parse(localStorage.getItem('aoe_campaign') ?? '{"completed":[]}'); if (!prog.completed.includes(sc.id)) prog.completed.push(sc.id); if (st.config.campaignDifficulty === 'hard') { prog.hard = prog.hard ?? []; if (!prog.hard.includes(sc.id)) prog.hard.push(sc.id); } localStorage.setItem('aoe_campaign', JSON.stringify(prog)); } catch { /* ignore */ } }
     const text = won ? (def.outro ?? [t('mission.done')]).map((x) => `<p>${x}</p>`).join('') : `<p>${t('mission.failedText')}</p>`;
     this.showModal(`<h2>${won ? t('mission.done') : t('mission.failed')} — ${def.title}</h2>${text}<p><small>${t('mission.stats', { time: fmtTime(st.time), kills: s.player.stats.kills, losses: s.player.stats.losses })}</small></p>
       <div class="actions"><button class="btn" id="m-continue">${t('mission.continue')}</button>${won && this.cb.onNextMission ? `<button class="btn primary" id="m-next">${t('mission.next')}</button>` : ''}<button class="btn ${won ? '' : 'primary'}" id="m-quit">${t('over.menu')}</button></div>`, false);

@@ -13,7 +13,7 @@ import { esc } from './html';
 
 const fixedMapLabel = (d: { name?: string; w: number; h: number; starts: number | unknown[] }) => t('main.fixedMapInfo', { name: esc(d.name ?? 'mapa'), w: d.w, h: d.h, n: Array.isArray(d.starts) ? d.starts.length : d.starts });
 
-export interface MenuCallbacks { onStart: (config: GameConfig) => void; onLoad: () => void; hasSave: () => boolean; onHelp: () => void; onEncyclopedia: () => void; onMission: (id: string) => void; onNetworkStart: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onNetworkRejoin: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onHorde: (god: string, difficulty: Difficulty) => void; onReplay: () => void; hasReplay: () => boolean; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onHotkeys?: () => void }
+export interface MenuCallbacks { onStart: (config: GameConfig) => void; onLoad: () => void; hasSave: () => boolean; onHelp: () => void; onEncyclopedia: () => void; onMission: (id: string, difficulty: 'easy' | 'normal' | 'hard') => void; onNetworkStart: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onNetworkRejoin: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onHorde: (god: string, difficulty: Difficulty) => void; onReplay: () => void; hasReplay: () => boolean; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onHotkeys?: () => void }
 
 export class MainMenu {
   root: HTMLElement; el: HTMLElement;
@@ -35,6 +35,11 @@ export class MainMenu {
     this.render();
   }
   show() { this.el.classList.remove('hidden'); this.render(); }
+  /** Dificuldade escolhida na aba Campanha (guardada em aoe_campaign_diff). */
+  campaignDifficulty(): 'easy' | 'normal' | 'hard' {
+    try { const d = localStorage.getItem('aoe_campaign_diff'); if (d === 'easy' || d === 'hard') return d; } catch { /* ignore */ }
+    return 'normal';
+  }
   /** Define o mapa fixo (skirmish e lobby); o anfitrião avisa a sala pelo relay (só o resumo — o mapa inteiro vai em `start`). */
   setFixedMap(d: FixedMapData | null) {
     this.fixedMap = d;
@@ -79,8 +84,12 @@ export class MainMenu {
     try { saved = JSON.parse(localStorage.getItem('aoe_setup') ?? '{}'); } catch { /* ignore */ }
     this.god = saved.god ?? this.god;
     let completed: string[] = [];
-    try { completed = JSON.parse(localStorage.getItem('aoe_campaign') ?? '{"completed":[]}').completed ?? []; } catch { /* ignore */ }
-    const campaign = `<h3 style="margin:0 0 4px;color:#f2c14e">${t('main.campaignTitle')}</h3><p style="color:#9aa5b8;margin:0 0 8px;font-size:13px">${t('main.campaignDesc')}</p><div class="missions">${SCENARIOS.map((m, i) => { const locked = i > 0 && !completed.includes(SCENARIOS[i - 1].id); const done = completed.includes(m.id); return `<div class="mission ${locked ? 'locked' : ''}" data-id="${m.id}"><span class="ic">${m.icon}</span><div><b>${m.title} ${done ? '✅' : ''}</b><small>${m.subtitle}${locked ? ` · ${t('main.locked')}` : ''}</small></div></div>`; }).join('')}</div>`;
+    let hardDone: string[] = [];
+    try { const prog = JSON.parse(localStorage.getItem('aoe_campaign') ?? '{"completed":[]}'); completed = prog.completed ?? []; hardDone = prog.hard ?? []; } catch { /* ignore */ }
+    const cdiff = this.campaignDifficulty();
+    const campaign = `<h3 style="margin:0 0 4px;color:#f2c14e">${t('main.campaignTitle')}</h3><p style="color:#9aa5b8;margin:0 0 8px;font-size:13px">${t('main.campaignDesc')}</p>
+      <div style="display:flex;gap:8px;align-items:center;margin:0 0 8px"><label style="margin:0">${t('main.campaignDiff')}</label><select id="m-cdiff">${(['easy', 'normal', 'hard'] as const).map((d) => `<option value="${d}" ${cdiff === d ? 'selected' : ''}>${t(`diff.${d}`)}</option>`).join('')}</select><small style="color:#9aa5b8">${t('main.campaignDiffTip')}</small></div>
+      <div class="missions">${SCENARIOS.map((m, i) => { const locked = i > 0 && !completed.includes(SCENARIOS[i - 1].id); const done = completed.includes(m.id); const hard = hardDone.includes(m.id); return `<div class="mission ${locked ? 'locked' : ''}" data-id="${m.id}"><span class="ic">${m.icon}</span><div><b>${m.title} ${done ? '✅' : ''}${hard ? ` <span title="${t('main.doneHard')}">🔥</span>` : ''}</b><small>${m.subtitle}${locked ? ` · ${t('main.locked')}` : ''}</small></div></div>`; }).join('')}</div>`;
     const opts = this.cb.getOptions?.();
     this.el.innerHTML = `<div class="box">
       <h1>AGE OF EARTH</h1>
@@ -122,7 +131,8 @@ export class MainMenu {
     (this.el.querySelector('#m-locale') as HTMLSelectElement | null)?.addEventListener('change', (e) => { setLocale((e.target as HTMLSelectElement).value as Locale); this.cb.onLocaleChanged?.(); this.render(); });
     this.el.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { this.tab = (b as HTMLElement).dataset.tab as 'skirmish' | 'campaign' | 'multiplayer'; this.render(); }));
     this.bindMultiplayer();
-    this.el.querySelectorAll('.mission').forEach((m) => m.addEventListener('click', () => { if ((m as HTMLElement).classList.contains('locked')) return; this.cb.onMission((m as HTMLElement).dataset.id!); }));
+    (this.el.querySelector('#m-cdiff') as HTMLSelectElement | null)?.addEventListener('change', (e) => { try { localStorage.setItem('aoe_campaign_diff', (e.target as HTMLSelectElement).value); } catch { /* ignore */ } });
+    this.el.querySelectorAll('.mission').forEach((m) => m.addEventListener('click', () => { if ((m as HTMLElement).classList.contains('locked')) return; this.cb.onMission((m as HTMLElement).dataset.id!, this.campaignDifficulty()); }));
     this.el.querySelectorAll('.god').forEach((g) => g.addEventListener('click', () => { this.god = (g as HTMLElement).dataset.god!; this.el.querySelectorAll('.god').forEach((x) => x.classList.toggle('sel', (x as HTMLElement).dataset.god === this.god)); }));
     const q = (id: string) => this.el.querySelector(id) as HTMLInputElement;
     q('#m-start').addEventListener('click', () => {
