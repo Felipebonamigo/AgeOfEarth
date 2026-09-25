@@ -140,7 +140,7 @@ export function createGame(config: GameConfig): GameState {
   for (const p of state.players) {
     const tc = [...state.buildings.values()].find((b) => b.owner === p.id && b.type === 'town_center');
     if (!tc) continue;
-    const vills = [...state.units.values()].filter((u) => u.owner === p.id && u.type === 'villager');
+    const vills = [...state.units.values()].filter((u) => u.owner === p.id && u.type === 'villager' && u.state === 'idle');
     const { nearestNode } = queries;
     const food = nearestNode(state, tc.x, tc.y, 'food', 14);
     const wood = nearestNode(state, tc.x, tc.y, 'wood', 16);

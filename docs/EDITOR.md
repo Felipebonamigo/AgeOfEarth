@@ -388,6 +388,8 @@ Estimativas de horas do agente; cada etapa é um ou mais commits em português c
 - Biblioteca local (`src/game/maps.ts`): `aoe_maps_v1` + `aoe_map_<id>`; importar um arquivo na Partida rápida/lobby também o guarda em Meus mapas (cota cheia → só em memória); a escolha fica em `aoe_setup.fixedMapId`. Primeiro mapa embutido: `estreito` (gerado; a ser redesenhado no editor na Etapa 4).
 - Scripts: `npm run map:export`, `npm run map:check`, `npm run smoke N S -- --map arquivo` (o `--` é obrigatório com o npm).
 
+- Etapa 5 (parte 1): `UnitFilter.military?: boolean` (equivale a `helpers.military`) e `config.campaignDifficulty` entraram na gramática; `compileScenarioCached` guarda até 8 compilações por (hash do JSON, idioma) e lança em cenário inválido; `gameConfigFor(file)` monta o `GameConfig` de um arquivo; `getScenarioFor(state)` é a única porta para o HUD e o runner (o registro embutido continua para `config.scenario`); gatilhos `repeat` não entram em `fired` (só os não repetidos contam em `firedCount`); `place` incompleto marca `unpaid`; `spawn`/`place` com `tag` gravam `vars['#tag']` (primeiro id) e `vars['#tag[k]']`; o m1 em JSON é oficial e usa id reservado só porque vive em `src/core/scenario/missions/` (`allowReserved`). Correção derivada: as ordens iniciais de coleta em `createGame` só atingem cidadãos ociosos (cidadãos que o cenário já pôs a rezar ficam rezando).
+
 ## 6. Riscos e mitigação
 
 | Risco | Mitigação |
