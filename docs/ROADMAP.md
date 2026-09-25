@@ -50,7 +50,7 @@ Objetivo: a Titanomaquia em 3 atos, 12–15 missões.
 |---|---|---|---|
 | 3.1 | Roteiro: sinopse dos 3 atos, personagens, arco do jogador, diálogos por missão | V + A | 6–8 |
 | 3.2 | Editor interno de cenários (posicionar edifícios/unidades, pintar terreno, gatilhos em JSON) — base do editor público | A | 7–10 |
-| 3.3 | 🔶 Mapas fixos: formato compacto (`FixedMapData`, terreno/decoração em base64), `GameConfig.map` carregado por `createGame`, exportar o mapa da partida (menu) e carregar no skirmish (`Mapa fixo`). Pendente: enviar o mapa fixo no lobby multiplayer e integrar ao editor (3.2) | A | 8–9 |
+| 3.3 | 🔶 Mapas fixos: formato compacto (`FixedMapData`, terreno/decoração em base64), `GameConfig.map` carregado por `createGame`, exportar o mapa da partida (menu) e carregar no skirmish (`Mapa fixo`). No lobby o anfitrião carrega o mapa, a sala vê o resumo e todos recebem o mapa em `start` (reconexão inclusa). Pendente: integrar ao editor (3.2) | A | 8–9 |
 | 3.4 | Produção das missões (2 por semana) com objetivos variados: escolta, defesa, caça ao herói, corrida, maravilha, cerco | A | 9–18 |
 | 3.5 | Testes automatizados por missão (viabilidade sem jogador e com jogador roteirizado) | A | 9–18 |
 | 3.6 | Dificuldades da campanha e conquistas por missão | A | 18–20 |

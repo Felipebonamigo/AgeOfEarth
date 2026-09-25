@@ -12,7 +12,7 @@
 | `npm run preview` + `node scripts/playtest.mjs` | Partida no navegador: construir, treinar, avançar, poderes, salvar/carregar | ~1 min |
 | `node scripts/playtest-campaign.mjs`, `playtest-horde-replay.mjs`, `playtest-garrison.mjs` | Campanha, Horda/replay, guarnição/portões | ~2 min |
 | `node scripts/playtest-options.mjs`, `playtest-i18n.mjs`, `playtest-modes.mjs`, `playtest-fixedmap.mjs` | Opções/atalhos/diagnóstico, inglês, modos de jogo, exportar/carregar mapa fixo | ~2 min |
-| `npm run relay` + `node scripts/playtest-mp.mjs`, `playtest-reconnect.mjs` | Dois navegadores em lockstep, chat, ping, queda e reconexão | ~2 min |
+| `npm run relay` + `node scripts/playtest-mp.mjs`, `playtest-reconnect.mjs`, `playtest-mp-fixedmap.mjs` | Dois navegadores em lockstep, chat, ping, queda e reconexão, mapa fixo no lobby | ~3 min |
 
 ## Matriz manual (por versão candidata)
 
