@@ -64,7 +64,7 @@ export const HORDE: ScenarioDef = {
  * m3: números de dificuldade (sem mudar texto). O Culto começava na Mítica com 4000 de cada recurso e atacava em ~2 min: nem a
  * IA "difícil" jogando por Argos passava dos 5 min (o Culto arrasava os Aliados e depois Argos). Agora o estoque inicial e a
  * "calma" (segundos até a IA do Culto poder lançar a 1ª onda, além do intervalo normal; as invasões roteirizadas continuam)
- * dependem da dificuldade da campanha, e o ritual leva ~20 min (0,15 s de obra/s) em vez de ~10, casando com os 25–30 min da
+ * dependem da dificuldade da campanha, e o ritual leva ~24 min (0,125 s de obra/s) em vez de ~10, casando com os 25–30 min da
  * §4 de docs/STORY.md (a corrida contra o Portal era impossível de perder por tempo e de vencer por força).
  */
 const M3_BALANCE: Record<'easy' | 'normal' | 'hard', { stock: number; calm: number }> = { easy: { stock: 1500, calm: 600 }, normal: { stock: 2000, calm: 540 }, hard: { stock: 2500, calm: 480 } };
