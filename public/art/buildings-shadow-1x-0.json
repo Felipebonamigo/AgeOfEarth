@@ -1,0 +1,12 @@
+{
+ "frames": {
+  "temple/build0": {"frame":{"x":383,"y":1,"w":108,"h":112},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":2,"y":62,"w":108,"h":112},"sourceSize":{"w":130,"h":185},"anchor":{"x":0.37692,"y":0.59459}},
+  "temple/build1": {"frame":{"x":262,"y":1,"w":117,"h":115},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":2,"y":62,"w":117,"h":115},"sourceSize":{"w":130,"h":185},"anchor":{"x":0.37692,"y":0.59459}},
+  "temple/build2": {"frame":{"x":1,"y":1,"w":128,"h":122},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":2,"y":62,"w":128,"h":122},"sourceSize":{"w":130,"h":185},"anchor":{"x":0.37692,"y":0.59459}},
+  "temple/complete": {"frame":{"x":133,"y":1,"w":125,"h":122},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":2,"y":63,"w":125,"h":122},"sourceSize":{"w":130,"h":185},"anchor":{"x":0.37692,"y":0.59459}}
+ },
+ "animations": {
+
+ },
+ "meta": {"app":"age-of-earth/scripts/bake","version":"1","image":"buildings-shadow-1x-0.png","format":"RGBA8888","size":{"w":512,"h":128},"scale":"1","aoe":{"version":1,"pass":"shadow","pxPerTile":32,"pitchDeg":50,"verticalFactor":0.8391,"sun":[-0.55,1,-0.35],"shadowDir":"SE","dirs":8,"dirNames":["E","SE","S","SW","W","NW","N","NE"],"fps":10,"pad":2,"extrude":1,"mirror":false}}
+}

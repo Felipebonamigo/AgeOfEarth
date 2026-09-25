@@ -18,7 +18,9 @@
     "relay": "node server/relay.mjs",
     "perf:render": "node scripts/renderperf.mjs",
     "art:shot": "node scripts/artshot.mjs",
-    "art:diff": "node scripts/artdiff.mjs"
+    "art:diff": "node scripts/artdiff.mjs",
+    "art:bake": "node scripts/bake/bake.mjs",
+    "art:check": "tsx scripts/bake/check.ts"
   },
   "license": "MIT",
   "dependencies": {
@@ -31,6 +33,7 @@
     "pixelmatch": "^7.2.0",
     "playwright": "1.55",
     "pngjs": "^7.0.0",
+    "three": "^0.186.1",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vite": "^6.4.3",

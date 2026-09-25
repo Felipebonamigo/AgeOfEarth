@@ -1,0 +1,146 @@
+// `npm run art:check` (docs/ART.md §3.11): valida os manifestos de arte e, se public/art existir, os atlas gerados —
+// todo quadro/animação/direção declarado está no JSON, âncoras em [0,1], nomes no padrão, retângulos dentro do atlas,
+// hashes dos PNG iguais aos do índice e tamanhos dentro do orçamento da seção 6. Usado também por tests/art-manifest.test.ts.
+// Não abre o navegador nem compara pixels (o bake não roda em CI).
+
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import { PNG } from 'pngjs';
+import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, FRAME_NAME_RE, GROUP_OF, type ArtManifest, type AssetKind } from './manifest.mjs';
+import { PX_PER_TILE, PITCH_DEG, PIPELINE_VERSION, DIRS, FPS } from './page/camera.js';
+
+/** Orçamento (docs/ART.md §6 e §3.5). Tamanhos de quadro a 1× (multiplicados pela escala). */
+export const BUDGET = {
+  maxAtlasSide: 2048,
+  maxPngMB: 150,            // pacote completo a 1× estimado em 75–150 MB (§3.5)
+  maxVramMB: 250,           // texturas residentes, pior caso (§6)
+  maxSourceSize: { unit: 128, building: 256, prop: 224 } as Record<AssetKind, number>,
+};
+
+interface SheetFrame { frame: { x: number; y: number; w: number; h: number }; spriteSourceSize: { x: number; y: number; w: number; h: number }; sourceSize: { w: number; h: number }; anchor: { x: number; y: number } }
+interface Sheet { frames: Record<string, SheetFrame>; animations: Record<string, string[]>; meta: { image: string; size: { w: number; h: number }; scale: string; aoe: Record<string, unknown> } }
+interface IndexAtlas { json: string; image: string; group: string; pass: string; scale: number; w: number; h: number; frames: number; bytes: number; sha256: string }
+interface ArtIndex { version: number; aoe: Record<string, unknown>; atlases: IndexAtlas[]; assets: Record<string, { kind: AssetKind; mirror: boolean; atlases: Record<string, Partial<Record<'color' | 'team' | 'shadow', string[]>>> }>; totals: { pngBytes: number; vramBytes: number } }
+
+export interface CheckResult { errors: string[]; warnings: string[]; stats: { manifests: number; atlases: number; frames: number; pngBytes: number; vramBytes: number; hasArtifacts: boolean } }
+
+export function runCheck(root: string): CheckResult {
+  const errors: string[] = [], warnings: string[] = [];
+  const loaded = loadManifests(path.join(root, 'art', 'manifest'));
+  for (const l of loaded) for (const e of validateManifest(l.manifest)) errors.push(`${path.relative(root, l.file)}: ${e}`);
+  const manifests = loaded.map((l) => l.manifest);
+  errors.push(...validateAll(manifests));
+  for (const l of loaded) if (path.basename(l.file) !== `${l.manifest.id}.json`) errors.push(`${path.relative(root, l.file)}: o nome do arquivo deve ser <id>.json`);
+  for (const m of manifests) {
+    const poses = m.source.type === 'param' ? m.source.poses : undefined;
+    if (poses) {
+      const file = path.join(root, poses);
+      if (!fs.existsSync(file)) { errors.push(`${m.id}: poses ${poses} não existe`); continue; }
+      const def = JSON.parse(fs.readFileSync(file, 'utf8')) as { anims: Record<string, unknown> };
+      for (const [a, d] of Object.entries(m.anims ?? {})) if (d.pose && !def.anims[d.pose]) errors.push(`${m.id}: pose ${d.pose} (${a}) ausente em ${poses}`);
+    }
+  }
+
+  const outDir = path.join(root, 'public', 'art');
+  const indexFile = path.join(outDir, 'manifest.json');
+  const stats = { manifests: manifests.length, atlases: 0, frames: 0, pngBytes: 0, vramBytes: 0, hasArtifacts: fs.existsSync(indexFile) };
+  if (!stats.hasArtifacts) return { errors, warnings, stats };
+
+  const index = JSON.parse(fs.readFileSync(indexFile, 'utf8')) as ArtIndex;
+  const sheets = new Map<string, Sheet>();
+  for (const a of index.atlases) {
+    const jf = path.join(outDir, a.json), pf = path.join(outDir, a.image);
+    if (!fs.existsSync(jf) || !fs.existsSync(pf)) { errors.push(`atlas ${a.json}/${a.image} listado no índice mas ausente`); continue; }
+    const buf = fs.readFileSync(pf);
+    const png = PNG.sync.read(buf);
+    const sheet = JSON.parse(fs.readFileSync(jf, 'utf8')) as Sheet;
+    sheets.set(a.json, sheet);
+    stats.atlases++; stats.pngBytes += buf.length; stats.vramBytes += png.width * png.height * 4;
+    if (crypto.createHash('sha256').update(buf).digest('hex') !== a.sha256) errors.push(`${a.image}: sha256 difere do índice (rode art:bake --pack-only)`);
+    if (png.width !== sheet.meta.size.w || png.height !== sheet.meta.size.h) errors.push(`${a.image}: tamanho ${png.width}×${png.height} ≠ meta.size`);
+    if (png.width > BUDGET.maxAtlasSide || png.height > BUDGET.maxAtlasSide) errors.push(`${a.image}: maior que ${BUDGET.maxAtlasSide}²`);
+    const aoe = sheet.meta.aoe;
+    if (aoe.pxPerTile !== PX_PER_TILE * a.scale) errors.push(`${a.json}: meta.aoe.pxPerTile ${aoe.pxPerTile} ≠ ${PX_PER_TILE * a.scale}`);
+    if (aoe.pitchDeg !== PITCH_DEG) errors.push(`${a.json}: meta.aoe.pitchDeg ${aoe.pitchDeg} ≠ ${PITCH_DEG}`);
+    if (aoe.version !== PIPELINE_VERSION) errors.push(`${a.json}: meta.aoe.version ${aoe.version} ≠ ${PIPELINE_VERSION} (reasse)`);
+    if (aoe.pass !== a.pass) errors.push(`${a.json}: meta.aoe.pass ${aoe.pass} ≠ ${a.pass}`);
+    if (sheet.meta.image !== a.image || sheet.meta.scale !== String(a.scale)) errors.push(`${a.json}: meta.image/scale incoerentes`);
+    for (const [name, f] of Object.entries(sheet.frames)) {
+      stats.frames++;
+      const kind = (Object.keys(GROUP_OF) as AssetKind[]).find((k) => GROUP_OF[k] === a.group)!;
+      if (!FRAME_NAME_RE[kind].test(name)) errors.push(`${a.json}: nome de quadro fora do padrão: ${name}`);
+      const { x, y, w, h } = f.frame;
+      if (x < 0 || y < 0 || x + w > png.width || y + h > png.height) errors.push(`${a.json}: ${name} fora do atlas`);
+      if (!(f.anchor.x >= 0 && f.anchor.x <= 1 && f.anchor.y >= 0 && f.anchor.y <= 1)) errors.push(`${a.json}: ${name} âncora fora de [0,1]`);
+      const s = f.spriteSourceSize;
+      if (s.x < 0 || s.y < 0 || s.x + s.w > f.sourceSize.w || s.y + s.h > f.sourceSize.h || s.w !== w || s.h !== h) errors.push(`${a.json}: ${name} recorte fora do sourceSize`);
+      const max = BUDGET.maxSourceSize[kind] * a.scale;
+      if (f.sourceSize.w > max || f.sourceSize.h > max) errors.push(`${a.json}: ${name} sourceSize ${f.sourceSize.w}×${f.sourceSize.h} acima do orçamento ${max}`);
+    }
+    for (const [anim, list] of Object.entries(sheet.animations)) for (const n of list) if (!sheet.frames[n]) errors.push(`${a.json}: animação ${anim} referencia quadro ausente ${n}`);
+  }
+
+  // cada manifesto: todos os quadros declarados, nas três passagens pedidas, com todas as animações × direções
+  for (const m of manifests) {
+    const asset = index.assets[m.id];
+    if (!asset) { warnings.push(`${m.id}: ainda não assado (fora de public/art/manifest.json)`); continue; }
+    if (asset.kind !== m.kind) errors.push(`${m.id}: kind no índice (${asset.kind}) ≠ manifesto`);
+    const mirror = !!asset.mirror;
+    const expected = expandFrames(m, { mirror }).map((f) => f.name);
+    for (const [scale, byPass] of Object.entries(asset.atlases)) {
+      const collect = (pass: 'color' | 'team' | 'shadow') => {
+        const frames = new Map<string, SheetFrame>(); const anims: Record<string, string[]> = {};
+        for (const j of byPass[pass] ?? []) { const sh = sheets.get(j); if (!sh) continue; for (const [k, v] of Object.entries(sh.frames)) frames.set(k, v); Object.assign(anims, sh.animations); }
+        return { frames, anims };
+      };
+      const color = collect('color'), team = collect('team'), shadow = collect('shadow');
+      const missing = expected.filter((n) => !color.frames.has(n));
+      if (missing.length) errors.push(`${m.id} ${scale}×: ${missing.length} quadros de cor ausentes (ex.: ${missing.slice(0, 3).join(', ')})`);
+      if (m.team) {
+        const t = expected.filter((n) => team.frames.has(n)).length;
+        if (t === 0) errors.push(`${m.id} ${scale}×: team = true mas nenhum quadro de máscara`);
+        else if (t < expected.length) warnings.push(`${m.id} ${scale}×: ${expected.length - t} quadros sem máscara de time (parte de time escondida na pose)`);
+      } else if (team.frames.size) errors.push(`${m.id} ${scale}×: team = false mas há máscara`);
+      if (m.shadow) {
+        const s = expected.filter((n) => !shadow.frames.has(n));
+        if (s.length) errors.push(`${m.id} ${scale}×: ${s.length} quadros sem sombra (ex.: ${s.slice(0, 3).join(', ')})`);
+      }
+      // âncora e sourceSize comuns aos três passes de um mesmo quadro
+      for (const n of expected) {
+        const c = color.frames.get(n); if (!c) continue;
+        for (const other of [team.frames.get(n), shadow.frames.get(n)]) if (other && (other.anchor.x !== c.anchor.x || other.anchor.y !== c.anchor.y || other.sourceSize.w !== c.sourceSize.w || other.sourceSize.h !== c.sourceSize.h)) errors.push(`${m.id}: ${n} com âncora/sourceSize diferente entre passes`);
+      }
+      if (m.kind === 'unit') {
+        const anims = animationsOf(m, { mirror });
+        for (const [k, list] of Object.entries(anims)) {
+          const got = color.anims[k];
+          if (!got) { errors.push(`${m.id} ${scale}×: animação ${k} ausente no JSON`); continue; }
+          if (got.join() !== list.join()) errors.push(`${m.id} ${scale}×: animação ${k} com quadros diferentes do manifesto`);
+        }
+        for (const [a, d] of Object.entries(m.anims ?? {})) {
+          for (let dir = 0; dir < (m.dirs ?? DIRS); dir++) if (!color.anims[`${m.id}/${a}/${dir}`]) errors.push(`${m.id}: ${a} sem a direção ${dir}`);
+          if ((d.fps ?? FPS) <= 0) errors.push(`${m.id}: fps inválido em ${a}`);
+        }
+      }
+    }
+  }
+  if (stats.pngBytes > BUDGET.maxPngMB * 1048576) errors.push(`PNG somam ${(stats.pngBytes / 1048576).toFixed(1)} MB > ${BUDGET.maxPngMB} MB`);
+  if (stats.vramBytes > BUDGET.maxVramMB * 1048576) errors.push(`atlas somam ${(stats.vramBytes / 1048576).toFixed(1)} MB de VRAM > ${BUDGET.maxVramMB} MB`);
+  if (index.totals.pngBytes !== stats.pngBytes) errors.push('totals.pngBytes do índice difere dos arquivos');
+  return { errors, warnings, stats };
+}
+
+export type { ArtManifest };
+
+// CLI
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+  const r = runCheck(root);
+  for (const w of r.warnings) console.warn('aviso:', w);
+  for (const e of r.errors) console.error('ERRO:', e);
+  const s = r.stats;
+  console.log(`art:check — ${s.manifests} manifestos` + (s.hasArtifacts ? `, ${s.atlases} atlas, ${s.frames} quadros, ${(s.pngBytes / 1048576).toFixed(2)} MB de PNG, ${(s.vramBytes / 1048576).toFixed(1)} MB de VRAM (orçamento ${BUDGET.maxPngMB} MB / ${BUDGET.maxVramMB} MB)` : ' (public/art ainda não gerado)') + (r.errors.length ? ` — ${r.errors.length} erro(s)` : ' — ok'));
+  process.exit(r.errors.length ? 1 : 0);
+}

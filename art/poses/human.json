@@ -1,0 +1,83 @@
+{
+  "rig": "human",
+  "version": 1,
+  "units": "graus por pivô [x, y, z]; root: { pos: [m], rot: [graus] }; t em 0..1 por quadro-chave; loop = o último quadro não repete o primeiro",
+  "joints": ["root", "torso", "head", "shoulderL", "elbowL", "shoulderR", "elbowR", "hipL", "kneeL", "hipR", "kneeR", "spear", "axe", "shield", "basket"],
+  "anims": {
+    "idle_hoplite": {
+      "loop": true, "ease": "smooth",
+      "keys": [
+        { "t": 0,   "root": { "pos": [0, 0, 0] }, "torso": [2, 0, 0], "shoulderL": [30, 0, -14], "elbowL": [80, 0, 0], "shield": [-10, 0, 0], "shoulderR": [6, 0, 14], "elbowR": [12, 0, 0], "spear": [-18, 0, -14], "hipL": [4, 0, -3], "hipR": [-2, 0, 3], "kneeL": [-4, 0, 0], "kneeR": [-2, 0, 0] },
+        { "t": 0.5, "root": { "pos": [0, -0.012, 0] }, "torso": [4, 0, 0], "shoulderL": [32, 0, -13], "elbowL": [82, 0, 0], "shield": [-10, 0, 0], "shoulderR": [8, 0, 13], "elbowR": [14, 0, 0], "spear": [-20, 0, -13], "hipL": [4, 0, -3], "hipR": [-2, 0, 3], "kneeL": [-6, 0, 0], "kneeR": [-4, 0, 0] }
+      ]
+    },
+    "walk_hoplite": {
+      "loop": true,
+      "keys": [
+        { "t": 0,    "root": { "pos": [0, -0.02, 0] }, "torso": [5, 0, 0], "shoulderL": [34, 0, -12], "elbowL": [82, 0, 0], "shield": [-10, 0, 0], "shoulderR": [18, 0, 12], "elbowR": [20, 0, 0], "spear": [-52, 0, -10], "hipL": [28, 0, 0], "kneeL": [-6, 0, 0], "hipR": [-20, 0, 0], "kneeR": [-14, 0, 0] },
+        { "t": 0.25, "root": { "pos": [0, 0.02, 0] },  "torso": [5, 0, 0], "shoulderL": [34, 0, -12], "elbowL": [82, 0, 0], "shield": [-10, 0, 0], "shoulderR": [2, 0, 12],  "elbowR": [20, 0, 0], "spear": [-52, 0, -10], "hipL": [5, 0, 0],  "kneeL": [-8, 0, 0], "hipR": [2, 0, 0],   "kneeR": [-58, 0, 0] },
+        { "t": 0.5,  "root": { "pos": [0, -0.02, 0] }, "torso": [5, 0, 0], "shoulderL": [34, 0, -12], "elbowL": [82, 0, 0], "shield": [-10, 0, 0], "shoulderR": [-14, 0, 12], "elbowR": [20, 0, 0], "spear": [-52, 0, -10], "hipL": [-20, 0, 0], "kneeL": [-14, 0, 0], "hipR": [28, 0, 0], "kneeR": [-6, 0, 0] },
+        { "t": 0.75, "root": { "pos": [0, 0.02, 0] },  "torso": [5, 0, 0], "shoulderL": [34, 0, -12], "elbowL": [82, 0, 0], "shield": [-10, 0, 0], "shoulderR": [2, 0, 12],  "elbowR": [20, 0, 0], "spear": [-52, 0, -10], "hipL": [2, 0, 0],  "kneeL": [-58, 0, 0], "hipR": [5, 0, 0],  "kneeR": [-8, 0, 0] }
+      ]
+    },
+    "attack_spear": {
+      "loop": false, "ease": "smooth",
+      "keys": [
+        { "t": 0,    "root": { "pos": [0, 0, 0] },         "torso": [4, 14, 0],   "shoulderL": [34, 0, -14], "elbowL": [84, 0, 0], "shield": [-10, 0, 0], "shoulderR": [40, 0, 18], "elbowR": [100, 0, 0], "spear": [-230, 0, 0], "hipL": [14, 0, 0], "kneeL": [-10, 0, 0], "hipR": [-12, 0, 0], "kneeR": [-8, 0, 0] },
+        { "t": 0.3,  "root": { "pos": [0, -0.01, 0.05] },  "torso": [-4, 26, 0],  "shoulderL": [40, 0, -16], "elbowL": [86, 0, 0], "shield": [-10, 0, 0], "shoulderR": [20, 0, 24], "elbowR": [110, 0, 0], "spear": [-220, 0, 0], "hipL": [18, 0, 0], "kneeL": [-12, 0, 0], "hipR": [-18, 0, 0], "kneeR": [-8, 0, 0] },
+        { "t": 0.6,  "root": { "pos": [0, -0.06, -0.14] }, "torso": [16, -14, 0], "shoulderL": [26, 0, -12], "elbowL": [80, 0, 0], "shield": [-10, 0, 0], "shoulderR": [85, 0, 6],  "elbowR": [5, 0, 0],   "spear": [-180, 0, 0], "hipL": [34, 0, 0], "kneeL": [-26, 0, 0], "hipR": [-28, 0, 0], "kneeR": [-4, 0, 0] },
+        { "t": 1,    "root": { "pos": [0, 0, 0] },         "torso": [4, 14, 0],   "shoulderL": [34, 0, -14], "elbowL": [84, 0, 0], "shield": [-10, 0, 0], "shoulderR": [40, 0, 18], "elbowR": [100, 0, 0], "spear": [-230, 0, 0], "hipL": [14, 0, 0], "kneeL": [-10, 0, 0], "hipR": [-12, 0, 0], "kneeR": [-8, 0, 0] }
+      ]
+    },
+    "idle_villager": {
+      "loop": true, "ease": "smooth",
+      "keys": [
+        { "t": 0,   "root": { "pos": [0, 0, 0] },      "torso": [2, 0, 0], "shoulderL": [4, 0, -10], "elbowL": [10, 0, 0], "shoulderR": [4, 0, 10], "elbowR": [10, 0, 0], "axe": [0, 0, 0], "hipL": [2, 0, -2], "hipR": [-1, 0, 2], "kneeL": [-2, 0, 0], "kneeR": [-1, 0, 0] },
+        { "t": 0.5, "root": { "pos": [0, -0.012, 0] }, "torso": [4, 0, 0], "shoulderL": [6, 0, -11], "elbowL": [12, 0, 0], "shoulderR": [6, 0, 11], "elbowR": [12, 0, 0], "axe": [0, 0, 0], "hipL": [2, 0, -2], "hipR": [-1, 0, 2], "kneeL": [-4, 0, 0], "kneeR": [-3, 0, 0] }
+      ]
+    },
+    "walk_villager": {
+      "loop": true,
+      "keys": [
+        { "t": 0,    "root": { "pos": [0, -0.02, 0] }, "torso": [4, 0, 0], "shoulderL": [-24, 0, -8], "elbowL": [18, 0, 0], "shoulderR": [24, 0, 8],  "elbowR": [18, 0, 0], "hipL": [28, 0, 0], "kneeL": [-6, 0, 0],  "hipR": [-20, 0, 0], "kneeR": [-14, 0, 0] },
+        { "t": 0.25, "root": { "pos": [0, 0.02, 0] },  "torso": [4, 0, 0], "shoulderL": [0, 0, -8],   "elbowL": [18, 0, 0], "shoulderR": [0, 0, 8],   "elbowR": [18, 0, 0], "hipL": [5, 0, 0],  "kneeL": [-8, 0, 0],  "hipR": [2, 0, 0],   "kneeR": [-58, 0, 0] },
+        { "t": 0.5,  "root": { "pos": [0, -0.02, 0] }, "torso": [4, 0, 0], "shoulderL": [24, 0, -8],  "elbowL": [18, 0, 0], "shoulderR": [-24, 0, 8], "elbowR": [18, 0, 0], "hipL": [-20, 0, 0], "kneeL": [-14, 0, 0], "hipR": [28, 0, 0],  "kneeR": [-6, 0, 0] },
+        { "t": 0.75, "root": { "pos": [0, 0.02, 0] },  "torso": [4, 0, 0], "shoulderL": [0, 0, -8],   "elbowL": [18, 0, 0], "shoulderR": [0, 0, 8],   "elbowR": [18, 0, 0], "hipL": [2, 0, 0],  "kneeL": [-58, 0, 0], "hipR": [5, 0, 0],   "kneeR": [-8, 0, 0] }
+      ]
+    },
+    "carry": {
+      "loop": true,
+      "keys": [
+        { "t": 0,    "root": { "pos": [0, -0.02, 0] }, "torso": [8, 0, 0], "shoulderL": [48, 0, -16], "elbowL": [70, 0, 0], "shoulderR": [48, 0, 16], "elbowR": [70, 0, 0], "basket": [0, 0, 0], "hipL": [26, 0, 0], "kneeL": [-6, 0, 0],  "hipR": [-18, 0, 0], "kneeR": [-14, 0, 0] },
+        { "t": 0.25, "root": { "pos": [0, 0.02, 0] },  "torso": [8, 0, 0], "shoulderL": [48, 0, -16], "elbowL": [70, 0, 0], "shoulderR": [48, 0, 16], "elbowR": [70, 0, 0], "basket": [0, 0, 0], "hipL": [5, 0, 0],  "kneeL": [-8, 0, 0],  "hipR": [2, 0, 0],   "kneeR": [-54, 0, 0] },
+        { "t": 0.5,  "root": { "pos": [0, -0.02, 0] }, "torso": [8, 0, 0], "shoulderL": [48, 0, -16], "elbowL": [70, 0, 0], "shoulderR": [48, 0, 16], "elbowR": [70, 0, 0], "basket": [0, 0, 0], "hipL": [-18, 0, 0], "kneeL": [-14, 0, 0], "hipR": [26, 0, 0],  "kneeR": [-6, 0, 0] },
+        { "t": 0.75, "root": { "pos": [0, 0.02, 0] },  "torso": [8, 0, 0], "shoulderL": [48, 0, -16], "elbowL": [70, 0, 0], "shoulderR": [48, 0, 16], "elbowR": [70, 0, 0], "basket": [0, 0, 0], "hipL": [2, 0, 0],  "kneeL": [-54, 0, 0], "hipR": [5, 0, 0],   "kneeR": [-8, 0, 0] }
+      ]
+    },
+    "gather_axe": {
+      "loop": true, "ease": "smooth",
+      "keys": [
+        { "t": 0,    "root": { "pos": [0, 0, 0] },        "torso": [-6, 8, 0],  "shoulderL": [120, 0, -10], "elbowL": [40, 0, 0], "shoulderR": [150, 0, 12], "elbowR": [45, 0, 0], "axe": [-150, 0, 0], "hipL": [14, 0, 0], "kneeL": [-10, 0, 0], "hipR": [-10, 0, 0], "kneeR": [-6, 0, 0] },
+        { "t": 0.5,  "root": { "pos": [0, -0.05, -0.06] }, "torso": [24, -6, 0], "shoulderL": [40, 0, -10],  "elbowL": [20, 0, 0], "shoulderR": [50, 0, 12],  "elbowR": [10, 0, 0], "axe": [-70, 0, 0],  "hipL": [30, 0, 0], "kneeL": [-30, 0, 0], "hipR": [-22, 0, 0], "kneeR": [-6, 0, 0] }
+      ]
+    },
+    "attack_axe": {
+      "loop": false, "ease": "smooth",
+      "keys": [
+        { "t": 0,   "root": { "pos": [0, 0, 0] },         "torso": [4, 6, 0],    "shoulderL": [20, 0, -12], "elbowL": [30, 0, 0], "shoulderR": [60, 0, 14],  "elbowR": [40, 0, 0], "axe": [-60, 0, 0],  "hipL": [10, 0, 0], "kneeL": [-8, 0, 0],  "hipR": [-8, 0, 0],  "kneeR": [-6, 0, 0] },
+        { "t": 0.35, "root": { "pos": [0, -0.01, 0.03] }, "torso": [-8, 18, 0],  "shoulderL": [30, 0, -14], "elbowL": [40, 0, 0], "shoulderR": [160, 0, 20], "elbowR": [50, 0, 0], "axe": [-160, 0, 0], "hipL": [14, 0, 0], "kneeL": [-10, 0, 0], "hipR": [-12, 0, 0], "kneeR": [-6, 0, 0] },
+        { "t": 0.65, "root": { "pos": [0, -0.06, -0.12] }, "torso": [22, -16, 0], "shoulderL": [10, 0, -10], "elbowL": [20, 0, 0], "shoulderR": [40, 0, 8],   "elbowR": [6, 0, 0],  "axe": [-50, 0, 0],  "hipL": [32, 0, 0], "kneeL": [-24, 0, 0], "hipR": [-26, 0, 0], "kneeR": [-4, 0, 0] },
+        { "t": 1,   "root": { "pos": [0, 0, 0] },         "torso": [4, 6, 0],    "shoulderL": [20, 0, -12], "elbowL": [30, 0, 0], "shoulderR": [60, 0, 14],  "elbowR": [40, 0, 0], "axe": [-60, 0, 0],  "hipL": [10, 0, 0], "kneeL": [-8, 0, 0],  "hipR": [-8, 0, 0],  "kneeR": [-6, 0, 0] }
+      ]
+    },
+    "die": {
+      "loop": false, "ease": "smooth",
+      "keys": [
+        {"t": 0, "root": {"pos": [0, 0, 0], "rot": [0, 0, 0]}, "torso": [-8, 0, 0], "head": [-10, 0, 0], "shoulderL": [30, 0, -30], "elbowL": [40, 0, 0], "shield": [-10, 0, 0], "shoulderR": [30, 0, 30], "elbowR": [40, 0, 0], "spear": [-30, 0, 0], "axe": [0, 0, 0], "hipL": [10, 0, -4], "kneeL": [-20, 0, 0], "hipR": [-6, 0, 4], "kneeR": [-14, 0, 0]},
+        {"t": 0.4, "root": {"pos": [-0.05, -0.22, 0.03], "rot": [8, 0, 14]}, "torso": [-16, 0, 0], "head": [-16, 0, 0], "shoulderL": [50, 0, -50], "elbowL": [30, 0, 0], "shield": [-10, 0, 0], "shoulderR": [50, 0, 50], "elbowR": [30, 0, 0], "spear": [-40, 0, 0], "axe": [0, 0, 0], "hipL": [40, 0, -6], "kneeL": [-70, 0, 0], "hipR": [36, 0, 6], "kneeR": [-70, 0, 0]},
+        {"t": 0.75, "root": {"pos": [-0.2, -0.6, 0.1], "rot": [34, 0, 52]}, "torso": [-6, 0, 0], "head": [-24, 0, 0], "shoulderL": [40, 0, -75], "elbowL": [10, 0, 0], "shield": [-10, 0, 0], "shoulderR": [40, 0, 75], "elbowR": [10, 0, 0], "spear": [-50, 0, 0], "axe": [0, 0, 0], "hipL": [-20, 0, -8], "kneeL": [-30, 0, 0], "hipR": [-30, 0, 8], "kneeR": [-20, 0, 0]},
+        {"t": 1, "root": {"pos": [-0.3, -0.76, 0.14], "rot": [42, 0, 74]}, "torso": [0, 0, 0], "head": [-30, 0, 0], "shoulderL": [20, 0, -80], "elbowL": [0, 0, 0], "shield": [-10, 0, 0], "shoulderR": [20, 0, 80], "elbowR": [0, 0, 0], "spear": [-60, 0, 0], "axe": [0, 0, 0], "hipL": [-22, 0, -10], "kneeL": [-10, 0, 0], "hipR": [-32, 0, 10], "kneeR": [-6, 0, 0]}
+      ]
+    }
+  }
+}

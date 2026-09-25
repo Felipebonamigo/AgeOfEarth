@@ -1,0 +1,22 @@
+{
+  "id": "hoplite",
+  "kind": "unit",
+  "docs": "Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/hoplite.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Walk\", \"attack\": \"Attack01\", \"die\": \"Death\" }, \"teamMaterials\": [\"Cape\", \"ShieldCenter\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "human",
+    "poses": "art/poses/human.json",
+    "params": { "helmet": "corinthian", "armor": "cuirass", "greaves": true, "cape": "short", "shield": "hoplon", "weapon": "spear" }
+  },
+  "size": { "tiles": [3.2, 3.6] },
+  "anchor": [0.45, 0.58],
+  "dirs": 8,
+  "anims": {
+    "idle": { "frames": 4, "fps": 10, "pose": "idle_hoplite" },
+    "walk": { "frames": 8, "fps": 10, "pose": "walk_hoplite" },
+    "attack": { "frames": 6, "fps": 10, "pose": "attack_spear" },
+    "die": { "frames": 6, "fps": 10, "pose": "die" }
+  },
+  "team": true,
+  "shadow": true
+}

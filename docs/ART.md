@@ -411,13 +411,32 @@ Regras de fatiamento: cada etapa é jogável ao terminar (mistura placeholder + 
 
 ## Apêndice B — Como rodar (após a Etapa 2)
 
+Pipeline de bake (Etapa 2, parte A: só pipeline e artefatos; a integração no renderizador — `ArtLibrary`/`AtlasSource`/`UnitView`/`BuildingView` — é a parte B):
+
 ```
-npm run art:bake -- --only hoplite,temple      # assa só o que mudou (cache por hash); --scale 1,2 --dirs 8 --mirror
-npm run art:check                              # valida manifestos/JSON (também em npm test)
-npm run art:shot && npm run art:diff           # capturas de referência (exige npm run preview) e diff
-npm run perf:render                            # = node scripts/renderperf.mjs (exige npm run preview)
-http://localhost:4173/?perf=1                  # contador de fps / ms / draw calls / MB na build
+npm run art:bake -- --only hoplite,villager,temple,props   # assa o que mudou (cache por hash) e reempacota public/art
+npm run art:bake -- --scale 1,2                             # 1× (32 px/tile, obrigatório) e 2× (64 px/tile); padrão: 1
+npm run art:bake -- --mirror                                # 5 direções assadas + 3 espelhadas (= --dirs 5); padrão: 8
+npm run art:bake -- --pack-only                             # só reempacota a partir de art/cache (sem navegador)
+npm run art:bake -- --only hoplite --contact docs/art        # + folhas de contato docs/art/etapa2-<nome>-contato.png
+node scripts/bake/bake.mjs --selftest-glb                   # prova do caminho .glb (exporta um cidadão com clipe e o assa)
+npm run art:check                                           # valida manifestos + atlas (também roda em npm test)
+npm run art:shot && npm run art:diff                        # capturas de referência (exige npm run preview) e diff
+npm run perf:render                                         # = node scripts/renderperf.mjs (exige npm run preview)
+http://localhost:4173/?perf=1                               # contador de fps / ms / draw calls / MB na build
 ```
+
+Opções de `bake.mjs`: `--only a,b` (id exato, prefixo com hífen — `props` casa `props-trees` e `props-nodes` — ou grupo `units|buildings|props`), `--out public/art`, `--cache art/cache`, `CHROME_PATH=…` (padrão: o Chromium do Playwright deste ambiente, com `--use-gl=swiftshader --enable-unsafe-swiftshader`). Tempo medido aqui (swiftshader, sem GPU): hoplita 192 quadros em ≈ 7 s, cidadão 272 em ≈ 9–11 s, templo 4 em 0,5 s, 51 props em 2 s; o conjunto `hoplite,villager,temple,props` em 1× e 2× leva ≈ 80 s do zero e 2 s com cache.
+
+**Arquivos**: `scripts/bake/bake.mjs` (CLI), `server.mjs` (estático, porta livre: `page/`, `node_modules/three/`, `art/`), `manifest.mjs` (esquema, expansão em quadros, animações), `check.ts` (`art:check`), `page/index.html` + `page/bake.js` (três passes por quadro, super-amostragem 2×, folha de contato, exportador do `.glb` de teste), `page/camera.js` (contrato de câmera e luz — único lugar com os números), `page/materials.js` (PBR + cor de time), `page/rigs/human.js` (+ poses em `art/poses/human.json`), `page/props.js`, `page/buildings.js`, `page/atlas.js` (recorte, prateleiras, extrusão, JSON do Pixi). Manifestos em `art/manifest/<id>.json`; cache em `art/cache/<id>/<escala>x-<hash>/` (`frames.json` + um PNG recortado por quadro e passe; ignorado pelo git); `.glb` em `art/src/` (ignorado).
+
+**Decisões desta etapa (conferir na parte B)**:
+- *Sol*: com a convenção do bake (+x = leste, **+z = sul**, câmera ao sul) o vetor de §3.2 vira `SUN_DIR = (−0,55; 1,0; −0,35)` — sombras para SE na tela, como manda a regra 1 (ver Apêndice A). Consequência visível: faces voltadas para a câmera (sul) ficam na meia-sombra; o lado oeste/topo é o iluminado.
+- *Espaçamento*: `PAD = 2` px entre quadros + `EXTRUDE = 1` px de borda repetida (não 8 px como em §3.2); a margem de render fica na caixa `size.tiles` do manifesto e é recortada.
+- *Passes em atlas separados* com os mesmos nomes de quadro: `<grupo>-<e>x-<n>` (cor), `<grupo>-team-<e>x-<n>` (máscara de time: cinza/branco iluminado, só as partes de time, oclusão pelo corpo; o jogo multiplica pela cor do jogador) e `<grupo>-shadow-<e>x-<n>` (sombra projetada: RGB = 0, alfa = intensidade 0–1; o jogo desenha com alfa 0,45). Cada passe é empacotado à parte (retângulos diferentes), mas **`sourceSize` e `anchor` são iguais nos três** — basta posicionar os três sprites no mesmo ponto.
+- *Âncora*: `anchor` é relativo ao `sourceSize` (Pixi 8 aplica o recorte `spriteSourceSize` sozinho); o `sourceSize` é a união dos recortes de todos os quadros e passes do asset (unidade/edifício) ou do item (prop), então é estável entre quadros. Unidades: o pé; edifícios: o **centro da área ocupada** (= `x/y` do edifício no núcleo); props: a base.
+- *Espelhamento* (`--mirror`): E/SE/NE não estão no atlas; as animações `<id>/<anim>/0|1|7` apontam para os quadros de O/SO/NO e `meta.aoe.mirrored = {0:4, 1:3, 7:5}`; o jogo desenha com `scale.x = −1` e `anchor.x' = 1 − anchor.x`.
+- *Reprodutibilidade*: duas rodadas do zero geraram PNG, JSON e folhas de contato **byte a byte idênticos** (mesma máquina/driver swiftshader). Entre máquinas os pixels podem variar; o teste só compara JSON/estrutura.
 
 ## Apêndice C — Glossário
 

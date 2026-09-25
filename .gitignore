@@ -8,3 +8,7 @@ dist/
 .claude/worktrees/
 scripts/_tmp-*
 !docs/art/**/*.png
+# arte: cache do bake e modelos-fonte (.glb) ficam fora do git; os atlas gerados em public/art entram (docs/ART.md §3.5)
+art/cache/
+art/src/
+!public/art/**/*.png

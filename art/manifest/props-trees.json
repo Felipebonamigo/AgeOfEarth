@@ -1,0 +1,22 @@
+{
+  "id": "props-trees",
+  "kind": "prop",
+  "docs": "Cada item pode virar um .glb: troque `source` por { \"type\": \"glb\", \"path\": \"art/src/trees.glb\", \"scale\": 0.5, \"items\": [...] } com um nó por <kind>/<variante>/<tag> (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "props",
+    "items": [
+      { "kind": "olive", "variants": [0, 1, 2, 3], "tags": ["big", "small"] },
+      { "kind": "cypress", "variants": [0, 1, 2, 3], "tags": ["big", "small"] },
+      { "kind": "oak", "variants": [0, 1, 2, 3], "tags": ["big", "small"] },
+      { "kind": "olive", "variants": [0], "tags": ["thin"] },
+      { "kind": "cypress", "variants": [0], "tags": ["thin"] },
+      { "kind": "oak", "variants": [0], "tags": ["thin"] },
+      { "kind": "stump", "variants": [0, 1, 2], "size": [2, 2], "anchor": [0.4, 0.6] }
+    ]
+  },
+  "size": { "tiles": [6, 6.2] },
+  "anchor": [0.34, 0.66],
+  "team": false,
+  "shadow": true
+}

@@ -1,0 +1,606 @@
+{
+ "version": 1,
+ "app": "age-of-earth/scripts/bake",
+ "aoe": {
+  "version": 1,
+  "pitchDeg": 50,
+  "verticalFactor": 0.8391,
+  "sun": [
+   -0.55,
+   1,
+   -0.35
+  ],
+  "shadowDir": "SE",
+  "dirs": 8,
+  "dirNames": [
+   "E",
+   "SE",
+   "S",
+   "SW",
+   "W",
+   "NW",
+   "N",
+   "NE"
+  ],
+  "fps": 10,
+  "pad": 2,
+  "extrude": 1,
+  "mirror": false
+ },
+ "atlases": [
+  {
+   "json": "buildings-1x-0.json",
+   "image": "buildings-1x-0.png",
+   "group": "buildings",
+   "pass": "color",
+   "scale": 1,
+   "page": 0,
+   "w": 512,
+   "h": 256,
+   "frames": 4,
+   "bytes": 46514,
+   "sha256": "167fa6f5a451abed502e4b5930091e3cda8274b813f0d42fe59e9cec152d6294"
+  },
+  {
+   "json": "buildings-2x-0.json",
+   "image": "buildings-2x-0.png",
+   "group": "buildings",
+   "pass": "color",
+   "scale": 2,
+   "page": 0,
+   "w": 1024,
+   "h": 512,
+   "frames": 4,
+   "bytes": 129225,
+   "sha256": "dd088c459a9b446b426d1f934ab9ca2ab4e0c12c30db34bcb11fd85e0f463e08"
+  },
+  {
+   "json": "buildings-shadow-1x-0.json",
+   "image": "buildings-shadow-1x-0.png",
+   "group": "buildings",
+   "pass": "shadow",
+   "scale": 1,
+   "page": 0,
+   "w": 512,
+   "h": 128,
+   "frames": 4,
+   "bytes": 23602,
+   "sha256": "e0ad3525f3a9b6d0698d69d52b4e248645e4238f6b1432af14125bbc21021bca"
+  },
+  {
+   "json": "buildings-shadow-2x-0.json",
+   "image": "buildings-shadow-2x-0.png",
+   "group": "buildings",
+   "pass": "shadow",
+   "scale": 2,
+   "page": 0,
+   "w": 1024,
+   "h": 256,
+   "frames": 4,
+   "bytes": 80934,
+   "sha256": "dd09e2d9053751457362e4d3b46f7307e15c5d076fa590701b35768c018bf923"
+  },
+  {
+   "json": "buildings-team-1x-0.json",
+   "image": "buildings-team-1x-0.png",
+   "group": "buildings",
+   "pass": "team",
+   "scale": 1,
+   "page": 0,
+   "w": 64,
+   "h": 32,
+   "frames": 4,
+   "bytes": 226,
+   "sha256": "ca21f5ab1d3d9fcd2c635e9eaff2519ba8a2eaffd786204cbd18018aa3c2b86c"
+  },
+  {
+   "json": "buildings-team-2x-0.json",
+   "image": "buildings-team-2x-0.png",
+   "group": "buildings",
+   "pass": "team",
+   "scale": 2,
+   "page": 0,
+   "w": 128,
+   "h": 64,
+   "frames": 4,
+   "bytes": 310,
+   "sha256": "644f56d0da690c52e4e81c34a8ec719758037ae33b1b95bacca12158585b2a12"
+  },
+  {
+   "json": "props-1x-0.json",
+   "image": "props-1x-0.png",
+   "group": "props",
+   "pass": "color",
+   "scale": 1,
+   "page": 0,
+   "w": 2048,
+   "h": 512,
+   "frames": 51,
+   "bytes": 134566,
+   "sha256": "ae604f4c777363ca630d2ded91f67f313bb54d4777b0f3c36e0ec6899c093bd4"
+  },
+  {
+   "json": "props-2x-0.json",
+   "image": "props-2x-0.png",
+   "group": "props",
+   "pass": "color",
+   "scale": 2,
+   "page": 0,
+   "w": 2048,
+   "h": 1024,
+   "frames": 51,
+   "bytes": 364982,
+   "sha256": "668f02b530ee5609e16098aca5ae606e1d81f1de5cda8f6d69c801855b923ac2"
+  },
+  {
+   "json": "props-shadow-1x-0.json",
+   "image": "props-shadow-1x-0.png",
+   "group": "props",
+   "pass": "shadow",
+   "scale": 1,
+   "page": 0,
+   "w": 2048,
+   "h": 256,
+   "frames": 51,
+   "bytes": 45202,
+   "sha256": "7917c04dceb4744562d017a5bdc77ea50a401b410be9496b4785f978d5fb7cc8"
+  },
+  {
+   "json": "props-shadow-2x-0.json",
+   "image": "props-shadow-2x-0.png",
+   "group": "props",
+   "pass": "shadow",
+   "scale": 2,
+   "page": 0,
+   "w": 2048,
+   "h": 512,
+   "frames": 51,
+   "bytes": 131029,
+   "sha256": "4c095d6f04d99d20219b8919b5d9f3c706ce47b7fd0a06ae23aa4d732ae9195a"
+  },
+  {
+   "json": "units-1x-0.json",
+   "image": "units-1x-0.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 1,
+   "page": 0,
+   "w": 2048,
+   "h": 512,
+   "frames": 464,
+   "bytes": 480845,
+   "sha256": "b7c90e5983c4ca77560d2ad89bb1d79fdf0e79d6efd8a13a9b7adfebb51ae0cb"
+  },
+  {
+   "json": "units-2x-0.json",
+   "image": "units-2x-0.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 2,
+   "page": 0,
+   "w": 2048,
+   "h": 1024,
+   "frames": 464,
+   "bytes": 1330913,
+   "sha256": "45da3f67cccd39626d17c02cbad0e21f30d4797f83cc5bb5cf30509494f362f3"
+  },
+  {
+   "json": "units-shadow-1x-0.json",
+   "image": "units-shadow-1x-0.png",
+   "group": "units",
+   "pass": "shadow",
+   "scale": 1,
+   "page": 0,
+   "w": 2048,
+   "h": 256,
+   "frames": 464,
+   "bytes": 229526,
+   "sha256": "4a02e9fbb65cb78cdd77818e55519add5fb5f6d19323b28b555b429a48625727"
+  },
+  {
+   "json": "units-shadow-2x-0.json",
+   "image": "units-shadow-2x-0.png",
+   "group": "units",
+   "pass": "shadow",
+   "scale": 2,
+   "page": 0,
+   "w": 2048,
+   "h": 1024,
+   "frames": 464,
+   "bytes": 712959,
+   "sha256": "649ea4047fc18c1fab2c9952372be9dc33c27edfb2a3bbe39a220122a5cfd076"
+  },
+  {
+   "json": "units-team-1x-0.json",
+   "image": "units-team-1x-0.png",
+   "group": "units",
+   "pass": "team",
+   "scale": 1,
+   "page": 0,
+   "w": 2048,
+   "h": 128,
+   "frames": 464,
+   "bytes": 114483,
+   "sha256": "479d443c1543b0c9d97314fab1239a5c17ee354e4b0a341ea2b8416c4f856339"
+  },
+  {
+   "json": "units-team-2x-0.json",
+   "image": "units-team-2x-0.png",
+   "group": "units",
+   "pass": "team",
+   "scale": 2,
+   "page": 0,
+   "w": 2048,
+   "h": 256,
+   "frames": 464,
+   "bytes": 272277,
+   "sha256": "cf7061e1b0620d574133dca0d50cabc2f5c68da608343f7e2a950a2dcf897011"
+  }
+ ],
+ "assets": {
+  "hoplite": {
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-0.json"
+     ],
+     "team": [
+      "units-team-1x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-0.json"
+     ],
+     "team": [
+      "units-team-2x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-0.json"
+     ]
+    }
+   },
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "5ed84d25be24124e",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 192,
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 88,
+      "h": 108
+     },
+     "anchor": {
+      "x": 0.39773,
+      "y": 0.56481
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 178,
+      "h": 217
+     },
+     "anchor": {
+      "x": 0.40449,
+      "y": 0.56682
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   }
+  },
+  "props-nodes": {
+   "atlases": {
+    "1": {
+     "color": [
+      "props-1x-0.json"
+     ],
+     "shadow": [
+      "props-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "props-2x-0.json"
+     ],
+     "shadow": [
+      "props-shadow-2x-0.json"
+     ]
+    }
+   },
+   "kind": "prop",
+   "group": "props",
+   "sourceHash": "e06e20b26f76d9a8",
+   "dirs": 1,
+   "mirror": false,
+   "team": false,
+   "shadow": true,
+   "frames": 21,
+   "items": [
+    "rock/0",
+    "rock/1",
+    "rock/2",
+    "rock/3",
+    "rock/4",
+    "rock/5",
+    "berry/full",
+    "berry/half",
+    "berry/empty",
+    "gold/0",
+    "gold/1",
+    "gold/2",
+    "lure/0",
+    "deer/0",
+    "deer/2",
+    "deer/4",
+    "deer/6",
+    "boar/0",
+    "boar/2",
+    "boar/4",
+    "boar/6"
+   ]
+  },
+  "props-trees": {
+   "atlases": {
+    "1": {
+     "color": [
+      "props-1x-0.json"
+     ],
+     "shadow": [
+      "props-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "props-2x-0.json"
+     ],
+     "shadow": [
+      "props-shadow-2x-0.json"
+     ]
+    }
+   },
+   "kind": "prop",
+   "group": "props",
+   "sourceHash": "5c6d10b3166a11e7",
+   "dirs": 1,
+   "mirror": false,
+   "team": false,
+   "shadow": true,
+   "frames": 30,
+   "items": [
+    "olive/0/big",
+    "olive/0/small",
+    "olive/1/big",
+    "olive/1/small",
+    "olive/2/big",
+    "olive/2/small",
+    "olive/3/big",
+    "olive/3/small",
+    "cypress/0/big",
+    "cypress/0/small",
+    "cypress/1/big",
+    "cypress/1/small",
+    "cypress/2/big",
+    "cypress/2/small",
+    "cypress/3/big",
+    "cypress/3/small",
+    "oak/0/big",
+    "oak/0/small",
+    "oak/1/big",
+    "oak/1/small",
+    "oak/2/big",
+    "oak/2/small",
+    "oak/3/big",
+    "oak/3/small",
+    "olive/0/thin",
+    "cypress/0/thin",
+    "oak/0/thin",
+    "stump/0",
+    "stump/1",
+    "stump/2"
+   ]
+  },
+  "temple": {
+   "atlases": {
+    "1": {
+     "color": [
+      "buildings-1x-0.json"
+     ],
+     "team": [
+      "buildings-team-1x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "buildings-2x-0.json"
+     ],
+     "team": [
+      "buildings-team-2x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-2x-0.json"
+     ]
+    }
+   },
+   "kind": "building",
+   "group": "buildings",
+   "sourceHash": "dfb6953db50d1be1",
+   "dirs": 1,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 4,
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 130,
+      "h": 185
+     },
+     "anchor": {
+      "x": 0.37692,
+      "y": 0.59459
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 260,
+      "h": 370
+     },
+     "anchor": {
+      "x": 0.38077,
+      "y": 0.59459
+     }
+    }
+   },
+   "anims": {
+    "build0": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "complete": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    }
+   },
+   "footprint": [
+    3,
+    3
+   ]
+  },
+  "villager": {
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-0.json"
+     ],
+     "team": [
+      "units-team-1x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-0.json"
+     ],
+     "team": [
+      "units-team-2x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-0.json"
+     ]
+    }
+   },
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "2f4b329c36812ee7",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 272,
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 51,
+      "h": 66
+     },
+     "anchor": {
+      "x": 0.37255,
+      "y": 0.63636
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 102,
+      "h": 133
+     },
+     "anchor": {
+      "x": 0.37255,
+      "y": 0.63158
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "carry": {
+     "frames": 6,
+     "fps": 10,
+     "loop": true
+    },
+    "gather": {
+     "frames": 4,
+     "fps": 10,
+     "loop": true
+    }
+   }
+  }
+ },
+ "totals": {
+  "pngBytes": 4097593,
+  "vramBytes": 49061888,
+  "atlases": 16
+ }
+}

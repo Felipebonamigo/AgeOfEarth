@@ -1,0 +1,21 @@
+{
+  "id": "props-nodes",
+  "kind": "prop",
+  "docs": "Cada item pode virar um .glb: troque `source` por { \"type\": \"glb\", \"path\": \"art/src/nodes.glb\", \"scale\": 0.5, \"items\": [...] } com um nó por <kind>/<variante> (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "props",
+    "items": [
+      { "kind": "rock", "variants": [0, 1, 2, 3, 4, 5] },
+      { "kind": "berry", "variants": ["full", "half", "empty"] },
+      { "kind": "gold", "variants": [0, 1, 2] },
+      { "kind": "lure", "variants": [0] },
+      { "kind": "deer", "variants": [0, 2, 4, 6] },
+      { "kind": "boar", "variants": [0, 2, 4, 6] }
+    ]
+  },
+  "size": { "tiles": [3, 3] },
+  "anchor": [0.42, 0.62],
+  "team": false,
+  "shadow": true
+}
