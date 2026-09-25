@@ -13,6 +13,8 @@
     "test:watch": "vitest",
     "smoke": "tsx scripts/headless.ts",
     "balance": "tsx scripts/balance.ts",
+    "map:export": "tsx scripts/export-map.ts",
+    "map:check": "tsx scripts/mapcheck.ts",
     "relay": "node server/relay.mjs"
   },
   "license": "MIT",

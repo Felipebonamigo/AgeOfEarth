@@ -6,7 +6,11 @@ import type { GameMap, ResourceNode } from '../types';
 import { idx, inBounds, dist } from './grid';
 import { articulationPoints, invalidateComponents } from './components';
 
-const NODE_AMOUNT: Record<NodeType, number> = { tree: 150, berry: 175, gold: 900, deer: 140, boar: 260, lure: 800 };
+/** Quantidade padrão de recurso por tipo de nó (editor: valor inicial ao colocar um nó). */
+export const NODE_AMOUNT: Record<NodeType, number> = { tree: 150, berry: 175, gold: 900, deer: 140, boar: 260, lure: 800 };
+
+/** Pontos do círculo unitário (32 direções) usados por generateMap, placeStartResources e blankMap. */
+const CIRCLE32 = unitCircle(32);
 
 /** Parâmetros por tipo de mapa: limiares do ruído de elevação, densidade de bosques e terreno base. */
 const MAP_PRESETS: Record<MapType, { water: number; sand: number; dirt: number; mountain: number; forest: number; forestDensity: number; base: number; goldRoll: number }> = {
@@ -41,24 +45,11 @@ export function generateMap(w: number, h: number, seed: number, playerCount: num
     decor[i] = Math.floor(decorN.noise(x * 0.9, y * 0.9) * 255);
   }
   // Água profunda: água cercada de água
-  for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
-    const i = idx(map, x, y);
-    if (terrain[i] !== TERRAIN.WATER) continue;
-    let deep = true;
-    for (let dy = -1; dy <= 1 && deep; dy++) for (let dx = -1; dx <= 1; dx++) if (terrain[idx(map, x + dx, y + dy)] !== TERRAIN.WATER && terrain[idx(map, x + dx, y + dy)] !== TERRAIN.DEEP) { deep = false; break; }
-    if (deep) terrain[i] = TERRAIN.DEEP;
-  }
+  deriveDeepWater(map);
 
   // 2) Posições iniciais em círculo ao redor do centro, com rotação aleatória
-  const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.36;
-  const rot = rng.float();
-  // Sem trigonometria na simulação: usamos pontos pré-calculados de um círculo unitário (32 direções)
-  const CIRCLE = unitCircle(32);
-  for (let p = 0; p < playerCount; p++) {
-    const k = Math.floor(((p / playerCount) + rot) * 32) % 32;
-    const sx = Math.round(cx + CIRCLE[k][0] * R), sy = Math.round(cy + CIRCLE[k][1] * R);
-    map.starts.push({ x: clampi(sx, 8, w - 9), y: clampi(sy, 8, h - 9) });
-  }
+  // (sem trigonometria na simulação: pontos pré-calculados de um círculo unitário com 32 direções)
+  for (const s of circleStarts(w, h, playerCount, rng.float())) map.starts.push(s);
   // Limpa área inicial (raio 8) para grama
   for (const s of map.starts) {
     for (let dy = -9; dy <= 9; dy++) for (let dx = -9; dx <= 9; dx++) {
@@ -78,24 +69,7 @@ export function generateMap(w: number, h: number, seed: number, playerCount: num
   }
 
   // 4) Recursos garantidos perto de cada início
-  for (const s of map.starts) {
-    // bosque garantido a ~8-10 tiles
-    const ang = rng.int(0, 31);
-    placeCluster(map, rng, 'tree', s.x + Math.round(CIRCLE[ang][0] * 9), s.y + Math.round(CIRCLE[ang][1] * 9), 4.2, 28);
-    // frutas: 2 grupos
-    for (let k = 0; k < 2; k++) {
-      const a = (ang + 8 + k * 12 + rng.int(-2, 2)) % 32;
-      placeCluster(map, rng, 'berry', s.x + Math.round(CIRCLE[a][0] * 5.5), s.y + Math.round(CIRCLE[a][1] * 5.5), 1.4, 6);
-    }
-    // ouro: 1 veio perto, 1 médio
-    const ga = (ang + 20 + rng.int(-3, 3)) % 32;
-    placeCluster(map, rng, 'gold', s.x + Math.round(CIRCLE[ga][0] * 7), s.y + Math.round(CIRCLE[ga][1] * 7), 1.2, 4);
-    const gb = (ang + 4 + rng.int(-2, 2)) % 32;
-    placeCluster(map, rng, 'gold', s.x + Math.round(CIRCLE[gb][0] * 13), s.y + Math.round(CIRCLE[gb][1] * 13), 1.4, 5);
-    // caça
-    const da = (ang + 26 + rng.int(-3, 3)) % 32;
-    placeCluster(map, rng, 'deer', s.x + Math.round(CIRCLE[da][0] * 9), s.y + Math.round(CIRCLE[da][1] * 9), 1.6, 4);
-  }
+  for (const s of map.starts) placeStartResources(map, rng, s);
 
   // 5) Recursos espalhados pelo mapa
   const extra = Math.round((w * h) / 900);
@@ -132,9 +106,63 @@ export function generateMap(w: number, h: number, seed: number, playerCount: num
   return map;
 }
 
+/**
+ * Marca como água profunda (DEEP) a água cercada de água nos 8 vizinhos e devolve a WATER a água profunda que deixou
+ * de estar cercada. Só tiles interiores (a borda nunca é DEEP). Com rect, limita a passagem ao retângulo ±1
+ * (o editor chama após pintar). Varre em ordem (y, x) mutando no lugar, como generateMap sempre fez.
+ */
+export function deriveDeepWater(map: GameMap, rect?: { x0: number; y0: number; x1: number; y1: number }): void {
+  const { w, h, terrain } = map;
+  const x0 = Math.max(1, rect ? rect.x0 - 1 : 1), y0 = Math.max(1, rect ? rect.y0 - 1 : 1);
+  const x1 = Math.min(w - 2, rect ? rect.x1 + 1 : w - 2), y1 = Math.min(h - 2, rect ? rect.y1 + 1 : h - 2);
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const i = idx(map, x, y);
+    const t = terrain[i];
+    if (t !== TERRAIN.WATER && t !== TERRAIN.DEEP) continue;
+    let deep = true;
+    for (let dy = -1; dy <= 1 && deep; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const n = terrain[idx(map, x + dx, y + dy)];
+      if (n !== TERRAIN.WATER && n !== TERRAIN.DEEP) { deep = false; break; }
+    }
+    terrain[i] = deep ? TERRAIN.DEEP : TERRAIN.WATER;
+  }
+}
+
+/** Inícios em círculo ao redor do centro (raio 36% do lado menor), com rotação em [0,1) e afastados 8 tiles da borda. */
+export function circleStarts(w: number, h: number, count: number, rot: number): { x: number; y: number }[] {
+  const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.36;
+  const out: { x: number; y: number }[] = [];
+  for (let p = 0; p < count; p++) {
+    const k = Math.floor(((p / count) + rot) * 32) % 32;
+    const sx = Math.round(cx + CIRCLE32[k][0] * R), sy = Math.round(cy + CIRCLE32[k][1] * R);
+    out.push({ x: clampi(sx, 8, w - 9), y: clampi(sy, 8, h - 9) });
+  }
+  return out;
+}
+
+/** Recursos garantidos ao redor de um início: bosque a ~9 tiles, 2 grupos de frutas, 2 veios de ouro e caça (consome o rng). */
+export function placeStartResources(map: GameMap, rng: RNG, s: { x: number; y: number }): void {
+  // bosque garantido a ~8-10 tiles
+  const ang = rng.int(0, 31);
+  placeCluster(map, rng, 'tree', s.x + Math.round(CIRCLE32[ang][0] * 9), s.y + Math.round(CIRCLE32[ang][1] * 9), 4.2, 28);
+  // frutas: 2 grupos
+  for (let k = 0; k < 2; k++) {
+    const a = (ang + 8 + k * 12 + rng.int(-2, 2)) % 32;
+    placeCluster(map, rng, 'berry', s.x + Math.round(CIRCLE32[a][0] * 5.5), s.y + Math.round(CIRCLE32[a][1] * 5.5), 1.4, 6);
+  }
+  // ouro: 1 veio perto, 1 médio
+  const ga = (ang + 20 + rng.int(-3, 3)) % 32;
+  placeCluster(map, rng, 'gold', s.x + Math.round(CIRCLE32[ga][0] * 7), s.y + Math.round(CIRCLE32[ga][1] * 7), 1.2, 4);
+  const gb = (ang + 4 + rng.int(-2, 2)) % 32;
+  placeCluster(map, rng, 'gold', s.x + Math.round(CIRCLE32[gb][0] * 13), s.y + Math.round(CIRCLE32[gb][1] * 13), 1.4, 5);
+  // caça
+  const da = (ang + 26 + rng.int(-3, 3)) % 32;
+  placeCluster(map, rng, 'deer', s.x + Math.round(CIRCLE32[da][0] * 9), s.y + Math.round(CIRCLE32[da][1] * 9), 1.6, 4);
+}
+
 function clampi(v: number, lo: number, hi: number) { return v < lo ? lo : v > hi ? hi : v; }
 
-function unitCircle(n: number): [number, number][] {
+export function unitCircle(n: number): [number, number][] {
   // Pontos do círculo unitário gerados sem trigonometria (rotação por multiplicação complexa, valores fixos)
   const out: [number, number][] = [];
   const c = 0.9807852804032304, s = 0.19509032201612825; // cos/sin de 2π/32, constantes fixas
@@ -207,7 +235,7 @@ export function rebuildBlocked(map: GameMap): void {
 }
 
 /** Alarga gargalos de 1 tile: remove árvores/veios ao redor de cada ponto de articulação (unidades não travam e a IA não sela a base). */
-function widenChokepoints(map: GameMap): void {
+export function widenChokepoints(map: GameMap): void {
   // até 3 passes: abrir um gargalo pode expor o próximo (custa ~10% das árvores, só nas bordas dos bosques)
   for (let pass = 0; pass < 3; pass++) {
     const ap = articulationPoints(map);
@@ -227,7 +255,7 @@ function widenChokepoints(map: GameMap): void {
 }
 
 /** Garante que todos os inícios estão conectados por terra; abre corredores quando necessário. */
-function ensureConnectivity(map: GameMap): void {
+export function ensureConnectivity(map: GameMap): void {
   if (map.starts.length < 2) return;
   for (let guard = 0; guard < 8; guard++) {
     const reach = floodFrom(map, map.starts[0].x, map.starts[0].y);
@@ -268,7 +296,8 @@ function floodFrom(map: GameMap, sx: number, sy: number): Uint8Array {
   return seen;
 }
 
-function carveCorridor(map: GameMap, x0: number, y0: number, x1: number, y1: number) {
+/** Abre um corredor reto de 3 tiles de largura entre dois pontos: água vira areia, montanha vira terra, nós são removidos. */
+export function carveCorridor(map: GameMap, x0: number, y0: number, x1: number, y1: number): void {
   const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
   for (let s = 0; s <= steps; s++) {
     const t = steps === 0 ? 0 : s / steps;
