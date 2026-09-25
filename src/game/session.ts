@@ -1,5 +1,5 @@
 // Sessão de jogo: estado, agendador de comandos, seleção, grupos de controle, velocidade e modo da interface.
-import { DT } from '../core/constants';
+import { DT, type Formation } from '../core/constants';
 import type { Building, Command, GameConfig, GameState, Unit } from '../core/types';
 import { createGame } from '../core/sim/game';
 import { LocalScheduler, ReplayScheduler, type CommandScheduler, type ReplayFrame } from '../core/net/lockstep';
@@ -9,6 +9,7 @@ export type UIMode = 'normal' | 'place' | 'attackMove' | 'power' | 'rally';
 
 export interface UIState {
   mode: UIMode;
+  formation: Formation;
   placeType: string | null;
   powerId: string | null;
   wallStart: { x: number; y: number } | null;
@@ -24,7 +25,7 @@ export class Session {
   speed = 1;
   paused = false;
   accumulator = 0;
-  ui: UIState = { mode: 'normal', placeType: null, powerId: null, wallStart: null, showRanges: false };
+  ui: UIState = { mode: 'normal', placeType: null, powerId: null, wallStart: null, showRanges: false, formation: 'line' };
   lastEvent: { x: number; y: number } | null = null;
   eventCursor = 0;
   onSelectionChanged: (() => void) | null = null;

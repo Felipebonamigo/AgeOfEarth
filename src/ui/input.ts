@@ -160,12 +160,12 @@ export class Input {
       else if (def.farm && builders.length > 0) cmd = { type: 'gather', player: s.local, ids: builders.map((u) => u.id), targetId: target.id, queue };
       else if (def.worship && builders.length > 0) cmd = { type: 'pray', player: s.local, ids: builders.map((u) => u.id), targetId: target.id, queue };
       else if (def.garrison && target.complete && canEnter.length > 0 && target.garrison.length < def.garrison) cmd = { type: 'garrison', player: s.local, ids: canEnter.map((u) => u.id), targetId: target.id, queue };
-      else cmd = { type: 'move', player: s.local, ids, x, y, queue };
+      else cmd = { type: 'move', player: s.local, ids, x, y, queue, formation: s.ui.formation };
     } else if (target && target.kind === 'building' && target.complete && s.state.players[target.owner].team === s.player.team && BUILDINGS[target.type].garrison) {
       const canEnter = units.filter((u) => ['civilian', 'infantry', 'archer', 'skirmisher', 'hero'].some((t) => UNITS[u.type].tags.includes(t)) && !UNITS[u.type].tags.includes('cavalry') && !UNITS[u.type].tags.includes('myth'));
       cmd = canEnter.length > 0 ? { type: 'garrison', player: s.local, ids: canEnter.map((u) => u.id), targetId: target.id, queue } : { type: 'move', player: s.local, ids, x, y, queue };
     } else {
-      cmd = { type: 'move', player: s.local, ids, x, y, queue };
+      cmd = { type: 'move', player: s.local, ids, x, y, queue, formation: s.ui.formation };
     }
     if (cmd) {
       if (cmd.type === 'build') { // juntar-se a uma obra existente: usa "repair" (mesmo comportamento para obras incompletas)
@@ -179,7 +179,7 @@ export class Input {
   private attackMove(x: number, y: number, queue: boolean) {
     const s = this.getSession()!; const ids = s.ownSelectedUnits().map((u) => u.id);
     if (ids.length === 0) return;
-    s.issue({ type: 'attackMove', player: s.local, ids, x, y, queue }); this.audio.play('command');
+    s.issue({ type: 'attackMove', player: s.local, ids, x, y, queue, formation: s.ui.formation }); this.audio.play('command');
   }
 
   private placeAt(x: number, y: number, keep: boolean) {

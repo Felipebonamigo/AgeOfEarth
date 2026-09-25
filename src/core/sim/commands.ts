@@ -1,6 +1,6 @@
 // Comandos: validação e aplicação. Toda mudança de estado originada do jogador/IA/rede passa por aqui,
 // o que torna a simulação reproduzível (lockstep, replays, saves).
-import { MAX_SCHOLARS, SCHOLAR_COST, TICK_RATE, type Stance } from '../constants';
+import { MAX_SCHOLARS, SCHOLAR_COST, TICK_RATE, type Stance, type Formation } from '../constants';
 import { ACADEMY_LINES, AGES, BUILDINGS, MAX_AGE, MINOR_GODS, MAJOR_GODS, TECHS, UNITS } from '../data';
 import type { Building, Command, GameState, Player, Unit } from '../types';
 import { spiralSearch, canPass, inBounds } from '../map/grid';
@@ -64,16 +64,29 @@ function formationRank(u: Unit): number {
   return 0;
 }
 
-/** Formação em fileiras perpendiculares à direção do deslocamento; corpo a corpo à frente, arqueiros atrás, cerco por último. */
-function formationOffsets(units: Unit[], cx: number, cy: number, tx: number, ty: number): [number, number][] {
+/**
+ * Formação perpendicular à direção do deslocamento; corpo a corpo à frente, arqueiros atrás, cerco por último.
+ * line: fileiras largas (padrão) · box: quadrado compacto · column: coluna de 2 (marcha) · wedge: cunha (ponta à frente).
+ */
+export function formationOffsets(units: Unit[], cx: number, cy: number, tx: number, ty: number, formation: Formation = 'line'): [number, number][] {
   const n = units.length;
   let dx = tx - cx, dy = ty - cy;
   const len = Math.sqrt(dx * dx + dy * dy);
   if (len < 1e-6) { dx = 0; dy = 1; } else { dx /= len; dy /= len; }
   const px = -dy, py = dx;              // perpendicular
-  const width = Math.max(2, Math.ceil(Math.sqrt(n * 1.6)));
   const spacing = 0.95;
   const out: [number, number][] = [];
+  if (formation === 'wedge') {
+    // fileiras 1, 2, 3, ... da ponta para trás
+    let i = 0, row = 0;
+    while (i < n) {
+      const w = Math.min(row + 1, n - i);
+      for (let c = 0; c < w; c++, i++) { const col = c - (w - 1) / 2; out.push([px * col * spacing - dx * row * spacing, py * col * spacing - dy * row * spacing]); }
+      row++;
+    }
+    return out;
+  }
+  const width = formation === 'column' ? 2 : formation === 'box' ? Math.max(2, Math.ceil(Math.sqrt(n))) : Math.max(2, Math.ceil(Math.sqrt(n * 1.6)));
   for (let i = 0; i < n; i++) {
     const row = Math.floor(i / width), col = (i % width) - (Math.min(width, n - row * width) - 1) / 2;
     out.push([px * col * spacing - dx * row * spacing, py * col * spacing - dy * row * spacing]);
@@ -107,7 +120,7 @@ export function applyCommand(state: GameState, cmd: Command): CommandResult {
         // formação: corpo a corpo na frente, arqueiros atrás, cerco/civis por último; dentro da fileira, os mais próximos ao centro
         const cx = units.reduce((s, u) => s + u.x, 0) / units.length, cy = units.reduce((s, u) => s + u.y, 0) / units.length;
         units.sort((a, b) => formationRank(a) - formationRank(b) || a.id - b.id);
-        offs = formationOffsets(units, cx, cy, cmd.x, cmd.y);
+        offs = formationOffsets(units, cx, cy, cmd.x, cmd.y, cmd.formation ?? 'line');
       } else {
         units.sort((a, b) => ((a.x - cmd.x) ** 2 + (a.y - cmd.y) ** 2) - ((b.x - cmd.x) ** 2 + (b.y - cmd.y) ** 2));
         offs = groupOffsets(units.length);

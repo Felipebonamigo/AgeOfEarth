@@ -71,6 +71,9 @@ export const MAP_TYPES: MapType[] = ['continental', 'mountains', 'forest', 'dese
 export const VETERAN_KILLS = [3, 8, 15];
 export const VETERAN_BONUS = 0.1;
 export function rankOf(kills: number): number { let r = 0; for (const k of VETERAN_KILLS) if (kills >= k) r++; return r; }
+// Formações de exército (ordens de mover/atacar-mover com 4+ unidades)
+export type Formation = 'line' | 'box' | 'column' | 'wedge';
+export const FORMATIONS: Formation[] = ['line', 'box', 'column', 'wedge'];
 export const KOTH_RADIUS = 6;          // raio da colina (tiles)
 export const KOTH_SECONDS = 240;       // segundos seguidos segurando a colina sozinho para vencer
 export const DEATHMATCH_RESOURCES = { food: 4000, wood: 4000, gold: 3000, knowledge: 300, favor: 150 } as const;

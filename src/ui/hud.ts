@@ -1,6 +1,7 @@
 // Interface em DOM: barra de recursos, painel de seleção, grade de comandos, poderes divinos,
 // minimapa, mensagens, tooltips e modais (deuses menores, menu, ajuda, enciclopédia, fim de jogo).
-import { RESOURCES, RESOURCE_ICONS, STANCES, TICK_RATE, MAX_SCHOLARS, SCHOLAR_COST, WONDER_VICTORY_SECONDS, KOTH_SECONDS, rankOf, type ResourceType, type Stance } from '../core/constants';
+import { RESOURCES, RESOURCE_ICONS, STANCES, TICK_RATE, MAX_SCHOLARS, SCHOLAR_COST, WONDER_VICTORY_SECONDS, KOTH_SECONDS, FORMATIONS, rankOf, type ResourceType, type Stance, type Formation } from '../core/constants';
+const FORMATION_ICONS: Record<Formation, string> = { line: '▬', box: '▦', column: '▮', wedge: '▲' };
 import { teamNames } from '../core/sim/modes';
 import { AGES, BUILDINGS, BUILD_MENU, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS, ACADEMY_LINES, ABILITIES } from '../core/data';
 import type { Building, GameEvent, Unit } from '../core/types';
@@ -384,6 +385,7 @@ export class HUD {
           add(ab.icon, ab.name, `<b>${ab.icon} ${ab.name}</b> · ${UNITS[h.type].name}<div class="desc">${ab.desc}</div><div>${left > 0 ? t('cmd.abilityCooldown', { s: left }) : t('cmd.abilityReady')}</div>`, 'Q', () => { this.issueChecked({ type: 'ability', player: s.local, unitId: h.id }); this.lastCmdKey = ''; }, { disabled: left > 0 });
         }
         add('✋', t('cmd.stop'), t('cmd.stopTip'), 'S', () => { s.issue({ type: 'stop', player: s.local, ids }); });
+        if (units.length >= 4) for (const f of FORMATIONS) add(FORMATION_ICONS[f], t(`formation.${f}`), `<b>${t(`formation.${f}`)}</b><div class="desc">${t(`formation.${f}Tip`)}</div>`, null, () => { s.ui.formation = f; this.lastCmdKey = ''; this.refreshCommands(true); }, { active: s.ui.formation === f });
         const stance = units[0].stance;
         for (const k of Object.keys(STANCES)) add(k === 'aggressive' ? '🔥' : k === 'defensive' ? '🛡️' : '🕊️', t(`stance.${k}`), `<b>${t('cmd.stance', { name: t(`stance.${k}`) })}</b><div class="desc">${t(`cmd.stanceTip.${k}`)}</div>`, null, () => { s.issue({ type: 'stance', player: s.local, ids, stance: k as Stance }); this.lastCmdKey = ''; }, { active: stance === k });
         if (villagers.length > 0) add('🏗️', t('cmd.build'), t('cmd.buildTip'), null, () => { s.select(villagers.map((u) => u.id)); });

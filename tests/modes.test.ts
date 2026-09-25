@@ -167,3 +167,29 @@ describe('habilidades dos heróis', () => {
     expect(j.abilityReadyAt).toBeGreaterThan(0);
   });
 });
+
+describe('formações de exército', () => {
+  it('linha, quadrado, coluna e cunha produzem formas distintas e válidas', async () => {
+    const { formationOffsets } = await import('../src/core/sim/commands');
+    const s = createGame(base());
+    const units = Array.from({ length: 9 }, (_, i) => spawnUnit(s, 0, 'hoplite', 20 + i, 20));
+    const shape = (f: 'line' | 'box' | 'column' | 'wedge') => formationOffsets(units, 20, 20, 20, 40, f);   // indo para +y
+    const widthOf = (o: [number, number][]) => new Set(o.map(([x]) => Math.round(x * 100))).size;
+    const depthOf = (o: [number, number][]) => new Set(o.map(([, y]) => Math.round(y * 100))).size;
+    expect(shape('column').length).toBe(9);
+    expect(widthOf(shape('column'))).toBeLessThanOrEqual(3);   // 2 por fileira (+ o centro da última fileira ímpar)
+    expect(depthOf(shape('column'))).toBe(5);
+    expect(widthOf(shape('box'))).toBe(3);
+    expect(depthOf(shape('box'))).toBe(3);
+    expect(widthOf(shape('line'))).toBeGreaterThanOrEqual(4);
+    const w = shape('wedge');
+    expect(Math.abs(w[0][0]) + Math.abs(w[0][1])).toBe(0);   // ponta
+    expect(depthOf(w)).toBe(4);                       // fileiras 1+2+3+3
+    // a ordem de mover com formação leva as unidades a posições diferentes por formação
+    applyCommand(s, { type: 'move', player: 0, ids: units.map((u) => u.id), x: 30, y: 30, formation: 'column' });
+    const targetsCol = units.map((u) => `${u.tx.toFixed(1)},${u.ty.toFixed(1)}`).join('|');
+    applyCommand(s, { type: 'move', player: 0, ids: units.map((u) => u.id), x: 30, y: 30, formation: 'wedge' });
+    const targetsWedge = units.map((u) => `${u.tx.toFixed(1)},${u.ty.toFixed(1)}`).join('|');
+    expect(targetsCol).not.toBe(targetsWedge);
+  });
+});

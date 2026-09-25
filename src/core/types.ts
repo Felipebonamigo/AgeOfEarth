@@ -1,5 +1,5 @@
 // Tipos centrais da simulação. Tudo aqui é serializável (salvar/carregar e replays).
-import type { ResourceType, NodeType, Stance, Difficulty, GameMode, MapType } from './constants';
+import type { ResourceType, NodeType, Stance, Difficulty, GameMode, MapType, Formation } from './constants';
 import type { RNG } from './rng';
 
 export type Cost = Partial<Record<ResourceType, number>>;
@@ -185,8 +185,8 @@ import type { ScenarioState } from './scenario/types';
 
 // ---------------- Comandos (a única forma de alterar o estado a partir de fora) ----------------
 export type Command =
-  | { type: 'move'; player: number; ids: number[]; x: number; y: number; queue?: boolean }
-  | { type: 'attackMove'; player: number; ids: number[]; x: number; y: number; queue?: boolean }
+  | { type: 'move'; player: number; ids: number[]; x: number; y: number; queue?: boolean; formation?: Formation }
+  | { type: 'attackMove'; player: number; ids: number[]; x: number; y: number; queue?: boolean; formation?: Formation }
   | { type: 'attack'; player: number; ids: number[]; targetId: number; queue?: boolean }
   | { type: 'gather'; player: number; ids: number[]; targetId: number; queue?: boolean }
   | { type: 'build'; player: number; ids: number[]; building: string; tx: number; ty: number; queue?: boolean }
