@@ -245,6 +245,7 @@ export class Renderer {
       seen.add(b.id);
     }
     for (const u of state.units.values()) {
+      if (u.inside !== -1) continue;
       const ix = u.px + (u.x - u.px) * alpha, iy = u.py + (u.y - u.py) * alpha;
       if (ix < vt.x0 - 2 || ix > vt.x1 + 2 || iy < vt.y0 - 2 || iy > vt.y1 + 2) continue;
       if (!this.visibleToLocal(state, ui.localPlayer, u)) continue;
@@ -314,6 +315,7 @@ export class Renderer {
     // barras de vida e progresso
     const vt = this.cam.visibleTiles();
     for (const u of state.units.values()) {
+      if (u.inside !== -1) continue;
       if (u.x < vt.x0 || u.x > vt.x1 || u.y < vt.y0 || u.y > vt.y1) continue;
       if (!this.visibleToLocal(state, local, u)) continue;
       const selected = ui.selection.has(u.id);
@@ -338,6 +340,7 @@ export class Renderer {
         const frac = Math.max(0, b.hp / b.maxHp);
         hp.rect(x, y, w, 4).fill({ color: 0x000000, alpha: 0.6 }); hp.rect(x, y, w * frac, 4).fill(frac > 0.6 ? 0x4ade80 : frac > 0.3 ? 0xfacc15 : 0xef4444);
       }
+      if (b.garrison.length > 0 && this.visibleToLocal(state, local, b)) { hp.rect(b.tx * TILE + 2, b.ty * TILE + 2, 10, 10).fill({ color: 0x000000, alpha: 0.6 }); hp.circle(b.tx * TILE + 7, b.ty * TILE + 7, 3).fill(0xffffff); }
       if (b.owner === local && b.complete && b.queue.length > 0 && !selected) {
         const q = b.queue[0]; const frac = q.elapsed / q.total;
         hp.rect(x, y + 5, w, 2.5).fill({ color: 0x000000, alpha: 0.5 }); hp.rect(x, y + 5, w * frac, 2.5).fill(0xfbbf24);
@@ -432,7 +435,7 @@ export class Renderer {
   pick(state: GameState, x: number, y: number, local: number): Unit | Building | null {
     let best: Unit | null = null, bestD = Infinity;
     for (const u of state.units.values()) {
-      if (!this.visibleToLocal(state, local, u)) continue;
+      if (u.inside !== -1 || !this.visibleToLocal(state, local, u)) continue;
       const r = Math.max(0.45, UNITS[u.type].radius * 1.5);
       const dx = u.x - x, dy = u.y - y; const d = dx * dx + dy * dy;
       if (d <= r * r && d < bestD) { bestD = d; best = u; }

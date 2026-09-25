@@ -27,6 +27,7 @@ export function deserialize(json: string): GameState {
   const nodes = new Map<number, ResourceNode>();
   const nodeAt = new Int32Array(w * h).fill(-1);
   const buildingAt = new Int32Array(w * h).fill(-1);
+  const gateTeam = new Int8Array(w * h).fill(-1);
   const terrain = Uint8Array.from(o.map.terrain as number[]);
   const blocked = new Uint8Array(w * h);
   let maxNode = 0;
@@ -34,9 +35,9 @@ export function deserialize(json: string): GameState {
   resetNodeSeq(maxNode + 1);
   const state: GameState = {
     config: o.config, seed: o.seed, tick: o.tick, time: o.time, nextId: o.nextId,
-    map: { w, h, terrain, blocked, nodeAt, buildingAt, nodes, starts: o.map.starts, decor: Uint8Array.from(o.map.decor as number[]) },
+    map: { w, h, terrain, blocked, nodeAt, buildingAt, gateTeam, nodes, starts: o.map.starts, decor: Uint8Array.from(o.map.decor as number[]) },
     players: (o.players as (Player & { visibility: number[] })[]).map((p) => ({ ...p, team: p.team ?? p.id, visibility: Uint8Array.from(p.visibility), mods: { gather: { food: 1, wood: 1, gold: 1, knowledge: 1, favor: 1, hunt: 1, farm: 1 }, player: { territory: 0, cityLimit: 1, attrition: 0, attritionResist: 0, favorRate: 1, knowledgeRate: 1, researchCost: 1, buildSpeed: 1, trainSpeed: 1, popCap: 0, los: 0, tradeTax: 1, regen: 0 }, unitEffects: [], buildingEffects: [], version: 0 } })),
-    units: new Map((o.units as Unit[]).map((u) => [u.id, u])), buildings: new Map((o.buildings as Building[]).map((b) => [b.id, b])),
+    units: new Map((o.units as Unit[]).map((u) => [u.id, { ...u, inside: u.inside ?? -1, resumeNodeId: u.resumeNodeId ?? -1 }])), buildings: new Map((o.buildings as Building[]).map((b) => [b.id, { ...b, garrison: b.garrison ?? [] }])),
     territory: Int8Array.from(o.territory as number[]), territoryDirty: true, territoryVersion: 0,
     events: o.events ?? [], effects: [], timed: o.timed ?? [], winner: o.winner, gameOver: o.gameOver, rng: new RNG(1),
     ceasefireUntil: o.ceasefireUntil ?? 0, ceasefireBy: o.ceasefireBy ?? -1, fogVersion: 0, scenario: o.scenario ?? undefined,
@@ -47,7 +48,7 @@ export function deserialize(json: string): GameState {
   for (let i = 0; i < w * h; i++) { const t = terrain[i]; blocked[i] = (t === TERRAIN.WATER || t === TERRAIN.DEEP || t === TERRAIN.MOUNTAIN || nodeAt[i] !== -1) ? 1 : 0; }
   for (const b of state.buildings.values()) {
     const def = data.BUILDINGS[b.type];
-    for (let y = b.ty; y < b.ty + b.h; y++) for (let x = b.tx; x < b.tx + b.w; x++) { const i = y * w + x; buildingAt[i] = b.id; if (!def.passable) blocked[i] = 1; }
+    for (let y = b.ty; y < b.ty + b.h; y++) for (let x = b.tx; x < b.tx + b.w; x++) { const i = y * w + x; buildingAt[i] = b.id; if (!def.passable) blocked[i] = 1; if (def.gate && b.complete) gateTeam[i] = state.players[b.owner].team; }
   }
   for (const p of state.players) mods.recomputeMods(state, p);
   return state;

@@ -14,7 +14,7 @@ export function generateMap(w: number, h: number, seed: number, playerCount: num
   const decorN = makeNoise(seed + 202);
   const terrain = new Uint8Array(w * h);
   const decor = new Uint8Array(w * h);
-  const map: GameMap = { w, h, terrain, blocked: new Uint8Array(w * h), nodeAt: new Int32Array(w * h).fill(-1), buildingAt: new Int32Array(w * h).fill(-1), nodes: new Map(), starts: [], decor };
+  const map: GameMap = { w, h, terrain, blocked: new Uint8Array(w * h), nodeAt: new Int32Array(w * h).fill(-1), buildingAt: new Int32Array(w * h).fill(-1), gateTeam: new Int8Array(w * h).fill(-1), nodes: new Map(), starts: [], decor };
 
   // 1) Terreno base a partir de ruído de elevação
   const scale = 0.055;

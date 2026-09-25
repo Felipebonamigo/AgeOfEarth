@@ -3,9 +3,9 @@
 import { MAX_SCHOLARS, SCHOLAR_COST, type Stance } from '../constants';
 import { ACADEMY_LINES, AGES, BUILDINGS, MAX_AGE, MINOR_GODS, MAJOR_GODS, TECHS, UNITS } from '../data';
 import type { Building, Command, GameState, Player, Unit } from '../types';
-import { spiralSearch, isPassable, inBounds } from '../map/grid';
+import { spiralSearch, canPass, inBounds } from '../map/grid';
 import { canAfford, marketTrade, pay, refund } from './economy';
-import { canPlaceBuilding, placeBuilding, recomputePop, unitsOf, countBuildings } from './entities';
+import { canPlaceBuilding, placeBuilding, recomputePop, unitsOf, countBuildings, ejectGarrison, canGarrison } from './entities';
 import { getUnitStats, techCost, getBuildingStats } from './modifiers';
 import { queueTotalFor } from './buildings';
 import { giveOrder, stopUnit } from './units';
@@ -17,12 +17,37 @@ export interface CommandResult { ok: boolean; reason?: string }
 
 function ownedUnits(state: GameState, player: number, ids: number[]): Unit[] {
   const out: Unit[] = [];
-  for (const id of ids) { const u = state.units.get(id); if (u && !u.dead && u.owner === player) out.push(u); }
+  for (const id of ids) { const u = state.units.get(id); if (u && !u.dead && u.owner === player && u.inside === -1) out.push(u); }
   return out;
 }
 function ownedBuilding(state: GameState, player: number, id: number): Building | null {
   const b = state.buildings.get(id);
   return b && !b.dead && b.owner === player ? b : null;
+}
+
+/** Classe de formação: 0 = linha de frente (corpo a corpo), 1 = à distância, 2 = cerco/civis. */
+function formationRank(u: Unit): number {
+  const d = UNITS[u.type];
+  if (d.cls === 'siege' || d.cls === 'villager' || d.cls === 'scout') return 2;
+  if (d.tags.includes('ranged')) return 1;
+  return 0;
+}
+
+/** Formação em fileiras perpendiculares à direção do deslocamento; corpo a corpo à frente, arqueiros atrás, cerco por último. */
+function formationOffsets(units: Unit[], cx: number, cy: number, tx: number, ty: number): [number, number][] {
+  const n = units.length;
+  let dx = tx - cx, dy = ty - cy;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len < 1e-6) { dx = 0; dy = 1; } else { dx /= len; dy /= len; }
+  const px = -dy, py = dx;              // perpendicular
+  const width = Math.max(2, Math.ceil(Math.sqrt(n * 1.6)));
+  const spacing = 0.95;
+  const out: [number, number][] = [];
+  for (let i = 0; i < n; i++) {
+    const row = Math.floor(i / width), col = (i % width) - (Math.min(width, n - row * width) - 1) / 2;
+    out.push([px * col * spacing - dx * row * spacing, py * col * spacing - dy * row * spacing]);
+  }
+  return out;
 }
 
 /** Offsets em espiral para espalhar um grupo ao redor do destino. */
@@ -44,17 +69,26 @@ export function applyCommand(state: GameState, cmd: Command): CommandResult {
   if (!player || !player.alive) return { ok: false, reason: 'Jogador inválido.' };
   switch (cmd.type) {
     case 'move': case 'attackMove': {
-      const units = ownedUnits(state, cmd.player, cmd.ids).filter((u) => !UNITS[u.type].immobile);
+      const units = ownedUnits(state, cmd.player, cmd.ids).filter((u) => !UNITS[u.type].immobile && u.inside === -1);
       if (units.length === 0) return { ok: false };
-      // ordena por distância ao destino para que os mais próximos fiquem mais perto do centro
-      units.sort((a, b) => ((a.x - cmd.x) ** 2 + (a.y - cmd.y) ** 2) - ((b.x - cmd.x) ** 2 + (b.y - cmd.y) ** 2));
-      const offs = groupOffsets(units.length);
+      let offs: [number, number][];
+      if (units.length >= 4) {
+        // formação: corpo a corpo na frente, arqueiros atrás, cerco/civis por último; dentro da fileira, os mais próximos ao centro
+        const cx = units.reduce((s, u) => s + u.x, 0) / units.length, cy = units.reduce((s, u) => s + u.y, 0) / units.length;
+        units.sort((a, b) => formationRank(a) - formationRank(b) || a.id - b.id);
+        offs = formationOffsets(units, cx, cy, cmd.x, cmd.y);
+      } else {
+        units.sort((a, b) => ((a.x - cmd.x) ** 2 + (a.y - cmd.y) ** 2) - ((b.x - cmd.x) ** 2 + (b.y - cmd.y) ** 2));
+        offs = groupOffsets(units.length);
+      }
+      const taken = new Set<number>();
       units.forEach((u, i) => {
         let x = cmd.x + offs[i][0], y = cmd.y + offs[i][1];
         const tx = Math.floor(x), ty = Math.floor(y);
-        if (!inBounds(state.map, tx, ty) || !isPassable(state.map, tx, ty)) {
-          const t = spiralSearch(Math.floor(cmd.x), Math.floor(cmd.y), 6, (a, b) => isPassable(state.map, a, b));
-          if (t) { x = t.x + 0.5; y = t.y + 0.5; }
+        if (!inBounds(state.map, tx, ty) || !canPass(state.map, tx, ty, player.team)) {
+          // destino bloqueado: procura o tile livre mais próximo do próprio offset, evitando repetir tiles
+          const t = spiralSearch(Math.max(0, Math.min(state.map.w - 1, tx)), Math.max(0, Math.min(state.map.h - 1, ty)), 8, (a, b) => canPass(state.map, a, b, player.team) && !taken.has(b * state.map.w + a));
+          if (t) { x = t.x + 0.5; y = t.y + 0.5; taken.add(t.y * state.map.w + t.x); }
         }
         giveOrder(state, u, { type: cmd.type, x, y }, cmd.queue);
       });
@@ -155,6 +189,15 @@ export function applyCommand(state: GameState, cmd: Command): CommandResult {
       const b = ownedBuilding(state, cmd.player, cmd.buildingId);
       if (!b) return { ok: false };
       for (const u of unitsOf(state, cmd.player)) if (u.state === 'pray' && u.nodeId === -b.id) stopUnit(u);
+      if (b.garrison.length > 0) ejectGarrison(state, b);
+      return { ok: true };
+    }
+    case 'garrison': {
+      const b = state.buildings.get(cmd.targetId);
+      if (!b || b.dead || state.players[b.owner].team !== player.team) return { ok: false };
+      const units = ownedUnits(state, cmd.player, cmd.ids).filter((u) => canGarrison(u, b));
+      if (units.length === 0) return { ok: false, reason: 'Nenhuma unidade selecionada pode entrar (ou o edifício está cheio).' };
+      for (const u of units) giveOrder(state, u, { type: 'garrison', targetId: b.id }, cmd.queue);
       return { ok: true };
     }
   }

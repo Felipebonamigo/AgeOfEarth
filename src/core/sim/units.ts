@@ -3,7 +3,7 @@
 import { CARRY_CAPACITY, GATHER_RATES, HUNT_TYPES, NODE_RESOURCE, TICK_RATE, type ResourceType } from '../constants';
 import { BUILDINGS, UNITS } from '../data';
 import type { Building, GameState, Order, ResourceNode, Unit } from '../types';
-import { distToRect, idx, inBounds, isPassable, dist } from '../map/grid';
+import { distToRect, idx, inBounds, canPass, dist } from '../map/grid';
 import { findPath, nearestFreeTile, type PathGoal } from '../map/pathfinding';
 import { removeNode } from '../map/mapgen';
 import { getBuildingStats, getUnitStats } from './modifiers';
@@ -11,7 +11,7 @@ import { getRuntime, type Runtime } from './runtime';
 import { acquireTarget, attackInterval, canTarget, performAttack } from './combat';
 import { entityById, distanceTo, nearestDropoff, nearestFreeFarm, nearestNode, nearestNodeWithRoom, nodeGatherers, farmGatherers } from './queries';
 import { NODE_CAPACITY } from '../constants';
-import { onBuildingComplete } from './entities';
+import { onBuildingComplete, canGarrison, enterGarrison } from './entities';
 
 const ARRIVE = 0.2;
 const LEASH = 11;
@@ -64,6 +64,11 @@ export function startOrder(state: GameState, u: Unit, order: Order): void {
       if (!b || b.dead || b.owner !== u.owner || !BUILDINGS[b.type].worship || !b.complete) { finishOrder(state, u); return; }
       u.state = 'move'; u.targetId = b.id; u.nodeId = 0; u.tx = b.x; u.ty = b.y; break;   // ao chegar adjacente vira 'pray'
     }
+    case 'garrison': {
+      const b = state.buildings.get(order.targetId!);
+      if (!b || b.dead || state.players[b.owner].team !== state.players[u.owner].team || !canGarrison(u, b)) { finishOrder(state, u); return; }
+      u.state = 'move'; u.targetId = b.id; u.tx = b.x; u.ty = b.y; break;   // ao chegar adjacente, entra
+    }
   }
 }
 
@@ -74,6 +79,7 @@ function finishOrder(state: GameState, u: Unit): void {
 }
 
 export function stopUnit(u: Unit): void {
+  if (u.inside !== -1) return;
   u.order = null; u.queue.length = 0; u.path = null; u.pathI = 0; u.state = 'idle'; u.targetId = -1; u.nodeId = -1;
 }
 
@@ -96,6 +102,13 @@ export function updateUnit(state: GameState, rt: Runtime, u: Unit, dt: number): 
       return;
     }
     case 'move': {
+      if (u.order?.type === 'garrison') {
+        const b = state.buildings.get(u.targetId);
+        if (!b || b.dead) { finishOrder(state, u); return; }
+        const arrived = moveTowards(state, rt, u, stats.speed * dt, b.x, b.y, { tx: b.tx, ty: b.ty, w: b.w, h: b.h }, 1.0, true);
+        if (arrived) { const q = u.queue; if (!enterGarrison(state, u, b)) finishOrder(state, u); else u.queue = q; }
+        return;
+      }
       if (u.order?.type === 'pray') {
         const b = state.buildings.get(u.targetId);
         if (!b || b.dead) { finishOrder(state, u); return; }
@@ -134,6 +147,7 @@ export function updateUnit(state: GameState, rt: Runtime, u: Unit, dt: number): 
       moveTowards(state, rt, u, stats.speed * dt, t.x, t.y, goal, reach - 0.1, t.kind === 'building');
       return;
     }
+    case 'garrison': return;
     case 'gather': updateGather(state, rt, u, dt, stats.speed); return;
     case 'return': updateReturn(state, rt, u, dt, stats.speed); return;
     case 'build': updateBuild(state, rt, u, dt, stats.speed); return;
@@ -163,10 +177,11 @@ function resumeAfterCombat(state: GameState, u: Unit): void {
 function moveTowards(state: GameState, rt: Runtime, u: Unit, step: number, tx: number, ty: number, goal: PathGoal | null, stopDist = ARRIVE, rectTarget = false): boolean {
   const def = UNITS[u.type];
   const map = state.map;
+  const team = state.players[u.owner].team;
   const dNow = rectTarget && goal ? distToRect(u.x, u.y, goal.tx, goal.ty, goal.w, goal.h) : dist(u.x, u.y, tx, ty);
   if (dNow <= stopDist) { u.path = null; return true; }
   if (def.flying) {
-    stepTo(u, tx, ty, step, map, true);
+    stepTo(u, tx, ty, step, map, true, team);
     return dist(u.x, u.y, tx, ty) <= stopDist;
   }
   // (Re)calcula caminho se necessário
@@ -183,7 +198,7 @@ function moveTowards(state: GameState, rt: Runtime, u: Unit, step: number, tx: n
       if (!t) { u.path = null; return true; }
       g = { tx: t.x, ty: t.y, w: 1, h: 1 };
     }
-    const p = findPath(map, sx, sy, g, adjacent);
+    const p = findPath(map, sx, sy, g, adjacent, 6000, team);
     u.repathAt = state.tick + Math.floor(TICK_RATE * 1.5);
     if (!p) { u.path = null; u.stuck = 0; return true; }
     if (!goal && p.length >= 2) { p[p.length - 2] = tx; p[p.length - 1] = ty; }
@@ -195,8 +210,8 @@ function moveTowards(state: GameState, rt: Runtime, u: Unit, step: number, tx: n
   while (remaining > 0 && u.pathI < path.length) {
     const wx = path[u.pathI], wy = path[u.pathI + 1];
     const d = dist(u.x, u.y, wx, wy);
-    if (d <= remaining) { moveExact(u, wx, wy, map); remaining -= d; u.pathI += 2; }
-    else { stepTo(u, wx, wy, remaining, map, false); remaining = 0; }
+    if (d <= remaining) { moveExact(u, wx, wy, map, team); remaining -= d; u.pathI += 2; }
+    else { stepTo(u, wx, wy, remaining, map, false, team); remaining = 0; }
   }
   if (u.pathI >= path.length) {
     u.path = null;
@@ -206,23 +221,23 @@ function moveTowards(state: GameState, rt: Runtime, u: Unit, step: number, tx: n
   return false;
 }
 
-function moveExact(u: Unit, x: number, y: number, map: GameState['map']) {
-  if (isPassable(map, Math.floor(x), Math.floor(y))) { u.x = x; u.y = y; }
+function moveExact(u: Unit, x: number, y: number, map: GameState['map'], team: number) {
+  if (canPass(map, Math.floor(x), Math.floor(y), team)) { u.x = x; u.y = y; }
   else u.stuck++;
 }
 
-function stepTo(u: Unit, tx: number, ty: number, step: number, map: GameState['map'], fly: boolean) {
+function stepTo(u: Unit, tx: number, ty: number, step: number, map: GameState['map'], fly: boolean, team: number) {
   const dx = tx - u.x, dy = ty - u.y;
   const d = Math.sqrt(dx * dx + dy * dy);
   if (d < 1e-6) return;
   const k = Math.min(1, step / d);
   const nx = u.x + dx * k, ny = u.y + dy * k;
   if (fly) { u.x = Math.max(0.5, Math.min(map.w - 0.5, nx)); u.y = Math.max(0.5, Math.min(map.h - 0.5, ny)); return; }
-  if (isPassable(map, Math.floor(nx), Math.floor(ny))) { u.x = nx; u.y = ny; u.stuck = 0; }
+  if (canPass(map, Math.floor(nx), Math.floor(ny), team)) { u.x = nx; u.y = ny; u.stuck = 0; }
   else {
     // tenta deslizar em um eixo
-    if (isPassable(map, Math.floor(nx), Math.floor(u.y))) u.x = nx;
-    else if (isPassable(map, Math.floor(u.x), Math.floor(ny))) u.y = ny;
+    if (canPass(map, Math.floor(nx), Math.floor(u.y), team)) u.x = nx;
+    else if (canPass(map, Math.floor(u.x), Math.floor(ny), team)) u.y = ny;
     else { u.stuck++; if (u.stuck > 6) { u.path = null; u.stuck = 0; } }
   }
 }
@@ -231,7 +246,7 @@ function stepTo(u: Unit, tx: number, ty: number, step: number, map: GameState['m
 export function applySeparation(state: GameState, rt: Runtime): void {
   const map = state.map;
   for (const u of state.units.values()) {
-    if (u.dead) continue;
+    if (u.dead || u.inside !== -1) continue;
     const def = UNITS[u.type];
     if (def.immobile || def.flying) continue;
     if (u.state === 'pray') continue;
@@ -252,7 +267,7 @@ export function applySeparation(state: GameState, rt: Runtime): void {
     });
     if (px !== 0 || py !== 0) {
       const nx = u.x + px, ny = u.y + py;
-      if (inBounds(map, Math.floor(nx), Math.floor(ny)) && isPassable(map, Math.floor(nx), Math.floor(ny))) { u.x = nx; u.y = ny; }
+      if (canPass(map, Math.floor(nx), Math.floor(ny), state.players[u.owner].team)) { u.x = nx; u.y = ny; }
     }
   }
 }

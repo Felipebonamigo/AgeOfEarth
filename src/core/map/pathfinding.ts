@@ -66,7 +66,8 @@ function isGoal(x: number, y: number, g: PathGoal, adjacent: boolean): boolean {
  * Retorna array plano de centros de tiles [x0,y0,x1,y1,...] (excluindo a origem) ou null se nada for alcançável.
  * Se o objetivo for inalcançável dentro do orçamento, retorna um caminho parcial até o tile mais próximo explorado.
  */
-export function findPath(map: GameMap, sx: number, sy: number, goal: PathGoal, adjacent = false, maxNodes = 6000): number[] | null {
+export function findPath(map: GameMap, sx: number, sy: number, goal: PathGoal, adjacent = false, maxNodes = 6000, team = -1): number[] | null {
+  const pass = (i: number) => map.blocked[i] === 0 || (team >= 0 && map.gateTeam[i] === team);
   const n = map.w * map.h;
   ensureBuffers(n);
   stamp++;
@@ -92,9 +93,9 @@ export function findPath(map: GameMap, sx: number, sy: number, goal: PathGoal, a
       const nx = cx + DIRS[d][0], ny = cy + DIRS[d][1];
       if (!inBounds(map, nx, ny)) continue;
       const ni = ny * map.w + nx;
-      if (map.blocked[ni] !== 0) continue;
+      if (!pass(ni)) continue;
       if (d >= 4) { // diagonal: não cortar cantos
-        if (map.blocked[cy * map.w + nx] !== 0 || map.blocked[ny * map.w + cx] !== 0) continue;
+        if (!pass(cy * map.w + nx) || !pass(ny * map.w + cx)) continue;
       }
       const ng = gc + (d >= 4 ? SQRT2 : 1);
       if (stampBuf[ni] === stamp) {
@@ -113,11 +114,11 @@ export function findPath(map: GameMap, sx: number, sy: number, goal: PathGoal, a
   while (c !== -1 && c !== start) { rev.push(c); c = parentBuf[c]; }
   const tiles: number[] = [];
   for (let i = rev.length - 1; i >= 0; i--) { const t = rev[i]; const x = t % map.w; tiles.push(x, (t - x) / map.w); }
-  return smoothPath(map, sx, sy, tiles);
+  return smoothPath(map, sx, sy, tiles, team);
 }
 
 /** Remove waypoints intermediários quando há linha de visada livre. */
-function smoothPath(map: GameMap, sx: number, sy: number, tiles: number[]): number[] {
+function smoothPath(map: GameMap, sx: number, sy: number, tiles: number[], team = -1): number[] {
   const n = tiles.length / 2;
   if (n <= 1) return tiles.map((v) => v + 0.5);
   const out: number[] = [];
@@ -126,7 +127,7 @@ function smoothPath(map: GameMap, sx: number, sy: number, tiles: number[]): numb
   while (i < n) {
     let j = n - 1;
     while (j > i) {
-      if (lineClear(map, ax, ay, tiles[2 * j], tiles[2 * j + 1])) break;
+      if (lineClear(map, ax, ay, tiles[2 * j], tiles[2 * j + 1], team)) break;
       j--;
     }
     out.push(tiles[2 * j] + 0.5, tiles[2 * j + 1] + 0.5);

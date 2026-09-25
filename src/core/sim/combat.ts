@@ -7,7 +7,7 @@ import { idx } from '../map/grid';
 import { getBuildingStats, getUnitStats } from './modifiers';
 import { getRuntime } from './runtime';
 import { distanceTo, isEnemy } from './queries';
-import { recomputePop, spawnUnit } from './entities';
+import { recomputePop, spawnUnit, ejectGarrison } from './entities';
 
 export const ATTACK_INTERVAL: Record<string, number> = { villager: 1.0, scout: 1.0, infantry: 1.0, archer: 1.5, skirmisher: 1.2, cavalry: 1.1, siege: 3.0, hero: 1.1, myth: 1.5, titan: 2.0, building: 2.0 };
 
@@ -179,6 +179,8 @@ export function destroyBuilding(state: GameState, b: Building, killerOwner: numb
   // Devolve população da fila
   b.queue.length = 0;
   if (def.territory) state.territoryDirty = true;
+  if (def.gate) for (let y = b.ty; y < b.ty + b.h; y++) for (let x = b.tx; x < b.tx + b.w; x++) state.map.gateTeam[idx(state.map, x, y)] = -1;
+  if (b.garrison.length > 0) ejectGarrison(state, b);
   state.effects.push({ type: 'collapse', x: b.x, y: b.y, ttl: 30, total: 30, data: b.type });
   if (b.complete) {
     victim.stats.buildingsLost++;

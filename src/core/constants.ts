@@ -53,12 +53,15 @@ export const DIFFICULTIES = {
   easy: { label: 'Fácil', gather: 0.75, thinkEvery: 2.0, attackDelay: 1.5, armyMult: 0.7 },
   normal: { label: 'Normal', gather: 1.0, thinkEvery: 1.0, attackDelay: 1.0, armyMult: 1.0 },
   hard: { label: 'Difícil', gather: 1.3, thinkEvery: 0.75, attackDelay: 0.75, armyMult: 1.3 },
+  brutal: { label: 'Muito difícil', gather: 1.6, thinkEvery: 0.6, attackDelay: 0.6, armyMult: 1.6 },
 } as const;
 export type Difficulty = keyof typeof DIFFICULTIES;
 
 export const STANCES = { aggressive: 'Agressiva', defensive: 'Defensiva', passive: 'Passiva' } as const;
 export type Stance = keyof typeof STANCES;
 
+export const GARRISON_TAGS: ReadonlySet<string> = new Set(['civilian', 'infantry', 'archer', 'skirmisher', 'hero']);
+export const GARRISON_HEAL = 1;          // vida/s recuperada dentro de um edifício
 export const MARKET_BASE_PRICE = 100;   // ouro por 100 unidades
 export const MARKET_TRADE_LOT = 100;
 export const MARKET_TAX = 0.3;

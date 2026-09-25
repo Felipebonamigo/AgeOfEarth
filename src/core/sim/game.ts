@@ -103,14 +103,14 @@ export function tick(state: GameState, commands: Command[] = []): void {
   rt.hash.clear();
   rt.nodeGatherers.clear();
   for (const u of state.units.values()) {
-    if (u.dead) continue;
+    if (u.dead || u.inside !== -1) continue;
     rt.hash.insert(u);
     if (u.nodeId > 0 && (u.state === 'gather' || u.state === 'return')) rt.nodeGatherers.set(u.nodeId, (rt.nodeGatherers.get(u.nodeId) ?? 0) + 1);
   }
   // Efeitos temporizados de poderes
   updateTimedEffects(state);
   // Unidades
-  for (const u of state.units.values()) if (!u.dead) updateUnit(state, rt, u, DT);
+  for (const u of state.units.values()) if (!u.dead && u.inside === -1) updateUnit(state, rt, u, DT);
   applySeparation(state, rt);
   // Edifícios
   for (const b of state.buildings.values()) if (!b.dead) updateBuilding(state, rt, b, DT);

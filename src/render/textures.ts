@@ -293,6 +293,7 @@ function drawBuilding(g: Graphics, type: string, color: number) {
       break;
     }
     case 'tower': g.circle(0, 0, 13).fill(STONE_DARK).circle(0, 0, 10).fill(STONE); for (let i = 0; i < 8; i++) { const a = (i / 8) * 6.283; g.circle(Math.cos(a) * 11, Math.sin(a) * 11, 2.2).fill(STONE_DARK); } g.circle(0, 0, 4).fill(color); break;
+    case 'gate': g.rect(x0, y0, W, H).fill(STONE_DARK).rect(x0 + 2, y0 + 2, W - 4, H - 4).fill(WOOD); g.moveTo(x0 + W / 2, y0 + 3).lineTo(x0 + W / 2, y0 + H - 3).stroke({ width: 1.5, color: WOOD_DARK }); g.rect(x0 + 3, y0 + H / 2 - 2, W - 6, 4).fill(IRON); g.circle(x0 + W / 2 - 4, y0 + H / 2, 1.5).fill(color).circle(x0 + W / 2 + 4, y0 + H / 2, 1.5).fill(color); break;
     case 'wall': g.rect(x0, y0, W, H).fill(STONE_DARK).rect(x0 + 2, y0 + 2, W - 4, H - 4).fill(STONE); g.moveTo(x0 + 2, y0 + H / 2).lineTo(x0 + W - 2, y0 + H / 2).moveTo(x0 + W / 2, y0 + 2).lineTo(x0 + W / 2, y0 + H / 2).moveTo(x0 + W / 4, y0 + H / 2).lineTo(x0 + W / 4, y0 + H - 2).moveTo(x0 + (3 * W) / 4, y0 + H / 2).lineTo(x0 + (3 * W) / 4, y0 + H - 2).stroke({ width: 1, color: STONE_DARK }); break;
     case 'fortress': {
       base(STONE_DARK, 1);

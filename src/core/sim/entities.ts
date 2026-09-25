@@ -13,7 +13,7 @@ export function spawnUnit(state: GameState, owner: number, type: string, x: numb
     id: state.nextId++, kind: 'unit', type, owner, x, y, px: x, py: y, hp: stats.hp, maxHp: stats.hp,
     state: 'idle', tx: x, ty: y, path: null, pathI: 0, targetId: -1, nodeId: -1, carry: null, carryAmt: 0,
     cooldown: 0, stance: def.tags.includes('civilian') ? 'passive' : 'aggressive', leashX: x, leashY: y, kills: 0, heads: 1,
-    dead: false, spawnTick: state.tick, repathAt: 0, stuck: 0, order: null, queue: [], attackTick: -100, lastDamageTick: -100, orderTick: state.tick,
+    dead: false, spawnTick: state.tick, repathAt: 0, stuck: 0, order: null, queue: [], attackTick: -100, lastDamageTick: -100, orderTick: state.tick, inside: -1, resumeNodeId: -1,
   };
   state.units.set(u.id, u);
   player.pop += def.pop;
@@ -27,7 +27,7 @@ export function placeBuilding(state: GameState, owner: number, type: string, tx:
   const b: Building = {
     id: state.nextId++, kind: 'building', type, owner, tx, ty, w: def.w, h: def.h, x: tx + def.w / 2, y: ty + def.h / 2,
     hp: complete ? stats.hp : Math.max(1, Math.round(stats.hp * 0.1)), maxHp: stats.hp, complete, progress: complete ? stats.buildTime : 0,
-    queue: [], rallyX: -1, rallyY: -1, scholars: 0, disabledUntil: 0, wonderStart: -1, cooldown: 0, dead: false, builtTick: state.tick, lastDamageTick: -100,
+    queue: [], rallyX: -1, rallyY: -1, scholars: 0, disabledUntil: 0, wonderStart: -1, cooldown: 0, dead: false, builtTick: state.tick, lastDamageTick: -100, garrison: [],
   };
   state.buildings.set(b.id, b);
   for (let y = ty; y < ty + def.h; y++) for (let x = tx; x < tx + def.w; x++) {
@@ -43,7 +43,7 @@ export function placeBuilding(state: GameState, owner: number, type: string, tx:
 /** Empurra unidades que estejam sobre a área do edifício para o tile livre mais próximo. */
 function pushUnitsOut(state: GameState, b: Building) {
   for (const u of state.units.values()) {
-    if (u.dead || UNITS[u.type].flying) continue;
+    if (u.dead || UNITS[u.type].flying || u.inside !== -1) continue;
     if (u.x >= b.tx && u.x < b.tx + b.w && u.y >= b.ty && u.y < b.ty + b.h) {
       const t = spiralSearch(Math.floor(u.x), Math.floor(u.y), 8, (x, y) => isPassable(state.map, x, y));
       if (t) { u.x = t.x + 0.5; u.y = t.y + 0.5; u.px = u.x; u.py = u.y; u.path = null; }
@@ -56,6 +56,7 @@ export function onBuildingComplete(state: GameState, b: Building): void {
   const player = state.players[b.owner];
   b.complete = true;
   b.progress = getBuildingStats(state, player, b.type).buildTime;
+  if (def.gate) for (let y = b.ty; y < b.ty + b.h; y++) for (let x = b.tx; x < b.tx + b.w; x++) state.map.gateTeam[idx(state.map, x, y)] = player.team;
   if (def.territory) state.territoryDirty = true;
   if (def.wonder) { b.wonderStart = state.tick; state.events.push({ tick: state.tick, type: 'wonder', player: b.owner, x: b.x, y: b.y, text: `${player.name} concluiu ${def.name}! Contagem de vitória iniciada.` }); }
   if (def.titanGate) state.events.push({ tick: state.tick, type: 'titan', player: b.owner, x: b.x, y: b.y, text: `${player.name} abriu o Portal dos Titãs!` });
@@ -155,4 +156,38 @@ export function buildingsOf(state: GameState, owner: number): Building[] {
   const out: Building[] = [];
   for (const b of state.buildings.values()) if (b.owner === owner && !b.dead) out.push(b);
   return out;
+}
+
+// ---------------- Guarnição ----------------
+import { GARRISON_TAGS } from '../constants';
+export function canGarrison(u: Unit, b: Building): boolean {
+  const def = UNITS[u.type]; const bdef = BUILDINGS[b.type];
+  if (!bdef.garrison || !b.complete || b.dead || u.dead || u.inside !== -1) return false;
+  if (!def.tags.some((t) => GARRISON_TAGS.has(t)) || def.tags.includes('myth') || def.tags.includes('siege') || def.tags.includes('cavalry')) return false;
+  return b.garrison.length < bdef.garrison;
+}
+export function enterGarrison(state: GameState, u: Unit, b: Building): boolean {
+  if (!canGarrison(u, b)) return false;
+  u.inside = b.id; u.state = 'garrison'; u.order = null; u.queue.length = 0; u.path = null; u.targetId = -1;
+  u.resumeNodeId = u.nodeId; u.nodeId = -1;
+  u.x = b.x; u.y = b.y; u.px = u.x; u.py = u.y;
+  b.garrison.push(u.id);
+  return true;
+}
+/** Libera todas as unidades de um edifício (ou só as listadas), colocando-as ao redor e retomando a coleta. */
+export function ejectGarrison(state: GameState, b: Building, ids?: number[]): void {
+  const list = ids ? b.garrison.filter((id) => ids.includes(id)) : [...b.garrison];
+  b.garrison = b.garrison.filter((id) => !list.includes(id));
+  let k = 0;
+  for (const id of list) {
+    const u = state.units.get(id); if (!u || u.dead) continue;
+    const spot = findSpawnTile(state, b, b.x + ((k % 3) - 1) * 4, b.y + (Math.floor(k / 3) - 1) * 4); k++;
+    u.x = spot.x; u.y = spot.y; u.px = u.x; u.py = u.y; u.inside = -1; u.state = 'idle'; u.path = null;
+    if (u.resumeNodeId !== -1) {
+      const node = u.resumeNodeId > 0 ? state.map.nodes.get(u.resumeNodeId) : null;
+      const farm = u.resumeNodeId < 0 ? state.buildings.get(-u.resumeNodeId) : null;
+      if ((node && node.amount > 0) || (farm && !farm.dead)) { u.nodeId = u.resumeNodeId; u.state = 'gather'; u.orderTick = state.tick; }
+      u.resumeNodeId = -1;
+    }
+  }
 }

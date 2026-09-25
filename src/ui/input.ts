@@ -153,11 +153,16 @@ export class Input {
     } else if (target && target.kind === 'building' && target.owner === s.local) {
       const def = BUILDINGS[target.type];
       const builders = units.filter((u) => UNITS[u.type].canBuild);
+      const canEnter = units.filter((u) => ['civilian', 'infantry', 'archer', 'skirmisher', 'hero'].some((t) => UNITS[u.type].tags.includes(t)) && !UNITS[u.type].tags.includes('cavalry') && !UNITS[u.type].tags.includes('myth'));
       if (!target.complete && builders.length > 0) cmd = { type: 'build', player: s.local, ids: builders.map((u) => u.id), building: target.type, tx: target.tx, ty: target.ty, queue };
       else if (def.farm && builders.length > 0) cmd = { type: 'gather', player: s.local, ids: builders.map((u) => u.id), targetId: target.id, queue };
       else if (def.worship && builders.length > 0) cmd = { type: 'pray', player: s.local, ids: builders.map((u) => u.id), targetId: target.id, queue };
+      else if (def.garrison && canEnter.length > 0 && target.garrison.length < def.garrison) cmd = { type: 'garrison', player: s.local, ids: canEnter.map((u) => u.id), targetId: target.id, queue };
       else if (target.hp < target.maxHp && builders.length > 0) cmd = { type: 'repair', player: s.local, ids: builders.map((u) => u.id), targetId: target.id, queue };
       else cmd = { type: 'move', player: s.local, ids, x, y, queue };
+    } else if (target && target.kind === 'building' && s.state.players[target.owner].team === s.player.team && BUILDINGS[target.type].garrison) {
+      const canEnter = units.filter((u) => ['civilian', 'infantry', 'archer', 'skirmisher', 'hero'].some((t) => UNITS[u.type].tags.includes(t)) && !UNITS[u.type].tags.includes('cavalry') && !UNITS[u.type].tags.includes('myth'));
+      cmd = canEnter.length > 0 ? { type: 'garrison', player: s.local, ids: canEnter.map((u) => u.id), targetId: target.id, queue } : { type: 'move', player: s.local, ids, x, y, queue };
     } else {
       cmd = { type: 'move', player: s.local, ids, x, y, queue };
     }
@@ -236,6 +241,7 @@ export class Input {
       const villagersOnly = units.every((u) => !!UNITS[u.type].canBuild);
       if (k === 's' && (!villagersOnly || e.shiftKey)) { s.issue({ type: 'stop', player: s.local, ids: units.map((u) => u.id) }); return; }
       if (k === 'a' && !villagersOnly) { s.ui.mode = 'attackMove'; document.body.className = 'cur-attack'; this.hud.refreshCommands(true); return; }
+      if (k === 'g' && !villagersOnly) { this.hud.garrisonNearest(units); return; }
       if (villagersOnly && !e.ctrlKey && !e.altKey) {
         const keyU = e.key.toUpperCase();
         const cands = (BUILD_HOTKEYS[keyU] ?? '').split(',').filter(Boolean);
@@ -252,6 +258,7 @@ export class Input {
       if (def.trains) for (const ut of def.trains) if (UNITS[ut].hotkey === keyU) { this.hud.issueChecked({ type: 'train', player: s.local, buildingId: b.id, unit: ut }); return; }
       if (def.scholars && keyU === 'Q') { this.hud.issueChecked({ type: 'hireScholar', player: s.local, buildingId: b.id }); return; }
       if (keyU === 'R') { s.ui.mode = 'rally'; document.body.className = 'cur-attack'; return; }
+      if (keyU === 'U' && (BUILDINGS[b.type].garrison || BUILDINGS[b.type].worship)) { s.issue({ type: 'ungarrison', player: s.local, buildingId: b.id }); return; }
     }
   }
 

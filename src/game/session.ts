@@ -76,7 +76,7 @@ export class Session {
     this.onSelectionChanged?.();
   }
   pruneSelection(): void {
-    for (const id of [...this.selection]) if (!this.state.units.has(id) && !this.state.buildings.has(id)) this.selection.delete(id);
+    for (const id of [...this.selection]) { const u = this.state.units.get(id); if ((!u && !this.state.buildings.has(id)) || (u && u.inside !== -1)) this.selection.delete(id); }
   }
   setGroup(n: number): void { this.groups.set(n, [...this.selection]); }
   recallGroup(n: number): void { const g = this.groups.get(n); if (g) this.select(g.filter((id) => this.state.units.has(id) || this.state.buildings.has(id))); }

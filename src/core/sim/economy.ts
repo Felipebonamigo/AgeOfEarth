@@ -1,6 +1,6 @@
 // Economia: custos, pagamento, favor (templos), conhecimento (filósofos), cornucópias, mercado,
 // regeneração, atrito territorial e contagem de maravilhas. Roda uma vez por segundo.
-import { BASE_ATTRITION, FAVOR_DECAY, FAVOR_PER_WORSHIPPER, KNOWLEDGE_PER_SCHOLAR, MARKET_BASE_PRICE, MARKET_TAX, MARKET_TRADE_LOT, RESOURCES, WONDER_VICTORY_SECONDS, TICK_RATE, type ResourceType } from '../constants';
+import { BASE_ATTRITION, FAVOR_DECAY, FAVOR_PER_WORSHIPPER, KNOWLEDGE_PER_SCHOLAR, MARKET_BASE_PRICE, MARKET_TAX, MARKET_TRADE_LOT, RESOURCES, WONDER_VICTORY_SECONDS, TICK_RATE, GARRISON_HEAL, type ResourceType } from '../constants';
 import { BUILDINGS, UNITS } from '../data';
 import type { GameState, Player } from '../types';
 import { territoryOwnerAt } from './territory';
@@ -61,6 +61,7 @@ export function economySecond(state: GameState): void {
     if (u.dead) continue;
     const p = state.players[u.owner];
     const def = UNITS[u.type];
+    if (u.inside !== -1) { if (u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + GARRISON_HEAL); continue; }
     if (p.mods.player.regen > 0 && u.hp < u.maxHp && state.tick - u.lastDamageTick > 5 * TICK_RATE) u.hp = Math.min(u.maxHp, u.hp + p.mods.player.regen);
     if (def.tags.includes('titan')) continue;
     const owner = territoryOwnerAt(state, u.x, u.y);

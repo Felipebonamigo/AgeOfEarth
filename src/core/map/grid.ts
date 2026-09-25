@@ -31,6 +31,12 @@ export function circleOffsets(r: number): Int16Array {
 export function isPassable(map: GameMap, x: number, y: number): boolean {
   return inBounds(map, x, y) && map.blocked[idx(map, x, y)] === 0;
 }
+/** Passável para uma unidade de determinado time (portões do próprio time são atravessáveis). */
+export function canPass(map: GameMap, x: number, y: number, team: number): boolean {
+  if (!inBounds(map, x, y)) return false;
+  const i = idx(map, x, y);
+  return map.blocked[i] === 0 || (team >= 0 && map.gateTeam[i] === team);
+}
 
 /** Percorre tiles em espiral a partir de (cx,cy) até pred retornar true. Retorna o tile ou null. */
 export function spiralSearch(cx: number, cy: number, maxR: number, pred: (x: number, y: number) => boolean): { x: number; y: number } | null {
@@ -49,7 +55,7 @@ export function spiralSearch(cx: number, cy: number, maxR: number, pred: (x: num
 }
 
 /** Verdadeiro se a linha entre dois pontos (em tiles) não cruza tiles bloqueados (Bresenham supercover). */
-export function lineClear(map: GameMap, x0: number, y0: number, x1: number, y1: number): boolean {
+export function lineClear(map: GameMap, x0: number, y0: number, x1: number, y1: number, team = -1): boolean {
   let ix = Math.floor(x0), iy = Math.floor(y0);
   const ex = Math.floor(x1), ey = Math.floor(y1);
   const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
@@ -57,7 +63,7 @@ export function lineClear(map: GameMap, x0: number, y0: number, x1: number, y1: 
   let err = dx - dy;
   let guard = 0;
   while (guard++ < 4096) {
-    if (!isPassable(map, ix, iy)) return false;
+    if (!canPass(map, ix, iy, team)) return false;
     if (ix === ex && iy === ey) return true;
     const e2 = 2 * err;
     let moved = 0;
@@ -65,7 +71,7 @@ export function lineClear(map: GameMap, x0: number, y0: number, x1: number, y1: 
     if (e2 < dx) { err += dx; iy += sy; moved++; }
     if (moved === 2) {
       // movimento diagonal: exige que os dois vizinhos ortogonais também sejam livres (evita cortar cantos)
-      if (!isPassable(map, ix - sx, iy) || !isPassable(map, ix, iy - sy)) return false;
+      if (!canPass(map, ix - sx, iy, team) || !canPass(map, ix, iy - sy, team)) return false;
     }
   }
   return false;

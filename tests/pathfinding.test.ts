@@ -3,7 +3,7 @@ import { findPath, nearestFreeTile } from '../src/core/map/pathfinding';
 import type { GameMap } from '../src/core/types';
 
 function emptyMap(w: number, h: number): GameMap {
-  return { w, h, terrain: new Uint8Array(w * h), blocked: new Uint8Array(w * h), nodeAt: new Int32Array(w * h).fill(-1), buildingAt: new Int32Array(w * h).fill(-1), nodes: new Map(), starts: [], decor: new Uint8Array(w * h) };
+  return { w, h, terrain: new Uint8Array(w * h), blocked: new Uint8Array(w * h), nodeAt: new Int32Array(w * h).fill(-1), buildingAt: new Int32Array(w * h).fill(-1), gateTeam: new Int8Array(w * h).fill(-1), nodes: new Map(), starts: [], decor: new Uint8Array(w * h) };
 }
 
 describe('pathfinding', () => {

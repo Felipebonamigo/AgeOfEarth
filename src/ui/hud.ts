@@ -309,6 +309,7 @@ export class HUD {
     if (def.worship) { let n = 0; for (const u of s.state.units.values()) if (u.state === 'pray' && u.nodeId === -b.id) n++; stats.push(`Devotos <b>${n}</b>`); }
     if (def.scholars) stats.push(`Filósofos <b>${b.scholars}/${MAX_SCHOLARS}</b>`);
     if (def.farm) stats.push(`Agricultores <b>${farmGatherers(s.state, b.id)}/1</b>`);
+    if (def.garrison) stats.push(`Guarnição <b>${b.garrison.length}/${def.garrison}</b>${b.garrison.length >= 3 ? ` (+${Math.min(4, Math.floor(b.garrison.length / 3))} flechas)` : ''}`);
     if (def.wonder && b.complete && b.wonderStart >= 0) stats.push(`Vitória em <b>${fmtTime(Math.max(0, WONDER_VICTORY_SECONDS - (s.state.tick - b.wonderStart) / TICK_RATE))}</b>`);
     if (b.disabledUntil > s.state.tick) stats.push(`<span style="color:#c084fc">Pestilência: ${Math.ceil((b.disabledUntil - s.state.tick) / TICK_RATE)}s</span>`);
     c.appendChild(el('div', 'stats', stats.map((x) => `<span>${x}</span>`).join('')));
@@ -368,6 +369,7 @@ export class HUD {
         for (const [k, name] of Object.entries(STANCES)) add(k === 'aggressive' ? '🔥' : k === 'defensive' ? '🛡️' : '🕊️', name, `<b>Postura ${name}</b><div class="desc">${k === 'aggressive' ? 'Ataca inimigos à vista e persegue.' : k === 'defensive' ? 'Só ataca quem entra no alcance; não persegue.' : 'Nunca ataca por conta própria.'}</div>`, null, () => { s.issue({ type: 'stance', player: s.local, ids, stance: k as Stance }); this.lastCmdKey = ''; }, { active: stance === k });
         if (villagers.length > 0) add('🏗️', 'Construir', '<b>Construir</b><div class="desc">Selecione apenas cidadãos para ver o menu de construção.</div>', null, () => { s.select(villagers.map((u) => u.id)); });
       }
+      if (units.some((u) => ['civilian', 'infantry', 'archer', 'skirmisher', 'hero'].some((t) => UNITS[u.type].tags.includes(t)))) add('🏰', 'Guarnecer', '<b>Guarnecer</b><div class="desc">Entra no Centro Cívico, Fortaleza ou Torre mais próximo (ou clique direito no edifício). Unidades dentro ficam protegidas, curam e reforçam as flechas. Atalho: G com militares.</div>', null, () => this.garrisonNearest(units));
       add('🗑️', 'Dispensar', '<b>Dispensar</b><div class="desc">Elimina as unidades selecionadas (Delete).</div>', 'Del', () => { s.issue({ type: 'delete', player: s.local, ids: units.map((u) => u.id) }); });
       return;
     }
@@ -410,9 +412,24 @@ export class HUD {
         }
       }
       if (def.worship) add('🚪', 'Liberar devotos', '<b>Liberar devotos</b><div class="desc">Os cidadãos que rezam aqui ficam ociosos.</div>', null, () => s.issue({ type: 'ungarrison', player: s.local, buildingId: b.id }));
+      if (def.garrison) add('🚪', `Liberar (${b.garrison.length})`, '<b>Liberar guarnição</b><div class="desc">As unidades saem do edifício e os cidadãos retomam a coleta. Atalho: U.</div>', 'U', () => s.issue({ type: 'ungarrison', player: s.local, buildingId: b.id }), { disabled: b.garrison.length === 0 });
       if (def.trains || def.scholars) add('🚩', 'Ponto de encontro', '<b>Ponto de encontro</b><div class="desc">Clique no mapa (ou clique direito com o edifício selecionado). Em um recurso, cidadãos vão coletar.</div>', 'R', () => { s.ui.mode = 'rally'; document.body.className = 'cur-attack'; }, { active: s.ui.mode === 'rally' });
       add('🗑️', 'Demolir', '<b>Demolir</b><div class="desc">Destrói o edifício (Delete).</div>', 'Del', () => { s.issue({ type: 'delete', player: s.local, ids: [b.id] }); s.select([]); });
     }
+  }
+
+  garrisonNearest(units: Unit[]) {
+    const s = this.session!;
+    const cx = units.reduce((a, u) => a + u.x, 0) / units.length, cy = units.reduce((a, u) => a + u.y, 0) / units.length;
+    let best: Building | null = null, bestD = Infinity;
+    for (const b of s.state.buildings.values()) {
+      if (b.dead || !b.complete || s.state.players[b.owner].team !== s.player.team) continue;
+      const cap = BUILDINGS[b.type].garrison ?? 0; if (!cap || b.garrison.length >= cap) continue;
+      const d = (b.x - cx) ** 2 + (b.y - cy) ** 2; if (d < bestD) { bestD = d; best = b; }
+    }
+    if (!best) { this.toast('Nenhum edifício com espaço para guarnição.', 'warn'); return; }
+    s.issue({ type: 'garrison', player: s.local, ids: units.map((u) => u.id), targetId: best.id });
+    this.audio.play('command');
   }
 
   issueChecked(cmd: Parameters<Session['issue']>[0]): boolean {

@@ -1,6 +1,6 @@
 // Modificadores de jogador: agrega bônus de deus, tecnologias, maravilhas e idade em multiplicadores,
 // e calcula os atributos finais de unidades e edifícios (com cache por versão).
-import { RESOURCES, type ResourceType } from '../constants';
+import { RESOURCES, DIFFICULTIES, type ResourceType } from '../constants';
 import { BUILDINGS, MAJOR_GODS, TECHS, UNITS } from '../data';
 import type { Effect, EffectMatch, GameState, Player, PlayerMods, PlayerStat } from '../types';
 import { getRuntime, type BuildingStats, type UnitStats } from './runtime';
@@ -32,7 +32,7 @@ export function recomputeMods(state: GameState, player: Player): void {
   }
   // Dificuldade da IA: bônus/penalidade de coleta
   if (player.isAI) {
-    const g = { easy: 0.75, normal: 1.0, hard: 1.3 }[player.difficulty] ?? 1;
+    const g = DIFFICULTIES[player.difficulty]?.gather ?? 1;
     effects.push({ type: 'gather', resource: 'all', mult: g });
   }
   for (const e of effects) {

@@ -25,6 +25,8 @@ export interface BuildingDef {
   trains?: string[]; dropoff?: ResourceType[]; age: number; limit?: number | 'city' | 'wonder'; hotkey?: string; desc: string;
   passable?: boolean; farm?: boolean; trade?: boolean; worship?: boolean; military?: boolean; scholars?: boolean;
   wall?: boolean; wonder?: boolean; titanGate?: boolean; plenty?: boolean; notBuildable?: boolean;
+  garrison?: number;          // capacidade de guarnição
+  gate?: boolean;             // portão: bloqueia inimigos, deixa aliados passarem
 }
 
 export type EffectMatch = 'all' | 'buildings' | { tags?: string[]; types?: string[] };
@@ -53,10 +55,10 @@ export interface MajorGodDef {
 }
 
 // ---------------- Estado de jogo ----------------
-export type UnitState = 'idle' | 'move' | 'attackMove' | 'attack' | 'gather' | 'return' | 'build' | 'pray' | 'hold';
+export type UnitState = 'idle' | 'move' | 'attackMove' | 'attack' | 'gather' | 'return' | 'build' | 'pray' | 'hold' | 'garrison';
 
 export interface Order {
-  type: 'move' | 'attackMove' | 'attack' | 'gather' | 'build' | 'pray' | 'repair';
+  type: 'move' | 'attackMove' | 'attack' | 'gather' | 'build' | 'pray' | 'repair' | 'garrison';
   x?: number; y?: number; targetId?: number;
 }
 
@@ -75,6 +77,8 @@ export interface Unit {
   dead: boolean; spawnTick: number; repathAt: number; stuck: number;
   order: Order | null; queue: Order[];
   attackTick: number;                                  // último tick em que atacou (animação)
+  inside: number;                                      // id do edifício em que está guarnecida (-1 fora)
+  resumeNodeId: number;                                // nó/fazenda para retomar a coleta ao sair da guarnição
   orderTick: number;                                   // tick em que o alvo/ordem atual começou (detecção de travamento)
   lastDamageTick: number;
 }
@@ -89,6 +93,7 @@ export interface Building {
   queue: QueueItem[]; rallyX: number; rallyY: number;
   scholars: number; disabledUntil: number; wonderStart: number; cooldown: number;
   dead: boolean; builtTick: number; lastDamageTick: number;
+  garrison: number[];                                  // ids das unidades guarnecidas
 }
 
 export type Entity = Unit | Building;
@@ -101,6 +106,7 @@ export interface GameMap {
   blocked: Uint8Array;        // 1 = intransitável (água, montanha, nó, edifício)
   nodeAt: Int32Array;         // id do nó por tile (-1 nenhum)
   buildingAt: Int32Array;     // id do edifício por tile (-1 nenhum)
+  gateTeam: Int8Array;        // time dono de um portão no tile (-1 nenhum): passável só para esse time
   nodes: Map<number, ResourceNode>;
   starts: { x: number; y: number }[];
   decor: Uint8Array;          // variação visual por tile
@@ -191,4 +197,5 @@ export type Command =
   | { type: 'power'; player: number; power: string; x?: number; y?: number; targetId?: number }
   | { type: 'trade'; player: number; action: 'buy' | 'sell'; resource: ResourceType }
   | { type: 'delete'; player: number; ids: number[] }
-  | { type: 'ungarrison'; player: number; buildingId: number };
+  | { type: 'ungarrison'; player: number; buildingId: number }
+  | { type: 'garrison'; player: number; ids: number[]; targetId: number; queue?: boolean };

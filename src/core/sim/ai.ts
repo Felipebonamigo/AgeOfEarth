@@ -50,7 +50,7 @@ function snapshot(state: GameState, player: Player): Snapshot {
   const buildings = buildingsOf(state, player.id);
   const byType = new Map<string, Building[]>();
   for (const b of buildings) { const arr = byType.get(b.type) ?? []; arr.push(b); byType.set(b.type, arr); }
-  const villagers = units.filter((u) => u.type === 'villager');
+  const villagers = units.filter((u) => u.type === 'villager' && u.inside === -1);
   const gatherers: Record<string, number> = { food: 0, wood: 0, gold: 0, favor: 0 };
   for (const v of villagers) {
     if (v.state === 'pray') gatherers.favor++;
@@ -62,7 +62,7 @@ function snapshot(state: GameState, player: Player): Snapshot {
   const tcs = byType.get('town_center') ?? [];
   return {
     villagers, idleVillagers: villagers.filter((u) => u.state === 'idle' && !u.order),
-    military: units.filter((u) => isMilitary(u) && !UNITS[u.type].immobile),
+    military: units.filter((u) => isMilitary(u) && !UNITS[u.type].immobile && u.inside === -1),
     scouts: units.filter((u) => UNITS[u.type].tags.includes('scout')),
     heroes: units.filter((u) => UNITS[u.type].tags.includes('hero')),
     buildings, byType, tc: tcs.find((b) => b.complete) ?? tcs[0] ?? null, underConstruction: buildings.filter((b) => !b.complete),
@@ -520,10 +520,19 @@ function manageArmy(state: GameState, player: Player, snap: Snapshot): void {
     ai.defending = state.tick;
     const defenders = army.filter((u) => u.state !== 'attack' || dist(u.x, u.y, t.x, t.y) > 10);
     if (defenders.length > 0) applyCommand(state, { type: 'attackMove', player: player.id, ids: defenders.map((u) => u.id), x: t.x, y: t.y });
-    // cidadãos ameaçados fogem para o centro cívico
-    const scared = snap.villagers.filter((v) => dist(v.x, v.y, t.x, t.y) < 5);
-    if (scared.length > 0 && army.length < 3) applyCommand(state, { type: 'move', player: player.id, ids: scared.map((u) => u.id), x: tc.x, y: tc.y + 3 });
+    // cidadãos ameaçados se guarnecem no centro cívico/fortaleza mais próximo quando o exército é fraco
+    const scared = snap.villagers.filter((v) => v.inside === -1 && dist(v.x, v.y, t.x, t.y) < 7);
+    const threatCount = rt.hash.query(t.x, t.y, 8).filter((u) => isEnemy(state, player.id, u.owner) && UNITS[u.type].attack > 0).length;
+    if (scared.length > 0 && army.length < threatCount + 2) {
+      const shelter = snap.buildings.filter((b) => b.complete && BUILDINGS[b.type].garrison && b.garrison.length < (BUILDINGS[b.type].garrison ?? 0)).sort((a, b) => dist(a.x, a.y, t.x, t.y) - dist(b.x, b.y, t.x, t.y))[0];
+      if (shelter) applyCommand(state, { type: 'garrison', player: player.id, ids: scared.map((u) => u.id), targetId: shelter.id });
+      else applyCommand(state, { type: 'move', player: player.id, ids: scared.map((u) => u.id), x: tc.x, y: tc.y + 3 });
+    }
     return;
+  }
+  // Sem ameaças há 20 s: libera guarnições para voltarem ao trabalho
+  if (state.tick - ai.defending > 20 * TICK_RATE) {
+    for (const b of snap.buildings) if (b.garrison.length > 0 && b.complete) applyCommand(state, { type: 'ungarrison', player: player.id, buildingId: b.id });
   }
   // 2) Ataque em ondas
   const threshold = Math.round(ARMY_ATTACK[player.age] * diff.armyMult);

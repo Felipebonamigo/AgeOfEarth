@@ -26,7 +26,12 @@ export function updateBuilding(state: GameState, rt: Runtime, b: Building, dt: n
   if (def.attack && state.tick >= state.ceasefireUntil && b.cooldown <= 0 && (state.tick + b.id) % 4 === 0) {
     const st = getBuildingStats(state, player, b.type);
     const t = acquireTarget(state, b, st.range, false);
-    if (t) { performAttack(state, b, t); b.cooldown = attackInterval(b); }
+    if (t) {
+      performAttack(state, b, t); b.cooldown = attackInterval(b);
+      // flechas extras das unidades guarnecidas (1 a cada 3, máx. 4)
+      const extra = Math.min(4, Math.floor(b.garrison.length / 3));
+      for (let k = 0; k < extra; k++) { const t2 = acquireTarget(state, b, st.range, false); if (t2) performAttack(state, b, t2); }
+    }
   }
   // Portal dos Titãs
   if (def.titanGate && !player.titanSpawned) {

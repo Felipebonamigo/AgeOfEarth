@@ -19,7 +19,7 @@ export function updateFog(state: GameState, player: Player): void {
   };
   // Visão compartilhada entre aliados (mesmo time)
   for (const u of state.units.values()) {
-    if (u.dead || state.players[u.owner].team !== player.team) continue;
+    if (u.dead || u.inside !== -1 || state.players[u.owner].team !== player.team) continue;
     mark(u.x, u.y, getUnitStats(state, state.players[u.owner], u.type).los);
   }
   for (const b of state.buildings.values()) {
