@@ -17,6 +17,21 @@ npm run dist:win     # release/win-unpacked/Age of Earth.exe
 npm run dist:linux   # release/linux-unpacked/age-of-earth
 ```
 
+O jogo (`../dist`) vai como recurso extra em `resources/game/` e é servido pelo protocolo próprio `app://game/…`
+(registrado em `main.cjs`): o `fetch` dos atlas de arte e do manifesto (`public/art`) não funciona em `file://`, e a
+origem fixa mantém o `localStorage` (saves e opções) entre versões. Caminhos fora da pasta do jogo respondem 403.
+
+### Testar a build pronta (sem monitor)
+
+```bash
+# na raiz do projeto, depois do dist:linux
+xvfb-run -a node scripts/playtest-desktop.mjs [desktop/release/linux-unpacked/age-of-earth] [captura.png]
+```
+
+Confere: página em `app://`, `fetch` do manifesto de arte, bloqueio de caminhos fora do jogo, ponte `window.desktop`
+(Steam ausente → `null`), partida rodando, tela cheia liga/desliga e `localStorage` persistindo entre duas execuções.
+Build Linux verificada em set/2026: Electron 33.4, 281 MB descompactada (sem ícone próprio até haver logo).
+
 ## Integração Steam (opcional)
 
 1. Crie o app no Steamworks e anote o App ID; substitua o conteúdo de `steam_appid.txt` (480 é o app de testes da Valve).

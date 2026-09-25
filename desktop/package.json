@@ -20,10 +20,11 @@
   "build": {
     "appId": "com.ageofearth.game",
     "productName": "Age of Earth",
-    "files": ["main.cjs", "preload.cjs", "steam_appid.txt", { "from": "../dist", "to": "app" }],
+    "files": ["main.cjs", "preload.cjs", "steam_appid.txt"],
+    "extraResources": [{ "from": "../dist", "to": "game" }],
     "directories": { "output": "release" },
     "win": { "target": ["dir"], "icon": "icon.ico" },
-    "linux": { "target": ["dir"], "category": "Game" },
+    "linux": { "target": ["dir"], "category": "Game", "executableName": "age-of-earth" },
     "mac": { "target": ["dir"], "category": "public.app-category.games" },
     "asar": true,
     "asarUnpack": ["node_modules/steamworks.js/**"]

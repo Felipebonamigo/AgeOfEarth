@@ -1,7 +1,25 @@
 // Processo principal do Electron: janela do jogo, tela cheia, integração opcional com Steamworks.
-const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, protocol, net } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
+const { pathToFileURL } = require('node:url');
+
+// O jogo é servido por um protocolo próprio (app://game/…) em vez de file://: o fetch dos atlas de arte e do
+// manifesto (public/art) não funciona em file://, e uma origem fixa mantém o localStorage (saves, opções) estável.
+const GAME_DIR = app.isPackaged ? path.join(process.resourcesPath, 'game') : path.join(__dirname, '..', 'dist');
+protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }]);
+
+function serveGame() {
+  const root = path.resolve(GAME_DIR);
+  protocol.handle('app', (req) => {
+    let file;
+    try { const { pathname } = new URL(req.url); file = path.resolve(root, '.' + decodeURIComponent(pathname === '/' ? '/index.html' : pathname)); }
+    catch { return new Response('bad request', { status: 400 }); }
+    // nada fora da pasta do jogo
+    if (file !== root && !file.startsWith(root + path.sep)) return new Response('forbidden', { status: 403 });
+    return net.fetch(pathToFileURL(file).toString());
+  });
+}
 
 let steam = null;
 function initSteam() {
@@ -22,7 +40,7 @@ function createWindow() {
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
   win.once('ready-to-show', () => { win.show(); });   // tela cheia é decidida pelo jogo (opções salvas)
-  win.loadFile(path.join(__dirname, app.isPackaged ? 'app/index.html' : '../dist/index.html'));
+  win.loadURL('app://game/index.html');
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
   win.on('enter-full-screen', () => win.webContents.send('fullscreen', true));
   win.on('leave-full-screen', () => win.webContents.send('fullscreen', false));
@@ -51,6 +69,7 @@ ipcMain.handle('file:open', async (e) => {
 });
 
 app.whenReady().then(() => {
+  serveGame();
   initSteam();
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });

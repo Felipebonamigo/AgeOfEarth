@@ -3,6 +3,7 @@ node_modules/
 *.log
 scratch/
 dist/
+desktop/release/
 *.png
 !docs/screenshot.png
 .claude/worktrees/
