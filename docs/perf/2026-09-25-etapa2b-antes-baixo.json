@@ -1,0 +1,103 @@
+{
+  "date": "2026-09-25",
+  "commit": "8d9808d",
+  "label": "etapa2b-antes-baixo",
+  "url": "http://localhost:4192/",
+  "note": "Chromium headless + swiftshader (software): ms/fps pessimistas, sem GPU; comparar antes/depois. Ver docs/ART.md §6.",
+  "scenario": {
+    "seed": 42,
+    "tick": 24004,
+    "minutes": 20,
+    "units": 260,
+    "buildings": 153,
+    "map": "144×144",
+    "quality": "low",
+    "bakedArt": null,
+    "art": null,
+    "resolution": 1,
+    "viewport": "1600×900",
+    "warmMinutes": 20,
+    "spawned": 62,
+    "measureMs": 12000,
+    "reveal": true
+  },
+  "results": {
+    "zoom1": {
+      "name": "zoom1",
+      "title": "zoom 1 (cidade do jogador)",
+      "fps": 1.8,
+      "render": {
+        "avg": 2.39,
+        "p95": 7.6,
+        "max": 7.6,
+        "n": 20
+      },
+      "drawCalls": 3,
+      "drawCallsMax": 3,
+      "textureMB": 7.1,
+      "textures": 53,
+      "sprites": 481,
+      "chunks": 12,
+      "resolution": 1,
+      "canvas": "1600×900"
+    },
+    "zoomOut": {
+      "name": "zoomOut",
+      "title": "zoom mínimo (mapa inteiro)",
+      "fps": 2.5,
+      "render": {
+        "avg": 3.79,
+        "p95": 14.2,
+        "max": 26.6,
+        "n": 34
+      },
+      "drawCalls": 6,
+      "drawCallsMax": 6,
+      "textureMB": 11,
+      "textures": 101,
+      "sprites": 3379,
+      "chunks": 81,
+      "resolution": 1,
+      "canvas": "1600×900"
+    },
+    "battle": {
+      "name": "battle",
+      "title": "zoom 1,5 (maior aglomerado)",
+      "fps": 1.2,
+      "render": {
+        "avg": 2.89,
+        "p95": 21.2,
+        "max": 21.2,
+        "n": 14
+      },
+      "drawCalls": 4,
+      "drawCallsMax": 4,
+      "textureMB": 11,
+      "textures": 101,
+      "sprites": 547,
+      "chunks": 9,
+      "resolution": 1,
+      "canvas": "1600×900"
+    },
+    "scroll": {
+      "name": "scroll",
+      "title": "rolagem contínua (chunks novos)",
+      "fps": 1.5,
+      "render": {
+        "avg": 0.68,
+        "p95": 1.2,
+        "max": 1.7,
+        "n": 21
+      },
+      "drawCalls": 4,
+      "drawCallsMax": 4,
+      "textureMB": 11,
+      "textures": 101,
+      "sprites": 668,
+      "chunks": 15,
+      "resolution": 1,
+      "canvas": "1600×900"
+    }
+  },
+  "errors": []
+}

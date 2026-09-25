@@ -3,7 +3,8 @@
 // uma "batalha" (40 unidades de dois donos frente a frente); a cidade é a da IA, com o mapa revelado (só no renderizador). A simulação avança por scheduler.step (determinística) e fica
 // pausada nas capturas; o HUD (DOM) fica oculto para que só o renderizador entre na comparação (--hud para mantê-lo).
 // Saída: docs/art/<prefixo>-{z035,z13,z22,editor,cidade,batalha}.png (ou docs/art/ref/<nome>.png com --ref).
-// Uso: node scripts/artshot.mjs [url] [prefixo=atual] [--ref] [--hud] [--out pasta]
+// Uso: node scripts/artshot.mjs [url] [prefixo=atual] [--ref] [--hud] [--out pasta] [--procedural]
+//      --procedural: com a arte assada desligada (Opções → "Arte assada"), o visual procedural de antes da Etapa 2B
 //      npm run art:shot -- http://localhost:4173/ etapa0-antes
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
@@ -27,7 +28,7 @@ const errors = [];
 page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 // Sem rolagem na borda (o mouse do Playwright começa em (0,0) e arrastaria a câmera) e mouse no centro da tela
-await page.addInitScript(() => { try { const k = 'aoe_settings_v1'; localStorage.setItem(k, JSON.stringify({ ...JSON.parse(localStorage.getItem(k) ?? '{}'), edgeScroll: false })); } catch { /* ignore */ } });
+await page.addInitScript((bakedArt) => { try { const k = 'aoe_settings_v1'; localStorage.setItem(k, JSON.stringify({ ...JSON.parse(localStorage.getItem(k) ?? '{}'), edgeScroll: false, bakedArt })); } catch { /* ignore */ } }, !flags.has('--procedural'));
 await page.goto(url, { waitUntil: 'networkidle' });
 await page.mouse.move(720, 450);
 // Configuração igual à do menu "Partida rápida" (1 IA normal, deus da IA pela semente), sem depender do DOM do menu
@@ -37,6 +38,8 @@ await page.evaluate((seed) => {
   window.aoe.startGame({ seed, mapSize: 'medium', players, revealMap: false, mode: 'conquest', mapType: 'continental' });
   window.aoe.session.paused = true;
 }, SEED);
+// arte assada (Etapa 2B): os atlas carregam sem travar no início da partida; as capturas esperam por eles
+await page.evaluate(() => window.aoe.renderer.art?.ready());
 const setHud = (on) => page.evaluate((on) => { const h = document.getElementById('hud'); if (h) h.style.visibility = on ? '' : 'hidden'; }, on);
 if (!keepHud) await setHud(false);
 /** Avança `ticks` da simulação sem renderizar (20 ticks = 1 s de jogo), em fatias. */

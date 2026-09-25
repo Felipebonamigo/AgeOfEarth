@@ -33,6 +33,9 @@ export class Camera {
   }
   screenToWorld(sx: number, sy: number): { x: number; y: number } { return { x: (this.x + sx / this.zoom) / TILE, y: (this.y + sy / this.zoom) / TILE }; }
   worldToScreen(tx: number, ty: number): { x: number; y: number } { return { x: (tx * TILE - this.x) * this.zoom, y: (ty * TILE - this.y) * this.zoom }; }
+  /** Deslocamento em tiles → deslocamento na tela (px), pela projeção atual (top-down, escala uniforme). Escreve em `out`
+   *  para não alocar por quadro. A direção dos sprites assados sai daqui: se a câmera ganhar projeção, só isto muda. */
+  worldDeltaToScreen(dx: number, dy: number, out: { x: number; y: number }): { x: number; y: number } { out.x = dx * TILE * this.zoom; out.y = dy * TILE * this.zoom; return out; }
   /** Retângulo visível em tiles. */
   visibleTiles(): { x0: number; y0: number; x1: number; y1: number } {
     return {

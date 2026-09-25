@@ -21,7 +21,8 @@ import type { Difficulty } from './core/constants';
 import { NetworkScheduler, LocalScheduler } from './core/net/lockstep';
 import type { NetClient } from './net/client';
 import type { Command } from './core/types';
-import { spawnUnit } from './core/sim/entities';
+import { spawnUnit, placeBuilding, canPlaceBuilding } from './core/sim/entities';
+import { getBuildingStats } from './core/sim/modifiers';
 import { nearestFreeTile } from './core/map/pathfinding';
 import { Achievements } from './game/achievements';
 import { detectLocale, setLocale, t } from './i18n';
@@ -60,7 +61,7 @@ async function boot() {
   const applyQuality = () => {
     auto = new AutoQuality(settings.quality === 'auto' && softwareGpu ? 'low' : levelOf(settings.quality));
     if (settings.quality !== 'auto') auto.decided = true;
-    renderer.setQuality(resolveQuality(settings.quality, { level: auto.level, showFps: settings.showFps, teamOutline: settings.teamOutline }));
+    renderer.setQuality(resolveQuality(settings.quality, { level: auto.level, showFps: settings.showFps, teamOutline: settings.teamOutline, bakedArt: settings.bakedArt }));
     perf.setVisible(perfParam || settings.showFps);
   };
   applyQuality();
@@ -117,6 +118,7 @@ async function boot() {
     setQuality: (v) => { settings.quality = v; saveSettings(settings); applyQuality(); },
     setShowFps: (v) => { settings.showFps = v; saveSettings(settings); applyQuality(); },
     setTeamOutline: (v) => { settings.teamOutline = v; saveSettings(settings); applyQuality(); },
+    setBakedArt: (v) => { settings.bakedArt = v; saveSettings(settings); applyQuality(); },
     setFullscreen: (v) => { settings.fullscreen = v; saveSettings(settings); setFullscreen(v); },
     onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); if (session) { hud.setSession(session); hud.refreshTop(); } },
     onHotkeys: () => hud.showHotkeys(),
@@ -423,7 +425,7 @@ async function boot() {
       if (!editing) {
         if (session !== measured) { measured = session; auto.reset(); }
         const lowered = auto.sample(ms, interval);
-        if (lowered) { renderer.setQuality(resolveQuality('auto', { level: lowered, showFps: settings.showFps, teamOutline: settings.teamOutline })); hud.toast(t('msg.qualityLowered', { level: t(`quality.${lowered}`) }), 'info'); }
+        if (lowered) { renderer.setQuality(resolveQuality('auto', { level: lowered, showFps: settings.showFps, teamOutline: settings.teamOutline, bakedArt: settings.bakedArt })); hud.toast(t('msg.qualityLowered', { level: t(`quality.${lowered}`) }), 'info'); }
       }
       hud.update(dt);
       audio.update(dt, { state: session.state, local: session.local, view: viewFromCamera(renderer.cam), revealAll: renderer.revealAll, paused: session.paused, editor: editing });
@@ -435,7 +437,9 @@ async function boot() {
   };
   requestAnimationFrame(loop);
   // Expõe para depuração/testes automatizados
-  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, pad, input, perf, settings, audio, applyQuality, startGame, loadGame, diagnostic, menu, startEditor, exitEditor, testFromEditor, startScenarioFile, get editor() { return editor; }, get editorPanel() { return editorPanel; }, mapData: () => (session ? mapToData(session.state.map) : null), debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; } };
+  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, pad, input, perf, settings, audio, applyQuality, startGame, loadGame, diagnostic, menu, startEditor, exitEditor, testFromEditor, startScenarioFile, get editor() { return editor; }, get editorPanel() { return editorPanel; }, mapData: () => (session ? mapToData(session.state.map) : null), debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; },
+    // cenas de teste (scripts/artparade.mjs): edifício no canto (tx, ty) com a obra na fração `frac` (1 = completo); fora do lockstep, como debugSpawn
+    debugBuild: (owner: number, type: string, tx: number, ty: number, frac = 1) => { if (!session) return null; const st = session.state; if (!canPlaceBuilding(st, st.players[owner], type, tx, ty, true, true).ok) return null; const b = placeBuilding(st, owner, type, tx, ty, frac >= 1); if (frac < 1) b.progress = Math.max(0, frac) * getBuildingStats(st, st.players[owner], type).buildTime; return b; } };
 }
 
 boot().catch((e) => { console.error(e); document.body.innerHTML = `<pre style="color:#f88;padding:20px">Erro ao iniciar: ${(e as Error).stack}</pre>`; });
