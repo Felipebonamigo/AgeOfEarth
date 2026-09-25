@@ -35,6 +35,7 @@ export class NetClient {
   send(msg: Record<string, unknown>) { if (this.ws && this.ws.readyState === 1) this.ws.send(JSON.stringify(msg)); }
   join(room: string, name: string, god: string) { this.send({ t: 'join', room, name, god }); this.startPing(); }
   private startPing() { if (this.pingTimer) return; const ping = () => this.send({ t: 'ping', ts: performance.now() }); ping(); this.pingTimer = setInterval(ping, 2000); }
+  snapshot(slot: number, data: string, tick: number) { this.send({ t: 'snapshot', slot, data, tick }); }
   chat(text: string) { const s = text.trim().slice(0, 200); if (s) this.send({ t: 'chat', text: s }); }
   kick(slot: number) { this.send({ t: 'kick', slot }); }
   /** Atraso do lockstep (em ticks de 50 ms) a partir da pior latência da sala: metade da ida e volta + folga, entre 2 e 12. */

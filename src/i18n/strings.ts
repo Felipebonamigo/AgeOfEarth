@@ -47,7 +47,7 @@ const pt = {
   'msg.needTC': 'Você precisa de um Centro Cívico para avançar de Idade.', 'msg.cantAdvance': 'Não é possível avançar.', 'msg.advanceStarted': 'Avanço para a {age} iniciado.', 'msg.advanceStartedGod': 'Avanço para a {age} iniciado sob a proteção de {god}.',
   'msg.powerTarget.unit': 'clique em uma unidade inimiga', 'msg.powerTarget.building': 'clique em um edifício seu', 'msg.powerTarget.place': 'clique no local', 'msg.powerHint': '{power}: {target}. Esc cancela.',
   'msg.chooseEnemyUnit': 'Escolha uma unidade inimiga.', 'msg.chooseOwnBuilding': 'Escolha um edifício seu.', 'msg.noShelter': 'Nenhum edifício com espaço para guarnição.',
-  'msg.desync': '⚠️ Dessincronização detectada no tick {tick}. A partida pode divergir entre os jogadores.', 'msg.playerLeft': '{name} saiu da partida.', 'msg.connectionLost': 'Conexão com o servidor perdida.',
+  'msg.desync': '⚠️ Dessincronização detectada no tick {tick}. A partida pode divergir entre os jogadores.', 'msg.playerLeft': '{name} saiu da partida.', 'msg.rejoining': 'Reconectando: aguardando o instantâneo do anfitrião…', 'msg.rejoined': '{name} reconectou.', 'msg.reconnectHint': 'Para voltar, entre na mesma sala com o mesmo nome.', 'msg.connectionLost': 'Conexão com o servidor perdida.',
   'msg.online': 'Partida online: {n} jogadores. Você é {name}.', 'msg.replay': '🎬 Replay: você está assistindo; ordens não têm efeito. Use as velocidades 1×/2×/3×.', 'msg.replayFail': 'Falha ao abrir o replay: {err}',
   'msg.someone': 'Um jogador',
   // poderes
@@ -144,7 +144,7 @@ const en: Record<keyof typeof pt, string> = {
   'msg.needTC': 'You need a Town Center to advance an Age.', 'msg.cantAdvance': 'Cannot advance.', 'msg.advanceStarted': 'Advance to the {age} started.', 'msg.advanceStartedGod': 'Advance to the {age} started under the protection of {god}.',
   'msg.powerTarget.unit': 'click an enemy unit', 'msg.powerTarget.building': 'click one of your buildings', 'msg.powerTarget.place': 'click the location', 'msg.powerHint': '{power}: {target}. Esc cancels.',
   'msg.chooseEnemyUnit': 'Choose an enemy unit.', 'msg.chooseOwnBuilding': 'Choose one of your buildings.', 'msg.noShelter': 'No building with room for a garrison.',
-  'msg.desync': '⚠️ Desync detected at tick {tick}. The match may diverge between players.', 'msg.playerLeft': '{name} left the match.', 'msg.connectionLost': 'Connection to the server lost.',
+  'msg.desync': '⚠️ Desync detected at tick {tick}. The match may diverge between players.', 'msg.playerLeft': '{name} left the match.', 'msg.rejoining': 'Reconnecting: waiting for the host snapshot…', 'msg.rejoined': '{name} reconnected.', 'msg.reconnectHint': 'To come back, join the same room with the same name.', 'msg.connectionLost': 'Connection to the server lost.',
   'msg.online': 'Online match: {n} players. You are {name}.', 'msg.replay': '🎬 Replay: you are spectating; orders have no effect. Use the 1×/2×/3× speeds.', 'msg.replayFail': 'Could not open the replay: {err}',
   'msg.someone': 'A player',
   'power.used': 'Used', 'power.clickInvoke': 'Click to invoke', 'power.clickTarget': 'Click and choose the target',

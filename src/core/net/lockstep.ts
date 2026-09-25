@@ -58,13 +58,34 @@ export class NetworkScheduler implements CommandScheduler {
   onDesync: ((tick: number) => void) | null = null;
   desynced = false;
   waiting = 0;   // ticks consecutivos aguardando (para a interface mostrar "aguardando jogadores")
+  /** Jogador reconectado: seus comandos só são exigidos a partir do tick guardado (todos os pares usam o mesmo valor). */
+  private rejoinAt = new Map<number, number>();
+  get delayTicks() { return this.delay; }
 
   constructor(local: number, humans: number[], delayTicks: number, transport: NetTransport) {
     this.local = local; this.humans = new Set(humans); this.delay = Math.max(1, delayTicks); this.transport = transport;
   }
   issue(cmd: Command): void { this.outgoing.push(cmd); }
   /** Jogador saiu: seus comandos passam a ser considerados vazios. */
-  dropPlayer(slot: number): void { this.humans.delete(slot); }
+  dropPlayer(slot: number): void { this.humans.delete(slot); this.rejoinAt.delete(slot); }
+  /** Jogador voltou: volta a ser exigido a partir de fromTick (exclusivo). Folga para a mensagem chegar a todos antes desse tick. */
+  addPlayer(slot: number, fromTick: number): void { this.humans.add(slot); this.rejoinAt.set(slot, fromTick); }
+  /** Tick a partir do qual um jogador reconectado no instante snapshotTick volta a mandar comandos. */
+  static resumeTick(snapshotTick: number, delay: number): number { return snapshotTick + delay + 20; }
+  /** Instantâneo para quem reconecta: comandos já recebidos para o tick atual e os futuros (>= afterTick). */
+  exportPending(afterTick: number): [number, [number, Command[]][]][] {
+    const out: [number, [number, Command[]][]][] = [];
+    for (const [t, m] of this.inbox) if (t >= afterTick) out.push([t, [...m.entries()]]);   // inclui o tick atual (ainda não executado)
+    return out.sort((a, b) => a[0] - b[0]);
+  }
+  /** Quem reconecta: adota o inbox do anfitrião e passa a enviar comandos a partir de resumeTick + 1. */
+  importPending(pending: [number, [number, Command[]][]][], resumeTick: number): void {
+    this.inbox.clear();
+    for (const [t, entries] of pending) this.inbox.set(t, new Map(entries));
+    this.lastSent = resumeTick;
+    this.outgoing = [];
+    this.rejoinAt.set(this.local, resumeTick);
+  }
 
   receive(slot: number, t: number, cmds: Command[]): void {
     let m = this.inbox.get(t); if (!m) { m = new Map(); this.inbox.set(t, m); }
@@ -97,7 +118,7 @@ export class NetworkScheduler implements CommandScheduler {
     }
     const m = this.inbox.get(T);
     if (T >= this.delay) {
-      for (const p of this.humans) if (!m || !m.has(p)) { this.waiting++; return false; }
+      for (const p of this.humans) { if (T <= (this.rejoinAt.get(p) ?? -1)) continue; if (!m || !m.has(p)) { this.waiting++; return false; } }
     }
     this.waiting = 0;
     const cmds: Command[] = [];

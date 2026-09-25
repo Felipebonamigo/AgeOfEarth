@@ -19,6 +19,7 @@ import { exportText, importText } from './game/files';
 import { applyUiScale, initDisplay, isFullscreen, setFullscreen, desktop } from './game/display';
 import type { OptionsContext } from './ui/options';
 import { MAJOR_GODS } from './core/data';
+import { serialize, deserialize } from './core/serialize';
 
 const SAVE_KEY = 'aoe_save_v1';
 const REPLAY_KEY = 'aoe_replay_v1';
@@ -100,7 +101,24 @@ async function boot() {
     client.on('cmds', (m) => { const idx = slots.indexOf(Number(m.slot)); if (idx >= 0) sched.receive(idx, Number(m.tick), (m.cmds as Command[]) ?? []); });
     client.on('hash', (m) => { const idx = slots.indexOf(Number(m.slot)); if (idx >= 0) sched.receiveHash(idx, Number(m.tick), Number(m.hash)); });
     client.on('left', (m) => { const idx = slots.indexOf(Number(m.slot)); if (idx >= 0) { sched.dropPlayer(idx); hud.toast(t('msg.playerLeft', { name: config.players[idx]?.name ?? t('msg.someone') }), 'warn'); } });
-    client.on('close', () => hud.toast(t('msg.connectionLost'), 'warn'));
+    client.on('close', () => { hud.toast(t('msg.connectionLost'), 'warn'); hud.toast(t('msg.reconnectHint'), 'info'); });
+    // Anfitrião: alguém reconectou → manda o estado atual e os comandos já recebidos; todos voltam a exigir os comandos dele mais adiante
+    client.on('snapshotRequest', (m) => {
+      if (!session || !(session.scheduler instanceof NetworkScheduler)) return;
+      const idx = slots.indexOf(Number(m.slot)); if (idx < 0) return;
+      const tk = session.state.tick;
+      const sch = session.scheduler as NetworkScheduler;
+      client.snapshot(Number(m.slot), JSON.stringify({ state: serialize(session.state), pending: sch.exportPending(tk) }), tk);
+      sch.addPlayer(idx, NetworkScheduler.resumeTick(tk, sch.delayTicks));
+      hud.toast(t('msg.rejoined', { name: config.players[idx]?.name ?? t('msg.someone') }), 'good');
+    });
+    client.on('rejoined', (m) => {
+      if (!session || !(session.scheduler instanceof NetworkScheduler)) return;
+      const idx = slots.indexOf(Number(m.slot)); if (idx < 0) return;
+      const sch = session.scheduler as NetworkScheduler;
+      sch.addPlayer(idx, NetworkScheduler.resumeTick(Number(m.tick), sch.delayTicks));
+      hud.toast(t('msg.rejoined', { name: config.players[idx]?.name ?? t('msg.someone') }), 'good');
+    });
     session.scheduler = sched;
     session.speed = 1;
     renderer.setState(session.state);
@@ -109,6 +127,26 @@ async function boot() {
     hud.setSession(session); hud.setVisible(true); menu.hide();
     hud.toast(t('msg.online', { n: config.players.filter((p) => !p.isAI).length, name: config.players[local].name }), 'gold');
     hud.toast(t('mp.delayInfo', { n: delay, ms: delay * 50 }) + ' · ' + t('msg.chatHint'), 'info');
+  };
+  /** Reconexão: entra na partida em andamento com o instantâneo do anfitrião. */
+  const rejoinNetworkGame = (client: NetClient, config: GameConfig, slots: number[], delay: number) => {
+    startNetworkGame(client, config, slots, delay);
+    if (!session) return;
+    const s = session; s.paused = true;
+    hud.toast(t('msg.rejoining'), 'info');
+    client.on('snapshot', (m) => {
+      if (session !== s) return;
+      try {
+        const data = JSON.parse(String(m.data)) as { state: string; pending: [number, [number, Command[]][]][] };
+        const st = deserialize(data.state);
+        s.state = st; s.eventCursor = st.events.length; s.selection.clear();
+        renderer.setState(st);
+        const sch = s.scheduler as NetworkScheduler;
+        sch.importPending(data.pending, NetworkScheduler.resumeTick(Number(m.tick), delay));
+        s.paused = false; hud.setSession(s); hud.refreshTop();
+        hud.toast(t('msg.rejoined', { name: config.players[s.local]?.name ?? '' }), 'good');
+      } catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); }
+    });
   };
   const startHorde = (god: string, difficulty: GameConfig['players'][number]['difficulty']) => {
     const cfg: GameConfig = { ...HORDE.config, seed: (Math.floor(Math.random() * 1e9)) >>> 0, scenario: HORDE.id, players: HORDE.config.players.map((p, i) => (i === 0 ? { ...p, god, difficulty } : p)) };
@@ -127,7 +165,7 @@ async function boot() {
       hud.toast(t('msg.replay'), 'gold');
     } catch (e) { hud.toast(t('msg.replayFail', { err: (e as Error).message }), 'warn'); }
   };
-  const menu = new MainMenu(root, { onStart: (cfg) => { replaySaved = false; startGame(cfg); }, onLoad: loadGame, hasSave, onHelp: () => hud.showHelp(), onEncyclopedia: () => hud.showEncyclopedia(), onMission: startMission, onNetworkStart: startNetworkGame, onHorde: startHorde, onReplay: watchReplay, hasReplay, onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); }, getOptions: () => options, onHotkeys: () => hud.showHotkeys() });
+  const menu = new MainMenu(root, { onStart: (cfg) => { replaySaved = false; startGame(cfg); }, onLoad: loadGame, hasSave, onHelp: () => hud.showHelp(), onEncyclopedia: () => hud.showEncyclopedia(), onMission: startMission, onNetworkStart: startNetworkGame, onNetworkRejoin: rejoinNetworkGame, onHorde: startHorde, onReplay: watchReplay, hasReplay, onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); }, getOptions: () => options, onHotkeys: () => hud.showHotkeys() });
   input.edgeScroll = settings.edgeScroll;
   // Tela, escala e qualidade salvas
   initDisplay((v) => { if (settings.fullscreen !== v) { settings.fullscreen = v; saveSettings(settings); } });

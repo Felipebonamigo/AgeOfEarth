@@ -8,7 +8,7 @@ import { NetClient, type LobbyState } from '../net/client';
 import { t, getLocale, setLocale, LOCALE_NAMES, type Locale } from '../i18n';
 import { optionsHTML, bindOptions, type OptionsContext } from './options';
 
-export interface MenuCallbacks { onStart: (config: GameConfig) => void; onLoad: () => void; hasSave: () => boolean; onHelp: () => void; onEncyclopedia: () => void; onMission: (id: string) => void; onNetworkStart: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onHorde: (god: string, difficulty: Difficulty) => void; onReplay: () => void; hasReplay: () => boolean; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onHotkeys?: () => void }
+export interface MenuCallbacks { onStart: (config: GameConfig) => void; onLoad: () => void; hasSave: () => boolean; onHelp: () => void; onEncyclopedia: () => void; onMission: (id: string) => void; onNetworkStart: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onNetworkRejoin: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onHorde: (god: string, difficulty: Difficulty) => void; onReplay: () => void; hasReplay: () => boolean; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onHotkeys?: () => void }
 
 export class MainMenu {
   root: HTMLElement; el: HTMLElement;
@@ -139,6 +139,7 @@ export class MainMenu {
       net.on('error', (m) => { this.netStatus = String(m.msg); this.render(); });
       net.on('close', () => { if (this.net === net) { this.net = null; this.netStatus = t('mp.closed'); if (!this.el.classList.contains('hidden')) this.render(); } });
       net.on('start', (m) => { this.cb.onNetworkStart(net, m.config as GameConfig, m.slots as number[], Number(m.delay) || 4); });
+      net.on('joined', (m) => { if (m.rejoin) this.cb.onNetworkRejoin(net, m.config as GameConfig, m.slots as number[], Number(m.delay) || 4); });
       net.on('chat', (m) => { this.chatLog.push({ name: String(m.name ?? '?'), text: String(m.text ?? '') }); if (this.chatLog.length > 60) this.chatLog.shift(); if (this.tab === 'multiplayer' && !this.el.classList.contains('hidden')) this.renderChatLog(); });
       this.chatLog = [];
       this.netStatus = t('mp.connecting'); this.render();
