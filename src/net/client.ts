@@ -38,6 +38,7 @@ export class NetClient {
   snapshot(slot: number, data: string, tick: number) { this.send({ t: 'snapshot', slot, data, tick }); }
   chat(text: string) { const s = text.trim().slice(0, 200); if (s) this.send({ t: 'chat', text: s }); }
   kick(slot: number) { this.send({ t: 'kick', slot }); }
+  resume() { this.send({ t: 'resume' }); }
   /** Atraso do lockstep (em ticks de 50 ms) a partir da pior latência da sala: metade da ida e volta + folga, entre 2 e 12. */
   static delayFor(pings: number[]): number { const worst = Math.max(0, ...pings.filter((p) => p >= 0)); return Math.max(2, Math.min(12, Math.ceil((worst / 2 + 60) / 50))); }
   settings(s: Record<string, unknown>) { this.send({ t: 'settings', settings: s }); }

@@ -43,7 +43,8 @@ wss.on('connection', (ws) => {
     switch (msg.t) {
       case 'settings': if (slot === room.host && msg.settings) { room.settings = { ...room.settings, ...msg.settings }; broadcast(room, lobbyState(room)); } break;
       case 'player': { const c = room.clients.get(slot); if (c) { if (msg.god) c.god = msg.god; if (msg.ready !== undefined) c.ready = !!msg.ready; if (typeof msg.ping === 'number') c.ping = Math.max(0, Math.min(9999, Math.round(msg.ping))); } if (slot === room.host && msg.team !== undefined && room.clients.has(msg.slot)) room.clients.get(msg.slot).team = msg.team; if (!room.started) broadcast(room, lobbyState(room)); break; }
-      case 'ping': send(ws, { t: 'pong', ts: msg.ts }); break;   // medição de latência (ida e volta pelo relay)
+      case 'ping': send(ws, { t: 'pong', ts: msg.ts }); break;
+      case 'resume': if (slot === room.host) broadcast(room, { t: 'resume' }); break;   // anfitrião decide seguir sem quem caiu   // medição de latência (ida e volta pelo relay)
       case 'kick': { if (slot !== room.host) break; const c = room.clients.get(msg.slot); if (c && msg.slot !== slot) { send(c.ws, { t: 'error', msg: 'Você foi removido da sala pelo anfitrião.' }); c.ws.close(); } break; }
       case 'start': if (slot === room.host && msg.config) { room.started = true; room.config = msg.config; room.slots = [...room.clients.keys()]; room.delay = Number(msg.delay) || 4; broadcast(room, { t: 'start', config: msg.config, slots: room.slots, delay: room.delay }); } break;
       case 'snapshot': { if (slot !== room.host) break; const c = room.clients.get(msg.slot); if (c) send(c.ws, { t: 'snapshot', data: msg.data, tick: msg.tick }); broadcast(room, { t: 'rejoined', slot: msg.slot, tick: msg.tick }, c ? c.ws : null); break; }

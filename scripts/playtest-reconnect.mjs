@@ -30,7 +30,8 @@ await guest.evaluate(() => { const s = window.aoe.session; const ids = [...s.sta
 await host.waitForTimeout(1500);
 await guest.reload({ waitUntil: 'networkidle' });
 await host.waitForTimeout(1200);
-console.log('após queda → anfitrião continua:', JSON.stringify(await info(host)), '| avisos:', (await host.textContent('#messages'))?.includes('saiu') ? 'saiu ✔' : 'sem aviso');
+const afterDrop = await info(host);
+console.log('após queda → anfitrião pausado aguardando:', JSON.stringify(afterDrop), afterDrop.paused ? 'ok' : 'FALHOU', '| aviso:', (await host.textContent('#messages'))?.includes('caiu') ? 'ok' : 'sem aviso');
 // o anfitrião dá ordens enquanto o convidado está fora
 await host.evaluate(() => { const s = window.aoe.session; const ids = [...s.state.units.values()].filter((u) => u.owner === s.local && u.type === 'villager').map((u) => u.id); const tc = [...s.state.buildings.values()].find((b) => b.owner === s.local); s.issue({ type: 'move', player: s.local, ids, x: tc.x - 6, y: tc.y + 6 }); });
 await host.waitForTimeout(1500);
@@ -38,7 +39,7 @@ await host.waitForTimeout(1500);
 await join(guest, 'Convidado');
 await guest.waitForTimeout(3000);
 console.log('após reconectar → anfitrião:', JSON.stringify(await info(host)), 'convidado:', JSON.stringify(await info(guest)));
-console.log('aviso de reconexão no anfitrião:', (await host.textContent('#messages'))?.includes('reconectou') ? 'ok' : 'FALHOU');
+console.log('aviso de reconexão no anfitrião:', (await host.textContent('#messages'))?.includes('reconectou') ? 'ok' : 'FALHOU', '| retomou sozinho:', !(await info(host)).paused && !(await info(guest)).paused ? 'ok' : 'FALHOU');
 // os dois voltam a avançar juntos; ordens novas de ambos os lados
 await guest.evaluate(() => { const s = window.aoe.session; const ids = [...s.state.units.values()].filter((u) => u.owner === s.local && u.type === 'villager').map((u) => u.id); const tc = [...s.state.buildings.values()].find((b) => b.owner === s.local); s.issue({ type: 'move', player: s.local, ids, x: tc.x + 3, y: tc.y - 6 }); });
 await host.waitForTimeout(6000);

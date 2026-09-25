@@ -46,7 +46,7 @@ async function boot() {
     getOptions: () => options,
     onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); if (session) { hud.setSession(session); hud.refreshTop(); } },
     onLoad: () => loadGame(),
-    onQuit: () => { saveReplay(); session = null; hud.onChat = null; hud.closeChat(); hud.setSession(null); hud.setVisible(false); menu.show(); document.body.className = ''; },
+    onQuit: () => { saveReplay(); session = null; hostResumeCheck = null; hud.onChat = null; hud.closeChat(); hud.setSession(null); hud.setVisible(false); menu.show(); document.body.className = ''; },
     onNextMission: (id) => { const i = SCENARIOS.findIndex((m) => m.id === id); const next = SCENARIOS[i + 1]; if (next) startMission(next.id); else { session = null; hud.setSession(null); hud.setVisible(false); menu.show(); } },
   });
   hud.setVisible(false);
@@ -90,6 +90,7 @@ async function boot() {
     startGame({ ...def.config, scenario: id });
     if (session) { session.paused = true; hud.showIntro(id, () => { if (session) session.paused = false; }); }
   };
+  let hostResumeCheck: (() => void) | null = null;
   const startNetworkGame = (client: NetClient, config: GameConfig, slots: number[], delay = 4) => {
     const local = slots.indexOf(client.slot);
     session = Session.newGame(config, local);
@@ -100,7 +101,18 @@ async function boot() {
     sched.onDesync = (tk) => hud.toast(t('msg.desync', { tick: tk }), 'warn');
     client.on('cmds', (m) => { const idx = slots.indexOf(Number(m.slot)); if (idx >= 0) sched.receive(idx, Number(m.tick), (m.cmds as Command[]) ?? []); });
     client.on('hash', (m) => { const idx = slots.indexOf(Number(m.slot)); if (idx >= 0) sched.receiveHash(idx, Number(m.tick), Number(m.hash)); });
-    client.on('left', (m) => { const idx = slots.indexOf(Number(m.slot)); if (idx >= 0) { sched.dropPlayer(idx); hud.toast(t('msg.playerLeft', { name: config.players[idx]?.name ?? t('msg.someone') }), 'warn'); } });
+    // Queda de um jogador: todos pausam aguardando a reconexão; o anfitrião pode seguir sem ele (P → 'resume' para todos)
+    let awaiting = -1;
+    client.on('left', (m) => {
+      const idx = slots.indexOf(Number(m.slot)); if (idx < 0 || !session) return;
+      sched.dropPlayer(idx);
+      awaiting = idx; session.paused = true; hud.refreshTop();
+      hud.toast(t('msg.waitingRejoin', { name: config.players[idx]?.name ?? t('msg.someone') }), 'warn');
+      if (client.isHost) hud.toast(t('msg.hostResumeHint'), 'info');
+    });
+    client.on('resume', () => { if (!session) return; awaiting = -1; session.paused = false; hud.refreshTop(); hud.toast(t('msg.resumed'), 'good'); });
+    const resumeAfterRejoin = () => { if (awaiting !== -1 && session) { awaiting = -1; session.paused = false; hud.refreshTop(); } };
+    hostResumeCheck = () => { if (awaiting !== -1 && client.isHost && session && !session.paused) { awaiting = -1; client.resume(); } };
     client.on('close', () => { hud.toast(t('msg.connectionLost'), 'warn'); hud.toast(t('msg.reconnectHint'), 'info'); });
     // Anfitrião: alguém reconectou → manda o estado atual e os comandos já recebidos; todos voltam a exigir os comandos dele mais adiante
     client.on('snapshotRequest', (m) => {
@@ -111,6 +123,7 @@ async function boot() {
       client.snapshot(Number(m.slot), JSON.stringify({ state: serialize(session.state), pending: sch.exportPending(tk) }), tk);
       sch.addPlayer(idx, NetworkScheduler.resumeTick(tk, sch.delayTicks));
       hud.toast(t('msg.rejoined', { name: config.players[idx]?.name ?? t('msg.someone') }), 'good');
+      resumeAfterRejoin();
     });
     client.on('rejoined', (m) => {
       if (!session || !(session.scheduler instanceof NetworkScheduler)) return;
@@ -118,6 +131,7 @@ async function boot() {
       const sch = session.scheduler as NetworkScheduler;
       sch.addPlayer(idx, NetworkScheduler.resumeTick(Number(m.tick), sch.delayTicks));
       hud.toast(t('msg.rejoined', { name: config.players[idx]?.name ?? t('msg.someone') }), 'good');
+      resumeAfterRejoin();
     });
     session.scheduler = sched;
     session.speed = 1;
@@ -184,6 +198,7 @@ async function boot() {
   const loop = (now: number) => {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     if (session) {
+      hostResumeCheck?.();
       const alpha = session.step(dt);
       if (session.state.gameOver && !replaySaved) saveReplay();
       if (!session.spectator) achievements.update(session.state, session.local, dt);
