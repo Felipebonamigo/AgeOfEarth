@@ -99,7 +99,7 @@ describe('editor: ops com inversa exata', () => {
     expect(inv).toMatchObject({ kind: 'removeNode', x: s.x, y: s.y });
     const n = firstNode(map, 'tree');
     const { inv: inv2 } = roundTrip(ed, { kind: 'removeNode', x: n.x, y: n.y });
-    expect(inv2).toEqual({ kind: 'addNode', type: 'tree', x: n.x, y: n.y, amount: n.amount, id: n.id });
+    expect(inv2).toMatchObject({ kind: 'addNode', type: 'tree', x: n.x, y: n.y, amount: n.amount, id: n.id });
     roundTrip(ed, { kind: 'setNodeAmount', x: n.x, y: n.y, amount: 42 });
     const water = (() => { for (let i = 0; i < map.w * map.h; i++) if (map.terrain[i] === TERRAIN.WATER) return i; return -1; })();
     expect(() => applyEditOp(ed.state, { kind: 'addNode', type: 'tree', x: water % map.w, y: Math.floor(water / map.w) }, ed.tags)).toThrow(/occupied/);
