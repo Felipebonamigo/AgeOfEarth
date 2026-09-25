@@ -10,6 +10,8 @@ import { SCENARIOS } from './core/scenario/campaign';
 import { NetworkScheduler } from './core/net/lockstep';
 import type { NetClient } from './net/client';
 import type { Command } from './core/types';
+import { spawnUnit } from './core/sim/entities';
+import { nearestFreeTile } from './core/map/pathfinding';
 
 const SAVE_KEY = 'aoe_save_v1';
 
@@ -95,7 +97,7 @@ async function boot() {
   };
   requestAnimationFrame(loop);
   // Expõe para depuração/testes automatizados
-  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, startGame, loadGame };
+  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, startGame, loadGame, debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; } };
 }
 
 boot().catch((e) => { console.error(e); document.body.innerHTML = `<pre style="color:#f88;padding:20px">Erro ao iniciar: ${(e as Error).stack}</pre>`; });
