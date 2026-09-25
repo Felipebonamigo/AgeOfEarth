@@ -1,12 +1,12 @@
 // Mapa oficial "Estreito" (1v1, 80×80), desenhado com as operações do editor (scripts/maps/lib.ts).
 // Um estreito de mar corta o mapa na diagonal, do canto noroeste ao sudeste; três vaus de areia o atravessam — o
-// central, largo e guardado por rochedos nas duas margens, e dois laterais, estreitos, perto dos cantos. Cada jogador
+// central, largo e guardado por rochedos nas duas margens, e dois laterais, mais estreitos, perto dos cantos. Cada jogador
 // tem a sua metade (sudoeste / nordeste) com serra e bosque às costas, frutas, caça e dois veios de ouro perto do
 // Centro Cívico, e um veio avançado junto ao vau central. Simetria de rotação de 180°: recursos idênticos por início.
 // Uso: npx tsx scripts/maps/estreito.ts [saida.map.json]   (padrão: src/core/data/maps/estreito.map.json)
 import { pathToFileURL } from 'node:url';
 import type { FixedMapData, MapIssue } from '../../src/core/map/fixed';
-import { LOCAL_RADIUS, MapBuilder, T, d2, dist, placeStartLayout, rot180, writeMap, type Pt } from './lib';
+import { LOCAL_RADIUS, MapBuilder, T, d2, dist, placeStartLayout, rot180, writeMap, type Pt, type Route, type RouteReport } from './lib';
 
 const W = 80, H = 80, SEED = 4242;
 const START: Pt = [18, 61];                          // início 1 (sudoeste); o 2 é a imagem pela rotação: (61, 18)
@@ -17,9 +17,17 @@ const uv = (x: number, y: number) => ({ u: x - y, v: x + y });
 const xy = (u: number, v: number): Pt => [Math.round((v + u) / 2), Math.round((v - u) / 2)];
 /** Linha central do estreito (u em função de v): curva em S ímpar em torno do centro (a rotação a preserva). */
 const mid = (v: number) => { const r = (v - 79) / 79; return 26 * r * (1 - r * r); };
-const FORDS = [{ v: 79, half: 3.5 }, { v: 33, half: 2.5 }, { v: 125, half: 2.5 }];   // vau central e laterais (meia largura em v)
+// vau central e laterais (meia largura em v = x + y). Na diagonal, a seção 4-conexa de um vau tem ~half tiles: com 7 e 6
+// nenhum edifício de até 4×4 fecha um vau sozinho (lib.routeReport confere no build)
+const FORDS = [{ v: 79, half: 7 }, { v: 33, half: 6 }, { v: 125, half: 6 }];
 
-export function buildEstreito(): { file: FixedMapData; warnings: MapIssue[] } {
+/** Rotas entre as margens: cada vau; a zona é a faixa do eixo do estreito (só água, fora dos vaus) ao longo do vau. */
+const ROUTES: Route[] = FORDS.map((f, i) => ({
+  name: ['central', 'noroeste', 'sudeste'][i],
+  zone: (x, y) => { const { u, v } = uv(x, y); return Math.abs(u - mid(v)) / Math.SQRT2 <= 2 && Math.abs(v - f.v) <= f.half + 3; },
+}));
+
+export function buildEstreito(): { file: FixedMapData; warnings: MapIssue[]; routes: RouteReport[] } {
   const b = new MapBuilder(W, H, rot180(W, H), SEED, [START, [W - 1 - START[0], H - 1 - START[1]]]);
   const n = b.noise;
   const starts: Pt[] = [START, [W - 1 - START[0], H - 1 - START[1]]];
@@ -83,11 +91,12 @@ export function buildEstreito(): { file: FixedMapData; warnings: MapIssue[] } {
   b.fillPockets();
   return b.finish({
     id: 'estreito', name: 'Estreito', nameEn: 'Strait', author: 'Age of Earth',
-    description: 'Um estreito corta o mapa na diagonal; três vaus o atravessam — o central, largo e guardado por rochedos, e dois laterais, estreitos. Serra e bosque às costas de cada jogador; recursos idênticos por início (simetria de 180°). Desenhado por scripts/maps/estreito.ts.',
-  });
+    description: 'Um estreito corta o mapa na diagonal; três vaus o atravessam — o central, largo e guardado por rochedos, e dois laterais, mais estreitos (nenhum se fecha com um só edifício). Serra e bosque às costas de cada jogador; recursos idênticos por início (simetria de 180°). Desenhado por scripts/maps/estreito.ts.',
+    relics: false,   // relíquias sorteadas pela semente quebrariam a simetria
+  }, ROUTES);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const { file, warnings } = buildEstreito();
-  writeMap(file, warnings, process.argv[2] ?? 'src/core/data/maps/estreito.map.json');
+  const { file, warnings, routes } = buildEstreito();
+  writeMap(file, warnings, process.argv[2] ?? 'src/core/data/maps/estreito.map.json', routes);
 }

@@ -14,7 +14,7 @@ import { RNG, makeNoise } from '../core/rng';
 import { idx, inBounds, isPassable } from '../core/map/grid';
 import { articulationPoints, componentAt, invalidateComponents } from '../core/map/components';
 import { nearestFreeTile } from '../core/map/pathfinding';
-import { ensureConnectivity, placeStartResources as genStartResources, widenChokepoints as genWidenChokepoints } from '../core/map/mapgen';
+import { ensureConnectivity, placeStartResources as genStartResources } from '../core/map/mapgen';
 import { migrateMap, resizeMapData, saveMap, startResourceTable, validateMap, START_RESOURCE_RADIUS, type FixedMapData, type MapIssue, type MapMeta, type ResizeAnchor, type ResizeReport, type StartResources } from '../core/map/fixed';
 import { Session } from '../game/session';
 import { defaultEditorUI, type EditOp, type EditorTool, type EditorUI, type EditorView } from './types';
@@ -630,16 +630,16 @@ export class MapEditor {
   /** "Ligar inícios": ensureConnectivity do gerador (corredores de areia/terra, nós removidos). */
   fixConnectivity(): boolean { return this.runMapFix((m) => ensureConnectivity(m)); }
   /**
-   * "Alargar gargalos": widenChokepoints do gerador (nós ao redor de todos os pontos de articulação) e, para os gargalos
-   * a até 10 tiles de um início (os que validateMap aponta, com o Centro Cívico do kit bloqueando), abre também o
-   * terreno em volta (água → areia, montanha → terra, como os corredores do gerador), sem mexer sob edifícios nem no
-   * 3×3 do Centro Cívico. Repete até não sobrar gargalo perto de início ou não haver mais o que abrir.
+   * "Alargar gargalos": para os gargalos a até 10 tiles de um início (os que validateMap aponta, com o Centro Cívico do
+   * kit bloqueando), remove os nós em volta e abre o terreno (água → areia, montanha → terra, como os corredores do
+   * gerador), sem mexer sob edifícios nem no 3×3 do Centro Cívico. Repete até não sobrar gargalo perto de início ou não
+   * haver mais o que abrir. Nada longe dos inícios muda (o widenChokepoints global do gerador tiraria bosques do mapa
+   * inteiro e desfaria o equilíbrio de recursos de um mapa desenhado).
    */
   widenChokepoints(): boolean {
     const kit = this.meta.startKit !== false;
     const buildingAt = this.map.buildingAt;
     return this.runMapFix((m) => {
-      genWidenChokepoints(m);
       const cc = new Uint8Array(m.w * m.h);
       if (kit) for (const s of m.starts) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inBounds(m, s.x + dx, s.y + dy)) cc[idx(m, s.x + dx, s.y + dy)] = 1;
       for (let pass = 0; pass < 6; pass++) {
@@ -670,10 +670,16 @@ export class MapEditor {
       }
     });
   }
-  /** "Fechar bolsão": preenche a região pequena que contém (x, y) com o terreno sólido que mais a cerca (água ou montanha). */
+  /**
+   * "Fechar bolsão": preenche a região pequena que contém (x, y) com o terreno sólido que mais a cerca (água ou montanha).
+   * Com kit inicial, o 3×3 do Centro Cívico de cada início bloqueia a busca (como em validateMap), senão um bolsão colado
+   * ao Centro Cívico se ligaria pela base à região do início e nunca seria fechado.
+   */
   fillPocket(x: number, y: number): boolean {
     const map = this.map;
-    if (!inBounds(map, x, y) || map.blocked[idx(map, x, y)]) return false;
+    const cc = new Set<number>();
+    if (this.meta.startKit !== false) for (const s of map.starts) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inBounds(map, s.x + dx, s.y + dy)) cc.add(idx(map, s.x + dx, s.y + dy));
+    if (!inBounds(map, x, y) || map.blocked[idx(map, x, y)] || cc.has(idx(map, x, y))) return false;
     const label = componentAt(map, x, y);
     const tiles: number[] = [];
     let water = 0, mountain = 0;
@@ -689,7 +695,7 @@ export class MapEditor {
         const ni = idx(map, nx, ny);
         const t = map.terrain[ni];
         if (map.blocked[ni]) { if (t === TERRAIN.WATER || t === TERRAIN.DEEP) water++; else if (t === TERRAIN.MOUNTAIN) mountain++; continue; }
-        if (seen.has(ni) || componentAt(map, nx, ny) !== label) continue;
+        if (cc.has(ni) || seen.has(ni) || componentAt(map, nx, ny) !== label) continue;
         seen.add(ni); stack.push(ni);
       }
     }

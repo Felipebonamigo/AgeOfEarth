@@ -7,7 +7,7 @@ import { BUILDINGS, BUILD_MENU, MAJOR_GODS, MAJOR_GOD_LIST, UNITS } from '../cor
 import { GAME_MODES, DIFFICULTIES } from '../core/constants';
 import type { UnitClass } from '../core/types';
 import { NODE_AMOUNT } from '../core/map/mapgen';
-import { MAP_LIMITS, RESIZE_ANCHORS, resizeMapData, type MapIssue, type ResizeAnchor } from '../core/map/fixed';
+import { MAP_LIMITS, RESIZE_ANCHORS, resizeMapData, type MapIssue, type ResizeAnchor, type ResizeReport } from '../core/map/fixed';
 import { idx, inBounds } from '../core/map/grid';
 import { exportMapFile, putMap, mapName, slugify } from '../game/maps';
 import type { HUD } from '../ui/hud';
@@ -350,6 +350,8 @@ export class EditorPanel {
     this.hud.toast(t(`editor.err.${e.code}`), 'warn');
   }
   validateNow(): void { this.issues = this.editor.validate(); this.keys.top = ''; this.renderTop(); this.renderIssues(); }
+  /** A instância exibida mudou (redimensionar, Ctrl+Z/Ctrl+Y entre tamanhos): o rascunho passa a ser o dela. */
+  markTouched(): void { this.touched = true; }
   /** Rascunho em aoe_editor_autosave (também antes de Testar e ao sair). */
   autosaveNow(): boolean {
     if (this.autosaveTimer) { clearTimeout(this.autosaveTimer); this.autosaveTimer = null; }
@@ -576,10 +578,12 @@ export class EditorPanel {
   cancelPick(): void { this.pendingPick = null; document.body.classList.remove('cur-pick'); }
 
   /** Resumo do que um redimensionamento corta/desloca (prévia e confirmação). */
-  private resizeText(r: { nodes: number; entities: number; startsMoved: number[]; kothReset: boolean }): string {
+  private resizeText(r: ResizeReport): string {
     const parts: string[] = [];
     if (r.nodes) parts.push(t('editor.resizeNodes', { n: r.nodes }));
     if (r.entities) parts.push(t('editor.resizeEntities', { n: r.entities }));
+    if (r.scenarioTags.length) parts.push(t('editor.resizeScenarioTags', { list: r.scenarioTags.join(', ') }));
+    if (r.scenarioPoints) parts.push(t('editor.resizeScenarioPoints', { n: r.scenarioPoints }));
     if (r.startsMoved.length) parts.push(t('editor.resizeStarts', { list: r.startsMoved.map((i) => i + 1).join(', ') }));
     if (r.kothReset) parts.push(t('editor.resizeKoth'));
     return parts.length ? parts.join(' · ') : t('editor.resizeNothing');

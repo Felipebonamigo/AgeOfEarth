@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import { generateMap } from '../src/core/map/mapgen';
-import { blankMap, mapHash, mapToData, resizeMapData, startResourcesOf, validateMap, type FixedMapData } from '../src/core/map/fixed';
+import { blankMap, mapHash, mapToData, migrateMap, resizeMapData, startResourcesOf, validateMap, type FixedMapData } from '../src/core/map/fixed';
 import { TERRAIN } from '../src/core/constants';
 import { UNITS } from '../src/core/data';
 import { idx } from '../src/core/map/grid';
@@ -601,21 +601,36 @@ describe('editor: MapEditor', () => {
     expect(map.terrain[tile(map, 15, 40)]).toBe(TERRAIN.SAND);
     expect(map.nodes.size).toBe(nodes);
   });
-  it('widenChokepoints remove nós ao redor de um gargalo de 1 tile e é desfazível; sem gargalos não faz nada', () => {
-    const ed = editorOf(blankMap(80, 80, 2, 1));
+  it('widenChokepoints remove só os nós em volta de um gargalo perto de um início e é desfazível; gargalos longe e bosques ficam', () => {
+    const ed = editorOf({ ...blankMap(80, 80, 2, 1), starts: [[15, 40], [65, 40]] });
     const map = ed.map;
     expect(ed.widenChokepoints()).toBe(false);
     const wall: number[] = [];
-    for (let y = 0; y < 80; y++) if (y !== 40) wall.push(y * 80 + 40);
+    for (let y = 0; y < 80; y++) if (y !== 40) wall.push(y * 80 + 22, y * 80 + 40);   // gargalo a 7 do início 1 e outro a 25 dos dois
     ed.apply({ kind: 'paint', tiles: wall, terrain: TERRAIN.MOUNTAIN });
+    ed.apply({ kind: 'addNode', type: 'tree', x: 23, y: 41 });
     ed.apply({ kind: 'addNode', type: 'tree', x: 41, y: 41 });
-    ed.apply({ kind: 'addNode', type: 'tree', x: 10, y: 10 });
-    expect(ed.validate().map((i) => i.code)).not.toContain('startsDisconnected');
+    ed.apply({ kind: 'batch', ops: rectTiles(8, 8, 12, 12).map(([x, y]): EditOp => ({ kind: 'addNode', type: 'tree', x, y })) });
+    const nodes = map.nodes.size;
+    expect(ed.validate().filter((i) => i.code === 'chokepoint').length).toBe(1);
     expect(ed.widenChokepoints()).toBe(true);
-    expect(map.nodeAt[tile(map, 41, 41)]).toBe(-1);
-    expect(map.nodeAt[tile(map, 10, 10)]).not.toBe(-1);
+    expect(ed.validate().filter((i) => i.code === 'chokepoint')).toEqual([]);
+    expect(map.nodeAt[tile(map, 23, 41)]).toBe(-1);
+    expect(map.nodeAt[tile(map, 41, 41)]).not.toBe(-1);   // gargalo longe dos inícios: sem aviso, intocado
+    expect(map.nodes.size).toBe(nodes - 1);                 // o bosque continua inteiro
     ed.undo();
-    expect(map.nodeAt[tile(map, 41, 41)]).not.toBe(-1);
+    expect(map.nodeAt[tile(map, 23, 41)]).not.toBe(-1);
+    // num mapa oficial (bosques por toda parte), um gargalo perto do início 1 só custa os nós em volta dele (a ≤ 10 + 1 do início)
+    const off = editorOf(migrateMap(JSON.parse(fs.readFileSync('src/core/data/maps/estreito.map.json', 'utf8'))));
+    const s0 = off.map.starts[0], ow = off.map.w;
+    const ridge: number[] = [];
+    for (let y = 0; y < off.map.h; y++) if (y !== s0.y) ridge.push(y * ow + s0.x + 7);
+    off.apply({ kind: 'paint', tiles: ridge, terrain: TERRAIN.MOUNTAIN });
+    const kept = new Map([...off.map.nodes.values()].map((n) => [n.id, n]));
+    expect(off.widenChokepoints()).toBe(true);
+    const removed = [...kept.values()].filter((n) => !off.map.nodes.has(n.id));
+    expect(removed.length).toBeLessThanOrEqual(8);
+    for (const n of removed) expect((n.x - s0.x) ** 2 + (n.y - s0.y) ** 2).toBeLessThanOrEqual(11 * 11 + 1);
   });
   it('snapshot após op + undo é byte a byte igual ao inicial também pela MapEditor (traços, entidades, inícios)', () => {
     const ed = editorOf(genFile(11));
@@ -723,6 +738,11 @@ describe('editor: Etapa 4 (balde, conta-gotas, correções, recursos por início
     ed.apply({ kind: 'paint', tiles: ring, terrain: TERRAIN.WATER });
     undoable(() => ed.fillPocket(50, 20), 'pocket');
     expect([TERRAIN.WATER, TERRAIN.DEEP]).toContain(map.terrain[tile(map, 50, 20)]);
+    // bolsão de 1 tile colado ao Centro Cívico do kit (o 3×3 em volta do início 1 bloqueia a busca, como em validateMap)
+    ed.apply({ kind: 'paint', tiles: [[18, 40], [17, 39], [17, 41], [18, 39], [18, 41]].map(([x, y]) => y * 80 + x), terrain: TERRAIN.MOUNTAIN });
+    undoable(() => ed.fillPocket(17, 40), 'pocket');
+    expect(map.terrain[tile(map, 17, 40)]).toBe(TERRAIN.MOUNTAIN);
+    expect(map.terrain[tile(map, 16, 40)]).toBe(TERRAIN.GRASS);
     // ouro cercado por 8 árvores
     ed.apply({ kind: 'addNode', type: 'gold', x: 60, y: 60 });
     ed.apply({ kind: 'batch', ops: rectTiles(59, 59, 61, 61).filter(([x, y]) => x !== 60 || y !== 60).map(([x, y]): EditOp => ({ kind: 'addNode', type: 'tree', x, y })) });
@@ -772,7 +792,7 @@ describe('editor: Etapa 4 (balde, conta-gotas, correções, recursos por início
     ed.apply({ kind: 'paint', tiles: rectTiles(10, 10, 30, 30).map(([x, y]) => y * 80 + x), terrain: TERRAIN.WATER });
     const file: FixedMapData = { ...ed.toFile(), starts: [[12, 40], [70, 40]], koth: [75, 75], nodes: [['gold', 2, 2, 900], ['tree', 40, 40, 150]], entities: [{ kind: 'building', type: 'tower', owner: 0, x: 70, y: 10 }, { kind: 'unit', type: 'hoplite', owner: 1, x: 5, y: 70 }] };
     const g = resizeMapData(file, 100, 96, 'c');
-    expect(g.report).toEqual({ nodes: 0, entities: 0, startsMoved: [], kothReset: false, dx: 10, dy: 8 });
+    expect(g.report).toEqual({ nodes: 0, entities: 0, startsMoved: [], kothReset: false, dx: 10, dy: 8, scenarioPoints: 0, scenarioTags: [] });
     expect([g.data.w, g.data.h]).toEqual([100, 96]);
     expect(g.data.starts).toEqual([[22, 48], [80, 48]]);
     expect(g.data.nodes).toEqual([['gold', 12, 10, 900], ['tree', 50, 48, 150]]);
@@ -784,18 +804,43 @@ describe('editor: Etapa 4 (balde, conta-gotas, correções, recursos por início
     expect(ge.map.terrain[tile(ge.map, 5, 5)]).toBe(TERRAIN.GRASS);    // tile novo
     // encolher ancorado no topo à esquerda: corta a torre e o hoplita, traz o início 2 para dentro, a colina volta ao centro
     const s = resizeMapData(file, 60, 60, 'nw');
-    expect(s.report).toEqual({ nodes: 0, entities: 2, startsMoved: [1], kothReset: true, dx: 0, dy: 0 });
+    expect(s.report).toEqual({ nodes: 0, entities: 2, startsMoved: [1], kothReset: true, dx: 0, dy: 0, scenarioPoints: 0, scenarioTags: [] });
     expect(s.data.starts).toEqual([[12, 40], [51, 40]]);
     expect(s.data.koth).toBeUndefined(); expect(s.data.entities).toBeUndefined();
     // ancorado embaixo à direita: o lago fica no canto e a borda nova não tem água profunda
     const se = resizeMapData(file, 60, 60, 'se');
-    expect(se.report).toEqual({ nodes: 1, entities: 2, startsMoved: [0], kothReset: false, dx: -20, dy: -20 });
+    expect(se.report).toEqual({ nodes: 1, entities: 2, startsMoved: [0], kothReset: false, dx: -20, dy: -20, scenarioPoints: 0, scenarioTags: [] });
     const sm = editorOf(se.data).map;
     for (let x = 0; x < 60; x++) { expect(sm.terrain[x]).not.toBe(TERRAIN.DEEP); expect(sm.terrain[x * 60]).not.toBe(TERRAIN.DEEP); }
     expect(sm.terrain[tile(sm, 0, 0)]).toBe(TERRAIN.WATER); expect(sm.terrain[tile(sm, 5, 5)]).toBe(TERRAIN.DEEP);
     expect(() => resizeMapData(file, 40, 80, 'c')).toThrow();
     expect(() => resizeMapData(file, 161, 100, 'c')).toThrow();
     expect(() => resizeMapData(file, 160, 161, 'c')).toThrow();
+  });
+  it('resizeMapData desloca os pontos { at } do cenário embutido com o conteúdo e avisa os que saem e as tags cortadas que ele usa', () => {
+    const scenario = {
+      format: 'aoe-scenario', version: 1, id: 'sc', title: 'sc', intro: [], config: { players: [] }, objectives: [],
+      triggers: [{ id: 'a', when: { units: { player: 0, near: { point: { at: [40, 40] }, radius: 3 } }, gte: 1 }, then: [{ do: 'spawn', player: 1, units: ['hoplite'], at: { at: [75, 5] } }, { do: 'order', units: { tag: 'guarda' }, order: { type: 'move', at: { start: 0, dx: 2 } } }] }],
+      victory: { entity: { var: '#rei' }, exists: false },
+    } as unknown as FixedMapData['scenario'];
+    const file: FixedMapData = { ...twoStarts(), koth: [40, 40], scenario, entities: [{ kind: 'unit', type: 'hoplite', owner: 1, x: 70, y: 5, tag: 'guarda' }, { kind: 'unit', type: 'hoplite', owner: 1, x: 72, y: 5, tag: 'rei' }, { kind: 'unit', type: 'hoplite', owner: 1, x: 74, y: 5, tag: 'solto' }] };
+    const pt = (d: FixedMapData) => { const tr = (d.scenario as unknown as { triggers: { when: { units: { near: { point: { at: number[] } } } }; then: { at: { at?: number[]; start?: number } }[] }[] }).triggers[0]; return [tr.when.units.near.point.at, tr.then[0].at.at, tr.then[1]]; };
+    // cresce ancorado a sudeste: tudo anda (+40, +40), inclusive os pontos; nada sai
+    const g = resizeMapData(file, 120, 120, 'se');
+    expect([g.report.dx, g.report.dy, g.report.scenarioPoints, g.report.scenarioTags]).toEqual([40, 40, 0, []]);
+    expect(g.data.koth).toEqual([80, 80]);
+    expect(pt(g.data).slice(0, 2)).toEqual([[80, 80], [115, 45]]);
+    expect(pt(g.data)[2]).toEqual({ do: 'order', units: { tag: 'guarda' }, order: { type: 'move', at: { start: 0, dx: 2 } } });   // relativo: intacto
+    expect(validateMap(g.data, { players: 2 }).filter((i) => i.level === 'error')).toEqual([]);
+    // encolhe pelo centro: o spawn em (75, 5) e as três unidades saem; o cenário usa 'guarda' e '#rei', não 'solto'
+    const c = resizeMapData(file, 60, 60, 'c');
+    expect([c.report.dx, c.report.dy]).toEqual([-10, -10]);
+    expect(c.report.scenarioPoints).toBe(1);
+    expect(c.report.scenarioTags).toEqual(['guarda', 'rei']);
+    expect(pt(c.data).slice(0, 2)).toEqual([[30, 30], [65, -5]]);
+    // sem deslocamento nem corte, o cenário sai idêntico (mesmo JSON, mesmo hash)
+    const same = resizeMapData(file, 80, 100, 'n');
+    expect(JSON.stringify(same.data.scenario)).toBe(JSON.stringify(file.scenario));
   });
   it('MapEditor.resized: nova instância como um passo de desfazer (Ctrl+Z volta à anterior com a pilha intacta, Ctrl+Y refaz)', () => {
     const ed = editorOf(twoStarts());

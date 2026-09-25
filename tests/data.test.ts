@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { AGES, BUILDINGS, BUILD_MENU, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS } from '../src/core/data';
 import { BUILTIN_MAPS } from '../src/core/data/maps';
-import { validateMap, mapHash, canonicalize, startResourcesOf } from '../src/core/map/fixed';
+import { validateMap, mapHash, canonicalize, startResourcesOf, blankMap, base64ToBytes, bytesToBase64 } from '../src/core/map/fixed';
+import { TERRAIN } from '../src/core/constants';
 import { checkMap } from '../src/core/map/check';
 import { EDITOR_KEYS, TOOL_KEYS, TERRAIN_KEYS } from '../src/editor/editor';
 import { buildEstreito } from '../scripts/maps/estreito';
 import { buildEgeu } from '../scripts/maps/egeu';
+import { MIN_ROUTE_CUT, routeReport } from '../scripts/maps/lib';
 
 describe('integridade dos dados', () => {
   it('unidades referenciam edifícios que as treinam', () => {
@@ -95,11 +97,28 @@ describe('mapas embutidos', () => {
       if (m.startTeams) { expect(m.startTeams.length, key).toBe(m.starts.length); expect(new Set(m.startTeams).size, key).toBeGreaterThan(1); }
     }
     expect(BUILTIN_MAPS.estreito.starts.length).toBe(2); expect([BUILTIN_MAPS.estreito.w, BUILTIN_MAPS.estreito.h]).toEqual([80, 80]);
-    expect(BUILTIN_MAPS.egeu.starts.length).toBe(4); expect([BUILTIN_MAPS.egeu.w, BUILTIN_MAPS.egeu.h]).toEqual([112, 112]);
+    expect(BUILTIN_MAPS.egeu.starts.length).toBe(4); expect([BUILTIN_MAPS.egeu.w, BUILTIN_MAPS.egeu.h]).toEqual([113, 113]);   // lado ímpar: colina no centro exato
     expect(BUILTIN_MAPS.egeu.startTeams).toEqual([0, 0, 1, 1]);
+    for (const m of Object.values(BUILTIN_MAPS)) expect(m.relics, m.id).toBe(false);   // relíquias sorteadas quebrariam a simetria
   });
-  it('mapas oficiais são reprodutíveis: scripts/maps/<id>.ts gera exatamente o arquivo embutido', () => {
-    expect(buildEstreito().file).toEqual(BUILTIN_MAPS.estreito);
-    expect(buildEgeu().file).toEqual(BUILTIN_MAPS.egeu);
+  it('mapas oficiais são reprodutíveis: scripts/maps/<id>.ts gera exatamente o arquivo embutido, com rotas largas', () => {
+    const est = buildEstreito(), eg = buildEgeu();
+    expect(est.file).toEqual(BUILTIN_MAPS.estreito);
+    expect(eg.file).toEqual(BUILTIN_MAPS.egeu);
+    // finish() recusa rota estreita ou selável; aqui só se confere que cada rota foi medida
+    expect(est.routes.map((r) => r.route)).toEqual(['central', 'noroeste', 'sudeste']);
+    expect(eg.routes.length).toBe(9);
+    for (const r of [...est.routes, ...eg.routes]) { expect(r.cut.length, r.route).toBeGreaterThanOrEqual(MIN_ROUTE_CUT); expect(r.seals, r.route).toEqual([]); }
+  });
+  it('routeReport acha a seção de um vau estreito e os edifícios que o selam', () => {
+    // rio vertical em x = 30..33 com um vau de 2 tiles (y = 40..41): uma casa 2×2 sobre o vau sela a rota
+    const base = blankMap(80, 80, 2, 1);
+    const terr = base64ToBytes(base.terrain, 80 * 80);
+    for (let y = 0; y < 80; y++) for (let x = 30; x <= 33; x++) if (y < 40 || y > 41) terr[y * 80 + x] = TERRAIN.WATER;
+    const file = { ...base, terrain: bytesToBase64(terr), starts: [[12, 40], [60, 40]] as [number, number][] };
+    const [r] = routeReport(file, [{ name: 'vau', zone: () => false }]);
+    expect(r.cut.length).toBe(2);
+    expect(r.seals.some((s) => s.side === 2 && s.x >= 29 && s.x <= 33 && s.y === 40)).toBe(true);
+    expect(r.seals.every((s) => s.x + s.side - 1 >= 29 && s.x <= 34)).toBe(true);   // só sobre o vau ou na boca dele
   });
 });

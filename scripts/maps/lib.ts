@@ -2,8 +2,9 @@
 // com as operações desfazíveis do editor (MapEditor.apply: paint/addNode/setStart, as mesmas do mouse) a partir de um
 // mapa em branco, sob um grupo de simetria (rotação de 180° no 1v1, espelho duplo no 2v2), e grava o .map.json
 // canônico (saveMap via MapEditor.toFile). Justiça entre inícios por construção: terreno e nós são decididos só no
-// representante canônico de cada órbita e replicados nas imagens; o build confere simetria, recursos por início e
-// validação antes de gravar. Sem Math.random/trigonometria: ruído e hash determinísticos do núcleo.
+// representante canônico de cada órbita e replicados nas imagens; o build confere simetria, recursos por início,
+// validação e a largura de cada rota entre os lados (nenhuma selável por um único edifício) antes de gravar.
+// Sem Math.random/trigonometria: ruído e hash determinísticos do núcleo.
 import fs from 'node:fs';
 import { TERRAIN, type NodeType } from '../../src/core/constants';
 import { makeNoise, type Noise2D } from '../../src/core/rng';
@@ -123,9 +124,10 @@ export class MapBuilder {
 
   /**
    * Arquivo canônico com os metadados, conferido: validação sem erros, terreno e nós simétricos, recursos por início
-   * idênticos. Lança se algo falhar (o build nunca grava um mapa injusto).
+   * idênticos, vizinhança dos inícios igual e, para cada rota declarada, corte ≥ MIN_ROUTE_CUT sem edifício que a sele
+   * (routeReport). Lança se algo falhar (o build nunca grava um mapa injusto).
    */
-  finish(meta: MapMeta): { file: FixedMapData; warnings: MapIssue[] } {
+  finish(meta: MapMeta, routes: Route[] = []): { file: FixedMapData; warnings: MapIssue[]; routes: RouteReport[] } {
     this.ed.setMeta(meta);
     const file = this.ed.toFile();
     const n = file.starts.length;
@@ -151,7 +153,14 @@ export class MapBuilder {
     };
     const ref = local(file.starts[0][0], file.starts[0][1]);
     file.starts.forEach(([x, y], i) => { if (local(x, y) !== ref) throw new Error(`${meta.id}: a vizinhança do início ${i + 1} difere da do início 1 na orientação absoluta`); });
-    return { file, warnings: issues.filter((i) => i.level === 'warn') };
+    // rotas: seção mínima de MIN_ROUTE_CUT tiles e nenhuma selável por um único edifício (um humano fecharia o mapa)
+    const report = routeReport(file, routes);
+    for (const r of report) {
+      const at = `rota ${r.route} (início 1 → ${r.to + 1}) com seção em ${JSON.stringify(r.cut.slice(0, 3))}`;
+      if (r.cut.length < MIN_ROUTE_CUT) throw new Error(`${meta.id}: ${at}: só ${r.cut.length} tile(s) de largura (mínimo ${MIN_ROUTE_CUT})`);
+      if (r.seals.length) throw new Error(`${meta.id}: ${at}: um edifício ${r.seals[0].side}×${r.seals[0].side} em (${r.seals[0].x}, ${r.seals[0].y}) a sela`);
+    }
+    return { file, warnings: issues.filter((i) => i.level === 'warn'), routes: report };
   }
 }
 
@@ -171,14 +180,125 @@ export function placeStartLayout(b: MapBuilder, sx: number, sy: number): void {
   b.nodes('tree', at([[7, 7], [8, 7], [7, 8], [8, 8], [9, 6], [6, 9]]));
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// Rotas entre inícios: nenhuma pode ser selada por um único edifício
+// ---------------------------------------------------------------------------------------------------------------
+
+/** Corte mínimo exigido em cada rota (tiles de largura na seção mais estreita, 4-conexa). */
+export const MIN_ROUTE_CUT = 5;
+/** Maior lado de edifício testado na varredura de selagem (casas 2×2, quartel/templo/Centro Cívico 3×3, fortaleza e maravilhas 4×4). */
+export const SEAL_MAX_SIDE = 4;
+/** Rota entre os lados do mapa: nome e a zona (retângulo ou faixa) que a contém; fechar a zona fecha a rota. */
+export interface Route { name: string; zone: (x: number, y: number) => boolean }
+export interface RouteReport { from: number; to: number; route: string; cut: Pt[]; seals: { x: number; y: number; side: number }[] }
+
+/**
+ * Para cada rota e cada par (início 1, início k): com as zonas das OUTRAS rotas fechadas, o corte mínimo de vértices
+ * entre os dois inícios (fluxo máximo, 4-conexo como canStep; terreno sólido, nós e o 3×3 do Centro Cívico do kit
+ * bloqueiam) e os edifícios quadrados de lado 1 a SEAL_MAX_SIDE, em terreno onde podem ser construídos (sem água,
+ * montanha, nó ou Centro Cívico), perto da zona ou do corte, que sozinhos desligam os inícios. Pares que não dependem
+ * das rotas (aliados na mesma costa) dão o corte da própria base e nenhuma selagem.
+ */
+export function routeReport(file: FixedMapData, routes: Route[]): RouteReport[] {
+  const { w, h } = file, n = w * h;
+  const terr = base64ToBytes(file.terrain, n);
+  const blocked = new Uint8Array(n);
+  for (let i = 0; i < n; i++) { const t = terr[i]; if (t === T.WATER || t === T.DEEP || t === T.MOUNTAIN) blocked[i] = 1; }
+  for (const [, x, y] of file.nodes) blocked[y * w + x] = 1;
+  const ccOf = file.starts.map(([sx, sy]) => { const l: number[] = []; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) l.push((sy + dy) * w + sx + dx); return l; });
+  const cc = new Uint8Array(n);
+  if (file.startKit !== false) for (const l of ccOf) for (const i of l) cc[i] = 1;
+  const zones = routes.map((r) => { const z = new Uint8Array(n); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (r.zone(x, y)) z[y * w + x] = 1; return z; });
+  const nb = (i: number, d: number): number => {
+    const x = i % w, y = (i - x) / w;
+    if (d === 0) return x + 1 < w ? i + 1 : -1;
+    if (d === 1) return x > 0 ? i - 1 : -1;
+    if (d === 2) return y + 1 < h ? i + w : -1;
+    return y > 0 ? i - w : -1;
+  };
+  const out: RouteReport[] = [];
+  for (let k = 1; k < file.starts.length; k++) for (let r = 0; r < routes.length; r++) {
+    const src = new Uint8Array(n), snk = new Uint8Array(n), closed = new Uint8Array(n);
+    for (const i of ccOf[0]) src[i] = 1;
+    for (const i of ccOf[k]) snk[i] = 1;
+    zones.forEach((z, q) => { if (q !== r) for (let i = 0; i < n; i++) if (z[i]) closed[i] = 1; });
+    const open = (i: number) => i >= 0 && (src[i] === 1 || snk[i] === 1 || (!blocked[i] && !cc[i] && !closed[i]));
+    // fluxo máximo com capacidade 1 por tile (infinita na origem e no destino); estados: 2i = entrada, 2i + 1 = saída
+    const inner = new Int32Array(n), cross = new Int32Array(n * 4);
+    const dirTo = (j: number, i: number) => { for (let d = 0; d < 4; d++) if (nb(j, d) === i) return d; return -1; };
+    const bfs = (): { prev: Int32Array; seen: Uint8Array; end: number } => {
+      const prev = new Int32Array(2 * n).fill(-1), seen = new Uint8Array(2 * n);
+      const queue: number[] = [];
+      for (let i = 0; i < n; i++) if (src[i]) { seen[2 * i + 1] = 1; queue.push(2 * i + 1); }
+      for (let q = 0; q < queue.length; q++) {
+        const st = queue[q], i = st >> 1;
+        const push = (to: number) => { if (!seen[to]) { seen[to] = 1; prev[to] = st; queue.push(to); } };
+        if ((st & 1) === 0) {   // entrada de i: atravessa o tile (se ainda há capacidade) ou volta por uma aresta com fluxo
+          if (snk[i]) return { prev, seen, end: st };
+          if (src[i] || inner[i] < 1) push(2 * i + 1);
+          for (let d = 0; d < 4; d++) { const j = nb(i, d); if (j >= 0 && open(j) && cross[j * 4 + (d ^ 1)] > 0) push(2 * j + 1); }
+        } else {                // saída de i: segue para a entrada dos vizinhos ou desfaz a travessia
+          for (let d = 0; d < 4; d++) { const j = nb(i, d); if (j >= 0 && open(j)) push(2 * j); }
+          if (!src[i] && inner[i] > 0) push(2 * i);
+        }
+      }
+      return { prev, seen, end: -1 };
+    };
+    for (let guard = 0; guard < 512; guard++) {
+      const { prev, end } = bfs();
+      if (end < 0) break;
+      for (let st = end; prev[st] !== -1; st = prev[st]) {
+        const p = prev[st], i = st >> 1, j = p >> 1;
+        if (i === j) inner[i] += (p & 1) === 0 ? 1 : -1;
+        else if ((p & 1) === 1) { const d = dirTo(j, i); cross[j * 4 + d]++; }   // saída de j → entrada de i
+        else { const d = dirTo(i, j); cross[i * 4 + d]--; }                      // entrada de j → saída de i (desfaz i → j)
+      }
+    }
+    const { seen } = bfs();
+    const cut: number[] = [];
+    for (let i = 0; i < n; i++) if (!src[i] && !snk[i] && seen[2 * i] && !seen[2 * i + 1]) cut.push(i);
+    // varredura de selagem perto da zona da rota e do corte
+    const focus = new Uint8Array(n);
+    for (let i = 0; i < n; i++) if (zones[r][i]) focus[i] = 1;
+    for (const i of cut) focus[i] = 1;
+    const connected = (fp: Uint8Array): boolean => {
+      const seenT = new Uint8Array(n), q: number[] = [];
+      for (let i = 0; i < n; i++) if (src[i]) { seenT[i] = 1; q.push(i); }
+      for (let a = 0; a < q.length; a++) {
+        const i = q[a]; if (snk[i]) return true;
+        for (let d = 0; d < 4; d++) { const j = nb(i, d); if (j >= 0 && !seenT[j] && open(j) && !fp[j]) { seenT[j] = 1; q.push(j); } }
+      }
+      return false;
+    };
+    const near = (x0: number, y0: number, side: number) => {
+      for (let y = Math.max(0, y0 - 1); y <= Math.min(h - 1, y0 + side); y++) for (let x = Math.max(0, x0 - 1); x <= Math.min(w - 1, x0 + side); x++) if (focus[y * w + x]) return true;
+      return false;
+    };
+    const seals: RouteReport['seals'] = [];
+    const fp = new Uint8Array(n);
+    if (connected(fp)) for (let side = 1; side <= SEAL_MAX_SIDE; side++) for (let y = 0; y + side <= h; y++) for (let x = 0; x + side <= w; x++) {
+      if (!near(x, y, side)) continue;
+      let ok = true;
+      for (let yy = y; yy < y + side && ok; yy++) for (let xx = x; xx < x + side; xx++) { const i = yy * w + xx; if (blocked[i] || cc[i] || closed[i]) { ok = false; break; } }
+      if (!ok) continue;
+      for (let yy = y; yy < y + side; yy++) for (let xx = x; xx < x + side; xx++) fp[yy * w + xx] = 1;
+      if (!connected(fp)) seals.push({ x, y, side });
+      for (let yy = y; yy < y + side; yy++) for (let xx = x; xx < x + side; xx++) fp[yy * w + xx] = 0;
+    }
+    out.push({ from: 0, to: k, route: routes[r].name, cut: cut.map((i) => [i % w, Math.floor(i / w)] as Pt), seals });
+  }
+  return out;
+}
+
 /** Grava o arquivo (JSON compacto) e imprime o resumo; usado quando o script do mapa roda direto. */
-export function writeMap(file: FixedMapData, warnings: MapIssue[], out: string): void {
+export function writeMap(file: FixedMapData, warnings: MapIssue[], out: string, routes: RouteReport[] = []): void {
   const json = JSON.stringify(file);
   fs.writeFileSync(out, json);
   const res = startResourcesOf(file);
   console.log(`${out}: ${file.w}x${file.h} · ${file.starts.length} inícios · ${file.nodes.length} nós · ${json.length} bytes · hash #${mapHash(file).toString(16)} · ${warnings.length} aviso(s)`);
   for (const w of warnings) console.log(`  aviso ${w.code}${w.x !== undefined ? ` (${w.x}, ${w.y})` : ''}${w.params ? ' ' + JSON.stringify(w.params) : ''}`);
   console.log(`  por início (raio 16): comida ${res[0].food} · madeira ${res[0].wood} · ouro ${res[0].gold} (iguais em todos)`);
+  for (const r of routes) console.log(`  rota ${r.route} (início 1 → ${r.to + 1}, as outras fechadas): corte mínimo ${r.cut.length} tiles; nenhum edifício de até ${SEAL_MAX_SIDE}×${SEAL_MAX_SIDE} a sela`);
 }
 
 /** Terrenos, para os scripts dos mapas. */

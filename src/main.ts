@@ -319,6 +319,8 @@ async function boot() {
     leaveEditorView();
     editor = ed; ed.onSwitch = (to) => switchEditor(to); editorCam = null;
     showEditor(ed, null);
+    // o painel novo nasce sem edições: marca-o como tocado para que o rascunho (agora e ao salvar/sair) seja o desta instância
+    editorPanel?.markTouched(); editorPanel?.autosaveNow();
     hud.toast(t(msg, { w: ed.map.w, h: ed.map.h }), 'gold');
   };
   /** Redimensionar (Propriedades): nova instância a partir do arquivo redimensionado; Ctrl+Z volta à anterior. */

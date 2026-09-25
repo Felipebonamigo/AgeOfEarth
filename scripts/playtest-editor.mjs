@@ -186,19 +186,25 @@ ok('prévia do redimensionamento', preview.length > 5, `| ${preview}`);
 page.once('dialog', (d) => d.accept()); await page.click('#ep-resize'); await page.waitForTimeout(800);
 st = await info();
 ok('redimensionado para 96×96 (nova instância, painel de volta)', st.w === 96 && st.h === 96 && st.mode === 'editor' && await ed(() => window.aoe.editor.__mark === undefined) && await page.isVisible('#editor'), `| ${st.w}×${st.h}, undo=${st.undo}`);
+const draftW = () => ed(() => JSON.parse(localStorage.getItem('aoe_editor_autosave') ?? 'null')?.w ?? null);
+ok('o rascunho passa a ser o da instância redimensionada', (await draftW()) === 96, `| rascunho ${await draftW()}`);
 await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
 st = await info();
 ok('Ctrl+Z volta à instância de 80×80 com a pilha intacta', st.w === 80 && await ed(() => window.aoe.editor.__mark === 'instancia-1') && st.redo >= 1, `| ${st.w}×${st.h}, undo=${st.undo}, redo=${st.redo}`);
+ok('o rascunho acompanha o Ctrl+Z (80×80)', (await draftW()) === 80, `| rascunho ${await draftW()}`);
 await page.keyboard.press('Control+y'); await page.waitForTimeout(800);
 ok('Ctrl+Y refaz o redimensionamento', (await info()).w === 96);
+await page.keyboard.press('Control+s'); await page.waitForTimeout(300);
+ok('Ctrl+S depois do Ctrl+Y grava o rascunho de 96×96', (await draftW()) === 96 && await ed(() => window.aoe.editor.dirty === false), `| rascunho ${await draftW()}`);
 await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
+ok('Ctrl+Z de novo: o rascunho volta a 80×80', (await draftW()) === 80, `| rascunho ${await draftW()}`);
 // 15) sair do editor → menu principal (confirmação por dirty) → rascunho disponível
 page.once('dialog', (d) => d.accept()); await page.click('#ed-exit'); await page.waitForTimeout(400);
 ok('Sair volta ao menu com "Continuar rascunho"', await page.isVisible('#menu') && await page.isVisible('#ed-resume') && await ed(() => window.aoe.session === null));
 ok('mapa salvo aparece em Meus mapas e no seletor da Partida rápida', (await page.$$eval('#ed-mine .mapcard', (l) => l.map((x) => x.dataset.id))).includes('teste-editor') && await ed(() => { document.querySelector('#menu [data-tab="skirmish"]').click(); return [...document.querySelectorAll('#m-fixed-sel option')].some((o) => o.value === 'teste-editor'); }));
 // 21) mapas oficiais: abrir no editor (cópia), sem avisos, captura do mapa inteiro, Testar contra IAs e voltar
 page.removeAllListeners('dialog'); page.on('dialog', (d) => { d.accept().catch(() => {}); });   // daqui em diante toda confirmação é aceita
-for (const [id, w, n] of [['estreito', 80, 2], ['egeu', 112, 4]]) {
+for (const [id, w, n] of [['estreito', 80, 2], ['egeu', 113, 4]]) {
   await page.setViewportSize({ width: 1600, height: 1000 }); await page.waitForTimeout(200);
   await page.click('#menu [data-tab="editor"]'); await page.waitForTimeout(200);
   await page.click(`#ed-builtin .mapcard[data-id="${id}"] [data-act="copy"]`); await page.waitForTimeout(1500);
