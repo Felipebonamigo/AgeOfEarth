@@ -16,6 +16,7 @@
     "map:export": "tsx scripts/export-map.ts",
     "map:check": "tsx scripts/mapcheck.ts",
     "relay": "node server/relay.mjs",
+    "loadtest": "tsx scripts/loadtest.ts",
     "perf:render": "node scripts/renderperf.mjs",
     "art:shot": "node scripts/artshot.mjs",
     "art:diff": "node scripts/artdiff.mjs"
