@@ -6,6 +6,7 @@ import { MainMenu } from './ui/menu';
 import { Audio } from './audio/audio';
 import { Session } from './game/session';
 import type { GameConfig } from './core/types';
+import { SCENARIOS } from './core/scenario/campaign';
 
 const SAVE_KEY = 'aoe_save_v1';
 
@@ -22,6 +23,7 @@ async function boot() {
     onSave: () => { if (!session) return; try { localStorage.setItem(SAVE_KEY, session.save()); hud.toast('Jogo salvo.', 'good'); } catch (e) { hud.toast('Falha ao salvar: ' + (e as Error).message, 'warn'); } },
     onLoad: () => loadGame(),
     onQuit: () => { session = null; hud.setSession(null); hud.setVisible(false); menu.show(); document.body.className = ''; },
+    onNextMission: (id) => { const i = SCENARIOS.findIndex((m) => m.id === id); const next = SCENARIOS[i + 1]; if (next) startMission(next.id); else { session = null; hud.setSession(null); hud.setVisible(false); menu.show(); } },
   });
   hud.setVisible(false);
   const input = new Input(renderer.canvas, () => session, renderer, hud, audio);
@@ -45,7 +47,12 @@ async function boot() {
       hud.toast('Jogo carregado.', 'good');
     } catch (e) { hud.toast('Falha ao carregar: ' + (e as Error).message, 'warn'); }
   };
-  const menu = new MainMenu(root, { onStart: startGame, onLoad: loadGame, hasSave, onHelp: () => hud.showHelp(), onEncyclopedia: () => hud.showEncyclopedia() });
+  const startMission = (id: string) => {
+    const def = SCENARIOS.find((m) => m.id === id); if (!def) return;
+    startGame({ ...def.config, scenario: id });
+    if (session) { session.paused = true; hud.showIntro(id, () => { if (session) session.paused = false; }); }
+  };
+  const menu = new MainMenu(root, { onStart: startGame, onLoad: loadGame, hasSave, onHelp: () => hud.showHelp(), onEncyclopedia: () => hud.showEncyclopedia(), onMission: startMission });
 
   window.addEventListener('keydown', (e) => {
     if (!session) return;

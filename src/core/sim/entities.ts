@@ -103,11 +103,11 @@ export function buildingLimitOk(state: GameState, player: Player, type: string):
   return { ok: true };
 }
 
-export function canPlaceBuilding(state: GameState, player: Player, type: string, tx: number, ty: number, ignoreLimits = false): PlaceCheck {
+export function canPlaceBuilding(state: GameState, player: Player, type: string, tx: number, ty: number, ignoreLimits = false, force = false): PlaceCheck {
   const def = BUILDINGS[type];
-  if (!def || def.notBuildable) return { ok: false, reason: 'Edifício inválido.' };
-  if (def.age > player.age) return { ok: false, reason: `Requer a ${['Idade Arcaica', 'Idade Clássica', 'Idade Heroica', 'Idade Mítica', 'Idade dos Titãs'][def.age]}.` };
-  if (!ignoreLimits) { const lim = buildingLimitOk(state, player, type); if (!lim.ok) return lim; }
+  if (!def || (def.notBuildable && !force)) return { ok: false, reason: 'Edifício inválido.' };
+  if (def.age > player.age && !force) return { ok: false, reason: `Requer a ${['Idade Arcaica', 'Idade Clássica', 'Idade Heroica', 'Idade Mítica', 'Idade dos Titãs'][def.age]}.` };
+  if (!ignoreLimits && !force) { const lim = buildingLimitOk(state, player, type); if (!lim.ok) return lim; }
   const map = state.map;
   for (let y = ty; y < ty + def.h; y++) for (let x = tx; x < tx + def.w; x++) {
     if (!inBounds(map, x, y)) return { ok: false, reason: 'Fora do mapa.' };
@@ -115,6 +115,7 @@ export function canPlaceBuilding(state: GameState, player: Player, type: string,
     const t = map.terrain[i];
     if (t === TERRAIN.WATER || t === TERRAIN.DEEP || t === TERRAIN.MOUNTAIN) return { ok: false, reason: 'Terreno inadequado.' };
     if (map.nodeAt[i] !== -1 || map.buildingAt[i] !== -1) return { ok: false, reason: 'Espaço ocupado.' };
+    if (force) continue;
     const owner = state.territory[i];
     if (type === 'town_center') {
       if (owner !== -1 && owner !== player.id) return { ok: false, reason: 'Não é possível construir em território inimigo.' };

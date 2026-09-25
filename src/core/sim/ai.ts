@@ -199,6 +199,7 @@ function manageBuilding(state: GameState, player: Player, snap: Snapshot): void 
   // Garante que obras em andamento tenham construtores; cancela obras paradas há muito tempo
   let active = 0;
   for (const b of snap.underConstruction) {
+    if (b.type === 'titan_gate' && state.scenario) continue;   // em cenários, o Portal segue o ritual do roteiro
     const builders = snap.villagers.filter((u) => u.state === 'build' && u.targetId === b.id).length;
     const stalled = state.tick - b.builtTick > 90 * TICK_RATE && b.progress < 5;
     if (stalled) { applyCommand(state, { type: 'cancel', player: player.id, buildingId: b.id, index: -1 }); continue; }

@@ -15,7 +15,7 @@ export function serialize(state: GameState): string {
     players: s.players.map((p) => ({ ...p, visibility: Array.from(p.visibility), mods: undefined })),
     units: [...s.units.values()], buildings: [...s.buildings.values()],
     territory: Array.from(s.territory), events: s.events.slice(-50), timed: s.timed,
-    winner: s.winner, gameOver: s.gameOver, rng: s.rng.s, ceasefireUntil: s.ceasefireUntil, ceasefireBy: s.ceasefireBy,
+    winner: s.winner, gameOver: s.gameOver, rng: s.rng.s, ceasefireUntil: s.ceasefireUntil, ceasefireBy: s.ceasefireBy, scenario: s.scenario ?? null,
   };
   return JSON.stringify(out);
 }
@@ -39,7 +39,7 @@ export function deserialize(json: string): GameState {
     units: new Map((o.units as Unit[]).map((u) => [u.id, u])), buildings: new Map((o.buildings as Building[]).map((b) => [b.id, b])),
     territory: Int8Array.from(o.territory as number[]), territoryDirty: true, territoryVersion: 0,
     events: o.events ?? [], effects: [], timed: o.timed ?? [], winner: o.winner, gameOver: o.gameOver, rng: new RNG(1),
-    ceasefireUntil: o.ceasefireUntil ?? 0, ceasefireBy: o.ceasefireBy ?? -1, fogVersion: 0,
+    ceasefireUntil: o.ceasefireUntil ?? 0, ceasefireBy: o.ceasefireBy ?? -1, fogVersion: 0, scenario: o.scenario ?? undefined,
   };
   state.rng.s = o.rng >>> 0;
   // Reconstrói bloqueios: terreno, nós e edifícios

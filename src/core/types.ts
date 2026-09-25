@@ -147,6 +147,7 @@ export interface VisualEffect { type: string; x: number; y: number; tx?: number;
 
 export interface GameConfig {
   seed: number; mapSize: 'small' | 'medium' | 'large';
+  scenario?: string;
   players: { name: string; god: string; isAI: boolean; difficulty: Difficulty }[];
   revealMap?: boolean; startingAge?: number; startingResources?: Partial<Record<ResourceType, number>>;
 }
@@ -166,7 +167,9 @@ export interface GameState {
   ceasefireUntil: number;
   fogVersion: number;
   ceasefireBy: number;
+  scenario?: ScenarioState;
 }
+import type { ScenarioState } from './scenario/types';
 
 // ---------------- Comandos (a única forma de alterar o estado a partir de fora) ----------------
 export type Command =

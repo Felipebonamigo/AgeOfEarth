@@ -122,3 +122,24 @@ button { font-family: inherit; cursor: pointer; }
 body.cur-attack #app canvas { cursor: crosshair; }
 body.cur-place #app canvas { cursor: cell; }
 body.cur-power #app canvas { cursor: crosshair; }
+
+#objectives { position: absolute; right: 10px; top: 150px; width: 300px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12px; }
+#objectives h4 { margin: 0 0 6px; color: var(--gold); font-size: 13px; }
+#objectives ul { margin: 0; padding-left: 4px; list-style: none; }
+#objectives li { margin: 3px 0; line-height: 1.3; }
+#objectives li.done { color: var(--muted); text-decoration: line-through; }
+#objectives li.failed { color: var(--danger); }
+#objectives .timer { margin-top: 6px; color: var(--gold); font-weight: 600; }
+#dialogue { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); width: 640px; max-width: 80vw; background: rgba(8, 12, 24, 0.96); border: 1px solid var(--gold); border-radius: 10px; padding: 10px 14px; display: flex; gap: 12px; align-items: flex-start; font-size: 13px; cursor: pointer; box-shadow: 0 6px 24px rgba(0,0,0,0.5); animation: fadein 0.3s; }
+#dialogue .ic { font-size: 30px; }
+#dialogue b { color: var(--gold); display: block; margin-bottom: 2px; }
+#dialogue small { color: var(--muted); white-space: nowrap; font-size: 10px; align-self: flex-end; }
+#menu .missions { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+#menu .mission { display: flex; gap: 12px; align-items: center; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; cursor: pointer; }
+#menu .mission:hover:not(.locked) { border-color: var(--gold); }
+#menu .mission.locked { opacity: 0.5; cursor: not-allowed; }
+#menu .mission .ic { font-size: 28px; }
+#menu .mission b { display: block; }
+#menu .mission small { color: var(--muted); }
+#menu .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+#menu .tabs .btn.active { border-color: var(--gold); color: var(--gold); }

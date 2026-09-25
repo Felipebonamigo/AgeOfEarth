@@ -17,6 +17,7 @@ import { updateTimedEffects } from './powers';
 import { aiThink } from './ai';
 import { checkVictory } from './victory';
 import { spiralSearch, isPassable } from '../map/grid';
+import { getScenario, initScenarioState, runScenario } from '../scenario/runner';
 
 const PATH_BUDGET_PER_TICK = 48;
 const MAX_EVENTS = 200;
@@ -62,11 +63,23 @@ export function createGame(config: GameConfig): GameState {
     });
     recomputePop(state, p);
   });
+  // Cenário (campanha): posicionamento extra e estado de objetivos
+  if (config.scenario) {
+    const def = getScenario(config.scenario);
+    if (def) {
+      state.scenario = initScenarioState(def);
+      def.setup?.(state);
+      for (const [id, u] of state.units) if (u.dead) state.units.delete(id);
+      for (const [id, b] of state.buildings) if (b.dead) { for (let y = b.ty; y < b.ty + b.h; y++) for (let x = b.tx; x < b.tx + b.w; x++) { const i = y * map.w + x; if (map.buildingAt[i] === b.id) { map.buildingAt[i] = -1; map.blocked[i] = 0; } } state.buildings.delete(id); }
+      for (const p of state.players) { recomputeMods(state, p); recomputePop(state, p); }
+    }
+  }
   recomputeTerritory(state);
   for (const p of state.players) updateFog(state, p);
   // Cidadãos iniciais começam coletando (comida) para reduzir microgestão inicial
   for (const p of state.players) {
-    const tc = [...state.buildings.values()].find((b) => b.owner === p.id)!;
+    const tc = [...state.buildings.values()].find((b) => b.owner === p.id && b.type === 'town_center');
+    if (!tc) continue;
     const vills = [...state.units.values()].filter((u) => u.owner === p.id && u.type === 'villager');
     const { nearestNode } = queries;
     const food = nearestNode(state, tc.x, tc.y, 'food', 14);
@@ -104,7 +117,8 @@ export function tick(state: GameState, commands: Command[] = []): void {
   // Economia e IA a cada segundo (defasadas para distribuir custo)
   if (state.tick % TICK_RATE === 0) economySecond(state);
   for (const p of state.players) if (p.isAI && p.alive) aiThink(state, p);
-  if (state.tick % TICK_RATE === TICK_RATE - 1) checkVictory(state);
+  if (state.scenario) { if (state.tick % TICK_RATE === TICK_RATE - 1) runScenario(state); }
+  else if (state.tick % TICK_RATE === TICK_RATE - 1) checkVictory(state);
   // Território e névoa
   if (state.territoryDirty) recomputeTerritory(state);
   if (state.tick % 5 === 0) for (const p of state.players) if (!p.isAI || state.config.revealMap) updateFog(state, p);

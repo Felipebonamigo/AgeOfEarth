@@ -12,8 +12,9 @@ import type { Session } from '../game/session';
 import type { Renderer } from '../render/renderer';
 import { Minimap } from '../render/minimap';
 import type { Audio } from '../audio/audio';
+import { getScenario } from '../core/scenario/runner';
 
-export interface HUDCallbacks { onSave: () => void; onLoad: () => void; onQuit: () => void; hasSave: () => boolean }
+export interface HUDCallbacks { onSave: () => void; onLoad: () => void; onQuit: () => void; hasSave: () => boolean; onNextMission?: (currentId: string) => void }
 
 const el = (tag: string, cls?: string, html?: string): HTMLElement => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const fmtCost = (cost: Record<string, number>, player?: { resources: Record<string, number> }) => Object.entries(cost).filter(([, v]) => v > 0).map(([k, v]) => `<span class="${player && player.resources[k] < v ? 'miss' : ''}">${RESOURCE_ICONS[k as ResourceType]} ${v}</span>`).join('');
@@ -22,6 +23,7 @@ const ARMOR_NAMES = { hack: 'corte', pierce: 'perfuração', crush: 'esmagamento
 
 export class HUD {
   root: HTMLElement;
+  objPanel!: HTMLElement; dlgPanel!: HTMLElement;
   top!: HTMLElement; bottom!: HTMLElement; selPanel!: HTMLElement; cmdPanel!: HTMLElement; godsPanel!: HTMLElement; msgPanel!: HTMLElement; tooltip!: HTMLElement; modalBack!: HTMLElement; modal!: HTMLElement; idleBtn!: HTMLElement;
   minimap!: Minimap;
   private session: Session | null = null;
@@ -75,6 +77,8 @@ export class HUD {
 
     this.godsPanel = el('div'); this.godsPanel.id = 'gods'; hud.appendChild(this.godsPanel);
     this.msgPanel = el('div'); this.msgPanel.id = 'messages'; hud.appendChild(this.msgPanel);
+    this.objPanel = el('div'); this.objPanel.id = 'objectives'; this.objPanel.classList.add('hidden'); hud.appendChild(this.objPanel);
+    this.dlgPanel = el('div'); this.dlgPanel.id = 'dialogue'; this.dlgPanel.classList.add('hidden'); this.dlgPanel.addEventListener('click', () => this.dlgPanel.classList.add('hidden')); hud.appendChild(this.dlgPanel);
     this.tooltip = el('div'); this.tooltip.id = 'tooltip'; this.tooltip.classList.add('hidden'); hud.appendChild(this.tooltip);
     this.modalBack = el('div'); this.modalBack.id = 'modal-back'; this.modalBack.classList.add('hidden');
     this.modal = el('div'); this.modal.id = 'modal'; this.modalBack.appendChild(this.modal);
@@ -115,7 +119,7 @@ export class HUD {
     this.acc += dtReal; this.mmAcc += dtReal;
     this.drainEvents();
     if (this.mmAcc > 0.15) { this.mmAcc = 0; this.minimap.draw(s.state, this.renderer.cam, s.local); }
-    if (this.acc > 0.12) { this.acc = 0; this.refreshTop(); this.refreshSelection(false); this.refreshGods(); }
+    if (this.acc > 0.12) { this.acc = 0; this.refreshTop(); this.refreshSelection(false); this.refreshGods(); this.refreshObjectives(false); }
     if (s.state.gameOver && !this.gameOverShown) { this.gameOverShown = true; this.showGameOver(); }
   }
 
@@ -124,8 +128,10 @@ export class HUD {
     while (s.eventCursor < st.events.length) {
       const e: GameEvent = st.events[s.eventCursor++];
       const mine = e.player === s.local;
-      const global = ['age', 'victory', 'defeated', 'wonder', 'wonderLost', 'titan', 'titanDied', 'ceasefire', 'powerUsed'].includes(e.type);
+      const global = ['age', 'victory', 'defeated', 'wonder', 'wonderLost', 'titan', 'titanDied', 'ceasefire', 'powerUsed', 'dialogue', 'objective'].includes(e.type);
       if (!mine && !global) continue;
+      if (e.type === 'dialogue') { this.showDialogue(e.data ?? '', e.text ?? ''); continue; }
+      if (e.type === 'objective') { this.toast(e.text ?? '', e.data === 'done' ? 'good' : e.data === 'failed' ? 'warn' : 'gold'); this.audio.play(e.data === 'done' ? 'complete' : 'alert'); this.refreshObjectives(true); continue; }
       if (e.type === 'idleVillager' && !e.text) continue;
       let kind: 'info' | 'warn' | 'good' | 'gold' = 'info';
       if (e.type === 'underAttack' || e.type === 'buildingLost' || e.type === 'heroDied' || e.type === 'wonderLost') kind = 'warn';
@@ -176,6 +182,31 @@ export class HUD {
     const i = idle.findIndex((u) => u.id === cur);
     const next = idle[(i + 1) % idle.length];
     s.select([next.id]); this.renderer.cam.centerOn(next.x, next.y);
+  }
+
+  private dlgTimer = 0;
+  showDialogue(meta: string, text: string) {
+    const [icon, speaker] = meta.split('|');
+    this.dlgPanel.innerHTML = `<span class="ic">${icon}</span><div><b>${speaker}</b><div>${text}</div></div><small>clique para fechar</small>`;
+    this.dlgPanel.classList.remove('hidden');
+    clearTimeout(this.dlgTimer);
+    this.dlgTimer = window.setTimeout(() => this.dlgPanel.classList.add('hidden'), 14000);
+  }
+
+  private lastObjKey = '';
+  refreshObjectives(force: boolean) {
+    const s = this.session; if (!s || !s.state.scenario) { this.objPanel.classList.add('hidden'); return; }
+    const def = getScenario(s.state.scenario.id); if (!def) return;
+    const sc = s.state.scenario;
+    const key = Object.entries(sc.objectives).map(([k, v]) => `${k}${v}${sc.hidden[k] ? 'h' : ''}`).join(',') + Math.floor(s.state.time / 5);
+    if (!force && key === this.lastObjKey) return;
+    this.lastObjKey = key;
+    const rows = def.objectives.filter((o) => !sc.hidden[o.id]).map((o) => { const st = sc.objectives[o.id]; return `<li class="${st}">${st === 'done' ? '✅' : st === 'failed' ? '❌' : '◻️'} ${o.text}${o.optional ? ' <small>(opcional)</small>' : ''}</li>`; }).join('');
+    let extra = '';
+    if (s.state.scenario.id === 'm2_cerco' && sc.objectives.survive === 'pending') extra = `<div class="timer">⏳ ${fmtTime(Math.max(0, 12 * 60 - s.state.time))}</div>`;
+    if (s.state.scenario.id === 'm3_portal') { const g = [...s.state.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate'); if (g && !g.complete) extra = `<div class="timer">🌋 Ritual do Portal: ${Math.max(0, Math.round((g.progress / 180) * 100))}%</div>`; }
+    this.objPanel.innerHTML = `<h4>${def.icon} ${def.title}</h4><ul>${rows}</ul>${extra}`;
+    this.objPanel.classList.remove('hidden');
   }
 
   refreshGods() {
@@ -498,6 +529,7 @@ export class HUD {
 
   showGameOver() {
     const s = this.session!; const st = s.state;
+    if (st.scenario) { this.showScenarioEnd(); return; }
     const won = st.winner === s.local;
     this.audio.play(won ? 'victory' : 'defeat');
     const rows = st.players.map((p) => `<tr><td style="color:#${p.color.toString(16).padStart(6, '0')}">${p.name}${p.id === st.winner ? ' 🏆' : ''}</td><td>${AGES[p.age].short}</td><td>${p.stats.kills}</td><td>${p.stats.losses}</td><td>${p.stats.razed}</td><td>${p.stats.buildingsBuilt}</td><td>${p.stats.unitsTrained}</td><td>${Math.round(p.stats.gathered.food + p.stats.gathered.wood + p.stats.gathered.gold)}</td><td>${p.techs.length}</td><td>${p.territoryTiles}</td></tr>`).join('');
@@ -506,6 +538,25 @@ export class HUD {
       <div class="actions"><button class="btn" id="m-continue">Continuar assistindo</button><button class="btn primary" id="m-quit">Voltar ao menu</button></div>`, false);
     this.modal.querySelector('#m-continue')!.addEventListener('click', () => this.hideModal());
     this.modal.querySelector('#m-quit')!.addEventListener('click', () => { this.hideModal(); this.cb.onQuit(); });
+  }
+
+  showScenarioEnd() {
+    const s = this.session!; const st = s.state; const sc = st.scenario!; const def = getScenario(sc.id)!;
+    const won = sc.outcome === 'victory';
+    this.audio.play(won ? 'victory' : 'defeat');
+    if (won) { try { const prog = JSON.parse(localStorage.getItem('aoe_campaign') ?? '{"completed":[]}'); if (!prog.completed.includes(sc.id)) prog.completed.push(sc.id); localStorage.setItem('aoe_campaign', JSON.stringify(prog)); } catch { /* ignore */ } }
+    const text = won ? (def.outro ?? ['Missão cumprida.']).map((t) => `<p>${t}</p>`).join('') : '<p>A missão falhou. Tente outra abordagem: fortifique cedo, use os poderes divinos e lembre-se do atrito nas suas fronteiras.</p>';
+    this.showModal(`<h2>${won ? '🏆 Missão cumprida' : '💀 Missão falhou'} — ${def.title}</h2>${text}<p><small>Tempo: ${fmtTime(st.time)} · Abates: ${s.player.stats.kills} · Perdas: ${s.player.stats.losses}</small></p>
+      <div class="actions"><button class="btn" id="m-continue">Continuar jogando</button>${won && this.cb.onNextMission ? '<button class="btn primary" id="m-next">Próxima missão ▶</button>' : ''}<button class="btn ${won ? '' : 'primary'}" id="m-quit">Voltar ao menu</button></div>`, false);
+    this.modal.querySelector('#m-continue')!.addEventListener('click', () => this.hideModal());
+    this.modal.querySelector('#m-next')?.addEventListener('click', () => { this.hideModal(); this.cb.onNextMission?.(sc.id); });
+    this.modal.querySelector('#m-quit')!.addEventListener('click', () => { this.hideModal(); this.cb.onQuit(); });
+  }
+
+  showIntro(scenarioId: string, onStart: () => void) {
+    const def = getScenario(scenarioId); if (!def) { onStart(); return; }
+    this.showModal(`<h2>${def.icon} ${def.title}</h2><p style="color:#f2c14e">${def.subtitle}</p>${def.intro.map((t) => `<p>${t}</p>`).join('')}<h3>Objetivos</h3><ul>${def.objectives.filter((o) => !o.hidden).map((o) => `<li>${o.text}${o.optional ? ' <small>(opcional)</small>' : ''}</li>`).join('')}</ul>${def.hints ? `<h3>Dicas</h3><ul>${def.hints.map((h) => `<li>${h}</li>`).join('')}</ul>` : ''}<div class="actions"><button class="btn primary" id="m-go">Começar ▶</button></div>`, false);
+    this.modal.querySelector('#m-go')!.addEventListener('click', () => { this.hideModal(); onStart(); });
   }
 
   describeEntityTip(e: Unit | Building): string {
