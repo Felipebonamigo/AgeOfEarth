@@ -7,6 +7,8 @@ import { SCENARIOS } from '../core/scenario/campaign';
 import { NetClient, type LobbyState } from '../net/client';
 import { t, getLocale, setLocale, LOCALE_NAMES, type Locale } from '../i18n';
 import { optionsHTML, bindOptions, type OptionsContext } from './options';
+import type { FixedMapData } from '../core/map/fixed';
+import { importText } from '../game/files';
 
 export interface MenuCallbacks { onStart: (config: GameConfig) => void; onLoad: () => void; hasSave: () => boolean; onHelp: () => void; onEncyclopedia: () => void; onMission: (id: string) => void; onNetworkStart: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onNetworkRejoin: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onHorde: (god: string, difficulty: Difficulty) => void; onReplay: () => void; hasReplay: () => boolean; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onHotkeys?: () => void }
 
@@ -17,6 +19,8 @@ export class MainMenu {
   net: NetClient | null = null;
   private netStatus = '';
   private showOptions = false;
+  /** Mapa fixo carregado de arquivo para a próxima partida rápida (null = gerar). */
+  fixedMap: FixedMapData | null = null;
   private chatLog: { name: string; text: string }[] = [];
   constructor(root: HTMLElement, private cb: MenuCallbacks) {
     this.root = root;
@@ -50,7 +54,8 @@ export class MainMenu {
           <label>${t('main.seed')}</label><input id="m-seed" placeholder="${t('main.random')}">
         </div>
         <div>
-          <label>${t('main.mapSize')}</label><select id="m-map">${Object.entries(MAP_SIZES).map(([k, v]) => `<option value="${k}" ${(saved.map ?? 'medium') === k ? 'selected' : ''}>${t(`map.${k}`)} (${v.w}×${v.h})</option>`).join('')}</select>
+          <label>${t('main.fixedMap')}</label><div style="display:flex;gap:6px;align-items:center"><span id="m-fixed" style="flex:1;font-size:12px;color:${this.fixedMap ? '#f2c14e' : '#9aa5b8'}">${this.fixedMap ? `${this.fixedMap.name ?? 'mapa'} (${this.fixedMap.w}×${this.fixedMap.h}, ${this.fixedMap.starts.length} inícios)` : t('main.fixedMapNone')}</span><button class="btn" id="m-fixed-load" style="padding:4px 8px;font-size:12px">${t('main.fixedMapLoad')}</button>${this.fixedMap ? `<button class="btn" id="m-fixed-clear" style="padding:4px 8px;font-size:12px">${t('main.fixedMapClear')}</button>` : ''}</div>
+          <label>${t('main.mapSize')}</label><select id="m-map" ${this.fixedMap ? 'disabled' : ''}>${Object.entries(MAP_SIZES).map(([k, v]) => `<option value="${k}" ${(saved.map ?? 'medium') === k ? 'selected' : ''}>${t(`map.${k}`)} (${v.w}×${v.h})</option>`).join('')}</select>
           <label>${t('main.opponents')}</label><select id="m-ais">${[1, 2, 3].map((n) => `<option value="${n}" ${(saved.ais ?? 1) === n ? 'selected' : ''}>${n}</option>`).join('')}</select>
           <label>${t('main.difficulty')}</label><select id="m-diff">${Object.keys(DIFFICULTIES).map((k) => `<option value="${k}" ${(saved.diff ?? 'normal') === k ? 'selected' : ''}>${t(`diff.${k}`)}</option>`).join('')}</select>
           <label>${t('main.teams')}</label><select id="m-teams"><option value="ffa" ${(saved.teams ?? 'ffa') === 'ffa' ? 'selected' : ''}>${t('main.teams.ffa')}</option><option value="coop" ${saved.teams === 'coop' ? 'selected' : ''}>${t('main.teams.coop')}</option><option value="alliance" ${saved.teams === 'alliance' ? 'selected' : ''}>${t('main.teams.alliance')}</option></select>
@@ -94,9 +99,12 @@ export class MainMenu {
       }
       const mode = q('#m-mode').value as GameMode, mapType = q('#m-maptype').value as MapType;
       try { localStorage.setItem('aoe_setup', JSON.stringify({ name, god: this.god, map, ais, diff, teams, mode, mapType })); } catch { /* ignore */ }
-      this.cb.onStart({ seed, mapSize: map, players, revealMap: q('#m-reveal').checked, mode, mapType });
+      if (this.fixedMap && this.fixedMap.starts.length < players.length) { alert(t('main.fixedMapBad')); return; }
+      this.cb.onStart({ seed, mapSize: map, players, revealMap: q('#m-reveal').checked, mode, mapType, map: this.fixedMap ?? undefined });
     });
     q('#m-load').addEventListener('click', () => this.cb.onLoad());
+    q('#m-fixed-load').addEventListener('click', () => { void importText().then((json) => { if (!json) return; try { const d = JSON.parse(json) as FixedMapData; if (d.v !== 1 || !d.terrain || !d.starts) throw new Error('bad'); this.fixedMap = d; } catch { alert(t('main.fixedMapBad')); } this.render(); }); });
+    this.el.querySelector('#m-fixed-clear')?.addEventListener('click', () => { this.fixedMap = null; this.render(); });
     q('#m-horde').addEventListener('click', () => this.cb.onHorde(this.god, q('#m-diff').value as Difficulty));
     q('#m-replay').addEventListener('click', () => this.cb.onReplay());
     q('#m-help').addEventListener('click', () => this.cb.onHelp());

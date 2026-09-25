@@ -5,13 +5,13 @@
 | Comando | O que cobre | Tempo |
 |---|---|---|
 | `npm run typecheck` | Tipos estritos | ~10 s |
-| `npm test` | 81 testes: dados, determinismo, pathfinding, simulação, regressões, cenários, lockstep/reconexão, modos | ~5 s |
+| `npm test` | 89 testes: dados, determinismo, pathfinding, simulação, regressões, cenários, lockstep/reconexão, modos, mapas fixos | ~5 s |
 | `npm run balance 30 1,2,3,4,5,6` | 6 partidas IA×IA de 30 min: idades (Clássica ~5, Heroica 12–18, Mítica 19–26), ninguém travado | ~2 min |
 | `npx tsx scripts/missions.ts` | As 3 missões carregam e os gatilhos disparam | ~10 s |
 | `npx tsx scripts/perf.ts` | Mapa grande, 4 IAs Muito difícil: média < 3 ms/tick, pior tick < 50 ms | ~1 min |
 | `npm run preview` + `node scripts/playtest.mjs` | Partida no navegador: construir, treinar, avançar, poderes, salvar/carregar | ~1 min |
 | `node scripts/playtest-campaign.mjs`, `playtest-horde-replay.mjs`, `playtest-garrison.mjs` | Campanha, Horda/replay, guarnição/portões | ~2 min |
-| `node scripts/playtest-options.mjs`, `playtest-i18n.mjs`, `playtest-modes.mjs` | Opções/atalhos/diagnóstico, inglês, modos de jogo | ~2 min |
+| `node scripts/playtest-options.mjs`, `playtest-i18n.mjs`, `playtest-modes.mjs`, `playtest-fixedmap.mjs` | Opções/atalhos/diagnóstico, inglês, modos de jogo, exportar/carregar mapa fixo | ~2 min |
 | `npm run relay` + `node scripts/playtest-mp.mjs`, `playtest-reconnect.mjs` | Dois navegadores em lockstep, chat, ping, queda e reconexão | ~2 min |
 
 ## Matriz manual (por versão candidata)

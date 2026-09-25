@@ -19,7 +19,7 @@ import { getScenario } from '../core/scenario/runner';
 import { t } from '../i18n';
 import { optionsHTML, bindOptions, type OptionsContext } from './options';
 
-export interface HUDCallbacks { onSave: () => void; onLoad: () => void; onQuit: () => void; hasSave: () => boolean; onNextMission?: (currentId: string) => void; onExport?: () => void; onImport?: () => void; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onDiagnostic?: () => void }
+export interface HUDCallbacks { onSave: () => void; onLoad: () => void; onQuit: () => void; hasSave: () => boolean; onNextMission?: (currentId: string) => void; onExport?: () => void; onImport?: () => void; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onDiagnostic?: () => void; onExportMap?: () => void }
 
 const el = (tag: string, cls?: string, html?: string): HTMLElement => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const fmtCost = (cost: Record<string, number>, player?: { resources: Record<string, number> }) => Object.entries(cost).filter(([, v]) => v > 0).map(([k, v]) => `<span class="${player && player.resources[k] < v ? 'miss' : ''}">${RESOURCE_ICONS[k as ResourceType]} ${v}</span>`).join('');
@@ -533,6 +533,7 @@ export class HUD {
         <button class="btn" id="m-enc">${t('menu.enc')}</button>
         <div style="margin-top:8px">${opts ? optionsHTML(opts) : ''}</div>
         <label style="font-size:12px;color:#9aa5b8"><input type="checkbox" id="m-ranges" ${s.ui.showRanges ? 'checked' : ''}> ${t('menu.ranges')}</label>
+        <button class="btn" id="m-exportmap">${t('menu.exportMap')}</button>
         <button class="btn" id="m-diag">${t('menu.diagnostic')}</button>
         <button class="btn danger" id="m-quit">${t('menu.quit')}</button>
       </div>`);
@@ -545,6 +546,7 @@ export class HUD {
     if (opts) bindOptions(this.modal, opts, () => this.showMenu());
     q('#m-ranges').addEventListener('change', (e) => { s.ui.showRanges = (e.target as HTMLInputElement).checked; });
     q('#m-diag').addEventListener('click', () => { this.cb.onDiagnostic?.(); });
+    q('#m-exportmap').addEventListener('click', () => { this.cb.onExportMap?.(); });
     q('#m-export').addEventListener('click', () => { this.cb.onExport?.(); });
     q('#m-import').addEventListener('click', () => { this.hideModal(); this.cb.onImport?.(); });
     q('#m-quit').addEventListener('click', () => { if (confirm(t('menu.quitConfirm'))) { this.hideModal(); this.cb.onQuit(); } });
