@@ -142,13 +142,13 @@ export function canonicalize(data: FixedMapData): FixedMapData {
   if (str(data.nameEn)) out.nameEn = data.nameEn;
   if (str(data.author)) out.author = data.author;
   if (str(data.description)) out.description = data.description;
-  out.starts = (data.starts ?? []).map(([x, y]) => [x, y]);
+  out.starts = (data.starts ?? []).filter(Array.isArray).map(([x, y]) => [x, y]);
   if (Array.isArray(data.startTeams) && data.startTeams.length > 0) out.startTeams = data.startTeams.slice();
   if (data.startKit === false) out.startKit = false;
   if (Array.isArray(data.koth)) out.koth = [data.koth[0], data.koth[1]];
   if (data.relics === false) out.relics = false;
-  out.nodes = (data.nodes ?? []).map(([t, x, y, a]) => [t, x, y, a] as FixedMapData['nodes'][number]).sort((a, b) => a[2] - b[2] || a[1] - b[1]);
-  const ents = (data.entities ?? []).map(canonEntity).sort(entityOrder);
+  out.nodes = (data.nodes ?? []).filter(Array.isArray).map(([t, x, y, a]) => [t, x, y, a] as FixedMapData['nodes'][number]).sort((a, b) => a[2] - b[2] || a[1] - b[1]);
+  const ents = (Array.isArray(data.entities) ? data.entities : []).map(canonEntity).sort(entityOrder);
   if (ents.length > 0) out.entities = ents;
   return out;
 }
@@ -194,6 +194,9 @@ export function migrateMap(data: unknown): FixedMapData {
   const out = { ...d, v: 1 } as FixedMapData;
   if (!Array.isArray(out.nodes)) out.nodes = [];
   if (!Array.isArray(out.starts)) out.starts = [];
+  if (out.entities !== undefined && !Array.isArray(out.entities)) delete out.entities;
+  if (out.startTeams !== undefined && !Array.isArray(out.startTeams)) delete out.startTeams;
+  if (out.koth !== undefined && !(Array.isArray(out.koth) && out.koth.length >= 2)) delete out.koth;
   if (typeof out.terrain !== 'string') out.terrain = '';
   if (typeof out.decor !== 'string') out.decor = '';
   return out;
@@ -299,8 +302,9 @@ export function validateMap(input: FixedMapData, opts: ValidateOpts = {}): MapIs
   const nodes: { type: NodeType; x: number; y: number }[] = [];
   for (const nd of data.nodes) {
     if (!Array.isArray(nd)) { err('unknownNode'); continue; }
-    const [type, x, y] = nd;
-    if (!(type in NODE_AMOUNT)) { err('unknownNode', x, y, { type: String(type) }); continue; }
+    const [type, x, y, amount] = nd;
+    if (typeof type !== 'string' || !Object.prototype.hasOwnProperty.call(NODE_AMOUNT, type)) { err('unknownNode', x, y, { type: String(type) }); continue; }
+    if (amount !== undefined && !(typeof amount === 'number' && Number.isFinite(amount) && amount > 0)) { err('badNodeAmount', x, y, { amount: String(amount) }); continue; }
     if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x >= w || y >= h) { err('nodeOut', x, y); continue; }
     const i = y * w + x;
     if (isSolid(terrain[i])) { err('nodeOnBlocked', x, y); continue; }
@@ -439,7 +443,8 @@ export function validateMap(input: FixedMapData, opts: ValidateOpts = {}): MapIs
   }
 
   // colina do Rei da Colina alcançável por todos os inícios
-  if (mode === 'koth' || data.koth) {
+  if (data.koth && !(Number.isInteger(data.koth[0]) && Number.isInteger(data.koth[1]) && data.koth[0] >= 0 && data.koth[1] >= 0 && data.koth[0] < w && data.koth[1] < h)) err('kothOut', Number(data.koth[0]) || 0, Number(data.koth[1]) || 0);
+  else if (mode === 'koth' || data.koth) {
     const kx = data.koth ? data.koth[0] : Math.floor(w / 2), ky = data.koth ? data.koth[1] : Math.floor(h / 2);
     const hill = spiralSearch(kx, ky, 8, (a, b) => inBounds(map, a, b) && map.blocked[idx(map, a, b)] === 0);
     const hc = hill ? componentAt(map, hill.x, hill.y) : -1;

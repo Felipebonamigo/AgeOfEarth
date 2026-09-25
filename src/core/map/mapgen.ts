@@ -202,6 +202,8 @@ function nextNodeId(map: GameMap): number {
   return id;
 }
 export function resetNodeSeq(v = NODE_ID_BASE) { nodeSeq = v; }
+/** Valor atual do contador de ids de nós (persistido no save/instantâneo para que novos nós recebam o mesmo id em todos os pares). */
+export function getNodeSeq(): number { return nodeSeq; }
 
 export function removeNode(map: GameMap, id: number): void {
   const n = map.nodes.get(id);

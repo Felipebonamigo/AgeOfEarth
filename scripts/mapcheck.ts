@@ -25,7 +25,7 @@ for (const file of files) {
   const issues = validateMap(map, { players: nPlayers, mode: 'conquest', ai: new Array(nPlayers).fill(true) });
   for (const i of issues) console.log(fmt(i));
   const errors = issues.filter((i) => i.level === 'error').length;
-  console.log(`  ${map.name ?? map.id ?? '(sem nome)'} ${map.w}x${map.h} · ${map.starts.length} inícios · ${map.nodes.length} nós · hash #${mapHash(map).toString(16)} · ${errors} erro(s), ${issues.length - errors} aviso(s)`);
+  console.log(`  ${map.name ?? map.id ?? '(sem nome)'} ${map.w}x${map.h} · ${map.starts.length} inícios · ${map.nodes.length} nós · hash ${errors === 0 ? '#' + mapHash(map).toString(16) : '—'} · ${errors} erro(s), ${issues.length - errors} aviso(s)`);
   if (errors > 0) { failed = true; continue; }
 
   const players: GameConfig['players'] = [];

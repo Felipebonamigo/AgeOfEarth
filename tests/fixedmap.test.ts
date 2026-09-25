@@ -3,7 +3,7 @@
 // mapa em branco, migração e saveMap (docs/EDITOR.md §2.1 e §5 Etapa 1).
 import { describe, it, expect } from 'vitest';
 import { createGame } from '../src/core/sim/game';
-import { generateMap, resetNodeSeq, deriveDeepWater, placeStartResources, ensureConnectivity, widenChokepoints, carveCorridor, NODE_AMOUNT, unitCircle } from '../src/core/map/mapgen';
+import { generateMap, addNode, resetNodeSeq, deriveDeepWater, placeStartResources, ensureConnectivity, widenChokepoints, carveCorridor, NODE_AMOUNT, unitCircle } from '../src/core/map/mapgen';
 import { mapToData, mapFromData, bytesToBase64, base64ToBytes, mapDataSize, canonicalize, mapHash, validateMap, blankMap, migrateMap, saveMap, MAP_LIMITS, type FixedMapData, type MapEntity } from '../src/core/map/fixed';
 import { stateHash } from '../src/core/net/hash';
 import { serialize, deserialize } from '../src/core/serialize';
@@ -300,6 +300,47 @@ describe('blankMap, migrateMap, mapFromData', () => {
     expect(a).toEqual(b);
     expect(a.length).toBe(g.nodes.length);
     for (let i = 1; i < a.length; i++) expect(a[i]).toBeGreaterThan(a[i - 1]);
+  });
+});
+
+describe('robustez contra arquivos malformados (revisão da Etapa 1)', () => {
+  const base = () => canonicalize(mapToData(generateMap(64, 64, 5, 2)));
+  it('tipo de nó herdado do prototype e quantidade inválida são erros, não passam para a partida', () => {
+    const d = base();
+    d.nodes.push(['constructor' as never, 5, 5, 100], ['tree', 6, 6, 'abc' as never], ['tree', 7, 7, -5], ['tree', 8, 8, 0]);
+    const codes = validateMap(d).filter((i) => i.level === 'error').map((i) => i.code);
+    expect(codes.filter((c) => c === 'unknownNode').length).toBe(1);
+    expect(codes.filter((c) => c === 'badNodeAmount').length).toBe(3);
+  });
+  it('entities/startTeams/koth de tipo errado são descartados na migração; canonicalize e mapHash não lançam com listas malformadas', () => {
+    const d = base() as unknown as Record<string, unknown>;
+    d.entities = {}; d.startTeams = 'x'; d.koth = 3;
+    const m = migrateMap(d);
+    expect(m.entities).toBeUndefined(); expect(m.startTeams).toBeUndefined(); expect(m.koth).toBeUndefined();
+    expect(() => validateMap(m)).not.toThrow();
+    const bad = { ...base(), starts: [[10, 10], null, 5] as never, nodes: [['tree', 1, 1, 10], 7, null] as never };
+    expect(() => canonicalize(bad)).not.toThrow(); expect(() => mapHash(bad)).not.toThrow();
+    expect(canonicalize(bad).starts.length).toBe(1); expect(canonicalize(bad).nodes.length).toBe(1);
+  });
+  it('colina fora do mapa é erro (kothOut) e a partida cai no centro em vez de NaN', () => {
+    const d = { ...base(), koth: [999, -1] as [number, number] };
+    expect(validateMap(d).some((i) => i.level === 'error' && i.code === 'kothOut')).toBe(true);
+    const s = createGame({ seed: 1, mapSize: 'small', players, mode: 'koth', map: d });
+    expect(Number.isFinite(s.koth!.x) && s.koth!.x > 0 && s.koth!.x < 64 && Number.isFinite(s.koth!.y)).toBe(true);
+  });
+  it('o contador de ids de nós sobrevive ao save/instantâneo: um nó novo recebe o mesmo id no criador e em quem carregou', () => {
+    const d = base();
+    const a = createGame({ seed: 3, mapSize: 'small', players, map: d });
+    // o nó de maior id some (como uma árvore cortada) antes do instantâneo
+    const maxId = Math.max(...a.map.nodes.keys());
+    const nd = a.map.nodes.get(maxId)!; a.map.nodeAt[nd.y * a.map.w + nd.x] = -1; a.map.nodes.delete(maxId);
+    const json = serialize(a);
+    // criador acrescenta um nó (ex.: poder 'lure')
+    const t1 = (() => { for (let y = 2; y < 60; y++) for (let x = 2; x < 60; x++) if (a.map.terrain[y * 64 + x] === TERRAIN.GRASS && a.map.nodeAt[y * 64 + x] === -1 && a.map.blocked[y * 64 + x] === 0) return { x, y }; return null; })()!;
+    const idA = addNode(a.map, 'gold', t1.x, t1.y, 100)!.id;
+    const b = deserialize(json);
+    const idB = addNode(b.map, 'gold', t1.x, t1.y, 100)!.id;
+    expect(idB).toBe(idA);
   });
 });
 

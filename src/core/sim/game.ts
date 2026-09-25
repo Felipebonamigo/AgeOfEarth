@@ -86,9 +86,14 @@ export function createGame(config: GameConfig): GameState {
   // (validateMap avisa antes; aqui é só robustez). Tags viram vars do cenário ('#tag' → id) depois de initScenarioState.
   const tags = new Map<string, number>();
   if (config.map) {
-    for (const e of config.map.entities ?? []) {
-      if (!Number.isInteger(e.owner) || e.owner < 0 || e.owner >= state.players.length) continue;
-      const owner = state.players[e.owner];
+    // 'owner' no arquivo é o índice do INÍCIO (o autor coloca a torre ao lado de starts[k] para quem começar ali); com startOrder o jogador desse início muda
+    const playerAtStart = new Map<number, number>();
+    for (let i = 0; i < state.players.length; i++) playerAtStart.set(order ? order[i] : i, i);
+    for (let e of Array.isArray(config.map.entities) ? config.map.entities : []) {
+      const pi = Number.isInteger(e.owner) ? playerAtStart.get(e.owner) : undefined;
+      if (pi === undefined) continue;
+      e = { ...e, owner: pi };
+      const owner = state.players[pi];
       if (e.kind === 'building') {
         if (!BUILDINGS[e.type] || !canPlaceBuilding(state, owner, e.type, e.x, e.y, true, true).ok) continue;
         const b = placeBuilding(state, e.owner, e.type, e.x, e.y, e.complete ?? true);
@@ -107,8 +112,9 @@ export function createGame(config: GameConfig): GameState {
   }
   if (config.map?.relics !== false) placeRelics(state);
   if (mode === 'koth') {
-    const hill = config.map?.koth;
-    const hx = hill ? Math.floor(hill[0]) : Math.floor(size.w / 2), hy = hill ? Math.floor(hill[1]) : Math.floor(size.h / 2);
+    const raw = config.map?.koth;
+    const hill = raw && Number.isInteger(raw[0]) && Number.isInteger(raw[1]) && raw[0] >= 0 && raw[1] >= 0 && raw[0] < size.w && raw[1] < size.h ? raw : null;   // colina inválida: centro
+    const hx = hill ? hill[0] : Math.floor(size.w / 2), hy = hill ? hill[1] : Math.floor(size.h / 2);
     const c = spiralSearch(hx, hy, 8, (a, b) => isPassable(map, a, b));
     state.koth = { x: (c ? c.x : hx) + 0.5, y: (c ? c.y : hy) + 0.5, team: -1, seconds: 0 };
   }

@@ -1,7 +1,7 @@
 // Serialização do estado (salvar/carregar). Mapas e arrays tipados viram arrays simples.
 import { RNG } from './rng';
 import type { GameState, Unit, Building, ResourceNode, Player } from './types';
-import { NODE_ID_BASE, resetNodeSeq } from './map/mapgen';
+import { NODE_ID_BASE, getNodeSeq, resetNodeSeq } from './map/mapgen';
 
 export interface SavedGame { version: number; state: unknown }
 const VERSION = 1;
@@ -10,7 +10,7 @@ export function serialize(state: GameState): string {
   const s = state;
   const out = {
     version: VERSION,
-    config: s.config, seed: s.seed, tick: s.tick, time: s.time, nextId: s.nextId,
+    config: s.config, seed: s.seed, tick: s.tick, time: s.time, nextId: s.nextId, nodeSeq: getNodeSeq(),
     map: { w: s.map.w, h: s.map.h, terrain: Array.from(s.map.terrain), decor: Array.from(s.map.decor), starts: s.map.starts, nodes: [...s.map.nodes.values()] },
     players: s.players.map((p) => ({ ...p, visibility: Array.from(p.visibility), mods: undefined })),
     units: [...s.units.values()], buildings: [...s.buildings.values()],
@@ -32,7 +32,8 @@ export function deserialize(json: string): GameState {
   const blocked = new Uint8Array(w * h);
   let maxNode = 0;
   for (const n of o.map.nodes as ResourceNode[]) { nodes.set(n.id, n); nodeAt[n.y * w + n.x] = n.id; if (n.id > maxNode) maxNode = n.id; }
-  resetNodeSeq(Math.max(maxNode + 1, NODE_ID_BASE));
+  // O contador de ids de nós vem do save (quem carrega o instantâneo precisa gerar os mesmos ids que o criador); saves antigos: máximo + 1
+  resetNodeSeq(Math.max(typeof o.nodeSeq === 'number' ? o.nodeSeq : 0, maxNode + 1, NODE_ID_BASE));
   const state: GameState = {
     config: o.config, seed: o.seed, tick: o.tick, time: o.time, nextId: o.nextId,
     map: { w, h, terrain, blocked, nodeAt, buildingAt, gateTeam, nodes, starts: o.map.starts, decor: Uint8Array.from(o.map.decor as number[]) },

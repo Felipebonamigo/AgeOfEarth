@@ -189,4 +189,16 @@ describe('remoção imediata', () => {
     expect(u2.inside).toBe(-1); expect(w.units.has(u2.id)).toBe(true); expect(w.buildings.size).toBe(0);
     expect(w.map.blocked[idx(w.map, t2.tx, t2.ty)]).toBe(0);
   });
+  it('startOrder: o dono de uma entidade é o jogador que começa naquele início (owner = índice do início)', () => {
+    const { data, map } = baseData();
+    const s0 = map.starts[0];
+    const spot = freeRect(map, s0.x + 6, s0.y, 2, 2);
+    data.entities = [{ kind: 'building', type: 'tower', owner: 0, x: spot.x, y: spot.y }];
+    const s = createGame({ seed: 1, mapSize: 'small', players, map: data, startOrder: [1, 0] });
+    const tower = [...s.buildings.values()].find((b) => b.type === 'tower')!;
+    expect(tower).toBeTruthy();
+    expect(tower.owner).toBe(1);   // o jogador 1 começa em starts[0]
+    const tc1 = [...s.buildings.values()].find((b) => b.type === 'town_center' && b.owner === 1)!;
+    expect(Math.abs(tc1.x - s0.x) < 3 && Math.abs(tc1.y - s0.y) < 3).toBe(true);
+  });
 });
