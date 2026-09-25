@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { AGES, BUILDINGS, BUILD_MENU, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS } from '../src/core/data';
+import { BUILTIN_MAPS } from '../src/core/data/maps';
+import { validateMap, mapHash, canonicalize } from '../src/core/map/fixed';
 
 describe('integridade dos dados', () => {
   it('unidades referenciam edifícios que as treinam', () => {
@@ -51,6 +53,20 @@ describe('integridade dos dados', () => {
     for (const b of Object.values(BUILDINGS)) {
       const seen = new Set<string>();
       for (const t of b.trains ?? []) { const hk = UNITS[t].hotkey; if (!hk) continue; expect(hk === 'R' || hk === 'U', `atalho ${hk} de ${t} colide com ponto de encontro (R) / liberar (U)`).toBe(false); if (b.scholars) expect(hk, `atalho Q de ${t} colide com filósofo em ${b.id}`).not.toBe('Q'); if (UNITS[t].god) continue; expect(seen.has(hk), `atalho ${hk} duplicado em ${b.id}`).toBe(false); seen.add(hk); }
+    }
+  });
+});
+
+describe('mapas embutidos', () => {
+  it('cada mapa embutido tem id igual à chave, nomes PT/EN, passa na validação sem erros e já está canônico', () => {
+    for (const [key, m] of Object.entries(BUILTIN_MAPS)) {
+      expect(m.id, key).toBe(key);
+      expect(m.name, key).toBeTruthy(); expect(m.nameEn, key).toBeTruthy();
+      const issues = validateMap(m, { players: m.starts.length, mode: 'conquest', ai: m.starts.map(() => true) });
+      expect(issues.filter((i) => i.level === 'error'), `${key}: ${JSON.stringify(issues.filter((i) => i.level === 'error').slice(0, 3))}`).toEqual([]);
+      for (const e of m.entities ?? []) expect(e.kind === 'building' ? BUILDINGS[e.type] : UNITS[e.type], `${key}: entidade ${e.type}`).toBeTruthy();
+      expect(mapHash(canonicalize(m)), key).toBe(mapHash(m));
+      expect(canonicalize(m), `${key}: o arquivo deve estar na forma canônica`).toEqual(m);
     }
   });
 });
