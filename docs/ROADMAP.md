@@ -18,13 +18,13 @@ Objetivo: partida rápida e missões divertidas para um jogador humano, sem trav
 | # | Passo | Resp. | Semanas |
 |---|---|---|---|
 | 1.1 | Playtests seus (10+ partidas), registrando o que travou, ficou lento ou fácil | V | 1–5 (contínuo) |
-| 1.2 | Correções de movimento: formações de grupo, empurrão suave, unidades presas, cerco parando fora do alcance | A | 1–2 |
-| 1.3 | Qualidade de vida: fila com Shift em tudo, waypoints, auto-coleta ao concluir edifícios, "voltar ao trabalho", refúgio de cidadãos no Centro Cívico (guarnição), portões nas muralhas | A | 2–3 |
-| 1.4 | IA: dificuldade "Muito difícil", coordenação de ataques entre IAs aliadas, uso de guarnição, reação a cerco | A | 3–4 |
+| 1.2 | ✅ Formações de grupo (corpo a corpo à frente, arqueiros, cerco); empurrão suave; destino bloqueado por unidade. Em curso: caçada a bugs por agentes (movimento, economia, combate/IA, produção, rede, cenários, interface) | A | 1–2 |
+| 1.3 | ✅ Guarnição (Centro Cívico, Fortaleza, Torre; flechas extras; cura; liberar com retorno ao trabalho) e portões. Fila com Shift e auto-coleta já existiam. Pendente: waypoints visuais | A | 2–3 |
+| 1.4 | ✅ Dificuldade Muito difícil; IA abriga cidadãos em ataques e libera depois; IA aliada defende centros/fortalezas/templos do time. Pendente: ataques coordenados entre IAs aliadas | A | 3–4 |
 | 1.5 | Balanceamento por dados (100 partidas IA×IA por versão) + ajustes de custos/tempos | A | 2–5 |
-| 1.6 | Desempenho: 4 jogadores × 200 unidades a 60 fps; simulação em Web Worker se necessário | A | 4–5 |
-| 1.7 | Internacionalização: extrair todos os textos para PT-BR/EN (necessário para a loja global) | A | 4–5 |
-| 1.8 | Save em arquivo no Electron, opções (resolução, tela cheia, atalhos, volume) | A | 5 |
+| 1.6 | ✅ Medido (scripts/perf.ts): mapa grande, 4 IAs Muito difícil, ~260 unidades → média 1–2 ms/tick, pico 28 ms (orçamento 50 ms). Web Worker desnecessário por ora; falta medir renderização em GPU real | A | 4–5 |
+| 1.7 | ✅ Sistema de idiomas (PT-BR/EN) cobrindo conteúdo, interface, menus e mensagens da simulação; seletor no menu principal e no menu da partida; teste de completude | A | 4–5 |
+| 1.8 | ✅ Exportar/importar save como arquivo (Electron e navegador); opções de volume, alcances, rolagem na borda e idioma persistidas; conquistas (22) com ponte para a Steam. Pendente: tela cheia/resolução no Electron, tela de atalhos | A | 5 |
 
 Marco **M1 (semana 5)**: "vertical slice jogável por terceiros" — enviar para 3–5 amigos testarem.
 

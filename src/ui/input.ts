@@ -7,7 +7,7 @@ import type { Renderer, RenderUI } from '../render/renderer';
 import type { HUD } from './hud';
 import type { Audio } from '../audio/audio';
 import { isMilitary, isEnemy } from '../core/sim/queries';
-import { NODE_NAMES } from '../core/constants';
+import { t } from '../i18n';
 
 const BUILD_HOTKEYS: Record<string, string> = {};
 for (const [id, b] of Object.entries(BUILDINGS)) if (b.hotkey && !b.notBuildable) BUILD_HOTKEYS[b.hotkey] = BUILD_HOTKEYS[b.hotkey] ? BUILD_HOTKEYS[b.hotkey] + ',' + id : id;
@@ -20,7 +20,7 @@ export class Input {
   private keys = new Set<string>();
   private hoverId = -1;
   private lastClick = 0; private lastClickId = -1;
-  private edgeScroll = true;
+  edgeScroll = true;
   private middleDrag: { x: number; y: number } | null = null;
 
   constructor(canvas: HTMLCanvasElement, getSession: () => Session | null, renderer: Renderer, hud: HUD, audio: Audio) {
@@ -86,7 +86,7 @@ export class Input {
         const tx = Math.floor(w.x), ty = Math.floor(w.y);
         const nid = tx >= 0 && ty >= 0 && tx < s.state.map.w && ty < s.state.map.h ? s.state.map.nodeAt[ty * s.state.map.w + tx] : -1;
         const vis = s.state.players[s.local].visibility;
-        if (nid !== -1 && (s.state.config.revealMap || vis[ty * s.state.map.w + tx] >= 1)) { const n = s.state.map.nodes.get(nid)!; this.hud.showTooltip(`<b>${NODE_NAMES[n.type]}</b><div class="desc">${Math.round(n.amount)} restantes</div>`, e.clientX, e.clientY); }
+        if (nid !== -1 && (s.state.config.revealMap || vis[ty * s.state.map.w + tx] >= 1)) { const n = s.state.map.nodes.get(nid)!; this.hud.showTooltip(`<b>${t(`node.${n.type}`)}</b><div class="desc">${t('node.remaining', { n: Math.round(n.amount) })}</div>`, e.clientX, e.clientY); }
         else this.hud.hideTooltip();
       }
     }
@@ -187,8 +187,8 @@ export class Input {
     if (type === 'wall') return; // muralha: tratada no arrastar/soltar
     const tx = Math.floor(x - def.w / 2 + 0.5), ty = Math.floor(y - def.h / 2 + 0.5);
     const builders = s.ownSelectedUnits().filter((u) => UNITS[u.type].canBuild).map((u) => u.id);
-    if (builders.length === 0) { this.hud.toast('Selecione cidadãos para construir.', 'warn'); this.hud.cancelMode(); return; }
-    if (!this.hud.canPlaceHere(type, tx, ty)) { this.hud.toast('Não é possível construir aqui.', 'warn'); this.audio.play('error'); return; }
+    if (builders.length === 0) { this.hud.toast(t('msg.selectBuilders'), 'warn'); this.hud.cancelMode(); return; }
+    if (!this.hud.canPlaceHere(type, tx, ty)) { this.hud.toast(t('msg.cantBuildHere'), 'warn'); this.audio.play('error'); return; }
     s.issue({ type: 'build', player: s.local, ids: builders, building: type, tx, ty, queue: keep });
     this.audio.play('build');
     if (!keep) this.hud.cancelMode();
@@ -208,8 +208,8 @@ export class Input {
   private usePowerAt(x: number, y: number) {
     const s = this.getSession()!; const id = s.ui.powerId!; const def = POWERS[id];
     const target = this.renderer.pick(s.state, x, y, s.local);
-    if (def.targeting === 'unit') { if (!target || target.kind !== 'unit' || !isEnemy(s.state, s.local, target.owner)) { this.hud.toast('Escolha uma unidade inimiga.', 'warn'); return; } s.issue({ type: 'power', player: s.local, power: id, targetId: target.id }); }
-    else if (def.targeting === 'building') { if (!target || target.kind !== 'building' || target.owner !== s.local) { this.hud.toast('Escolha um edifício seu.', 'warn'); return; } s.issue({ type: 'power', player: s.local, power: id, targetId: target.id }); }
+    if (def.targeting === 'unit') { if (!target || target.kind !== 'unit' || !isEnemy(s.state, s.local, target.owner)) { this.hud.toast(t('msg.chooseEnemyUnit'), 'warn'); return; } s.issue({ type: 'power', player: s.local, power: id, targetId: target.id }); }
+    else if (def.targeting === 'building') { if (!target || target.kind !== 'building' || target.owner !== s.local) { this.hud.toast(t('msg.chooseOwnBuilding'), 'warn'); return; } s.issue({ type: 'power', player: s.local, power: id, targetId: target.id }); }
     else s.issue({ type: 'power', player: s.local, power: id, x, y });
     this.audio.play('power');
     this.hud.cancelMode();

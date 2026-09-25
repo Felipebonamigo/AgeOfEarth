@@ -8,35 +8,36 @@ import { placeBuilding, spawnUnit, canPlaceBuilding } from './entities';
 import { getRuntime } from './runtime';
 import { applyDamage, killUnit } from './combat';
 import { entityById, isEnemy } from './queries';
+import { t } from '../../i18n';
 
 export interface PowerResult { ok: boolean; reason?: string }
 
 export function usePower(state: GameState, player: Player, powerId: string, x?: number, y?: number, targetId?: number): PowerResult {
   const def = POWERS[powerId];
   const ps = player.powers.find((p) => p.id === powerId);
-  if (!def || !ps) return { ok: false, reason: 'Poder indisponível.' };
-  if (ps.used) return { ok: false, reason: 'Este poder já foi usado.' };
+  if (!def || !ps) return { ok: false, reason: t('err.powerUnavailable') };
+  if (ps.used) return { ok: false, reason: t('err.powerUsed') };
   const rt = getRuntime(state);
   const px = x ?? 0, py = y ?? 0;
   switch (powerId) {
     case 'bolt': {
-      const t = targetId !== undefined ? entityById(state, targetId) : null;
-      if (!t || t.kind !== 'unit' || t.dead || !isEnemy(state, player.id, t.owner)) return { ok: false, reason: 'Escolha uma unidade inimiga.' };
-      state.effects.push({ type: 'bolt', x: t.x, y: t.y, ttl: 24, total: 24 });
-      if (UNITS[t.type].tags.includes('titan')) applyDamage(state, t, t.maxHp * 0.5, player.id);
-      else killUnit(state, t, player.id);
+      const tgt = targetId !== undefined ? entityById(state, targetId) : null;
+      if (!tgt || tgt.kind !== 'unit' || tgt.dead || !isEnemy(state, player.id, tgt.owner)) return { ok: false, reason: t('err.chooseEnemyUnit') };
+      state.effects.push({ type: 'bolt', x: tgt.x, y: tgt.y, ttl: 24, total: 24 });
+      if (UNITS[tgt.type].tags.includes('titan')) applyDamage(state, tgt, tgt.maxHp * 0.5, player.id);
+      else killUnit(state, tgt, player.id);
       break;
     }
     case 'lure': {
       const spot = spiralSearch(Math.floor(px), Math.floor(py), 6, (a, b) => isPassable(state.map, a, b) && state.map.buildingAt[idx(state.map, a, b)] === -1);
-      if (!spot) return { ok: false, reason: 'Local inválido.' };
+      if (!spot) return { ok: false, reason: t('err.invalidPlace') };
       addNode(state.map, 'lure', spot.x, spot.y, 800);
       state.effects.push({ type: 'spawn', x: spot.x + 0.5, y: spot.y + 0.5, ttl: 20, total: 20 });
       break;
     }
     case 'sentinel': {
       const b = targetId !== undefined ? entityById(state, targetId) : null;
-      if (!b || b.kind !== 'building' || b.dead || b.owner !== player.id) return { ok: false, reason: 'Escolha um edifício seu.' };
+      if (!b || b.kind !== 'building' || b.dead || b.owner !== player.id) return { ok: false, reason: t('err.chooseOwnBuilding') };
       const spots = [[b.tx - 1, b.ty - 1], [b.tx + b.w, b.ty - 1], [b.tx - 1, b.ty + b.h], [b.tx + b.w, b.ty + b.h]];
       for (const [sx, sy] of spots) {
         const s = spiralSearch(sx, sy, 4, (a, c) => isPassable(state.map, a, c));
@@ -53,7 +54,7 @@ export function usePower(state: GameState, player: Player, powerId: string, x?: 
     }
     case 'ceasefire': {
       state.ceasefireUntil = state.tick + 30 * TICK_RATE; state.ceasefireBy = player.id;
-      state.events.push({ tick: state.tick, type: 'ceasefire', player: player.id, text: `${player.name} invocou uma Trégua de 30 segundos!` });
+      state.events.push({ tick: state.tick, type: 'ceasefire', player: player.id, text: t('ev.ceasefire', { player: player.name }) });
       break;
     }
     case 'pestilence': {
@@ -64,7 +65,7 @@ export function usePower(state: GameState, player: Player, powerId: string, x?: 
         if ((b.x - px) ** 2 + (b.y - py) ** 2 <= r * r) { b.disabledUntil = state.tick + 60 * TICK_RATE; n++; }
       }
       state.effects.push({ type: 'pestilence', x: px, y: py, ttl: 60, total: 60, data: r });
-      if (n === 0) return { ok: false, reason: 'Nenhum edifício militar inimigo na área.' };
+      if (n === 0) return { ok: false, reason: t('err.noMilitaryBuildings') };
       break;
     }
     case 'oracle': player.revealUntil = state.tick + 60 * TICK_RATE; break;
@@ -81,7 +82,7 @@ export function usePower(state: GameState, player: Player, powerId: string, x?: 
         state.effects.push({ type: 'curse', x: u.x, y: u.y, ttl: 20, total: 20 });
         n++;
       }
-      if (n === 0) return { ok: false, reason: 'Nenhum humano inimigo na área.' };
+      if (n === 0) return { ok: false, reason: t('err.noHumans') };
       break;
     }
     case 'lightning_storm': {
@@ -90,7 +91,7 @@ export function usePower(state: GameState, player: Player, powerId: string, x?: 
     }
     case 'plenty': {
       const spot = spiralSearch(Math.floor(px), Math.floor(py), 8, (a, b) => canPlaceBuilding(state, player, 'cornucopia', a, b, true).ok || (inBounds(state.map, a, b) && canPlaceIgnoringBuildable(state, player, a, b)));
-      if (!spot) return { ok: false, reason: 'Sem espaço no seu território.' };
+      if (!spot) return { ok: false, reason: t('err.noSpace') };
       placeBuilding(state, player.id, 'cornucopia', spot.x, spot.y, true);
       state.effects.push({ type: 'spawn', x: spot.x + 1, y: spot.y + 1, ttl: 20, total: 20 });
       break;
@@ -100,10 +101,10 @@ export function usePower(state: GameState, player: Player, powerId: string, x?: 
       state.effects.push({ type: 'quake', x: px, y: py, ttl: 100, total: 100, data: def.radius ?? 7 });
       break;
     }
-    default: return { ok: false, reason: 'Poder desconhecido.' };
+    default: return { ok: false, reason: t('err.unknownPower') };
   }
   ps.used = true;
-  state.events.push({ tick: state.tick, type: 'powerUsed', player: player.id, x: px, y: py, text: `${player.name} usou ${def.name}!` });
+  state.events.push({ tick: state.tick, type: 'powerUsed', player: player.id, x: px, y: py, text: t('ev.powerUsed', { player: player.name, power: def.name }) });
   return { ok: true };
 }
 

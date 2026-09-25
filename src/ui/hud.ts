@@ -1,6 +1,6 @@
 // Interface em DOM: barra de recursos, painel de seleção, grade de comandos, poderes divinos,
 // minimapa, mensagens, tooltips e modais (deuses menores, menu, ajuda, enciclopédia, fim de jogo).
-import { RESOURCES, RESOURCE_ICONS, RESOURCE_NAMES, STANCES, TICK_RATE, MAX_SCHOLARS, SCHOLAR_COST, WONDER_VICTORY_SECONDS, type ResourceType, type Stance } from '../core/constants';
+import { RESOURCES, RESOURCE_ICONS, STANCES, TICK_RATE, MAX_SCHOLARS, SCHOLAR_COST, WONDER_VICTORY_SECONDS, type ResourceType, type Stance } from '../core/constants';
 import { AGES, BUILDINGS, BUILD_MENU, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS, ACADEMY_LINES } from '../core/data';
 import type { Building, GameEvent, Unit } from '../core/types';
 import { getUnitStats, getBuildingStats, techCost } from '../core/sim/modifiers';
@@ -13,13 +13,13 @@ import type { Renderer } from '../render/renderer';
 import { Minimap } from '../render/minimap';
 import type { Audio } from '../audio/audio';
 import { getScenario } from '../core/scenario/runner';
+import { t, getLocale, setLocale, LOCALE_NAMES, type Locale } from '../i18n';
 
-export interface HUDCallbacks { onSave: () => void; onLoad: () => void; onQuit: () => void; hasSave: () => boolean; onNextMission?: (currentId: string) => void }
+export interface HUDCallbacks { onSave: () => void; onLoad: () => void; onQuit: () => void; hasSave: () => boolean; onNextMission?: (currentId: string) => void; onExport?: () => void; onImport?: () => void; getEdgeScroll?: () => boolean; setEdgeScroll?: (v: boolean) => void; onLocaleChanged?: () => void }
 
 const el = (tag: string, cls?: string, html?: string): HTMLElement => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const fmtCost = (cost: Record<string, number>, player?: { resources: Record<string, number> }) => Object.entries(cost).filter(([, v]) => v > 0).map(([k, v]) => `<span class="${player && player.resources[k] < v ? 'miss' : ''}">${RESOURCE_ICONS[k as ResourceType]} ${v}</span>`).join('');
 const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-const ARMOR_NAMES = { hack: 'corte', pierce: 'perfuração', crush: 'esmagamento' };
 
 export class HUD {
   root: HTMLElement;
@@ -52,23 +52,23 @@ export class HUD {
   private mount() {
     const hud = el('div'); hud.id = 'hud';
     this.top = el('div'); this.top.id = 'top';
-    for (const r of RESOURCES) { const e = el('div', 'res', `<span>${RESOURCE_ICONS[r]}</span><b>0</b>`); e.title = RESOURCE_NAMES[r]; this.resEls[r] = e; this.top.appendChild(e); }
-    this.popEl = el('div', 'res', `<span>👥</span><b>0/0</b>`); this.popEl.title = 'População'; this.top.appendChild(this.popEl);
+    for (const r of RESOURCES) { const e = el('div', 'res', `<span>${RESOURCE_ICONS[r]}</span><b>0</b>`); e.title = t(`res.${r}`); this.resEls[r] = e; this.top.appendChild(e); }
+    this.popEl = el('div', 'res', `<span>👥</span><b>0/0</b>`); this.popEl.title = t('pop'); this.top.appendChild(this.popEl);
     this.top.appendChild(el('div', 'spacer'));
     this.ageEl = el('div', 'age', ''); this.top.appendChild(this.ageEl);
-    this.ageBtn = el('button', 'btn gold', '⬆ Avançar Idade'); this.ageBtn.addEventListener('click', () => this.tryAdvanceAge()); this.top.appendChild(this.ageBtn);
+    this.ageBtn = el('button', 'btn gold', t('top.advance')); this.ageBtn.addEventListener('click', () => this.tryAdvanceAge()); this.top.appendChild(this.ageBtn);
     this.clockEl = el('div', 'clock', '0:00'); this.top.appendChild(this.clockEl);
     this.speedEl = el('div', '', ''); this.top.appendChild(this.speedEl);
     const speedBtns = [['⏸', 0], ['1×', 1], ['2×', 2], ['3×', 3]] as const;
     for (const [lbl, sp] of speedBtns) { const b = el('button', 'btn', lbl); b.addEventListener('click', () => { if (!this.session) return; if (sp === 0) this.session.paused = !this.session.paused; else { this.session.speed = sp; this.session.paused = false; } this.refreshTop(); }); this.speedEl.appendChild(b); }
     const mute = el('button', 'btn', this.audio.muted ? '🔇' : '🔊'); mute.addEventListener('click', () => { mute.textContent = this.audio.toggleMute() ? '🔇' : '🔊'; }); this.top.appendChild(mute);
-    const menuBtn = el('button', 'btn', '☰ Menu'); menuBtn.addEventListener('click', () => this.showMenu()); this.top.appendChild(menuBtn);
+    const menuBtn = el('button', 'btn', t('top.menu')); menuBtn.addEventListener('click', () => this.showMenu()); this.top.appendChild(menuBtn);
     hud.appendChild(this.top);
 
     this.bottom = el('div'); this.bottom.id = 'bottom';
     const mmWrap = el('div'); mmWrap.id = 'minimap-wrap';
     const mm = document.createElement('canvas'); mm.id = 'minimap'; mmWrap.appendChild(mm);
-    this.idleBtn = el('button', 'btn'); this.idleBtn.id = 'idle'; this.idleBtn.textContent = '👤 Ociosos: 0'; this.idleBtn.title = 'Selecionar cidadão ocioso (tecla .)'; this.idleBtn.addEventListener('click', () => this.selectIdleVillager()); mmWrap.appendChild(this.idleBtn);
+    this.idleBtn = el('button', 'btn'); this.idleBtn.id = 'idle'; this.idleBtn.textContent = t('top.idle', { n: 0 }); this.idleBtn.title = t('top.idleTip'); this.idleBtn.addEventListener('click', () => this.selectIdleVillager()); mmWrap.appendChild(this.idleBtn);
     this.bottom.appendChild(mmWrap);
     this.minimap = new Minimap(mm);
     this.selPanel = el('div'); this.selPanel.id = 'selection'; this.bottom.appendChild(this.selPanel);
@@ -163,22 +163,22 @@ export class HUD {
     this.ageEl.innerHTML = `${age.icon} ${age.name} · ${MAJOR_GODS[p.god].icon} ${MAJOR_GODS[p.god].name}${p.minorGods.length ? ' · ' + p.minorGods.map((g) => MINOR_GODS[g].icon).join('') : ''}`;
     const adv = canAdvanceAge(s.state, p);
     const inProgress = [...s.state.buildings.values()].some((b) => b.owner === p.id && b.queue.some((q) => q.kind === 'age'));
-    this.ageBtn.textContent = inProgress ? '⏳ Avançando...' : p.age >= AGES.length - 1 ? '🌋 Idade máxima' : `⬆ ${AGES[p.age + 1].name}`;
+    this.ageBtn.textContent = inProgress ? t('top.advancing') : p.age >= AGES.length - 1 ? t('top.maxAge') : `⬆ ${AGES[p.age + 1].name}`;
     (this.ageBtn as HTMLButtonElement).disabled = inProgress || p.age >= AGES.length - 1;
-    this.ageBtn.dataset.tip = p.age >= AGES.length - 1 ? 'Você alcançou a Idade dos Titãs.' : `<b>${AGES[p.age + 1].name}</b><div class="cost">${fmtCost(AGES[p.age + 1].cost as Record<string, number>, p)}</div><div class="desc">${AGES[p.age + 1].desc}</div>${adv.ok ? '' : `<div style="color:#ef4444;margin-top:4px">${adv.reason ?? ''}</div>`}`;
+    this.ageBtn.dataset.tip = p.age >= AGES.length - 1 ? t('top.maxAgeTip') : `<b>${AGES[p.age + 1].name}</b><div class="cost">${fmtCost(AGES[p.age + 1].cost as Record<string, number>, p)}</div><div class="desc">${AGES[p.age + 1].desc}</div>${adv.ok ? '' : `<div style="color:#ef4444;margin-top:4px">${adv.reason ?? ''}</div>`}`;
     this.ageBtn.classList.toggle('primary', adv.ok);
     const waiting = (s.scheduler as { waiting?: number }).waiting ?? 0;
-    this.clockEl.textContent = fmtTime(s.state.time) + (s.paused ? ' ⏸' : s.speed !== 1 ? ` ${s.speed}×` : '') + (waiting > 10 ? ' ⏳ aguardando jogadores' : '');
+    this.clockEl.textContent = fmtTime(s.state.time) + (s.paused ? ' ⏸' : s.speed !== 1 ? ` ${s.speed}×` : '') + (waiting > 10 ? ' ' + t('top.waiting') : '');
     let idle = 0;
     for (const u of s.state.units.values()) if (u.owner === p.id && u.type === 'villager' && u.state === 'idle' && !u.order) idle++;
-    this.idleBtn.textContent = `👤 Ociosos: ${idle}`;
+    this.idleBtn.textContent = t('top.idle', { n: idle });
     this.idleBtn.classList.toggle('gold', idle > 0);
   }
 
   selectIdleVillager() {
     const s = this.session; if (!s) return;
     const idle = [...s.state.units.values()].filter((u) => u.owner === s.local && u.type === 'villager' && u.state === 'idle' && !u.order);
-    if (idle.length === 0) { this.toast('Nenhum cidadão ocioso.', 'info'); return; }
+    if (idle.length === 0) { this.toast(t('msg.noIdle'), 'info'); return; }
     const cur = [...s.selection][0];
     const i = idle.findIndex((u) => u.id === cur);
     const next = idle[(i + 1) % idle.length];
@@ -188,7 +188,7 @@ export class HUD {
   private dlgTimer = 0;
   showDialogue(meta: string, text: string) {
     const [icon, speaker] = meta.split('|');
-    this.dlgPanel.innerHTML = `<span class="ic">${icon}</span><div><b>${speaker}</b><div>${text}</div></div><small>clique para fechar</small>`;
+    this.dlgPanel.innerHTML = `<span class="ic">${icon}</span><div><b>${speaker}</b><div>${text}</div></div><small>${t('modal.close').toLowerCase()}</small>`;
     this.dlgPanel.classList.remove('hidden');
     clearTimeout(this.dlgTimer);
     this.dlgTimer = window.setTimeout(() => this.dlgPanel.classList.add('hidden'), 14000);
@@ -202,7 +202,7 @@ export class HUD {
     const key = Object.entries(sc.objectives).map(([k, v]) => `${k}${v}${sc.hidden[k] ? 'h' : ''}`).join(',') + Math.floor(s.state.time / 5);
     if (!force && key === this.lastObjKey) return;
     this.lastObjKey = key;
-    const rows = def.objectives.filter((o) => !sc.hidden[o.id]).map((o) => { const st = sc.objectives[o.id]; return `<li class="${st}">${st === 'done' ? '✅' : st === 'failed' ? '❌' : '◻️'} ${o.text}${o.optional ? ' <small>(opcional)</small>' : ''}</li>`; }).join('');
+    const rows = def.objectives.filter((o) => !sc.hidden[o.id]).map((o) => { const st = sc.objectives[o.id]; return `<li class="${st}">${st === 'done' ? '✅' : st === 'failed' ? '❌' : '◻️'} ${o.text}${o.optional ? ` <small>${t('mission.optional')}</small>` : ''}</li>`; }).join('');
     let extra = '';
     if (s.state.scenario.id === 'm2_cerco' && sc.objectives.survive === 'pending') extra = `<div class="timer">⏳ ${fmtTime(Math.max(0, 12 * 60 - s.state.time))}</div>`;
     if (s.state.scenario.id === 'm3_portal') { const g = [...s.state.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate'); if (g && !g.complete) extra = `<div class="timer">🌋 Ritual do Portal: ${Math.max(0, Math.round((g.progress / 180) * 100))}%</div>`; }
@@ -219,7 +219,7 @@ export class HUD {
     this.godsPanel.innerHTML = '';
     for (const ps of p.powers) {
       const def = POWERS[ps.id];
-      const e = el('div', `pw ${ps.used ? 'used' : ''} ${s.ui.powerId === ps.id ? 'active' : ''}`, `<span class="ic">${def.icon}</span><span>${def.name}<br><small style="color:#9aa5b8">${ps.used ? 'Usado' : def.targeting === 'global' ? 'Clique para invocar' : 'Clique e escolha o alvo'}</small></span>`);
+      const e = el('div', `pw ${ps.used ? 'used' : ''} ${s.ui.powerId === ps.id ? 'active' : ''}`, `<span class="ic">${def.icon}</span><span>${def.name}<br><small style="color:#9aa5b8">${ps.used ? t('power.used') : def.targeting === 'global' ? t('power.clickInvoke') : t('power.clickTarget')}</small></span>`);
       e.dataset.tip = `<b>${def.name}</b><div class="desc">${def.desc}</div>`;
       if (!ps.used) e.addEventListener('click', () => this.activatePower(ps.id));
       this.godsPanel.appendChild(e);
@@ -231,7 +231,7 @@ export class HUD {
     if (def.targeting === 'global') { s.issue({ type: 'power', player: s.local, power: id }); this.audio.play('power'); return; }
     s.ui.mode = 'power'; s.ui.powerId = id; s.ui.placeType = null;
     document.body.className = 'cur-power';
-    this.toast(`${def.name}: ${def.targeting === 'unit' ? 'clique em uma unidade inimiga' : def.targeting === 'building' ? 'clique em um edifício seu' : 'clique no local'}. Esc cancela.`, 'gold');
+    this.toast(t('msg.powerHint', { power: def.name, target: t(def.targeting === 'unit' ? 'msg.powerTarget.unit' : def.targeting === 'building' ? 'msg.powerTarget.building' : 'msg.powerTarget.place') }), 'gold');
     this.refreshGods();
   }
 
@@ -251,12 +251,12 @@ export class HUD {
     if (!force && key === this.lastSelKey) return;
     this.lastSelKey = key;
     this.selPanel.innerHTML = '';
-    if (units.length + blds.length === 0) { this.selPanel.innerHTML = '<div class="desc">Selecione unidades ou edifícios. Clique com o botão direito para dar ordens. <br>F1 para ajuda.</div>'; this.refreshCommands(force); return; }
+    if (units.length + blds.length === 0) { this.selPanel.innerHTML = `<div class="desc">${t('sel.hint')}</div>`; this.refreshCommands(force); return; }
     if (units.length + blds.length === 1) {
       if (units.length === 1) this.selPanel.appendChild(this.unitCard(units[0]));
       else this.selPanel.appendChild(this.buildingCard(blds[0]));
     } else {
-      const title = el('div', 'title', `${units.length + blds.length} selecionados`);
+      const title = el('div', 'title', t('sel.count', { n: units.length + blds.length }));
       this.selPanel.appendChild(title);
       const multi = el('div', 'multi');
       for (const e of [...units, ...blds].slice(0, 40)) {
@@ -277,19 +277,18 @@ export class HUD {
     const c = el('div');
     c.appendChild(el('div', 'title', `<span class="icon">${def.icon}</span>${def.name} <small style="color:${'#' + owner.color.toString(16).padStart(6, '0')}">${owner.name}</small>`));
     c.appendChild(el('div', 'hpbar', `<div style="width:${Math.round((u.hp / u.maxHp) * 100)}%"></div>`));
-    const stats: string[] = [`Vida <b>${Math.round(u.hp)}/${u.maxHp}</b>`];
-    if (st.attack > 0) stats.push(`Ataque <b>${st.attack}</b> (${{ hack: 'corte', pierce: 'perfuração', crush: 'esmagamento', divine: 'divino' }[def.attackType]})`);
-    stats.push(`Armadura <b>${Math.round(st.armor.hack * 100)}/${Math.round(st.armor.pierce * 100)}/${Math.round(st.armor.crush * 100)}%</b>`);
-    if (st.range >= 1.6) stats.push(`Alcance <b>${st.range}</b>`);
-    stats.push(`Velocidade <b>${st.speed.toFixed(1)}</b>`);
-    if (def.special === 'heads') stats.push(`Cabeças <b>${u.heads}</b>`);
-    if (u.kills > 0) stats.push(`Abates <b>${u.kills}</b>`);
-    if (u.owner === s.local) stats.push(`Postura <b>${STANCES[u.stance]}</b>`);
-    if (u.carry && u.carryAmt > 0) stats.push(`Carrega <b>${RESOURCE_ICONS[u.carry]} ${Math.floor(u.carryAmt)}</b>`);
-    const stateNames: Record<string, string> = { idle: 'Ocioso', move: 'Movendo', attackMove: 'Atacar-mover', attack: 'Atacando', gather: 'Coletando', return: 'Entregando', build: 'Construindo', pray: 'Rezando', hold: 'Mantendo posição' };
-    if (u.owner === s.local) stats.push(`Estado <b>${stateNames[u.state] ?? u.state}</b>`);
+    const stats: string[] = [`${t('sel.hp')} <b>${Math.round(u.hp)}/${u.maxHp}</b>`];
+    if (st.attack > 0) stats.push(`${t('sel.attack')} <b>${st.attack}</b> (${t(`dmg.${def.attackType}`)})`);
+    stats.push(`${t('sel.armor')} <b>${Math.round(st.armor.hack * 100)}/${Math.round(st.armor.pierce * 100)}/${Math.round(st.armor.crush * 100)}%</b>`);
+    if (st.range >= 1.6) stats.push(`${t('sel.range')} <b>${st.range}</b>`);
+    stats.push(`${t('sel.speed')} <b>${st.speed.toFixed(1)}</b>`);
+    if (def.special === 'heads') stats.push(`${t('sel.heads')} <b>${u.heads}</b>`);
+    if (u.kills > 0) stats.push(`${t('sel.kills')} <b>${u.kills}</b>`);
+    if (u.owner === s.local) stats.push(`${t('sel.stance')} <b>${t(`stance.${u.stance}`)}</b>`);
+    if (u.carry && u.carryAmt > 0) stats.push(`${t('sel.carry')} <b>${RESOURCE_ICONS[u.carry]} ${Math.floor(u.carryAmt)}</b>`);
+    if (u.owner === s.local) stats.push(`${t('sel.state')} <b>${t(`state.${u.state}`)}</b>`);
     c.appendChild(el('div', 'stats', stats.map((x) => `<span>${x}</span>`).join('')));
-    const bonuses = Object.entries(def.bonus).map(([k, v]) => `×${v} vs ${k === 'building' ? 'edifícios' : k === 'myth' ? 'míticos' : k === 'human' ? 'humanos' : k === 'cavalry' ? 'cavalaria' : k === 'archer' ? 'arqueiros' : k === 'infantry' ? 'infantaria' : k === 'siege' ? 'cerco' : k === 'skirmisher' ? 'peltastas' : k === 'hero' ? 'heróis' : k === 'titan' ? 'titãs' : k}`).join(', ');
+    const bonuses = Object.entries(def.bonus).map(([k, v]) => `×${v} vs ${t(`vs.${k}`)}`).join(', ');
     c.appendChild(el('div', 'desc', def.desc + (bonuses ? ` <i>(${bonuses})</i>` : '')));
     return c;
   }
@@ -301,25 +300,25 @@ export class HUD {
     c.appendChild(el('div', 'title', `<span class="icon">${def.icon}</span>${def.name} <small style="color:${'#' + owner.color.toString(16).padStart(6, '0')}">${owner.name}</small>`));
     if (!b.complete) c.appendChild(el('div', 'hpbar', `<div style="width:${Math.round((b.progress / st.buildTime) * 100)}%;background:#60a5fa"></div>`));
     else c.appendChild(el('div', 'hpbar', `<div style="width:${Math.round((b.hp / b.maxHp) * 100)}%"></div>`));
-    const stats: string[] = [`Vida <b>${Math.round(b.hp)}/${b.maxHp}</b>`];
-    if (!b.complete) stats.push(`Construção <b>${Math.round((b.progress / st.buildTime) * 100)}%</b>`);
-    if (st.attack > 0) stats.push(`Ataque <b>${st.attack}</b> · Alcance <b>${st.range}</b>`);
-    if (def.territory) stats.push(`Fronteira <b>${st.territory}</b>`);
-    if (def.popCap) stats.push(`População <b>+${def.popCap}</b>`);
-    if (def.worship) { let n = 0; for (const u of s.state.units.values()) if (u.state === 'pray' && u.nodeId === -b.id) n++; stats.push(`Devotos <b>${n}</b>`); }
-    if (def.scholars) stats.push(`Filósofos <b>${b.scholars}/${MAX_SCHOLARS}</b>`);
-    if (def.farm) stats.push(`Agricultores <b>${farmGatherers(s.state, b.id)}/1</b>`);
-    if (def.garrison) stats.push(`Guarnição <b>${b.garrison.length}/${def.garrison}</b>${b.garrison.length >= 3 ? ` (+${Math.min(4, Math.floor(b.garrison.length / 3))} flechas)` : ''}`);
-    if (def.wonder && b.complete && b.wonderStart >= 0) stats.push(`Vitória em <b>${fmtTime(Math.max(0, WONDER_VICTORY_SECONDS - (s.state.tick - b.wonderStart) / TICK_RATE))}</b>`);
-    if (b.disabledUntil > s.state.tick) stats.push(`<span style="color:#c084fc">Pestilência: ${Math.ceil((b.disabledUntil - s.state.tick) / TICK_RATE)}s</span>`);
+    const stats: string[] = [`${t('sel.hp')} <b>${Math.round(b.hp)}/${b.maxHp}</b>`];
+    if (!b.complete) stats.push(`${t('sel.construction')} <b>${Math.round((b.progress / st.buildTime) * 100)}%</b>`);
+    if (st.attack > 0) stats.push(`${t('sel.attack')} <b>${st.attack}</b> · ${t('sel.range')} <b>${st.range}</b>`);
+    if (def.territory) stats.push(`${t('sel.border')} <b>${st.territory}</b>`);
+    if (def.popCap) stats.push(`${t('sel.popCap')} <b>+${def.popCap}</b>`);
+    if (def.worship) { let n = 0; for (const u of s.state.units.values()) if (u.state === 'pray' && u.nodeId === -b.id) n++; stats.push(`${t('sel.worshippers')} <b>${n}</b>`); }
+    if (def.scholars) stats.push(`${t('sel.scholars')} <b>${b.scholars}/${MAX_SCHOLARS}</b>`);
+    if (def.farm) stats.push(`${t('sel.farmers')} <b>${farmGatherers(s.state, b.id)}/1</b>`);
+    if (def.garrison) stats.push(`${t('sel.garrison')} <b>${b.garrison.length}/${def.garrison}</b>${b.garrison.length >= 3 ? ` (${t('sel.extraArrows', { n: Math.min(4, Math.floor(b.garrison.length / 3)) })})` : ''}`);
+    if (def.wonder && b.complete && b.wonderStart >= 0) stats.push(`${t('sel.victoryIn')} <b>${fmtTime(Math.max(0, WONDER_VICTORY_SECONDS - (s.state.tick - b.wonderStart) / TICK_RATE))}</b>`);
+    if (b.disabledUntil > s.state.tick) stats.push(`<span style="color:#c084fc">${t('sel.pestilence', { n: Math.ceil((b.disabledUntil - s.state.tick) / TICK_RATE) })}</span>`);
     c.appendChild(el('div', 'stats', stats.map((x) => `<span>${x}</span>`).join('')));
     if (b.owner === s.local && b.queue.length > 0) {
       const q = el('div', 'queue');
       b.queue.forEach((item, i) => {
         const icon = item.kind === 'unit' ? UNITS[item.id].icon : item.kind === 'tech' ? TECHS[item.id].icon : item.kind === 'scholar' ? '🧑‍🏫' : AGES[owner.age + 1]?.icon ?? '⬆';
-        const name = item.kind === 'unit' ? UNITS[item.id].name : item.kind === 'tech' ? TECHS[item.id].name : item.kind === 'scholar' ? 'Filósofo' : `Avanço: ${AGES[owner.age + 1]?.name ?? ''}`;
+        const name = item.kind === 'unit' ? UNITS[item.id].name : item.kind === 'tech' ? TECHS[item.id].name : item.kind === 'scholar' ? t('cmd.scholar') : `${AGES[owner.age + 1]?.name ?? ''}`;
         const qi = el('div', 'qi', `${icon}<div class="prog" style="width:${i === 0 ? Math.round((item.elapsed / item.total) * 100) : 0}%"></div>`);
-        qi.dataset.tip = `<b>${name}</b><div class="desc">${i === 0 ? `${Math.ceil(item.total - item.elapsed)}s restantes` : 'Na fila'} · clique para cancelar</div>`;
+        qi.dataset.tip = `<b>${name}</b><div class="desc">${i === 0 ? t('sel.remaining', { n: Math.ceil(item.total - item.elapsed) }) : t('sel.queued')} · ${t('sel.clickCancel')}</div>`;
         qi.addEventListener('click', () => { s.issue({ type: 'cancel', player: s.local, buildingId: b.id, index: i }); });
         q.appendChild(qi);
       });
@@ -354,67 +353,67 @@ export class HUD {
           const cost = getBuildingStats(s.state, p, type).cost;
           const lim = buildingLimitOk(s.state, p, type);
           const reasons: string[] = [];
-          if (def.age > p.age) reasons.push(`Requer a ${AGES[def.age].name}`);
+          if (def.age > p.age) reasons.push(t('cmd.requiresAge', { age: AGES[def.age].name }));
           if (!lim.ok) reasons.push(lim.reason ?? '');
-          if (!canAfford(p, cost)) reasons.push('Recursos insuficientes');
-          const tip = `<b>${def.name}</b><div class="cost">${fmtCost(cost, p)}</div><div class="desc">${def.desc}</div>${reasons.length ? `<div style="color:#ef4444;margin-top:4px">${reasons.join(' · ')}</div>` : ''}`;
+          if (!canAfford(p, cost)) reasons.push(t('cmd.noResources'));
+          const tip = `${t('cmd.buildTipB', { name: def.name, cost: fmtCost(cost, p), desc: def.desc })}${reasons.length ? `<div style="color:#ef4444;margin-top:4px">${reasons.join(' · ')}</div>` : ''}`;
           add(def.icon, def.name, tip, def.hotkey ?? null, () => this.startPlacement(type), { disabled: reasons.length > 0, active: s.ui.mode === 'place' && s.ui.placeType === type });
         }
-        add('✋', 'Parar', '<b>Parar</b><div class="desc">Cancela a ordem atual (Shift+S com cidadãos).</div>', '⇧S', () => { s.issue({ type: 'stop', player: s.local, ids: units.map((u) => u.id) }); });
+        add('✋', t('cmd.stop'), t('cmd.stopTipV'), '⇧S', () => { s.issue({ type: 'stop', player: s.local, ids: units.map((u) => u.id) }); });
       } else {
         const ids = units.map((u) => u.id);
-        add('⚔️', 'Atacar-mover', '<b>Atacar-mover</b><div class="desc">Move atacando qualquer inimigo no caminho.</div>', 'A', () => { s.ui.mode = 'attackMove'; document.body.className = 'cur-attack'; this.lastCmdKey = ''; this.refreshCommands(true); }, { active: s.ui.mode === 'attackMove' });
-        add('✋', 'Parar', '<b>Parar</b><div class="desc">Cancela a ordem atual.</div>', 'S', () => { s.issue({ type: 'stop', player: s.local, ids }); });
+        add('⚔️', t('cmd.attackMove'), t('cmd.attackMoveTip'), 'A', () => { s.ui.mode = 'attackMove'; document.body.className = 'cur-attack'; this.lastCmdKey = ''; this.refreshCommands(true); }, { active: s.ui.mode === 'attackMove' });
+        add('✋', t('cmd.stop'), t('cmd.stopTip'), 'S', () => { s.issue({ type: 'stop', player: s.local, ids }); });
         const stance = units[0].stance;
-        for (const [k, name] of Object.entries(STANCES)) add(k === 'aggressive' ? '🔥' : k === 'defensive' ? '🛡️' : '🕊️', name, `<b>Postura ${name}</b><div class="desc">${k === 'aggressive' ? 'Ataca inimigos à vista e persegue.' : k === 'defensive' ? 'Só ataca quem entra no alcance; não persegue.' : 'Nunca ataca por conta própria.'}</div>`, null, () => { s.issue({ type: 'stance', player: s.local, ids, stance: k as Stance }); this.lastCmdKey = ''; }, { active: stance === k });
-        if (villagers.length > 0) add('🏗️', 'Construir', '<b>Construir</b><div class="desc">Selecione apenas cidadãos para ver o menu de construção.</div>', null, () => { s.select(villagers.map((u) => u.id)); });
+        for (const k of Object.keys(STANCES)) add(k === 'aggressive' ? '🔥' : k === 'defensive' ? '🛡️' : '🕊️', t(`stance.${k}`), `<b>${t('cmd.stance', { name: t(`stance.${k}`) })}</b><div class="desc">${t(`cmd.stanceTip.${k}`)}</div>`, null, () => { s.issue({ type: 'stance', player: s.local, ids, stance: k as Stance }); this.lastCmdKey = ''; }, { active: stance === k });
+        if (villagers.length > 0) add('🏗️', t('cmd.build'), t('cmd.buildTip'), null, () => { s.select(villagers.map((u) => u.id)); });
       }
-      if (units.some((u) => ['civilian', 'infantry', 'archer', 'skirmisher', 'hero'].some((t) => UNITS[u.type].tags.includes(t)))) add('🏰', 'Guarnecer', '<b>Guarnecer</b><div class="desc">Entra no Centro Cívico, Fortaleza ou Torre mais próximo (ou clique direito no edifício). Unidades dentro ficam protegidas, curam e reforçam as flechas. Atalho: G com militares.</div>', null, () => this.garrisonNearest(units));
-      add('🗑️', 'Dispensar', '<b>Dispensar</b><div class="desc">Elimina as unidades selecionadas (Delete).</div>', 'Del', () => { s.issue({ type: 'delete', player: s.local, ids: units.map((u) => u.id) }); });
+      if (units.some((u) => ['civilian', 'infantry', 'archer', 'skirmisher', 'hero'].some((t) => UNITS[u.type].tags.includes(t)))) add('🏰', t('cmd.garrison'), t('cmd.garrisonTip'), null, () => this.garrisonNearest(units));
+      add('🗑️', t('cmd.dismiss'), t('cmd.dismissTip'), 'Del', () => { s.issue({ type: 'delete', player: s.local, ids: units.map((u) => u.id) }); });
       return;
     }
     if (b) {
       const def = BUILDINGS[b.type];
-      if (!b.complete) { add('❌', 'Cancelar obra', '<b>Cancelar construção</b><div class="desc">Devolve os recursos gastos.</div>', null, () => { s.issue({ type: 'cancel', player: s.local, buildingId: b.id, index: -1 }); s.select([]); }); return; }
+      if (!b.complete) { add('❌', t('cmd.cancelBuild'), t('cmd.cancelBuildTip'), null, () => { s.issue({ type: 'cancel', player: s.local, buildingId: b.id, index: -1 }); s.select([]); }); return; }
       if (def.trains) for (const ut of def.trains) {
         const ud = UNITS[ut];
         if (ud.age > p.age + 1) continue;
         if (ud.god) { const major = MAJOR_GODS[p.god]; const ok = major.mythUnit === ut || p.minorGods.some((g) => MINOR_GODS[g].mythUnit === ut) || ud.god === p.god; if (!ok) continue; }
         const st = getUnitStats(s.state, p, ut);
         const c = canTrain(s.state, p, b, ut);
-        const tip = `<b>${ud.name}</b><div class="cost">${fmtCost(st.cost, p)} <span>⏱ ${Math.round(st.trainTime)}s</span> <span>👥 ${ud.pop}</span></div><div class="desc">${ud.desc}<br>Vida ${st.hp} · Ataque ${st.attack} · Alcance ${st.range >= 1.6 ? st.range : 'corpo a corpo'}</div>${c.ok ? '' : `<div style="color:#ef4444;margin-top:4px">${c.reason ?? (ud.age > p.age ? `Requer a ${AGES[ud.age].name}` : '')}</div>`}`;
+        const tip = `${t('cmd.trainTip', { name: ud.name, cost: fmtCost(st.cost, p), time: Math.round(st.trainTime), pop: ud.pop, desc: ud.desc, hp: st.hp, attack: st.attack, range: st.range >= 1.6 ? st.range : t('sel.melee') })}${c.ok ? '' : `<div style="color:#ef4444;margin-top:4px">${c.reason ?? (ud.age > p.age ? t('cmd.requiresAge', { age: AGES[ud.age].name }) : '')}</div>`}`;
         add(ud.icon, ud.name, tip, ud.hotkey ?? null, () => { const r = this.issueChecked({ type: 'train', player: s.local, buildingId: b.id, unit: ut }); if (r) this.audio.play('command'); }, { disabled: !c.ok });
       }
       if (def.scholars) {
-        const c = b.scholars >= MAX_SCHOLARS ? 'Máximo atingido' : !canAfford(p, SCHOLAR_COST) ? 'Recursos insuficientes' : '';
-        add('🧑‍🏫', 'Filósofo', `<b>Contratar Filósofo</b><div class="cost">${fmtCost(SCHOLAR_COST, p)}</div><div class="desc">Gera 0,5 de Conhecimento por segundo (máx. ${MAX_SCHOLARS} por Academia).</div>${c ? `<div style="color:#ef4444">${c}</div>` : ''}`, 'Q', () => this.issueChecked({ type: 'hireScholar', player: s.local, buildingId: b.id }), { disabled: !!c });
+        const c = b.scholars >= MAX_SCHOLARS ? t('cmd.maxReached') : !canAfford(p, SCHOLAR_COST) ? t('cmd.noResources') : '';
+        add('🧑‍🏫', t('cmd.scholar'), `${t('cmd.scholarTip', { cost: fmtCost(SCHOLAR_COST, p), max: MAX_SCHOLARS })}${c ? `<div style="color:#ef4444">${c}</div>` : ''}`, 'Q', () => this.issueChecked({ type: 'hireScholar', player: s.local, buildingId: b.id }), { disabled: !!c });
       }
-      for (const t of Object.values(TECHS)) {
-        if (t.building !== b.type || p.techs.includes(t.id)) continue;
-        if (t.age > p.age + 1) continue;
-        if (t.god && !p.minorGods.includes(t.god) && p.god !== t.god) continue;
-        if (t.prereq.some((pr) => !p.techs.includes(pr) && TECHS[pr].building === b.type && !p.techs.includes(pr) && t.line)) { /* mostra só o próximo nível da linha */ if (t.prereq.some((pr) => !p.techs.includes(pr))) continue; }
-        const cost = techCost(p, t.id);
-        const c = canResearch(s.state, p, b, t.id);
-        const tip = `<b>${t.name}</b><div class="cost">${fmtCost(cost, p)} <span>⏱ ${t.time}s</span></div><div class="desc">${t.desc}</div>${c.ok ? '' : `<div style="color:#ef4444;margin-top:4px">${c.reason ?? (t.age > p.age ? `Requer a ${AGES[t.age].name}` : '')}</div>`}`;
-        add(t.icon, t.name, tip, null, () => { if (this.issueChecked({ type: 'research', player: s.local, buildingId: b.id, tech: t.id })) this.audio.play('command'); }, { disabled: !c.ok });
+      for (const tech of Object.values(TECHS)) {
+        if (tech.building !== b.type || p.techs.includes(tech.id)) continue;
+        if (tech.age > p.age + 1) continue;
+        if (tech.god && !p.minorGods.includes(tech.god) && p.god !== tech.god) continue;
+        if (tech.prereq.some((pr) => !p.techs.includes(pr))) continue;   // mostra só o próximo nível de cada linha
+        const cost = techCost(p, tech.id);
+        const c = canResearch(s.state, p, b, tech.id);
+        const tip = `${t('cmd.techTip', { name: tech.name, cost: fmtCost(cost, p), time: tech.time, desc: tech.desc })}${c.ok ? '' : `<div style="color:#ef4444;margin-top:4px">${c.reason ?? (tech.age > p.age ? t('cmd.requiresAge', { age: AGES[tech.age].name }) : '')}</div>`}`;
+        add(tech.icon, tech.name, tip, null, () => { if (this.issueChecked({ type: 'research', player: s.local, buildingId: b.id, tech: tech.id })) this.audio.play('command'); }, { disabled: !c.ok });
       }
       if (b.type === 'town_center') {
         const adv = canAdvanceAge(s.state, p, b);
-        add('⬆', p.age < AGES.length - 1 ? AGES[p.age + 1].short : 'Máx.', this.ageBtn.dataset.tip ?? '', null, () => this.tryAdvanceAge(b), { disabled: !adv.ok });
+        add('⬆', p.age < AGES.length - 1 ? AGES[p.age + 1].short : t('cmd.ageMax'), this.ageBtn.dataset.tip ?? '', null, () => this.tryAdvanceAge(b), { disabled: !adv.ok });
       }
       if (def.trade) {
         for (const r of ['food', 'wood'] as ResourceType[]) {
           const tax = 0.3 * p.mods.player.tradeTax;
           const buy = Math.round(p.prices[r] * (1 + tax)), sell = Math.round(p.prices[r] * (1 - tax));
-          add(`🛒`, `Comprar ${RESOURCE_NAMES[r]}`, `<b>Comprar 100 ${RESOURCE_NAMES[r]}</b><div class="cost">${RESOURCE_ICONS.gold} ${buy}</div><div class="desc">O preço sobe a cada compra.</div>`, null, () => { if (this.issueChecked({ type: 'trade', player: s.local, action: 'buy', resource: r })) this.audio.play('coin'); }, { disabled: p.resources.gold < buy });
-          add(`💰`, `Vender ${RESOURCE_NAMES[r]}`, `<b>Vender 100 ${RESOURCE_NAMES[r]}</b><div class="cost">+${RESOURCE_ICONS.gold} ${sell}</div><div class="desc">O preço cai a cada venda.</div>`, null, () => { if (this.issueChecked({ type: 'trade', player: s.local, action: 'sell', resource: r })) this.audio.play('coin'); }, { disabled: p.resources[r] < 100 });
+          add(`🛒`, t('cmd.buy', { res: t(`res.${r}`) }), t('cmd.buyTip', { res: t(`res.${r}`), price: buy }), null, () => { if (this.issueChecked({ type: 'trade', player: s.local, action: 'buy', resource: r })) this.audio.play('coin'); }, { disabled: p.resources.gold < buy });
+          add(`💰`, t('cmd.sell', { res: t(`res.${r}`) }), t('cmd.sellTip', { res: t(`res.${r}`), price: sell }), null, () => { if (this.issueChecked({ type: 'trade', player: s.local, action: 'sell', resource: r })) this.audio.play('coin'); }, { disabled: p.resources[r] < 100 });
         }
       }
-      if (def.worship) add('🚪', 'Liberar devotos', '<b>Liberar devotos</b><div class="desc">Os cidadãos que rezam aqui ficam ociosos.</div>', null, () => s.issue({ type: 'ungarrison', player: s.local, buildingId: b.id }));
-      if (def.garrison) add('🚪', `Liberar (${b.garrison.length})`, '<b>Liberar guarnição</b><div class="desc">As unidades saem do edifício e os cidadãos retomam a coleta. Atalho: U.</div>', 'U', () => s.issue({ type: 'ungarrison', player: s.local, buildingId: b.id }), { disabled: b.garrison.length === 0 });
-      if (def.trains || def.scholars) add('🚩', 'Ponto de encontro', '<b>Ponto de encontro</b><div class="desc">Clique no mapa (ou clique direito com o edifício selecionado). Em um recurso, cidadãos vão coletar.</div>', 'R', () => { s.ui.mode = 'rally'; document.body.className = 'cur-attack'; }, { active: s.ui.mode === 'rally' });
-      add('🗑️', 'Demolir', '<b>Demolir</b><div class="desc">Destrói o edifício (Delete).</div>', 'Del', () => { s.issue({ type: 'delete', player: s.local, ids: [b.id] }); s.select([]); });
+      if (def.worship) add('🚪', t('cmd.releaseWorship'), t('cmd.releaseWorshipTip'), null, () => s.issue({ type: 'ungarrison', player: s.local, buildingId: b.id }));
+      if (def.garrison) add('🚪', t('cmd.release', { n: b.garrison.length }), t('cmd.releaseTip'), 'U', () => s.issue({ type: 'ungarrison', player: s.local, buildingId: b.id }), { disabled: b.garrison.length === 0 });
+      if (def.trains || def.scholars) add('🚩', t('cmd.rally'), t('cmd.rallyTip'), 'R', () => { s.ui.mode = 'rally'; document.body.className = 'cur-attack'; }, { active: s.ui.mode === 'rally' });
+      add('🗑️', t('cmd.demolish'), t('cmd.demolishTip'), 'Del', () => { s.issue({ type: 'delete', player: s.local, ids: [b.id] }); s.select([]); });
     }
   }
 
@@ -427,7 +426,7 @@ export class HUD {
       const cap = BUILDINGS[b.type].garrison ?? 0; if (!cap || b.garrison.length >= cap) continue;
       const d = (b.x - cx) ** 2 + (b.y - cy) ** 2; if (d < bestD) { bestD = d; best = b; }
     }
-    if (!best) { this.toast('Nenhum edifício com espaço para guarnição.', 'warn'); return; }
+    if (!best) { this.toast(t('msg.noShelter'), 'warn'); return; }
     s.issue({ type: 'garrison', player: s.local, ids: units.map((u) => u.id), targetId: best.id });
     this.audio.play('command');
   }
@@ -439,8 +438,8 @@ export class HUD {
     let check: { ok: boolean; reason?: string } = { ok: true };
     if (cmd.type === 'train') { const b = s.state.buildings.get(cmd.buildingId); if (b) check = canTrain(s.state, p, b, cmd.unit); }
     else if (cmd.type === 'research') { const b = s.state.buildings.get(cmd.buildingId); if (b) check = canResearch(s.state, p, b, cmd.tech); }
-    else if (cmd.type === 'hireScholar') { if (!canAfford(p, SCHOLAR_COST)) check = { ok: false, reason: 'Recursos insuficientes.' }; }
-    if (!check.ok) { this.toast(check.reason ?? 'Não é possível.', 'warn'); this.audio.play('error'); return false; }
+    else if (cmd.type === 'hireScholar') { if (!canAfford(p, SCHOLAR_COST)) check = { ok: false, reason: t('err.noResources') }; }
+    if (!check.ok) { this.toast(check.reason ?? t('msg.cannot'), 'warn'); this.audio.play('error'); return false; }
     s.issue(cmd);
     return true;
   }
@@ -448,11 +447,11 @@ export class HUD {
   startPlacement(type: string) {
     const s = this.session!;
     const def = BUILDINGS[type];
-    if (def.age > s.player.age) { this.toast(`Requer a ${AGES[def.age].name}.`, 'warn'); return; }
+    if (def.age > s.player.age) { this.toast(t('err.requiresAge', { age: AGES[def.age].name }), 'warn'); return; }
     const lim = buildingLimitOk(s.state, s.player, type);
     if (!lim.ok) { this.toast(lim.reason ?? '', 'warn'); return; }
     const cost = getBuildingStats(s.state, s.player, type).cost;
-    if (!canAfford(s.player, cost)) { this.toast(`Recursos insuficientes: falta ${missingResources(s.player, cost).map((r) => RESOURCE_NAMES[r]).join(', ')}.`, 'warn'); this.audio.play('error'); return; }
+    if (!canAfford(s.player, cost)) { this.toast(t('msg.missing', { list: missingResources(s.player, cost).map((r) => t(`res.${r}`)).join(', ') }), 'warn'); this.audio.play('error'); return; }
     s.ui.mode = 'place'; s.ui.placeType = type; s.ui.powerId = null; s.ui.wallStart = null;
     document.body.className = 'cur-place';
     this.lastCmdKey = ''; this.refreshCommands(true);
@@ -463,11 +462,11 @@ export class HUD {
   tryAdvanceAge(tcArg?: Building) {
     const s = this.session!; const p = s.player;
     const tc = tcArg ?? [...s.state.buildings.values()].find((b) => b.owner === p.id && b.type === 'town_center' && b.complete && b.queue.length === 0) ?? [...s.state.buildings.values()].find((b) => b.owner === p.id && b.type === 'town_center' && b.complete);
-    if (!tc) { this.toast('Você precisa de um Centro Cívico para avançar de Idade.', 'warn'); return; }
+    if (!tc) { this.toast(t('msg.needTC'), 'warn'); return; }
     const adv = canAdvanceAge(s.state, p, tc);
-    if (!adv.ok) { this.toast(adv.reason ?? 'Não é possível avançar.', 'warn'); this.audio.play('error'); return; }
-    if (!adv.minorOptions || adv.minorOptions.length === 0) { s.issue({ type: 'advanceAge', player: s.local, buildingId: tc.id }); this.toast(`Avanço para a ${AGES[p.age + 1].name} iniciado.`, 'gold'); return; }
-    this.showMinorGodChoice(adv.minorOptions, (god) => { s.issue({ type: 'advanceAge', player: s.local, buildingId: tc.id, minorGod: god }); this.toast(`Avanço para a ${AGES[p.age + 1].name} iniciado sob a proteção de ${MINOR_GODS[god].name}.`, 'gold'); });
+    if (!adv.ok) { this.toast(adv.reason ?? t('msg.cantAdvance'), 'warn'); this.audio.play('error'); return; }
+    if (!adv.minorOptions || adv.minorOptions.length === 0) { s.issue({ type: 'advanceAge', player: s.local, buildingId: tc.id }); this.toast(t('msg.advanceStarted', { age: AGES[p.age + 1].name }), 'gold'); return; }
+    this.showMinorGodChoice(adv.minorOptions, (god) => { s.issue({ type: 'advanceAge', player: s.local, buildingId: tc.id, minorGod: god }); this.toast(t('msg.advanceStartedGod', { age: AGES[p.age + 1].name, god: MINOR_GODS[god].name }), 'gold'); });
   }
 
   // ---------------- Modais ----------------
@@ -479,9 +478,9 @@ export class HUD {
     const s = this.session!;
     const cards = options.map((g) => {
       const d = MINOR_GODS[g]; const pw = POWERS[d.power]; const mu = UNITS[d.mythUnit];
-      return `<div class="card" data-god="${g}"><h3>${d.icon} ${d.name}</h3><small>${d.title}</small><ul><li><b>Poder:</b> ${pw.icon} ${pw.name} — ${pw.desc}</li><li><b>Criatura:</b> ${mu.icon} ${mu.name} — ${mu.desc}</li>${d.techs.map((t) => `<li><b>Tecnologia:</b> ${TECHS[t].icon} ${TECHS[t].name} — ${TECHS[t].desc}</li>`).join('')}</ul></div>`;
+      return `<div class="card" data-god="${g}"><h3>${d.icon} ${d.name}</h3><small>${d.title}</small><ul><li><b>${t('modal.power')}:</b> ${pw.icon} ${pw.name} — ${pw.desc}</li><li><b>${t('modal.creature')}:</b> ${mu.icon} ${mu.name} — ${mu.desc}</li>${d.techs.map((x) => `<li><b>${t('modal.tech')}:</b> ${TECHS[x].icon} ${TECHS[x].name} — ${TECHS[x].desc}</li>`).join('')}</ul></div>`;
     }).join('');
-    this.showModal(`<h2>${AGES[s.player.age + 1].icon} Avançar para a ${AGES[s.player.age + 1].name}</h2><p>Escolha o deus menor que guiará sua civilização nesta Idade. A escolha é permanente.</p><div class="row">${cards}</div><div class="actions"><button class="btn" id="m-cancel">Cancelar</button></div>`);
+    this.showModal(`<h2>${AGES[s.player.age + 1].icon} ${t('modal.advanceTo', { age: AGES[s.player.age + 1].name })}</h2><p>${t('modal.chooseMinor')}</p><div class="row">${cards}</div><div class="actions"><button class="btn" id="m-cancel">${t('modal.cancel')}</button></div>`);
     this.modal.querySelectorAll('.card').forEach((c) => c.addEventListener('click', () => { const g = (c as HTMLElement).dataset.god!; this.hideModal(); cb(g); }));
     this.modal.querySelector('#m-cancel')!.addEventListener('click', () => this.hideModal());
   }
@@ -489,16 +488,19 @@ export class HUD {
   showMenu() {
     const s = this.session; if (!s) return;
     s.paused = true;
-    this.showModal(`<h2>☰ Menu</h2>
+    this.showModal(`<h2>${t('menu.title')}</h2>
       <div class="row" style="flex-direction:column">
-        <button class="btn primary" id="m-continue">Continuar</button>
-        <button class="btn" id="m-save">💾 Salvar jogo</button>
-        <button class="btn" id="m-load" ${this.cb.hasSave() ? '' : 'disabled'}>📂 Carregar jogo</button>
-        <button class="btn" id="m-help">❓ Como jogar</button>
-        <button class="btn" id="m-enc">📖 Enciclopédia</button>
-        <label style="font-size:12px;color:#9aa5b8;margin-top:8px">Volume <input type="range" id="m-vol" min="0" max="1" step="0.05" value="${this.audio.volume}"></label>
-        <label style="font-size:12px;color:#9aa5b8"><input type="checkbox" id="m-ranges" ${s.ui.showRanges ? 'checked' : ''}> Mostrar alcances das unidades selecionadas</label>
-        <button class="btn danger" id="m-quit">🚪 Sair para o menu principal</button>
+        <button class="btn primary" id="m-continue">${t('menu.continue')}</button>
+        <button class="btn" id="m-save">${t('menu.save')}</button>
+        <button class="btn" id="m-load" ${this.cb.hasSave() ? '' : 'disabled'}>${t('menu.load')}</button>
+        <div style="display:flex;gap:8px"><button class="btn" id="m-export" style="flex:1">📤 → arquivo / file</button><button class="btn" id="m-import" style="flex:1">📥 ← arquivo / file</button></div>
+        <button class="btn" id="m-help">${t('menu.help')}</button>
+        <button class="btn" id="m-enc">${t('menu.enc')}</button>
+        <label style="font-size:12px;color:#9aa5b8;margin-top:8px">${t('menu.volume')} <input type="range" id="m-vol" min="0" max="1" step="0.05" value="${this.audio.volume}"></label>
+        <label style="font-size:12px;color:#9aa5b8"><input type="checkbox" id="m-ranges" ${s.ui.showRanges ? 'checked' : ''}> ${t('menu.ranges')}</label>
+        <label style="font-size:12px;color:#9aa5b8"><input type="checkbox" id="m-edge" ${(this.cb.getEdgeScroll?.() ?? true) ? 'checked' : ''}> ${t('menu.edgeScroll')}</label>
+        <label style="font-size:12px;color:#9aa5b8">${t('menu.language')} <select id="m-lang">${(Object.keys(LOCALE_NAMES) as Locale[]).map((l) => `<option value="${l}" ${getLocale() === l ? 'selected' : ''}>${LOCALE_NAMES[l]}</option>`).join('')}</select></label>
+        <button class="btn danger" id="m-quit">${t('menu.quit')}</button>
       </div>`);
     const q = (id: string) => this.modal.querySelector(id) as HTMLElement;
     q('#m-continue').addEventListener('click', () => { this.hideModal(); s.paused = false; });
@@ -508,14 +510,18 @@ export class HUD {
     q('#m-enc').addEventListener('click', () => this.showEncyclopedia());
     q('#m-vol').addEventListener('input', (e) => this.audio.setVolume(Number((e.target as HTMLInputElement).value)));
     q('#m-ranges').addEventListener('change', (e) => { s.ui.showRanges = (e.target as HTMLInputElement).checked; });
-    q('#m-quit').addEventListener('click', () => { if (confirm('Sair da partida atual?')) { this.hideModal(); this.cb.onQuit(); } });
+    q('#m-edge').addEventListener('change', (e) => { this.cb.setEdgeScroll?.((e.target as HTMLInputElement).checked); });
+    q('#m-lang').addEventListener('change', (e) => { setLocale((e.target as HTMLSelectElement).value as Locale); this.cb.onLocaleChanged?.(); this.showMenu(); });
+    q('#m-export').addEventListener('click', () => { this.cb.onExport?.(); });
+    q('#m-import').addEventListener('click', () => { this.hideModal(); this.cb.onImport?.(); });
+    q('#m-quit').addEventListener('click', () => { if (confirm(t('menu.quitConfirm'))) { this.hideModal(); this.cb.onQuit(); } });
     this.modalDismissable = true;
     const onHide = () => { s.paused = false; };
     this.modalBack.addEventListener('transitionend', onHide, { once: true });
   }
 
   showHelp() {
-    this.showModal(`<h2>❓ Como jogar</h2>
+    this.showModal(`<h2>${t('help.title')}</h2>
       <h3>Objetivo</h3><p>Destrua todos os edifícios e cidadãos inimigos (Conquista) ou construa uma Maravilha e a mantenha de pé por ${WONDER_VICTORY_SECONDS / 60} minutos. Avance pelas Idades, escolha deuses menores, treine heróis e criaturas míticas e use poderes divinos.</p>
       <h3>Economia</h3><p>Cidadãos coletam Comida (frutas, caça, fazendas), Madeira (árvores) e Ouro (veios). Rezando em um Templo geram <b>Favor</b> (para criaturas míticas e heróis). Filósofos na Academia geram <b>Conhecimento</b> (para pesquisas e Idades). Pontos de entrega (Celeiro, Serraria, Mina) perto dos recursos aceleram a coleta.</p>
       <h3>Fronteiras e atrito (estilo Rise of Nations)</h3><p>Centros Cívicos, Fortalezas, Templos e Torres projetam fronteiras. Só é possível construir dentro delas (exceto novos Centros Cívicos em terra neutra). Tropas inimigas dentro das suas fronteiras sofrem <b>atrito</b> contínuo. Pesquise <b>Civismo</b> na Academia para expandir as fronteiras e permitir mais Centros Cívicos.</p>
@@ -528,19 +534,19 @@ export class HUD {
       <tr><td><kbd>Ctrl</kbd>+<kbd>1-9</kbd> / <kbd>1-9</kbd></td><td>Criar / selecionar grupo de controle</td></tr>
       <tr><td><kbd>WASD</kbd> / setas / borda da tela / botão do meio</td><td>Mover câmera · <kbd>Roda</kbd> zoom · <kbd>H</kbd> ir ao Centro Cívico · <kbd>Espaço</kbd> ir ao último evento · <kbd>.</kbd> cidadão ocioso</td></tr>
       <tr><td><kbd>P</kbd> / <kbd>+</kbd> <kbd>-</kbd></td><td>Pausar / velocidade · <kbd>Esc</kbd> cancelar / menu · <kbd>F1</kbd> ajuda · <kbd>F2</kbd> enciclopédia · <kbd>F5</kbd>/<kbd>F9</kbd> salvar/carregar</td></tr></table>
-      <div class="actions"><button class="btn primary" id="m-close">Fechar</button></div>`);
+      <div class="actions"><button class="btn primary" id="m-close">${t('modal.close')}</button></div>`);
     this.modal.querySelector('#m-close')!.addEventListener('click', () => this.hideModal());
   }
 
   showEncyclopedia(tab = 'units') {
-    const tabs = [['units', '⚔️ Unidades'], ['buildings', '🏛️ Edifícios'], ['techs', '📜 Tecnologias'], ['gods', '⚡ Deuses'], ['ages', '🏺 Idades']];
+    const tabs = [['units', t('enc.units')], ['buildings', t('enc.buildings')], ['techs', t('enc.techs')], ['gods', t('enc.gods')], ['ages', t('enc.ages')]];
     let body = '';
-    if (tab === 'units') body = `<table><tr><th>Unidade</th><th>Custo</th><th>Vida</th><th>Ataque</th><th>Armadura</th><th>Alc.</th><th>Vel.</th><th>Idade</th><th>Onde</th><th>Descrição</th></tr>${Object.values(UNITS).filter((u) => u.building || u.tags.includes('titan')).map((u) => `<tr><td>${u.icon} ${u.name}</td><td>${fmtCost(u.cost as Record<string, number>) || '—'}</td><td>${u.hp}</td><td>${u.attack} ${u.attackType}</td><td>${Math.round(u.armor.hack * 100)}/${Math.round(u.armor.pierce * 100)}/${Math.round(u.armor.crush * 100)}</td><td>${u.range >= 1.6 ? u.range : 'cac'}</td><td>${u.speed}</td><td>${AGES[u.age].short}</td><td>${u.building ? BUILDINGS[u.building].name : 'Portal'}${u.god ? ` (${(MINOR_GODS[u.god] ?? MAJOR_GODS[u.god]).name})` : ''}</td><td>${u.desc}</td></tr>`).join('')}</table>`;
-    else if (tab === 'buildings') body = `<table><tr><th>Edifício</th><th>Custo</th><th>Vida</th><th>Tam.</th><th>Idade</th><th>Descrição</th></tr>${Object.values(BUILDINGS).filter((b) => !b.notBuildable).map((b) => `<tr><td>${b.icon} ${b.name}</td><td>${fmtCost(b.cost as Record<string, number>)}</td><td>${b.hp}</td><td>${b.w}×${b.h}</td><td>${AGES[b.age].short}</td><td>${b.desc}</td></tr>`).join('')}</table>`;
-    else if (tab === 'techs') body = `<table><tr><th>Tecnologia</th><th>Edifício</th><th>Custo</th><th>Idade</th><th>Efeito</th></tr>${Object.values(TECHS).map((t) => `<tr><td>${t.icon} ${t.name}${t.god ? ` <small>(${MINOR_GODS[t.god].name})</small>` : ''}</td><td>${BUILDINGS[t.building].name}</td><td>${fmtCost(t.cost as Record<string, number>)}</td><td>${AGES[t.age].short}</td><td>${t.desc}</td></tr>`).join('')}</table>`;
-    else if (tab === 'gods') body = Object.values(MAJOR_GODS).map((g) => `<h3>${g.icon} ${g.name} — ${g.title}</h3><p>${g.desc}</p><ul>${g.perks.map((x) => `<li>${x}</li>`).join('')}</ul><p><b>Deuses menores:</b> ${g.minorGods.map((pair, i) => `${AGES[i + 1].short}: ${pair.map((m) => `${MINOR_GODS[m].icon} ${MINOR_GODS[m].name}`).join(' ou ')}`).join(' · ')}</p>`).join('') + `<h3>Deuses menores</h3><table><tr><th>Deus</th><th>Idade</th><th>Poder</th><th>Criatura</th><th>Tecnologias</th></tr>${Object.values(MINOR_GODS).map((m) => `<tr><td>${m.icon} ${m.name}<br><small>${m.title}</small></td><td>${AGES[m.age].short}</td><td>${POWERS[m.power].icon} ${POWERS[m.power].name}<br><small>${POWERS[m.power].desc}</small></td><td>${UNITS[m.mythUnit].icon} ${UNITS[m.mythUnit].name}</td><td>${m.techs.map((t) => `${TECHS[t].icon} ${TECHS[t].name}`).join('<br>')}</td></tr>`).join('')}</table>`;
-    else body = `<table><tr><th>Idade</th><th>Custo</th><th>Requisitos</th><th>Descrição</th></tr>${AGES.map((a) => `<tr><td>${a.icon} ${a.name}</td><td>${fmtCost(a.cost as Record<string, number>) || '—'}</td><td>${a.requires.building ? BUILDINGS[a.requires.building].name : ''} ${a.requires.techCount ? `${a.requires.techCount} pesquisas da Academia (${ACADEMY_LINES.join(', ')})` : ''}</td><td>${a.desc}</td></tr>`).join('')}</table>`;
-    this.showModal(`<h2>📖 Enciclopédia</h2><div class="tabs">${tabs.map(([k, l]) => `<button class="btn ${k === tab ? 'active' : ''}" data-tab="${k}">${l}</button>`).join('')}</div><div style="max-height:60vh;overflow:auto">${body}</div><div class="actions"><button class="btn primary" id="m-close">Fechar</button></div>`);
+    if (tab === 'units') body = `<table><tr><th>${t('enc.units')}</th><th>${t('enc.cost')}</th><th>${t('sel.hp')}</th><th>${t('sel.attack')}</th><th>${t('sel.armor')}</th><th>${t('sel.range')}</th><th>${t('sel.speed')}</th><th>${t('over.age')}</th><th>${t('enc.where')}</th><th>${t('enc.description')}</th></tr>${Object.values(UNITS).filter((u) => u.building || u.tags.includes('titan')).map((u) => `<tr><td>${u.icon} ${u.name}</td><td>${fmtCost(u.cost as Record<string, number>) || '—'}</td><td>${u.hp}</td><td>${u.attack} ${u.attackType}</td><td>${Math.round(u.armor.hack * 100)}/${Math.round(u.armor.pierce * 100)}/${Math.round(u.armor.crush * 100)}</td><td>${u.range >= 1.6 ? u.range : t('sel.melee')}</td><td>${u.speed}</td><td>${AGES[u.age].short}</td><td>${u.building ? BUILDINGS[u.building].name : t('enc.gate')}${u.god ? ` (${(MINOR_GODS[u.god] ?? MAJOR_GODS[u.god]).name})` : ''}</td><td>${u.desc}</td></tr>`).join('')}</table>`;
+    else if (tab === 'buildings') body = `<table><tr><th>${t('enc.buildings')}</th><th>${t('enc.cost')}</th><th>${t('sel.hp')}</th><th>${t('enc.size')}</th><th>${t('over.age')}</th><th>${t('enc.description')}</th></tr>${Object.values(BUILDINGS).filter((b) => !b.notBuildable).map((b) => `<tr><td>${b.icon} ${b.name}</td><td>${fmtCost(b.cost as Record<string, number>)}</td><td>${b.hp}</td><td>${b.w}×${b.h}</td><td>${AGES[b.age].short}</td><td>${b.desc}</td></tr>`).join('')}</table>`;
+    else if (tab === 'techs') body = `<table><tr><th>${t('modal.tech')}</th><th>${t('enc.buildings')}</th><th>${t('enc.cost')}</th><th>${t('over.age')}</th><th>${t('enc.effect')}</th></tr>${Object.values(TECHS).map((x) => `<tr><td>${x.icon} ${x.name}${x.god ? ` <small>(${MINOR_GODS[x.god].name})</small>` : ''}</td><td>${BUILDINGS[x.building].name}</td><td>${fmtCost(x.cost as Record<string, number>)}</td><td>${AGES[x.age].short}</td><td>${x.desc}</td></tr>`).join('')}</table>`;
+    else if (tab === 'gods') body = Object.values(MAJOR_GODS).map((g) => `<h3>${g.icon} ${g.name} — ${g.title}</h3><p>${g.desc}</p><ul>${g.perks.map((x) => `<li>${x}</li>`).join('')}</ul><p><b>${t('enc.minorGods')}:</b> ${g.minorGods.map((pair, i) => `${AGES[i + 1].short}: ${pair.map((m) => `${MINOR_GODS[m].icon} ${MINOR_GODS[m].name}`).join(` ${t('enc.or')} `)}`).join(' · ')}</p>`).join('') + `<h3>${t('enc.minorGods')}</h3><table><tr><th>${t('enc.god')}</th><th>${t('over.age')}</th><th>${t('modal.power')}</th><th>${t('modal.creature')}</th><th>${t('enc.techs')}</th></tr>${Object.values(MINOR_GODS).map((m) => `<tr><td>${m.icon} ${m.name}<br><small>${m.title}</small></td><td>${AGES[m.age].short}</td><td>${POWERS[m.power].icon} ${POWERS[m.power].name}<br><small>${POWERS[m.power].desc}</small></td><td>${UNITS[m.mythUnit].icon} ${UNITS[m.mythUnit].name}</td><td>${m.techs.map((x) => `${TECHS[x].icon} ${TECHS[x].name}`).join('<br>')}</td></tr>`).join('')}</table>`;
+    else body = `<table><tr><th>${t('over.age')}</th><th>${t('enc.cost')}</th><th>${t('enc.requirements')}</th><th>${t('enc.description')}</th></tr>${AGES.map((a) => `<tr><td>${a.icon} ${a.name}</td><td>${fmtCost(a.cost as Record<string, number>) || '—'}</td><td>${a.requires.building ? BUILDINGS[a.requires.building].name : ''} ${a.requires.techCount ? t('enc.academyLines', { n: a.requires.techCount, lines: ACADEMY_LINES.join(', ') }) : ''}</td><td>${a.desc}</td></tr>`).join('')}</table>`;
+    this.showModal(`<h2>${t('enc.title')}</h2><div class="tabs">${tabs.map(([k, l]) => `<button class="btn ${k === tab ? 'active' : ''}" data-tab="${k}">${l}</button>`).join('')}</div><div style="max-height:60vh;overflow:auto">${body}</div><div class="actions"><button class="btn primary" id="m-close">${t('modal.close')}</button></div>`);
     this.modal.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => this.showEncyclopedia((b as HTMLElement).dataset.tab!)));
     this.modal.querySelector('#m-close')!.addEventListener('click', () => this.hideModal());
   }
@@ -551,9 +557,9 @@ export class HUD {
     const won = st.winner >= 0 && st.players[st.winner].team === s.player.team;
     this.audio.play(won ? 'victory' : 'defeat');
     const rows = st.players.map((p) => `<tr><td style="color:#${p.color.toString(16).padStart(6, '0')}">${p.name}${st.winner >= 0 && st.players[st.winner].team === p.team ? ' 🏆' : ''}</td><td>${p.team + 1}</td><td>${AGES[p.age].short}</td><td>${p.stats.kills}</td><td>${p.stats.losses}</td><td>${p.stats.razed}</td><td>${p.stats.buildingsBuilt}</td><td>${p.stats.unitsTrained}</td><td>${Math.round(p.stats.gathered.food + p.stats.gathered.wood + p.stats.gathered.gold)}</td><td>${p.techs.length}</td><td>${p.territoryTiles}</td></tr>`).join('');
-    this.showModal(`<h2>${won ? '🏆 Vitória!' : st.winner === -1 ? 'Empate' : '💀 Derrota'}</h2><p>${st.events.filter((e) => e.type === 'victory').map((e) => e.text).join(' ') || ''} Tempo de jogo: ${fmtTime(st.time)}.</p>
-      <table><tr><th>Jogador</th><th>Time</th><th>Idade</th><th>Abates</th><th>Perdas</th><th>Destruídos</th><th>Construídos</th><th>Treinados</th><th>Coletado</th><th>Pesquisas</th><th>Território</th></tr>${rows}</table>
-      <div class="actions"><button class="btn" id="m-continue">Continuar assistindo</button><button class="btn primary" id="m-quit">Voltar ao menu</button></div>`, false);
+    this.showModal(`<h2>${won ? t('over.victory') : st.winner === -1 ? t('over.draw') : t('over.defeat')}</h2><p>${st.events.filter((e) => e.type === 'victory').map((e) => e.text).join(' ') || ''} ${t('over.time', { time: fmtTime(st.time) })}</p>
+      <table><tr><th>${t('over.player')}</th><th>${t('over.team')}</th><th>${t('over.age')}</th><th>${t('over.kills')}</th><th>${t('over.losses')}</th><th>${t('over.razed')}</th><th>${t('over.built')}</th><th>${t('over.trained')}</th><th>${t('over.gathered')}</th><th>${t('over.techs')}</th><th>${t('over.territory')}</th></tr>${rows}</table>
+      <div class="actions"><button class="btn" id="m-continue">${t('over.watch')}</button><button class="btn primary" id="m-quit">${t('over.menu')}</button></div>`, false);
     this.modal.querySelector('#m-continue')!.addEventListener('click', () => this.hideModal());
     this.modal.querySelector('#m-quit')!.addEventListener('click', () => { this.hideModal(); this.cb.onQuit(); });
   }
@@ -563,9 +569,9 @@ export class HUD {
     const won = sc.outcome === 'victory';
     this.audio.play(won ? 'victory' : 'defeat');
     if (won) { try { const prog = JSON.parse(localStorage.getItem('aoe_campaign') ?? '{"completed":[]}'); if (!prog.completed.includes(sc.id)) prog.completed.push(sc.id); localStorage.setItem('aoe_campaign', JSON.stringify(prog)); } catch { /* ignore */ } }
-    const text = won ? (def.outro ?? ['Missão cumprida.']).map((t) => `<p>${t}</p>`).join('') : '<p>A missão falhou. Tente outra abordagem: fortifique cedo, use os poderes divinos e lembre-se do atrito nas suas fronteiras.</p>';
-    this.showModal(`<h2>${won ? '🏆 Missão cumprida' : '💀 Missão falhou'} — ${def.title}</h2>${text}<p><small>Tempo: ${fmtTime(st.time)} · Abates: ${s.player.stats.kills} · Perdas: ${s.player.stats.losses}</small></p>
-      <div class="actions"><button class="btn" id="m-continue">Continuar jogando</button>${won && this.cb.onNextMission ? '<button class="btn primary" id="m-next">Próxima missão ▶</button>' : ''}<button class="btn ${won ? '' : 'primary'}" id="m-quit">Voltar ao menu</button></div>`, false);
+    const text = won ? (def.outro ?? [t('mission.done')]).map((x) => `<p>${x}</p>`).join('') : `<p>${t('mission.failedText')}</p>`;
+    this.showModal(`<h2>${won ? t('mission.done') : t('mission.failed')} — ${def.title}</h2>${text}<p><small>${t('mission.stats', { time: fmtTime(st.time), kills: s.player.stats.kills, losses: s.player.stats.losses })}</small></p>
+      <div class="actions"><button class="btn" id="m-continue">${t('mission.continue')}</button>${won && this.cb.onNextMission ? `<button class="btn primary" id="m-next">${t('mission.next')}</button>` : ''}<button class="btn ${won ? '' : 'primary'}" id="m-quit">${t('over.menu')}</button></div>`, false);
     this.modal.querySelector('#m-continue')!.addEventListener('click', () => this.hideModal());
     this.modal.querySelector('#m-next')?.addEventListener('click', () => { this.hideModal(); this.cb.onNextMission?.(sc.id); });
     this.modal.querySelector('#m-quit')!.addEventListener('click', () => { this.hideModal(); this.cb.onQuit(); });
@@ -573,14 +579,14 @@ export class HUD {
 
   showIntro(scenarioId: string, onStart: () => void) {
     const def = getScenario(scenarioId); if (!def) { onStart(); return; }
-    this.showModal(`<h2>${def.icon} ${def.title}</h2><p style="color:#f2c14e">${def.subtitle}</p>${def.intro.map((t) => `<p>${t}</p>`).join('')}<h3>Objetivos</h3><ul>${def.objectives.filter((o) => !o.hidden).map((o) => `<li>${o.text}${o.optional ? ' <small>(opcional)</small>' : ''}</li>`).join('')}</ul>${def.hints ? `<h3>Dicas</h3><ul>${def.hints.map((h) => `<li>${h}</li>`).join('')}</ul>` : ''}<div class="actions"><button class="btn primary" id="m-go">Começar ▶</button></div>`, false);
+    this.showModal(`<h2>${def.icon} ${def.title}</h2><p style="color:#f2c14e">${def.subtitle}</p>${def.intro.map((x) => `<p>${x}</p>`).join('')}<h3>${t('mission.objectives')}</h3><ul>${def.objectives.filter((o) => !o.hidden).map((o) => `<li>${o.text}${o.optional ? ` <small>${t('mission.optional')}</small>` : ''}</li>`).join('')}</ul>${def.hints ? `<h3>${t('mission.hints')}</h3><ul>${def.hints.map((h) => `<li>${h}</li>`).join('')}</ul>` : ''}<div class="actions"><button class="btn primary" id="m-go">${t('mission.start')}</button></div>`, false);
     this.modal.querySelector('#m-go')!.addEventListener('click', () => { this.hideModal(); onStart(); });
   }
 
   describeEntityTip(e: Unit | Building): string {
     const def = e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type];
     const owner = this.session!.state.players[e.owner];
-    return `<b>${def.icon} ${def.name}</b> <small>${owner.name}</small><div class="desc">${Math.round(e.hp)}/${e.maxHp} vida</div>`;
+    return `<b>${def.icon} ${def.name}</b> <small>${owner.name}</small><div class="desc">${Math.round(e.hp)}/${e.maxHp} ${t('sel.hp').toLowerCase()}</div>`;
   }
 
   isMilitarySelection(): boolean { const s = this.session; if (!s) return false; return s.ownSelectedUnits().some(isMilitary); }

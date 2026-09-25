@@ -1,9 +1,10 @@
 // Criação, posicionamento e remoção de unidades e edifícios; população; regras de colocação.
 import { TERRAIN, POP_CAP_MAX } from '../constants';
-import { BUILDINGS, UNITS } from '../data';
+import { BUILDINGS, UNITS, AGES } from '../data';
 import type { Building, GameState, Player, Unit } from '../types';
 import { idx, inBounds, spiralSearch, isPassable } from '../map/grid';
 import { getBuildingStats, getUnitStats } from './modifiers';
+import { t } from '../../i18n';
 
 export function spawnUnit(state: GameState, owner: number, type: string, x: number, y: number): Unit {
   const player = state.players[owner];
@@ -58,8 +59,8 @@ export function onBuildingComplete(state: GameState, b: Building): void {
   b.progress = getBuildingStats(state, player, b.type).buildTime;
   if (def.gate) for (let y = b.ty; y < b.ty + b.h; y++) for (let x = b.tx; x < b.tx + b.w; x++) state.map.gateTeam[idx(state.map, x, y)] = player.team;
   if (def.territory) state.territoryDirty = true;
-  if (def.wonder) { b.wonderStart = state.tick; state.events.push({ tick: state.tick, type: 'wonder', player: b.owner, x: b.x, y: b.y, text: `${player.name} concluiu ${def.name}! Contagem de vitória iniciada.` }); }
-  if (def.titanGate) state.events.push({ tick: state.tick, type: 'titan', player: b.owner, x: b.x, y: b.y, text: `${player.name} abriu o Portal dos Titãs!` });
+  if (def.wonder) { b.wonderStart = state.tick; state.events.push({ tick: state.tick, type: 'wonder', player: b.owner, x: b.x, y: b.y, text: t('ev.wonder', { player: player.name, name: def.name }) }); }
+  if (def.titanGate) state.events.push({ tick: state.tick, type: 'titan', player: b.owner, x: b.x, y: b.y, text: t('ev.titanGate', { player: player.name }) });
   player.stats.buildingsBuilt++;
   recomputePop(state, player);
   if (def.wonder || def.popCap) { /* nada extra */ }
@@ -95,33 +96,33 @@ export function buildingLimitOk(state: GameState, player: Player, type: string):
   const def = BUILDINGS[type];
   if (def.limit === 'city') {
     const n = countBuildings(state, player.id, (b) => b.type === 'town_center');
-    if (n >= player.mods.player.cityLimit) return { ok: false, reason: `Limite de Centros Cívicos: ${player.mods.player.cityLimit}. Pesquise Civismo na Academia.` };
+    if (n >= player.mods.player.cityLimit) return { ok: false, reason: t('err.cityLimit', { n: player.mods.player.cityLimit }) };
   } else if (def.limit === 'wonder') {
-    if (countBuildings(state, player.id, (b) => !!BUILDINGS[b.type].wonder) >= 1) return { ok: false, reason: 'Só é possível ter uma Maravilha.' };
+    if (countBuildings(state, player.id, (b) => !!BUILDINGS[b.type].wonder) >= 1) return { ok: false, reason: t('err.oneWonder') };
   } else if (typeof def.limit === 'number') {
-    if (countBuildings(state, player.id, (b) => b.type === type) >= def.limit) return { ok: false, reason: `Limite de ${def.name}: ${def.limit}.` };
+    if (countBuildings(state, player.id, (b) => b.type === type) >= def.limit) return { ok: false, reason: t('err.limit', { name: def.name, n: def.limit }) };
   }
   return { ok: true };
 }
 
 export function canPlaceBuilding(state: GameState, player: Player, type: string, tx: number, ty: number, ignoreLimits = false, force = false): PlaceCheck {
   const def = BUILDINGS[type];
-  if (!def || (def.notBuildable && !force)) return { ok: false, reason: 'Edifício inválido.' };
-  if (def.age > player.age && !force) return { ok: false, reason: `Requer a ${['Idade Arcaica', 'Idade Clássica', 'Idade Heroica', 'Idade Mítica', 'Idade dos Titãs'][def.age]}.` };
+  if (!def || (def.notBuildable && !force)) return { ok: false, reason: t('err.invalidBuilding') };
+  if (def.age > player.age && !force) return { ok: false, reason: t('err.requiresAge', { age: AGES[def.age].name }) };
   if (!ignoreLimits && !force) { const lim = buildingLimitOk(state, player, type); if (!lim.ok) return lim; }
   const map = state.map;
   for (let y = ty; y < ty + def.h; y++) for (let x = tx; x < tx + def.w; x++) {
-    if (!inBounds(map, x, y)) return { ok: false, reason: 'Fora do mapa.' };
+    if (!inBounds(map, x, y)) return { ok: false, reason: t('err.offMap') };
     const i = idx(map, x, y);
-    const t = map.terrain[i];
-    if (t === TERRAIN.WATER || t === TERRAIN.DEEP || t === TERRAIN.MOUNTAIN) return { ok: false, reason: 'Terreno inadequado.' };
-    if (map.nodeAt[i] !== -1 || map.buildingAt[i] !== -1) return { ok: false, reason: 'Espaço ocupado.' };
+    const tt = map.terrain[i];
+    if (tt === TERRAIN.WATER || tt === TERRAIN.DEEP || tt === TERRAIN.MOUNTAIN) return { ok: false, reason: t('err.terrain') };
+    if (map.nodeAt[i] !== -1 || map.buildingAt[i] !== -1) return { ok: false, reason: t('err.occupied') };
     if (force) continue;
     const owner = state.territory[i];
     if (type === 'town_center') {
-      if (owner !== -1 && owner !== player.id) return { ok: false, reason: 'Não é possível construir em território inimigo.' };
+      if (owner !== -1 && owner !== player.id) return { ok: false, reason: t('err.enemyTerritory') };
     } else if (owner !== player.id) {
-      return { ok: false, reason: 'Só é possível construir dentro das suas fronteiras.' };
+      return { ok: false, reason: t('err.ownTerritory') };
     }
   }
   return { ok: true };

@@ -9,6 +9,7 @@ import { acquireTarget, attackInterval, performAttack } from './combat';
 import { findSpawnTile, recomputePop, spawnUnit } from './entities';
 import { giveOrder } from './units';
 import { entityById } from './queries';
+import { t } from '../../i18n';
 
 export function updateBuilding(state: GameState, rt: Runtime, b: Building, dt: number): void {
   void rt;
@@ -38,10 +39,10 @@ export function updateBuilding(state: GameState, rt: Runtime, b: Building, dt: n
     player.titanSpawned = true;
     const titan = MAJOR_GODS[player.god]?.titan ?? 'cronus';
     const spot = findSpawnTile(state, b);
-    const t = spawnUnit(state, b.owner, titan, spot.x, spot.y);
-    t.stance = 'aggressive';
+    const titanUnit = spawnUnit(state, b.owner, titan, spot.x, spot.y);
+    titanUnit.stance = 'aggressive';
     state.effects.push({ type: 'titanRise', x: b.x, y: b.y, ttl: 60, total: 60 });
-    state.events.push({ tick: state.tick, type: 'titan', player: b.owner, x: b.x, y: b.y, text: `${UNITS[titan].name} emergiu do Portal dos Titãs de ${player.name}!` });
+    state.events.push({ tick: state.tick, type: 'titan', player: b.owner, x: b.x, y: b.y, text: t('ev.titan', { titan: UNITS[titan].name, player: player.name }) });
   }
 }
 
@@ -67,7 +68,7 @@ function completeQueueItem(state: GameState, b: Building, item: QueueItem): void
       if (!player.techs.includes(item.id)) player.techs.push(item.id);
       recomputeMods(state, player);
       refreshMaxHp(state, player);
-      if (!player.isAI) state.events.push({ tick: state.tick, type: 'research', player: b.owner, text: `Pesquisa concluída: ${TECHS[item.id].name}.` });
+      if (!player.isAI) state.events.push({ tick: state.tick, type: 'research', player: b.owner, text: t('ev.research', { name: TECHS[item.id].name }) });
       if (TECHS[item.id].effects.some((e) => e.type === 'player' && (e.stat === 'territory' || e.stat === 'popCap'))) { state.territoryDirty = true; recomputePop(state, player); }
       break;
     }
@@ -84,9 +85,9 @@ function completeQueueItem(state: GameState, b: Building, item: QueueItem): void
       refreshMaxHp(state, player);
       state.territoryDirty = true;
       recomputePop(state, player);
-      const godTxt = minor && MINOR_GODS[minor] ? ` sob a proteção de ${MINOR_GODS[minor].name}` : '';
-      state.events.push({ tick: state.tick, type: 'age', player: b.owner, text: `${player.name} avançou para a ${AGES[player.age].name}${godTxt}!` });
-      if (minor && MINOR_GODS[minor] && !player.isAI) state.events.push({ tick: state.tick, type: 'power', player: b.owner, text: `Novo poder divino: ${POWERS[MINOR_GODS[minor].power].name}.` });
+      const godTxt = minor && MINOR_GODS[minor] ? t('ev.ageGod', { god: MINOR_GODS[minor].name }) : '';
+      state.events.push({ tick: state.tick, type: 'age', player: b.owner, text: t('ev.age', { player: player.name, age: AGES[player.age].name, god: godTxt }) });
+      if (minor && MINOR_GODS[minor] && !player.isAI) state.events.push({ tick: state.tick, type: 'power', player: b.owner, text: t('ev.newPower', { name: POWERS[MINOR_GODS[minor].power].name }) });
       break;
     }
   }

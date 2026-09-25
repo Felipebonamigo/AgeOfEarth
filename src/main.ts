@@ -13,11 +13,17 @@ import type { Command } from './core/types';
 import { spawnUnit } from './core/sim/entities';
 import { nearestFreeTile } from './core/map/pathfinding';
 import { Achievements } from './game/achievements';
+import { detectLocale, setLocale, t } from './i18n';
+import { loadSettings, saveSettings } from './game/settings';
+import { exportText, importText } from './game/files';
+import { MAJOR_GODS } from './core/data';
 
 const SAVE_KEY = 'aoe_save_v1';
 const REPLAY_KEY = 'aoe_replay_v1';
 
 async function boot() {
+  const settings = loadSettings();
+  setLocale(settings.locale ?? detectLocale());
   const root = document.getElementById('app')!;
   const renderer = new Renderer();
   await renderer.init(root);
@@ -29,16 +35,21 @@ async function boot() {
   let replaySaved = false;
   const saveReplay = () => { if (!session || session.spectator) return; const json = session.replayJSON(); if (!json) return; try { localStorage.setItem(REPLAY_KEY, json); replaySaved = true; } catch { /* ignore */ } };
 
-  const hud = new HUD(root, renderer, audio, {
+  const hud: HUD = new HUD(root, renderer, audio, {
     hasSave,
-    onSave: () => { if (!session) return; try { localStorage.setItem(SAVE_KEY, session.save()); hud.toast('Jogo salvo.', 'good'); } catch (e) { hud.toast('Falha ao salvar: ' + (e as Error).message, 'warn'); } },
+    onSave: () => { if (!session) return; try { localStorage.setItem(SAVE_KEY, session.save()); hud.toast(t('msg.saved'), 'good'); } catch (e) { hud.toast(t('msg.saveFail', { err: (e as Error).message }), 'warn'); } },
+    onExport: () => { if (!session) return; void exportText(`age-of-earth-${new Date().toISOString().slice(0, 10)}.json`, session.save()).then((ok) => { if (ok) hud.toast(t('msg.saved'), 'good'); }); },
+    onImport: () => { void importText().then((json) => { if (!json) return; try { session = Session.load(json); renderer.setState(session.state); hud.setSession(session); hud.setVisible(true); menu.hide(); hud.toast(t('msg.loaded'), 'good'); } catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); } }); },
+    getEdgeScroll: (): boolean => input.edgeScroll,
+    setEdgeScroll: (v) => { input.edgeScroll = v; settings.edgeScroll = v; saveSettings(settings); },
+    onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); if (session) { hud.setSession(session); hud.refreshTop(); } },
     onLoad: () => loadGame(),
     onQuit: () => { saveReplay(); session = null; hud.setSession(null); hud.setVisible(false); menu.show(); document.body.className = ''; },
     onNextMission: (id) => { const i = SCENARIOS.findIndex((m) => m.id === id); const next = SCENARIOS[i + 1]; if (next) startMission(next.id); else { session = null; hud.setSession(null); hud.setVisible(false); menu.show(); } },
   });
   hud.setVisible(false);
   achievements.onUnlock = (a) => { hud.toast(`🏅 Conquista: ${a.icon} ${a.name} — ${a.desc}`, 'gold'); audio.play('complete'); };
-  const input = new Input(renderer.canvas, () => session, renderer, hud, audio);
+  const input: Input = new Input(renderer.canvas, () => session, renderer, hud, audio);
 
   const startGame = (config: GameConfig) => {
     session = Session.newGame(config);
@@ -47,7 +58,7 @@ async function boot() {
     const home = [...session.state.buildings.values()].find((b) => b.owner === session!.local && b.type === 'town_center');
     if (home) renderer.cam.centerOn(home.x, home.y);
     hud.setSession(session); hud.setVisible(true); menu.hide();
-    hud.toast(`Bem-vindo, ${session.player.name}. Você serve a ${session.state.players[session.local].god === 'zeus' ? 'Zeus' : session.state.players[session.local].god === 'poseidon' ? 'Poseidon' : 'Hades'}. Pressione F1 para ajuda.`, 'gold');
+    hud.toast(t('msg.welcome', { name: session.player.name, god: MAJOR_GODS[session.state.players[session.local].god]?.name ?? '' }), 'gold');
   };
   const loadGame = () => {
     try {
@@ -57,8 +68,8 @@ async function boot() {
       const tc = [...session.state.buildings.values()].find((b) => b.owner === session!.local && b.type === 'town_center');
       if (tc) renderer.cam.centerOn(tc.x, tc.y);
       hud.setSession(session); hud.setVisible(true); menu.hide();
-      hud.toast('Jogo carregado.', 'good');
-    } catch (e) { hud.toast('Falha ao carregar: ' + (e as Error).message, 'warn'); }
+      hud.toast(t('msg.loaded'), 'good');
+    } catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); }
   };
   const startMission = (id: string) => {
     const def = id === HORDE.id ? HORDE : SCENARIOS.find((m) => m.id === id); if (!def) return;
@@ -71,18 +82,18 @@ async function boot() {
     session = Session.newGame(config, local);
     const humans = slots.map((_, i) => i);
     const sched = new NetworkScheduler(local, humans, 4, { sendCmds: (t, c) => client.sendCmds(t, c), sendHash: (t, h) => client.sendHash(t, h) });
-    sched.onDesync = (t) => hud.toast(`⚠️ Dessincronização detectada no tick ${t}. A partida pode divergir entre os jogadores.`, 'warn');
+    sched.onDesync = (tk) => hud.toast(t('msg.desync', { tick: tk }), 'warn');
     client.on('cmds', (m) => { const idx = slots.indexOf(Number(m.slot)); if (idx >= 0) sched.receive(idx, Number(m.tick), (m.cmds as Command[]) ?? []); });
     client.on('hash', (m) => { const idx = slots.indexOf(Number(m.slot)); if (idx >= 0) sched.receiveHash(idx, Number(m.tick), Number(m.hash)); });
-    client.on('left', (m) => { const idx = slots.indexOf(Number(m.slot)); if (idx >= 0) { sched.dropPlayer(idx); hud.toast(`${config.players[idx]?.name ?? 'Um jogador'} saiu da partida.`, 'warn'); } });
-    client.on('close', () => hud.toast('Conexão com o servidor perdida.', 'warn'));
+    client.on('left', (m) => { const idx = slots.indexOf(Number(m.slot)); if (idx >= 0) { sched.dropPlayer(idx); hud.toast(t('msg.playerLeft', { name: config.players[idx]?.name ?? t('msg.someone') }), 'warn'); } });
+    client.on('close', () => hud.toast(t('msg.connectionLost'), 'warn'));
     session.scheduler = sched;
     session.speed = 1;
     renderer.setState(session.state);
     const home = [...session.state.buildings.values()].find((b) => b.owner === session!.local && b.type === 'town_center');
     if (home) renderer.cam.centerOn(home.x, home.y);
     hud.setSession(session); hud.setVisible(true); menu.hide();
-    hud.toast(`Partida online: ${config.players.filter((p) => !p.isAI).length} jogadores. Você é ${config.players[local].name}.`, 'gold');
+    hud.toast(t('msg.online', { n: config.players.filter((p) => !p.isAI).length, name: config.players[local].name }), 'gold');
   };
   const startHorde = (god: string, difficulty: GameConfig['players'][number]['difficulty']) => {
     const cfg: GameConfig = { ...HORDE.config, seed: (Math.floor(Math.random() * 1e9)) >>> 0, scenario: HORDE.id, players: HORDE.config.players.map((p, i) => (i === 0 ? { ...p, god, difficulty } : p)) };
@@ -98,14 +109,15 @@ async function boot() {
       const home = [...session.state.buildings.values()].find((b) => b.owner === session!.local && b.type === 'town_center');
       if (home) renderer.cam.centerOn(home.x, home.y);
       hud.setSession(session); hud.setVisible(true); menu.hide();
-      hud.toast('🎬 Replay: você está assistindo; ordens não têm efeito. Use as velocidades 1×/2×/3×.', 'gold');
-    } catch (e) { hud.toast('Falha ao abrir o replay: ' + (e as Error).message, 'warn'); }
+      hud.toast(t('msg.replay'), 'gold');
+    } catch (e) { hud.toast(t('msg.replayFail', { err: (e as Error).message }), 'warn'); }
   };
-  const menu = new MainMenu(root, { onStart: (cfg) => { replaySaved = false; startGame(cfg); }, onLoad: loadGame, hasSave, onHelp: () => hud.showHelp(), onEncyclopedia: () => hud.showEncyclopedia(), onMission: startMission, onNetworkStart: startNetworkGame, onHorde: startHorde, onReplay: watchReplay, hasReplay });
+  const menu = new MainMenu(root, { onStart: (cfg) => { replaySaved = false; startGame(cfg); }, onLoad: loadGame, hasSave, onHelp: () => hud.showHelp(), onEncyclopedia: () => hud.showEncyclopedia(), onMission: startMission, onNetworkStart: startNetworkGame, onHorde: startHorde, onReplay: watchReplay, hasReplay, onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); } });
+  input.edgeScroll = settings.edgeScroll;
 
   window.addEventListener('keydown', (e) => {
     if (!session) return;
-    if (e.key === 'F5') { e.preventDefault(); try { localStorage.setItem(SAVE_KEY, session.save()); hud.toast('Jogo salvo (F5).', 'good'); } catch { /* ignore */ } }
+    if (e.key === 'F5') { e.preventDefault(); try { localStorage.setItem(SAVE_KEY, session.save()); hud.toast(t('msg.savedF5'), 'good'); } catch { /* ignore */ } }
     if (e.key === 'F9') { e.preventDefault(); loadGame(); }
   });
   window.addEventListener('resize', () => renderer.resize());

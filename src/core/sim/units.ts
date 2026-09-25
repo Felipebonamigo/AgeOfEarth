@@ -11,6 +11,7 @@ import { getRuntime, type Runtime } from './runtime';
 import { acquireTarget, attackInterval, canTarget, performAttack } from './combat';
 import { entityById, distanceTo, nearestDropoff, nearestFreeFarm, nearestNode, nearestNodeWithRoom, nodeGatherers, farmGatherers } from './queries';
 import { NODE_CAPACITY } from '../constants';
+import { t } from '../../i18n';
 import { onBuildingComplete, canGarrison, enterGarrison } from './entities';
 
 const ARRIVE = 0.2;
@@ -344,7 +345,7 @@ function fallbackIdle(state: GameState, u: Unit) {
   u.nodeId = -1;
   if (u.carryAmt > 0) { u.state = 'return'; u.path = null; return; }
   const p = state.players[u.owner];
-  if (!p.isAI) state.events.push({ tick: state.tick, type: 'idleVillager', player: u.owner, x: u.x, y: u.y, text: 'Cidadão ocioso: recurso esgotado.' });
+  if (!p.isAI) state.events.push({ tick: state.tick, type: 'idleVillager', player: u.owner, x: u.x, y: u.y, text: t('ev.idleDepleted') });
   finishOrder(state, u);
 }
 
@@ -378,7 +379,7 @@ function updateBuild(state: GameState, rt: Runtime, u: Unit, dt: number, speed: 
   const d = distToRect(u.x, u.y, b.tx, b.ty, b.w, b.h);
   if (d > 0.95) {
     if (state.tick - u.orderTick > 40 * TICK_RATE) { // obra inalcançável: desiste
-      if (!player.isAI) state.events.push({ tick: state.tick, type: 'idleVillager', player: u.owner, x: u.x, y: u.y, text: `Não consigo alcançar ${def.name}.` });
+      if (!player.isAI) state.events.push({ tick: state.tick, type: 'idleVillager', player: u.owner, x: u.x, y: u.y, text: t('ev.cantReach', { name: def.name }) });
       u.targetId = -1; finishOrder(state, u); return;
     }
     moveTowards(state, rt, u, speed * dt, b.x, b.y, { tx: b.tx, ty: b.ty, w: b.w, h: b.h }, 0.95, true); return;
@@ -388,7 +389,7 @@ function updateBuild(state: GameState, rt: Runtime, u: Unit, dt: number, speed: 
     b.progress += dt * player.mods.player.buildSpeed;
     const frac = Math.min(1, b.progress / bst.buildTime);
     b.hp = Math.max(b.hp, Math.round(bst.hp * (0.1 + 0.9 * frac)));
-    if (b.progress >= bst.buildTime) { b.hp = bst.hp; onBuildingComplete(state, b); if (!player.isAI && !def.wall && !def.farm) state.events.push({ tick: state.tick, type: 'built', player: u.owner, x: b.x, y: b.y, text: `${def.name} concluído.` }); afterBuild(state, u, b); }
+    if (b.progress >= bst.buildTime) { b.hp = bst.hp; onBuildingComplete(state, b); if (!player.isAI && !def.wall && !def.farm) state.events.push({ tick: state.tick, type: 'built', player: u.owner, x: b.x, y: b.y, text: t('ev.built', { name: def.name }) }); afterBuild(state, u, b); }
   } else {
     // reparo: grátis, mas lento
     b.hp = Math.min(b.maxHp, b.hp + (bst.hp / bst.buildTime) * dt * 1.5);

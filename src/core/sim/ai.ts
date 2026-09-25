@@ -10,6 +10,7 @@ import { getRuntime } from './runtime';
 import { isMilitary, isEnemy, nearestEnemyBuilding, nearestNode, nearestNodeWithRoom, nearestFreeFarm, countUnits } from './queries';
 import { getBuildingStats, getUnitStats, techCost } from './modifiers';
 import { canAfford } from './economy';
+import { t } from '../../i18n';
 
 const VILLAGER_TARGET = [18, 26, 34, 40, 44];
 const FARM_LIMIT = [4, 8, 12, 16, 18];
@@ -440,7 +441,7 @@ function savingForAge(state: GameState, player: Player): boolean {
   if (player.age >= AGES.length - 1) return false;
   const c = canAdvanceAge(state, player);
   // Requisitos cumpridos mas sem recursos → economiza
-  return !c.ok && c.reason === 'Recursos insuficientes.';
+  return !c.ok && c.reason === t('err.noResources');
 }
 
 function tryAdvanceAge(state: GameState, player: Player, snap: Snapshot): void {

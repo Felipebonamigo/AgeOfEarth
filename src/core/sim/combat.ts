@@ -8,6 +8,7 @@ import { getBuildingStats, getUnitStats } from './modifiers';
 import { getRuntime } from './runtime';
 import { distanceTo, isEnemy } from './queries';
 import { recomputePop, spawnUnit, ejectGarrison } from './entities';
+import { t } from '../../i18n';
 
 export const ATTACK_INTERVAL: Record<string, number> = { villager: 1.0, scout: 1.0, infantry: 1.0, archer: 1.5, skirmisher: 1.2, cavalry: 1.1, siege: 3.0, hero: 1.1, myth: 1.5, titan: 2.0, building: 2.0 };
 
@@ -96,7 +97,7 @@ export function applyDamage(state: GameState, target: Unit | Building, dmg: numb
   if (!victim.isAI) {
     const key = `attack:${Math.floor(target.x / 12)}:${Math.floor(target.y / 12)}`;
     const recent = state.events.some((e) => e.type === 'underAttack' && e.player === target.owner && e.data === key && state.tick - e.tick < 15 * TICK_RATE);
-    if (!recent) state.events.push({ tick: state.tick, type: 'underAttack', player: target.owner, x: target.x, y: target.y, data: key, text: target.kind === 'building' ? `${BUILDINGS[target.type].name} sob ataque!` : `${UNITS[target.type].name} sob ataque!` });
+    if (!recent) state.events.push({ tick: state.tick, type: 'underAttack', player: target.owner, x: target.x, y: target.y, data: key, text: target.kind === 'building' ? t('ev.underAttackB', { name: BUILDINGS[target.type].name }) : t('ev.underAttackU', { name: UNITS[target.type].name }) });
   }
   if (target.hp <= 0) {
     target.hp = 0;
@@ -155,8 +156,8 @@ export function killUnit(state: GameState, u: Unit, killerOwner: number, killer?
       if (UNITS[killer.type].special === 'heads') killer.heads = Math.min(5, 1 + Math.floor(killer.kills / 3));
     }
   }
-  if (def.tags.includes('hero')) state.events.push({ tick: state.tick, type: 'heroDied', player: u.owner, x: u.x, y: u.y, text: `${def.name} caiu em batalha.` });
-  if (def.tags.includes('titan')) state.events.push({ tick: state.tick, type: 'titanDied', player: u.owner, x: u.x, y: u.y, text: `O Titã ${def.name} foi derrotado!` });
+  if (def.tags.includes('hero')) state.events.push({ tick: state.tick, type: 'heroDied', player: u.owner, x: u.x, y: u.y, text: t('ev.heroDied', { name: def.name }) });
+  if (def.tags.includes('titan')) state.events.push({ tick: state.tick, type: 'titanDied', player: u.owner, x: u.x, y: u.y, text: t('ev.titanDied', { name: def.name }) });
   // Hades: sombras
   if (victim.god === 'hades' && def.tags.includes('human') && def.tags.includes('military') && !def.tags.includes('hero') && state.rng.chance(0.25)) {
     const s = spawnUnit(state, u.owner, 'shade', u.x, u.y);
@@ -185,12 +186,12 @@ export function destroyBuilding(state: GameState, b: Building, killerOwner: numb
   if (b.complete) {
     victim.stats.buildingsLost++;
     if (killerOwner >= 0 && killerOwner !== b.owner) state.players[killerOwner].stats.razed++;
-    if (!def.wall && !def.farm) state.events.push({ tick: state.tick, type: 'buildingLost', player: b.owner, x: b.x, y: b.y, text: `${def.name} foi destruído!` });
+    if (!def.wall && !def.farm) state.events.push({ tick: state.tick, type: 'buildingLost', player: b.owner, x: b.x, y: b.y, text: t('ev.buildingLost', { name: def.name }) });
     // Poseidon: milícia
     if (victim.god === 'poseidon' && !def.wall && !def.farm && victim.alive) {
       for (let k = 0; k < 2; k++) { const m = spawnUnit(state, b.owner, 'militia', b.x + (k === 0 ? -0.6 : 0.6), b.y + 0.4); m.stance = 'aggressive'; }
     }
-    if (def.wonder) { victim.wonderVictoryAt = -1; state.events.push({ tick: state.tick, type: 'wonderLost', player: b.owner, x: b.x, y: b.y, text: `A maravilha ${def.name} de ${victim.name} foi destruída!` }); }
+    if (def.wonder) { victim.wonderVictoryAt = -1; state.events.push({ tick: state.tick, type: 'wonderLost', player: b.owner, x: b.x, y: b.y, text: t('ev.wonderLost', { name: def.name, player: victim.name }) }); }
     if (def.wonder) { const m = modsModule(); m.recomputeMods(state, victim); }
   }
   recomputePop(state, victim);

@@ -12,6 +12,7 @@ import { giveOrder, stopUnit } from './units';
 import { entityById } from './queries';
 import { usePower } from './powers';
 import { killUnit, destroyBuilding } from './combat';
+import { t } from '../../i18n';
 
 export interface CommandResult { ok: boolean; reason?: string }
 
@@ -66,7 +67,7 @@ function groupOffsets(n: number): [number, number][] {
 
 export function applyCommand(state: GameState, cmd: Command): CommandResult {
   const player = state.players[cmd.player];
-  if (!player || !player.alive) return { ok: false, reason: 'Jogador inválido.' };
+  if (!player || !player.alive) return { ok: false, reason: t('err.invalidPlayer') };
   switch (cmd.type) {
     case 'move': case 'attackMove': {
       const units = ownedUnits(state, cmd.player, cmd.ids).filter((u) => !UNITS[u.type].immobile && u.inside === -1);
@@ -116,11 +117,11 @@ export function applyCommand(state: GameState, cmd: Command): CommandResult {
     }
     case 'build': {
       const builders = ownedUnits(state, cmd.player, cmd.ids).filter((u) => UNITS[u.type].canBuild);
-      if (builders.length === 0) return { ok: false, reason: 'Nenhum construtor selecionado.' };
+      if (builders.length === 0) return { ok: false, reason: t('err.noBuilders') };
       const check = canPlaceBuilding(state, player, cmd.building, cmd.tx, cmd.ty);
       if (!check.ok) return check;
       const cost = getBuildingStats(state, player, cmd.building).cost;
-      if (!canAfford(player, cost)) return { ok: false, reason: 'Recursos insuficientes.' };
+      if (!canAfford(player, cost)) return { ok: false, reason: t('err.noResources') };
       pay(player, cost);
       const b = placeBuilding(state, cmd.player, cmd.building, cmd.tx, cmd.ty, false);
       for (const u of builders) giveOrder(state, u, { type: 'build', targetId: b.id }, cmd.queue);
@@ -141,8 +142,8 @@ export function applyCommand(state: GameState, cmd: Command): CommandResult {
       const b = ownedBuilding(state, cmd.player, cmd.buildingId);
       if (!b || !b.complete || !BUILDINGS[b.type].scholars) return { ok: false };
       const queued = b.queue.filter((q) => q.kind === 'scholar').length;
-      if (b.scholars + queued >= MAX_SCHOLARS) return { ok: false, reason: `Máximo de ${MAX_SCHOLARS} filósofos por Academia.` };
-      if (!canAfford(player, SCHOLAR_COST)) return { ok: false, reason: 'Recursos insuficientes.' };
+      if (b.scholars + queued >= MAX_SCHOLARS) return { ok: false, reason: t('err.maxScholars', { n: MAX_SCHOLARS }) };
+      if (!canAfford(player, SCHOLAR_COST)) return { ok: false, reason: t('err.noResources') };
       pay(player, SCHOLAR_COST);
       b.queue.push({ kind: 'scholar', id: 'scholar', elapsed: 0, total: queueTotalFor(state, player, 'scholar', 'scholar') });
       return { ok: true };
@@ -173,8 +174,8 @@ export function applyCommand(state: GameState, cmd: Command): CommandResult {
     case 'advanceAge': return advanceAge(state, player, cmd.buildingId, cmd.minorGod);
     case 'power': return usePower(state, player, cmd.power, cmd.x, cmd.y, cmd.targetId);
     case 'trade': {
-      if (countBuildings(state, player.id, (b) => b.complete && !!BUILDINGS[b.type].trade) === 0) return { ok: false, reason: 'Requer um Mercado.' };
-      return marketTrade(state, player, cmd.action, cmd.resource) ? { ok: true } : { ok: false, reason: 'Recursos insuficientes.' };
+      if (countBuildings(state, player.id, (b) => b.complete && !!BUILDINGS[b.type].trade) === 0) return { ok: false, reason: t('err.needMarket') };
+      return marketTrade(state, player, cmd.action, cmd.resource) ? { ok: true } : { ok: false, reason: t('err.noResources') };
     }
     case 'delete': {
       for (const id of cmd.ids) {
@@ -196,33 +197,33 @@ export function applyCommand(state: GameState, cmd: Command): CommandResult {
       const b = state.buildings.get(cmd.targetId);
       if (!b || b.dead || state.players[b.owner].team !== player.team) return { ok: false };
       const units = ownedUnits(state, cmd.player, cmd.ids).filter((u) => canGarrison(u, b));
-      if (units.length === 0) return { ok: false, reason: 'Nenhuma unidade selecionada pode entrar (ou o edifício está cheio).' };
+      if (units.length === 0) return { ok: false, reason: t('err.noGarrison') };
       for (const u of units) giveOrder(state, u, { type: 'garrison', targetId: b.id }, cmd.queue);
       return { ok: true };
     }
   }
-  return { ok: false, reason: 'Comando desconhecido.' };
+  return { ok: false, reason: t('err.unknown') };
 }
 
 export function canTrain(state: GameState, player: Player, b: Building, unit: string): CommandResult {
   const def = UNITS[unit];
   if (!def || !b.complete) return { ok: false };
   const bdef = BUILDINGS[b.type];
-  if (!bdef.trains || !bdef.trains.includes(unit)) return { ok: false, reason: 'Este edifício não treina essa unidade.' };
-  if (def.age > player.age) return { ok: false, reason: `Requer a ${AGES[def.age].name}.` };
+  if (!bdef.trains || !bdef.trains.includes(unit)) return { ok: false, reason: t('err.notTrained') };
+  if (def.age > player.age) return { ok: false, reason: t('err.requiresAge', { age: AGES[def.age].name }) };
   if (def.god) {
     const major = MAJOR_GODS[player.god];
     const allowed = (major && major.mythUnit === unit) || player.minorGods.some((g) => MINOR_GODS[g]?.mythUnit === unit) || (def.god === player.god);
-    if (!allowed) return { ok: false, reason: 'Requer a bênção do deus correspondente.' };
+    if (!allowed) return { ok: false, reason: t('err.requiresGod') };
   }
   if (def.unique) {
-    for (const u of state.units.values()) if (u.owner === player.id && !u.dead && u.type === unit) return { ok: false, reason: `${def.name} já está vivo.` };
-    for (const ob of state.buildings.values()) if (ob.owner === player.id && !ob.dead && ob.queue.some((q) => q.kind === 'unit' && q.id === unit)) return { ok: false, reason: `${def.name} já está em treinamento.` };
+    for (const u of state.units.values()) if (u.owner === player.id && !u.dead && u.type === unit) return { ok: false, reason: t('err.alreadyAlive', { name: def.name }) };
+    for (const ob of state.buildings.values()) if (ob.owner === player.id && !ob.dead && ob.queue.some((q) => q.kind === 'unit' && q.id === unit)) return { ok: false, reason: t('err.alreadyTraining', { name: def.name }) };
   }
-  if (b.queue.length >= 10) return { ok: false, reason: 'Fila cheia.' };
-  if (player.pop + def.pop > player.popCap) return { ok: false, reason: 'População máxima atingida. Construa Casas.' };
+  if (b.queue.length >= 10) return { ok: false, reason: t('err.queueFull') };
+  if (player.pop + def.pop > player.popCap) return { ok: false, reason: t('err.popCap') };
   const cost = getUnitStats(state, player, unit).cost;
-  if (!canAfford(player, cost)) return { ok: false, reason: 'Recursos insuficientes.' };
+  if (!canAfford(player, cost)) return { ok: false, reason: t('err.noResources') };
   return { ok: true };
 }
 
@@ -241,13 +242,13 @@ export function canResearch(state: GameState, player: Player, b: Building, tech:
   const def = TECHS[tech];
   if (!def || !b.complete) return { ok: false };
   if (def.building !== b.type) return { ok: false };
-  if (player.techs.includes(tech)) return { ok: false, reason: 'Já pesquisado.' };
-  if (def.age > player.age) return { ok: false, reason: `Requer a ${AGES[def.age].name}.` };
-  if (def.god && !player.minorGods.includes(def.god) && player.god !== def.god) return { ok: false, reason: `Requer a bênção de ${MINOR_GODS[def.god]?.name ?? def.god}.` };
-  for (const p of def.prereq) if (!player.techs.includes(p)) return { ok: false, reason: `Requer ${TECHS[p].name}.` };
-  for (const ob of state.buildings.values()) if (ob.owner === player.id && !ob.dead && ob.queue.some((q) => q.kind === 'tech' && q.id === tech)) return { ok: false, reason: 'Já em pesquisa.' };
-  if (b.queue.length >= 10) return { ok: false, reason: 'Fila cheia.' };
-  if (!canAfford(player, techCost(player, tech))) return { ok: false, reason: 'Recursos insuficientes.' };
+  if (player.techs.includes(tech)) return { ok: false, reason: t('err.researched') };
+  if (def.age > player.age) return { ok: false, reason: t('err.requiresAge', { age: AGES[def.age].name }) };
+  if (def.god && !player.minorGods.includes(def.god) && player.god !== def.god) return { ok: false, reason: t('err.requiresBlessing', { god: MINOR_GODS[def.god]?.name ?? def.god }) };
+  for (const p of def.prereq) if (!player.techs.includes(p)) return { ok: false, reason: t('err.requiresTech', { name: TECHS[p].name }) };
+  for (const ob of state.buildings.values()) if (ob.owner === player.id && !ob.dead && ob.queue.some((q) => q.kind === 'tech' && q.id === tech)) return { ok: false, reason: t('err.researching') };
+  if (b.queue.length >= 10) return { ok: false, reason: t('err.queueFull') };
+  if (!canAfford(player, techCost(player, tech))) return { ok: false, reason: t('err.noResources') };
   return { ok: true };
 }
 
@@ -268,13 +269,13 @@ export function academyTechCount(player: Player): number {
 }
 
 export function canAdvanceAge(state: GameState, player: Player, b?: Building): CommandResult & { minorOptions?: string[] } {
-  if (player.age >= MAX_AGE) return { ok: false, reason: 'Idade máxima alcançada.' };
+  if (player.age >= MAX_AGE) return { ok: false, reason: t('err.maxAge') };
   const next = AGES[player.age + 1];
-  if (b && (b.type !== 'town_center' || !b.complete)) return { ok: false, reason: 'Avance a Idade em um Centro Cívico.' };
-  for (const ob of state.buildings.values()) if (ob.owner === player.id && !ob.dead && ob.queue.some((q) => q.kind === 'age')) return { ok: false, reason: 'Avanço de Idade já em andamento.' };
-  if (next.requires.building && countBuildings(state, player.id, (x) => x.type === next.requires.building && x.complete) === 0) return { ok: false, reason: `Requer ${BUILDINGS[next.requires.building].name}.` };
-  if (next.requires.techCount && academyTechCount(player) < next.requires.techCount) return { ok: false, reason: `Requer ${next.requires.techCount} pesquisas das linhas da Academia (${academyTechCount(player)}/${next.requires.techCount}).` };
-  if (!canAfford(player, next.cost as Record<string, number>)) return { ok: false, reason: 'Recursos insuficientes.' };
+  if (b && (b.type !== 'town_center' || !b.complete)) return { ok: false, reason: t('err.advanceAtTC') };
+  for (const ob of state.buildings.values()) if (ob.owner === player.id && !ob.dead && ob.queue.some((q) => q.kind === 'age')) return { ok: false, reason: t('err.advancing') };
+  if (next.requires.building && countBuildings(state, player.id, (x) => x.type === next.requires.building && x.complete) === 0) return { ok: false, reason: t('err.requiresBuilding', { name: BUILDINGS[next.requires.building].name }) };
+  if (next.requires.techCount && academyTechCount(player) < next.requires.techCount) return { ok: false, reason: t('err.requiresTechCount', { n: next.requires.techCount, have: academyTechCount(player) }) };
+  if (!canAfford(player, next.cost as Record<string, number>)) return { ok: false, reason: t('err.noResources') };
   const minorOptions = next.minorGod ? (MAJOR_GODS[player.god]?.minorGods[player.age] ?? []) : [];
   return { ok: true, minorOptions };
 }
@@ -286,7 +287,7 @@ function advanceAge(state: GameState, player: Player, buildingId: number, minorG
   if (!c.ok) return c;
   const next = AGES[player.age + 1];
   if (next.minorGod) {
-    if (!minorGod || !c.minorOptions?.includes(minorGod)) return { ok: false, reason: 'Escolha um deus menor.' };
+    if (!minorGod || !c.minorOptions?.includes(minorGod)) return { ok: false, reason: t('err.chooseMinor') };
   }
   pay(player, next.cost as Record<string, number>);
   b.queue.push({ kind: 'age', id: `age:${minorGod ?? ''}`, elapsed: 0, total: next.time });
