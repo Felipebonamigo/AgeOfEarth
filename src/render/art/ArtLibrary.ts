@@ -28,9 +28,12 @@ export interface UnitArt {
   /** Moldura (px de mundo). */
   size: { w: number; h: number };
   anims: Record<string, ArtAnimInfo>;
-  /** Distância (px de mundo) do pé ao topo da cabeça (menor topo visível do parado entre as 8 direções) — régua da barra
-   *  de vida, da patente e do disco de carga. */
+  /** Distância (px de mundo) do pé ao topo da cabeça (menor topo visível do parado entre as 8 direções) — régua da
+   *  patente e do disco de carga. */
   top: number;
+  /** Topo do corpo no parado POR DIREÇÃO (px de mundo acima do pé, sem armas finas; índice `tops`, medido no rig pelo
+   *  bake) — régua da barra de vida (a cabeça do cavalo em N, as ameias da helépole nas diagonais); null = só `top`. */
+  tops: readonly number[] | null;
   /** Direções espelhadas (--mirror) ou null. */
   mirrored: Record<string, number> | null;
   team: boolean;
@@ -72,6 +75,8 @@ export class ArtLibrary {
   unitGen = 0;
   /** Tipos de unidade pré-carregados (os do começo de partida já no menu; o renderizador acrescenta os da Idade). */
   private warm = new Set<string>(warmUnitTypes(UNITS, 0));
+  /** Tipos de unidade já pedidos (quentes e os que apareceram): o `collect` só libera uma escala que nenhum deles serve. */
+  private requested = new Set<string>();
   private units = new Map<string, UnitArt | null>();
   private buildingsArt = new Map<string, BuildingArt | null>();
   private prewarmed = false;
@@ -130,13 +135,14 @@ export class ArtLibrary {
   /** Pede as páginas de um tipo na escala desejada (nada se desligada, sem manifesto ou sem arte). */
   private requestUnit(id: string): void {
     const a = this.enabled ? this.atlas.manifest?.assets[id] : undefined;
-    if (a?.kind === 'unit') this.atlas.ensureAsset(id, this.unitWanted(a));
+    if (a?.kind === 'unit') { this.requested.add(id); this.atlas.ensureAsset(id, this.unitWanted(a)); }
   }
   /** Escala desejada para um tipo de unidade: a do preset se o tipo a tiver. */
   private unitWanted(a: { atlases: Record<string, unknown> }): ArtScale { return pickScale(this.wanted, Object.keys(a.atlases).map(Number)); }
   /** Escala SERVIDA para um tipo: a desejada se as páginas dele estão prontas; senão a outra, se prontas (troca sem
    *  piscar); null enquanto nada chegou (a primeira chamada já pede as páginas). */
   private unitScale(id: string, a: { atlases: Record<string, unknown> }): ArtScale | null {
+    this.requested.add(id);
     const w = this.unitWanted(a);
     if (this.atlas.ensureAsset(id, w) === 'ready') return w;
     const o: ArtScale = w === 1 ? 2 : 1;
@@ -179,16 +185,29 @@ export class ArtLibrary {
   }
 
   /**
-   * Chamado pelo renderizador depois de refazer as vistas: descarrega a escala que deixou de ser servida (as texturas
-   * são compartilhadas entre vistas; só saem quando nenhuma vista as usa mais).
+   * Chamado pelo renderizador depois de refazer as vistas (reconstrução da geração, troca das vistas de unidade quando
+   * chegam as páginas de um tipo, nova partida): descarrega a escala que deixou de ser servida (as texturas são
+   * compartilhadas entre vistas; só saem quando nenhuma vista as usa mais). Grupos: pela escala servida/pedida de cada
+   * um; unidades: POR TIPO pedido — enquanto as páginas de algum tipo na escala nova carregam, a velha ainda o serve.
    */
   collect(): void {
     if (!this.atlas.manifest) return;
     for (const s of [1, 2] as ArtScale[]) {
       if (!this.enabled) { this.atlas.unloadScale(s); continue; }
-      const stillServed = GROUPS.some((g) => this.served(g) === s || this.scaleFor(g) === s);
-      if (!stillServed) this.atlas.unloadScale(s);
+      const stillServed = GROUPS.some((g) => g !== 'units' && (this.served(g) === s || this.scaleFor(g) === s)) || this.unitsServedAt(s);
+      if (!stillServed) { this.atlas.unloadScale(s); this.units.clear(); }
     }
+  }
+  /** Algum tipo de unidade pedido é servido (ou desejado) na escala `s`? */
+  private unitsServedAt(s: ArtScale): boolean {
+    const m = this.atlas.manifest;
+    if (!m) return false;
+    for (const id of this.requested) {
+      const a = m.assets[id];
+      if (a?.kind !== 'unit') continue;
+      if (this.unitWanted(a) === s || this.unitScale(id, a) === s) return true;
+    }
+    return false;
   }
 
   // ---------------- Unidades ----------------
@@ -219,11 +238,14 @@ export class ArtLibrary {
       for (const t of color.anims.get(unitAnimName(id, 'idle', d)) ?? []) dirTop = Math.max(dirTop, size.anchor.y * t.orig.height - (t.trim ? t.trim.y : 0));
       if (dirTop > 0 && (top === 0 || dirTop < top)) top = dirTop;
     }
+    // topo do corpo por direção medido no rig (sem lança/xyston/mastro): a barra de vida fica acima do corpo em todas
+    const tops = Array.isArray(a.tops) && a.tops.length === 8 && a.tops.every((t) => t > 0) ? a.tops : null;
+    if (tops) top = Math.min(...tops);
     const res = scale, anims = a.anims;
     const team = a.team ? this.atlas.pass(a.group, scale, 'team') : null, shadow = a.shadow ? this.atlas.pass(a.group, scale, 'shadow') : null;
     const art: UnitArt = {
       id, scale, anchor: { ...size.anchor }, size: { w: size.sourceSize.w / res, h: size.sourceSize.h / res }, anims: a.anims,
-      top: top || size.anchor.y * size.sourceSize.h / res, mirrored: color.mirrored,
+      top: top || size.anchor.y * size.sourceSize.h / res, tops, mirrored: color.mirrored,
       team: !!team, shadow: !!shadow,
       has: (anim: string) => !!anims[anim],
       passes: { color, team, shadow },

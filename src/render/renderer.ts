@@ -20,7 +20,7 @@ import { UnitView } from './views/UnitView';
 import { BuildingView } from './views/BuildingView';
 import { SmokeLayer } from './particles';
 import {
-  abilityUseTick, animDuration, buildingState, chooseAnim, deathAlpha, dirWithHysteresis, freshHit, isWalking, isRunning, isMoveAnim, warmUnitTypes, mulColor, type UnitAnim, type AnimInput,
+  abilityUseTick, animDuration, buildingState, chooseAnim, corpseAlpha, CORPSE_TTL, MAX_CORPSES, dirWithHysteresis, freshHit, isWalking, isRunning, isMoveAnim, warmUnitTypes, mulColor, type UnitAnim, type AnimInput,
   WALL_LINK_TYPES, wallMask, buildingVariant, ageTier, farmCrop, damageLevel, gateNear, smokeRate, smokeBudget, rubbleAlpha, GLOW_ANIM, glowVariant,
   ghostTint, placementMasks, wallFlagAt, WALL_FLAG_PROBE,
 } from './art/logic';
@@ -102,6 +102,9 @@ export class Renderer {
   private warmAge = -1;
   /** Unidades assadas morrendo/petrificadas (animação no lugar do sprite procedural girado), por efeito. */
   private dying = new Map<VisualEffect, UnitView>();
+  /** Cadáveres assados (docs/ART.md §1.9): a vista da queda continua no chão depois do efeito 'death', no último quadro
+   *  de `die`, até CORPSE_TTL s da morte (relógio de jogo); no máximo MAX_CORPSES (sai o mais velho). */
+  private corpses: { uv: UnitView; born: number }[] = [];
   private recentDeaths: RecentDeath[] = [];
   private recentGone: RecentGone[] = [];
   /** Fumaça dos edifícios danificados (partículas leves, orçamento do preset). */
@@ -216,6 +219,7 @@ export class Renderer {
     this.applyLayerOrder();
     this.props.reset(state, this.bakedMode, this.art.propsReady());
     this.art.prewarm();
+    this.art.collect();   // a escala que o preset deixou de pedir (trocada no menu) sai da memória já na partida nova
     this.warmAge = -1; this.unitGenSeen = this.art.unitGen;   // tipos da partida/Idade: no primeiro quadro (render)
     // Camada do editor: regiões e passabilidade como texturas w×h (regeneradas só quando algo muda), gráfico e rótulos
     this.layers.editor.removeChildren();
@@ -377,8 +381,32 @@ export class Renderer {
       const art = this.art.unit(v.type);
       if (art && (!v.unit || v.unit.art.scale !== art.scale)) { this.destroyView(v); this.views.delete(id); }
     }
+    // quedas e cadáveres numa escala que deixou de ser a servida também saem (a queda em curso é refeita no próximo quadro)
+    const stale = (uv: UnitView) => { const art = this.art.unit(uv.type); return !!art && art.scale !== uv.art.scale; };
+    for (const [e, uv] of this.dying) if (stale(uv)) { uv.destroy(); this.dying.delete(e); }
+    this.corpses = this.corpses.filter((c) => { if (!stale(c.uv)) return true; c.uv.destroy(); return false; });
+    // e a escala velha das unidades sai da memória quando nenhum tipo pedido é mais servido nela (trocar 1×/2× no meio
+    // da partida não deixa as duas escalas carregadas)
+    this.art.collect();
   }
-  private clearDying(): void { for (const d of this.dying.values()) d.destroy(); this.dying.clear(); this.recentDeaths.length = 0; }
+  private clearDying(): void {
+    for (const d of this.dying.values()) d.destroy();
+    this.dying.clear(); this.recentDeaths.length = 0;
+    for (const c of this.corpses) c.uv.destroy();
+    this.corpses.length = 0;
+  }
+  /** Cadáveres: apagam de CORPSE_HOLD a CORPSE_TTL s depois da morte; saem ao fim (ou se o relógio voltou: replay). */
+  private updateCorpses(): void {
+    const now = this.animClock;
+    let w = 0;
+    for (const c of this.corpses) {
+      const age = now - c.born;
+      if (!(age >= 0 && age < CORPSE_TTL)) { c.uv.destroy(); continue; }
+      c.uv.alpha = corpseAlpha(age);
+      this.corpses[w++] = c;
+    }
+    this.corpses.length = w;
+  }
   /** Escombros, fumaça e fantasmas assados (usam texturas do atlas: saem antes de uma troca de arte ou de partida). */
   private clearBakedExtras(): void {
     for (const r of this.rubbleViews) { r.body.destroy(); r.shadow?.destroy(); }
@@ -752,8 +780,8 @@ export class Renderer {
     ai.engaged = posted && u.state === 'attack';
     const anim: UnitAnim = chooseAnim(ai, art.has);
     uv.pose(anim, dir, clock, (hit && anim === 'attack') || (abFresh && anim === 'ability'));
+    uv.place(ix * TILE, iy * TILE);   // antes do tick: o andar avança o quadro pela distância andada neste quadro
     uv.tick(clock, (u.id % 13) * 0.077);
-    uv.place(ix * TILE, iy * TILE);
     uv.tint(bodyTint, mulColor(color, bodyTint));
     uv.visible = true;
   }
@@ -822,9 +850,10 @@ export class Renderer {
       if (!selected && u.hp >= u.maxHp && state.tick - u.lastDamageTick > 6 * TICK_RATE) continue;
       const ix = u.px + (u.x - u.px) * alpha, iy = u.py + (u.y - u.py) * alpha;
       const r = UNITS[u.type].radius * TILE;
-      // assada: acima do topo visível do quadro (a moldura inteira inclui lança/morte/sombra e deixaria a barra solta)
+      // assada: acima do topo do corpo na direção da vista (medido no rig sem lança/xyston/mastro: a cabeça do cavalo e as
+      // ameias da helépole não ficam por cima da barra), suavizado ao virar
       const uv = this.views.get(u.id)?.unit;
-      const w = Math.max(18, r * 2.4), x = ix * TILE - w / 2, y = uv ? iy * TILE - uv.art.top - 6 : iy * TILE - r - 8;
+      const w = Math.max(18, r * 2.4), x = ix * TILE - w / 2, y = uv ? iy * TILE - uv.barTop(this.animDt) - 6 : iy * TILE - r - 8;
       const frac = Math.max(0, u.hp / u.maxHp);
       hp.rect(x, y, w, 3.5).fill({ color: 0x000000, alpha: 0.6 });
       hp.rect(x, y, w * frac, 3.5).fill(frac > 0.6 ? 0x4ade80 : frac > 0.3 ? 0xfacc15 : 0xef4444);
@@ -1006,11 +1035,8 @@ export class Renderer {
       this.parentFor('unit', e.y, false).addChild(uv.root);
       this.dying.set(e, uv);
     }
-    if (e.type === 'death') {
-      uv.tick(this.animClock, 0);
-      const die = uv.art.anims.die;
-      uv.alpha = deathAlpha(p, die ? animDuration(die.frames, die.fps) * TICK_RATE : 0, e.total);
-    } else uv.alpha = 1 - p;
+    if (e.type === 'death') { uv.tick(this.animClock, 0); uv.alpha = 1; }   // no fim do efeito vira cadáver (updateEffects)
+    else uv.alpha = 1 - p;
     return true;
   }
 
@@ -1093,7 +1119,16 @@ export class Renderer {
       }
     }
     for (const [e, c] of this.fxViews) if (!seen.has(e)) { c.destroy({ children: true }); this.fxViews.delete(e); }
-    for (const [e, uv] of this.dying) if (!seen.has(e)) { uv.destroy(); this.dying.delete(e); }
+    for (const [e, uv] of this.dying) if (!seen.has(e)) {
+      this.dying.delete(e);
+      // a queda acabou: o corpo fica no chão (último quadro de 'die') e apaga até CORPSE_TTL s da morte; a estátua sai
+      if (e.type === 'death' && uv.anim === 'die') {
+        uv.tick(this.animClock, 0);   // último quadro da queda (ela dura menos que o efeito)
+        this.corpses.push({ uv, born: uv.animStart });
+        if (this.corpses.length > MAX_CORPSES) this.corpses.shift()!.uv.destroy();
+      } else uv.destroy();
+    }
+    this.updateCorpses();
     this.recentDeaths.length = 0;
     this.recentGone.length = 0;
     void ui;

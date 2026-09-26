@@ -1,7 +1,10 @@
 // Rig de cerco (docs/ART.md §1.8, Etapa 4): máquinas de madeira, corda e bronze sobre rodas, com pivôs animados pelas
 // poses de `art/poses/siege.json`:
 //   root   posição/rotação (balanço ao rodar, tombo na morte) · body  inclinação do chassi
-//   wheel  giro de TODAS as rodas (x, graus; 8 raios: 30° por quadro já lê como rolar sem o efeito estroboscópico)
+//   wheel  giro de TODAS as rodas (x, graus). A roda tem simetria de 90° (2 dos 4 raios/tábuas pintados ou cintados de
+//          ferro): o ciclo de rolar gira 90° em 6 quadros (15° por quadro, abaixo da metade dos 45° entre raios — sem o
+//          efeito estroboscópico de 30°/quadro, que lia como −15°) e o renderizador avança o quadro pela distância andada
+//          (passada = raio × 90°, medida por scripts/bake/measure.mjs): a roda rola sem deslizar em qualquer velocidade
 //   arm    braço de arremesso (petróbolo: torção; helépole: o braço da catapulta do último andar)
 //   shutter portinhola do último andar (helépole) · winch  sarilho (petróbolo)
 //   escalares: `stone` (≥ 0,5 = pedra na colher) e `collapse` (0–1: peças soltas caem e se espalham, na morte)
@@ -42,6 +45,9 @@ export function buildSiege(THREE, M, params = {}) {
   J.root = joint(rig, 0, 0, 0);
   J.body = joint(J.root, 0, 0, 0);
   const wheels = [];
+  /** Raio das rodas (m) e peças finas (os mastros; as bandeiras contam) fora do topo do corpo que o bake mede. */
+  let wheelR = 0;
+  const thin = [];
   /** Peças que se soltam na morte: deslocamento/rotação finais (escalados por `collapse`). */
   const loose = [];
   const breakable = (o, dx, dy, dz, rx = 0, rz = 0) => { loose.push({ o, p: o.position.clone(), r: o.rotation.clone(), dx, dy, dz, rx, rz }); return o; };
@@ -49,14 +55,20 @@ export function buildSiege(THREE, M, params = {}) {
   const wheel = (x, z, r, solid = false) => {
     const w = joint(J.body, x, r, z);
     const spin = new THREE.Group(); w.add(spin); wheels.push(spin);
+    wheelR = r;
+    const sx = Math.sign(x);
     if (solid) {
+      // tábuas 0 e 2 (em cruz) claras e cintadas de ferro nas pontas; 1 e 3 escuras: simetria de 90°
       mesh(new THREE.CylinderGeometry(r, r, 0.14, 20), M.woodDark, 0, 0, 0, spin).rotation.z = Math.PI / 2;
-      for (let i = 0; i < 4; i++) { const b = box(0.15, r * 1.9, 0.04, M.wood, Math.sign(x) * 0.075, 0, 0, spin); b.rotation.x = (i * Math.PI) / 4; }
-      mesh(new THREE.TorusGeometry(r - 0.02, 0.03, 6, 20), M.iron, Math.sign(x) * 0.072, 0, 0, spin).rotation.y = Math.PI / 2;
+      for (let i = 0; i < 4; i++) { const b = box(0.15, r * 1.9, 0.04, i % 2 ? M.woodDark : M.wood, sx * 0.075, 0, 0, spin); b.rotation.x = (i * Math.PI) / 4; }
+      for (let k = 0; k < 4; k++) { const a = (k * Math.PI) / 2; box(0.025, 0.14, 0.16, M.iron, sx * 0.16, (r - 0.1) * Math.cos(a), (r - 0.1) * Math.sin(a), spin).rotation.x = a; }
+      mesh(new THREE.TorusGeometry(r - 0.02, 0.03, 6, 20), M.iron, sx * 0.072, 0, 0, spin).rotation.y = Math.PI / 2;
     } else {
       mesh(new THREE.TorusGeometry(r - 0.04, 0.045, 6, 20), M.wood, 0, 0, 0, spin).rotation.y = Math.PI / 2;   // aro
       mesh(new THREE.TorusGeometry(r - 0.005, 0.02, 5, 20), M.iron, 0, 0, 0, spin).rotation.y = Math.PI / 2;   // calço de ferro
-      for (let i = 0; i < 4; i++) { const s = box(0.04, 2 * (r - 0.05), 0.05, M.woodDark, 0, 0, 0, spin); s.rotation.x = (i * Math.PI) / 4; } // 8 raios
+      // 8 raios; os de 0° e 90° pintados de ocre (e as chapas de ferro no aro): simetria de 90°
+      for (let i = 0; i < 4; i++) { const s = box(0.04, 2 * (r - 0.05), 0.05, i % 2 ? M.woodDark : M.terracotta, 0, 0, 0, spin); s.rotation.x = (i * Math.PI) / 4; }
+      for (let k = 0; k < 4; k++) { const a = (k * Math.PI) / 2; box(0.1, 0.09, 0.07, M.iron, 0, (r - 0.04) * Math.cos(a), (r - 0.04) * Math.sin(a), spin).rotation.x = a; }
       mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.16, 10), M.woodDark, 0, 0, 0, spin).rotation.z = Math.PI / 2; // cubo
     }
     return w;
@@ -96,7 +108,7 @@ export function buildSiege(THREE, M, params = {}) {
     mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.9, 12), M.woodDark, 0, 0, 0, J.winch).rotation.z = Math.PI / 2;
     for (const s of [-1, 1]) { for (let i = 0; i < 2; i++) { const h = box(0.04, 0.5, 0.04, M.wood, s * 0.47, 0, 0, J.winch); h.rotation.x = (i * Math.PI) / 2; } }
     // flâmula de time num mastro no canto traseiro
-    beam([0.56, 0.56, 1.18], [0.56, 2.05, 1.18], 0.045, M.woodDark, J.body);
+    thin.push(beam([0.56, 0.56, 1.18], [0.56, 2.05, 1.18], 0.045, M.woodDark, J.body));
     const flag = box(0.02, 0.34, 0.54, M.team, 0.56, 1.86, 0.91, J.body);
     breakable(flag, 0.3, -1.5, 0.2, 0.5, 1.2);
     breakable(arm, 0, -0.3, 0.2, 0.6, 0.3);   // o grupo de dentro (o pivô J.arm é da pose)
@@ -146,7 +158,7 @@ export function buildSiege(THREE, M, params = {}) {
     const VY = LEVELS[3] - 0.1, VH = 0.26;   // sanefa pendurada na borda da plataforma (acima da janela de cima)
     for (const sz of [-1, 1]) box(wt + 0.2, VH, 0.035, M.team, 0, VY, sz * (dt / 2 + 0.09), top);
     for (const sx of [-1, 1]) box(0.035, VH, dt + 0.2, M.team, sx * (wt / 2 + 0.09), VY, 0, top);
-    beam([wt / 2 - 0.15, LEVELS[3], dt / 2 - 0.15], [wt / 2 - 0.15, LEVELS[3] + 0.95, dt / 2 - 0.15], 0.06, M.woodDark, top);
+    thin.push(beam([wt / 2 - 0.15, LEVELS[3], dt / 2 - 0.15], [wt / 2 - 0.15, LEVELS[3] + 0.95, dt / 2 - 0.15], 0.06, M.woodDark, top));
     box(0.02, 0.34, 0.56, M.team, wt / 2 - 0.15, LEVELS[3] + 0.76, dt / 2 - 0.48, top);
     breakable(top, 0.12, -2.85, 0.22, 0.2, 0.16);   // (o giro é em volta do chão: ângulos pequenos)
     // portinhola do último andar (time), articulada em cima; o braço da catapulta sai pela janela ao disparar
@@ -172,7 +184,7 @@ export function buildSiege(THREE, M, params = {}) {
         l.o.rotation.set(l.r.x + l.rx * c, l.r.y, l.r.z + l.rz * c);
       }
     };
-    return { group, joints: J, wheels, post };
+    return { group, joints: J, wheels, post, thin, wheelRadius: wheelR * M2T };
   }
 }
 
@@ -199,7 +211,8 @@ export function applySiegePose(rig, pose) {
 export function siegeUnit(THREE, M, params) {
   const rig = buildSiege(THREE, M, params);
   return {
-    group: rig.group,
+    // para o bake medir passada (raio × giro da roda) e topo sem os mastros (scripts/bake/measure.mjs)
+    group: rig.group, feet: [], thin: rig.thin, wheels: rig.wheels, wheelRadius: rig.wheelRadius,
     pose(fr, poses) {
       const def = poses.main?.anims?.[fr.pose];
       if (!def) throw new Error(`pose de cerco ${fr.pose} ausente`);

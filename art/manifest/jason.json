@@ -2,7 +2,7 @@
   "id": "jason",
   "kind": "unit",
   "stage": 4,
-  "docs": "Kit do rig humano escolhido só por parâmetros (docs/ART.md, Apêndice E; lote heróis). Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/jason.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Walk\", \"attack\": \"Attack\", \"ability\": \"Ability\", \"die\": \"Death\" }, \"teamMaterials\": [\"Cape\", \"Headband\"] } (docs/ART.md §3.4).",
+  "docs": "Kit do rig humano escolhido só por parâmetros (docs/ART.md, Apêndice E; lote heróis). Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/jason.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Walk\", \"attack\": \"Attack\", \"ability\": \"Ability\", \"die\": \"Death\" }, \"teamMaterials\": [\"Cape\", \"Headband\", \"Sash\"] } (docs/ART.md §3.4).",
   "source": {
     "type": "param",
     "rig": "human",
@@ -15,8 +15,9 @@
       "greaves": true,
       "cape": "long",
       "weapon": "spear",
-      "offhand": "fleece",
-      "stature": "tall"
+      "stature": "tall",
+      "mantle": "fleece",
+      "sash": "team"
     }
   },
   "size": {

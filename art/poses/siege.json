@@ -1,7 +1,7 @@
 {
   "rig": "siege",
   "version": 1,
-  "units": "graus por pivô [x, y, z]; wheel gira todas as rodas (x negativo = rolar para a frente); arm: petróbolo 0 = deitado para trás, −100 = contra o batente; helépole 180 = recolhido, ≈ −10 = para fora da janela; shutter x positivo abre para fora; escalares stone (≥ 0,5 = pedra carregada) e collapse (0–1, peças soltas na morte); t em 0..1",
+  "units": "graus por pivô [x, y, z]; wheel gira todas as rodas (x negativo = rolar para a frente; o ciclo de rolar gira 90° = a simetria da roda, 15° por quadro); arm: petróbolo 0 = deitado para trás, −100 = contra o batente; helépole 180 = recolhido, ≈ −10 = para fora da janela; shutter x positivo abre para fora; escalares stone (≥ 0,5 = pedra carregada) e collapse (0–1, peças soltas na morte); t em 0..1",
   "joints": ["root", "body", "wheel", "arm", "shutter", "winch"],
   "scalars": ["stone", "collapse"],
   "anims": {
@@ -12,9 +12,9 @@
     },
     "roll_petrobolos": {
       "loop": true, "keys": [
-        {"t": 0, "root": {"pos": [0, 0, 0], "rot": [0, 0, -0.8]}, "wheel": [0, 0, 0], "arm": [6, 0, 0], "stone": 1},
-        {"t": 0.5, "root": {"pos": [0, 0.01, 0], "rot": [0, 0, 0.8]}, "wheel": [-90, 0, 0], "arm": [5, 0, 0], "stone": 1},
-        {"t": 1, "root": {"pos": [0, 0, 0], "rot": [0, 0, -0.8]}, "wheel": [-180, 0, 0], "arm": [6, 0, 0], "stone": 1}
+        {"t": 0, "root": {"pos": [0, 0, 0], "rot": [0, 0, -0.4]}, "wheel": [0, 0, 0], "arm": [6, 0, 0], "stone": 1},
+        {"t": 0.5, "root": {"pos": [0, 0.005, 0], "rot": [0, 0, 0.4]}, "wheel": [-45, 0, 0], "arm": [5, 0, 0], "stone": 1},
+        {"t": 1, "root": {"pos": [0, 0, 0], "rot": [0, 0, -0.4]}, "wheel": [-90, 0, 0], "arm": [6, 0, 0], "stone": 1}
       ]
     },
     "fire_petrobolos": {
@@ -41,9 +41,9 @@
     },
     "roll_helepolis": {
       "loop": true, "keys": [
-        {"t": 0, "root": {"pos": [0, 0, 0], "rot": [0.6, 0, -1.2]}, "wheel": [0, 0, 0], "arm": [180, 0, 0], "stone": 1},
-        {"t": 0.5, "root": {"pos": [0, 0.01, 0], "rot": [-0.4, 0, 1.2]}, "wheel": [-90, 0, 0], "arm": [180, 0, 0], "stone": 1},
-        {"t": 1, "root": {"pos": [0, 0, 0], "rot": [0.6, 0, -1.2]}, "wheel": [-180, 0, 0], "arm": [180, 0, 0], "stone": 1}
+        {"t": 0, "root": {"pos": [0, 0, 0], "rot": [0.3, 0, -0.6]}, "wheel": [0, 0, 0], "arm": [180, 0, 0], "stone": 1},
+        {"t": 0.5, "root": {"pos": [0, 0.005, 0], "rot": [-0.2, 0, 0.6]}, "wheel": [-45, 0, 0], "arm": [180, 0, 0], "stone": 1},
+        {"t": 1, "root": {"pos": [0, 0, 0], "rot": [0.3, 0, -0.6]}, "wheel": [-90, 0, 0], "arm": [180, 0, 0], "stone": 1}
       ]
     },
     "fire_helepolis": {

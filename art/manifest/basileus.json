@@ -2,7 +2,7 @@
   "id": "basileus",
   "kind": "unit",
   "stage": 4,
-  "docs": "Kit do rig humano escolhido só por parâmetros (docs/ART.md, Apêndice E; lote heróis). Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/basileus.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Walk\", \"attack\": \"Attack\", \"die\": \"Death\" }, \"teamMaterials\": [\"Cape\"] } (docs/ART.md §3.4).",
+  "docs": "Kit do rig humano escolhido só por parâmetros (docs/ART.md, Apêndice E; lote heróis). Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/basileus.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Walk\", \"attack\": \"Attack\", \"die\": \"Death\" }, \"teamMaterials\": [\"Cape\", \"Pteruges\"] } (docs/ART.md §3.4).",
   "source": {
     "type": "param",
     "rig": "human",
@@ -14,7 +14,8 @@
       "cape": "long",
       "weapon": "sword",
       "offhand": "scepter",
-      "stature": "tall"
+      "stature": "tall",
+      "pteruges": "team"
     }
   },
   "size": {

@@ -110,6 +110,7 @@ export function buildHorse(THREE, M, params = {}) {
 
   // ---- pernas ----
   const UP = 0.5, LOW = 0.45;
+  const hooves = [];
   for (const [name, x, z, hind] of [['fl', -0.15, -0.5, false], ['fr', 0.15, -0.5, false], ['bl', -0.15, 0.5, true], ['br', 0.15, 0.5, true]]) {
     const top = J[name] = joint(J.body, x, -0.06, z);
     mesh(new THREE.CylinderGeometry((hind ? 0.1 : 0.085) * g, 0.055, UP, 10), coat, 0, -UP / 2, 0, top);
@@ -117,7 +118,7 @@ export function buildHorse(THREE, M, params = {}) {
     mesh(new THREE.SphereGeometry(0.058, 8, 6), coat, 0, 0, 0, knee);
     mesh(new THREE.CylinderGeometry(0.045, 0.04, LOW, 8), points, 0, -LOW / 2, 0, knee);
     mesh(new THREE.SphereGeometry(0.05, 8, 6), points, 0, -LOW, 0, knee);                                     // boleto
-    mesh(new THREE.CylinderGeometry(0.052, 0.064, 0.08, 10), M.hoof, 0, -LOW - 0.05, -0.01, knee);            // casco
+    hooves.push(mesh(new THREE.CylinderGeometry(0.052, 0.064, 0.08, 10), M.hoof, 0, -LOW - 0.05, -0.01, knee)); // casco
   }
 
   // ---- cavaleiro (rig humano em metros, sentado no dorso) ----
@@ -129,7 +130,7 @@ export function buildHorse(THREE, M, params = {}) {
     rider.group.position.set(SEAT[0], SEAT[1] + 0.3 * (g - 1) - 0.92 / B.size, SEAT[2]);
     J.body.add(rider.group);
   }
-  return { group, joints: J, rider };
+  return { group, joints: J, rider, hooves };
 }
 
 /** Aplica a pose do cavalo (mesmo formato do humano; a raiz parte de BODY_Y). */
@@ -153,7 +154,8 @@ export function applyHorsePose(rig, pose) {
 export function horseUnit(THREE, M, params) {
   const rig = buildHorse(THREE, M, params);
   return {
-    group: rig.group,
+    // para o bake medir passada e topo (scripts/bake/measure.mjs): os cascos e as armas finas do cavaleiro
+    group: rig.group, feet: rig.hooves, thin: rig.rider?.thin ?? [],
     pose(fr, poses) {
       const def = poses.main?.anims?.[fr.pose];
       if (!def) throw new Error(`pose de cavalo ${fr.pose} ausente`);

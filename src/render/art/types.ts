@@ -12,7 +12,9 @@ export type ArtGroup = 'units' | 'buildings' | 'props' | 'icons';
 export type ArtPass = 'color' | 'team' | 'shadow';
 export type ArtScale = 1 | 2;
 
-export interface ArtAnimInfo { frames: number; fps: number; loop: boolean }
+/** `stride` (animações de andar: walk/run/carry): tiles que o corpo avança num ciclo, medidos no rig pelo bake
+ *  (scripts/bake/measure.mjs) — o renderizador avança o quadro pela distância andada e o pé não desliza. */
+export interface ArtAnimInfo { frames: number; fps: number; loop: boolean; stride?: number }
 export interface ArtSize { sourceSize: { w: number; h: number }; anchor: { x: number; y: number } }
 
 /** Um asset do manifesto: unidade, edifício ou conjunto de props. */
@@ -28,6 +30,9 @@ export interface ArtAssetEntry {
   /** Tamanho da moldura e âncora por escala ('1', '2'); ausente nos props (cada item tem a sua, no JSON do atlas). */
   sizes?: Record<string, ArtSize>;
   anims?: Record<string, ArtAnimInfo>;
+  /** Unidades: topo do corpo no parado por direção (px a 1× acima do pé, sem armas finas; measure.mjs) — régua da barra
+   *  de vida. */
+  tops?: number[];
   footprint?: [number, number];
   /** Edifícios: variantes (bitmask da muralha '00'–'15', eixo do portão 'ew'/'ns', Idade 'a0'–'a2') e o critério. */
   variants?: string[];

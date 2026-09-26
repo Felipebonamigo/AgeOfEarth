@@ -17,7 +17,8 @@
         "armor": "linothorax",
         "cape": "short",
         "weapon": "javelin",
-        "bundle": false
+        "bundle": false,
+        "sash": "team"
       }
     }
   },

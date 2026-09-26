@@ -7,7 +7,7 @@ import path from 'node:path';
 import {
   dirFromAngle, dirFromVector, dirWithHysteresis, chooseAnim, frameIndex, animDuration, unitFrameName, unitAnimName, buildingFrameName,
   propFrameName, buildingStage, treeLook, stumpVariant, animalDir, amountStage, nodeFrameName, nodeStage, treeScale, treeOffset, checkSheetMeta, pickScale,
-  isMirrored, frameBox, mulColor, isWalking, freshHit, deathAlpha, isRunning, isMoveAnim, RUN_SPEED, warmUnitTypes, type UnitAnim,
+  isMirrored, frameBox, mulColor, isWalking, freshHit, corpseAlpha, CORPSE_TTL, CORPSE_HOLD, strideAdvance, isRunning, isMoveAnim, RUN_SPEED, warmUnitTypes, type UnitAnim,
   BUILDING_STATES, damageLevel, buildingState, fallbackState, WALL_LINK_TYPES, wallMask, wallVariant, gateAxis, ageTier,
   buildingVariant, placementMasks, gateNear, GATE_OPEN_RANGE, rubbleName, rubbleAlpha, RUBBLE_SECONDS, RUBBLE_FADE, smokeRate,
   smokeBudget, ghostTint, wallFlagAt, WALL_FLAG_PROBE,
@@ -74,12 +74,26 @@ describe('animação e quadro por tempo (10 fps)', () => {
     expect(freshHit(100, -100, 2100, 12)).toBe(false);        // golpe de 100 s atrás
     expect(freshHit(100, -100, 112, 12)).toBe(true);
   });
-  it('morte: opaca até o último quadro da queda, depois apaga até o fim do efeito', () => {
-    // queda de 0,6 s = 12 ticks num efeito de 24: apaga a partir da metade
-    expect(deathAlpha(0.3, 12, 24)).toBe(1); expect(deathAlpha(0.49, 12, 24)).toBe(1);
-    expect(deathAlpha(0.75, 12, 24)).toBeCloseTo(0.5); expect(deathAlpha(1, 12, 24)).toBe(0);
-    // queda mais longa que meio efeito: começa a apagar só depois dela (até 85 %)
-    expect(deathAlpha(0.6, 18, 24)).toBe(1); expect(deathAlpha(0.8, 18, 24)).toBeLessThan(1);
+  it('morte: o corpo cai, fica no chão opaco e só apaga no fim dos 8 s (§1.9), contados da morte', () => {
+    expect(CORPSE_TTL).toBe(8);
+    for (const t of [0, 0.6, 1.2, 3, CORPSE_HOLD - 0.01]) expect(corpseAlpha(t), `${t}`).toBe(1);   // queda (0,6 s) e chão
+    expect(corpseAlpha((CORPSE_HOLD + CORPSE_TTL) / 2)).toBeCloseTo(0.5);
+    expect(corpseAlpha(CORPSE_TTL)).toBe(0); expect(corpseAlpha(20)).toBe(0);
+    expect(corpseAlpha(-1)).toBe(0);                          // relógio voltou (replay): sai
+  });
+  it('andar pela distância: uma passada andada = um ciclo inteiro, em qualquer velocidade (o pé não desliza)', () => {
+    // hoplita: passada 0,749 tile em 8 quadros; a 2,2 e a 1,1 tile/s (formação lenta) o quadro segue a distância
+    const stride = 0.749, frames = 8;
+    for (const speed of [2.2, 1.1, 3.0]) {
+      let pos = 0, walked = 0;
+      for (let f = 0; f < 60; f++) { const d = speed / 60; pos = strideAdvance(pos, d, stride, frames); walked += d; }   // 1 s a 60 Hz
+      const expected = ((walked / stride) * frames) % frames;
+      expect(pos, `${speed}`).toBeCloseTo(expected, 6);
+    }
+    expect(strideAdvance(0, stride, stride, frames)).toBeCloseTo(0, 9);          // um ciclo inteiro volta ao quadro 0
+    expect(strideAdvance(1, stride / 8, stride, frames)).toBeCloseTo(2, 9);      // 1/8 de passada = 1 quadro
+    expect(strideAdvance(3, 0, stride, frames)).toBe(3);                         // parado: não avança
+    expect(strideAdvance(3, 1, 0, frames)).toBe(3);                              // sem passada: não mexe
   });
   it('loop volta ao 0 sem repetir o último; sem loop para no último', () => {
     expect([0, 0.05, 0.1, 0.3, 0.79, 0.8, 1.25].map((t) => frameIndex(t, 8, 10, true))).toEqual([0, 0, 1, 3, 7, 0, 4]);

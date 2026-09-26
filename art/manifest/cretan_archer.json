@@ -14,7 +14,8 @@
       "armor": "cuirass",
       "greaves": true,
       "cape": "long",
-      "weapon": "bow"
+      "weapon": "bow",
+      "sash": "team"
     }
   },
   "size": {

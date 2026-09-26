@@ -118,13 +118,26 @@ export function isWalking(disp2: number, step: number, wasWalking: boolean): boo
 export function freshHit(attackTick: number, lastSeen: number, tick: number, windowTicks: number): boolean {
   return attackTick !== lastSeen && tick - attackTick <= windowTicks;
 }
+/** Cadáver (docs/ART.md §1.9): depois da queda o último quadro de `die` fica no chão e some em CORPSE_TTL s contados da
+ *  morte — opaco até CORPSE_HOLD s e apagando até o fim. No máximo MAX_CORPSES no mapa (sai o mais velho). */
+export const CORPSE_TTL = 8;
+export const CORPSE_HOLD = 5;
+export const MAX_CORPSES = 64;
+/** Alfa do corpo `age` s depois da morte (relógio de jogo): 1 durante a queda e no chão até CORPSE_HOLD, 0 em CORPSE_TTL. */
+export function corpseAlpha(age: number): number {
+  if (!(age >= 0)) return 0;
+  return age < CORPSE_HOLD ? 1 : Math.max(0, 1 - (age - CORPSE_HOLD) / (CORPSE_TTL - CORPSE_HOLD));
+}
+
 /**
- * Alfa da unidade assada morrendo pelo progresso `p` (0–1) do efeito 'death': opaca até o último quadro da queda
- * (`dieTicks` de jogo, de `totalTicks`) e então apaga até o fim do efeito — nunca antes da metade.
+ * Posição no ciclo de uma animação de andar (quadros, 0 ≤ pos < frames) depois de andar `dist` tiles, com a passada
+ * `stride` (tiles por ciclo, medida no rig pelo bake): o quadro avança pela DISTÂNCIA e não pelo relógio — o pé de apoio
+ * fica parado no chão em qualquer velocidade (formação, lentidão, melhorias). Passada inválida: 0.
  */
-export function deathAlpha(p: number, dieTicks: number, totalTicks: number): number {
-  const from = Math.min(0.85, Math.max(0.5, dieTicks / Math.max(1, totalTicks)));
-  return p < from ? 1 : Math.max(0, 1 - (p - from) / (1 - from));
+export function strideAdvance(pos: number, dist: number, stride: number, frames: number): number {
+  if (!(stride > 0) || frames <= 1 || !(dist >= 0)) return frames > 1 && pos >= 0 && pos < frames ? pos : 0;
+  const p = (pos + (dist / stride) * frames) % frames;
+  return p < 0 ? p + frames : p;
 }
 
 /**

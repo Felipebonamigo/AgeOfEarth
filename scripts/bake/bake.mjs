@@ -27,6 +27,7 @@ import { loadManifests, validateManifest, validateAll, expandFrames, animationsO
 import { RIG_FILES } from './page/rigs/units.js';
 import { alphaBounds, crop, packShelf, blit, sheetJson, halve, SHADOW_TEXEL } from './page/atlas.js';
 import { PX_PER_TILE, PIPELINE_VERSION, MIRROR_FROM, atlasMeta } from './page/camera.js';
+import { measureUnit } from './measure.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PAGE = path.join(ROOT, 'scripts', 'bake', 'page');
@@ -253,6 +254,18 @@ function groupFrames(entry, { even = false } = {}) {
   return out;
 }
 
+/** Medidas do rig de uma unidade paramétrica (passada das animações de andar e topo do corpo por direção), uma vez por
+ *  manifesto: vão para o índice (`anims.<anim>.stride`, `tops`). Sem navegador: o rig roda no Node (measure.mjs). */
+const measured = new Map();
+function measureOf(m) {
+  if (!measured.has(m.id)) {
+    const pf = posesOf(m);
+    const poses = { main: pf.main ? JSON.parse(readRel(pf.main)) : null, rider: pf.rider ? JSON.parse(readRel(pf.rider)) : null };
+    measured.set(m.id, measureUnit(m, poses));
+  }
+  return measured.get(m.id);
+}
+
 function packAll(opts, manifests, hashes) {
   const outDir = path.resolve(ROOT, opts.out);
   fs.mkdirSync(outDir, { recursive: true });
@@ -367,6 +380,11 @@ function packAll(opts, manifests, hashes) {
           a.sizes ??= {};
           a.sizes[String(scale)] = { sourceSize: { w: G.w, h: G.h }, anchor: G.anchor };
           a.anims = animSummary(m);
+          const me = m.kind === 'unit' ? measureOf(m) : null;
+          if (me) {
+            for (const [anim, st] of Object.entries(me.strides)) if (a.anims[anim] && st > 0) a.anims[anim].stride = st;
+            a.tops = me.tops;
+          }
           if (m.footprint) a.footprint = m.footprint;
         }
       }

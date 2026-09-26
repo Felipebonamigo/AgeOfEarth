@@ -110,6 +110,14 @@ export function runCheck(root: string): CheckResult {
     const expected = all.map((f) => f.name);
     // ícones: sem sombra, fora dos estados; `glow` (sobreposição aditiva do portal dos titãs): só cor, sem sombra
     const bodyFrames = all.filter((f) => !f.icon && f.anim !== 'glow').map((f) => f.name);
+    if (m.kind === 'unit' && m.source?.type === 'param') {
+      // revisão da Etapa 4: passada das animações de andar (o renderizador avança o quadro pela distância) e topo do corpo
+      // por direção (barra de vida), medidos no rig pelo bake (measure.mjs)
+      const an = (asset.anims ?? {}) as Record<string, { stride?: number }>;
+      for (const a of ['walk', 'run', 'carry']) if (m.anims?.[a] && !((an[a]?.stride ?? 0) > 0)) errors.push(`${m.id}: ${a} sem passada (stride) no índice — reempacote (art:bake --pack-only)`);
+      const tops = (asset as { tops?: number[] }).tops;
+      if (!Array.isArray(tops) || tops.length !== 8 || !tops.every((v) => v > 0)) errors.push(`${m.id}: tops (topo do corpo nas 8 direções) ausente no índice`);
+    }
     if (m.kind === 'building') {
       // Etapa 3: estados, variantes e ícone declarados no índice como no manifesto
       if (JSON.stringify(asset.variants ?? null) !== JSON.stringify(m.variants ?? null)) errors.push(`${m.id}: variants do índice ≠ manifesto`);
@@ -134,6 +142,8 @@ export function runCheck(root: string): CheckResult {
       if (m.team) {
         const t = expected.filter((n) => team.frames.has(n)).length;
         if (t === 0) errors.push(`${m.id} ${scale}×: team = true mas nenhum quadro de máscara`);
+        // unidades: todo quadro com máscara (revisão da Etapa 4: a cor de time fica num elemento sempre à vista)
+        else if (t < expected.length && m.kind === 'unit') errors.push(`${m.id} ${scale}×: ${expected.length - t} quadros sem máscara de time (ex.: ${expected.filter((n) => !team.frames.has(n)).slice(0, 3).join(', ')})`);
         else if (t < expected.length) warnings.push(`${m.id} ${scale}×: ${expected.length - t} quadros sem máscara de time (parte de time escondida na pose)`);
       } else if (team.frames.size) errors.push(`${m.id} ${scale}×: team = false mas há máscara`);
       if (m.shadow) {

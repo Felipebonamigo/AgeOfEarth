@@ -131,7 +131,7 @@ describe.skipIf(!hasArt)('atlas do lote heróis', () => {
     }
   });
 
-  it('a zoom 1: pé na âncora, sombra para SE, altura perto da do hoplita e silhuetas ≥ 36 % distintas (entre si, do hoplita, do cidadão e do lote 1)', () => {
+  it('a zoom 1: pé na âncora, sombra para SE, altura perto da do hoplita e silhuetas ≥ 36 % distintas nas 8 direções, parados e andando (entre si, do hoplita, do cidadão e do lote 1)', () => {
     const imgs = new Map<string, PNG>();
     const frameOf = (pass: string, name: string) => {
       for (const a of manifest.atlases) if (a.group === 'units' && a.scale === 1 && a.pass === pass) {
@@ -143,10 +143,10 @@ describe.skipIf(!hasArt)('atlas do lote heróis', () => {
       return null;
     };
     const W = 112, H = 112, AX = 56, AY = 84;
-    const compose = (id: string, anim: string, dir: number, pass = 'color') => {
+    const compose = (id: string, anim: string, dir: number, pass = 'color', frame = 0) => {
       const out = new Float32Array(W * H * 4);
       const put = (p: string, tint: number | null) => {
-        const r = frameOf(p, unitFrameName(id, anim, dir, 0)); if (!r) return;
+        const r = frameOf(p, unitFrameName(id, anim, dir, frame)); if (!r) return;
         const { f, img, k } = r;
         const ox = Math.round(AX - (f.anchor!.x * f.sourceSize.w - f.spriteSourceSize.x) * k), oy = Math.round(AY - (f.anchor!.y * f.sourceSize.h - f.spriteSourceSize.y) * k);
         for (let y = 0; y < f.frame.h * k; y++) for (let x = 0; x < f.frame.w * k; x++) {
@@ -179,8 +179,13 @@ describe.skipIf(!hasArt)('atlas do lote heróis', () => {
     }
     // integração da Etapa 4: também contra os humanos a pé do lote distância-cerco (peltasta e arqueiro cretense)
     const others = ['hoplite', 'villager', 'militia', 'hypaspist', 'myrmidon', 'toxotes', 'peltast', 'cretan_archer'].filter((id) => manifest.assets[id]);
-    for (const dir of [1, 2]) for (let i = 0; i < HEROES.length; i++) for (const b of [...HEROES.slice(i + 1), ...others]) {
-      const A = compose(HEROES[i], 'idle', dir), B = compose(b, 'idle', dir);
+    // nas 8 direções (revisão da Etapa 4): de costas Jasão e Odisseu eram 28 % distintos — o velo agora cobre o alto das
+    // costas de Jasão; parado e andando (os 8 quadros do andar, quadro a quadro)
+    const frames = (id: string, anim: string) => (anim === 'walk' ? manifest.assets[id].anims.walk.frames : 1);
+    for (const anim of ['idle', 'walk']) for (let dir = 0; dir < 8; dir++) for (let i = 0; i < HEROES.length; i++) for (const b of [...HEROES.slice(i + 1), ...others]) {
+      const n = Math.min(frames(HEROES[i], anim), frames(b, anim));
+      for (let f = 0; f < n; f++) {
+      const A = compose(HEROES[i], anim, dir, 'color', f), B = compose(b, anim, dir, 'color', f);
       let union = 0, diff = 0;
       for (let k = 0; k < W * H; k++) {
         const oa = opaque(A, k), ob = opaque(B, k);
@@ -188,7 +193,8 @@ describe.skipIf(!hasArt)('atlas do lote heróis', () => {
         union++;
         if (oa !== ob || Math.max(Math.abs(A[k * 4] - B[k * 4]), Math.abs(A[k * 4 + 1] - B[k * 4 + 1]), Math.abs(A[k * 4 + 2] - B[k * 4 + 2])) > 60) diff++;
       }
-      expect(diff / union, `${HEROES[i]} × ${b} (dir ${dir}): ${(100 * diff / union).toFixed(0)} % diferentes`).toBeGreaterThanOrEqual(0.36);
+      expect(diff / union, `${HEROES[i]} × ${b} (${anim} dir ${dir} quadro ${f}): ${(100 * diff / union).toFixed(0)} % diferentes`).toBeGreaterThanOrEqual(0.36);
+      }
     }
   });
 });
