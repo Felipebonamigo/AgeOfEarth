@@ -40,8 +40,10 @@ export interface ScenarioDef {
 }
 
 export type ScenarioHudDef =
-  | { type: 'countdown'; seconds: number; while: (state: GameState) => boolean; label: string }
-  | { type: 'progress'; entity: (state: GameState) => number | -1; max: number; label: string };   // entity: progresso (s) da obra ou -1 se não existe/já concluída
+  // start (G4, fromVar): instante (s) a partir do qual a contagem corre; null = ainda não marcado (não aparece)
+  | { type: 'countdown'; seconds: number; while: (state: GameState) => boolean; label: string; start?: (state: GameState) => number | null }
+  // entity: valor atual (s de obra do edifício ou a variável, G4) ou -1 para esconder; maxOf (G4): máximo dinâmico; format: como escrever
+  | { type: 'progress'; entity: (state: GameState) => number | -1; max: number; label: string; maxOf?: (state: GameState) => number; format?: 'percent' | 'count' | 'time' };
 
 export interface ScenarioState {
   id: string;

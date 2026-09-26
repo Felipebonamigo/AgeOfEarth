@@ -29,18 +29,19 @@
   "config": {
     "players": [
       { "name": "Argos", "god": "zeus", "isAI": false, "difficulty": "normal", "team": 0 },
-      { "name": "Culto de Cronos", "god": "hades", "isAI": true, "difficulty": "normal", "team": 1 },
-      { "name": "Guardiões do Cáucaso", "god": "hades", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
+      { "name": { "pt": "Culto de Cronos", "en": "Cult of Cronus" }, "god": "hades", "isAI": true, "difficulty": "normal", "team": 1 },
+      { "name": { "pt": "Guardiões do Cáucaso", "en": "Guardians of the Caucasus" }, "god": "hades", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
     ],
     "startingAge": 2,
     "startingResources": { "food": 600, "wood": 600, "gold": 500, "favor": 60, "knowledge": 150 },
-    "startKit": [false, true, false]
+    "startKit": [false, true, false],
+    "forbid": { "buildings": ["titan_gate"] }
   },
   "vars": { "aguia_s": 0, "colonia_s": 0 },
   "setup": [
     { "do": "set", "player": 0, "minorGods": ["athena", "apollo"] },
     { "do": "set", "player": 1, "techs": ["masonry"], "resources": { "food": 300, "wood": 300, "gold": 200, "favor": 0, "knowledge": 0 } },
-    { "do": "spawn", "player": 2, "units": ["manticore"], "at": { "at": [46, 16] }, "tag": "aguia" }
+    { "do": "spawn", "player": 2, "units": ["manticore"], "at": { "at": [46, 16] }, "tag": "aguia", "name": { "pt": "Águia do Cáucaso", "en": "Eagle of the Caucasus" } }
   ],
   "objectives": [
     { "id": "colonia", "text": { "pt": "Funde a colônia de Argos (Centro Cívico)", "en": "Found the Argive colony (Town Center)" },
@@ -125,21 +126,16 @@
       { "do": "addVar", "name": "aguia_s", "delta": 1 } ] },
     { "id": "aguia_renasce", "repeat": true, "when": { "all": [ { "fired": "aguia_cai" }, { "difficulty": "hard" }, { "var": "aguia_s", "gte": 180 }, { "not": { "fired": "libertado" } } ] }, "then": [
       { "do": "setVar", "name": "aguia_s", "value": 0 },
-      { "do": "spawn", "player": 2, "units": ["manticore"], "at": { "at": [46, 16] }, "tag": "aguia" },
+      { "do": "spawn", "player": 2, "units": ["manticore"], "at": { "at": [46, 16] }, "tag": "aguia", "name": { "pt": "Águia do Cáucaso", "en": "Eagle of the Caucasus" } },
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
         "text": { "pt": "A Águia volta ao rochedo, como voltava todo dia. No Cáucaso, até a fome é imortal.", "en": "The Eagle returns to the rock, as she returned every day. In the Caucasus, even hunger is immortal." } } ] },
     { "id": "hefesto_altar", "when": { "objective": "hefesto", "is": "done" }, "then": [
       { "do": "set", "player": 0, "minorGods": ["hephaestus"] },
       { "do": "say", "speaker": { "pt": "Hefesto", "en": "Hephaestus" }, "icon": "⚒️",
         "text": { "pt": "Fui eu que forjei aquelas correntes. Seis elos cada, eu contei. Leve minha Abundância e não conte a meu pai.", "en": "I forged those chains. Six links each, I counted. Take my Plenty and don't tell my father." } } ] },
-    { "id": "aviso_portal", "when": { "entity": { "player": 0, "type": "titan_gate" }, "exists": true }, "then": [
+    { "id": "aviso_portal", "when": { "value": { "stat": "age", "player": 0 }, "gte": 4 }, "then": [
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
         "text": { "pt": "O fogo dos Titãs não se acende no Cáucaso, arconte. Não por suas mãos. Não ainda.", "en": "The Titans' fire is not lit in the Caucasus, archon. Not by your hands. Not yet." } } ] },
-    { "id": "sem_portal_argos", "repeat": true, "when": { "entity": { "player": 0, "type": "titan_gate" }, "exists": true }, "then": [
-      { "do": "kill", "entity": { "player": 0, "type": "titan_gate" } },
-      { "do": "give", "player": 0, "resources": { "food": 600, "wood": 600, "gold": 600, "favor": 200 } } ] },
-    { "id": "sem_portal_culto", "repeat": true, "when": { "entity": { "player": 1, "type": "titan_gate" }, "exists": true }, "then": [
-      { "do": "kill", "entity": { "player": 1, "type": "titan_gate" } } ] },
     { "id": "colonia_relogio", "repeat": true, "when": { "objective": "colonia", "is": "done" }, "then": [
       { "do": "addVar", "name": "colonia_s", "delta": 1 } ] },
     { "id": "contra_ataque", "repeat": true, "when": { "var": "colonia_s", "gte": 300 }, "then": [

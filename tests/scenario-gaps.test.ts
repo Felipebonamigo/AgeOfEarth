@@ -1,21 +1,33 @@
 // Lacunas do motor de cenários (docs/STORY.md §6): G0 registro da campanha, G1 objetivos ocultos avaliados, G2 fim de
 // partida em cenário (eliminação sem vencedor global, koth/wonderHeld/kingAlive/alive), G3 dificuldade, G5 tags de grupo
 // em entidades do mapa e EntityRef.pick, G7 lint (avisos) — e as correções do prólogo (m3: aliados no time 0; m1: derrota).
+// Ato III: G4 HUD e tempo relativo (progress { var }, countdown { fromVar }, Value { time }), G6 remove / order garrison /
+// maxAge / forbid (comandos, IA e HUD), G8 nomes por entidade e de facção, G9 vida de chefe (hp, hpFloor, damage, heal).
 import { describe, it, expect, afterEach } from 'vitest';
 import { TICK_RATE } from '../src/core/constants';
 import { createGame, tick } from '../src/core/sim/game';
-import { buildingsOf, placeBuilding, spawnUnit, unitsOf } from '../src/core/sim/entities';
-import { lintScenario, RESERVED_SCENARIO_IDS, scenarioErrors, validateScenario, type Action, type Condition, type ScenarioFile } from '../src/core/scenario/schema';
+import { buildingLimitOk, buildingsOf, placeBuilding, spawnUnit, unitsOf } from '../src/core/sim/entities';
+import { lintScenario, RESERVED_SCENARIO_IDS, scenarioErrors, validateScenario, type Action, type Condition, type EntityRef, type ScenarioFile, type Value } from '../src/core/scenario/schema';
+import { applyCommand, canAdvanceAge, canResearch, canTrain } from '../src/core/sim/commands';
+import { isForbidden, maxAgeOf } from '../src/core/sim/restrictions';
+import { applyDamage, killUnit } from '../src/core/sim/combat';
+import { usePower } from '../src/core/sim/powers';
+import { deserialize, serialize } from '../src/core/serialize';
+import { stateHash } from '../src/core/net/hash';
+import { entityDisplayName, playerDisplayName } from '../src/core/scenario/text';
+import { scenarioHudHtml } from '../src/ui/scenario-hud';
+import { setLocale } from '../src/i18n';
+import { MAJOR_GODS, MAX_AGE, UNITS } from '../src/core/data';
 import { clearScenarioCache, compileScenario, gameConfigFor } from '../src/core/scenario/compile';
 import { CAMPAIGN, PROLOGUE, SCENARIOS, campaignMission, campaignMissions, isCampaignMission, missionConfig, nextCampaignMission } from '../src/core/scenario/campaign';
 import { CAMPAIGN_PLAN } from '../src/core/scenario/official';
-import { removeAllOf, tagIds } from '../src/core/scenario/helpers';
+import { military, removeAllOf, tagIds, townCenter } from '../src/core/scenario/helpers';
 import { isScenarioPuppet } from '../src/core/scenario/runner';
 import { isEnemy } from '../src/core/sim/queries';
 import { generateMap } from '../src/core/map/mapgen';
 import { mapToData } from '../src/core/map/fixed';
 import { ACHIEVEMENTS } from '../src/game/achievements';
-import type { GameState } from '../src/core/types';
+import type { Forbid, GameState, Unit } from '../src/core/types';
 import type { TriggerCtx } from '../src/core/scenario/types';
 
 function mk(over: Partial<ScenarioFile> = {}): ScenarioFile {
@@ -307,4 +319,355 @@ describe('correções do prólogo', () => {
     expect(hitArgos).toBe(0);
     expect(hitCult).toBeGreaterThan(0);
   });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// G4 · G6 · G8 · G9 (Ato III): HUD e tempo relativo; remove, guarnição por roteiro e travas; nomes; vida de chefe
+// ---------------------------------------------------------------------------------------------------------------
+
+const P2 = (over: Partial<ScenarioFile['config']['players'][number]>[] = [{}, {}]): ScenarioFile['config']['players'] =>
+  mk().config.players.map((p, i) => ({ ...p, ...(over[i] ?? {}) }));
+
+describe('G4: HUD e tempo relativo', () => {
+  it('Value { time: true } marca um instante com setVar e { time: { gte: { add: [ { var }, n ] } } } conta a partir dele', () => {
+    const s = game(mk({ triggers: [
+      { id: 'marca', when: { time: { gte: 3 } }, then: [{ do: 'setVar', name: 't0', value: { time: true } }] },
+      { id: 'depois', when: { all: [{ fired: 'marca' }, { time: { gte: { add: [{ var: 't0' }, 4] } } }] }, then: [{ do: 'setVar', name: 'ok', value: { add: [{ time: true }, 0] } }] },
+    ] }));
+    run(s, 10 * TICK_RATE);
+    expect(s.scenario!.vars.t0).toBe(3); expect(s.scenario!.vars.ok).toBe(7);
+    expect(cond(s, { value: { time: true }, eq: 0 })).toBe(true);   // no contexto do teste (ctx.seconds = 0)
+  });
+  it('progress { var, max } (fixo ou { var }), com format e while; countdown { fromVar } só aparece depois da marca; rótulos PT/EN', () => {
+    const f = mk({
+      vars: { limite: 20 },
+      triggers: [
+        { id: 'marca', when: { time: { gte: 2 } }, then: [{ do: 'setVar', name: 't0', value: { time: true } }] },
+        { id: 'conta', repeat: true, when: { time: { gte: 1 } }, then: [{ do: 'addVar', name: 'guarda', delta: 1 }] },
+      ],
+      hud: [
+        { type: 'countdown', seconds: 60, fromVar: 't0', while: { time: { gte: 0 } }, label: { pt: 'Naus zarpam', en: 'Ships sail' } },
+        { type: 'progress', var: 'guarda', max: { var: 'limite' }, format: 'count', label: { pt: 'Embarcados', en: 'Boarded' } },
+        { type: 'progress', var: 'guarda', max: 10, format: 'time', while: { var: 'guarda', gte: 3 }, label: 'Vigília' },
+        { type: 'progress', var: 'guarda', max: 8, label: 'Pct' },
+      ],
+    });
+    expect(validateScenario(f)).toEqual([]); expect(lintScenario(f)).toEqual([]);
+    const s = game(f);
+    const def = compileScenario(f);
+    run(s, 1 * TICK_RATE);
+    let html = scenarioHudHtml(def, s);
+    expect(html).not.toContain('Naus zarpam');       // fromVar ainda sem marca
+    expect(html).not.toContain('Vigília');           // while falso
+    expect(html).toContain('Embarcados: 1/20');
+    run(s, 4 * TICK_RATE);
+    html = scenarioHudHtml(def, s);
+    expect(html).toMatch(/Naus zarpam: 0:5[6-7]/);  // 60 − (5 − 2)
+    expect(html).toContain('Embarcados: 5/20'); expect(html).toContain('width:25%');
+    expect(html).toContain('Vigília: 0:05 / 0:10');
+    expect(html).toContain('Pct: 63%');
+    const bar = def.hud![1];
+    expect(bar.type === 'progress' && bar.entity(s)).toBe(5);
+    expect(bar.type === 'progress' && bar.maxOf!(s)).toBe(20);
+    setLocale('en');
+    try { const en = scenarioHudHtml(compileScenario(f), s); expect(en).toMatch(/Ships sail: 0:5[6-7]/); expect(en).toContain('Boarded: 5/20'); }
+    finally { setLocale('pt'); }
+    // rótulo vindo de arquivo (ou de outro par) é escapado
+    const evil = scenarioHudHtml(compileScenario(mk({ vars: { v: 1 }, hud: [{ type: 'progress', var: 'v', max: 2, label: '<img src=x onerror=alert(1)>' }] })), s);
+    expect(evil).toContain('&lt;img'); expect(evil).not.toContain('<img');
+  });
+  it('validação e lint dos campos novos do HUD', () => {
+    const lbl = 'x';
+    expect(paths(mk({ hud: [{ type: 'progress', var: 'v', entity: { tag: 'g' }, max: 5, label: lbl } as unknown as NonNullable<ScenarioFile['hud']>[number]] }))).toEqual(['hud[0]']);
+    expect(paths(mk({ hud: [{ type: 'progress', max: 5, label: lbl } as unknown as NonNullable<ScenarioFile['hud']>[number]] }))).toEqual(['hud[0]']);
+    expect(paths(mk({ hud: [{ type: 'progress', var: 'v', max: 0, label: lbl }] }))).toEqual(['hud[0].max']);
+    expect(paths(mk({ hud: [{ type: 'progress', var: 'v', max: { stat: 'age' }, label: lbl } as unknown as NonNullable<ScenarioFile['hud']>[number]] }))).toEqual(['hud[0].max.player']);
+    expect(paths(mk({ hud: [{ type: 'progress', var: 'v', max: 5, label: lbl, format: 'barra' } as unknown as NonNullable<ScenarioFile['hud']>[number]] }))).toEqual(['hud[0].format']);
+    expect(paths(mk({ hud: [{ type: 'progress', var: 'v', max: 5, label: lbl, while: { magia: 1 } as unknown as Condition }] }))).toEqual(['hud[0].while']);
+    expect(paths(mk({ hud: [{ type: 'countdown', seconds: 9, while: { time: { gte: 0 } }, label: lbl, fromVar: 3 } as unknown as NonNullable<ScenarioFile['hud']>[number]] }))).toEqual(['hud[0].fromVar']);
+    expect(paths(mk({ triggers: [{ id: 't', when: { time: { gte: 1 } }, then: [{ do: 'setVar', name: 'a', value: { time: 'agora' } as unknown as Value }] }] }))).toEqual(['triggers[0].then[0].value.time']);
+    // lint: variável do HUD que ninguém escreve
+    expect(warnPaths(mk({ hud: [{ type: 'countdown', seconds: 9, while: { time: { gte: 0 } }, label: lbl, fromVar: 'nunca' }, { type: 'progress', var: 'nada', max: 5, label: lbl }] }))).toEqual(['hud[0].fromVar', 'hud[1].var']);
+    expect(warnPaths(mk({ vars: { nada: 0 }, triggers: [{ id: 't', when: { time: { gte: 1 } }, then: [{ do: 'setVar', name: 'nunca', value: { time: true } }] }],
+      hud: [{ type: 'countdown', seconds: 9, while: { time: { gte: 0 } }, label: lbl, fromVar: 'nunca' }, { type: 'progress', var: 'nada', max: 5, label: lbl }] }))).toEqual([]);
+  });
+});
+
+describe('G6: remove, guarnição por roteiro, maxAge e forbid', () => {
+  it('remove: some na hora, sem morte, abate, escombros nem estatística (kill gera morte)', () => {
+    const s = game(mk());
+    act(s, [
+      { do: 'spawn', player: 0, units: ['hoplite', 'hoplite'], at: { tc: 0, dy: 5 }, tag: 'h' },
+      { do: 'place', player: 0, building: 'house', at: { tc: 0, dx: 6 }, tag: 'casa' },
+    ]);
+    const [a, b] = tagIds(s, 'h').map((id) => s.units.get(id)!);
+    const casa = s.buildings.get(s.scenario!.vars['#casa'])!;
+    const pop = s.players[0].pop, losses = s.players[0].stats.losses, lost = s.players[0].stats.buildingsLost, fx = s.effects.length;
+    act(s, [{ do: 'remove', entity: { tag: 'h' } }, { do: 'remove', entity: { tag: 'casa' } }]);
+    expect(s.units.has(a.id)).toBe(false); expect(s.buildings.has(casa.id)).toBe(false);
+    expect(s.players[0].pop).toBe(unitsOf(s, 0).reduce((n, u) => n + UNITS[u.type].pop, 0)); expect(s.players[0].pop).toBeLessThan(pop); expect(s.players[0].stats.losses).toBe(losses); expect(s.players[0].stats.buildingsLost).toBe(lost);
+    expect(s.effects.length).toBe(fx);   // sem 'death' nem 'collapse'
+    expect(s.map.buildingAt[casa.ty * s.map.w + casa.tx]).toBe(-1);
+    act(s, [{ do: 'kill', entity: { tag: 'h', pick: 'alive' } }]);
+    expect(b.dead).toBe(true); expect(s.players[0].stats.losses).toBe(losses + 1);
+    expect(s.effects.some((e) => e.type === 'death')).toBe(true);
+    expect(paths(mk({ setup: [{ do: 'remove', entity: { bogus: 1 } as unknown as EntityRef }] }))).toEqual(['setup[0].entity']);
+  });
+  it('order garrison / ungarrison (com alvo ou de onde estiver); guarnição em edifício inimigo não entra', () => {
+    const s = game(mk());
+    const tc = townCenter(s, 0)!;
+    act(s, [
+      { do: 'spawn', player: 0, units: ['hoplite', 'hoplite', 'toxotes'], at: { tc: 0, dy: 6 }, tag: 'g' },
+      { do: 'order', units: { tag: 'g' }, order: { type: 'garrison', target: { tc: 0 } } },
+    ]);
+    run(s, 12 * TICK_RATE);
+    const g = () => tagIds(s, 'g').map((id) => s.units.get(id)!);
+    expect(g().every((u) => u.inside === tc.id)).toBe(true); expect(tc.garrison.length).toBe(3);
+    act(s, [{ do: 'order', units: { player: 0, type: 'toxotes' }, order: { type: 'ungarrison', target: { tc: 0 } } }]);
+    expect(g().filter((u) => u.inside === -1).map((u) => u.type)).toEqual(['toxotes']);
+    act(s, [{ do: 'order', units: { tag: 'g' }, order: { type: 'ungarrison' } }]);   // sem alvo: sai de onde estiver
+    expect(g().every((u) => u.inside === -1)).toBe(true); expect(tc.garrison.length).toBe(0);
+    act(s, [{ do: 'order', units: { tag: 'g' }, order: { type: 'garrison', target: { tc: 1 } } }]);
+    run(s, 4 * TICK_RATE);
+    expect(g().every((u) => u.inside === -1)).toBe(true);
+    expect(paths(mk({ setup: [{ do: 'order', units: { tag: 'g' }, order: { type: 'garrison' } as unknown as { type: 'garrison'; target: EntityRef } }] }))).toEqual(['setup[0].order.target']);
+    expect(paths(mk({ setup: [{ do: 'order', units: { tag: 'g' }, order: { type: 'ungarrison', target: { tc: 9 } } }] }))).toEqual(['setup[0].order.target.tc']);
+    expect(paths(mk({ setup: [{ do: 'order', units: { tag: 'g' }, order: { type: 'ungarrison' } }] }))).toEqual([]);
+  });
+  it('maxAge e forbid (globais e por jogador) recusam os comandos com "Proibido nesta missão"; o roteiro ainda pode pôr', () => {
+    const f = mk({ config: { ...mk().config, startingAge: 1, maxAge: 1, forbid: { buildings: ['temple'], units: ['hoplite'], techs: ['harvest1'] },
+      players: P2([{ forbid: { units: ['toxotes'] } }, { maxAge: 3 }]) } });
+    expect(validateScenario(f)).toEqual([]);
+    const s = game(f);
+    const [p0, p1] = s.players;
+    expect(maxAgeOf(s, 0)).toBe(1); expect(maxAgeOf(s, 1)).toBe(3);
+    expect(isForbidden(s, 0, 'units', 'toxotes')).toBe(true); expect(isForbidden(s, 1, 'units', 'toxotes')).toBe(false);   // por jogador
+    expect(isForbidden(s, 1, 'units', 'hoplite')).toBe(true);                                                              // global vale para todos
+    const rich = { food: 9000, wood: 9000, gold: 9000, favor: 900, knowledge: 9000 };
+    p0.resources = { ...rich }; p1.resources = { ...rich };
+    const tc = townCenter(s, 0)!;
+    placeBuilding(s, 0, 'academy', tc.tx + 7, tc.ty, true); p0.techs.push('civic1', 'science1');   // requisitos da Heroica cumpridos
+    const forbidden = { ok: false, reason: 'Proibido nesta missão' };
+    expect(canAdvanceAge(s, p0, tc)).toEqual(forbidden);
+    expect(applyCommand(s, { type: 'advanceAge', player: 0, buildingId: tc.id, minorGod: MAJOR_GODS.zeus.minorGods[1][0] })).toEqual(forbidden);
+    expect(tc.queue.length).toBe(0);
+    expect(buildingLimitOk(s, p0, 'temple')).toEqual(forbidden); expect(buildingLimitOk(s, p1, 'temple')).toEqual(forbidden);
+    const v = unitsOf(s, 0).find((u) => u.type === 'villager')!;
+    expect(applyCommand(s, { type: 'build', player: 0, ids: [v.id], building: 'temple', tx: tc.tx - 8, ty: tc.ty })).toEqual(forbidden);
+    expect(p0.resources.wood).toBe(9000);
+    const bar = placeBuilding(s, 0, 'barracks', tc.tx, tc.ty + 7, true);   // o roteiro/mapa ainda põe edifícios (trava só de comandos)
+    expect(canTrain(s, p0, bar, 'hoplite')).toEqual(forbidden); expect(canTrain(s, p0, bar, 'toxotes')).toEqual(forbidden);
+    expect(applyCommand(s, { type: 'train', player: 0, buildingId: bar.id, unit: 'hoplite' })).toEqual(forbidden);
+    const gran = placeBuilding(s, 0, 'granary', tc.tx - 6, tc.ty + 6, true);
+    expect(canResearch(s, p0, gran, 'harvest1')).toEqual(forbidden);
+    expect(applyCommand(s, { type: 'research', player: 0, buildingId: gran.id, tech: 'harvest1' })).toEqual(forbidden);
+    setLocale('en');
+    try { expect(buildingLimitOk(s, p0, 'temple').reason).toBe('Forbidden in this mission'); } finally { setLocale('pt'); }
+    // save/load: as travas viajam na config
+    const s2 = deserialize(serialize(s));
+    expect(buildingLimitOk(s2, s2.players[0], 'temple')).toEqual(forbidden); expect(maxAgeOf(s2, 0)).toBe(1); expect(maxAgeOf(s2, 1)).toBe(3);
+    // config sem travas: nada muda
+    const free = game(mk());
+    expect(maxAgeOf(free, 0)).toBe(MAX_AGE); expect(buildingLimitOk(free, free.players[0], 'temple').ok).toBe(true);
+  });
+  it('a IA respeita maxAge e forbid: não avança, não constrói, não treina e não pesquisa o proibido (e segue jogando)', () => {
+    const base = (players: ScenarioFile['config']['players']) => mk({ map: { gen: { mapSize: 'small', seed: 777 } }, config: { ...mk().config, startingAge: 1,
+      startingResources: { food: 6000, wood: 6000, gold: 6000, favor: 400, knowledge: 3000 }, players } });
+    const ai = { isAI: true, difficulty: 'hard' as const, team: 1 };
+    const control = game(base(P2([{}, ai])));
+    const locked = game(base(P2([{}, { ...ai, maxAge: 1, forbid: { buildings: ['stable', 'academy'], units: ['hoplite'], techs: ['phalanx', 'wheel'] } }])));
+    let ageQueued = false;
+    for (let i = 0; i < 6 * 60 * TICK_RATE; i++) {
+      tick(control); tick(locked);
+      if (i % TICK_RATE === 0 && buildingsOf(locked, 1).some((b) => b.queue.some((q) => q.kind === 'age'))) ageQueued = true;
+    }
+    const has = (s: GameState, type: string) => buildingsOf(s, 1).some((b) => b.type === type);
+    const trained = (s: GameState, type: string) => unitsOf(s, 1).some((u) => u.type === type) || buildingsOf(s, 1).some((b) => b.queue.some((q) => q.kind === 'unit' && q.id === type));
+    // sem travas, a mesma IA faz tudo isso em 6 min
+    expect(control.players[1].age).toBeGreaterThanOrEqual(2);
+    expect(has(control, 'stable')).toBe(true); expect(has(control, 'academy')).toBe(true);
+    expect(trained(control, 'hoplite')).toBe(true);
+    expect(control.players[1].techs).toEqual(expect.arrayContaining(['phalanx', 'wheel']));
+    // com travas: nada do proibido, e a IA continua treinando e pesquisando o resto
+    expect(locked.players[1].age).toBe(1); expect(ageQueued).toBe(false);
+    expect(has(locked, 'stable')).toBe(false); expect(has(locked, 'academy')).toBe(false);
+    expect(trained(locked, 'hoplite')).toBe(false);
+    expect(locked.players[1].techs).not.toContain('phalanx'); expect(locked.players[1].techs).not.toContain('wheel');
+    expect(unitsOf(locked, 1).filter((u) => military(u)).length).toBeGreaterThan(5);
+    expect(locked.players[1].techs.length).toBeGreaterThan(0);
+  }, 120_000);
+  it('validação de maxAge e forbid', () => {
+    const cfg = mk().config;
+    expect(paths(mk({ config: { ...cfg, maxAge: 7 } }))).toEqual(['config.maxAge']);
+    expect(paths(mk({ config: { ...cfg, maxAge: 1.5 } }))).toEqual(['config.maxAge']);
+    expect(paths(mk({ config: { ...cfg, startingAge: 3, maxAge: 2 } }))).toEqual(['config.maxAge']);
+    expect(paths(mk({ config: { ...cfg, forbid: { buildings: ['castelo'], units: 'hoplite', magia: [] } as unknown as Forbid } }))).toEqual(['config.forbid.buildings[0]', 'config.forbid.units', 'config.forbid.magia']);
+    expect(paths(mk({ config: { ...cfg, forbid: ['temple'] as unknown as Forbid } }))).toEqual(['config.forbid']);
+    expect(paths(mk({ config: { ...cfg, players: P2([{ maxAge: -1 }, { forbid: { techs: ['nada'], units: ['hoplite'] } }]) } }))).toEqual(['config.players[0].maxAge', 'config.players[1].forbid.techs[0]']);
+    expect(paths(mk({ config: { ...cfg, startingAge: 2, players: P2([{ maxAge: 1 }, {}]) } }))).toEqual(['config.players[0].maxAge']);
+    expect(paths(mk({ config: { ...cfg, maxAge: 4, forbid: { buildings: ['titan_gate'], units: ['cronus'], techs: ['harvest1'] }, players: P2([{ maxAge: 0 }, {}]) } }))).toEqual([]);
+  });
+});
+
+describe('G8: nomes por entidade e de facção', () => {
+  it('spawn/place { name } grava { pt, en } na entidade; o HUD resolve no idioma atual; string vira { pt }', () => {
+    const s = game(mk());
+    act(s, [
+      { do: 'spawn', player: 1, units: ['nemean_lion'], at: { tc: 1, dy: 5 }, tag: 'licaon', name: { pt: 'Lícaon, o Rei-Lobo', en: 'Lycaon, the Wolf-King' } },
+      { do: 'place', player: 0, building: 'tower', at: { tc: 0, dx: 6 }, tag: 'corrente', name: 'Corrente' },
+      { do: 'spawn', player: 0, units: ['hoplite'], at: { tc: 0, dy: 5 }, tag: 'anon' },
+    ]);
+    const lic = s.units.get(s.scenario!.vars['#licaon'])!, cor = s.buildings.get(s.scenario!.vars['#corrente'])!, anon = s.units.get(s.scenario!.vars['#anon'])!;
+    expect(lic.displayName).toEqual({ pt: 'Lícaon, o Rei-Lobo', en: 'Lycaon, the Wolf-King' });
+    expect(cor.displayName).toEqual({ pt: 'Corrente' }); expect(anon.displayName).toBeUndefined();
+    expect(entityDisplayName(lic)).toBe('Lícaon, o Rei-Lobo'); expect(entityDisplayName(anon)).toBe(UNITS.hoplite.name);
+    setLocale('en');
+    try { expect(entityDisplayName(lic)).toBe('Lycaon, the Wolf-King'); expect(entityDisplayName(cor)).toBe('Corrente'); expect(entityDisplayName(anon)).toBe('Hoplite'); }
+    finally { setLocale('pt'); }
+    // save/load: o nome viaja com a entidade; valor malformado é descartado (padrão = sem nome)
+    const s2 = deserialize(serialize(s));
+    expect(s2.units.get(lic.id)!.displayName).toEqual(lic.displayName); expect(s2.buildings.get(cor.id)!.displayName).toEqual({ pt: 'Corrente' });
+    const o = JSON.parse(serialize(s)); o.units.find((u: { id: number }) => u.id === lic.id).displayName = 5; o.units.find((u: { id: number }) => u.id === anon.id).hpFloor = 'x';
+    const s3 = deserialize(JSON.stringify(o));
+    expect(s3.units.get(lic.id)!.displayName).toBeUndefined(); expect('hpFloor' in s3.units.get(anon.id)!).toBe(false);
+  });
+  it('nome de facção { pt, en } em config.players[i].name: texto do idioma ao criar a config e nameText para o HUD', () => {
+    const f = mk({ config: { ...mk().config, players: P2([{ name: { pt: 'Argos', en: 'Argos' } }, { name: { pt: 'Culto de Cronos', en: 'Cult of Cronus' } }]) } });
+    expect(validateScenario(f)).toEqual([]);
+    const s = game(f);
+    expect(s.players[1].name).toBe('Culto de Cronos'); expect(s.config.players[1].nameText).toEqual({ pt: 'Culto de Cronos', en: 'Cult of Cronus' });
+    expect(playerDisplayName(s, 1)).toBe('Culto de Cronos');
+    setLocale('en');
+    try {
+      expect(playerDisplayName(s, 1)).toBe('Cult of Cronus');
+      expect(createGame(gameConfigFor(f)).players[1].name).toBe('Cult of Cronus');
+    } finally { setLocale('pt'); }
+    expect(playerDisplayName(game(mk()), 1)).toBe('B');   // nome simples: como antes
+  });
+  it('validação e lint de name', () => {
+    expect(paths(mk({ config: { ...mk().config, players: P2([{ name: 5 as unknown as string }, { name: { en: 'x' } as unknown as string }]) } }))).toEqual(['config.players[0].name', 'config.players[1].name']);
+    expect(paths(mk({ setup: [{ do: 'spawn', player: 0, units: ['hoplite'], at: { tc: 0 }, name: 7 as unknown as string }, { do: 'place', player: 0, building: 'house', at: { tc: 0 }, name: { pt: 1 } as unknown as string }] }))).toEqual(['setup[0].name', 'setup[1].name']);
+    expect(warnPaths(mk({ setup: [{ do: 'spawn', player: 0, units: ['hoplite'], at: { tc: 0 }, name: 'Sem inglês' }, { do: 'place', player: 0, building: 'house', at: { tc: 0 }, name: { pt: 'Só pt' } }, { do: 'spawn', player: 0, units: ['hoplite'], at: { tc: 0 }, name: { pt: 'a', en: 'b' } }] })))
+      .toEqual(['setup[0].name', 'setup[1].name.en']);
+  });
+});
+
+describe('G9: vida de chefe', () => {
+  const boss = (s: GameState) => { act(s, [{ do: 'spawn', player: 1, units: ['minotaur'], at: { tc: 1, dy: 6 }, tag: 'chefe' }]); return s.units.get(s.scenario!.vars['#chefe'])!; };
+  it('condição { entity, hp } compara a fração da vida (unidade e edifício); ausente = falso', () => {
+    const s = game(mk());
+    const b = boss(s);
+    b.hp = b.maxHp * 0.4;
+    expect(cond(s, { entity: { tag: 'chefe' }, hp: { lte: 0.5 } })).toBe(true);
+    expect(cond(s, { entity: { tag: 'chefe' }, hp: { gt: 0.5 } })).toBe(false);
+    expect(cond(s, { entity: { tag: 'chefe' }, exists: true, hp: { gte: 0.4, lt: 0.41 } })).toBe(true);
+    expect(cond(s, { entity: { tag: 'nada' }, hp: { lte: 1 } })).toBe(false);
+    expect(cond(s, { not: { entity: { tag: 'nada' }, hp: { lte: 1 } } })).toBe(true);
+    const tc = townCenter(s, 0)!; tc.hp = tc.maxHp * 0.25;
+    expect(cond(s, { entity: { tc: 0 }, hp: { lt: 0.3 } })).toBe(true);
+    expect(cond(s, { entity: { tc: 0 }, hp: { lt: { var: 'limiar' } } })).toBe(false);   // valor dinâmico (var ausente = 0)
+  });
+  it('hpFloor: dano, morte instantânea de inimigo e atrito param no piso; abaixo do piso não cura; value 0 tira; kill do roteiro mata', () => {
+    const s = game(mk());
+    const b = boss(s);
+    act(s, [{ do: 'hpFloor', entity: { tag: 'chefe' }, value: 0.3 }]);
+    expect(b.hpFloor).toBe(0.3);
+    applyDamage(s, b, 99999, 0);
+    expect(b.dead).toBe(false); expect(b.hp).toBeCloseTo(b.maxHp * 0.3);
+    killUnit(s, b, 0);   // morte instantânea de inimigo (Raio, Maldição, atrito): só até o piso
+    expect(b.dead).toBe(false); expect(b.hp).toBeCloseTo(b.maxHp * 0.3);
+    b.hp = b.maxHp;
+    expect(usePower(s, s.players[0], 'bolt', undefined, undefined, b.id).ok).toBe(true);   // o Raio de Zeus mata qualquer não-Titã… menos com piso
+    expect(b.dead).toBe(false); expect(b.hp).toBeCloseTo(b.maxHp * 0.3);
+    b.hp = b.maxHp * 0.1;   // já abaixo do piso: o piso não cura, só impede descer
+    applyDamage(s, b, 50, 0);
+    expect(b.hp).toBeCloseTo(b.maxHp * 0.1);
+    // no jogo de verdade (flechas do Centro Cívico, hoplitas e atrito do território inimigo): para no piso
+    act(s, [{ do: 'hpFloor', entity: { tag: 'chefe' }, value: 0.9 }]);
+    b.hp = b.maxHp * 0.9 + 5;
+    const tc = townCenter(s, 0)!; b.x = b.px = tc.x + 3; b.y = b.py = tc.y + 3; b.path = null; b.stance = 'passive'; b.state = 'idle';
+    act(s, [{ do: 'spawn', player: 0, units: ['hoplite', 'hoplite', 'hoplite', 'hoplite'], at: { tc: 0, dy: 4 }, tag: 'caca' }, { do: 'order', units: { tag: 'caca' }, order: { type: 'attack', target: { tag: 'chefe' } } }]);
+    run(s, 8 * TICK_RATE);
+    expect(b.dead).toBe(false); expect(b.hp).toBeGreaterThanOrEqual(b.maxHp * 0.9 - 1e-6); expect(b.hp).toBeLessThan(b.maxHp * 0.9 + 1);
+    act(s, [{ do: 'hpFloor', entity: { tag: 'chefe' }, value: 0 }]);
+    expect(b.hpFloor).toBeUndefined();
+    applyDamage(s, b, 99999, 0);
+    expect(b.dead).toBe(true);
+    // kill do roteiro atravessa o piso; edifício também tem piso
+    const c = boss(s); act(s, [{ do: 'hpFloor', entity: { tag: 'chefe' }, value: 0.5 }, { do: 'kill', entity: { tag: 'chefe' } }]);
+    expect(c.dead).toBe(true);
+    act(s, [{ do: 'hpFloor', entity: { tc: 1 }, value: 0.5 }]);
+    const etc = townCenter(s, 1)!; applyDamage(s, etc, 1e6, 0);
+    expect(etc.dead).toBe(false); expect(etc.hp).toBeCloseTo(etc.maxHp * 0.5);
+  }, 60_000);
+  it('hpFloor, damage, heal e remove valem para a entidade do EntityRef (como kill): numa tag de grupo, a primeira', () => {
+    const s = game(mk());
+    act(s, [{ do: 'spawn', player: 1, units: ['minotaur', 'minotaur'], at: { tc: 1, dy: 6 }, tag: 'par' }, { do: 'hpFloor', entity: { tag: 'par' }, value: 0.5 }]);
+    const [a, b] = tagIds(s, 'par').map((id) => s.units.get(id)!);
+    expect(a.hpFloor).toBe(0.5); expect(b.hpFloor).toBeUndefined();
+    act(s, [{ do: 'hpFloor', entity: { tag: 'par', pick: 'nearest', near: { at: [b.x, b.y] } }, value: 0.2 }]);
+    expect(b.hpFloor).toBe(0.2);
+  });
+  it('damage/heal: amount ou fraction; dano sem autor (sem abate creditado), respeita o piso; cura até maxHp', () => {
+    const s = game(mk());
+    const b = boss(s); const max = b.maxHp;
+    act(s, [{ do: 'damage', entity: { tag: 'chefe' }, amount: 30 }]);
+    expect(b.hp).toBe(max - 30);
+    act(s, [{ do: 'damage', entity: { tag: 'chefe' }, fraction: 0.5 }]);
+    expect(b.hp).toBeCloseTo(max * 0.5 - 30);
+    act(s, [{ do: 'heal', entity: { tag: 'chefe' }, amount: 10 }]);
+    expect(b.hp).toBeCloseTo(max * 0.5 - 20);
+    act(s, [{ do: 'heal', entity: { tag: 'chefe' }, fraction: 1 }]);
+    expect(b.hp).toBe(max);
+    act(s, [{ do: 'hpFloor', entity: { tag: 'chefe' }, value: 0.25 }, { do: 'damage', entity: { tag: 'chefe' }, fraction: 1 }]);
+    expect(b.dead).toBe(false); expect(b.hp).toBeCloseTo(max * 0.25);
+    const kills = s.players.map((p) => p.stats.kills);
+    act(s, [{ do: 'hpFloor', entity: { tag: 'chefe' }, value: 0 }, { do: 'damage', entity: { tag: 'chefe' }, amount: 1e6 }]);
+    expect(b.dead).toBe(true); expect(s.players.map((p) => p.stats.kills)).toEqual(kills);
+    expect(s.effects.some((e) => e.type === 'death')).toBe(true);
+    const tc = townCenter(s, 1)!; const h0 = tc.hp;
+    act(s, [{ do: 'damage', entity: { tc: 1 }, amount: 100 }, { do: 'heal', entity: { tc: 1 }, amount: 40 }]);
+    expect(tc.hp).toBe(h0 - 60);
+  });
+  it('validação: frações entre 0 e 1, hp exige a entidade, amount xor fraction', () => {
+    const E = { tag: 'x' };
+    expect(paths(mk({ victory: { entity: E, hp: { lte: 1.5 } } }))).toEqual(['victory.hp.lte']);
+    expect(paths(mk({ victory: { entity: E, exists: false, hp: { lte: 0.5 } } }))).toEqual(['victory.hp']);
+    expect(paths(mk({ victory: { entity: E } as unknown as Condition }))).toEqual(['victory.exists']);
+    expect(paths(mk({ victory: { entity: E, hp: {} } }))).toEqual(['victory.hp']);
+    expect(paths(mk({ victory: { entity: E, hp: 0.5 } as unknown as Condition }))).toEqual(['victory.hp']);
+    expect(paths(mk({ victory: { all: [{ entity: E, hp: { lte: 0.5, gt: { var: 'v' } } }, { entity: E, exists: true, hp: { eq: 0 } }] } }))).toEqual([]);
+    expect(paths(mk({ setup: [{ do: 'hpFloor', entity: E, value: 1.2 }, { do: 'hpFloor', entity: { var: 3 } as unknown as EntityRef, value: 0.3 }] }))).toEqual(['setup[0].value', 'setup[1].entity.var']);
+    expect(paths(mk({ setup: [
+      { do: 'damage', entity: E, amount: 5, fraction: 0.5 }, { do: 'heal', entity: E } as unknown as Action,
+      { do: 'damage', entity: E, amount: -1 }, { do: 'heal', entity: E, fraction: 0 }, { do: 'damage', entity: E, fraction: 1 },
+    ] }))).toEqual(['setup[0]', 'setup[1]', 'setup[2].amount', 'setup[3].fraction']);
+    // lint: hp exige a entidade, então não vale com o grupo ausente; sob `not`, vale — e pede a guarda { fired }
+    const later: ScenarioFile['triggers'][number] = { id: 'chega', when: { time: { gte: 60 } }, then: [{ do: 'spawn', player: 1, units: ['minotaur'], at: { tc: 1 }, tag: 'fera' }] };
+    expect(warnPaths(mk({ triggers: [later], victory: { entity: { tag: 'fera' }, hp: { lte: 0.5 } } }))).toEqual([]);
+    expect(warnPaths(mk({ triggers: [later], victory: { not: { entity: { tag: 'fera' }, hp: { gt: 0.5 } } } }))).toEqual(['victory.not.entity.tag']);
+  });
+  it('determinismo: piso, dano, cura, remove e guarnição roteirizados dão o mesmo estado em duas partidas; serialize guarda o piso', () => {
+    const f = mk({
+      setup: [
+        { do: 'spawn', player: 1, units: ['minotaur'], at: { tc: 0, dy: 7 }, tag: 'chefe', name: { pt: 'Chefe', en: 'Boss' } }, { do: 'hpFloor', entity: { tag: 'chefe' }, value: 0.4 },
+        { do: 'spawn', player: 1, units: ['minotaur'], at: { tc: 1, dy: 7 }, tag: 'extra' },
+      ],
+      triggers: [
+        { id: 'fere', repeat: true, when: { every: { seconds: 3 } }, then: [{ do: 'damage', entity: { tag: 'chefe' }, fraction: 0.2 }, { do: 'heal', entity: { tc: 0 }, amount: 5 }] },
+        { id: 'abriga', when: { time: { gte: 5 } }, then: [{ do: 'order', units: { player: 0, type: 'villager' }, order: { type: 'garrison', target: { tc: 0 } } }] },
+        { id: 'solta', when: { time: { gte: 20 } }, then: [{ do: 'order', units: { player: 0, type: 'villager' }, order: { type: 'ungarrison' } }, { do: 'remove', entity: { tag: 'extra' } }] },
+      ],
+    });
+    const a = game(f), b = game(f);
+    run(a, 30 * TICK_RATE); run(b, 30 * TICK_RATE);
+    expect(stateHash(a)).toBe(stateHash(b));
+    expect(a.units.has(a.scenario!.vars['#extra'])).toBe(false);
+    const boss = a.units.get(a.scenario!.vars['#chefe'])!;
+    expect(boss.dead).toBe(false); expect(boss.hpFloor).toBe(0.4); expect(boss.hp).toBeGreaterThanOrEqual(boss.maxHp * 0.4 - 1e-6);
+    const c = deserialize(serialize(a));
+    expect(c.units.get(boss.id)!.hpFloor).toBe(0.4); expect(c.units.get(boss.id)!.displayName).toEqual({ pt: 'Chefe', en: 'Boss' });
+    run(a, 5 * TICK_RATE); run(c, 5 * TICK_RATE);
+    expect(stateHash(c)).toBe(stateHash(a));
+  }, 60_000);
 });

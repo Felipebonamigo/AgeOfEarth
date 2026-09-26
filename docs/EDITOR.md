@@ -131,7 +131,8 @@ type Point = { at: [number, number] } | { start: number; dx?: number; dy?: numbe
            | { tc: PlayerSel; dx?: number; dy?: number } | { entity: EntityRef; dx?: number; dy?: number };
 type Value = number | { stat: 'age'|'pop'|'popCap'|'food'|'wood'|'gold'|'favor'|'knowledge'|'alive'; player: PlayerSel }
            | { stat: 'difficulty' }                                           // G3: 0 Fácil, 1 Normal, 2 Difícil
-           | { var: string } | { add: [Value, number] };
+           | { var: string } | { add: [Value, number] }
+           | { time: true };                                                  // G4: segundos de jogo agora (inteiro); com setVar marca um instante
 type Cmp = { gte?: Value; lte?: Value; eq?: Value; gt?: Value; lt?: Value };
 
 type Condition =
@@ -139,7 +140,7 @@ type Condition =
   | { time: Cmp } | { every: { seconds: number; after?: number } }              // ctx.seconds inteiro; seconds % n === 0
   | { objective: string; is: 'pending' | 'done' | 'failed' } | { fired: string } | ({ firedCount: { prefix: string } } & Cmp)
   | ({ units: UnitFilter } & Cmp) | ({ buildings: BuildingFilter } & Cmp) | ({ value: Value } & Cmp) | ({ var: string } & Cmp)
-  | { entity: EntityRef; exists: boolean; complete?: boolean; progress?: Cmp }
+  | { entity: EntityRef; exists?: boolean; complete?: boolean; progress?: Cmp; hp?: Cmp }   // G9: hp = fração hp/maxHp (0–1); sem exists, exige a entidade viva
   | ({ koth: { team: number } } & Cmp) | ({ wonderHeld: { player: PlayerSel } } & Cmp)   // G2: segundos na colina (time T) / com a Maravilha de pé
   | { kingAlive: PlayerSel } | { alive: PlayerSel }                             // G2: rei vivo; jogador não eliminado
   | { difficulty: 'easy' | 'normal' | 'hard' | ('easy' | 'normal' | 'hard')[] };  // G3: config.campaignDifficulty (ausente = normal)
@@ -152,15 +153,19 @@ type Action =
   | { do: 'say'; speaker: Text; text: Text; icon?: string }
   | { do: 'objective'; id: string; status: 'done' | 'failed' | 'pending' } | { do: 'reveal'; id: string }
   | { do: 'raid'; player: PlayerSel; units: string[]; target: Point; angle: number | { base: number; perIndex: number }; distance?: number }
-  | { do: 'spawn'; player: PlayerSel; units: string[]; at: Point; tag?: string; state?: 'pray'; prayAt?: EntityRef; scaled?: boolean }   // scaled (G3): escala como raid
-  | { do: 'place'; player: PlayerSel; building: string; at: Point; exact?: boolean; complete?: boolean; progress?: number; tag?: string }
+  | { do: 'spawn'; player: PlayerSel; units: string[]; at: Point; tag?: string; state?: 'pray'; prayAt?: EntityRef; scaled?: boolean; name?: Text }   // scaled (G3): escala como raid; name (G8)
+  | { do: 'place'; player: PlayerSel; building: string; at: Point; exact?: boolean; complete?: boolean; progress?: number; tag?: string; name?: Text }
   | { do: 'give'; player: PlayerSel; resources: Partial<Record<ResourceType, number>> }
   | { do: 'set'; player: PlayerSel; age?: number; resources?: Partial<Record<ResourceType, number>>; techs?: string[]; minorGods?: string[] }
   | { do: 'removeAll'; player?: PlayerSel; team?: number }                       // removeBuildingNow/removeUnitNow
   | { do: 'setVar'; name: string; value: Value } | { do: 'addVar'; name: string; delta: number }
   | { do: 'storeEntity'; var: string; entity: EntityRef } | { do: 'advanceBuild'; entity: EntityRef; seconds: number }
-  | { do: 'order'; units: { tag: string } | UnitFilter; order: { type: 'move' | 'attackMove'; at: Point } | { type: 'attack' | 'gather' | 'pray' | 'repair'; target: EntityRef } }
+  | { do: 'order'; units: { tag: string } | UnitFilter; order: { type: 'move' | 'attackMove'; at: Point }
+      | { type: 'attack' | 'gather' | 'pray' | 'repair' | 'garrison'; target: EntityRef } | { type: 'ungarrison'; target?: EntityRef } }   // G6: garrison/ungarrison
   | { do: 'kill'; entity: EntityRef } | { do: 'ceasefire'; seconds: number }
+  | { do: 'remove'; entity: EntityRef }                                          // G6: some na hora (removeUnitNow/removeBuildingNow), sem morte nem abate
+  | { do: 'hpFloor'; entity: EntityRef; value: number }                           // G9: piso de vida (fração 0–1); value 0 tira o piso
+  | { do: 'damage' | 'heal'; entity: EntityRef; amount?: number; fraction?: number }   // G9: pontos OU fração de maxHp; dano sem autor, respeita o piso
   | { do: 'defeat'; player: PlayerSel }                                          // derrota roteirizada: alive=false, evento e tudo do jogador some
   | { do: 'forEachPlayer'; team?: number; alive?: boolean; then: Action[] };    // dentro: '$p' = jogador, índice k para angle.perIndex
 
@@ -168,15 +173,25 @@ interface ScenarioFile {
   format: 'aoe-scenario'; version: 1;
   id: string; title: Text; subtitle?: Text; icon?: string; intro: Text[]; outro?: Text[]; hints?: Text[];
   map?: { gen: { mapSize: 'small' | 'medium' | 'large'; mapType?: MapType; seed: number } } | { data: FixedMapData };   // omitido quando embutido num mapa
-  config: { seed?: number; players: GameConfig['players'] /* { name, god, isAI, difficulty, team?, puppet? } */; startingAge?: number; startingResources?: …; revealMap?: boolean; startKit?: boolean | boolean[]; mode?: GameMode };
+  config: { seed?: number; players: { name: Text /* G8 */; god; isAI; difficulty; team?; puppet?; maxAge?; forbid? }[]; startingAge?: number; startingResources?: …; revealMap?: boolean; startKit?: boolean | boolean[]; mode?: GameMode;
+            maxAge?: number; forbid?: { buildings?: string[]; units?: string[]; techs?: string[] } };   // G6: travas globais; por jogador, maxAge substitui e forbid soma
   vars?: Record<string, number>;
   setup?: Action[];                              // após as entidades do mapa; tags → vars['#tag'] = id
   objectives: { id: string; text: Text; optional?: boolean; hidden?: boolean; done?: Condition; failed?: Condition }[];
   triggers: { id: string; when: Condition; then: Action[]; repeat?: boolean }[];
   victory: Condition; defeat?: Condition;        // a derrota implícita do runner (nenhum humano não-marionete de pé) continua; humanos em times diferentes: resultado por time (winnerTeam)
-  hud?: ({ type: 'countdown'; seconds: number; while: Condition; label: Text } | { type: 'progress'; entity: EntityRef; max: number; label: Text })[];
+  hud?: ( { type: 'countdown'; seconds: number; while: Condition; label: Text; fromVar?: string }                     // G4: fromVar = relativo à marca
+         | { type: 'progress'; entity: EntityRef; max: number; label: Text; while?: Condition; format?: HudFormat }       // obra de um edifício
+         | { type: 'progress'; var: string; max: Value; label: Text; while?: Condition; format?: HudFormat } )[];        // G4: variável do cenário
 }
+type HudFormat = 'percent' | 'count' | 'time';   // "63%" (padrão), "12/30", "2:15 / 6:00"
 ```
+
+**Ato III (G4, G6, G8, G9)** — semântica dos campos novos (`docs/STORY.md` §6):
+- **G4 · HUD e tempo relativo.** `{ "do": "setVar", "name": "t0", "value": { "time": true } }` guarda o segundo atual; `{ "time": { "gte": { "add": [ { "var": "t0" }, 600 ] } } }` vale 600 s depois. `hud.countdown` com `fromVar` conta `seconds` a partir da marca (sem marca, não aparece). `hud.progress` com `var` desenha a barra da variável até `max` (número ou valor, ex.: `{ "var": "guarda" }`), só enquanto `while` valer; `format` escolhe o texto. O lint avisa `var`/`fromVar` que nenhum `setVar`/`addVar` escreve (nem `vars`).
+- **G6 · remove, guarnição e travas.** `remove` apaga a entidade sem morte, abate, Sombras de Hades nem escombros (o embarque da m11). `order garrison` põe as unidades no edifício aliado alvo (as que cabem, `canGarrison`); `ungarrison` tira do alvo ou, sem alvo, de onde estiverem. `config.maxAge` (0–4, nunca abaixo de `startingAge`) e `config.forbid` valem para todos; em `config.players[i]`, `maxAge` substitui o global e `forbid` soma. São conferidos em `commands.ts` (`canAdvanceAge`, `canTrain`, `canResearch`) e em `buildingLimitOk` (`src/core/sim/restrictions.ts`): o comando é recusado com "Proibido nesta missão" / "Forbidden in this mission", o botão do HUD aparece desabilitado com esse motivo e a IA não tenta (nem junta fundo para uma Idade travada). `spawn`/`place` do roteiro não passam pela trava.
+- **G8 · nomes.** `spawn`/`place` com `name` gravam `{ pt, en? }` na entidade (`displayName`, salvo no save); o painel de seleção, a grade da seleção múltipla e o tooltip mostram o nome no idioma atual (o tipo vai na descrição). `config.players[i].name` aceita `{ pt, en }`: o estado guarda o texto do idioma ao criar a partida e `nameText` deixa o HUD trocar de idioma. O lint avisa nome sem `en`.
+- **G9 · vida de chefe.** `{ "entity": …, "hp": { "lte": 0.5 } }` compara a fração da vida (números entre 0 e 1). `hpFloor` impede a vida de descer abaixo de `value × maxHp` em qualquer dano (combate, atrito, Raio, Maldição, Petrificação, `damage`); abaixo do piso ele não cura; `kill`, `remove` e dispensar continuam matando. `damage`/`heal` usam `amount` ou `fraction` (um dos dois); o dano do roteiro não tem autor (sem abate creditado). Tudo em `EntityRef` vale para uma entidade (numa tag de grupo, a primeira; use `pick`).
 
 Trecho da missão 1 reescrita (prova de cobertura; a versão TS continua canônica até o teste de paridade passar):
 

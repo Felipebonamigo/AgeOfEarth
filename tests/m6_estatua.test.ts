@@ -1,6 +1,6 @@
 // Missão 6, A Estátua de Zeus (docs/STORY.md §5.3): setup da ficha, variações por dificuldade (G3), contador da guarda,
-// quedas da Estátua, limiar de vitória, Colossos e segredo, Micenas, povo, Estátua murada e o paliativo do Portal dos Titãs
-// (sem G6). Partidas curtas no mapa real (6606). A passiva de 6 min roda em tests/missions.test.ts; o roteiro longo (vitória
+// quedas da Estátua, limiar de vitória, Colossos (com nome, G8) e segredo, Micenas, povo, Estátua murada, o Portal dos Titãs
+// proibido (G6 forbid) e a barra da guarda (G4). Partidas curtas no mapa real (6606). A passiva de 6 min roda em tests/missions.test.ts; o roteiro longo (vitória
 // dentro da janela) só em scripts/missions.ts.
 import { describe, it, expect } from 'vitest';
 import { TICK_RATE } from '../src/core/constants';
@@ -8,7 +8,12 @@ import { createGame, tick } from '../src/core/sim/game';
 import { destroyBuilding, killUnit } from '../src/core/sim/combat';
 import { missionRunConfig } from '../src/core/scenario/testing';
 import { advanceBuild, placeExact, placeNear, setRaidObserver, tagIds, townCenter, type RaidRecord } from '../src/core/scenario/helpers';
-import { spawnUnit } from '../src/core/sim/entities';
+import { buildingLimitOk, spawnUnit } from '../src/core/sim/entities';
+import { applyCommand } from '../src/core/sim/commands';
+import { campaignMission } from '../src/core/scenario/campaign';
+import { entityDisplayName } from '../src/core/scenario/text';
+import { scenarioHudHtml } from '../src/ui/scenario-hud';
+import { setLocale } from '../src/i18n';
 import { isPassable } from '../src/core/map/grid';
 import type { CampaignDifficulty } from '../src/core/scenario/schema';
 import type { Building, GameState } from '../src/core/types';
@@ -230,18 +235,43 @@ describe('m6_estatua', () => {
     }
   }, 60_000);
 
-  it('paliativo sem G6: Portais dos Titãs caem no mesmo segundo (o de Argos com o custo devolvido e a fala da Pítia)', () => {
+  it('G6: Portal dos Titãs proibido para Argos, a Liga e Micenas (config.forbid); as falas vêm na Idade dos Titãs', () => {
     const s = start('normal');
     run(s, 2);
-    const before = { ...s.players[0].resources };
-    for (const p of [0, 1, 2]) { const tc = townCenter(s, p)!; expect(placeNear(s, p, 'titan_gate', tc.x + 8, tc.y + 8, false), `portal ${p}`).not.toBeNull(); }
-    run(s, 2);
+    for (const p of [0, 1, 2]) {
+      s.players[p].age = 4; s.players[p].resources = { food: 9000, wood: 9000, gold: 9000, favor: 900, knowledge: 900 };
+      expect(buildingLimitOk(s, s.players[p], 'titan_gate'), `portal ${p}`).toEqual({ ok: false, reason: 'Proibido nesta missão' });
+    }
+    const v = alive(s, 0, 'villager')[0]; const tc = townCenter(s, 0)!;
+    expect(applyCommand(s, { type: 'build', player: 0, ids: [v.id], building: 'titan_gate', tx: tc.tx + 8, ty: tc.ty + 8 }).ok).toBe(false);
+    run(s, 60);   // as IAs na Idade dos Titãs com recursos de sobra: nenhuma tenta o Portal
     expect(gates(s)).toEqual([]);
-    const after = s.players[0].resources;
-    expect(after.food - before.food).toBeGreaterThanOrEqual(600 - 1);
-    expect(after.favor - before.favor).toBeGreaterThanOrEqual(200 - 1);
     expect(s.scenario!.fired).toEqual(expect.arrayContaining(['portal_argos_fala', 'portal_liga_fala', 'portal_micenas_fala']));
     expect(lines(s).some((t) => t.includes('Prometeu ainda sangra'))).toBe(true);
     expect([...s.units.values()].some((u) => !u.dead && ['prometheus', 'oceanus', 'cronus'].includes(u.type))).toBe(false);
+  }, 60_000);
+
+  it('G4: barra da guarda (progress { var: estatua_s, max: { var: guarda }, format: time }) só com a Estátua de pé; G8: Colossos com nome', () => {
+    const s = start('normal');
+    run(s, 2);
+    const def = campaignMission('m6_estatua')!;
+    expect(scenarioHudHtml(def, s)).not.toContain('Guarda da Estátua');   // estatua_s = 0: sem barra
+    s.players[0].age = 3;
+    const w = statue(s, false);
+    run(s, 2);   // a obra chama o 1º Colosso, agora com nome próprio (G8)
+    const c = alive(s, 3, 'colossus')[0];
+    expect(c.displayName).toEqual({ pt: 'Colosso de Poseidon', en: 'Colossus of Poseidon' });
+    expect(entityDisplayName(c)).toBe('Colosso de Poseidon');
+    expect(scenarioHudHtml(def, s)).toContain('🗽 Obra da Estátua');
+    killUnit(s, c, 0);
+    advanceBuild(s, w, 999);
+    run(s, 30);
+    const html = scenarioHudHtml(def, s);
+    expect(s.scenario!.vars.estatua_s).toBeGreaterThanOrEqual(29);
+    expect(html).toContain('🛡️ Guarda da Estátua: 0:');
+    expect(html).toContain('/ 6:00');
+    expect(html).not.toContain('Obra da Estátua');   // obra concluída: a barra da obra some
+    setLocale('en');
+    try { expect(scenarioHudHtml(campaignMission('m6_estatua')!, s)).toContain('🛡️ Statue watch: 0:'); } finally { setLocale('pt'); }
   }, 60_000);
 });

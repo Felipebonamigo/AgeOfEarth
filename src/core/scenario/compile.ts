@@ -3,16 +3,17 @@
 // emitir (diálogos), por isso o cache é por (hash do JSON, idioma): trocar de idioma recompila.
 import { TICK_RATE, type ResourceType } from '../constants';
 import { BUILDINGS, MINOR_GODS, UNITS } from '../data';
-import type { Building, GameConfig, GameState, Unit } from '../types';
+import type { Building, Forbid, GameConfig, GameState, Unit } from '../types';
 import { rectReachable } from '../map/components';
 import { giveOrder } from '../sim/units';
 import { killUnit, destroyBuilding } from '../sim/combat';
+import { canGarrison, ejectGarrison, removeBuildingNow, removeUnitNow } from '../sim/entities';
 import { getLocale } from '../../i18n';
 import type { ObjectiveDef, ObjectiveStatus, ScenarioDef, ScenarioHudDef, TriggerCtx, TriggerDef } from './types';
 import type { Action, BuildingFilter, Cmp, Condition, EntityRef, PlayerSel, Point, ScenarioFile, UnitFilter, Value } from './schema';
 import { validateScenario } from './schema';
-import { tx } from './text';
-import { advanceBuild, ceasefire, count, give, grantTech, localHumanIndex, scenarioAlive, military, nearCount, notifyRaid, placeExact, placeNear, prayAt, raid, removeAllOf, scaledGroup, spawnGroup, tagIds, townCenter } from './helpers';
+import { localText, tx } from './text';
+import { advanceBuild, ceasefire, count, give, grantTech, healEntity, localHumanIndex, scenarioAlive, military, nearCount, notifyRaid, placeExact, placeNear, prayAt, raid, removeAllOf, scaledGroup, scriptedDamage, spawnGroup, tagIds, townCenter } from './helpers';
 import { defeatPlayer } from '../sim/victory';
 import { kingAlive } from '../sim/modes';
 
@@ -101,6 +102,7 @@ function value(env: Env, v: Value): number {
   }
   if ('var' in v) return env.state.scenario?.vars[v.var] ?? 0;
   if ('add' in v) return value(env, v.add[0]) + v.add[1];
+  if ('time' in v) return env.seconds;   // G4: segundos inteiros de jogo (marca instantes com setVar)
   return 0;
 }
 
@@ -192,12 +194,14 @@ function evalCondition(env: Env, c: Condition): boolean {
   if ('var' in c) return cmp(env, c, s.scenario?.vars[c.var] ?? 0);
   if ('entity' in c) {
     const e = entity(env, c.entity);
-    if (!e) return !c.exists;
-    if (!c.exists) return false;
+    const exists = c.exists ?? true;   // G9: { entity, hp } sem exists exige a entidade viva
+    if (!e) return !exists;
+    if (!exists) return false;
     if (e.kind === 'building') {
       if (c.complete !== undefined && e.complete !== c.complete) return false;
       if (c.progress !== undefined && !cmp(env, c.progress, e.progress)) return false;
     } else if (c.complete !== undefined || c.progress !== undefined) return false;   // unidade não tem obra
+    if (c.hp !== undefined && !cmp(env, c.hp, e.maxHp > 0 ? e.hp / e.maxHp : 0)) return false;   // G9: fração da vida
     return true;
   }
   if ('koth' in c) { const k = s.koth; return cmp(env, c, k && k.team === c.koth.team ? k.seconds : 0); }
@@ -247,6 +251,7 @@ function runAction(env: Env, ctx: TriggerCtx, a: Action): void {
       const owner = player(env, a.player); const pt = point(env, a.at);
       if (owner < 0 || !pt) return;
       const units = spawnGroup(s, owner, a.scaled ? scaledGroup(s, a.units) : a.units, pt.x, pt.y);
+      if (a.name !== undefined) for (const u of units) u.displayName = localText(a.name);   // G8
       if (a.tag) storeTag(s, a.tag, units.map((u) => u.id));
       if (a.state === 'pray' && a.prayAt) { const b = entity(env, a.prayAt); if (b && b.kind === 'building') prayAt(units, b); }
       return;
@@ -258,6 +263,7 @@ function runAction(env: Env, ctx: TriggerCtx, a: Action): void {
       const b = a.exact ? placeExact(s, owner, a.building, pt.x, pt.y, complete) : placeNear(s, owner, a.building, pt.x, pt.y, complete);
       if (!b) return;
       if (!complete) { b.unpaid = true; if (a.progress !== undefined) b.progress = Math.max(0, a.progress); }
+      if (a.name !== undefined) b.displayName = localText(a.name);   // G8
       if (a.tag) storeTag(s, a.tag, [b.id]);
       return;
     }
@@ -289,10 +295,28 @@ function runAction(env: Env, ctx: TriggerCtx, a: Action): void {
       const units = 'tag' in a.units && !('player' in a.units) ? tagIds(s, a.units.tag).map((id) => s.units.get(id)).filter((u): u is Unit => !!u && !u.dead) : unitsMatching(env, a.units as UnitFilter);
       const o = a.order;
       if ('at' in o) { const pt = point(env, o.at); if (!pt) return; for (const u of units) giveOrder(s, u, { type: o.type, x: pt.x, y: pt.y }); }
-      else { const e = entity(env, o.target); if (!e) return; for (const u of units) giveOrder(s, u, { type: o.type, targetId: e.id }); }
+      else if (o.type === 'ungarrison') {   // G6: sai do alvo (ou, sem alvo, de qualquer edifício em que esteja)
+        const from = o.target ? entity(env, o.target) : undefined;
+        if (o.target && (!from || from.kind !== 'building')) return;
+        const byBuilding = new Map<number, number[]>();
+        for (const u of units) { if (u.inside === -1 || (from && u.inside !== from.id)) continue; const ids = byBuilding.get(u.inside) ?? []; ids.push(u.id); byBuilding.set(u.inside, ids); }
+        for (const [bid, ids] of byBuilding) { const b = s.buildings.get(bid); if (b && !b.dead) ejectGarrison(s, b, ids); }
+      } else {
+        const e = entity(env, o.target); if (!e) return;
+        if (o.type === 'garrison') { if (e.kind !== 'building') return; for (const u of units) if (canGarrison(u, e)) giveOrder(s, u, { type: 'garrison', targetId: e.id }); }   // G6
+        else for (const u of units) giveOrder(s, u, { type: o.type, targetId: e.id });
+      }
       return;
     }
     case 'kill': { const e = entity(env, a.entity); if (!e) return; if (e.kind === 'unit') killUnit(s, e, -1); else destroyBuilding(s, e, -1); return; }
+    case 'remove': { const e = entity(env, a.entity); if (!e) return; if (e.kind === 'unit') removeUnitNow(s, e); else removeBuildingNow(s, e); return; }   // G6: sem morte nem abate
+    case 'hpFloor': { const e = entity(env, a.entity); if (!e) return; if (a.value > 0) e.hpFloor = Math.min(1, a.value); else delete e.hpFloor; return; }   // G9
+    case 'damage': case 'heal': {   // G9
+      const e = entity(env, a.entity); if (!e) return;
+      const amount = a.amount ?? e.maxHp * (a.fraction ?? 0);
+      if (a.do === 'damage') scriptedDamage(s, e, amount); else healEntity(e, amount);
+      return;
+    }
     case 'ceasefire': ceasefire(s, a.seconds); return;
     case 'defeat': {   // derrota roteirizada: alive=false, evento de derrota e tudo do jogador some (marionete ou não)
       const owner = player(env, a.player); const p = s.players[owner]; if (!p) return;
@@ -348,7 +372,14 @@ export function scenarioConfig(file: ScenarioFile): ScenarioDef['config'] {
   const cfg: ScenarioDef['config'] = {
     seed: c.seed ?? gen?.seed ?? 1,
     mapSize: gen?.mapSize ?? 'medium',
-    players: c.players.map((p) => ({ ...p })),
+    // G8: name { pt, en } vira o texto do idioma atual (state.players[i].name) e fica em nameText para o HUD trocar de idioma
+    players: c.players.map((p): GameConfig['players'][number] => {
+      const { name, ...rest } = p;
+      const out: GameConfig['players'][number] = { ...rest, name: tx(name) };
+      if (typeof name === 'object' && name !== null) out.nameText = localText(name);
+      if (rest.forbid) out.forbid = copyForbid(rest.forbid);
+      return out;
+    }),
   };
   if (gen?.mapType) cfg.mapType = gen.mapType;
   if (data) cfg.map = data;
@@ -358,7 +389,18 @@ export function scenarioConfig(file: ScenarioFile): ScenarioDef['config'] {
   if (c.startKit !== undefined) cfg.startKit = c.startKit;
   if (c.mode) cfg.mode = c.mode;
   if (c.campaignDifficulty) cfg.campaignDifficulty = c.campaignDifficulty;
+  if (c.maxAge !== undefined) cfg.maxAge = c.maxAge;   // G6
+  if (c.forbid) cfg.forbid = copyForbid(c.forbid);
   return cfg as ScenarioDef['config'];
+}
+
+/** Cópia das listas (a config da partida não compartilha arrays com o arquivo em cache). */
+function copyForbid(f: Forbid): Forbid {
+  const out: Forbid = {};
+  if (f.buildings) out.buildings = [...f.buildings];
+  if (f.units) out.units = [...f.units];
+  if (f.techs) out.techs = [...f.techs];
+  return out;
 }
 
 /** Compila o arquivo (já validado) num ScenarioDef. Textos fixos (título, intro, objetivos, HUD) usam o idioma atual. */
@@ -393,9 +435,27 @@ export function compileScenario(file: ScenarioFile): ScenarioDef {
       runActions(envOf(state), setupCtx(state), setup);
     };
   }
-  if (file.hud) def.hud = file.hud.map((h): ScenarioHudDef => (h.type === 'countdown'
-    ? { type: 'countdown', seconds: h.seconds, while: (state) => evalCondition(envOf(state), h.while), label: tx(h.label) }
-    : { type: 'progress', max: h.max, label: tx(h.label), entity: (state) => { const e = entity(envOf(state), h.entity); return e && e.kind === 'building' && !e.complete ? e.progress : -1; } }));
+  if (file.hud) def.hud = file.hud.map((h): ScenarioHudDef => {
+    if (h.type === 'countdown') {
+      const d: ScenarioHudDef = { type: 'countdown', seconds: h.seconds, while: (state) => evalCondition(envOf(state), h.while), label: tx(h.label) };
+      const from = h.fromVar;   // G4: contagem relativa ao instante marcado (setVar { time: true }); sem marca, não aparece
+      if (from) d.start = (state) => { const v = state.scenario?.vars[from]; return typeof v === 'number' ? v : null; };
+      return d;
+    }
+    const w = h.while;
+    const shown = (state: GameState) => !w || evalCondition(envOf(state), w);
+    if ('var' in h) {   // G4: barra de uma variável do cenário (máximo fixo ou dinâmico)
+      const name = h.var, max = h.max;
+      const d: ScenarioHudDef = { type: 'progress', max: typeof max === 'number' ? max : 0, label: tx(h.label), entity: (state) => (shown(state) ? Math.max(0, state.scenario?.vars[name] ?? 0) : -1) };
+      if (typeof max !== 'number') d.maxOf = (state) => value(envOf(state), max);
+      if (h.format) d.format = h.format;
+      return d;
+    }
+    const ref = h.entity;
+    const d: ScenarioHudDef = { type: 'progress', max: h.max, label: tx(h.label), entity: (state) => { if (!shown(state)) return -1; const e = entity(envOf(state), ref); return e && e.kind === 'building' && !e.complete ? e.progress : -1; } };
+    if (h.format) d.format = h.format;
+    return d;
+  });
   return def;
 }
 

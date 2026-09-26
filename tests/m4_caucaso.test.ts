@@ -1,11 +1,14 @@
 // m4 "O Fogo do Cáucaso" (docs/STORY.md §5.1): o mapa fixo "Garganta do Cáucaso" é reprodutível pelo script
 // scripts/maps/m4_caucaso.ts e tem a identidade da ficha (pontos, tags, rotas); as variações de dificuldade (G3), a
-// libertação, o segredo de Hefesto e os paliativos sem G6 (Portal dos Titãs) funcionam. O roteiro longo (vitória dentro da
+// libertação, o segredo de Hefesto, o Portal dos Titãs proibido (G6 forbid) e o nome da Águia (G8) funcionam. O roteiro longo (vitória dentro da
 // janela) fica em scripts/missions.ts; a passiva curta, em tests/missions.test.ts.
 import { describe, it, expect } from 'vitest';
 import { TICK_RATE } from '../src/core/constants';
 import { createGame, tick } from '../src/core/sim/game';
-import { placeBuilding } from '../src/core/sim/entities';
+import { buildingLimitOk, canPlaceBuilding, placeBuilding } from '../src/core/sim/entities';
+import { applyCommand } from '../src/core/sim/commands';
+import { entityDisplayName } from '../src/core/scenario/text';
+import { setLocale } from '../src/i18n';
 import { destroyBuilding, killUnit } from '../src/core/sim/combat';
 import { territoryOwnerAt } from '../src/core/sim/territory';
 import { setRaidObserver } from '../src/core/scenario/helpers';
@@ -111,15 +114,32 @@ describe('m4: dificuldades (G3), libertação, segredo e paliativos', () => {
     expect(s.players[0].powers.some((p) => p.id === 'plenty')).toBe(true);
   });
 
-  it('paliativo sem G6: Portal dos Titãs do Culto cai no mesmo segundo; o de Argos também, com o custo devolvido e o aviso da Pítia', () => {
+  it('G6: Portal dos Titãs proibido para Argos e o Culto (config.forbid); o aviso da Pítia vem quando Argos chega à Idade dos Titãs', () => {
     const s = start('hard'); seconds(s, 1);
-    placeBuilding(s, 1, 'titan_gate', 84, 30, false);
-    placeBuilding(s, 0, 'titan_gate', 44, 88, false);
-    const before = { ...s.players[0].resources };
+    expect(s.config.forbid?.buildings).toEqual(['titan_gate']);
+    for (const p of [0, 1]) {
+      s.players[p].age = 4;
+      expect(buildingLimitOk(s, s.players[p], 'titan_gate')).toEqual({ ok: false, reason: 'Proibido nesta missão' });
+      expect(canPlaceBuilding(s, s.players[p], 'titan_gate', 44, 88).ok).toBe(false);
+    }
+    const v = [...s.units.values()].find((u) => u.owner === 0 && u.type === 'villager')!;
+    s.players[0].resources = { food: 9000, wood: 9000, gold: 9000, favor: 900, knowledge: 900 };
+    expect(applyCommand(s, { type: 'build', player: 0, ids: [v.id], building: 'titan_gate', tx: 44, ty: 88 })).toEqual({ ok: false, reason: 'Proibido nesta missão' });
+    expect(s.players[0].resources.wood).toBe(9000);   // nada foi pago
+    expect(s.scenario!.fired).not.toContain('aviso_portal');
     seconds(s, 2);
-    expect([...s.buildings.values()].filter((b) => b.type === 'titan_gate' && !b.dead)).toEqual([]);
-    expect(s.players[0].resources.wood - before.wood).toBeGreaterThanOrEqual(599);
-    expect(s.scenario!.fired).toContain('aviso_portal');
+    expect(s.scenario!.fired).toContain('aviso_portal');   // Idade dos Titãs: a Pítia explica por que o Portal não se ergue
+    placeBuilding(s, 1, 'titan_gate', 84, 30, false);      // o roteiro (e o editor) ainda podem pôr um Portal: a trava é só para comandos
+    seconds(s, 2);
+    expect([...s.buildings.values()].filter((b) => b.type === 'titan_gate' && !b.dead).length).toBe(1);
+  });
+  it('G8: a Águia é uma mantícora com nome próprio, no idioma atual', () => {
+    const s = start('normal');
+    const aguia = byTag(s, 'aguia')!;
+    expect(aguia.kind === 'unit' && aguia.type).toBe('manticore');
+    expect(aguia.displayName).toEqual({ pt: 'Águia do Cáucaso', en: 'Eagle of the Caucasus' });
+    expect(entityDisplayName(aguia)).toBe('Águia do Cáucaso');
+    setLocale('en'); try { expect(entityDisplayName(aguia)).toBe('Eagle of the Caucasus'); } finally { setLocale('pt'); }
   });
 });
 

@@ -20,12 +20,16 @@ import { HORDE, isCampaignMission } from '../core/scenario/campaign';
 import { scenarioWon } from '../core/scenario/runner';
 import type { GameState } from '../core/types';
 import type { ScenarioDef } from '../core/scenario/types';
+import { entityDisplayName, playerDisplayName } from '../core/scenario/text';
+import { maxAgeOf } from '../core/sim/restrictions';
+import { scenarioHudHtml } from './scenario-hud';
 
 /** Ids oficiais (registro da campanha, TS ou JSON, e Horda): só eles marcam progresso em aoe_campaign e destravam conquistas de missão. */
 const isOfficialScenario = (id: string) => id === HORDE.id || isCampaignMission(id);
 /** Cenário da partida (embutido ou JSON compilado no idioma atual); um JSON inválido vira "sem cenário" em vez de derrubar o HUD. */
 const scenarioOf = (state: GameState): ScenarioDef | undefined => { try { return getScenarioFor(state); } catch { return undefined; } };
 import { t } from '../i18n';
+import { esc } from './html';
 import { optionsHTML, bindOptions, type OptionsContext } from './options';
 import { padHelpRows } from './gamepad';
 import { DialogueQueue } from './dialogue';
@@ -241,8 +245,9 @@ export class HUD {
     this.ageEl.title = this.ageEl.textContent ?? '';   // texto completo quando a barra compacta corta com reticências
     const adv = canAdvanceAge(s.state, p);
     const inProgress = [...s.state.buildings.values()].some((b) => b.owner === p.id && b.queue.some((q) => q.kind === 'age'));
+    const capped = p.age < AGES.length - 1 && p.age >= maxAgeOf(s.state, p.id);   // G6: Idade máxima da missão (o tooltip diz o motivo)
     this.ageBtn.textContent = inProgress ? t('top.advancing') : p.age >= AGES.length - 1 ? t('top.maxAge') : `⬆ ${AGES[p.age + 1].name}`;
-    (this.ageBtn as HTMLButtonElement).disabled = inProgress || p.age >= AGES.length - 1;
+    (this.ageBtn as HTMLButtonElement).disabled = inProgress || p.age >= AGES.length - 1 || capped;
     this.ageBtn.dataset.tip = p.age >= AGES.length - 1 ? t('top.maxAgeTip') : `<b>${AGES[p.age + 1].name}</b><div class="cost">${fmtCost(AGES[p.age + 1].cost as Record<string, number>, p)}</div><div class="desc">${AGES[p.age + 1].desc}</div>${adv.ok ? '' : `<div style="color:#ef4444;margin-top:4px">${adv.reason ?? ''}</div>`}`;
     this.ageBtn.classList.toggle('primary', adv.ok);
     const k = s.state.koth;
@@ -289,14 +294,8 @@ export class HUD {
     const s = this.session; if (!s || !s.state.scenario) { this.objPanel.classList.add('hidden'); return; }
     const def = scenarioOf(s.state); if (!def) return;
     const sc = s.state.scenario;
-    // Indicadores genéricos de def.hud (campanha em TS ou cenário JSON): cronômetro enquanto a condição valer; progresso de uma obra
-    let extra = '';
-    for (const h of def.hud ?? []) {
-      try {
-        if (h.type === 'countdown') { if (h.while(s.state)) extra += `<div class="timer">⏳ ${h.label ? `${h.label}: ` : ''}${fmtTime(Math.max(0, h.seconds - s.state.time))}</div>`; }
-        else { const p = h.entity(s.state); if (p >= 0) { const pct = Math.max(0, Math.min(100, Math.round((p / Math.max(1, h.max)) * 100))); extra += `<div class="timer">${h.label}: ${pct}%<div class="bar"><span style="width:${pct}%"></span></div></div>`; } }
-      } catch { /* condição do HUD falhou: sem indicador */ }
-    }
+    // Indicadores genéricos de def.hud (campanha em TS ou cenário JSON): cronômetros (absolutos ou relativos, G4) e barras (obra ou variável, G4)
+    const extra = scenarioHudHtml(def, s.state);
     const key = Object.entries(sc.objectives).map(([k, v]) => `${k}${v}${sc.hidden[k] ? 'h' : ''}`).join(',') + Math.floor(s.state.time / 5) + '|' + extra;
     if (!force && key === this.lastObjKey) return;
     this.lastObjKey = key;
@@ -357,7 +356,7 @@ export class HUD {
       for (const e of [...units, ...blds].slice(0, 40)) {
         const def = e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type];
         const mi = el('div', 'mi', `${def.icon}<div class="hp"><div style="width:${Math.round((e.hp / e.maxHp) * 100)}%"></div></div>`);
-        mi.dataset.tip = `<b>${def.name}</b> ${Math.round(e.hp)}/${e.maxHp}`;
+        mi.dataset.tip = `<b>${esc(entityDisplayName(e))}</b> ${Math.round(e.hp)}/${e.maxHp}`;
         mi.addEventListener('click', (ev) => { if (ev.ctrlKey) s.select([e.id], true); else s.select([e.id]); });
         multi.appendChild(mi);
       }
@@ -370,7 +369,8 @@ export class HUD {
     const s = this.session!; const def = UNITS[u.type]; const owner = s.state.players[u.owner];
     const st = getUnitStats(s.state, owner, u.type);
     const c = el('div');
-    c.appendChild(el('div', 'title', `<span class="icon">${def.icon}</span>${def.name} <small style="color:${'#' + owner.color.toString(16).padStart(6, '0')}">${owner.name}</small>`));
+    // G8: nome próprio do cenário no idioma atual (o tipo vai na descrição) e nome da facção por idioma
+    c.appendChild(el('div', 'title', `<span class="icon">${def.icon}</span>${esc(entityDisplayName(u))} <small style="color:${'#' + owner.color.toString(16).padStart(6, '0')}">${esc(playerDisplayName(s.state, u.owner))}</small>`));
     c.appendChild(el('div', 'hpbar', `<div style="width:${Math.round((u.hp / u.maxHp) * 100)}%"></div>`));
     const stats: string[] = [`${t('sel.hp')} <b>${Math.round(u.hp)}/${u.maxHp}</b>`];
     if (st.attack > 0) stats.push(`${t('sel.attack')} <b>${st.attack}</b> (${t(`dmg.${def.attackType}`)})`);
@@ -385,7 +385,7 @@ export class HUD {
     if (u.owner === s.local) stats.push(`${t('sel.state')} <b>${t(`state.${u.state}`)}</b>`);
     c.appendChild(el('div', 'stats', stats.map((x) => `<span>${x}</span>`).join('')));
     const bonuses = Object.entries(def.bonus).map(([k, v]) => `×${v} vs ${t(`vs.${k}`)}`).join(', ');
-    c.appendChild(el('div', 'desc', def.desc + (bonuses ? ` <i>(${bonuses})</i>` : '')));
+    c.appendChild(el('div', 'desc', (u.displayName ? `<b>${def.name}</b> · ` : '') + def.desc + (bonuses ? ` <i>(${bonuses})</i>` : '')));
     return c;
   }
 
@@ -393,7 +393,7 @@ export class HUD {
     const s = this.session!; const def = BUILDINGS[b.type]; const owner = s.state.players[b.owner];
     const st = getBuildingStats(s.state, owner, b.type);
     const c = el('div');
-    c.appendChild(el('div', 'title', `<span class="icon">${def.icon}</span>${def.name} <small style="color:${'#' + owner.color.toString(16).padStart(6, '0')}">${owner.name}</small>`));
+    c.appendChild(el('div', 'title', `<span class="icon">${def.icon}</span>${esc(entityDisplayName(b))} <small style="color:${'#' + owner.color.toString(16).padStart(6, '0')}">${esc(playerDisplayName(s.state, b.owner))}</small>`));
     if (!b.complete) c.appendChild(el('div', 'hpbar', `<div style="width:${Math.round((b.progress / st.buildTime) * 100)}%;background:#60a5fa"></div>`));
     else c.appendChild(el('div', 'hpbar', `<div style="width:${Math.round((b.hp / b.maxHp) * 100)}%"></div>`));
     const stats: string[] = [`${t('sel.hp')} <b>${Math.round(b.hp)}/${b.maxHp}</b>`];
@@ -420,7 +420,7 @@ export class HUD {
         q.appendChild(qi);
       });
       c.appendChild(q);
-    } else c.appendChild(el('div', 'desc', def.desc));
+    } else c.appendChild(el('div', 'desc', (b.displayName ? `<b>${def.name}</b> · ` : '') + def.desc));
     return c;
   }
 
@@ -718,7 +718,7 @@ export class HUD {
     if (st.scenario) { this.showScenarioEnd(); return; }
     const won = st.winner >= 0 && st.players[st.winner].team === s.player.team;
     this.audio.play(won ? 'victory' : 'defeat');
-    const rows = st.players.map((p) => `<tr><td style="color:#${p.color.toString(16).padStart(6, '0')}">${p.name}${st.winner >= 0 && st.players[st.winner].team === p.team ? ' 🏆' : ''}</td><td>${p.team + 1}</td><td>${AGES[p.age].short}</td><td>${p.stats.kills}</td><td>${p.stats.losses}</td><td>${p.stats.razed}</td><td>${p.stats.buildingsBuilt}</td><td>${p.stats.unitsTrained}</td><td>${Math.round(p.stats.gathered.food + p.stats.gathered.wood + p.stats.gathered.gold)}</td><td>${p.techs.length}</td><td>${p.territoryTiles}</td></tr>`).join('');
+    const rows = st.players.map((p) => `<tr><td style="color:#${p.color.toString(16).padStart(6, '0')}">${esc(playerDisplayName(st, p.id))}${st.winner >= 0 && st.players[st.winner].team === p.team ? ' 🏆' : ''}</td><td>${p.team + 1}</td><td>${AGES[p.age].short}</td><td>${p.stats.kills}</td><td>${p.stats.losses}</td><td>${p.stats.razed}</td><td>${p.stats.buildingsBuilt}</td><td>${p.stats.unitsTrained}</td><td>${Math.round(p.stats.gathered.food + p.stats.gathered.wood + p.stats.gathered.gold)}</td><td>${p.techs.length}</td><td>${p.territoryTiles}</td></tr>`).join('');
     this.showModal(`<h2>${won ? t('over.victory') : st.winner === -1 ? t('over.draw') : t('over.defeat')}</h2><p>${st.events.filter((e) => e.type === 'victory').map((e) => e.text).join(' ') || ''} ${t('over.time', { time: fmtTime(st.time) })}</p>
       <table><tr><th>${t('over.player')}</th><th>${t('over.team')}</th><th>${t('over.age')}</th><th>${t('over.kills')}</th><th>${t('over.losses')}</th><th>${t('over.razed')}</th><th>${t('over.built')}</th><th>${t('over.trained')}</th><th>${t('over.gathered')}</th><th>${t('over.techs')}</th><th>${t('over.territory')}</th></tr>${rows}</table>
       <div class="actions"><button class="btn" id="m-continue">${t('over.watch')}</button><button class="btn primary" id="m-quit">${this.testMode ? t('editor.backToEditor') : t('over.menu')}</button></div>`, false);
@@ -751,8 +751,9 @@ export class HUD {
 
   describeEntityTip(e: Unit | Building): string {
     const def = e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type];
-    const owner = this.session!.state.players[e.owner];
-    return `<b>${def.icon} ${def.name}</b> <small>${owner.name}</small><div class="desc">${Math.round(e.hp)}/${e.maxHp} ${t('sel.hp').toLowerCase()}</div>`;
+    const state = this.session!.state;
+    // G8: nome próprio (e o tipo entre parênteses) e nome da facção no idioma atual
+    return `<b>${def.icon} ${esc(entityDisplayName(e))}</b> <small>${esc(playerDisplayName(state, e.owner))}</small><div class="desc">${e.displayName ? `${def.name} · ` : ''}${Math.round(e.hp)}/${e.maxHp} ${t('sel.hp').toLowerCase()}</div>`;
   }
 
   isMilitarySelection(): boolean { const s = this.session; if (!s) return false; return s.ownSelectedUnits().some(isMilitary); }

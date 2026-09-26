@@ -99,9 +99,21 @@ export function computeDamage(state: GameState, attacker: Unit | Building, targe
   return Math.max(1, attack * mult * (1 - reduction));
 }
 
+/**
+ * G9: piso de vida roteirizado (hpFloor, fração de maxHp). Depois de um dano, a vida não fica abaixo do piso — nem abaixo do
+ * que era antes, se já estava abaixo (o piso nunca cura).
+ */
+export function clampToFloor(e: Unit | Building, before: number): void {
+  if (!e.hpFloor || e.hpFloor <= 0) return;
+  const min = Math.min(before, e.maxHp * e.hpFloor);
+  if (e.hp < min) e.hp = min;
+}
+
 export function applyDamage(state: GameState, target: Unit | Building, dmg: number, attackerOwner: number, attacker?: Unit | Building): void {
   if (target.dead) return;
+  const before = target.hp;
   target.hp -= dmg;
+  clampToFloor(target, before);   // G9
   target.lastDamageTick = state.tick;
   const victim = state.players[target.owner];
   // Alerta "sob ataque" para o jogador (limitado)
@@ -128,7 +140,7 @@ export function performAttack(state: GameState, attacker: Unit | Building, targe
   if (attacker.kind === 'unit' && UNITS[attacker.type].special === 'petrify' && target.kind === 'unit') {
     const tdef = UNITS[target.type];
     const warded = state.tick < target.buffUntil && target.buffWard;
-    if (tdef.tags.includes('human') && !tdef.tags.includes('hero') && !warded && state.rng.chance(0.12)) {
+    if (tdef.tags.includes('human') && !tdef.tags.includes('hero') && !warded && !target.hpFloor && state.rng.chance(0.12)) {   // piso de vida (G9): sem petrificação
       state.effects.push({ type: 'petrify', x: target.x, y: target.y, ttl: 30, total: 30, data: target.type });
       killUnit(state, target, attacker.owner, attacker);
       return;
@@ -157,6 +169,9 @@ export function performAttack(state: GameState, attacker: Unit | Building, targe
 
 export function killUnit(state: GameState, u: Unit, killerOwner: number, killer?: Unit | Building): void {
   if (u.dead) return;
+  // G9: com piso de vida, morte instantânea causada por inimigo (Raio, Maldição, atrito) só o leva até o piso;
+  // kill do roteiro e dispensar (dono -1) continuam matando
+  if (u.hpFloor && u.hpFloor > 0 && killerOwner >= 0 && killerOwner !== u.owner) { u.hp = Math.max(Math.min(u.hp, u.maxHp * u.hpFloor), Math.min(u.maxHp * u.hpFloor, 1)); u.lastDamageTick = state.tick; return; }
   u.dead = true; u.hp = 0;
   if (u.inside !== -1) { const g = state.buildings.get(u.inside); if (g) g.garrison = g.garrison.filter((id) => id !== u.id); u.inside = -1; }
   const def = UNITS[u.type];

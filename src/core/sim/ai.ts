@@ -12,6 +12,7 @@ import { isMilitary, isEnemy, nearestEnemyBuilding, nearestNode, nearestNodeWith
 import { getBuildingStats, getUnitStats, techCost } from './modifiers';
 import { canAfford } from './economy';
 import { t } from '../../i18n';
+import { isForbidden, maxAgeOf } from './restrictions';
 
 const VILLAGER_TARGET = [18, 26, 34, 40, 44];
 const FARM_LIMIT = [4, 8, 12, 16, 18];
@@ -269,7 +270,7 @@ function manageBuilding(state: GameState, player: Player, snap: Snapshot): void 
   for (const p of plan) {
     if (!p.cond) continue;
     const def = BUILDINGS[p.type];
-    if (!def || def.age > age) continue;
+    if (!def || def.age > age || isForbidden(state, player.id, 'buildings', p.type)) continue;   // G6: config.forbid
     const bcost = getBuildingStats(state, player, p.type).cost;
     if (!canAfford(player, bcost)) { if (p.type === 'house') return; continue; }
     // (o mercado é essencial: é a válvula de escape quando o ouro acaba e a comida sobra)
@@ -458,7 +459,7 @@ interface Budget { surplus: Record<string, number>; fundMet: boolean; minArmy: n
 function budgetOf(state: GameState, player: Player): Budget {
   const diff = DIFFICULTIES[player.ai!.difficulty];
   const next = AGES[Math.min(AGES.length - 1, player.age + 1)];
-  const done = player.age >= AGES.length - 1;
+  const done = player.age >= maxAgeOf(state, player.id);   // G6: na Idade máxima da missão não junta fundo para avançar
   const surplus: Record<string, number> = {};
   for (const r of ['food', 'wood', 'gold', 'knowledge', 'favor']) surplus[r] = player.resources[r as ResourceType] - (done ? 0 : ((next.cost as Record<string, number>)[r] ?? 0));
   const fundMet = done || (surplus.food >= 0 && surplus.gold >= 0 && surplus.knowledge >= 0 && surplus.favor >= 0);

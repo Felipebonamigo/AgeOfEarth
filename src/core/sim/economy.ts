@@ -6,7 +6,7 @@ import type { GameState, Player, QueueItem } from '../types';
 import { territoryOwnerAt } from './territory';
 import { getUnitStats, techCost } from './modifiers';
 import { isEnemy } from './queries';
-import { killUnit } from './combat';
+import { clampToFloor, killUnit } from './combat';
 import { AGES } from '../data';
 import { SCHOLAR_COST } from '../constants';
 
@@ -79,7 +79,9 @@ export function economySecond(state: GameState): void {
     if (owner !== -1 && isEnemy(state, owner, u.owner) && state.players[owner].alive) {
       const rate = (BASE_ATTRITION + state.players[owner].mods.player.attrition) * Math.max(0, 1 - p.mods.player.attritionResist);
       if (rate > 0 && state.tick >= state.ceasefireUntil) {
+        const before = u.hp;
         u.hp -= rate;
+        clampToFloor(u, before);   // G9: piso de vida roteirizado
         if (u.hp <= 0) killUnit(state, u, owner);   // via killUnit: recalcula população, estatísticas, sombras e eventos
       }
     }
