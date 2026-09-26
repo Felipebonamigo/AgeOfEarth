@@ -4,7 +4,8 @@
 // Também valida TODAS as missões do registro (TS e JSON: erros, lint, config, roteiro) e confere a paridade rápida (2 min)
 // entre o m1 JSON e o m1 TS.
 // ESTRITO por padrão: sai com erro se uma checagem quebrar, se a passiva vencer, se o roteiro lançar exceção ou se o roteiro
-// não vencer dentro da janela da §4 (±30 %). Só uma exceção declarada no roteiro (MissionScript.exceptions, com motivo)
+// não vencer dentro da janela da §4 (±30 %). Variantes do roteiro (MissionScript.variants, ex.: a escolta sem trégua da m5)
+// rodam logo depois, cada uma estrita na própria janela e com os gatilhos exigidos/proibidos. Só uma exceção declarada no roteiro (MissionScript.exceptions, com motivo)
 // dispensa a janela numa dificuldade — e ela é listada no fim da saída.
 // Uso: npx tsx scripts/missions.ts [minutos da passiva=14] [ids separados por vírgula] [dificuldades=easy,normal,hard]
 import { createGame, tick } from '../src/core/sim/game';
@@ -12,7 +13,7 @@ import { TICK_RATE } from '../src/core/constants';
 import { CAMPAIGN, PROLOGUE } from '../src/core/scenario/campaign';
 import { lintScenario, validateScenario, type CampaignDifficulty, type ScenarioFile } from '../src/core/scenario/schema';
 import { gameConfigFor } from '../src/core/scenario/compile';
-import { MISSION_SCRIPTS, failedChecks, fmtMinSec, fmtOutcome, runMissionScript, runPassive, scriptVerdict, staticMissionIssues } from '../src/core/scenario/testing';
+import { MISSION_SCRIPTS, failedChecks, fmtMinSec, fmtOutcome, runMissionScript, runPassive, scriptVerdict, staticMissionIssues, variantIssues } from '../src/core/scenario/testing';
 import m1Json from '../src/core/scenario/missions/m1_despertar.scenario.json';
 import type { GameState } from '../src/core/types';
 
@@ -48,6 +49,18 @@ for (const e of CAMPAIGN) {
     for (const k of failedChecks(r).filter((k) => k !== 'deterministic')) fail(`${e.id} [${d}] roteiro: checagem ${k}${r.error ? `\n${r.error}` : ''}`);
     if (!v.ok) fail(`${e.id} [${d}] roteiro: ${v.reason}`);
     else if (v.exception) exceptions.push(`${e.id} [${d}] ${v.reason} — exceção: ${v.exception}`);
+    // variantes: outros caminhos medidos da mesma missão, cada um estrito na própria janela e com os gatilhos que o provam
+    for (const va of script?.variants ?? []) {
+      const t1 = performance.now();
+      const rv = runMissionScript(e.id, d, false, va.label);
+      const vv = scriptVerdict(rv, va);
+      const issues = variantIssues(rv, va);
+      console.log(`${e.id} [${d}] variante "${va.label}"=${fmtOutcome(rv)} (esperado ${fmtMinSec(Math.round(va.expect[0] * 60))}–${fmtMinSec(Math.round(va.expect[1] * 60))}${vv.inWindow ? '' : vv.exception ? ', EXCEÇÃO DECLARADA' : ', FORA'}) objetivos=${JSON.stringify(rv.objectives)} invasões=${rv.raids.total} (${((performance.now() - t1) / 1000).toFixed(1)}s)`);
+      for (const k of failedChecks(rv).filter((k) => k !== 'deterministic')) fail(`${e.id} [${d}] variante "${va.label}": checagem ${k}${rv.error ? `\n${rv.error}` : ''}`);
+      if (!vv.ok) fail(`${e.id} [${d}] variante "${va.label}": ${vv.reason}`);
+      else if (vv.exception) exceptions.push(`${e.id} [${d}] variante "${va.label}" ${vv.reason} — exceção: ${vv.exception}`);
+      for (const i of issues) fail(`${e.id} [${d}] variante "${va.label}": ${i}`);
+    }
   }
 }
 
