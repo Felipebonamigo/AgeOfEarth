@@ -1446,6 +1446,125 @@ function m9Assault(state: GameState, tag: string): Command[] {
   return out;
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// m10 "O Cerco de Ótris": o Altar do Tempo (Rei da Colina) e o cerco aos dois anéis e aos três Pilares
+// ---------------------------------------------------------------------------------------------------------------
+
+/**
+ * m10: composição do exército (pesos): infantaria pesada e mirmidões na frente, arqueiros cretenses atrás e as míticas dos três
+ * deuses menores (Minotauro de Atena, Mantícora de Apolo, Medusa de Hera). As máquinas de cerco vêm à parte (m10Engines).
+ */
+const M10_MIX: Record<string, number> = { hypaspist: 4, myrmidon: 3, cretan_archer: 3, minotaur: 2, manticore: 1, medusa: 1 };
+/**
+ * m10: teto do exército de linha (sem máquinas): acima dele a IA do jogador não enche as filas, e a população que sobra fica para
+ * as máquinas de cerco. Medido: sem teto, o exército parava em 84 militares no limite de população, sem nenhuma helépole — e
+ * sem máquina a pedra do Ótris não cede (impasse até os 55 min no Fácil e no Difícil).
+ */
+const M10_LINE_CAP = 70;
+/** m10: máquinas de cerco que o roteiro mantém prontas (helépoles, depois petróbolos). */
+const M10_ENGINES = { helepolis: 4, petrobolos: 2 } as const;
+
+/** m10: repõe as máquinas de cerco na Oficina (uma por chamada), antes do exército de linha, até M10_ENGINES. */
+function m10Engines(state: GameState): Command | null {
+  const p = state.players[0];
+  const have: Record<string, number> = { helepolis: 0, petrobolos: 0 };
+  for (const u of state.units.values()) if (u.owner === 0 && !u.dead && have[u.type] !== undefined) have[u.type]++;
+  for (const b of state.buildings.values()) if (b.owner === 0 && !b.dead) for (const q of b.queue) if (q.kind === 'unit' && have[q.id] !== undefined) have[q.id]++;
+  const want = (Object.keys(M10_ENGINES) as (keyof typeof M10_ENGINES)[]).find((t) => have[t] < M10_ENGINES[t]); if (!want) return null;
+  const ws = [...state.buildings.values()].filter((b) => b.owner === 0 && !b.dead && b.complete && b.type === 'siege_workshop' && b.queue.length < 2);
+  const w = ws.find((b) => canTrain(state, p, b, want).ok); if (!w) return null;
+  return canAfford(p, getUnitStats(state, p, want).cost) ? { type: 'train', player: 0, buildingId: w.id, unit: want } : null;
+}
+
+/** m10: militares de linha (fora as máquinas de cerco). */
+function m10LineCount(state: GameState): number { return militaryCount(state, 0) - m10SiegeCount(state); }
+/** m10: o Altar do Tempo (a colina do Rei da Colina) e os alvos do cerco na ordem da subida: o Portão de Bronze, o portão interno e os Pilares. */
+const M10_ALTAR = { x: 72.5, y: 80.5 };
+const M10_TARGETS = ['portao_bronze', 'portao_interno', 'pilar1', 'pilar2', 'pilar3'] as const;
+/** m10: militares para sair em cerco contra o próximo alvo (estado, não relógio), o mesmo nas três dificuldades. */
+const M10_ASSAULT_ARMY = 60;
+/** m10: exército cheio (perto do limite de população): sai em cerco mesmo sem máquinas, para limpar os defensores e abrir espaço. */
+const M10_FULL_ARMY = 75;
+
+/**
+ * m10: ouro pelo Mercado, como um jogador faria quando as minas perto do acampamento se esgotam (medido: no Difícil a IA do
+ * jogador ficava com 25 mil de comida e de madeira e 30 de ouro, sem treinar quase nada): ergue o Mercado perto do Centro
+ * Cívico e, com menos de 300 de ouro, vende o maior estoque acima de 700 (um lote por chamada).
+ */
+function m10Market(state: GameState): Command | null {
+  const p = state.players[0];
+  const market = firstBuilding(state, 'market');
+  if (!market) {
+    const tc = firstBuilding(state, 'town_center'); if (!tc || !canAfford(p, getBuildingStats(state, p, 'market').cost)) return null;
+    const spot = findBuildSpot(state, p, 'market', tc.x, tc.y, 4, 14); if (!spot) return null;
+    const ids = villagersNear(state, spot.x + 1, spot.y + 1).filter((u) => u.state !== 'build').slice(0, 2).map((u) => u.id);
+    return ids.length ? { type: 'build', player: 0, ids, building: 'market', tx: spot.x, ty: spot.y } : null;
+  }
+  if (!market.complete || p.resources.gold >= 300) return null;
+  const r: ResourceType = p.resources.food >= p.resources.wood ? 'food' : 'wood';
+  return p.resources[r] > 700 ? { type: 'trade', player: 0, action: 'sell', resource: r } : null;
+}
+
+/** m10: o próximo alvo de pé na ordem da subida (os dois portões; depois o Pilar mais perto do exército). */
+function m10NextTarget(state: GameState): string | null {
+  for (const t of M10_TARGETS.slice(0, 2)) if (entityPos(state, '#' + t)) return t;
+  const army = armyOf(state).map((id) => state.units.get(id)!);
+  const cx = army.length ? army.reduce((s, u) => s + u.x, 0) / army.length : 72, cy = army.length ? army.reduce((s, u) => s + u.y, 0) / army.length : 40;
+  let best: string | null = null, bd = Infinity;
+  for (const t of M10_TARGETS.slice(2)) {
+    const p = entityPos(state, '#' + t); if (!p) continue;
+    const d = (p.x - cx) * (p.x - cx) + (p.y - cy) * (p.y - cy);
+    if (d < bd) { bd = d; best = t; }
+  }
+  return best;
+}
+
+/** m10: máquinas de cerco vivas do jogador (helépoles e petróbolos): a pedra do Ótris só cede com elas por perto. */
+function m10SiegeCount(state: GameState): number {
+  let n = 0;
+  for (const u of state.units.values()) if (u.owner === 0 && !u.dead && u.inside === -1 && (u.type === 'helepolis' || u.type === 'petrobolos')) n++;
+  return n;
+}
+
+/**
+ * m10: alvo sob cerco agora: começa com ≥ M10_ASSAULT_ARMY militares, dos quais ao menos 3 máquinas de cerco (sem elas a pedra do
+ * Ótris não cede), ou com o exército cheio (≥ M10_FULL_ARMY, perto do limite de população: sem espaço para novas máquinas, ele vai
+ * limpar os defensores e abrir espaço, como um jogador faria), e continua enquanto ≥ 12 militares estiverem a até 18 tiles do alvo
+ * (histerese, como na m4 e na m9); null fora de cerco (o exército se refaz no altar).
+ */
+function m10AssaultTarget(state: GameState): string | null {
+  const next = m10NextTarget(state); if (!next) return null;
+  const army = militaryCount(state, 0);
+  if ((army >= M10_ASSAULT_ARMY && m10SiegeCount(state) >= 3) || army >= M10_FULL_ARMY) return next;
+  const p = entityPos(state, '#' + next)!;
+  return m9ArmyNear(state, p.x, p.y, 18) >= 12 ? next : null;
+}
+
+/** m10: fora de cerco, quem ficou na encosta ou dentro da cidadela (acima da linha 60) volta ao altar para se refazer. */
+function m10Regroup(state: GameState): Command | null {
+  const ids = armyOf(state).filter((id) => state.units.get(id)!.y < 60);
+  return ids.length ? { type: 'move', player: 0, ids, x: M10_ALTAR.x, y: M10_ALTAR.y } : null;
+}
+
+/**
+ * m10: o cerco a um alvo: o exército vai em ataque-movimento até ele (limpa os defensores pelo caminho) e as máquinas de cerco
+ * batem direto nele; perto dele (10 tiles), com poucos defensores em volta, todos batem no alvo.
+ */
+function m10Assault(state: GameState, tag: string): Command[] {
+  const p = entityPos(state, '#' + tag); if (!p) return [];
+  const id = state.scenario!.vars['#' + tag];
+  const army = armyOf(state).map((uid) => state.units.get(uid)!);
+  if (!army.length) return [];
+  const siege = army.filter((u) => UNITS[u.type].tags.includes('siege') && u.targetId !== id).map((u) => u.id);
+  const rest = army.filter((u) => !UNITS[u.type].tags.includes('siege') && (u.state === 'idle' || (u.x - p.x) * (u.x - p.x) + (u.y - p.y) * (u.y - p.y) > 14 * 14)).map((u) => u.id);
+  const out: Command[] = [];
+  if (siege.length) out.push({ type: 'attack', player: 0, ids: siege, targetId: id });
+  if (rest.length) out.push({ type: 'attackMove', player: 0, ids: rest, x: p.x, y: p.y });
+  const foes = enemyNear(state, p.x, p.y, 8, (u) => UNITS[u.type].tags.includes('military'));
+  if (!foes) { const f = focusTarget(state, id, 10); if (f) out.push(f); }
+  return out;
+}
+
 /**
  * Roteiros das missões registradas (o jogador 0 é uma IA "difícil"; os passos cobram o objetivo que a IA não faz sozinha).
  * Missão nova: acrescente uma entrada com o id; sem entrada, scripts/missions.ts roda só a IA do jogador.
@@ -1681,6 +1800,28 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
       { label: 'tempestade', when: { time: { gte: 1 } }, every: 1, command: (s) => dodgeStorms(s) },
       // jaulas e fendas na ordem da caminhada, cada uma quando o exército tem ≥ M9_ASSAULT_ARMY militares
       { label: 'assalto', when: { time: { gte: 10 } }, every: 10, command: (s) => { const t = m9AssaultTarget(s); return t ? m9Assault(s, t) : null; } },
+    ],
+  },
+  m10_otris: {
+    minutes: 50, expect: [21, 45.5],
+    // o exército da IA do jogador nunca sai em ondas: no Rei da Colina ele se reúne no Altar do Tempo (e o segura); o cerco é do roteiro
+    hold: { time: { gte: 0 } },
+    steps: [
+      { label: 'cidadãos', when: { time: { gte: 3 } }, every: 4, command: (s) => trainVillagers(s, 45) },
+      { label: 'casas', when: { time: { gte: 3 } }, every: 5, command: (s) => m9House(s, 15) },
+      { label: 'máquinas', when: { time: { gte: 5 } }, every: 5, command: (s) => m10Engines(s) },
+      { label: 'treino', when: { time: { gte: 5 } }, every: 5, command: (s) => (m10LineCount(s) < M10_LINE_CAP ? trainArmy(s, 0, { mix: M10_MIX, reserve: { food: 150, wood: 100, gold: 80 } }) : null) },
+      { label: 'mercado', when: { time: { gte: 60 } }, every: 3, command: (s) => m10Market(s) },
+      { label: 'poderes', when: { time: { gte: 2 } }, every: 3, command: (s) => battlePowers(s) },
+      { label: 'tempestade', when: { time: { gte: 1 } }, every: 1, command: (s) => dodgeStorms(s) },
+      // o altar: enquanto ele estiver pendente e o exército fora de cerco, quem está ocioso longe dele vai segurá-lo
+      { label: 'altar', when: { all: [{ objective: 'altar', is: 'pending' }, { time: { gte: 30 } }] }, every: 10, command: (s) => {
+        if (m10AssaultTarget(s)) return null;
+        const ids = armyOf(s).filter((id) => { const u = s.units.get(id)!; return u.state === 'idle' && (u.x - M10_ALTAR.x) * (u.x - M10_ALTAR.x) + (u.y - M10_ALTAR.y) * (u.y - M10_ALTAR.y) > 5 * 5; });
+        return ids.length ? { type: 'attackMove', player: 0, ids, x: M10_ALTAR.x, y: M10_ALTAR.y } : null;
+      } },
+      // o cerco: o Portão de Bronze, o portão interno e os Pilares, um alvo por vez, quando o exército tem ≥ M10_ASSAULT_ARMY militares
+      { label: 'cerco', when: { time: { gte: 10 } }, every: 5, command: (s) => { const t = m10AssaultTarget(s); return t ? m10Assault(s, t) : m10Regroup(s); } },
     ],
   },
 };

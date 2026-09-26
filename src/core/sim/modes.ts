@@ -27,7 +27,7 @@ export function updateKoth(state: GameState): void {
     if (k.team === tm) k.seconds++;
     else {
       k.team = tm; k.seconds = 1;
-      state.events.push({ tick: state.tick, type: 'koth', player: -1, x: k.x, y: k.y, text: t('ev.kothTaken', { who: teamNames(state, tm), min: Math.round(KOTH_SECONDS / 60) }) });
+      state.events.push({ tick: state.tick, type: 'koth', player: -1, x: k.x, y: k.y, text: state.scenario ? t('ev.kothTakenScenario', { who: teamNames(state, tm) }) : t('ev.kothTaken', { who: teamNames(state, tm), min: Math.round(KOTH_SECONDS / 60) }) });   // em cenário a vitória nativa não roda: sem a promessa dos 4 min
     }
   } else if (k.team !== -1) {
     state.events.push({ tick: state.tick, type: 'koth', player: -1, x: k.x, y: k.y, text: teams.size === 0 ? t('ev.kothEmpty') : t('ev.kothContested') });
