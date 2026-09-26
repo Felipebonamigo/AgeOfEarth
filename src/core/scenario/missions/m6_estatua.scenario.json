@@ -29,13 +29,14 @@
   "config": {
     "players": [
       { "name": "Argos", "god": "zeus", "isAI": false, "difficulty": "normal", "team": 0 },
-      { "name": "Liga do Istmo", "god": "poseidon", "isAI": true, "difficulty": "normal", "team": 1 },
-      { "name": "Micenas", "god": "zeus", "isAI": true, "difficulty": "easy", "team": 0 },
-      { "name": "Frota de Poseidon", "god": "poseidon", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
+      { "name": { "pt": "Liga do Istmo", "en": "Isthmian League" }, "god": "poseidon", "isAI": true, "difficulty": "normal", "team": 1 },
+      { "name": { "pt": "Micenas", "en": "Mycenae" }, "god": "zeus", "isAI": true, "difficulty": "easy", "team": 0 },
+      { "name": { "pt": "Frota de Poseidon", "en": "Poseidon's Fleet" }, "god": "poseidon", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
     ],
     "startingAge": 2,
     "startingResources": { "food": 1000, "wood": 1000, "gold": 800, "favor": 100, "knowledge": 300 },
-    "startKit": [true, true, true, false]
+    "startKit": [true, true, true, false],
+    "forbid": { "buildings": ["titan_gate"] }
   },
   "vars": { "guarda": 360 },
   "setup": [
@@ -107,7 +108,7 @@
       { "do": "say", "speaker": "Zeus", "icon": "⚡",
         "text": { "pt": "Meu rosto no chão? Não aceito um deus de bronze que cai, arconte.", "en": "My face in the dust? I will not accept a bronze god that falls, archon." } } ] },
     { "id": "obra", "when": { "buildings": { "player": 0, "type": "wonder_zeus", "complete": false }, "gte": 1 }, "then": [
-      { "do": "spawn", "player": 3, "units": ["colossus"], "at": { "start": 1, "dy": 5 }, "tag": "colosso1" },
+      { "do": "spawn", "player": 3, "units": ["colossus"], "at": { "start": 1, "dy": 5 }, "tag": "colosso1", "name": { "pt": "Colosso de Poseidon", "en": "Colossus of Poseidon" } },
       { "do": "order", "units": { "tag": "colosso1" }, "order": { "type": "attackMove", "at": { "entity": { "player": 0, "type": "wonder_zeus" } } } },
       { "do": "say", "speaker": "Poseidon", "icon": "🔱",
         "text": { "pt": "Bronze para o meu irmão? Então bronze ele terá.", "en": "Bronze for my brother? Then bronze he shall have." } } ] },
@@ -123,7 +124,7 @@
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
         "text": { "pt": "Micenas não tem mais lanças para mandar, arconte. Só os sobreviventes vêm honrar a promessa.", "en": "Mycenae has no spears left to send, archon. Only the survivors come to keep the promise." } } ] },
     { "id": "colosso2", "when": { "all": [ { "difficulty": ["normal", "hard"] }, { "var": "estatua_s", "gte": 180 } ] }, "then": [
-      { "do": "spawn", "player": 3, "units": ["colossus"], "at": { "start": 1, "dy": 5 }, "tag": "colosso2" },
+      { "do": "spawn", "player": 3, "units": ["colossus"], "at": { "start": 1, "dy": 5 }, "tag": "colosso2", "name": { "pt": "Colosso de Poseidon", "en": "Colossus of Poseidon" } },
       { "do": "spawn", "player": 3, "units": ["hoplite", "hoplite", "hoplite"], "at": { "start": 1, "dy": 7 }, "tag": "escolta2", "scaled": true },
       { "do": "order", "units": { "tag": "colosso2" }, "order": { "type": "attackMove", "at": { "entity": { "player": 0, "type": "wonder_zeus" } } } },
       { "do": "order", "units": { "tag": "escolta2" }, "order": { "type": "attackMove", "at": { "entity": { "player": 0, "type": "wonder_zeus" } } } },
@@ -156,22 +157,15 @@
     { "id": "maravilha_liga", "when": { "buildings": { "player": 1, "type": ["wonder_zeus", "wonder_artemis", "wonder_colossus"], "complete": true }, "gte": 1 }, "then": [
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
         "text": { "pt": "A Liga ergueu a própria maravilha para imitar Argos. Zeus não conta bronze alheio: só a sua Estátua importa.", "en": "The League raised its own wonder to mimic Argos. Zeus does not count another's bronze: only your Statue matters." } } ] },
-    { "id": "portal_liga_fala", "when": { "buildings": { "player": 1, "type": "titan_gate" }, "gte": 1 }, "then": [
+    { "id": "portal_liga_fala", "when": { "value": { "stat": "age", "player": 1 }, "gte": 4 }, "then": [
       { "do": "say", "speaker": "Poseidon", "icon": "🔱",
         "text": { "pt": "Ainda não, Istmo. O velho Oceano dorme, e é melhor para todos nós que continue dormindo.", "en": "Not yet, Isthmus. Old Oceanus sleeps, and it is better for all of us that he keeps sleeping." } } ] },
-    { "id": "portal_liga", "repeat": true, "when": { "buildings": { "player": 1, "type": "titan_gate" }, "gte": 1 }, "then": [
-      { "do": "kill", "entity": { "player": 1, "type": "titan_gate" } } ] },
-    { "id": "portal_micenas_fala", "when": { "buildings": { "player": 2, "type": "titan_gate" }, "gte": 1 }, "then": [
+    { "id": "portal_micenas_fala", "when": { "value": { "stat": "age", "player": 2 }, "gte": 4 }, "then": [
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
-        "text": { "pt": "Micenas ergueu um Portal dos Titãs, e Zeus o derrubou: nenhum Titã desperta por Micenas nesta guerra.", "en": "Mycenae raised a Titans' Gate, and Zeus struck it down: no Titan wakes for Mycenae in this war." } } ] },
-    { "id": "portal_micenas", "repeat": true, "when": { "buildings": { "player": 2, "type": "titan_gate" }, "gte": 1 }, "then": [
-      { "do": "kill", "entity": { "player": 2, "type": "titan_gate" } } ] },
-    { "id": "portal_argos_fala", "when": { "buildings": { "player": 0, "type": "titan_gate" }, "gte": 1 }, "then": [
+        "text": { "pt": "Micenas chegou à Idade dos Titãs, mas Zeus não a deixa erguer um Portal: nenhum Titã desperta por Micenas nesta guerra.", "en": "Mycenae has reached the Age of Titans, but Zeus will not let it raise a Gate: no Titan wakes for Mycenae in this war." } } ] },
+    { "id": "portal_argos_fala", "when": { "value": { "stat": "age", "player": 0 }, "gte": 4 }, "then": [
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
-        "text": { "pt": "Prometeu ainda sangra do Cáucaso: nenhum Titã virá guardar uma estátua. Zeus derruba o seu Portal e devolve o que ele custou.", "en": "Prometheus still bleeds from the Caucasus: no Titan will come to guard a statue. Zeus topples your Gate and returns what it cost." } } ] },
-    { "id": "portal_argos", "repeat": true, "when": { "buildings": { "player": 0, "type": "titan_gate" }, "gte": 1 }, "then": [
-      { "do": "kill", "entity": { "player": 0, "type": "titan_gate" } },
-      { "do": "give", "player": 0, "resources": { "food": 600, "wood": 600, "gold": 600, "favor": 200 } } ] },
+        "text": { "pt": "Prometeu ainda sangra do Cáucaso: nenhum Titã virá guardar uma estátua. Zeus não deixa você erguer um Portal nesta guerra.", "en": "Prometheus still bleeds from the Caucasus: no Titan will come to guard a statue. Zeus will not let you raise a Gate in this war." } } ] },
     { "id": "falta4", "repeat": true, "when": { "all": [ { "var": "guarda", "gte": 360 }, { "var": "estatua_s", "eq": 120 } ] }, "then": [
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
         "text": { "pt": "Faltam quatro minutos. Enquanto o bronze sobe, o celeiro desce: os deuses nunca pagam a obra.", "en": "Four minutes left. While the bronze rises, the granary sinks: the gods never pay for the work." } } ] },
@@ -189,6 +183,8 @@
     { "all": [ { "difficulty": "hard" }, { "var": "quedas", "gte": 1 } ] }
   ] },
   "hud": [
-    { "type": "progress", "entity": { "player": 0, "type": "wonder_zeus" }, "max": 240, "label": { "pt": "🗽 Obra da Estátua", "en": "🗽 Statue construction" } }
+    { "type": "progress", "entity": { "player": 0, "type": "wonder_zeus" }, "max": 240, "label": { "pt": "🗽 Obra da Estátua", "en": "🗽 Statue construction" } },
+    { "type": "progress", "var": "estatua_s", "max": { "var": "guarda" }, "format": "time", "while": { "var": "estatua_s", "gt": 0 },
+      "label": { "pt": "🛡️ Guarda da Estátua", "en": "🛡️ Statue watch" } }
   ]
 }

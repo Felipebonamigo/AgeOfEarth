@@ -78,6 +78,7 @@ export function usePower(state: GameState, player: Player, powerId: string, x?: 
       for (const u of victims) {
         if (n >= 8) break;
         killUnit(state, u, player.id);
+        if (!u.dead) { n++; continue; }   // piso de vida (G9): a Maldição só o leva até o piso (sem javali)
         const s = spiralSearch(Math.floor(u.x), Math.floor(u.y), 3, (a, b) => isPassable(state.map, a, b) && state.map.buildingAt[idx(state.map, a, b)] === -1);
         if (s) { addNode(state.map, 'boar', s.x, s.y, 120); pushUnitsOutOfTile(state, s.x, s.y); }
         state.effects.push({ type: 'curse', x: u.x, y: u.y, ttl: 20, total: 20 });

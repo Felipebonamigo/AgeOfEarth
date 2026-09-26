@@ -35,10 +35,10 @@ export function deserialize(json: string): GameState {
   // O contador de ids de nós vem do save (quem carrega o instantâneo precisa gerar os mesmos ids que o criador); saves antigos: máximo + 1
   resetNodeSeq(Math.max(typeof o.nodeSeq === 'number' ? o.nodeSeq : 0, maxNode + 1, NODE_ID_BASE));
   const state: GameState = {
-    config: migrateLegacyPuppets(o.config), seed: o.seed, tick: o.tick, time: o.time, nextId: o.nextId,
+    config: migrateScenarioLocks(migrateLegacyPuppets(o.config)), seed: o.seed, tick: o.tick, time: o.time, nextId: o.nextId,
     map: { w, h, terrain, blocked, nodeAt, buildingAt, gateTeam, nodes, starts: o.map.starts, decor: Uint8Array.from(o.map.decor as number[]) },
     players: (o.players as (Player & { visibility: number[] })[]).map((p) => ({ ...p, team: p.team ?? p.id, visibility: Uint8Array.from(p.visibility), mods: { gather: { food: 1, wood: 1, gold: 1, knowledge: 1, favor: 1, hunt: 1, farm: 1 }, player: { territory: 0, cityLimit: 1, attrition: 0, attritionResist: 0, favorRate: 1, knowledgeRate: 1, researchCost: 1, buildSpeed: 1, trainSpeed: 1, popCap: 0, los: 0, tradeTax: 1, regen: 0 }, unitEffects: [], buildingEffects: [], version: 0 } })),
-    units: new Map((o.units as Unit[]).map((u) => [u.id, { ...u, inside: u.inside ?? -1, resumeNodeId: u.resumeNodeId ?? -1, avoidIds: u.avoidIds ?? [], avoidUntil: u.avoidUntil ?? 0, blockedTicks: u.blockedTicks ?? 0, abilityReadyAt: u.abilityReadyAt ?? 0, buffUntil: u.buffUntil ?? 0, buffAttack: u.buffAttack ?? 1, buffSpeed: u.buffSpeed ?? 1, buffHaste: u.buffHaste ?? 1, buffWard: u.buffWard ?? false, chargeUntil: u.chargeUntil ?? 0 }])), buildings: new Map((o.buildings as Building[]).map((b) => [b.id, { ...b, garrison: b.garrison ?? [] }])),
+    units: new Map((o.units as Unit[]).map((u) => [u.id, scenarioExtras({ ...u, inside: u.inside ?? -1, resumeNodeId: u.resumeNodeId ?? -1, avoidIds: u.avoidIds ?? [], avoidUntil: u.avoidUntil ?? 0, blockedTicks: u.blockedTicks ?? 0, abilityReadyAt: u.abilityReadyAt ?? 0, buffUntil: u.buffUntil ?? 0, buffAttack: u.buffAttack ?? 1, buffSpeed: u.buffSpeed ?? 1, buffHaste: u.buffHaste ?? 1, buffWard: u.buffWard ?? false, chargeUntil: u.chargeUntil ?? 0 })])), buildings: new Map((o.buildings as Building[]).map((b) => [b.id, scenarioExtras({ ...b, garrison: b.garrison ?? [] })])),
     territory: Int8Array.from(o.territory as number[]), territoryDirty: true, territoryVersion: 0,
     events: o.events ?? [], effects: [], timed: o.timed ?? [], winner: o.winner, gameOver: o.gameOver, rng: new RNG(1),
     ceasefireUntil: o.ceasefireUntil ?? 0, ceasefireBy: o.ceasefireBy ?? -1, fogVersion: 0, scenario: o.scenario ? { ...o.scenario, vars: o.scenario.vars ?? {}, winnerTeam: o.scenario.winnerTeam ?? legacyWinnerTeam(o) } : undefined, koth: o.koth ?? undefined, relics: o.relics ?? [],
@@ -54,6 +54,16 @@ export function deserialize(json: string): GameState {
   for (const p of state.players) mods.recomputeMods(state, p);
   return state;
 }
+/**
+ * Campos opcionais que o cenário grava na entidade: displayName (G8, { pt, en? }) e hpFloor (G9, fração em (0, 1]).
+ * Padrão = ausente (saves antigos não os têm); valor malformado é descartado em vez de chegar ao HUD ou ao combate.
+ */
+function scenarioExtras<T extends Unit | Building>(e: T): T {
+  const n = e.displayName as unknown;
+  if (n !== undefined && !(typeof n === 'object' && n !== null && typeof (n as { pt?: unknown }).pt === 'string' && ((n as { en?: unknown }).en === undefined || typeof (n as { en?: unknown }).en === 'string'))) delete e.displayName;
+  if (e.hpFloor !== undefined && !(typeof e.hpFloor === 'number' && e.hpFloor > 0 && e.hpFloor <= 1)) delete e.hpFloor;
+  return e;
+}
 /** Save de antes de winnerTeam: vitória = time do primeiro humano; senão ninguém. */
 function legacyWinnerTeam(o: { scenario?: { outcome?: string }; config: { players: { isAI: boolean; puppet?: boolean }[] }; players: { team?: number }[] }): number {
   if (o.scenario?.outcome !== 'victory') return -1;
@@ -61,6 +71,7 @@ function legacyWinnerTeam(o: { scenario?: { outcome?: string }; config: { player
   return i >= 0 ? (o.players[i]?.team ?? i) : -1;
 }
 import { migrateLegacyPuppets } from './scenario/helpers';
+import { migrateScenarioLocks } from './scenario/runner';
 import * as constants from './constants';
 import * as data from './data';
 import * as mods from './sim/modifiers';

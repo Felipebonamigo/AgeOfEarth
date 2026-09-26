@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { TICK_RATE, TERRAIN } from '../src/core/constants';
 import { createGame, tick } from '../src/core/sim/game';
-import { placeBuilding } from '../src/core/sim/entities';
+import { buildingLimitOk, placeBuilding } from '../src/core/sim/entities';
 import { destroyBuilding, killUnit } from '../src/core/sim/combat';
 import { componentAt, invalidateComponents } from '../src/core/map/components';
 import { mapHash, validateMap, type FixedMapData } from '../src/core/map/fixed';
@@ -414,10 +414,13 @@ describe('m5: oferta do Emissário, resgate, fogueiras e dificuldades', () => {
     expect(guards('hard')).toEqual([12, 12]);
   });
 
-  it('paliativo sem G6: o Portal dos Titãs da Liga cai no mesmo segundo (nada de Oceano antes da m8)', () => {
+  it('G6: o Portal dos Titãs é proibido só para a Liga (players[1].forbid): nada de Oceano antes da m8', () => {
     const s = start('hard'); seconds(s, 1);
-    placeBuilding(s, 1, 'titan_gate', 100, 18, false);
+    s.players[1].age = 4; s.players[0].age = 4;
+    expect(buildingLimitOk(s, s.players[1], 'titan_gate')).toEqual({ ok: false, reason: 'Proibido nesta missão' });
+    expect(buildingLimitOk(s, s.players[0], 'titan_gate').ok).toBe(true);   // Argos não tinha o paliativo: continua igual
+    placeBuilding(s, 1, 'titan_gate', 100, 18, false);   // o roteiro ainda pode pôr um (a trava é dos comandos e da IA)
     seconds(s, 2);
-    expect([...s.buildings.values()].filter((b) => b.type === 'titan_gate' && !b.dead)).toEqual([]);
+    expect([...s.buildings.values()].filter((b) => b.type === 'titan_gate' && !b.dead).length).toBe(1);
   });
 });

@@ -17,6 +17,26 @@ function reachesPoint(state: GameState, a: number, b: number, x: number, y: numb
   return bld ? rectReachable(state.map, a, b, bld.tx, bld.ty, bld.w, bld.h, true) : rectReachable(state.map, a, b, tx, ty, 1, 1, true);
 }
 import { recomputeMods, refreshMaxHp } from '../sim/modifiers';
+import { clampToFloor, destroyBuilding, killUnit } from '../sim/combat';
+
+/**
+ * G9: dano roteirizado ({ do: 'damage' }). Sem autor (dono -1): não credita abate nem gera Sombras de Hades, como `kill`;
+ * respeita o piso de vida (hpFloor). Chegando a 0, morre/desaba pelo caminho normal (eventos, população, escombros).
+ */
+export function scriptedDamage(state: GameState, e: Unit | Building, amount: number): void {
+  if (e.dead || !(amount > 0)) return;
+  const before = e.hp;
+  e.hp -= amount;
+  e.lastDamageTick = state.tick;
+  clampToFloor(e, before);
+  if (e.hp <= 0) { e.hp = 0; if (e.kind === 'unit') killUnit(state, e, -1); else destroyBuilding(state, e, -1); }
+}
+
+/** G9: cura roteirizada ({ do: 'heal' }): soma `amount` à vida, sem passar de maxHp. */
+export function healEntity(e: Unit | Building, amount: number): void {
+  if (e.dead || !(amount > 0)) return;
+  e.hp = Math.min(e.maxHp, e.hp + amount);
+}
 
 export function count(state: GameState, owner: number, pred: (u: Unit) => boolean): number {
   let n = 0; for (const u of state.units.values()) if (u.owner === owner && !u.dead && pred(u)) n++; return n;

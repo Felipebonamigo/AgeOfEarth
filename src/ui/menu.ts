@@ -456,7 +456,7 @@ export class MainMenu {
         const room = open < 0 ? base.players.length : open;
         if (humans.length > room) { this.netStatus = t('mp.scenarioPlayers', { n: room, p: humans.length }); this.render(); return; }
         // marionetes explícitas em rede: humanos da sala com puppet: false; vaga sem IA que ninguém ocupou vira marionete (só gatilhos)
-        const scPlayers: GameConfig['players'] = base.players.map((p, i) => (i < humans.length ? { ...p, name: humans[i].name, god: humans[i].god, isAI: false, team: humans[i].team, puppet: false } : !p.isAI ? { ...p, puppet: true } : p));
+        const scPlayers: GameConfig['players'] = base.players.map((p, i) => (i < humans.length ? { ...p, name: humans[i].name, nameText: undefined, god: humans[i].god, isAI: false, team: humans[i].team, puppet: false } : !p.isAI ? { ...p, puppet: true } : p));
         const issues = validateMap(map, { players: scPlayers.length, mode: base.mode, ai: scPlayers.map((p) => p.isAI) });
         if (hasErrors(issues)) { this.fixedIssues = issues; this.netStatus = t('main.fixedMapErrors') + ' ' + issues.filter((i) => i.level === 'error').slice(0, 2).map(issueText).join('; '); this.render(); return; }
         net.start({ ...base, seed: sc.config.seed ?? (st.seed >>> 0), players: scPlayers, map, mapHash: mapHash(map), scenarioData: sc }, delay);

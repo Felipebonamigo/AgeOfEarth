@@ -29,8 +29,8 @@
   "config": {
     "players": [
       { "name": "Argos", "god": "zeus", "isAI": false, "difficulty": "normal", "team": 0 },
-      { "name": "Liga do Istmo", "god": "poseidon", "isAI": true, "difficulty": "normal", "team": 1 },
-      { "name": "Mirmidões de Aquiles", "god": "poseidon", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
+      { "name": { "pt": "Liga do Istmo", "en": "Isthmian League" }, "god": "poseidon", "isAI": true, "difficulty": "normal", "team": 1 },
+      { "name": { "pt": "Mirmidões de Aquiles", "en": "Achilles' Myrmidons" }, "god": "poseidon", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
     ],
     "startingAge": 2,
     "startingResources": { "food": 1000, "wood": 800, "gold": 800, "favor": 120, "knowledge": 300 },

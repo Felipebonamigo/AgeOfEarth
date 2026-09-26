@@ -1,9 +1,9 @@
 // Executa objetivos e gatilhos do cenário ativo; roda uma vez por segundo dentro do tick.
 import { TICK_RATE } from '../constants';
-import type { GameState } from '../types';
+import type { GameConfig, GameState } from '../types';
 import type { ScenarioDef, ScenarioState, TriggerCtx } from './types';
 import { HORDE, campaignMission } from './campaign';
-import { compileScenarioCached } from './compile';
+import { compileScenarioCached, copyForbid } from './compile';
 import { eliminatePlayers } from '../sim/victory';
 import { hasAnyEntity, isPuppetConfig, localHumanIndex } from './helpers';
 export { scenarioAlive } from './helpers';
@@ -21,6 +21,31 @@ export function getScenarioFor(state: GameState): ScenarioDef | undefined {
   if (cfg.scenarioData) return compileScenarioCached(cfg.scenarioData);
   const id = cfg.scenario ?? state.scenario?.id;
   return id ? getScenario(id) : undefined;
+}
+
+/**
+ * Save ou replay de missão embutida gravado antes das travas (G6): a config não traz maxAge/forbid, mas os gatilhos que
+ * elas substituíram (ex.: derrubar o Portal dos Titãs na m4–m6) já saíram da definição atual. Sem nenhuma trava na config
+ * (global ou por jogador), copia as da definição atual. Config com alguma trava, cenário em JSON (scenarioData) ou
+ * missão sem travas: devolve a mesma config.
+ */
+export function migrateScenarioLocks(config: GameConfig): GameConfig {
+  if (config.scenarioData || !config.scenario) return config;
+  const locked = (c: { maxAge?: number; forbid?: unknown }) => c.maxAge !== undefined || c.forbid !== undefined;
+  if (locked(config) || config.players.some(locked)) return config;
+  const src = getScenario(config.scenario)?.config;
+  if (!src || !(locked(src) || src.players.some(locked))) return config;
+  const out: GameConfig = { ...config };
+  if (src.maxAge !== undefined) out.maxAge = src.maxAge;
+  if (src.forbid) out.forbid = copyForbid(src.forbid);
+  out.players = config.players.map((p, i) => {
+    const sp = src.players[i]; if (!sp || !locked(sp)) return p;
+    const q = { ...p };
+    if (sp.maxAge !== undefined) q.maxAge = sp.maxAge;
+    if (sp.forbid) q.forbid = copyForbid(sp.forbid);
+    return q;
+  });
+  return out;
 }
 
 export function initScenarioState(def: ScenarioDef): ScenarioState {

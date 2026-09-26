@@ -6,6 +6,7 @@ import { idx, inBounds, spiralSearch, isPassable } from '../map/grid';
 import { getBuildingStats, getUnitStats } from './modifiers';
 import { t } from '../../i18n';
 import { invalidateComponents, componentAt, componentSize } from '../map/components';
+import { forbiddenReason } from './restrictions';
 
 export function spawnUnit(state: GameState, owner: number, type: string, x: number, y: number): Unit {
   const player = state.players[owner];
@@ -108,6 +109,7 @@ export function countBuildings(state: GameState, owner: number, pred: (b: Buildi
 
 export function buildingLimitOk(state: GameState, player: Player, type: string): PlaceCheck {
   const def = BUILDINGS[type];
+  const forbid = forbiddenReason(state, player.id, 'buildings', type); if (forbid) return { ok: false, reason: forbid };   // G6: config.forbid
   if (def.titanGate && player.titanSpawned) return { ok: false, reason: t('err.titanOnce') };   // o Titã só surge uma vez
   if (def.limit === 'city') {
     const n = countBuildings(state, player.id, (b) => b.type === 'town_center');

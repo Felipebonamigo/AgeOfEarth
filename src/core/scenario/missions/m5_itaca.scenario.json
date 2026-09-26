@@ -31,8 +31,8 @@
   "config": {
     "players": [
       { "name": "Argos", "god": "zeus", "isAI": false, "difficulty": "normal", "team": 0 },
-      { "name": "Liga do Istmo", "god": "poseidon", "isAI": true, "difficulty": "normal", "team": 1 },
-      { "name": "Cavaleiros de Poseidon", "god": "poseidon", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
+      { "name": { "pt": "Liga do Istmo", "en": "Isthmian League" }, "god": "poseidon", "isAI": true, "difficulty": "normal", "team": 1, "forbid": { "buildings": ["titan_gate"] } },
+      { "name": { "pt": "Cavaleiros de Poseidon", "en": "Poseidon's Riders" }, "god": "poseidon", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
     ],
     "startingAge": 2,
     "startingResources": { "food": 800, "wood": 800, "gold": 400, "favor": 60, "knowledge": 200 },
@@ -183,8 +183,6 @@
     { "id": "tregua_fim", "when": { "all": [ { "fired": "tregua_30" }, { "var": "tregua_s", "lte": 0 }, { "objective": "escolta", "is": "pending" } ] }, "then": [
       { "do": "say", "speaker": { "pt": "Batedor", "en": "Scout" }, "icon": "🐎",
         "text": { "pt": "A trégua acabou, arconte! As fogueiras voltam a vigiar a estrada.", "en": "The truce is over, archon! The fires watch the road again." } } ] },
-    { "id": "sem_portal_liga", "repeat": true, "when": { "entity": { "player": 1, "type": "titan_gate" }, "exists": true }, "then": [
-      { "do": "kill", "entity": { "player": 1, "type": "titan_gate" } } ] },
     { "id": "fim", "when": { "objective": "escolta", "is": "done" }, "then": [
       { "do": "say", "speaker": "Poseidon", "icon": "🔱",
         "text": { "pt": "Argos escolheu. Que Argos se lembre disso quando o mar subir.", "en": "Argos has chosen. Let Argos remember it when the sea rises." } } ] }

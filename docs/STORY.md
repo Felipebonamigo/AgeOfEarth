@@ -52,7 +52,7 @@ Nomes em PT, com o EN entre parênteses quando for diferente. As fichas de miss�
 
 | Personagem | No jogo | Motivação | Como fala |
 |---|---|---|---|
-| **O Arconte de Argos** (*the Archon of Argos*) | É o jogador. Aparece como unidade só na m11 (`basileus` com `tag` `arconte`; o jogo exibe o nome "Rei" até existir [G8]) | Proteger Argos a qualquer preço. Esse "qualquer preço" é o erro trágico dele | Não fala. Os outros se dirigem a ele como "arconte" |
+| **O Arconte de Argos** (*the Archon of Argos*) | É o jogador. Aparece como unidade só na m11 (`basileus` com `tag` `arconte` e `name` `{ "pt": "Arconte de Argos", "en": "Archon of Argos" }` — [G8] ✅: o HUD mostra esse nome no lugar de "Rei") | Proteger Argos a qualquer preço. Esse "qualquer preço" é o erro trágico dele | Não fala. Os outros se dirigem a ele como "arconte" |
 
 ### 2.2 Mortais e heróis
 
@@ -73,7 +73,7 @@ Nomes em PT, com o EN entre parênteses quando for diferente. As fichas de miss�
 
 | Personagem | No jogo | Motivação | Como fala |
 |---|---|---|---|
-| **Lícaon, o Rei-Lobo** (*Lycaon, the Wolf-King*), hierofante do Culto de Cronos | Speaker. O Culto é um jogador IA. Na m10 aparece como `nemean_lion` com `tag` `licaon` (nome próprio exibido depende de [G8]) | Zeus o transformou em lobo por servir carne humana aos deuses. Ele quer a **Idade de Ouro** de Cronos, em que não havia velhice, fome nem deuses que humilham reis | Cortês e cruel. Fala de mesa, fome e banquete. *"Sentem-se à minha mesa. Zeus sentou-se uma vez... e nunca mais teve fome."* / *"Sit at my table. Zeus sat there once... and never hungered again."* |
+| **Lícaon, o Rei-Lobo** (*Lycaon, the Wolf-King*), hierofante do Culto de Cronos | Speaker. O Culto é um jogador IA. Na m10 aparece como `nemean_lion` com `tag` `licaon` e nome próprio pelo `name` do `spawn` ([G8] ✅) | Zeus o transformou em lobo por servir carne humana aos deuses. Ele quer a **Idade de Ouro** de Cronos, em que não havia velhice, fome nem deuses que humilham reis | Cortês e cruel. Fala de mesa, fome e banquete. *"Sentem-se à minha mesa. Zeus sentou-se uma vez... e nunca mais teve fome."* / *"Sit at my table. Zeus sat there once... and never hungered again."* |
 
 Lícaon **não aparece no prólogo**, que fica inalterado. O prólogo diz "sacerdotes de Hades" e "Culto de Cronos", e a m4 revela que os dois são a mesma coisa: o culto vivia escondido no clero de Hades.
 
@@ -103,6 +103,8 @@ Lícaon **não aparece no prólogo**, que fica inalterado. O prólogo diz "sacer
 *Argos* (jogador) · *Culto de Cronos* (m4, m9–m12) · *Guardiões do Cáucaso* (m4, marionete) · *Liga do Istmo* (Corinto, m5–m8) · *Cavaleiros de Poseidon* (m5, marionete) · *Frota de Poseidon* (m6, marionete) · *Micenas* (aliada, m6 e m8) · *Mirmidões de Aquiles* (m7, marionete) · *Oceano* (m8, marionete) · *Legiões de Hades* (jogador na m9) · *Carcereiros de Cronos* (m9, marionete) · *Hades* (aliado, m10 e m12) · *Poseidon* (aliado, m12) · *Exilados de Argos* (jogador na m12).
 
 "Marionete" é um jogador com `isAI: false` e sem cidade, que só age por gatilhos, como os *Saqueadores* da m1. Limite: 4 jogadores por missão (`MAX_PLAYERS`).
+
+Com [G8] ✅, `name` aceita `{ "pt", "en" }` e o HUD mostra o nome da facção no idioma atual. m4–m7 já usam: *Cult of Cronus*, *Guardians of the Caucasus*, *Isthmian League*, *Poseidon's Riders*, *Mycenae*, *Poseidon's Fleet*, *Achilles' Myrmidons* (Argos fica igual nos dois idiomas).
 
 ---
 
@@ -144,13 +146,13 @@ Legenda:
 | 3 | `m3_portal` *(existe)* | O Portal dos Titãs / *The Titans' Gate* | Corrida contra o ritual; Titãs como opção | **corrida** | Heroica | gen M, 3303 | 25–30 | ✅ | — (inalterada) |
 | 4 | `m4_caucaso` *(produzida)* | O Fogo do Cáucaso / *The Fire of the Caucasus* | **Expedição sem cidade, fronteiras e atrito, 2ª cidade** (cobra: herói contra mítica) | expedição + libertação | Heroica | fixo 96×144 "Garganta do Cáucaso" | 25–30 | ✅ | — |
 | 5 | `m5_itaca` *(produzida)* | O Hóspede de Ítaca / *The Guest from Ithaca* | **Escolta** (cobra: Mercado como opção) | **escolta** | Heroica | fixo 128×112 "Planície da Argólida" | 20–25 | ✅ | — |
-| 6 | `m6_estatua` *(produzida)* | A Estátua de Zeus / *The Statue of Zeus* | **Maravilha com guarda cronometrada** (cobra: Idade Mítica pela Academia) | **maravilha** | Heroica | gen M continental, 6606 | 25–30 | ✅ | — (G4 melhora) |
+| 6 | `m6_estatua` *(produzida)* | A Estátua de Zeus / *The Statue of Zeus* | **Maravilha com guarda cronometrada** (cobra: Idade Mítica pela Academia) | **maravilha** | Heroica | gen M continental, 6606 | 25–30 | ✅ | G4 ✅ (barra da guarda), G6 ✅, G8 ✅ |
 | 7 | `m7_aquiles` *(produzida)* | A Cólera de Aquiles / *The Wrath of Achilles* | **Caça ao herói** com o poder Oráculo (cobra: defesa de aldeias) | **caça ao herói** | Heroica | gen M forest, 7707 | 20–30 | ✅ | — (G11 melhora) |
 | 8 | `m8_oceano` | A Maré de Oceano / *The Tide of Oceanus* | **Chefe-Titã com contagem regressiva**, Raio, invocar Prometeu (cobra: muralhas e torres) | **defesa** + chefe | Mítica | fixo 128×128 "Golfo da Argólida" | 30–35 | ✅ | — |
 | 9 | `m9_tenaro` | A Descida ao Tênaro / *The Descent at Taenarum* | **Criaturas míticas, jogando como Hades** (cobra: heróis contra míticas) | resgate + cerco leve | Heroica | gen M lakes, 9909 | 25–30 | — | — (G10 para relíquias) |
-| 10 | `m10_otris` | O Cerco de Ótris / *The Siege of Othrys* | **Cerco** (helépoles, muralhas concêntricas) + **Rei da Colina** no altar | **cerco** + **rei da colina** | Mítica | fixo 144×144 "Monte Ótris" | 30–35 | — | G2, G4 (paliativo hoje) |
-| 11 | `m11_chamas` | Argos em Chamas / *Argos in Flames* | **Êxodo + poderes divinos um a um** (cobra: proteger o líder) | **regicídio** (proteger o arconte) + escolta em massa | Mítica | fixo 128×128 "Argólida em Chamas" | 18 (fixo) | — | G8, G9, G6 (paliativo hoje) |
-| 12 | `m12_titanomaquia` | O Fim da Idade de Ouro / *The End of the Golden Age* | **Batalha final 3 × 1**: altares, depois Cronos, com Titãs (cobra: tudo) | **cerco** + chefe em fases | Mítica | fixo 144×144 "Planície da Tessália" | 35–40 | — | G6, G9 (paliativo hoje) |
+| 10 | `m10_otris` | O Cerco de Ótris / *The Siege of Othrys* | **Cerco** (helépoles, muralhas concêntricas) + **Rei da Colina** no altar | **cerco** + **rei da colina** | Mítica | fixo 144×144 "Monte Ótris" | 30–35 | — | G2 ✅, G4 ✅ |
+| 11 | `m11_chamas` | Argos em Chamas / *Argos in Flames* | **Êxodo + poderes divinos um a um** (cobra: proteger o líder) | **regicídio** (proteger o arconte) + escolta em massa | Mítica | fixo 128×128 "Argólida em Chamas" | 18 (fixo) | — | G8 ✅, G9 ✅, G6 ✅ |
+| 12 | `m12_titanomaquia` | O Fim da Idade de Ouro / *The End of the Golden Age* | **Batalha final 3 × 1**: altares, depois Cronos, com Titãs (cobra: tudo) | **cerco** + chefe em fases | Mítica | fixo 144×144 "Planície da Tessália" | 35–40 | — | G6 ✅, G9 ✅ |
 
 **Totais:**
 - Cerca de **5 h 30** de campanha, das quais cerca de **3 h 30 no EA**.
@@ -342,7 +344,7 @@ Legenda:
 - EN: *"Prometheus walks free for the first time in thirty generations. The Cult retreats, leaving a wolf banner on the rock. Zeus smiles; the Pythia does not: 'The city that lights the Titans' fire shall burn in it.' And at sea, a castaway from Ithaca begs shelter on the shores of Argos..."*
 
 **Riscos:**
-- O jogador 0 começa na Heroica e está longe da Idade dos Titãs. Mesmo assim, um Portal próprio geraria um segundo Prometeu, porque o `spawn` não marca `titanSpawned`. O que resolve de vez é [G6] `maxAge`. Até lá, o teste da §7 confere se existe no máximo 1 `prometheus`.
+- O jogador 0 começa na Heroica e está longe da Idade dos Titãs. Mesmo assim, um Portal próprio geraria um segundo Prometeu, porque o `spawn` não marca `titanSpawned`. [G6] ✅ resolve de vez: `config.forbid: { "buildings": ["titan_gate"] }`. O teste da §7 continua conferindo no máximo 1 `prometheus`.
 - Guardas do jogador 2 mortos em combate podem voltar como Sombras (efeito do deus Hades). É intencional e combina com a história.
 
 **Produção (✅ feita):** `src/core/scenario/missions/m4_caucaso.scenario.json`, registrada em `CAMPAIGN` (Ato I, depois de m3) e com roteiro em `MISSION_SCRIPTS`. O mapa fixo "Garganta do Cáucaso" sai de `scripts/maps/m4_caucaso.ts` (primitivas de relevo com ruído de semente fixa, aplicadas com as operações do editor `src/editor/ops.ts` e salvas por `saveMap`; `--write` embute em `map.data`, sem argumentos confere que o embutido é idêntico ao gerado; `--out` grava o `.map.json` avulso). `validateMap` sem erros (4 avisos: gargalo junto à cidade do Culto, gargalo/comida/madeira no início formal dos Guardiões no Rochedo); `npm run map:check` ok. Testes próprios em `tests/m4_caucaso.test.ts` (reprodutibilidade do mapa, pontos e tags da ficha, rotas por terra, G3, libertação, segredo, paliativo do Portal; e, desde a revisão, Águia × Prometeu e × Héracles, renascimento no Difícil, as três derrotas, contra-ataques contados da colônia, atrito no platô 1 e a fila de falas). O que mudou em relação à ficha:
@@ -351,12 +353,12 @@ Legenda:
 - **Atrito nos platôs por Templos dos Guardiões**: o território do Culto (CC em [82,24], Fortaleza em [74,30]) não alcança os platôs; um Templo do Culto ali atrairia os sacerdotes da IA. Os platôs 2 e 3 ganharam um Templo do jogador 2 (Hades: território 5, atrito 0,7/s); as torres-corrente projetam 3, então o platô 1 também tem atrito em volta da `corrente1` (o gatilho `atrito`, 1º contato, vale nos três platôs). A fronteira tem a cor do dono (Culto vermelho, Guardiões verde): a dica não fala em "linha dourada".
 - **2ª cidade no Difícil**: dois objetivos ocultos com o mesmo texto, revelados no 1º segundo por G3 — `cidades` (opcional, Fácil/Normal) e `cidades_dificil` (principal, Difícil; a vitória o exige). A Águia renasce 180 s depois de cada morte no Difícil (contador `aguia_s`), só antes da libertação.
 - **Culto com estoque menor** (`set` no setup: 300/300/200, sem favor nem conhecimento): com os 600/600/500/60/150 de todos, o Culto (que já tem a Fortaleza) chegava à Mítica aos ~9 min e arrasava a colônia no Difícil.
-- **Paliativo sem [G6]**: o Culto chega à Idade dos Titãs (~21–25 min na passiva do Difícil); todo Portal dos Titãs do Culto cai no mesmo segundo (sem Cronos na m4). O de Argos também (custo devolvido e a Pítia: "O fogo dos Titãs não se acende no Cáucaso"), o que fecha o risco do segundo Prometeu.
+- **Portal dos Titãs proibido ([G6] ✅)**: `config.forbid: { "buildings": ["titan_gate"] }` vale para Argos e o Culto (os Guardiões são marionete). O botão aparece desabilitado com "Proibido nesta missão" (na 4ª linha da grade de construção, que rola), a IA do Culto nem tenta (ele chega à Idade dos Titãs aos ~21–25 min na passiva do Difícil) e a Pítia ("O fogo dos Titãs não se acende no Cáucaso") fala quando Argos chega à Idade dos Titãs (`aviso_portal`). Assim não há Cronos na m4 nem segundo Prometeu. Antes do G6, o paliativo derrubava todo Portal no mesmo segundo (o de Argos com o custo devolvido); os tempos do roteiro da §7.2 não mudaram com a troca.
 - **Falas acrescentadas** (tom da §1.2, ≤ 200 caracteres): Zeus no Difícil (a 2ª cidade), Pítia no Fácil (os guardas do 3º platô desertaram), Pítia ao fundar a colônia (o exército já ocupa 32 de população: Casas antes de cidadãos), Héracles ao avistar a Águia, Pítia quando a Águia renasce; a profecia de Prometeu vem quando ele chega à Fortaleza (ou quando ela cai). A vingança da `corrente3` é 3 hipaspistas, 2 toxotas e 1 Cérbero (não no Fácil). HUD: progresso da obra do CC da colônia. Segredo `hefesto` com `done` direto ([G1]).
 - **Revisão (correções):**
   - **Fácil com as três correntes**: em vez do `kill` na `corrente3` no 1º segundo, os 5 guardas do platô 3 desertam (`kill` sem matador: sem Sombras) e a vingança da `corrente3` não vem. Com uma corrente a menos, o roteiro sem relógio vencia o Fácil aos 14m21s, fora da janela (e a fala-chave "Trinta gerações" deixava de ser a última antes da libertação).
   - **Prometeu surge em [56,41]** (a descida do platô 3 para o platô 2, rumo à Fortaleza), não no Rochedo: em [48,14] ele nascia a 2,8 tiles da Águia e a matava em ~5 s, cumprindo `aguia` e as duas falas de Héracles sem ele. `aguia_vista` exige Héracles (`tag`) a 12 tiles do Rochedo; a fala "Já matei essa águia" só sai se ele estiver a 15 tiles quando ela cai (gatilho `aguia_heracles`, antes de `aguia_cai`, que dá o favor sempre).
-  - **Textos**: `correntes` diz o que e onde ("as torres dos Guardiões nos platôs ao norte"); `colonia` não promete o vale (a condição é 1 CC completo em qualquer lugar; o Vale da Cólquida fica como conselho na dica 1); a dica 2 liga corrente, torre e desfiladeiro e chama os Santuários de Templos (o nome que o jogo mostra); a dica 3 e Héracles tratam a Águia como a mantícora que o jogo mostra, até [G8]; Lícaon entra como "Lícaon, o Rei-Lobo" e o outro o apresenta (rei da Arcádia, hierofante do Culto); a Pítia trata o jogador por "você" também no aviso do Portal. O Altar de Hefesto não tem entidade (4 nós de ouro): o objetivo é secreto e só aparece quando cumprido.
+  - **Textos**: `correntes` diz o que e onde ("as torres dos Guardiões nos platôs ao norte"); `colonia` não promete o vale (a condição é 1 CC completo em qualquer lugar; o Vale da Cólquida fica como conselho na dica 1); a dica 2 liga corrente, torre e desfiladeiro e chama os Santuários de Templos (o nome que o jogo mostra); a dica 3 e Héracles tratam a Águia como a mantícora que ela é, e com [G8] ✅ o HUD a mostra com nome próprio ("Águia do Cáucaso" / "Eagle of the Caucasus", `spawn { "name" }` nos dois gatilhos que a trazem); Lícaon entra como "Lícaon, o Rei-Lobo" e o outro o apresenta (rei da Arcádia, hierofante do Culto); a Pítia trata o jogador por "você" também no aviso do Portal. O Altar de Hefesto não tem entidade (4 nós de ouro): o objetivo é secreto e só aparece quando cumprido.
   - **Derrotas**: o CC conta só completo (`complete: true`) nas derrotas 2 e 3 — uma fundação sem cidadãos segurava a missão sem saída.
   - **Contra-ataques contados da colônia** (contador `colonia_s`): o 1º 300 s depois dela, depois a cada 150 s (antes: relógio absoluto `every 150, after 300`).
   - **Falas no mesmo segundo**: vários `say` num gatilho, ou gatilhos na mesma passada do runner, saíam no mesmo tick e só a última ficava na tela (Zeus e Lícaon na libertação; Héracles na abertura do Fácil/Difícil). O HUD agora as enfileira (`src/ui/dialogue.ts`): cada fala fica 5–10 s (conforme o tamanho) antes da próxima, a última 14 s, e o clique passa adiante. Vale para todas as missões.
@@ -518,7 +520,7 @@ Legenda:
 - **Vitória só com o encontro na praia (revisão):** na produção, `escolta` só pedia Odisseu a 7 tiles do CC, e a `espera` dá uma ordem `move` por segundo; clicando sem parar (a cada 5–10 ticks) o jogador levava Odisseu sozinho até Argos e vencia aos 46–71 s nas três dificuldades, com o Heraion "de brinde" aos 33 s. Agora `escolta` exige `encontrar` feito e `encontrar` exige Odisseu na praia (14 tiles de [110,98]) junto dos 3 soldados; o Heraion também só conta depois do encontro. Os náufragos também esperam na praia (gatilho `espera_naufragos`: se sobrarem nela menos que os 4/6 do objetivo, voltam a [106,99]) e o objetivo deles só se cumpre depois do encontro — mandados sozinhos a Argos no segundo 0, cumpriam o objetivo aos 47–48 s, dentro da trégua inicial.
 - **Heraion falha se o templo cair:** a Liga ataca primeiro o Heraion (o edifício de Argos mais perto de Corinto); `heraion` ganhou `failed` e Hera comenta a queda.
 - **Náufragos no Difícil:** dois objetivos ocultos revelados no 1º segundo por G3, como na m4 — `naufragos` (≥ 4, Fácil/Normal) e `naufragos_todos` (os 6 vivos, Difícil). No `setup`, os náufragos recebem uma ordem de ficar na praia (senão a partida os mandava coletar em Argos, do outro lado do mapa).
-- **Paliativo sem [G6]:** o Portal dos Titãs da Liga cai no mesmo segundo (nada de Oceano antes da m8; na passiva do Difícil a Liga chega à Idade dos Titãs aos ~18 min).
+- **Portal dos Titãs proibido à Liga ([G6] ✅):** `config.players[1].forbid: { "buildings": ["titan_gate"] }` no lugar do paliativo que derrubava o Portal no mesmo segundo. Nada de Oceano antes da m8 (na passiva do Difícil a Liga chega à Idade dos Titãs aos ~18 min). Argos não tinha trava e continua sem.
 - **Falas acrescentadas** (tom da §1.2, ≤ 200 caracteres): Pítia aos 4 s (Odisseu espera na praia: mande 3 soldados), Odisseu quando o afastam da praia, Odisseu e a Pítia no encontro (as três saídas; Astúcia de Odisseu, tecla Q), Pítia no Fácil ("Os céus choraram sobre a Argólida: a fogueira do sul se apagou e a torre ruiu"), Batedor aos 130 s (tochas) e nos primeiros caçadores da estrada, Odisseu aos 150 s (as fogueiras; a do norte fica "a sudeste do vau norte"), o Emissário na oferta e aos 30 s do fim da trégua comprada, o Batedor no fim dela e Hera na queda do Heraion. O objetivo do Heraion diz onde ele fica ("o templo de Hera na Via Sagrada, a noroeste do vau sul"). Dicas (5): a espera na praia, a caça das tochas na praia × a perseguição fora dela, uma leva por torre de pé, a oferta (com o lugar da fogueira do norte) e o fim da missão ("termina quando Odisseu entra em Argos: traga antes os náufragos e passe pelo Heraion"). HUD: a trégua inicial (46 s, porque ela começa no 1º segundo) e o relógio do Emissário.
 - **Restos do naufrágio:** 4 rochas (montanha) na linha d'água da praia; o motor não tem entidade decorativa.
 
@@ -530,7 +532,7 @@ Legenda:
 - **Mecânica em destaque:** erguer uma **Maravilha** e mantê-la de pé por **6 minutos** sob ataque, com reparo, torres e uma IA aliada.
 - **Mecânica cobrada:** chegar à Idade Mítica, com a 4ª pesquisa da Academia.
 - **Tema:** o **custo humano**. Um objetivo secundário pede que o povo não seja sacrificado à obra.
-- **Objetivo-tipo:** maravilha. **Tempo:** 25–30 min. **Lacunas:** nenhuma. Com [G4], ganha uma barra de guarda no painel.
+- **Objetivo-tipo:** maravilha. **Tempo:** 25–30 min. **Lacunas:** nenhuma. Com [G4] ✅, ganhou a barra da guarda no painel (`hud.progress { "var": "estatua_s", "max": { "var": "guarda" }, "format": "time" }`).
 
 **Jogadores:**
 
@@ -642,7 +644,7 @@ Legenda:
 ```
 
 **Notas de design:**
-- A vitória por Maravilha do modo normal **não roda em cenários** [G2]. O contador `estatua_s` faz esse papel. As falas em `estatua_s` = 120, 240 e 300 (`falta4`, `falta2`, `falta1`) substituem a barra de guarda até existir [G4].
+- A vitória por Maravilha do modo normal **não roda em cenários** [G2]. O contador `estatua_s` faz esse papel. As falas em `estatua_s` = 120, 240 e 300 (`falta4`, `falta2`, `falta1`) continuam; com [G4] ✅ a guarda também aparece como barra no painel ("🛡️ Guarda da Estátua: 2:15 / 6:00", só com a Estátua de pé).
 - **Colossos e ondas vêm do jogador 3, que é marionete.** Com unidades roteirizadas da Liga, a IA dela poderia desviá-las [G16].
 - Os reforços de Micenas nascem **para o jogador 0** pelo mesmo motivo.
 - A Liga (IA) pode erguer a própria Maravilha na Mítica. A vitória nativa dela também não roda, então isso não encerra a missão. Na história, é só a Liga imitando Argos.
@@ -672,8 +674,8 @@ Legenda:
 - **Ondas pela praia do sul do mapa real**: `onda1` no ângulo 1 (sudeste), `onda2` no 2 (sul) e `cerco_estatua` no 1, em vez de 0/1/0. O leste de Argos fica colado à borda.
 - **Setup a mais (parâmetros da missão):** 2 Casas prontas para Argos (a população dos 12 cidadãos, do exército e do `povo` cabe no limite); Liga com Quartel, Estábulo e 6 cidadãos (sem isso ela não pressionava ninguém dentro dos 25–30 min); Micenas com uma torre, 4 cidadãos, 3 hoplitas e 2 toxotas (a IA fácil sozinha caía cedo diante da Liga, e `micenas` falhava antes de o jogador poder agir).
 - **Fala do Jasão sobre torres** sai com a obra em 60 s (25 %), não na conclusão: o conselho serve antes, e a conclusão já tem a fala do Rei Atreu.
-- **Paliativo sem [G6]:** todo Portal dos Titãs cai no mesmo segundo. O da Liga cai com a fala de Poseidon ("o velho Oceano dorme", gancho da m8), o de Micenas com a fala da Pítia, e o de Argos com o custo devolvido e a fala da Pítia ("Prometeu ainda sangra do Cáucaso"). Assim, nenhum Titã entra na m6 e Prometeu fica para a m8, como na §2.5.
-- **Falas acrescentadas** (tom da §1.2, ≤ 200 caracteres): Pítia (a 4ª pesquisa da Academia, a Estátua com a tecla M, o Fácil, Micenas caída e os Portais), Batedor (as duas ondas e o 1º cerco da Frota), Rei Atreu pedindo socorro quando a Liga chega a Micenas, Jasão no 2º Colosso, Hefesto no segredo e Zeus no Difícil. HUD: progresso da obra (`max` 240), como na ficha; a guarda aparece nas falas de 120/240/300 s até existir [G4].
+- **Portais dos Titãs proibidos ([G6] ✅):** `config.forbid: { "buildings": ["titan_gate"] }` vale para todos (a Frota é marionete). As falas ficaram, no instante em que cada jogador chega à Idade dos Titãs (quando o Portal seria liberado): Poseidon à Liga ("o velho Oceano dorme", gancho da m8), a Pítia a Micenas e a Argos ("Prometeu ainda sangra do Cáucaso"). Só o fim das duas falas da Pítia mudou, porque o Portal não é mais derrubado nem devolvido ("Zeus não a deixa erguer um Portal" / "Zeus não deixa você erguer um Portal nesta guerra"). Assim, nenhum Titã entra na m6 e Prometeu fica para a m8, como na §2.5. Antes do G6, todo Portal caía no mesmo segundo (o de Argos com o custo devolvido); os tempos do roteiro não mudaram com a troca.
+- **Falas acrescentadas** (tom da §1.2, ≤ 200 caracteres): Pítia (a 4ª pesquisa da Academia, a Estátua com a tecla M, o Fácil, Micenas caída e os Portais), Batedor (as duas ondas e o 1º cerco da Frota), Rei Atreu pedindo socorro quando a Liga chega a Micenas, Jasão no 2º Colosso, Hefesto no segredo e Zeus no Difícil. HUD: progresso da obra (`max` 240), como na ficha, e a barra da guarda ([G4] ✅); os dois Colossos aparecem como "Colosso de Poseidon" / "Colossus of Poseidon" ([G8] ✅, `spawn { "name" }`).
 - **Revisão da m6 (correções):**
   - **Maravilha da Liga:** a IA da Liga chega à Mítica e ergue a própria Maravilha (Colosso de Rodes aos 14m53s na passiva do Normal). Em cenário, o evento passa a dizer só "{jogador} concluiu {Maravilha}!" (`ev.wonderScenario`, sem "Contagem de vitória iniciada"), o painel da Maravilha não mostra mais o "Vitória em" (a vitória nativa não roda em cenário [G2]; no Fácil ele contava 6 min contra uma guarda de 5), e o gatilho `maravilha_liga` põe a Pítia a desfazer o engano ("Zeus não conta bronze alheio: só a sua Estátua importa").
   - **Difícil avisado antes da 1ª queda:** Zeus avisa na metade da obra (`aviso_dificil`, progresso ≥ 120, longe das falas de Poseidon na obra e de Jasão aos 60), e uma 4ª dica do briefing traz a regra.
@@ -1104,7 +1106,7 @@ A paleta de bioma "Submundo" é visual e pedido da Fase 2 [G14]. Até lá, o ter
 - **Mecânica cobrada:** IA aliada.
 - **A vitória é o erro trágico da campanha.**
 - **Objetivo-tipo:** cerco + rei da colina. **Tempo:** 30–35 min.
-- **Lacunas:** funciona hoje com contador emulado. Com [G2] (`koth`) e [G4] (barra por variável), fica mais limpa.
+- **Lacunas:** [G2] (`koth`) e [G4] (`hud.progress { "var" }`) ✅: o contador emulado vira condição `koth` e barra no painel.
 
 **Jogadores:**
 
@@ -1212,7 +1214,7 @@ A paleta de bioma "Submundo" é visual e pedido da Fase 2 [G14]. Até lá, o ter
 - `pilar2_cai` e `pilar3_cai` seguem o modelo, com falas mais fortes de Cronos: *"Três mil anos de espera... e mais três pedras."*
 - O `mode: "koth"` serve só para que as IAs disputem a colina e o jogo mostre as mensagens de posse. **A vitória nativa não roda em cenário**, então quem decide é `altar_s`. Esse contador exige 120 s, e não os 240 s do modo.
 - Sem [G2], a condição do altar precisa de uma cláusula por jogador, porque `UnitFilter` não tem `team`.
-- O Lícaon-lobo aparece como "Leão de Nemeia" até existir [G8].
+- O Lícaon-lobo aparece com o próprio nome: `spawn { "name": { "pt": "Lícaon, o Rei-Lobo", "en": "Lycaon, the Wolf-King" } }` ([G8] ✅; o tipo, Leão de Nemeia, vai na descrição).
 
 **Derrota:** `DERROTA_CC`.
 
@@ -1238,7 +1240,7 @@ A paleta de bioma "Submundo" é visual e pedido da Fase 2 [G14]. Até lá, o ter
   - **poderes divinos um a um**: Zeus não tem exército para dar, só a ira. Cada onda foi desenhada para um poder: Maldição, Tempestade de Raios, Trégua e Restauração.
 - **Mecânica cobrada:** **proteger o líder** (o arconte em pessoa, no estilo regicídio).
 - **Objetivo-tipo:** regicídio (proteger o arconte) + escolta em massa. **Tempo:** 18 min (cronômetro fixo).
-- **Lacunas:** funciona hoje. [G8] troca "Rei" por "Arconte", [G9] deixa Cronos imbatível aqui e [G6] `remove` faz o embarque sem animação de morte.
+- **Lacunas:** todas ✅: [G8] troca "Rei" por "Arconte" (`name`), [G9] deixa Cronos imbatível aqui (`hpFloor`) e [G6] `remove` faz o embarque sem animação de morte. O contador de embarcados pode virar barra ([G4] `hud.progress { "var": "embarcados", "max": 30, "format": "count" }`).
 
 **Jogadores:**
 
@@ -1360,13 +1362,13 @@ A paleta de bioma "Submundo" é visual e pedido da Fase 2 [G14]. Até lá, o ter
 **Notas de design:**
 - **A queda do CC não é derrota.** As ondas do meio para o fim miram as **naus** e o **arconte**. Um `raid` contra `{ "tc": 0 }` depois do CC cair simplesmente não acontece.
 - **As naus chegam em três levas** (4, 9 e 13 min, 10 lugares cada). Assim o êxodo não termina antes do clímax: com Prometeu aos 11 min e Cronos aos 12, o mais cedo possível é cerca de 13 min.
-- O embarque retira 1 cidadão a cada 2 s, como uma fila no cais. `chama_salva` vem **antes** de `embarque` na lista, então o sacerdote conta antes de ser embarcado. Com `kill` (dono Zeus, sem autor) **não nascem Sombras**. [G6] `remove` apagaria até a animação de morte.
+- O embarque retira 1 cidadão a cada 2 s, como uma fila no cais. `chama_salva` vem **antes** de `embarque` na lista, então o sacerdote conta antes de ser embarcado. Com `kill` (dono Zeus, sem autor) **não nascem Sombras**. Com [G6] ✅, `{ "do": "remove", "entity": … }` no lugar do `kill` apaga até a animação de morte.
 - **Risco de narrativa:** se o jogador matar Cronos aqui, a m12 perde força. Hoje há três defesas:
   1. Cronos surge a 6 minutos do fim;
   2. Prometeu (aliado) é ordenado a lutar com ele e absorve o dano;
   3. o `outro` funciona nos dois casos ("Cronos recua ferido ao Ótris").
 
-  A solução definitiva é [G9] (`hpFloor`).
+  A solução definitiva é [G9] ✅: `{ "do": "hpFloor", "entity": { "tag": "cronos" }, "value": 0.3 }` (Raio, Maldição e dano comum param no piso).
 
 **Derrota:** o arconte morre, ou o tempo acaba com menos de 30 embarcados.
 
@@ -1394,7 +1396,7 @@ A paleta de bioma "Submundo" é visual e pedido da Fase 2 [G14]. Até lá, o ter
   - os aliados Hades e Poseidon.
 - **Mecânica cobrada:** tudo.
 - **Objetivo-tipo:** cerco + chefe. **Tempo:** 35–40 min.
-- **Lacunas:** funciona hoje. [G6] `maxAge` impede um 2º Cronos da IA, e [G9] permite fases de vida de Cronos.
+- **Lacunas:** ✅ [G6] (`config.players[i].maxAge` ou `forbid { "buildings": ["titan_gate"] }`) impede um 2º Cronos da IA, e [G9] (`hp`, `hpFloor`, `damage`/`heal`) permite fases de vida de Cronos.
 
 **Jogadores:**
 
@@ -1491,14 +1493,14 @@ A paleta de bioma "Submundo" é visual e pedido da Fase 2 [G14]. Até lá, o ter
 - O `devorar` usa `forEachPlayer` e ataca **os três acampamentos aliados** a cada disparo, de ângulos diferentes. É intencional: Cronos devora tudo.
 - **O prazo de 25 min** (`time` ≥ 1500) garante o clímax mesmo para quem se atrasa com os altares. "O tempo não espera."
 - **Continuidade:** Odisseu e Héracles vêm do mapa com uma tag cada (`odisseu`, `heracles`). Perseu vem do `setup`. Jasão (saiu na m8) e Aquiles (morreu na m7) **não aparecem**.
-- **Risco:** o Culto em IA difícil na Mítica pode chegar aos Titãs e erguer um Portal próprio, o que criaria um 2º Cronos. Até existir [G6] `maxAge`, o Culto começa **sem** pesquisas da Academia (com 6 pesquisas e uma Fortaleza a Idade dos Titãs fica fora de alcance em 25 min) e o teste confere se existe no máximo 1 `cronus`.
+- **Risco:** o Culto em IA difícil na Mítica pode chegar aos Titãs e erguer um Portal próprio, o que criaria um 2º Cronos. O paliativo da ficha era o Culto começar **sem** pesquisas da Academia (com 6 pesquisas e uma Fortaleza a Idade dos Titãs fica fora de alcance em 25 min); com [G6] ✅ basta `"forbid": { "buildings": ["titan_gate"] }` (ou `"maxAge": 3`) no Culto. O teste continua conferindo no máximo 1 `cronus`.
 
 **Derrota:** o jogador perde o CC **e** fica sem Fortaleza completa.
 
 **Dificuldade:**
 - **Hoje:** o `devorar` escala e o Culto joga como IA Muito difícil no Difícil.
 - **Com [G3]:** prazo de Cronos de 30, 25 ou 20 min. No Difícil, Cronos surge com 2 Colossos.
-- **Com [G9]:** a cada 1/3 de vida perdida, Cronos invoca uma onda ("fases").
+- **Com [G9] ✅:** a cada 1/3 de vida perdida, Cronos invoca uma onda ("fases"): gatilhos com `{ "entity": { "tag": "cronos" }, "hp": { "lte": 0.66 } }` e `{ … "lte": 0.33 }`.
 
 **Diálogos-chave:**
 - **Héracles** (1º altar): *"Uma foice gigante? Já enfrentei coisa pior. Quer dizer... não. Mas vamos lá."* / *"A giant sickle? I've faced worse. Well... no. But let's go."*
@@ -1524,12 +1526,12 @@ As lacunas foram conferidas no código atual. A ordem é: impacto nas missões �
 | **G1** ✅ | Objetivo oculto nunca é avaliado | **Feito.** `runner.ts` avalia também os ocultos; ao mudar de estado, `ctx.objective` os revela | Segredo = objetivo `hidden` com `done`/`failed` direto (sem gatilho espelho). Um oculto que só deve contar depois de revelado leva a guarda `{ "fired": "<gatilho que o revela>" }` no `all` (m1 `camp`, m2 `counter` e m3 `cronus` ganharam essa guarda: comportamento visível idêntico; a ficha da m4 `culto` também). O lint [G7] avisa oculto revelado por gatilho sem a guarda | — | todas | **feita** |
 | **G2** ✅ | Fim de partida em cenário | **Feito.** `victory.ts` separa `eliminatePlayers` (sem edifícios que contam e sem cidadãos — `hasStartKit` respeitado —, ou Regicídio sem rei → `alive=false`, eventos de derrota, unidades somem) de `declareWinner`; em cenário, `game.ts` chama `eliminateInScenario` (sem vencedor global) antes do runner, com o critério de "sem kit": só cai quem não tem edifício que conta **nem nenhuma unidade viva** (o defensor da Horda sem cidade segue com o exército). **Marionetes explícitas**: `config.players[i].puppet: true` (validado; Tártaro da Horda, Saqueadores da m1 e as facções roteirizadas das fichas); não passam pela eliminação comum e o `alive` delas é "tem alguma entidade viva" (`scenarioAlive`/`refreshPuppets`; `kill`/`removeAll` do último derrubam, `spawn` traz de volta), e `{ "do": "defeat", "player" }` derrota qualquer jogador (alive=false, evento, some tudo). Saves/replays sem nenhum `puppet` seguem a regra antiga (`migrateLegacyPuppets`) | Derrota implícita: nenhum humano (não marionete) de pé. **Resultado por time**: `state.scenario.winnerTeam` (-1 = ninguém; padrão no `deserialize`); `outcome` continua do ponto de vista do time do primeiro humano; com humanos em times diferentes (cenário em rede), o último time humano de pé vence e `defeat` do arquivo passa a vitória ao outro time; o HUD usa `scenarioWon(sc, time do jogador local)`. Condições `{ "koth": { "team": 0 }, "gte": 120 }` (segundos de `state.koth` quando o time é T, senão 0), `{ "wonderHeld": { "player": 0 }, "gte": 360 }` (segundos desde a conclusão da Maravilha mais antiga de pé; 0 sem Maravilha), `{ "kingAlive": 0 }` e `{ "alive": 0 }`. A `DERROTA_CC` continua útil quando a derrota deve vir antes da eliminação | — | m6, m10, m11; m1 perde ao perder tudo | **feita** |
 | **G3** ✅ | Condição de dificuldade | **Feito.** `{ "difficulty": "easy" \| "normal" \| "hard" \| [...] }`, `Value { "stat": "difficulty" }` (0/1/2, sem `player`) e `spawn { "scaled": true }` (mesmo `scaledGroup` do `raid`: Fácil ≈ 2/3, Difícil ≈ 1,5×). `config.campaignDifficulty` ausente = normal. IAs aliadas do jogador não mudam de nível (`withCampaignDifficulty`) | — | — | as variações "com [G3]" de todas | **feita** |
-| **G4** | HUD e tempo relativo | `progress` só lê a obra de um edifício; `countdown` é absoluto | `progress { "var", "max" }`, `countdown { "fromVar" }` e `Value { "time": true }` para marcar instantes com `setVar` | 4–6 h | m6 (guarda), m10 (altar), m11 (embarcados) | média-alta |
+| **G4** ✅ | HUD e tempo relativo | **Feito.** `Value { "time": true }` (segundos inteiros de jogo) marca instantes com `setVar`; `hud.countdown { "fromVar" }` conta `seconds` a partir da marca (sem marca, não aparece; valor em `vars` vale como marca); `hud.progress { "var", "max": Valor, "while"?, "format"?: "percent" \| "count" \| "time" }` desenha a barra de uma variável (a de obra, `{ "entity" }`, ganhou `while`/`format`). HUD em `src/ui/scenario-hud.ts` (função pura, rótulos PT/EN); o lint avisa `var` que ninguém escreve e `fromVar` sem `setVar { "time": true }` ou declarado em `vars` | Tempo desde a marca: `{ "time": { "gte": { "add": [ { "var": "t0" }, 600 ] } } }` | — | m6 (guarda ✅), m10 (altar), m11 (embarcados) | **feita** |
 | **G5** ✅ | Tag de grupo em entidades do mapa | **Feito.** Entidades do mapa com a mesma tag acumulam `vars['#tag[k]']` (ordem do arquivo) e `vars['#tag']` = primeiro id, como `spawn`/`place` | `UnitFilter`/`BuildingFilter { "tag" }` contam o grupo inteiro; `EntityRef { "tag", "pick": "first" \| "alive" \| "nearest", "near"? }` (`alive` = primeiro vivo do grupo; `nearest` exige `near`). Para "o grupo todo caiu": `{ "entity": { "tag": "g", "pick": "alive" }, "exists": false }` | — | libera grupos desenhados no editor | **feita** |
-| **G6** | `remove`, `order garrison` e `maxAge`/`forbid` | `kill` gera morte; `order` sem guarnecer (o comando existe em `commands.ts`); nada trava a Idade | `{ "do": "remove", "entity" }` (usa `removeUnitNow`); `order { "type": "garrison" \| "ungarrison" }`; `config.maxAge` e `config.forbid { buildings, units, techs }` conferidos em `commands.ts` e na IA | 4 h | m11 (embarque limpo), m12 e m4/m8 (sem Titã duplicado) | média |
+| **G6** ✅ | `remove`, `order garrison` e `maxAge`/`forbid` | **Feito.** `{ "do": "remove", "entity" }` (`removeUnitNow`/`removeBuildingNow`: sem morte, abate, Sombras nem escombros; a fila do edifício é reembolsada); `order { "type": "garrison", "target" }` (só edifício aliado, `canGarrison`; noutro time a ordem atual segue) e `{ "type": "ungarrison", "target"? }` (sem alvo, sai de onde estiver); `config.maxAge` (0–4, ≥ `startingAge`) e `config.forbid { buildings, units, techs }` globais, e `config.players[i].maxAge` (substitui) / `.forbid` (soma). `src/core/sim/restrictions.ts` (`maxAgeOf`, `isForbidden`) é conferido em `canAdvanceAge`/`canTrain`/`canResearch` e em `buildingLimitOk`: o comando é recusado com "Proibido nesta missão" / "Forbidden in this mission", o botão do HUD fica desabilitado com o motivo e a IA não tenta (nem junta fundo para a Idade travada). `spawn`/`place` do roteiro não passam pela trava; save/replay de antes das travas recebe as da missão atual (`migrateScenarioLocks`) | m4, m5 e m6 trocaram o paliativo do Portal dos Titãs (derrubar no mesmo segundo) por `forbid` | — | m11 (embarque limpo), m12 e m4/m5/m6/m8 (sem Titã duplicado) | **feita** |
 | **G7** ✅ | Lint de cenário (ferramenta) | **Feito.** `validateScenario(file, { warnings: true })` / `lintScenario(file)`: `ScenarioIssue.level` opcional (`'error'` padrão, `'warn'` no lint); `scenarioErrors(issues)` filtra só os erros | Avisos: tag criada só por gatilho usada numa condição que vale com o grupo ausente, sem `{ "fired" }` no mesmo `all`; objetivo `hidden` sem `done`/`failed` e sem gatilho que o revele; objetivo `hidden` com `done`/`failed` que um gatilho revela, sem `{ "fired": <esse gatilho> }` num `all` (seria cumprido antes do reveal, [G1]); jogador sem IA fora do time do primeiro humano sem `puppet`; fala sem `en` ou com mais de 200 caracteres. O modal Gatilhos do editor mostra os avisos; `tests/missions.test.ts` exige lint limpo nas missões do registro | — | todas | **feita** |
-| **G8** | Nome exibido por entidade | O `basileus` aparece como "Rei"; o Lícaon-lobo como "Leão de Nemeia"; na m4, a Águia como "Mantícora" e as Correntes como "Torre de Vigia" (os textos da m4 dizem isso até lá) | `spawn`/`place { "name": { "pt", "en" } }` guardado na entidade e exibido pelo HUD; nomes de facção `{ pt, en }` | 3 h | m4, m10, m11 | média |
-| **G9** | Vida de chefe | Sem condição `hp` nem ações de vida | `{ "entity": …, "hp": { "lte": 0.5 } }` (fração), `{ "do": "hpFloor", "entity", "value": 0.3 }`, `damage` e `heal` | 4–6 h | m11 (Cronos imbatível), m12 (fases) | média |
+| **G8** ✅ | Nome exibido por entidade | **Feito.** `spawn`/`place { "name": Texto }` grava `displayName: { pt, en? }` na entidade (serializado; malformado vira ausente no `deserialize`); painel de seleção, grade da seleção múltipla, tooltip e tela de fim mostram o nome no idioma atual (`entityDisplayName`/`playerDisplayName` em `text.ts`; o tipo vai na descrição). `config.players[i].name` aceita `{ pt, en }`: `name` resolvido ao criar a config e `nameText` para o HUD (o lobby tira o `nameText` da vaga que um humano ocupa). Lint: nome sem `en` | m4: a Águia é "Águia do Cáucaso"; m6: "Colosso de Poseidon". As Correntes da m4 são entidades do mapa fixo (sem `place`): seguem "Torre de Vigia" | — | m4 ✅, m6 ✅, m10, m11 | **feita** |
+| **G9** ✅ | Vida de chefe | **Feito.** Condição `{ "entity": …, "hp": Cmp }` (fração hp/maxHp arredondada a 1e-9, números entre 0 e 1; sem `exists`, exige a entidade viva); `{ "do": "hpFloor", "entity", "value": 0–1 }` (0 tira) — `clampToFloor` em `applyDamage` e no atrito, e `killUnit` de inimigo (Raio, Maldição, Petrificação) só leva até o piso; abaixo do piso não cura; `kill`, `remove` e dispensar matam; `{ "do": "damage" \| "heal", "entity", "amount" \| "fraction" }` (um dos dois; dano sem autor, respeita o piso). `hpFloor` é serializado | Tudo que usa `EntityRef` vale para uma entidade (numa tag de grupo, a primeira; use `pick`) | — | m11 (Cronos imbatível), m12 (fases) | **feita** |
 | **G10** | Relíquias em cenário | Posições sorteadas; sem condição | `map.relics: [x,y][]` (além de boolean) e `Value { "stat": "relics" }` (usa `relicsOf`) | 3–4 h | m9 (secundário) | baixa-média |
 | **G11** | Poderes específicos | Só `set minorGods` concede poder (1 por deus); nada tira o poder do deus maior (o Raio de Zeus mata qualquer herói) | `set { "powers": { "add", "remove", "reset" } }` e `{ "powerUsed": { "player", "id" } }` | 2–3 h | m11 (2º Raio), m7 (tirar o Raio contra Aquiles; hoje o paliativo é Tétis, que o devolve às naus enquanto o acampamento estiver de pé), variações | baixa |
 | **G12** | Habilidade de herói por roteiro | Marionete não usa Q | `{ "do": "ability", "unit": { "tag": … } }` | 2 h | m7 (Fúria no Difícil) | baixa |
@@ -1545,10 +1547,10 @@ As lacunas foram conferidas no código atual. A ordem é: impacto nas missões �
 - c) `m3_portal` — **números de dificuldade** (revisão 3.5): o Culto começava na Mítica com 4000 de cada recurso e atacava em ~2 min; nem a IA "difícil" jogando por Argos passava dos 5 min, em nenhuma dificuldade (o Culto arrasava os Aliados e depois Argos). Agora `M3_BALANCE` em `campaign.ts` dá ao Culto 1500/2000/2500 de cada recurso (Fácil/Normal/Difícil) e uma "calma" de 600/540/480 s antes de a IA dele poder lançar a 1ª onda (as invasões roteirizadas continuam), e o ritual avança 0,125 s de obra/s (~24 min em vez de ~10), casando com os 25–30 min da §4 (a corrida era curta demais para caber na janela e impossível de vencer pela força). Nenhum texto mudou.
 - O texto das três missões continua idêntico.
 
-**Missões que não dependem de nenhuma lacuna** (vão primeiro para a produção): **m4, m5, m6, m7, m8 e m9**. Todas usam só a gramática atual, com gatilho espelho para segredos e contadores por segundo. As três seguintes funcionam hoje com paliativo, mas convém esperar as lacunas indicadas:
-- **m10:** G2 + G4;
-- **m11:** G8 + G9 + G6;
-- **m12:** G6 + G9.
+**Missões que não dependem de nenhuma lacuna** (vão primeiro para a produção): **m4, m5, m6, m7, m8 e m9**. Todas usam só a gramática atual, com gatilho espelho para segredos e contadores por segundo. As três seguintes dependiam de lacunas que agora estão **feitas** e podem usar a gramática direto, sem paliativo:
+- **m10:** G2 ✅ + G4 ✅;
+- **m11:** G8 ✅ + G9 ✅ + G6 ✅;
+- **m12:** G6 ✅ + G9 ✅.
 
 ---
 
@@ -1561,9 +1563,9 @@ As lacunas foram conferidas no código atual. A ordem é: impacto nas missões �
 | 0 (preparação) | — | **G0** registro e atos; harness de testes (§7.2); **G1**; **G7** lint | Aba Campanha com "Ato I · Prólogo" e espaço para as missões novas |
 | 1 | **m6** (mapa gerado, a mais barata) + **m4** (1º mapa fixo) | **G3** dificuldade; **G5** tags de grupo | Ato I completo (m1–m4) |
 | 2 | **m5** + **m7** (mapa gerado) | **G2** fim de partida e `koth`/`wonderHeld` | Ato II pela metade |
-| 3 | **m8** + revisão do EA (balanceamento com `npm run balance`, playtest do dono) | **G4** HUD | **EA pronto: m1–m8** |
-| 4 | **m9** (mapa gerado) + **m10** | **G8** nomes; **G6** remove/maxAge | Ato III pela metade |
-| 5 | **m11** + **m12** | **G9** vida de chefe | Campanha completa |
+| 3 | **m8** + revisão do EA (balanceamento com `npm run balance`, playtest do dono) | **G4** HUD ✅ | **EA pronto: m1–m8** |
+| 4 | **m9** (mapa gerado) + **m10** | **G8** nomes ✅; **G6** remove/maxAge ✅ | Ato III pela metade |
+| 5 | **m11** + **m12** | **G9** vida de chefe ✅ | Campanha completa |
 
 - **Mapas fixos:** 6 no total, desenhados no editor (Etapa 4 do `docs/EDITOR.md`). Cada um passa por `validateMap` sem erros e por `npm run map:check`.
 - **Textos:** ~250 falas `{ pt, en }` (as fichas trazem as principais).

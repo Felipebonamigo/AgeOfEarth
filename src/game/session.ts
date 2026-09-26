@@ -6,6 +6,7 @@ import { LocalScheduler, ReplayScheduler, type CommandScheduler, type ReplayFram
 import { serialize, deserialize } from '../core/serialize';
 import type { EditorUI } from '../editor/types';
 import { localHumanIndex, migrateLegacyPuppets } from '../core/scenario/helpers';
+import { migrateScenarioLocks } from '../core/scenario/runner';
 
 export type UIMode = 'normal' | 'place' | 'attackMove' | 'power' | 'rally' | 'editor';
 
@@ -60,7 +61,7 @@ export class Session {
   }
   static replay(json: string): Session {
     const o = JSON.parse(json) as { config: GameConfig; frames: ReplayFrame[]; base?: string };
-    o.config = migrateLegacyPuppets(o.config);   // replay de antes das marionetes explícitas
+    o.config = migrateScenarioLocks(migrateLegacyPuppets(o.config));   // replay de antes das marionetes explícitas / das travas (G6)
     const st = o.base ? deserialize(o.base) : createGame(o.config);
     const s = new Session(st, Math.max(0, localHumanIndex(o.config)));
     if (o.base) s.eventCursor = st.events.length;

@@ -84,6 +84,8 @@ export interface Unit {
   resumeNodeId: number;                                // nó/fazenda para retomar a coleta ao sair da guarnição
   orderTick: number;                                   // tick em que o alvo/ordem atual começou (detecção de travamento)
   lastDamageTick: number;
+  displayName?: LocalText;                             // G8: nome próprio dado pelo cenário (spawn/place name); o HUD o mostra no idioma atual
+  hpFloor?: number;                                    // G9: piso de vida (fração de maxHp) enquanto o cenário o mantiver (hpFloor)
 }
 
 export interface QueueItem { kind: 'unit' | 'tech' | 'age' | 'scholar'; id: string; elapsed: number; total: number; paid?: Record<string, number>; uid?: number }  // paid: custo pago ao enfileirar (reembolso exato)
@@ -98,6 +100,8 @@ export interface Building {
   scholars: number; disabledUntil: number; wonderStart: number; cooldown: number;
   dead: boolean; builtTick: number; lastDamageTick: number;
   garrison: number[];                                  // ids das unidades guarnecidas
+  displayName?: LocalText;                             // G8: nome próprio dado pelo cenário (place name)
+  hpFloor?: number;                                    // G9: piso de vida (fração de maxHp)
 }
 
 export type Entity = Unit | Building;
@@ -155,10 +159,19 @@ export interface GameEvent { tick: number; type: string; player: number; text?: 
 
 export interface VisualEffect { type: string; x: number; y: number; tx?: number; ty?: number; owner?: number; ttl: number; total: number; data?: string | number }
 
+/** Texto por idioma guardado no estado ou na config (nome de entidade ou de facção, G8): resolvido por tx() ao exibir. */
+export interface LocalText { pt: string; en?: string }
+/** Itens proibidos (G6): ids de edifícios, unidades e tecnologias que o jogador não pode construir, treinar ou pesquisar. */
+export interface Forbid { buildings?: string[]; units?: string[]; techs?: string[] }
+
 export interface GameConfig {
   seed: number; mapSize: 'small' | 'medium' | 'large';
   scenario?: string;
-  players: { name: string; god: string; isAI: boolean; difficulty: Difficulty; team?: number; puppet?: boolean }[];   // puppet: facção roteirizada de cenário (sem IA, só gatilhos)
+  // puppet: facção roteirizada de cenário (sem IA, só gatilhos); nameText: nome da facção por idioma (G8; name = texto
+  // resolvido ao criar a config); maxAge/forbid: travas deste jogador (G6; somam-se às globais abaixo, maxAge a substitui)
+  players: { name: string; god: string; isAI: boolean; difficulty: Difficulty; team?: number; puppet?: boolean; nameText?: LocalText; maxAge?: number; forbid?: Forbid }[];
+  maxAge?: number;                                      // G6: Idade máxima de todos (0–4; padrão a última); config.players[i].maxAge a substitui
+  forbid?: Forbid;                                      // G6: proibidos para todos; somam-se aos de config.players[i].forbid
   revealMap?: boolean; startingAge?: number; startingResources?: Partial<Record<ResourceType, number>>;
   mode?: GameMode; mapType?: MapType;
   map?: FixedMapData;                                   // mapa fixo (editor/arquivo); se ausente, gera pelo seed

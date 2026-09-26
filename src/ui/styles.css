@@ -48,7 +48,7 @@ button { font-family: inherit; cursor: pointer; }
 #selection .multi .mi { width: 38px; height: 38px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel2); display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; position: relative; }
 #selection .multi .mi .hp { position: absolute; left: 2px; right: 2px; bottom: 2px; height: 3px; background: #111; }
 #selection .multi .mi .hp div { height: 100%; background: var(--ok); }
-#commands { display: grid; grid-template-columns: repeat(5, 1fr); grid-auto-rows: 58px; gap: 5px; align-content: start; }
+#commands { display: grid; grid-template-columns: repeat(5, 1fr); grid-auto-rows: 58px; gap: 5px; align-content: start; min-height: 0; max-height: 100%; overflow-y: auto; scrollbar-width: thin; }   /* 4ª linha em diante (Maravilhas, Portal) rola em vez de sair da tela */
 .cmd { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: var(--panel2); border: 1px solid var(--border); border-radius: 7px; color: var(--text); font-size: 10px; padding: 2px; line-height: 1.1; overflow: hidden; }
 .cmd .ic { font-size: 22px; }
 .cmd .hk { position: absolute; top: 2px; right: 4px; font-size: 9px; color: var(--muted); }

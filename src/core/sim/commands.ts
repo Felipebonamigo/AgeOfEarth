@@ -15,6 +15,7 @@ import { ABILITIES } from '../data';
 import { usePower } from './powers';
 import { killUnit, destroyBuilding } from './combat';
 import { t } from '../../i18n';
+import { forbiddenReason, maxAgeOf } from './restrictions';
 
 export interface CommandResult { ok: boolean; reason?: string }
 
@@ -252,6 +253,7 @@ export function applyCommand(state: GameState, cmd: Command): CommandResult {
 export function canTrain(state: GameState, player: Player, b: Building, unit: string): CommandResult {
   const def = UNITS[unit];
   if (!def || !b.complete) return { ok: false };
+  const forbid = forbiddenReason(state, player.id, 'units', unit); if (forbid) return { ok: false, reason: forbid };   // G6
   const bdef = BUILDINGS[b.type];
   if (!bdef.trains || !bdef.trains.includes(unit)) return { ok: false, reason: t('err.notTrained') };
   if (def.age > player.age) return { ok: false, reason: t('err.requiresAge', { age: AGES[def.age].name }) };
@@ -287,6 +289,7 @@ export function canResearch(state: GameState, player: Player, b: Building, tech:
   const def = TECHS[tech];
   if (!def || !b.complete) return { ok: false };
   if (def.building !== b.type) return { ok: false };
+  const forbid = forbiddenReason(state, player.id, 'techs', tech); if (forbid) return { ok: false, reason: forbid };   // G6
   if (player.techs.includes(tech)) return { ok: false, reason: t('err.researched') };
   if (def.age > player.age) return { ok: false, reason: t('err.requiresAge', { age: AGES[def.age].name }) };
   if (def.god && !player.minorGods.includes(def.god) && player.god !== def.god) return { ok: false, reason: t('err.requiresBlessing', { god: MINOR_GODS[def.god]?.name ?? def.god }) };
@@ -316,6 +319,7 @@ export function academyTechCount(player: Player): number {
 
 export function canAdvanceAge(state: GameState, player: Player, b?: Building): CommandResult & { minorOptions?: string[] } {
   if (player.age >= MAX_AGE) return { ok: false, reason: t('err.maxAge') };
+  if (player.age >= maxAgeOf(state, player.id)) return { ok: false, reason: t('err.forbidden') };   // G6: config.maxAge
   const next = AGES[player.age + 1];
   if (b && (b.type !== 'town_center' || !b.complete)) return { ok: false, reason: t('err.advanceAtTC') };
   for (const ob of state.buildings.values()) if (ob.owner === player.id && !ob.dead && ob.queue.some((q) => q.kind === 'age')) return { ok: false, reason: t('err.advancing') };

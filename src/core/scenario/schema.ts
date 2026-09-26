@@ -3,7 +3,7 @@
 // no momento de emitir e nunca entram no estado nem no hash. validateScenario é pura e nunca lança: só devolve issues.
 import { DIFFICULTIES, GAME_MODES, MAP_SIZES, MAP_TYPES, MAX_PLAYERS, RESOURCES, type GameMode, type MapType, type ResourceType } from '../constants';
 import { BUILDINGS, MAJOR_GODS, MAX_AGE, MINOR_GODS, TECHS, UNITS } from '../data';
-import type { GameConfig, UnitState } from '../types';
+import type { Forbid, GameConfig, UnitState } from '../types';
 import { validateMap, type FixedMapData } from '../map/fixed';
 import { CAMPAIGN_PLAN } from './official';
 
@@ -23,8 +23,12 @@ export type Point =
   | { at: [number, number] } | { start: number; dx?: number; dy?: number }
   | { tc: PlayerSel; dx?: number; dy?: number } | { entity: EntityRef; dx?: number; dy?: number };
 export type StatName = 'age' | 'pop' | 'popCap' | 'food' | 'wood' | 'gold' | 'favor' | 'knowledge' | 'alive' | 'difficulty';
-/** { stat: 'difficulty' } dispensa player: 0 = Fácil, 1 = Normal, 2 = Difícil (config.campaignDifficulty). */
-export type Value = number | { stat: Exclude<StatName, 'difficulty'>; player: PlayerSel } | { stat: 'difficulty'; player?: PlayerSel } | { var: string } | { add: [Value, number] };
+/**
+ * { stat: 'difficulty' } dispensa player: 0 = Fácil, 1 = Normal, 2 = Difícil (config.campaignDifficulty).
+ * { time: true } (G4) = segundos de jogo agora (inteiro, como { time } nas condições): com setVar marca um instante, e
+ * { time: { gte: { add: [ { var: 't0' }, 60 ] } } } vale 60 s depois dele.
+ */
+export type Value = number | { stat: Exclude<StatName, 'difficulty'>; player: PlayerSel } | { stat: 'difficulty'; player?: PlayerSel } | { var: string } | { add: [Value, number] } | { time: true };
 export type CampaignDifficulty = 'easy' | 'normal' | 'hard';
 export interface Cmp { gte?: Value; lte?: Value; eq?: Value; gt?: Value; lt?: Value }
 
@@ -41,7 +45,8 @@ export type Condition =
   | { time: Cmp } | { every: { seconds: number; after?: number } }          // ctx.seconds inteiro; seconds % n === 0
   | { objective: string; is: 'pending' | 'done' | 'failed' } | { fired: string } | ({ firedCount: { prefix: string } } & Cmp)
   | ({ units: UnitFilter } & Cmp) | ({ buildings: BuildingFilter } & Cmp) | ({ value: Value } & Cmp) | ({ var: string } & Cmp)
-  | { entity: EntityRef; exists: boolean; complete?: boolean; progress?: Cmp }
+  // hp (G9): fração da vida (hp/maxHp, 0 a 1); sem exists, a condição exige a entidade viva (ausente = falso)
+  | { entity: EntityRef; exists?: boolean; complete?: boolean; progress?: Cmp; hp?: Cmp }
   // G2: fim de partida em cenário (segundos segurados da colina pelo time T; segundos com a Maravilha de pé; rei vivo; jogador vivo)
   | ({ koth: { team: number } } & Cmp) | ({ wonderHeld: { player: PlayerSel } } & Cmp) | { kingAlive: PlayerSel } | { alive: PlayerSel }
   // G3: dificuldade da campanha (config.campaignDifficulty; ausente = normal)
@@ -51,23 +56,34 @@ export type Action =
   | { do: 'say'; speaker: Text; text: Text; icon?: string }
   | { do: 'objective'; id: string; status: 'done' | 'failed' | 'pending' } | { do: 'reveal'; id: string }
   | { do: 'raid'; player: PlayerSel; units: string[]; target: Point; angle: number | { base: number; perIndex: number }; distance?: number }
-  | { do: 'spawn'; player: PlayerSel; units: string[]; at: Point; tag?: string; state?: 'pray'; prayAt?: EntityRef; scaled?: boolean }   // scaled: escala como raid (scaledGroup)
-  | { do: 'place'; player: PlayerSel; building: string; at: Point; exact?: boolean; complete?: boolean; progress?: number; tag?: string }
+  // scaled: escala como raid (scaledGroup); name (G8): nome próprio de cada unidade, exibido pelo HUD no idioma atual
+  | { do: 'spawn'; player: PlayerSel; units: string[]; at: Point; tag?: string; state?: 'pray'; prayAt?: EntityRef; scaled?: boolean; name?: Text }
+  | { do: 'place'; player: PlayerSel; building: string; at: Point; exact?: boolean; complete?: boolean; progress?: number; tag?: string; name?: Text }
   | { do: 'give'; player: PlayerSel; resources: Partial<Record<ResourceType, number>> }
   | { do: 'set'; player: PlayerSel; age?: number; resources?: Partial<Record<ResourceType, number>>; techs?: string[]; minorGods?: string[] }
   | { do: 'removeAll'; player?: PlayerSel; team?: number }
   | { do: 'setVar'; name: string; value: Value } | { do: 'addVar'; name: string; delta: number }
   | { do: 'storeEntity'; var: string; entity: EntityRef } | { do: 'advanceBuild'; entity: EntityRef; seconds: number }
-  | { do: 'order'; units: { tag: string } | UnitFilter; order: { type: 'move' | 'attackMove'; at: Point } | { type: 'attack' | 'gather' | 'pray' | 'repair'; target: EntityRef } }
+  // garrison (G6): entra no edifício aliado alvo (canGarrison); ungarrison: sai do alvo (ou, sem alvo, de onde estiver)
+  | { do: 'order'; units: { tag: string } | UnitFilter; order: { type: 'move' | 'attackMove'; at: Point } | { type: 'attack' | 'gather' | 'pray' | 'repair' | 'garrison'; target: EntityRef } | { type: 'ungarrison'; target?: EntityRef } }
   | { do: 'kill'; entity: EntityRef } | { do: 'ceasefire'; seconds: number }
+  | { do: 'remove'; entity: EntityRef }                                          // G6: some na hora (removeUnitNow/removeBuildingNow): sem morte, abate, Sombras nem escombros
+  | { do: 'hpFloor'; entity: EntityRef; value: number }                           // G9: a vida não desce abaixo de value × maxHp (0 a 1); value 0 tira o piso
+  | { do: 'damage' | 'heal'; entity: EntityRef; amount?: number; fraction?: number }   // G9: amount (pontos) ou fraction (de maxHp); dano sem autor, respeita o piso
   | { do: 'defeat'; player: PlayerSel }                                        // derrota roteirizada: alive=false e tudo do jogador some
   | { do: 'forEachPlayer'; team?: number; alive?: boolean; then: Action[] };   // dentro: '$p' = jogador, índice k para angle.perIndex
 
+/** Como o HUD escreve o valor de uma barra: porcentagem (padrão), contagem "12/30" ou tempo "2:15 / 6:00". */
+export type HudFormat = 'percent' | 'count' | 'time';
 export type ScenarioHud =
-  | { type: 'countdown'; seconds: number; while: Condition; label: Text }
-  | { type: 'progress'; entity: EntityRef; max: number; label: Text };
+  // fromVar (G4): contagem relativa, a partir do instante guardado na variável (setVar { time: true }); sem a marca, não aparece (valor em `vars` vale como marca)
+  | { type: 'countdown'; seconds: number; while: Condition; label: Text; fromVar?: string }
+  | { type: 'progress'; entity: EntityRef; max: number; label: Text; while?: Condition; format?: HudFormat }       // obra de um edifício
+  | { type: 'progress'; var: string; max: Value; label: Text; while?: Condition; format?: HudFormat };             // G4: variável do cenário
 
 export interface ScenarioObjectiveDef { id: string; text: Text; optional?: boolean; hidden?: boolean; done?: Condition; failed?: Condition }
+/** Jogador no arquivo: como em GameConfig, mas name aceita { pt, en } (G8: nome da facção por idioma). */
+export type ScenarioPlayer = Omit<GameConfig['players'][number], 'name' | 'nameText'> & { name: Text };
 export interface ScenarioTriggerDef { id: string; when: Condition; then: Action[]; repeat?: boolean }
 
 export interface ScenarioFile {
@@ -75,8 +91,9 @@ export interface ScenarioFile {
   id: string; title: Text; subtitle?: Text; icon?: string; intro: Text[]; outro?: Text[]; hints?: Text[];
   map?: { gen: { mapSize: 'small' | 'medium' | 'large'; mapType?: MapType; seed: number } } | { data: FixedMapData };   // omitido quando embutido num mapa
   config: {
-    seed?: number; players: GameConfig['players']; startingAge?: number; startingResources?: Partial<Record<ResourceType, number>>;
+    seed?: number; players: ScenarioPlayer[]; startingAge?: number; startingResources?: Partial<Record<ResourceType, number>>;
     revealMap?: boolean; startKit?: boolean | boolean[]; mode?: GameMode; campaignDifficulty?: 'easy' | 'normal' | 'hard';
+    maxAge?: number; forbid?: Forbid;             // G6: travas globais (players[i].maxAge substitui; players[i].forbid soma)
   };
   vars?: Record<string, number>;
   setup?: Action[];                              // após as entidades do mapa; tags → vars['#tag'] = id
@@ -97,7 +114,7 @@ export interface ScenarioIssue { path: string; message: string; level?: 'error' 
 export interface ValidateScenarioOpts { allowReserved?: boolean; warnings?: boolean }
 /** Só os erros (issues sem level ou com level 'error'). */
 export function scenarioErrors(issues: ScenarioIssue[]): ScenarioIssue[] { return issues.filter((i) => i.level !== 'warn'); }
-/** Avisos do lint (G7): tag futura sem { fired }, objetivo oculto que nunca aparece, falas longas ou sem en. */
+/** Avisos do lint (G7): tag futura sem { fired }, objetivo oculto que nunca aparece, falas/nomes sem en, variável do HUD nunca escrita. */
 export function lintScenario(file: unknown): ScenarioIssue[] { return validateScenario(file, { allowReserved: true, warnings: true }).filter((i) => i.level === 'warn'); }
 /** Tamanho máximo de uma fala (say) antes do aviso do lint. */
 export const MAX_LINE_CHARS = 200;
@@ -111,7 +128,8 @@ const STATS: readonly string[] = ['age', 'pop', 'popCap', 'food', 'wood', 'gold'
 const CAMPAIGN_DIFFS: readonly string[] = ['easy', 'normal', 'hard'];
 const UNIT_STATES: readonly string[] = ['idle', 'move', 'attackMove', 'attack', 'gather', 'return', 'build', 'pray', 'hold', 'garrison'];
 const OBJ_STATUS: readonly string[] = ['pending', 'done', 'failed'];
-const ORDER_POINT = ['move', 'attackMove'], ORDER_TARGET = ['attack', 'gather', 'pray', 'repair'];
+const ORDER_POINT = ['move', 'attackMove'], ORDER_TARGET = ['attack', 'gather', 'pray', 'repair', 'garrison'];
+const HUD_FORMATS: readonly string[] = ['percent', 'count', 'time'];
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v);
@@ -160,15 +178,19 @@ export function validateScenario(file: unknown, opts: ValidateScenarioOpts = {})
       c.players.forEach((p: unknown, i: number) => {
         const path = `config.players[${i}]`;
         if (!isObj(p)) { err(path, 'esperado um objeto'); return; }
-        if (typeof p.name !== 'string') err(`${path}.name`, 'nome obrigatório');
+        if (!isText(p.name)) err(`${path}.name`, 'nome obrigatório (texto ou { pt, en })');
         if (typeof p.god !== 'string' || !has(MAJOR_GODS, p.god)) err(`${path}.god`, `deus maior desconhecido: '${String(p.god)}'`);
         if (typeof p.isAI !== 'boolean') err(`${path}.isAI`, 'esperado true/false');
         if (typeof p.difficulty !== 'string' || !has(DIFFICULTIES, p.difficulty)) err(`${path}.difficulty`, `dificuldade desconhecida: '${String(p.difficulty)}'`);
         if (p.team !== undefined && !isInt(p.team)) err(`${path}.team`, 'esperado um inteiro');
         if (p.puppet !== undefined && typeof p.puppet !== 'boolean') err(`${path}.puppet`, 'esperado true/false');
         else if (p.puppet === true && p.isAI === true) err(`${path}.puppet`, 'marionete não pode ser IA (isAI: false)');
+        if (p.maxAge !== undefined) checkMaxAge(p.maxAge, c.startingAge, `${path}.maxAge`, err);
+        if (p.forbid !== undefined) checkForbid(p.forbid, `${path}.forbid`, err);
       });
     }
+    if (c.maxAge !== undefined) checkMaxAge(c.maxAge, c.startingAge, 'config.maxAge', err);
+    if (c.forbid !== undefined) checkForbid(c.forbid, 'config.forbid', err);
     if (c.seed !== undefined && !isInt(c.seed)) err('config.seed', 'esperado um inteiro');
     if (c.startingAge !== undefined && (!isInt(c.startingAge) || c.startingAge < 0 || c.startingAge > MAX_AGE)) err('config.startingAge', `esperado um inteiro entre 0 e ${MAX_AGE}`);
     if (c.startingResources !== undefined) checkResources(c.startingResources, 'config.startingResources', err);
@@ -256,8 +278,22 @@ export function validateScenario(file: unknown, opts: ValidateScenarioOpts = {})
       const path = `hud[${i}]`;
       if (!isObj(h)) { err(path, 'esperado um objeto'); return; }
       if (!isText(h.label)) err(`${path}.label`, 'rótulo obrigatório');
-      if (h.type === 'countdown') { if (!isNum(h.seconds)) err(`${path}.seconds`, 'esperado um número'); if (h.while === undefined) err(`${path}.while`, 'condição obrigatória'); else v.condition(h.while, `${path}.while`, 1, false); }
-      else if (h.type === 'progress') { if (!isNum(h.max) || h.max <= 0) err(`${path}.max`, 'esperado um número positivo'); v.entity(h.entity, `${path}.entity`, false); }
+      if (h.type === 'countdown') {
+        if (!isNum(h.seconds)) err(`${path}.seconds`, 'esperado um número');
+        if (h.while === undefined) err(`${path}.while`, 'condição obrigatória'); else v.condition(h.while, `${path}.while`, 1, false);
+        if (h.fromVar !== undefined && (typeof h.fromVar !== 'string' || h.fromVar.length === 0)) err(`${path}.fromVar`, 'esperado o nome de uma variável (marcada por setVar { time: true })');
+      } else if (h.type === 'progress') {
+        const byVar = has(h, 'var'), byEntity = has(h, 'entity');
+        if (byVar === byEntity) err(path, 'progress exige entity (obra de um edifício) ou var (variável do cenário), um dos dois');
+        else if (byVar) {
+          if (typeof h.var !== 'string' || h.var.length === 0) err(`${path}.var`, 'esperado o nome de uma variável');
+          if (h.max === undefined) err(`${path}.max`, 'esperado um número positivo ou um valor ({ var }, { stat }, { add })');
+          else if (isNum(h.max)) { if (h.max <= 0) err(`${path}.max`, 'esperado um número positivo'); }
+          else v.value(h.max, `${path}.max`, false);
+        } else { if (!isNum(h.max) || h.max <= 0) err(`${path}.max`, 'esperado um número positivo'); v.entity(h.entity, `${path}.entity`, false); }
+        if (h.while !== undefined) v.condition(h.while, `${path}.while`, 1, false);
+        if (h.format !== undefined && !HUD_FORMATS.includes(h.format as string)) err(`${path}.format`, "esperado 'percent', 'count' ou 'time'");
+      }
       else err(`${path}.type`, "esperado 'countdown' ou 'progress'");
     });
   }
@@ -266,6 +302,24 @@ export function validateScenario(file: unknown, opts: ValidateScenarioOpts = {})
 }
 
 function isText(v: unknown): v is Text { return typeof v === 'string' || (isObj(v) && typeof v.pt === 'string' && (v.en === undefined || typeof v.en === 'string')); }
+
+/** G6: Idade máxima (inteiro 0…MAX_AGE), nunca abaixo da Idade inicial da config. */
+function checkMaxAge(v: unknown, startingAge: unknown, path: string, err: (p: string, m: string) => void): void {
+  if (!isInt(v) || v < 0 || v > MAX_AGE) { err(path, `esperado um inteiro entre 0 e ${MAX_AGE}`); return; }
+  if (isInt(startingAge) && startingAge > v) err(path, `Idade máxima ${v} abaixo da Idade inicial (startingAge ${startingAge})`);
+}
+
+/** G6: { buildings?, units?, techs? } com ids existentes. */
+function checkForbid(f: unknown, path: string, err: (p: string, m: string) => void): void {
+  if (!isObj(f)) { err(path, 'esperado { buildings, units, techs } (listas de ids)'); return; }
+  const tables: Record<string, [Record<string, unknown>, string]> = { buildings: [BUILDINGS, 'edifício'], units: [UNITS, 'unidade'], techs: [TECHS, 'tecnologia'] };
+  for (const [k, list] of Object.entries(f)) {
+    const tb = tables[k];
+    if (!tb) { err(`${path}.${k}`, `lista desconhecida: '${k}' (buildings, units ou techs)`); continue; }
+    if (!Array.isArray(list)) { err(`${path}.${k}`, 'esperada uma lista de ids'); continue; }
+    list.forEach((id, i) => { if (typeof id !== 'string' || !has(tb[0], id)) err(`${path}.${k}[${i}]`, `${tb[1]} desconhecido(a): '${String(id)}'`); });
+  }
+}
 
 function checkResources(r: unknown, path: string, err: (p: string, m: string) => void): void {
   if (!isObj(r)) { err(path, 'esperado um objeto { food, wood, gold, favor, knowledge }'); return; }
@@ -342,11 +396,17 @@ class Validator {
       return;
     }
     if (has(v, 'var')) { if (typeof v.var !== 'string') this.err(`${path}.var`, 'esperado texto'); return; }
+    if (has(v, 'time')) { if (v.time !== true) this.err(`${path}.time`, 'esperado true (segundos de jogo agora)'); return; }   // G4
     if (has(v, 'add')) {
       if (!Array.isArray(v.add) || v.add.length !== 2 || !isNum(v.add[1])) { this.err(`${path}.add`, 'esperado [valor, número]'); return; }
       this.value(v.add[0], `${path}.add[0]`, inLoop, depth + 1); return;
     }
     this.err(path, 'valor desconhecido');
+  }
+
+  /** G9: comparação de fração — números literais precisam estar entre 0 e 1. */
+  fractions(c: Record<string, unknown>, path: string): void {
+    for (const k of CMP_KEYS) { const x = c[k]; if (isNum(x) && (x < 0 || x > 1)) this.err(`${path}.${k}`, 'fração da vida entre 0 e 1'); }
   }
 
   cmp(c: Record<string, unknown>, path: string, inLoop: boolean, required: boolean): void {
@@ -412,9 +472,14 @@ class Validator {
     if (has(c, 'var')) { if (typeof c.var !== 'string') this.err(`${path}.var`, 'esperado texto'); this.cmp(c, path, inLoop, true); return; }
     if (has(c, 'entity')) {
       this.entity(c.entity, `${path}.entity`, inLoop);
-      if (typeof c.exists !== 'boolean') this.err(`${path}.exists`, 'esperado true/false');
+      if (c.exists === undefined ? c.hp === undefined : typeof c.exists !== 'boolean') this.err(`${path}.exists`, 'esperado true/false');   // hp dispensa exists
       if (c.complete !== undefined && typeof c.complete !== 'boolean') this.err(`${path}.complete`, 'esperado true/false');
       if (c.progress !== undefined) { if (!isObj(c.progress)) this.err(`${path}.progress`, 'esperada uma comparação'); else this.cmp(c.progress, `${path}.progress`, inLoop, true); }
+      if (c.hp !== undefined) {   // G9
+        if (!isObj(c.hp)) this.err(`${path}.hp`, 'esperada uma comparação de fração (lte, gte, lt, gt ou eq entre 0 e 1)');
+        else { this.cmp(c.hp, `${path}.hp`, inLoop, true); this.fractions(c.hp, `${path}.hp`); }
+        if (c.exists === false) this.err(`${path}.hp`, 'hp exige a entidade viva (exists: true ou omitido)');
+      }
       return;
     }
     if (has(c, 'koth')) { if (!isObj(c.koth) || !isInt(c.koth.team)) this.err(`${path}.koth`, 'esperado { team (inteiro) }'); this.cmp(c, path, inLoop, true); return; }
@@ -458,6 +523,7 @@ class Validator {
         if (a.prayAt !== undefined) this.entity(a.prayAt, `${path}.prayAt`, inLoop);
         if (a.state === 'pray' && a.prayAt === undefined) this.err(`${path}.prayAt`, "state 'pray' exige prayAt");
         if (a.scaled !== undefined && typeof a.scaled !== 'boolean') this.err(`${path}.scaled`, 'esperado true/false');
+        if (a.name !== undefined && !isText(a.name)) this.err(`${path}.name`, 'nome inválido (texto ou { pt, en })');   // G8
         return;
       case 'place':
         this.player(a.player, `${path}.player`, inLoop); this.buildingType(a.building, `${path}.building`); this.point(a.at, `${path}.at`, inLoop);
@@ -465,6 +531,7 @@ class Validator {
         if (a.complete !== undefined && typeof a.complete !== 'boolean') this.err(`${path}.complete`, 'esperado true/false');
         if (a.progress !== undefined && !isNum(a.progress)) this.err(`${path}.progress`, 'esperado um número');
         if (a.tag !== undefined && typeof a.tag !== 'string') this.err(`${path}.tag`, 'esperado texto');
+        if (a.name !== undefined && !isText(a.name)) this.err(`${path}.name`, 'nome inválido (texto ou { pt, en })');   // G8
         return;
       case 'give': this.player(a.player, `${path}.player`, inLoop); checkResources(a.resources, `${path}.resources`, this.err); return;
       case 'set':
@@ -489,12 +556,29 @@ class Validator {
         else this.unitFilter(a.units, `${path}.units`, inLoop, depth);
         const o = a.order;
         if (!isObj(o)) { this.err(`${path}.order`, 'ordem inválida'); return; }
-        if (ORDER_POINT.includes(o.type as string)) this.point(o.at, `${path}.order.at`, inLoop);
-        else if (ORDER_TARGET.includes(o.type as string)) this.entity(o.target, `${path}.order.target`, inLoop);
+        // o campo que não é do tipo é recusado: o motor decide pelo tipo, e um 'at' a mais deixaria uma ordem inválida na unidade
+        if (ORDER_POINT.includes(o.type as string)) { this.point(o.at, `${path}.order.at`, inLoop); if (o.target !== undefined) this.err(`${path}.order.target`, `a ordem '${String(o.type)}' usa at, não target`); }
+        else if (ORDER_TARGET.includes(o.type as string) || o.type === 'ungarrison') {
+          if (o.type !== 'ungarrison' || o.target !== undefined) this.entity(o.target, `${path}.order.target`, inLoop);   // G6: ungarrison sem alvo sai de onde estiver
+          if (o.at !== undefined) this.err(`${path}.order.at`, `a ordem '${String(o.type)}' usa target, não at`);
+        }
         else this.err(`${path}.order.type`, `tipo de ordem desconhecido: '${String(o.type)}'`);
         return;
       }
       case 'kill': this.entity(a.entity, `${path}.entity`, inLoop); return;
+      case 'remove': this.entity(a.entity, `${path}.entity`, inLoop); return;   // G6
+      case 'hpFloor':   // G9
+        this.entity(a.entity, `${path}.entity`, inLoop);
+        if (!isNum(a.value) || a.value < 0 || a.value > 1) this.err(`${path}.value`, 'fração da vida entre 0 e 1 (0 tira o piso)');
+        return;
+      case 'damage': case 'heal': {   // G9
+        this.entity(a.entity, `${path}.entity`, inLoop);
+        const hasAmount = a.amount !== undefined, hasFraction = a.fraction !== undefined;
+        if (hasAmount === hasFraction) this.err(path, `${a.do} exige amount (pontos) ou fraction (de maxHp), um dos dois`);
+        if (hasAmount && (!isNum(a.amount) || a.amount <= 0)) this.err(`${path}.amount`, 'esperado um número positivo');
+        if (hasFraction && (!isNum(a.fraction) || a.fraction <= 0 || a.fraction > 1)) this.err(`${path}.fraction`, 'fração de maxHp entre 0 (exclusive) e 1');
+        return;
+      }
       case 'ceasefire': if (!isNum(a.seconds)) this.err(`${path}.seconds`, 'esperado um número'); return;
       case 'defeat': this.player(a.player, `${path}.player`, inLoop); return;
       case 'forEachPlayer':
@@ -520,7 +604,11 @@ class Validator {
  * 4) objetivo `hidden` com done/failed que algum gatilho revela (reveal), sem { fired: <esse gatilho> } no `all` da
  *    condição — com G1 ele é avaliado desde o segundo 1 e seria cumprido (e revelado) antes da hora;
  * 5) jogador sem IA fora do time do primeiro humano sem o campo `puppet`: numa partida local ninguém o controla. Marque
- *    `puppet: true` (facção roteirizada) ou `puppet: false` (adversário humano, cenário em rede).
+ *    `puppet: true` (facção roteirizada) ou `puppet: false` (adversário humano, cenário em rede);
+ * 6) nome próprio (spawn/place `name`, G8) sem `en`;
+ * 7) variável do HUD (G4): progress `var` que nenhum setVar/addVar escreve e que não está em `vars`; countdown `fromVar`
+ *    sem setVar cujo valor tenha { time: true } (addVar e `vars` não marcam instante) ou declarada em `vars` (o valor
+ *    inicial já vale como marca e a contagem apareceria desde o início).
  */
 function lint(f: Record<string, unknown>, warn: (path: string, message: string) => void): void {
   const setupTags = new Set<string>();
@@ -624,7 +712,7 @@ function lint(f: Record<string, unknown>, warn: (path: string, message: string) 
     const localTeam = teamOf(players[first] as Record<string, unknown>, first);
     players.forEach((p, i) => {
       if (!isObj(p) || p.isAI !== false || p.puppet !== undefined || i === first || teamOf(p, i) === localTeam) return;
-      warn(`config.players[${i}]`, `jogador '${String(p.name)}' sem IA e fora do time do primeiro humano, sem "puppet": marque "puppet": true se for facção roteirizada (numa partida local ninguém o controla) ou "puppet": false se for um adversário humano em rede`);
+      warn(`config.players[${i}]`, `jogador '${isObj(p.name) ? String(p.name.pt) : String(p.name)}' sem IA e fora do time do primeiro humano, sem "puppet": marque "puppet": true se for facção roteirizada (numa partida local ninguém o controla) ou "puppet": false se for um adversário humano em rede`);
     });
   }
 
@@ -639,4 +727,33 @@ function lint(f: Record<string, unknown>, warn: (path: string, message: string) 
   };
   eachAction(f.setup, 'setup', sayCheck);
   triggers.forEach((tr, i) => { if (isObj(tr)) eachAction(tr.then, `triggers[${i}].then`, sayCheck); });
+
+  // 6) nomes próprios (G8)
+  const nameCheck = (a: Record<string, unknown>, path: string) => {
+    if ((a.do !== 'spawn' && a.do !== 'place') || a.name === undefined) return;
+    if (typeof a.name === 'string') warn(`${path}.name`, 'nome sem en (use { "pt", "en" })');
+    else if (isObj(a.name) && (typeof a.name.en !== 'string' || a.name.en.length === 0)) warn(`${path}.name.en`, 'nome sem en');
+  };
+  eachAction(f.setup, 'setup', nameCheck);
+  triggers.forEach((tr, i) => { if (isObj(tr)) eachAction(tr.then, `triggers[${i}].then`, nameCheck); });
+
+  // 7) variável do HUD (G4) que ninguém escreve: a barra fica em 0 / a contagem relativa nunca aparece (ou aparece cedo)
+  const declared = new Set<string>(isObj(f.vars) ? Object.keys(f.vars) : []);
+  const written = new Set<string>(declared);
+  const marked = new Set<string>();   // setVar com { time: true } no valor: só isso marca o instante do fromVar
+  const hasTime = (v: unknown): boolean => isObj(v) && (v.time === true || (Array.isArray(v.add) && hasTime(v.add[0])));
+  const collectVar = (a: Record<string, unknown>) => {
+    if ((a.do === 'setVar' || a.do === 'addVar') && typeof a.name === 'string') written.add(a.name);
+    if (a.do === 'setVar' && typeof a.name === 'string' && hasTime(a.value)) marked.add(a.name);
+  };
+  eachAction(f.setup, 'setup', collectVar);
+  for (const tr of triggers) if (isObj(tr)) eachAction(tr.then, '', collectVar);
+  if (Array.isArray(f.hud)) f.hud.forEach((h, i) => {
+    if (!isObj(h)) return;
+    if (h.type === 'countdown' && typeof h.fromVar === 'string') {
+      if (declared.has(h.fromVar)) warn(`hud[${i}].fromVar`, `variável '${h.fromVar}' declarada em vars: o valor inicial já vale como marca e a contagem aparece desde o início (deixe-a fora de vars)`);
+      else if (!marked.has(h.fromVar)) warn(`hud[${i}].fromVar`, `variável '${h.fromVar}' nunca é marcada (setVar com { "time": true }): a contagem não aparece`);
+    }
+    if (h.type === 'progress' && typeof h.var === 'string' && !written.has(h.var)) warn(`hud[${i}].var`, `variável '${h.var}' nunca é escrita (setVar/addVar ou vars): a barra fica em 0`);
+  });
 }
