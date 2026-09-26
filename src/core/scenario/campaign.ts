@@ -15,6 +15,7 @@ import type { Unit } from '../types';
 import m5 from './missions/m5_itaca.scenario.json';
 import m6 from './missions/m6_estatua.scenario.json';
 import m7 from './missions/m7_aquiles.scenario.json';
+import m9 from './missions/m9_tenaro.scenario.json';
 
 const ME = 0;
 
@@ -221,6 +222,7 @@ export const CAMPAIGN: readonly CampaignEntry[] = [
   { act: 2, id: 'm5_itaca', source: 'json', file: m5 as unknown as ScenarioFile },     // abre o Ato II (escolta, 2º mapa fixo)
   { act: 2, id: 'm6_estatua', source: 'json', file: m6 as unknown as ScenarioFile },
   { act: 2, id: 'm7_aquiles', source: 'json', file: m7 as unknown as ScenarioFile },   // caça ao herói (mapa gerado forest 7707)
+  { act: 3, id: 'm9_tenaro', source: 'json', file: m9 as unknown as ScenarioFile },    // abre o Ato III (jogando como Hades, mapa gerado lakes 9909)
 ];
 
 /** Entrada do registro por id (undefined = não é missão oficial registrada). */

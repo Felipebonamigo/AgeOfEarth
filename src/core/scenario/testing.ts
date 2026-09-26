@@ -1122,6 +1122,63 @@ function m7Hunt(state: GameState): Command[] {
   return out;
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// m9 "A Descida ao Tênaro": jogando como Hades — míticas e heróis contra as jaulas e as fendas, um alvo por vez
+// ---------------------------------------------------------------------------------------------------------------
+
+/**
+ * m9: composição do exército (pesos): as míticas do Templo na frente (Minotauros de Atena, Mantícoras de Apolo e o Cérbero de
+ * Hades), hipaspistas e arqueiros cretenses atrás, petróbolos contra as torres (jaulas) e os templos (fendas).
+ */
+const M9_MIX: Record<string, number> = { minotaur: 3, manticore: 2, cerberus: 2, hypaspist: 3, cretan_archer: 3, petrobolos: 1 };
+/**
+ * m9: os alvos na ordem da caminhada a partir do Palácio (distâncias a pé no mapa 9909): a fenda do Estige, a oeste da única
+ * entrada do platô do Culto (38), as duas jaulas do platô (64 e 84), a jaula e a fenda da faixa norte (87 e 101) e, por último,
+ * a fenda do Aqueronte, além do lago do sul (160).
+ */
+const M9_TARGETS = ['fenda1', 'jaula1', 'jaula2', 'jaula3', 'fenda3', 'fenda2'] as const;
+/** m9: militares para sair contra o próximo alvo (estado, não relógio), o mesmo nas três dificuldades. */
+const M9_ASSAULT_ARMY = 40;
+
+/** Militares do jogador a até `r` tiles de (x, y). */
+function m9ArmyNear(state: GameState, x: number, y: number, r: number): number {
+  return armyOf(state).filter((id) => { const u = state.units.get(id)!; return (u.x - x) * (u.x - x) + (u.y - y) * (u.y - y) <= r * r; }).length;
+}
+
+/**
+ * m9: alvo sob assalto agora (o próximo de pé, na ordem de M9_TARGETS): começa com ≥ M9_ASSAULT_ARMY militares e continua
+ * enquanto ≥ 10 deles estiverem a até 16 tiles dele (histerese, como na m4); null fora de assalto.
+ */
+function m9AssaultTarget(state: GameState): string | null {
+  const next = M9_TARGETS.find((t) => entityPos(state, '#' + t)); if (!next) return null;
+  if (militaryCount(state, 0) >= M9_ASSAULT_ARMY) return next;
+  const p = entityPos(state, '#' + next)!;
+  return m9ArmyNear(state, p.x, p.y, 16) >= 10 ? next : null;
+}
+
+/**
+ * m9: uma Casa perto do Palácio quando faltam menos de `slack` de população (a IA do jogador só ergue a próxima com ≤ 6 de
+ * folga, e as míticas ocupam 3 a 5 cada: medido, o Normal ficava em 70/70 dos 7 aos 14 min), com o cidadão mais perto.
+ */
+function m9House(state: GameState, slack: number): Command | null {
+  const p = state.players[0];
+  if (p.popCap - p.pop >= slack || p.popCap >= 250 || p.resources.wood < 80) return null;
+  if ([...state.buildings.values()].some((b) => b.owner === 0 && !b.dead && b.type === 'house' && !b.complete)) return null;
+  const tc = firstBuilding(state, 'town_center'); if (!tc) return null;
+  const spot = findBuildSpot(state, p, 'house', tc.x, tc.y, 4, 16); if (!spot) return null;
+  const v = villagersNear(state, spot.x, spot.y).find((u) => u.state !== 'build'); if (!v) return null;
+  return { type: 'build', player: 0, ids: [v.id], building: 'house', tx: spot.x, ty: spot.y };
+}
+
+/** m9: ataque-movimento de todo o exército até o alvo; perto dele (10 tiles), todos batem na jaula ou na fenda. */
+function m9Assault(state: GameState, tag: string): Command[] {
+  const p = entityPos(state, '#' + tag); if (!p) return [];
+  const ids = armyOf(state); if (!ids.length) return [];
+  const out: Command[] = [{ type: 'attackMove', player: 0, ids, x: p.x, y: p.y }];
+  const f = focusTarget(state, state.scenario?.vars['#' + tag], 10); if (f) out.push(f);
+  return out;
+}
+
 /**
  * Roteiros das missões registradas (o jogador 0 é uma IA "difícil"; os passos cobram o objetivo que a IA não faz sozinha).
  * Missão nova: acrescente uma entrada com o id; sem entrada, scripts/missions.ts roda só a IA do jogador.
@@ -1318,6 +1375,20 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
       { label: 'naus', when: { entity: { tag: 'acampamento' }, exists: true }, every: 5, command: (s) => m7Assault(s) },
       // sem as naus, Aquiles vem até Argos (isca): todos atrás dele e foco nele
       { label: 'caça', when: { fired: 'isca' }, every: 5, command: (s) => m7Hunt(s) },
+    ],
+  },
+  m9_tenaro: {
+    minutes: 40, expect: [17.5, 39],
+    // a IA do jogador (Hades) nunca sai em ondas: quem ataca as jaulas e as fendas é o roteiro, um alvo por vez
+    hold: { time: { gte: 0 } },
+    steps: [
+      { label: 'cidadãos', when: { time: { gte: 3 } }, every: 4, command: (s) => trainVillagers(s, 40) },
+      { label: 'casas', when: { time: { gte: 3 } }, every: 5, command: (s) => m9House(s, 15) },
+      { label: 'treino', when: { time: { gte: 5 } }, every: 5, command: (s) => trainArmy(s, 0, { mix: M9_MIX, reserve: { food: 150, wood: 100, gold: 80 } }) },
+      { label: 'poderes', when: { time: { gte: 2 } }, every: 3, command: (s) => battlePowers(s) },
+      { label: 'tempestade', when: { time: { gte: 1 } }, every: 1, command: (s) => dodgeStorms(s) },
+      // jaulas e fendas na ordem da caminhada, cada uma quando o exército tem ≥ M9_ASSAULT_ARMY militares
+      { label: 'assalto', when: { time: { gte: 10 } }, every: 10, command: (s) => { const t = m9AssaultTarget(s); return t ? m9Assault(s, t) : null; } },
     ],
   },
 };
