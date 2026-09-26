@@ -1,12 +1,16 @@
 // m7 "A Cólera de Aquiles" (docs/STORY.md §5.4): setup da ficha no mapa gerado real (forest 7707), aldeias alcançáveis e na
-// ordem "a mais perto das naus primeiro", marchas por dificuldade (G3), volta às naus, Tétis (o paliativo do Raio de Zeus: enquanto
-// o acampamento está de pé, cada queda de Aquiles o devolve às naus), a isca do acampamento queimado, o segredo de Odisseu (G1) e
-// os reforços das naus. Partidas curtas; a passiva de 6 min roda em tests/missions.test.ts e o roteiro longo em scripts/missions.ts.
+// ordem "a mais perto das naus primeiro", marchas por dificuldade (G3) com a escolta saindo do acampamento junto com Aquiles,
+// volta às naus, marcha adiada enquanto há luta no acampamento, Tétis (o paliativo do Raio de Zeus: enquanto o acampamento está de
+// pé, cada queda de Aquiles o devolve às naus), interceptar salva a aldeia, a Liga pelo leste, a isca do acampamento queimado, o
+// segredo de Odisseu (G1) e os reforços das naus (que ficam de guarda). Partidas curtas (a mais longa, a passiva até a 4ª aldeia,
+// ~12 min de jogo); a passiva de 6 min roda em tests/missions.test.ts e o roteiro longo em scripts/missions.ts.
 import { describe, it, expect } from 'vitest';
 import { TICK_RATE } from '../src/core/constants';
 import { createGame, tick } from '../src/core/sim/game';
 import { applyCommand } from '../src/core/sim/commands';
 import { destroyBuilding, killUnit } from '../src/core/sim/combat';
+import { spawnUnit } from '../src/core/sim/entities';
+import { giveOrder } from '../src/core/sim/units';
 import { rectReachable } from '../src/core/map/components';
 import { setRaidObserver, tagIds, townCenter, type RaidRecord } from '../src/core/scenario/helpers';
 import { missionRunConfig } from '../src/core/scenario/testing';
@@ -64,18 +68,18 @@ describe('m7_aquiles', () => {
     }
   }, 60_000);
 
-  it('G3: marchas a cada 240/180/120 s e teto dos reforços 20/26/24 (Fácil/Normal/Difícil); Aquiles mais forte no Difícil', () => {
-    const want = { easy: [390, 630, 870, 20], normal: [330, 510, 690, 26], hard: [270, 390, 510, 24] } as const;
+  it('G3: marchas a cada 240/180/120 s, teto dos reforços 20/26/30 e a Liga aos 750/600/450 s (Fácil/Normal/Difícil); Aquiles mais forte no Difícil', () => {
+    const want = { easy: [390, 630, 870, 20, 750], normal: [330, 510, 690, 26, 600], hard: [270, 390, 510, 30, 450] } as const;
     for (const d of ['easy', 'normal', 'hard'] as const) {
       const s = start(d);
       run(s, 2);
       const v = s.scenario!.vars;
-      expect([v.rota2_t, v.rota3_t, v.rota4_t, v.teto], d).toEqual([...want[d]]);
+      expect([v.rota2_t, v.rota3_t, v.rota4_t, v.teto, v.liga_t], d).toEqual([...want[d]]);
       expect(s.players[2].techs.includes('anthropomorphic'), d).toBe(d === 'hard');
     }
   }, 60_000);
 
-  it('rota1 aos 150 s: Aquiles e os mirmidões vão queimar a aldeia1 (com a escolta da invasão) e, queimada, voltam às naus', () => {
+  it('rota1 aos 150 s: Aquiles, os mirmidões e a escolta saem juntos do acampamento para queimar a aldeia1 e, queimada, voltam às naus', () => {
     const s = start('normal');
     const raids: RaidRecord[] = [];
     setRaidObserver((r) => raids.push(r));
@@ -85,10 +89,14 @@ describe('m7_aquiles', () => {
       until(s, 150);
       expect(s.scenario!.fired).toContain('rota1');
       const a1 = tagged(s, 'aldeia1')!;
-      for (const u of alive(s, 2).filter((u) => u.type !== 'peltast' && d2(u, camp(s)) < 15 * 15)) expect(u.targetId, u.type).toBe(a1.id);
-      expect(raids).toHaveLength(1);
-      expect(raids[0].spawned).toBeGreaterThan(0);
+      // a escolta nasce no acampamento (não perto da aldeia: sem invasão) e marcha com Aquiles
+      expect(raids).toHaveLength(0);
+      const escort = tagIds(s, 'escolta1').map((id) => s.units.get(id)!);
+      expect(escort.map((u) => u.type)).toEqual(['myrmidon', 'peltast', 'peltast']);
+      for (const u of escort) expect(d2(u, camp(s)), u.type).toBeLessThanOrEqual(12 * 12);
+      for (const u of alive(s, 2).filter((u) => d2(u, camp(s)) < 15 * 15)) expect(u.targetId, u.type).toBe(a1.id);
       expect(lines(s).some((t) => t.includes('Adivinhe qual escolhi'))).toBe(true);
+      expect(lines(s).some((t) => t.includes('Fumaça a sudeste'))).toBe(true);
       // Aquiles chega à aldeia1 (a Argos passiva não a defende) e ela cai: a queda manda todos de volta às naus
       for (let i = 0; i < 90 && !s.scenario!.fired.includes('volta1'); i++) run(s, 1);
       expect(d2(achilles(s)!, a1)).toBeLessThanOrEqual(6 * 6);
@@ -101,7 +109,88 @@ describe('m7_aquiles', () => {
     } finally { setRaidObserver(null); }
   }, 60_000);
 
-  it('paliativo do Raio (sem G11): enquanto as naus estão na praia, Tétis devolve Aquiles a cada queda — nem o Raio de Zeus vence a missão', () => {
+  it('escolta junto de Aquiles: na passiva, cada aldeia cai com ele a até 6 tiles (ninguém nasce perto dela e a queima sozinho)', () => {
+    for (const d of ['normal', 'hard'] as const) {
+      const s = start(d);
+      const pos = Object.fromEntries(VILLAGES.map((t) => [t, { x: tagged(s, t)!.x, y: tagged(s, t)!.y }]));
+      const fell: Record<string, number> = {};
+      while (Object.keys(fell).length < 4 && s.tick < 900 * TICK_RATE && !s.gameOver) {
+        tick(s);
+        for (const t of VILLAGES) {
+          if (fell[t] !== undefined || tagged(s, t)) continue;
+          const a = achilles(s);
+          fell[t] = a ? Math.sqrt(d2(a, pos[t])) : Infinity;
+        }
+      }
+      expect(Object.keys(fell).sort(), d).toEqual([...VILLAGES]);
+      for (const t of VILLAGES) expect(fell[t], `${d} ${t}`).toBeLessThanOrEqual(6);
+    }
+  }, 60_000);
+
+  it('os reforços guardam o acampamento: a marcha é Aquiles, os mirmidões do desembarque e a escolta dela', () => {
+    const s = start('normal');
+    until(s, 241);
+    const guard = alive(s, 2).filter((u) => u.type !== 'achilles' && !tagIds(s, 'mirmidoes').includes(u.id) && !tagIds(s, 'escolta1').includes(u.id));
+    expect(guard.length).toBe(3);   // os reforços dos 240 s
+    until(s, 330);
+    expect(s.scenario!.fired).toContain('rota2');
+    const a2 = tagged(s, 'aldeia2')!;
+    expect(achilles(s)!.targetId).toBe(a2.id);
+    for (const id of tagIds(s, 'escolta2')) expect(s.units.get(id)!.targetId).toBe(a2.id);
+    for (const u of guard.filter((u) => !u.dead)) expect(u.targetId, u.type).not.toBe(a2.id);
+  }, 60_000);
+
+  it('interceptar salva a aldeia: derrubados Aquiles, os mirmidões e a escolta no caminho, a aldeia2 fica de pé e Tétis o prende no acampamento até a próxima marcha', () => {
+    const s = start('normal');
+    until(s, 331);
+    expect(s.scenario!.fired).toContain('rota2');
+    const a2 = tagged(s, 'aldeia2') as Building;
+    const hp = a2.hp;
+    for (const tag of ['aquiles', 'mirmidoes', 'escolta2']) for (const id of tagIds(s, tag)) { const u = s.units.get(id); if (u && !u.dead) killUnit(s, u, 0); }
+    run(s, 60);
+    expect(tagged(s, 'aldeia2')).toBe(a2);
+    expect(a2.dead).toBe(false);
+    expect(a2.hp).toBe(hp);
+    expect(s.scenario!.fired).not.toContain('volta2');
+    expect(s.scenario!.vars.resgates).toBe(1);
+    expect(d2(achilles(s)!, camp(s))).toBeLessThanOrEqual(8 * 8);
+    expect(s.scenario!.vars.aldeias_perdidas).toBe(1);
+  }, 60_000);
+
+  it('marcha adiada: com luta no acampamento a guarnição não larga a briga; a marcha sai quando a luta acaba', () => {
+    const s = start('normal');
+    until(s, 146);
+    const c = camp(s);
+    const raiders = Array.from({ length: 6 }, (_, k) => spawnUnit(s, 0, 'hypaspist', c.x - 3.5 + k, c.y - 6.5));
+    for (const u of raiders) giveOrder(s, u, { type: 'attack', targetId: c.id });
+    until(s, 152);
+    expect(s.scenario!.fired).not.toContain('rota1');
+    expect(alive(s, 2).some((u) => u.state === 'attack' && d2(u, c) < 15 * 15)).toBe(true);
+    for (let i = 0; i < 120 && !s.scenario!.fired.includes('rota1'); i++) run(s, 1);
+    expect(s.scenario!.fired).toContain('rota1');
+    expect(raiders.every((u) => u.dead)).toBe(true);
+    expect(c.dead).toBe(false);
+  }, 60_000);
+
+  it('a Liga do Istmo invade pelo leste aos 600 s (Normal), com o aviso do Batedor', () => {
+    const s = start('normal');
+    const raids: RaidRecord[] = [];
+    setRaidObserver((r) => raids.push(r));
+    try {
+      until(s, 599);
+      expect(s.scenario!.fired).not.toContain('liga');
+      until(s, 600);
+      expect(s.scenario!.fired).toContain('liga');
+      expect(raids).toEqual([expect.objectContaining({ owner: 1, requested: 6, spawned: 6 })]);
+      const tc = townCenter(s, 0)!;
+      const league = alive(s, 1).filter((u) => u.order?.type === 'attackMove');
+      expect(league).toHaveLength(6);
+      for (const u of league) expect(u.x, u.type).toBeGreaterThan(tc.x + 8);   // do leste
+      expect(lines(s).some((t) => t.includes('A Liga do Istmo aproveita a fumaça'))).toBe(true);
+    } finally { setRaidObserver(null); }
+  }, 60_000);
+
+  it('paliativo do Raio (sem G11): enquanto o acampamento das naus está de pé, Tétis devolve Aquiles a cada queda — nem o Raio de Zeus vence a missão', () => {
     const s = start('normal');
     run(s, 2);
     const first = achilles(s)!;
@@ -114,21 +203,34 @@ describe('m7_aquiles', () => {
     expect(s.scenario!.objectives.aquiles).toBe('pending');
     expect(s.scenario!.outcome).toBe('playing');
     expect(s.scenario!.vars.resgates).toBe(1);
-    expect(lines(s).some((t) => t.includes('a mãe o devolverá à guerra'))).toBe(true);
+    expect(lines(s).some((t) => t.includes('Tétis o trará de volta, arconte: queime-o'))).toBe(true);
     expect(lines(s).some((t) => t.includes('Ainda não, meu filho'))).toBe(true);
     // de novo: Tétis volta a salvá-lo (repetível); Tétis e a Pítia falam só na 1ª vez, depois o Batedor avisa a cada resgate
     killUnit(s, second, 0);
     run(s, 2);
     expect(achilles(s)).toBeDefined();
     expect(s.scenario!.vars.resgates).toBe(2);
-    expect(lines(s).filter((t) => t.includes('a mãe o devolverá à guerra'))).toHaveLength(1);
+    const scout = () => lines(s).filter((t) => t.includes('Tétis levou Aquiles de volta')).length;
+    expect(lines(s).filter((t) => t.includes('Tétis o trará de volta'))).toHaveLength(1);
     expect(lines(s).filter((t) => t.includes('Ainda não, meu filho'))).toHaveLength(1);
-    expect(lines(s).filter((t) => t.includes('As ondas levaram Aquiles'))).toHaveLength(1);
+    expect(scout()).toBe(1);
     killUnit(s, achilles(s)!, 0);
     run(s, 2);
     expect(s.scenario!.vars.resgates).toBe(3);
-    expect(lines(s).filter((t) => t.includes('As ondas levaram Aquiles'))).toHaveLength(2);
+    expect(scout()).toBe(2);
     expect(alive(s, 2, 'achilles')).toHaveLength(1);
+    // no cerco (tropas de Argos a até 15 tiles do acampamento) o jogador vê Aquiles voltar: o Batedor não repete o aviso
+    const watcher = spawnUnit(s, 0, 'hypaspist', camp(s).x + 0.5, camp(s).y - 13.5);
+    watcher.hp = watcher.maxHp = 1e6;   // só um par de olhos (não pode morrer no meio da conta)
+    for (let k = 0; k < 3; k++) { killUnit(s, achilles(s)!, 0); run(s, 2); }
+    expect(s.scenario!.vars.resgates).toBe(6);
+    expect(scout()).toBe(2);
+    killUnit(s, watcher, 2);
+    run(s, 1);
+    killUnit(s, achilles(s)!, 0);
+    run(s, 2);
+    expect(s.scenario!.vars.resgates).toBe(7);
+    expect(scout()).toBe(3);
   }, 60_000);
 
   it('acampamento queimado: Aquiles marcha contra o Centro Cívico (isca); a queda dele então é a última — vitória, fala do mirmidão e o segredo de Odisseu', () => {

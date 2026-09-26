@@ -18,7 +18,7 @@ import { getBuildingStats, getUnitStats } from '../sim/modifiers';
 import { canAfford } from '../sim/economy';
 import { isEnemy, nearestNode } from '../sim/queries';
 import { canPlaceBuilding } from '../sim/entities';
-import { setRaidObserver, type RaidRecord } from './helpers';
+import { setRaidObserver, tagIds, type RaidRecord } from './helpers';
 
 /** Missão a rodar: id do registro, ScenarioDef registrado ou arquivo JSON (roda como scenarioData). */
 export type MissionSource = string | ScenarioDef | ScenarioFile;
@@ -660,8 +660,8 @@ const M7_MIX: Record<string, number> = { hypaspist: 4, cretan_archer: 4, hoplite
 /**
  * m7: militares para sair contra as naus (o acampamento) — estado, não relógio (o tempo medido é o ritmo real da economia e das
  * lutas): pelo menos M7_ASSAULT_ARMY e M7_ASSAULT_RATIO × os militares dos mirmidões, como um jogador que só ataca com folga.
- * Enquanto as naus estão na praia, Tétis devolve Aquiles a cada queda: é lá que a caça termina. O assalto segue enquanto metade
- * do exército estiver nas naus (histerese, como na m4). Medido: com 55–70 a vitória saía aos 13–15 min em alguma dificuldade (no
+ * Enquanto o acampamento das naus está de pé, Tétis devolve Aquiles a cada queda: é lá que a caça termina. O assalto segue
+ * enquanto metade do exército estiver nas naus (histerese, como na m4). Medido: com 55–70 a vitória saía aos 13–15 min em alguma dificuldade (no
  * limite ou abaixo da janela) e, sem Oficina, os assaltos do Difícil morriam na Fortaleza (flechas mal a arranham) até os 32–34 min.
  */
 const M7_ASSAULT_ARMY = 80, M7_ASSAULT_RATIO = 2;
@@ -711,6 +711,43 @@ function m7Build(state: GameState, type: string): Command | null {
   const spot = findBuildSpot(state, p, type, tc.x, tc.y, 5, 14); if (!spot) return null;
   const v = villagersNear(state, spot.x, spot.y).find((u) => u.state !== 'build'); if (!v) return null;
   return { type: 'build', player: 0, ids: [v.id], building: type, tx: spot.x, ty: spot.y };
+}
+
+/**
+ * m7, "esteja onde ele vai estar" (Odisseu): a aldeia da vez a partir da aldeia2 (a 1ª marcha, aos 150 s, é cedo demais para
+ * enfrentar a pilha): a da marcha em curso, se ela ainda está de pé com mirmidões por perto, ou a próxima de pé que ainda não foi
+ * atacada. null quando não há mais aldeia a defender.
+ */
+function m7Watch(state: GameState): { x: number; y: number } | null {
+  const fired = state.scenario?.fired ?? [];
+  for (let n = 4; n >= 2; n--) {
+    const p = entityPos(state, '#aldeia' + n);
+    if (p && fired.includes('rota' + n) && enemyNear(state, p.x, p.y, 20)) return p;
+  }
+  for (let n = 2; n <= 4; n++) { const p = entityPos(state, '#aldeia' + n); if (p && !fired.includes('rota' + n)) return p; }
+  return null;
+}
+
+/**
+ * m7: militares para esperar Aquiles numa aldeia — M7_GUARD_RATIO × quem marcha com ele (os mirmidões do desembarque ainda vivos,
+ * ele e uma escolta de até M7_ESCORT). Com menos, o exército fica em casa (medido: 18 militares na aldeia2 aos 5 min morriam
+ * todos e a IA não se reerguia até a derrota).
+ */
+const M7_GUARD_RATIO = 2, M7_ESCORT = 5;
+
+/**
+ * m7: o exército espera Aquiles na aldeia da vez (m7Watch) quando é forte o bastante (M7_GUARD_RATIO) — quem está a mais de 10
+ * tiles dela vai em ataque-movimento —, salvo com inimigos a até 22 tiles do Centro Cívico (a Liga pelo leste): aí todos voltam
+ * para casa. Nada durante o assalto às naus.
+ */
+function m7Guard(state: GameState): Command | null {
+  if (m7Assaulting(state)) return null;
+  const tc = firstBuilding(state, 'town_center');
+  const home = tc && enemyNear(state, tc.x, tc.y, 22) ? { x: tc.x, y: tc.y } : null;
+  const marchers = 1 + M7_ESCORT + tagIds(state, 'mirmidoes').filter((id) => { const u = state.units.get(id); return u && !u.dead; }).length;
+  const at = home ?? (militaryCount(state, 0) >= M7_GUARD_RATIO * marchers ? m7Watch(state) : null); if (!at) return null;
+  const ids = armyOf(state).filter((id) => { const u = state.units.get(id)!; return (u.x - at.x) * (u.x - at.x) + (u.y - at.y) * (u.y - at.y) > 10 * 10; });
+  return ids.length ? { type: 'attackMove', player: 0, ids, x: at.x, y: at.y } : null;
 }
 
 /** Sem as naus, Aquiles vem até Argos: todo o exército em ataque-movimento até ele e foco nele a até 14 tiles. */
@@ -853,11 +890,11 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
       { label: 'oficina', when: { time: { gte: 60 } }, every: 20, command: (s) => m7Build(s, 'siege_workshop') },
       // Apolo fala aos 90 s; o Oráculo sai quando Aquiles marcha (rota1, 150 s): o mapa inteiro por 60 s, para ver a rota
       { label: 'oráculo', when: { fired: 'rota1' }, command: () => ({ type: 'power', player: 0, power: 'oracle' }) },
-      // "esteja onde ele vai estar" (§7.2): quando o batedor anuncia a 2ª marcha, o exército espera Aquiles na aldeia2
-      { label: 'aldeia2', when: { all: [{ fired: 'rota2' }, { entity: { tag: 'aldeia2' }, exists: true }] }, command: (s) => { const p = entityPos(s, '#aldeia2'); return p ? armyAttackMove(s, p.x, p.y) : null; } },
+      // "esteja onde ele vai estar" (Odisseu): depois da 1ª marcha, o exército espera Aquiles na aldeia da vez (aldeia2, 3, 4)
+      { label: 'vigia', when: { all: [{ fired: 'rota1' }, { not: { fired: 'isca' } }] }, every: 5, command: (s) => m7Guard(s) },
       // Raio em Aquiles quando ele encosta no exército (Tétis o devolve às naus) e Restauração nos feridos
       { label: 'poderes', when: { fired: 'rota1' }, every: 2, command: (s) => battlePowers(s) },
-      // com o exército formado, as naus: enquanto elas estiverem na praia, Tétis devolve Aquiles a cada queda
+      // com o exército formado, as naus: enquanto o acampamento estiver de pé, Tétis devolve Aquiles a cada queda
       { label: 'naus', when: { entity: { tag: 'acampamento' }, exists: true }, every: 5, command: (s) => m7Assault(s) },
       // sem as naus, Aquiles vem até Argos (isca): todos atrás dele e foco nele
       { label: 'caça', when: { fired: 'isca' }, every: 5, command: (s) => m7Hunt(s) },
