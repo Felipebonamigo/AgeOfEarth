@@ -137,7 +137,7 @@ async function boot() {
     hud.setSession(session); hud.setVisible(true); menu.hide();
     hud.toast(t('msg.welcome', { name: session.player.name, god: MAJOR_GODS[session.state.players[session.local].god]?.name ?? '' }), 'gold');
     if (config.mode === 'regicide') hud.toast(t('msg.regicideStart'), 'info');
-    if (config.mode === 'koth') hud.toast(t('msg.kothStart', { min: 4 }), 'info');
+    if (config.mode === 'koth' && !config.scenario) hud.toast(t('msg.kothStart', { min: 4 }), 'info');   // em cenário (m10) a colina é do roteiro
     if (session.state.relics.length > 0 && !config.scenario) hud.toast(t('msg.relicsStart'), 'info');
   };
   const loadGame = () => {
