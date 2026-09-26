@@ -1,0 +1,26 @@
+{
+ "frames": {
+  "wonder_artemis/build0": {"frame":{"x":1341,"y":1,"w":256,"h":283},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":7,"y":121,"w":256,"h":283},"sourceSize":{"w":345,"h":458},"anchor":{"x":0.3913,"y":0.60262}},
+  "wonder_artemis/build1": {"frame":{"x":1081,"y":1,"w":256,"h":321},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":7,"y":83,"w":256,"h":321},"sourceSize":{"w":345,"h":458},"anchor":{"x":0.3913,"y":0.60262}},
+  "wonder_artemis/build2": {"frame":{"x":821,"y":1,"w":256,"h":395},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":7,"y":9,"w":256,"h":395},"sourceSize":{"w":345,"h":458},"anchor":{"x":0.3913,"y":0.60262}},
+  "wonder_artemis/complete": {"frame":{"x":561,"y":1,"w":256,"h":404},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":7,"y":0,"w":256,"h":404},"sourceSize":{"w":345,"h":458},"anchor":{"x":0.3913,"y":0.60262}},
+  "wonder_artemis/damage1": {"frame":{"x":285,"y":1,"w":272,"h":414},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":2,"y":1,"w":272,"h":414},"sourceSize":{"w":345,"h":458},"anchor":{"x":0.3913,"y":0.60262}},
+  "wonder_artemis/damage2": {"frame":{"x":1,"y":1,"w":280,"h":434},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":0,"y":1,"w":280,"h":434},"sourceSize":{"w":345,"h":458},"anchor":{"x":0.3913,"y":0.60262}},
+  "wonder_colossus/build0": {"frame":{"x":1078,"y":439,"w":256,"h":261},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":8,"y":168,"w":256,"h":261},"sourceSize":{"w":378,"h":455},"anchor":{"x":0.35979,"y":0.66154}},
+  "wonder_colossus/build1": {"frame":{"x":818,"y":439,"w":256,"h":338},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":8,"y":91,"w":256,"h":338},"sourceSize":{"w":378,"h":455},"anchor":{"x":0.35979,"y":0.66154}},
+  "wonder_colossus/build2": {"frame":{"x":558,"y":439,"w":256,"h":386},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":8,"y":43,"w":256,"h":386},"sourceSize":{"w":378,"h":455},"anchor":{"x":0.35979,"y":0.66154}},
+  "wonder_colossus/complete": {"frame":{"x":1601,"y":1,"w":256,"h":429},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":8,"y":0,"w":256,"h":429},"sourceSize":{"w":378,"h":455},"anchor":{"x":0.35979,"y":0.66154}},
+  "wonder_colossus/damage1": {"frame":{"x":1,"y":439,"w":274,"h":416},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":2,"y":18,"w":274,"h":416},"sourceSize":{"w":378,"h":455},"anchor":{"x":0.35979,"y":0.66154}},
+  "wonder_colossus/damage2": {"frame":{"x":279,"y":439,"w":275,"h":395},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":0,"y":60,"w":275,"h":395},"sourceSize":{"w":378,"h":455},"anchor":{"x":0.35979,"y":0.66154}},
+  "wonder_zeus/build0": {"frame":{"x":781,"y":859,"w":256,"h":262},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":17,"y":106,"w":256,"h":262},"sourceSize":{"w":340,"h":397},"anchor":{"x":0.42647,"y":0.60453}},
+  "wonder_zeus/build1": {"frame":{"x":521,"y":859,"w":256,"h":316},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":17,"y":52,"w":256,"h":316},"sourceSize":{"w":340,"h":397},"anchor":{"x":0.42647,"y":0.60453}},
+  "wonder_zeus/build2": {"frame":{"x":1,"y":859,"w":256,"h":368},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":17,"y":0,"w":256,"h":368},"sourceSize":{"w":340,"h":397},"anchor":{"x":0.42647,"y":0.60453}},
+  "wonder_zeus/complete": {"frame":{"x":261,"y":859,"w":256,"h":368},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":17,"y":0,"w":256,"h":368},"sourceSize":{"w":340,"h":397},"anchor":{"x":0.42647,"y":0.60453}},
+  "wonder_zeus/damage1": {"frame":{"x":1632,"y":439,"w":276,"h":384},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":13,"y":0,"w":276,"h":384},"sourceSize":{"w":340,"h":397},"anchor":{"x":0.42647,"y":0.60453}},
+  "wonder_zeus/damage2": {"frame":{"x":1338,"y":439,"w":290,"h":397},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":0,"y":0,"w":290,"h":397},"sourceSize":{"w":340,"h":397},"anchor":{"x":0.42647,"y":0.60453}}
+ },
+ "animations": {
+
+ },
+ "meta": {"app":"age-of-earth/scripts/bake","version":"1","image":"buildings-2x-3.png","format":"RGBA8888","size":{"w":2048,"h":2048},"scale":"2","aoe":{"version":1,"pass":"color","pxPerTile":64,"pitchDeg":50,"verticalFactor":0.8391,"sun":[-0.55,1,-0.35],"shadowDir":"SE","dirs":8,"dirNames":["E","SE","S","SW","W","NW","N","NE"],"fps":10,"pad":2,"extrude":1,"mirror":false}}
+}

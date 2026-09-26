@@ -1,0 +1,74 @@
+{
+  "id": "wall",
+  "kind": "building",
+  "docs": "Para usar um modelo .glb, troque `source` por { \"type\": \"glb\", \"path\": \"art/src/wall.glb\", \"scale\": 0.5, … } com um nó por bitmask (N = 1, L = 2, S = 4, O = 8) e estado; as peças precisam terminar exatamente na borda do tile (docs/ART.md §3.4, Etapa 3).",
+  "source": {
+    "type": "param",
+    "rig": "building",
+    "params": {
+      "style": "wall"
+    }
+  },
+  "size": {
+    "tiles": [
+      2.6,
+      4.0
+    ]
+  },
+  "footprint": [
+    1,
+    1
+  ],
+  "anchor": [
+    0.32,
+    0.575
+  ],
+  "dirs": 1,
+  "anims": {
+    "build0": {
+      "frames": 1
+    },
+    "build1": {
+      "frames": 1
+    },
+    "build2": {
+      "frames": 1
+    },
+    "complete": {
+      "frames": 1
+    },
+    "damage1": {
+      "frames": 1
+    },
+    "damage2": {
+      "frames": 1
+    }
+  },
+  "variants": [
+    "00",
+    "01",
+    "02",
+    "03",
+    "04",
+    "05",
+    "06",
+    "07",
+    "08",
+    "09",
+    "10",
+    "11",
+    "12",
+    "13",
+    "14",
+    "15",
+    "05f",
+    "10f"
+  ],
+  "variantBy": "wallMask",
+  "icon": {
+    "anim": "complete",
+    "variant": "10f"
+  },
+  "team": true,
+  "shadow": true
+}

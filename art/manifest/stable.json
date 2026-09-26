@@ -1,0 +1,52 @@
+{
+  "id": "stable",
+  "kind": "building",
+  "docs": "Para usar um modelo .glb, troque `source` por { \"type\": \"glb\", \"path\": \"art/src/stable.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"build0\": \"Build0\", …, \"damage2\": \"Damage2\" }, \"teamMaterials\": [\"Banner\"] } (um clipe estático por estado; docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "building",
+    "params": {
+      "style": "stable"
+    }
+  },
+  "size": {
+    "tiles": [
+      5.4,
+      6.2
+    ]
+  },
+  "footprint": [
+    3,
+    3
+  ],
+  "anchor": [
+    0.39,
+    0.55
+  ],
+  "dirs": 1,
+  "anims": {
+    "build0": {
+      "frames": 1
+    },
+    "build1": {
+      "frames": 1
+    },
+    "build2": {
+      "frames": 1
+    },
+    "complete": {
+      "frames": 1
+    },
+    "damage1": {
+      "frames": 1
+    },
+    "damage2": {
+      "frames": 1
+    }
+  },
+  "icon": {
+    "anim": "complete"
+  },
+  "team": true,
+  "shadow": true
+}

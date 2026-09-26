@@ -8,7 +8,7 @@ export const ART_PX_PER_TILE = 32;
 /** Inclinação da câmera do bake (graus); um atlas assado com outra inclinação é recusado. */
 export const ART_PITCH_DEG = 50;
 
-export type ArtGroup = 'units' | 'buildings' | 'props';
+export type ArtGroup = 'units' | 'buildings' | 'props' | 'icons';
 export type ArtPass = 'color' | 'team' | 'shadow';
 export type ArtScale = 1 | 2;
 
@@ -29,6 +29,13 @@ export interface ArtAssetEntry {
   sizes?: Record<string, ArtSize>;
   anims?: Record<string, ArtAnimInfo>;
   footprint?: [number, number];
+  /** Edifícios: variantes (bitmask da muralha '00'–'15', eixo do portão 'ew'/'ns', Idade 'a0'–'a2') e o critério. */
+  variants?: string[];
+  variantBy?: 'wallMask' | 'gateAxis' | 'ageTier' | 'farmCrop';
+  /** Conjunto de escombros (estados = pegadas '1x1'…'5x5'). */
+  rubble?: boolean;
+  /** Tem ícone no atlas `icons` (quadro com o nome do id). */
+  icon?: boolean;
   /** Props: nomes dos itens (`<kind>/<variante>[/<tag>]`). */
   items?: string[];
   /** Arquivos JSON de atlas por escala e passe. */

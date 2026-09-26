@@ -1,6 +1,6 @@
 // Interface em DOM: barra de recursos, painel de seleção, grade de comandos, poderes divinos,
 // minimapa, mensagens, tooltips e modais (deuses menores, menu, ajuda, enciclopédia, fim de jogo).
-import { RESOURCES, RESOURCE_ICONS, STANCES, TICK_RATE, MAX_SCHOLARS, SCHOLAR_COST, WONDER_VICTORY_SECONDS, KOTH_SECONDS, FORMATIONS, rankOf, type ResourceType, type Stance, type Formation } from '../core/constants';
+import { RESOURCES, RESOURCE_ICONS, STANCES, TICK_RATE, MAX_SCHOLARS, SCHOLAR_COST, WONDER_VICTORY_SECONDS, KOTH_SECONDS, FORMATIONS, PLAYER_COLORS, rankOf, type ResourceType, type Stance, type Formation } from '../core/constants';
 const FORMATION_ICONS: Record<Formation, string> = { line: '▬', box: '▦', column: '▮', wedge: '▲' };
 import { teamNames } from '../core/sim/modes';
 import { relicsOf } from '../core/sim/relics';
@@ -350,7 +350,7 @@ export class HUD {
     const s = this.session; if (!s) return;
     s.pruneSelection();
     const units = s.selectedUnits(), blds = s.selectedBuildings();
-    const key = [...s.selection].join(',') + '|' + units.map((u) => `${u.hp}`).join(',') + '|' + blds.map((b) => `${b.hp}${b.complete}${b.queue.map((q) => q.id + Math.floor(q.elapsed)).join('.')}${b.scholars}g${b.garrison.length}`).join(',') + '|' + s.ui.mode + s.ui.placeType + '|' + s.player.age + s.player.techs.length + Math.floor(s.state.tick / 10);
+    const key = [...s.selection].join(',') + '|' + units.map((u) => `${u.hp}`).join(',') + '|' + blds.map((b) => `${b.hp}${b.complete}${b.queue.map((q) => q.id + Math.floor(q.elapsed)).join('.')}${b.scholars}g${b.garrison.length}`).join(',') + '|' + s.ui.mode + s.ui.placeType + '|' + s.player.age + s.player.techs.length + Math.floor(s.state.tick / 10) + '|' + (this.renderer.art?.generation ?? 0);
     if (!force && key === this.lastSelKey) return;
     this.lastSelKey = key;
     this.selPanel.innerHTML = '';
@@ -364,7 +364,7 @@ export class HUD {
       const multi = el('div', 'multi');
       for (const e of [...units, ...blds].slice(0, 40)) {
         const def = e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type];
-        const mi = el('div', 'mi', `${def.icon}<div class="hp"><div style="width:${Math.round((e.hp / e.maxHp) * 100)}%"></div></div>`);
+        const mi = el('div', 'mi', `${e.kind === 'building' ? this.bIcon(e.type, e.owner) : def.icon}<div class="hp"><div style="width:${Math.round((e.hp / e.maxHp) * 100)}%"></div></div>`);
         mi.dataset.tip = `<b>${esc(entityDisplayName(e))}</b> ${Math.round(e.hp)}/${e.maxHp}`;
         mi.addEventListener('click', (ev) => { if (ev.ctrlKey) s.select([e.id], true); else s.select([e.id]); });
         multi.appendChild(mi);
@@ -402,7 +402,7 @@ export class HUD {
     const s = this.session!; const def = BUILDINGS[b.type]; const owner = s.state.players[b.owner];
     const st = getBuildingStats(s.state, owner, b.type);
     const c = el('div');
-    c.appendChild(el('div', 'title', `<span class="icon">${def.icon}</span>${esc(entityDisplayName(b))} <small style="color:${'#' + owner.color.toString(16).padStart(6, '0')}">${esc(playerDisplayName(s.state, b.owner))}</small>`));
+    c.appendChild(el('div', 'title', `<span class="icon">${this.bIcon(b.type, b.owner)}</span>${esc(entityDisplayName(b))} <small style="color:${'#' + owner.color.toString(16).padStart(6, '0')}">${esc(playerDisplayName(s.state, b.owner))}</small>`));
     if (!b.complete) c.appendChild(el('div', 'hpbar', `<div style="width:${Math.round((b.progress / st.buildTime) * 100)}%;background:#60a5fa"></div>`));
     else c.appendChild(el('div', 'hpbar', `<div style="width:${Math.round((b.hp / b.maxHp) * 100)}%"></div>`));
     const stats: string[] = [`${t('sel.hp')} <b>${Math.round(b.hp)}/${b.maxHp}</b>`];
@@ -433,12 +433,22 @@ export class HUD {
     return c;
   }
 
+  /**
+   * Ícone de um edifício para o HUD: o assado (atlas `icons`, docs/ART.md Etapa 3) com os estandartes na cor do dono
+   * quando a arte assada está ligada e carregada; senão o emoji de sempre.
+   */
+  private bIcon(type: string, owner: number): string {
+    const color = PLAYER_COLORS[owner % PLAYER_COLORS.length].num;
+    const url = this.renderer.iconUrl?.(type, color) ?? null;
+    return url ? `<img class="art-ic" src="${url}" alt="${BUILDINGS[type]?.icon ?? ''}" draggable="false">` : (BUILDINGS[type]?.icon ?? '');
+  }
+
   // ---------------- Comandos ----------------
   refreshCommands(force: boolean) {
     const s = this.session; if (!s) return;
     const p = s.player;
     const units = s.ownSelectedUnits(); const b = s.ownSelectedBuilding();
-    const key = `${[...s.selection].join(',')}|${s.ui.mode}|${s.ui.placeType}|${p.age}|${p.techs.length}|${p.minorGods.length}|${b?.garrison.length ?? 0}|${Object.values(p.resources).map((v) => Math.floor(v / 25)).join(',')}|${p.pop}/${p.popCap}|${b?.queue.length}|${b?.scholars}`;
+    const key = `${[...s.selection].join(',')}|${s.ui.mode}|${s.ui.placeType}|${this.renderer.art?.generation ?? 0}|${p.age}|${p.techs.length}|${p.minorGods.length}|${b?.garrison.length ?? 0}|${Object.values(p.resources).map((v) => Math.floor(v / 25)).join(',')}|${p.pop}/${p.popCap}|${b?.queue.length}|${b?.scholars}`;
     if (!force && key === this.lastCmdKey) return;
     this.lastCmdKey = key;
     // a grade rola (styles.css): com a mesma seleção, o redesenho (recursos, fila…) mantém a rolagem; seleção nova volta ao topo
@@ -468,7 +478,7 @@ export class HUD {
           if (!lim.ok) reasons.push(lim.reason ?? '');
           if (!canAfford(p, cost)) reasons.push(t('cmd.noResources'));
           const tip = `${t('cmd.buildTipB', { name: def.name, cost: fmtCost(cost, p), desc: def.desc })}${reasons.length ? `<div style="color:#ef4444;margin-top:4px">${reasons.join(' · ')}</div>` : ''}`;
-          add(def.icon, def.name, tip, def.hotkey ?? null, () => this.startPlacement(type), { disabled: reasons.length > 0, active: s.ui.mode === 'place' && s.ui.placeType === type });
+          add(this.bIcon(type, s.local), def.name, tip, def.hotkey ?? null, () => this.startPlacement(type), { disabled: reasons.length > 0, active: s.ui.mode === 'place' && s.ui.placeType === type });
         }
         add('✋', t('cmd.stop'), t('cmd.stopTipV'), '⇧S', () => { s.issue({ type: 'stop', player: s.local, ids: units.map((u) => u.id) }); });
       } else {
@@ -781,7 +791,7 @@ export class HUD {
     const def = e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type];
     const state = this.session!.state;
     // G8: nome próprio (e o tipo entre parênteses) e nome da facção no idioma atual
-    return `<b>${def.icon} ${esc(entityDisplayName(e))}</b> <small>${esc(playerDisplayName(state, e.owner))}</small><div class="desc">${e.displayName ? `${def.name} · ` : ''}${Math.round(e.hp)}/${e.maxHp} ${t('sel.hp').toLowerCase()}</div>`;
+    return `<b>${e.kind === 'building' ? this.bIcon(e.type, e.owner) : def.icon} ${esc(entityDisplayName(e))}</b> <small>${esc(playerDisplayName(state, e.owner))}</small><div class="desc">${e.displayName ? `${def.name} · ` : ''}${Math.round(e.hp)}/${e.maxHp} ${t('sel.hp').toLowerCase()}</div>`;
   }
 
   isMilitarySelection(): boolean { const s = this.session; if (!s) return false; return s.ownSelectedUnits().some(isMilitary); }

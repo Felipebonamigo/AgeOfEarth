@@ -306,22 +306,22 @@ describe('m10_otris', () => {
     expect(lines(s).some((t) => t.includes('As Sentinelas do Ótris desceram a encosta'))).toBe(true);
   }, 90_000);
 
-  it('as sortidas (G3): a cada 4 min 30 s desde os 9 nas três dificuldades, contra o acampamento enquanto o altar não é de Argos; o tamanho escala (4/6/9)', () => {
-    for (const [d, size] of [['easy', 4], ['normal', 6], ['hard', 9]] as const) {
-      const s = calm(d, ['sortida', 'sortida_altar']);
-      run(s, 539);
-      expect(s.scenario!.vars['@sortida'] ?? 0, d).toBe(0);
-      run(s, 2);
-      expect([s.scenario!.vars['@sortida'], s.scenario!.vars['@sortida_altar'] ?? 0], d).toEqual([1, 0]);
-      const tc = [...s.buildings.values()].find((b) => b.owner === 0 && b.type === 'town_center')!;
-      const near = [...s.units.values()].filter((u) => u.owner === 3 && !u.dead && Math.abs(u.x - tc.x) < 30 && Math.abs(u.y - tc.y) < 30);
-      expect(near.length, d).toBe(size);
-      expect(near.some((u) => u.type === 'cyclops'), d).toBe(false);
-      expect(lines(s).some((t) => t.includes('As Sentinelas do Ótris desceram a encosta'))).toBe(true);
-      run(s, 270);
-      expect(s.scenario!.vars['@sortida'], d).toBe(2);
-    }
-  }, 180_000);
+  // um `it` por dificuldade: cada um simula ~13,5 min de jogo; juntos (≈ 26 s) passavam de 60 s com a máquina carregada e o
+  // worker do vitest perdia o RPC (`Timeout calling "onTaskUpdate"`, código de saída 1 com todos os testes passando)
+  for (const [d, size] of [['easy', 4], ['normal', 6], ['hard', 9]] as const) it(`as sortidas (G3) [${d}]: a cada 4 min 30 s desde os 9, contra o acampamento enquanto o altar não é de Argos; o tamanho escala (${size} de 4/6/9)`, () => {
+    const s = calm(d, ['sortida', 'sortida_altar']);
+    run(s, 539);
+    expect(s.scenario!.vars['@sortida'] ?? 0, d).toBe(0);
+    run(s, 2);
+    expect([s.scenario!.vars['@sortida'], s.scenario!.vars['@sortida_altar'] ?? 0], d).toEqual([1, 0]);
+    const tc = [...s.buildings.values()].find((b) => b.owner === 0 && b.type === 'town_center')!;
+    const near = [...s.units.values()].filter((u) => u.owner === 3 && !u.dead && Math.abs(u.x - tc.x) < 30 && Math.abs(u.y - tc.y) < 30);
+    expect(near.length, d).toBe(size);
+    expect(near.some((u) => u.type === 'cyclops'), d).toBe(false);
+    expect(lines(s).some((t) => t.includes('As Sentinelas do Ótris desceram a encosta'))).toBe(true);
+    run(s, 270);
+    expect(s.scenario!.vars['@sortida'], d).toBe(2);
+  }, 90_000);
 
   it('o segredo de Lícaon (G13): só conta se Argos o matar antes do último Pilar; a coleira o devolve ao santuário', () => {
     const s = calm();

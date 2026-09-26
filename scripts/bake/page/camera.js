@@ -19,6 +19,11 @@ export const SUN_INTENSITY = 2.6;
 export const SKY = 0xbfd4ff;                     // HemisphereLight: céu
 export const GROUND = 0x8a7a5a;                  // HemisphereLight: chão
 export const HEMI_INTENSITY = 0.9;
+/** Luz do céu/chão nos EDIFÍCIOS (Etapa 3): as fachadas voltadas para a câmera (sul) nunca pegam o sol de noroeste e,
+ *  com 0,9, saíam quase pretas (≈ 25 % do topo iluminado) — ilegíveis em muralhas e casas. Mais preenchimento = a
+ *  "meia-sombra" de §1.5 (≈ 45–55 % do topo) sem mudar a direção da luz nem as sombras. Unidades e props seguem com
+ *  HEMI_INTENSITY (pergunta 16 ao dono: igualar?). */
+export const HEMI_INTENSITY_BUILDINGS = 2.1;
 export const SHADOW_MAP = 2048;                  // PCF 2048² (three r0.186 removeu PCFSoft: PCFShadowMap + radius)
 export const SHADOW_SOFTNESS = 0.04;             // largura da penumbra em tiles (≈ 1,3 px a 1×)
 export const DIRS = 8;                           // índice 0 = E, sentido horário na tela: E, SE, S, SO, O, NO, N, NE
@@ -64,7 +69,7 @@ export function makeCamera(THREE, { wTiles, hTiles, anchor, pitchDeg = PITCH_DEG
 }
 
 /** Sol + hemisfério do contrato. `extent` (tiles) dimensiona o frustum da sombra em volta do asset. */
-export function makeLights(THREE, extent = 4) {
+export function makeLights(THREE, extent = 4, hemiIntensity = HEMI_INTENSITY) {
   // Penumbra definida em tiles (e não em texels): o frustum da sombra muda com o tamanho do asset.
   const sun = new THREE.DirectionalLight(SUN_COLOR, SUN_INTENSITY);
   sun.position.set(SUN_DIR[0], SUN_DIR[1], SUN_DIR[2]).normalize().multiplyScalar(60);
@@ -76,7 +81,7 @@ export function makeLights(THREE, extent = 4) {
   sun.shadow.camera.near = 1; sun.shadow.camera.far = 200;
   sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
   sun.shadow.radius = Math.max(1, (SHADOW_SOFTNESS * SHADOW_MAP) / (2 * extent));
-  const hemi = new THREE.HemisphereLight(SKY, GROUND, HEMI_INTENSITY);
+  const hemi = new THREE.HemisphereLight(SKY, GROUND, hemiIntensity);
   return { sun, hemi };
 }
 

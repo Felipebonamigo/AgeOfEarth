@@ -9,10 +9,10 @@ import type { Texture } from 'pixi.js';
 import type { TextureCache } from '../textures';
 import { AtlasSource, type PassFrames } from './AtlasSource';
 import { ProceduralSource } from './ProceduralSource';
-import { pickScale, unitAnimName, buildingFrameName } from './logic';
+import { pickScale, unitAnimName, buildingFrameName, rubbleName, BUILDING_STATES, GLOW_ANIM, glowFrameName, type VariantBy } from './logic';
 import type { ArtAnimInfo, ArtGroup, ArtPass, ArtScale } from './types';
 
-const GROUPS: readonly ArtGroup[] = ['units', 'buildings', 'props'];
+const GROUPS: readonly ArtGroup[] = ['units', 'buildings', 'props', 'icons'];
 
 /** Arte assada de um tipo de unidade na escala servida. */
 export interface UnitArt {
@@ -37,6 +37,20 @@ export interface UnitArt {
 /** Um quadro assado com os passes que existirem (edifícios e props). */
 export interface BakedFrame { color: Texture; team: Texture | null; shadow: Texture | null; anchor: { x: number; y: number } }
 
+/** Arte assada de um tipo de edifício (Etapa 3): estados, variantes e passes na escala servida. */
+export interface BuildingArt {
+  id: string;
+  /** Estados com quadro (os 6 de BUILDING_STATES e, no portão, 'open'). */
+  states: ReadonlySet<string>;
+  /** Variantes ('00'–'15', 'ew'/'ns', 'a0'–'a2') ou null. */
+  variants: readonly string[] | null;
+  variantBy: VariantBy | null;
+  team: boolean;
+  shadow: boolean;
+  /** Sobreposição animada do edifício pronto (estado `glow` com todos os quadros no atlas de cor) ou null. */
+  glow: ArtAnimInfo | null;
+}
+
 export class ArtLibrary {
   readonly procedural: ProceduralSource;
   readonly atlas: AtlasSource;
@@ -47,6 +61,7 @@ export class ArtLibrary {
   /** Muda quando o conjunto de quadros servidos muda (carregou, falhou, trocou a escala, ligou/desligou). */
   generation = 0;
   private units = new Map<string, UnitArt | null>();
+  private buildingsArt = new Map<string, BuildingArt | null>();
   private prewarmed = false;
   /** Escala servida e passes por grupo, válidos até a próxima geração (caminho quente das vistas: sem string/array). */
   private servedCache = new Map<ArtGroup, ArtScale | null>();
@@ -60,7 +75,7 @@ export class ArtLibrary {
     this.atlas.onChange = () => { if (this.prewarmed) this.prewarm(); if (this.atlas.busy === 0) this.bump(); };
   }
 
-  private bump(): void { this.generation++; this.units.clear(); this.servedCache.clear(); this.passCache.clear(); }
+  private bump(): void { this.generation++; this.units.clear(); this.buildingsArt.clear(); this.servedCache.clear(); this.passCache.clear(); }
 
   /**
    * Aplica a opção e a escala do preset. Ligada: começa já (no menu) a carregar o manifesto e os atlas da escala pedida.
@@ -78,8 +93,8 @@ export class ArtLibrary {
   /** Assinatura do que é servido agora ('off' = nada assado: desligada ou nada pronto ainda). */
   private servedKey(): string {
     if (!this.enabled || !this.atlas.manifest) return 'off';
-    const k = GROUPS.map((g) => this.served(g) ?? '-').join(',');
-    return k === '-,-,-' ? 'off' : k;
+    const k = GROUPS.map((g) => this.served(g) ?? '-');
+    return k.every((x) => x === '-') ? 'off' : k.join(',');
   }
 
   /** Pré-aquecimento: manifesto + atlas de units/buildings/props na escala do preset, sem esperar (idempotente). */
@@ -191,12 +206,53 @@ export class ArtLibrary {
     const a = color.defaultAnchor;
     return { color, team, shadow, anchor: { x: a?.x ?? 0.5, y: a?.y ?? 1 } };
   }
-  /** Edifício `<id>/<estágio>` (build0/build1/build2/complete); null = procedural. */
-  building(id: string, stage: string): BakedFrame | null {
+  /**
+   * Arte de um tipo de edifício (null = procedural): exige os 6 estados de BUILDING_STATES com quadro de cor em todas as
+   * variantes — sem isso a obra ou o dano ficariam sem quadro em algum momento. O conjunto de escombros não conta.
+   */
+  buildingArt(id: string): BuildingArt | null {
+    if (!this.enabled) return null;
+    const hit = this.buildingsArt.get(id);
+    if (hit !== undefined) return hit;
+    const m = this.atlas.manifest;
+    if (!m) { if (this.atlas.manifestStatus === 'idle') void this.atlas.loadManifest(); return null; }
+    const a = m.assets[id];
+    if (!a || a.kind !== 'building' || a.rubble || !a.anims) { this.buildingsArt.set(id, null); return null; }
+    if (this.served(a.group) === null) return null;          // carregando: não guarda
+    const color = this.passOf(a.group, 'color');
+    const variants = a.variants && a.variants.length ? a.variants : null;
+    const states = new Set(Object.keys(a.anims));
+    for (const st of BUILDING_STATES) {
+      if (!states.has(st)) { this.buildingsArt.set(id, null); return null; }
+      for (const v of variants ?? [null]) if (!color?.frames.has(buildingFrameName(id, st, v))) { this.buildingsArt.set(id, null); return null; }
+    }
+    const g = a.anims[GLOW_ANIM];
+    let glow: ArtAnimInfo | null = g && g.frames > 1 && !variants ? g : null;
+    for (let i = 0; glow && i < glow.frames; i++) if (!color?.frames.has(glowFrameName(id, i / glow.fps, glow.frames, glow.fps))) glow = null;
+    const art: BuildingArt = { id, states, variants, variantBy: variants ? (a.variantBy ?? null) : null, team: !!a.team, shadow: !!a.shadow, glow };
+    this.buildingsArt.set(id, art);
+    return art;
+  }
+  /** Edifício `<id>/<estado>[/<variante>]` (build0/1/2, complete, damage1/2, open); null = procedural. */
+  building(id: string, stage: string, variant?: string | null): BakedFrame | null {
     if (!this.enabled) return null;
     const a = this.atlas.manifest?.assets[id];
     if (!a || a.kind !== 'building') { if (!this.atlas.manifest && this.atlas.manifestStatus === 'idle') void this.atlas.loadManifest(); return null; }
-    return this.frameOf(a.group, buildingFrameName(id, stage), { team: a.team, shadow: a.shadow });
+    return this.frameOf(a.group, buildingFrameName(id, stage, variant), { team: a.team, shadow: a.shadow });
+  }
+  /** Escombros de uma pegada w×h (quadro `rubble/<w>x<h>`); null = sem arte (o colapso fica só procedural). */
+  rubble(w: number, h: number): BakedFrame | null {
+    if (!this.enabled) return null;
+    const a = this.atlas.manifest?.assets.rubble;
+    if (!a || !a.rubble) return null;
+    return this.frameOf(a.group, rubbleName(w, h), { team: false, shadow: a.shadow });
+  }
+  /** Ícone do HUD (atlas `icons`, quadro = id): cor + máscara de time; null = emoji. */
+  icon(id: string): BakedFrame | null {
+    if (!this.enabled) return null;
+    const a = this.atlas.manifest?.assets[id];
+    if (!a || !a.icon) return null;
+    return this.frameOf('icons', id, { team: a.team, shadow: false });
   }
   /** Prop pelo nome do quadro (`<kind>/<variante>[/<tag>]`); null = procedural. */
   prop(name: string): BakedFrame | null {

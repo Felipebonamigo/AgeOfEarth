@@ -1,5 +1,6 @@
 // Funções puras da arte assada (docs/ART.md §1.4, §1.8, §3.7): direção, animação, quadro por tempo, nomes de quadro,
-// estágio de obra, estágio/variante de props e validação do meta.aoe dos atlas. Sem Pixi e sem DOM: testáveis em Node
+// estágio de obra, dano, variantes de edifício (bitmask da muralha, eixo do portão, Idade), escombros, fumaça,
+// estágio/variante de props e validação do meta.aoe dos atlas. Sem Pixi e sem DOM: testáveis em Node
 // (tests/art-library.test.ts). Fica fora do núcleo determinístico: pode usar Math.atan2/Math.round à vontade.
 import type { NodeType } from '../../core/constants';
 import { hash01, noise2 } from '../palette';
@@ -96,8 +97,8 @@ const pad2 = (n: number) => (n < 10 ? '0' + n : String(n));
 export function unitFrameName(id: string, anim: string, dir: number, i: number): string { return `${id}/${anim}/${dir}/${pad2(i)}`; }
 /** `<id>/<anim>/<dir>` (chave de animações do atlas). */
 export function unitAnimName(id: string, anim: string, dir: number): string { return `${id}/${anim}/${dir}`; }
-/** `<id>/<estado>` (edifícios). */
-export function buildingFrameName(id: string, stage: string): string { return `${id}/${stage}`; }
+/** `<id>/<estado>` ou `<id>/<estado>/<variante>` (edifícios: bitmask da muralha, eixo do portão, Idade). */
+export function buildingFrameName(id: string, stage: string, variant?: string | null): string { return variant ? `${id}/${stage}/${variant}` : `${id}/${stage}`; }
 /** `<kind>/<variante>[/<tag>]` (props). */
 export function propFrameName(kind: string, variant: string | number, tag?: string): string { return tag ? `${kind}/${variant}/${tag}` : `${kind}/${variant}`; }
 
@@ -110,6 +111,133 @@ export function buildingStage(frac: number, complete: boolean): BuildStage {
   if (frac < 2 / 3) return 'build1';
   return 'build2';
 }
+
+// ---------------- Edifícios: dano, variantes, muralha, portão, escombros, fumaça (Etapa 3) ----------------
+/** Estados assados de todo edifício com arte (o portão tem também 'open'). */
+export const BUILDING_STATES = ['build0', 'build1', 'build2', 'complete', 'damage1', 'damage2'] as const;
+export type BuildingState = BuildStage | 'damage1' | 'damage2' | 'open';
+/** Como escolher a variante de um edifício (manifesto `variantBy`). */
+export type VariantBy = 'wallMask' | 'gateAxis' | 'ageTier' | 'farmCrop';
+
+/** Nível de dano pela vida: ≥ 1/3 perdida → 1, ≥ 2/3 perdida → 2 (docs/ART.md §1.8). */
+export function damageLevel(hpFrac: number): 0 | 1 | 2 {
+  const lost = 1 - (Number.isFinite(hpFrac) ? hpFrac : 1);
+  return lost >= 2 / 3 - 1e-9 ? 2 : lost >= 1 / 3 - 1e-9 ? 1 : 0;
+}
+/**
+ * Estado a desenhar: obra pelo progresso (buildingStage); pronto → dano pela vida; portão pronto com aliado passando →
+ * 'open' (vence o dano: o portão aberto não tem quadro danificado).
+ */
+export function buildingState(frac: number, complete: boolean, hpFrac: number, open = false): BuildingState {
+  if (!complete) return buildingStage(frac, false);
+  if (open) return 'open';
+  const d = damageLevel(hpFrac);
+  return d === 2 ? 'damage2' : d === 1 ? 'damage1' : 'complete';
+}
+/** Estado de reserva quando o pedido não tem quadro (manifestos antigos, arte parcial): dano → complete; open → complete. */
+export function fallbackState(state: BuildingState): BuildingState | null {
+  if (state === 'damage2') return 'damage1';
+  if (state === 'damage1' || state === 'open') return 'complete';
+  return null;
+}
+
+/** Tipos que se ligam à muralha (o bitmask olha vizinhos destes tipos, do mesmo dono). */
+export const WALL_LINK_TYPES: ReadonlySet<string> = new Set(['wall', 'gate', 'tower']);
+/** Bitmask da muralha pelos vizinhos: N = 1, L = 2, S = 4, O = 8 (0–15). */
+export function wallMask(n: boolean, e: boolean, s: boolean, w: boolean): number {
+  return (n ? 1 : 0) | (e ? 2 : 0) | (s ? 4 : 0) | (w ? 8 : 0);
+}
+/**
+ * Nome da variante de muralha para o bitmask: '00'…'15'. Com `flag`, os trechos retos (05 = norte-sul, 10 = leste-oeste)
+ * viram '05f'/'10f', a versão com estandarte de time (os outros bitmasks já têm estandarte no pilar).
+ */
+export function wallVariant(mask: number, flag = false): string {
+  const m = mask & 15, v = m < 10 ? '0' + m : String(m);
+  return flag && (m === 5 || m === 10) ? v + 'f' : v;
+}
+/** Variante com estandarte que o renderizador procura nas variantes do asset antes de pedir `flag` (a torre, também
+ *  por bitmask, não tem). */
+export const WALL_FLAG_PROBE = '10f';
+/** Trecho reto de muralha com estandarte: um a cada 3 tiles ao longo da linha (pela posição, estável). */
+export function wallFlagAt(x: number, y: number): boolean { return (((x + y) % 3) + 3) % 3 === 0; }
+/** Eixo do portão: 'ns' se liga só ao norte/sul (muralha norte-sul); senão 'ew' (padrão, inclusive isolado). */
+export function gateAxis(mask: number): 'ew' | 'ns' { return (mask & 5) !== 0 && (mask & 10) === 0 ? 'ns' : 'ew'; }
+/** Variante por Idade do Centro Cívico: a0 = Arcaica, a1 = Clássica/Heroica, a2 = Mítica/Titãs. */
+export function ageTier(age: number): 'a0' | 'a1' | 'a2' { return age <= 0 ? 'a0' : age <= 2 ? 'a1' : 'a2'; }
+/**
+ * Plantação da fazenda (variante `farmCrop`): 'sown' (semeado), 'growing' (crescendo), 'ripe' (maduro). No núcleo a
+ * fazenda não tem estoque (fonte infinita para 1 cidadão), então o campo segue um ciclo de colheita de FARM_CYCLE s de
+ * jogo contado da colocação (`seconds` = (tick − builtTick)/TICK_RATE): semeado → crescendo → maduro → colhido e
+ * semeado de novo. Uma defasagem pequena por id (≤ 12 % do ciclo) evita que fazendas colocadas juntas (mapas e
+ * cenários) troquem no mesmo quadro; a obra (25 s) termina ainda no semeado.
+ */
+export const FARM_CROPS = ['sown', 'growing', 'ripe'] as const;
+export type FarmCrop = (typeof FARM_CROPS)[number];
+export const FARM_CYCLE = 150;
+export function farmCrop(seconds: number, id = 0): FarmCrop {
+  const off = ((Math.abs(id) * 0.6180339887) % 1) * 0.12;
+  const t = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
+  const ph = (t / FARM_CYCLE + off) % 1;
+  return ph < 0.3 ? 'sown' : ph < 0.65 ? 'growing' : 'ripe';
+}
+/** Variante de um edifício pelo critério do manifesto (null = sem variantes). `crop` = segundos desde a colocação;
+ *  `flag` = trecho reto de muralha com estandarte (wallFlagAt), só para assets que têm as variantes '05f'/'10f'. */
+export function buildingVariant(by: VariantBy | null | undefined, ctx: { mask: number; age: number; crop?: number; id?: number; flag?: boolean }): string | null {
+  if (by === 'wallMask') return wallVariant(ctx.mask, !!ctx.flag);
+  if (by === 'gateAxis') return gateAxis(ctx.mask);
+  if (by === 'ageTier') return ageTier(ctx.age);
+  if (by === 'farmCrop') return farmCrop(ctx.crop ?? 0, ctx.id ?? 0);
+  return null;
+}
+/**
+ * Bitmasks do fantasma de uma linha de muralha: cada tile liga aos vizinhos da própria linha e aos existentes
+ * (`linked(x, y)`: muralha/portão/torre do jogador). Devolve os masks na ordem dos tiles.
+ */
+export function placementMasks(tiles: readonly { x: number; y: number }[], linked: (x: number, y: number) => boolean): number[] {
+  const set = new Set(tiles.map((t) => `${t.x},${t.y}`));
+  const on = (x: number, y: number) => set.has(`${x},${y}`) || linked(x, y);
+  return tiles.map((t) => wallMask(on(t.x, t.y - 1), on(t.x + 1, t.y), on(t.x, t.y + 1), on(t.x - 1, t.y)));
+}
+/** Um aliado a esta distância (tiles, Chebyshev, do centro do portão ao pé) abre o portão. */
+export const GATE_OPEN_RANGE = 1.3;
+export function gateNear(ux: number, uy: number, gx: number, gy: number): boolean {
+  return Math.abs(ux - gx) <= GATE_OPEN_RANGE && Math.abs(uy - gy) <= GATE_OPEN_RANGE;
+}
+/** Quadro dos escombros de uma pegada w×h. */
+export function rubbleName(w: number, h: number): string { return `rubble/${w}x${h}`; }
+/** Segundos (de jogo) que os escombros ficam no chão depois da queda; os últimos RUBBLE_FADE apagando. */
+export const RUBBLE_SECONDS = 12;
+export const RUBBLE_FADE = 2.5;
+/** Alfa dos escombros `t` segundos depois da queda (0 = acabou). */
+export function rubbleAlpha(t: number): number {
+  if (t < 0) return 1;
+  if (t >= RUBBLE_SECONDS) return 0;
+  return t <= RUBBLE_SECONDS - RUBBLE_FADE ? 1 : (RUBBLE_SECONDS - t) / RUBBLE_FADE;
+}
+/** Baforadas de fumaça por segundo de um edifício danificado de pegada `area` tiles² (0 sem dano). */
+export function smokeRate(level: 0 | 1 | 2, area: number): number {
+  if (!level) return 0;
+  return (level === 1 ? 1.2 : 3.2) * Math.sqrt(Math.max(1, area));
+}
+/** Parte do orçamento de partículas do preset (quality.ts) que a fumaça dos edifícios pode ocupar. */
+export function smokeBudget(particleBudget: number): number { return Math.floor(particleBudget * 0.35); }
+/**
+ * Sobreposição animada de um edifício pronto (manifesto: estado `glow` com vários quadros, ex.: o vórtice do portal dos
+ * titãs): nome do quadro `<id>/glow/<nn>` no instante `clock` (s de jogo), em loop a `fps`. O renderizador a desenha
+ * por cima do estado atual (pronto ou danificado) com blend aditivo.
+ */
+export const GLOW_ANIM = 'glow';
+/** Quadro da sobreposição ('00', '01', …) no instante `clock`: a "variante" de `building(id, GLOW_ANIM, …)`. */
+export function glowVariant(clock: number, frames: number, fps: number): string { return pad2(frameIndex(clock, frames, fps, true)); }
+export function glowFrameName(id: string, clock: number, frames: number, fps: number): string {
+  return buildingFrameName(id, GLOW_ANIM, glowVariant(clock, frames, fps));
+}
+/**
+ * Tint do fantasma de construção assado: verde claro (pode) ou vermelho forte (não pode). O vermelho tira quase todo o
+ * verde e o azul: um telhado de terracota (#9e4c2a) vira #9e1a0e e a pedra clara vira vermelho vivo — um tint claro
+ * (0xff9c9c) quase não mudava a terracota e o fantasma inválido parecia um edifício de verdade.
+ */
+export function ghostTint(ok: boolean): number { return ok ? 0x9cf0b0 : 0xff5a5a; }
 
 // ---------------- Props ----------------
 export type TreeSpecies = 'olive' | 'cypress' | 'oak';

@@ -9,6 +9,11 @@ export const PALETTE = {
   crest: 0x8a2a24, olive: 0x7c8a5a, olive2: 0x6a7a4e, cypress: 0x506f40, oak: 0x4e6b2f, oak2: 0x5f7a33, leafDry: 0x8a8a4a,
   wicker: 0xa88a52, berry: 0x7a2a3a, berryLeaf: 0x4f6b32, gold: 0xd4a83a, fur: 0x8a6a48, furDark: 0x5a4632, hoof: 0x3a2e24,
   rope: 0xb09a6a, glow: 0x9fe8ff,
+  // edifícios (Etapa 3): calcário, reboco de cal, pedra quente das muralhas, telha escura, fuligem/carvão (dano), terra
+  limestone: 0xc8b995, limestoneDark: 0xa99a78, plaster: 0xe0d5bb, plasterDark: 0xc4b89c, stoneWarm: 0x8e8574, stoneLight: 0xa39a88,
+  soot: 0x1b1714, char: 0x3a2d23, earth: 0x8a7a62, ash: 0x6d675e, canvas: 0xd9ccaa,
+  // cantaria de calcário das muralhas/torres (clara: a face sul fica na meia-sombra do sol de noroeste, §1.5)
+  ashlar: 0xc9bc9c, ashlar2: 0xbcae8f, ashlarDark: 0x8e836d,
   teamNeutral: 0x8f9098,   // cor de time no passe de cor (neutra; o jogo desenha a máscara tingida por cima)
   teamMask: 0xffffff,      // cor de time no passe de máscara (branco iluminado → tint)
 };
@@ -27,6 +32,10 @@ export function createMaterials(THREE) {
     wicker: std(PALETTE.wicker, 0.9, 0, { side: THREE.DoubleSide }), berry: std(PALETTE.berry, 0.6), berryLeaf: std(PALETTE.berryLeaf, 0.9),
     gold: std(PALETTE.gold, 0.3, 0.9), fur: std(PALETTE.fur, 0.95), furDark: std(PALETTE.furDark, 0.95), hoof: std(PALETTE.hoof, 0.8),
     rope: std(PALETTE.rope, 0.95), glow: std(PALETTE.glow, 0.4, 0, { emissive: PALETTE.glow, emissiveIntensity: 0.8 }),
+    limestone: std(PALETTE.limestone, 0.8), limestoneDark: std(PALETTE.limestoneDark, 0.85), plaster: std(PALETTE.plaster, 0.9), plasterDark: std(PALETTE.plasterDark, 0.92),
+    stoneWarm: std(PALETTE.stoneWarm, 0.92), stoneLight: std(PALETTE.stoneLight, 0.9), char: std(PALETTE.char, 0.95), earth: std(PALETTE.earth, 1),
+    ash: std(PALETTE.ash, 1), canvas: std(PALETTE.canvas, 0.95, 0, { side: THREE.DoubleSide }),
+    ashlar: std(PALETTE.ashlar, 0.88), ashlar2: std(PALETTE.ashlar2, 0.9), ashlarDark: std(PALETTE.ashlarDark, 0.95),
     team: std(PALETTE.teamNeutral, 0.8),
   };
   M.team.userData.team = true;

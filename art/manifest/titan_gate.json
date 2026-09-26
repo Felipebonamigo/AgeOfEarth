@@ -1,0 +1,57 @@
+{
+  "id": "titan_gate",
+  "kind": "building",
+  "docs": "Para usar um modelo .glb, troque `source` por { \"type\": \"glb\", \"path\": \"art/src/titan_gate.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"build0\": \"Build0\", …, \"damage2\": \"Damage2\" }, \"teamMaterials\": [\"Banner\"] } (um clipe estático por estado; docs/ART.md §3.4). `glow` = sobreposição aditiva da energia (vórtice, chamas, runas) em 6 quadros em loop, desenhada pelo jogo sobre o edifício pronto; no .glb, um clipe \"Glow\" só com as malhas de energia.",
+  "source": {
+    "type": "param",
+    "rig": "building",
+    "params": {
+      "style": "titan_gate"
+    }
+  },
+  "size": {
+    "tiles": [
+      7.4,
+      7.6
+    ]
+  },
+  "footprint": [
+    5,
+    5
+  ],
+  "anchor": [
+    0.41,
+    0.53
+  ],
+  "dirs": 1,
+  "anims": {
+    "build0": {
+      "frames": 1
+    },
+    "build1": {
+      "frames": 1
+    },
+    "build2": {
+      "frames": 1
+    },
+    "complete": {
+      "frames": 1
+    },
+    "damage1": {
+      "frames": 1
+    },
+    "damage2": {
+      "frames": 1
+    },
+    "glow": {
+      "frames": 6,
+      "fps": 8,
+      "loop": true
+    }
+  },
+  "icon": {
+    "anim": "complete"
+  },
+  "team": true,
+  "shadow": true
+}

@@ -154,6 +154,65 @@ Leitura:
   quando ele entra na tela: `PropLayer.reset` do 144×144 caiu de 30–53 ms para 0,3–0,5 ms (260 sprites na tela inicial
   contra 2 806 do mapa inteiro). Ligar a opção no meio da partida reconstrói uma vez só (antes, duas).
 
+## Desempenho do renderizador — Etapa 3 da arte (os 21 edifícios assados, 26/09/2026)
+
+Antes = build da `main` atual (a0cd508, Etapa 2B: só o templo assado entre os edifícios; porta 4211) e depois = a
+integração da Etapa 3 (base + lote economia + lote militar; porta 4210), rodadas uma após a outra na mesma máquina
+compartilhada (4 CPUs, carga 3–7 de outras sessões: os números por software oscilam ±30 % entre rodadas iguais). Mesmo
+método da Etapa 2B: preset Baixo, `--reveal`, 12 s por cenário, 4 rodadas de cada lado (duas gravadas em
+`docs/perf/2026-09-26-etapa3-{antes,depois}-baixo{,-r2}.json`, duas anteriores à micro-otimização abaixo, com a mesma
+tendência). Na partida medida (144×144, 3 IAs Muito difícil, 20 min) há 133–136 edifícios, todos assados agora.
+
+**`renderperf` no preset Baixo** (mediana das 4 rodadas):
+
+| Cenário | fps antes → depois | render média ms antes → depois | draw calls | tex MB | sprites |
+|---|---|---|---|---|---|
+| zoom 1 (cidade) | 7,4 → 6,6 (−11 %) | 0,66 → 0,69 (+5 %) | 5 → 6 | 23,2 → 74,4 | 729–745 → 804–816 |
+| mapa inteiro | 9,3 → 8,8 (−5 %) | 0,96 → 1,20 (+24 %) | 8 → 7–8 | 25,9 → 74,5 | 4 995 → 5 164–5 172 |
+| zoom 1,5 aglomerado | 8,0 → 8,1 (+1 %) | 0,70 → 0,81 (+15 %) | 5–6 → 7–8 | 26 → 74,6 | cena variável |
+| rolagem | 8,1 → 7,9 (−2 %) | 0,69 → 0,80 (+16 %) | 5 → 7 | 26 → 74,6 | cena variável |
+
+**CPU sem rasterização** (`rendercpu`, 150 quadros × 2 passadas, média em ms; `docs/perf/2026-09-26-etapa3-{antes,depois}-cpu.json`):
+
+| Cenário | render antes → depois | Pixi antes → depois | sprites antes → depois |
+|---|---|---|---|
+| zoom 1 (cidade) | 0,22 → 0,29 | 0,52 → 0,64 | 638–680 → 718–755 |
+| mapa inteiro | 0,69 → 0,74 (+7 %) | 2,79 → 3,01 (+8 %) | 4 989–5 009 → 5 167–5 179 |
+| zoom 1,5 aglomerado | 0,35 → 0,41 | 0,82 → 0,88 | cena variável |
+| rolagem | 0,35 → 0,41 | 0,80 → 0,92 | 636–645 → 641–647 |
+
+Leitura:
+- **fps (o quadro inteiro por software) fica dentro dos ~15 %** em todos os cenários (pior: zoom 1, −11 %).
+- **CPU do nosso código**: no mapa inteiro o `renderperf` mede +0,24 ms (+24 %) e o `rendercpu` +0,05 ms (+7 %); no
+  aglomerado e na rolagem, +0,1 ms (+15–16 %). A causa é o que a Etapa 3 acrescentou, não um laço caro: os ~135 edifícios
+  passam pelo caminho assado (estado/variante/Idade/plantação, faixa ordenada por y, 3 sprites em vez de 2), a fumaça de
+  dano e o colapso com escombros (partículas no relógio de jogo), o portão que abre (`updateGatesOpen`, O(unidades) só
+  quando há portão) e o vórtice do portal. O perfil de CPU (CDP, 10 s no mapa inteiro) dá `updateEntities` 53,8 → 55,4 ms
+  e o total de `render` praticamente igual. Absoluto: 0,7–1,2 ms por quadro, bem abaixo do orçamento de §6 do ART.md
+  (≤ 3 ms). Micro-otimização desta integração: a vista não monta mais a chave `estado|variante` a cada quadro, a variante
+  da muralha/portão fica guardada até a topologia mudar e a plantação da fazenda sai sem objeto temporário (sem lixo por
+  quadro em cidades com muitas muralhas e fazendas).
+- **Texturas residentes 26 → 74,5 MB** (1×, com mipmaps): os atlas `buildings` 1× passaram de 1 para 4 texturas (cor
+  2048² + 2048×512, máscara 2048×512, sombra 2048²). Dentro do orçamento de §6 (≤ 160 MB típico); se apertar com as
+  unidades da Etapa 4: sombras a ½ resolução, KTX2 ou páginas por Idade (pendência no ART.md).
+- **Draw calls** +1–2 (5–8 → 6–8), longe do teto de 40. Com a arte desligada (`--baked off`,
+  `…-depois-baixo-procedural.json`) as texturas voltam a 7–10 MB e os sprites a 3 282 no mapa inteiro.
+
+### Revisão da Etapa 3 (26/09/2026)
+
+Correções dos 12 achados da revisão (detalhe em `docs/ART.md`, Apêndice D, "Revisão"). Verificação: `npx vitest run`
+**37 arquivos, 617 testes, código de saída 0** (a rodada da revisão dava 612/612 com saída 1 por `Timeout calling
+"onTaskUpdate"`: o teste das sortidas da m10 simulava as 3 dificuldades num `it` de ≈ 26 s, que passava de 60 s com a
+máquina carregada; agora é um `it` por dificuldade, ≈ 9 s cada); `art:check` ok (26 atlas, 12,25 MB de PNG, 193,8 MB de
+VRAM com as duas escalas — antes 206,8: o empacotador junta quadros idênticos); `playtest.mjs`, `playtest-editor.mjs`
+(com a muralha movida no editor conferindo o bitmask) e `artparade.mjs` sem erros; `artdiff etapa3-depois` 0 % contra as
+referências (as cenas do `artshot` não têm muralha, portão nem maravilha danificada). No navegador (build de preview):
+portão inimigo sob a névoa fica fechado com o hoplita dele a 0,8 tile e a casa danificada sob a névoa continua no quadro
+visto; clique direito na grama acima do Centro Cívico inimigo → `move`, no telhado → `attack`; hoplita atrás do Centro
+Cívico e do Colosso → hoplita; sob o portão ladeado por torres a faixa de sombra fica uniforme (luminância 40–60, antes
+21–33 em ≈ 0,85 × 0,45 tile). Custo por quadro: a vista de edifício ganhou uma checagem de visibilidade e a chamada do
+contorno (retorno imediato com a opção desligada); o alfa do pick é lido só na primeira consulta de cada quadro do atlas.
+
 ## Matriz de testes (6.8, por versão candidata)
 
 Automáticos primeiro (checklist abaixo); a matriz é o que só uma pessoa com o hardware consegue conferir. Cada célula
