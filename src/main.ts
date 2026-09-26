@@ -62,7 +62,7 @@ function desyncWhere(report: DesyncReport, config: GameConfig): string {
 async function boot() {
   // Electron: restaura do espelho em arquivos (Steam Cloud) o que faltar no localStorage antes de ler opções e saves
   const cloud = await initCloud().catch((e) => { noteError(`cloud: ${(e as Error).message}`); return null; });
-  if (cloud && (cloud.restored.length || cloud.uploaded.length)) console.log(`cloud: ${cloud.restored.length} restaurado(s) [${cloud.restored.join(', ')}], ${cloud.uploaded.length} gravado(s) em arquivo`);
+  if (cloud && (cloud.restored.length || cloud.uploaded.length || cloud.removed.length || cloud.merged.length)) console.log(`cloud: ${cloud.restored.length} restaurado(s) [${cloud.restored.join(', ')}], ${cloud.uploaded.length} gravado(s) em arquivo, ${cloud.removed.length} apagado(s) em outra máquina [${cloud.removed.join(', ')}], ${cloud.merged.length} unido(s) [${cloud.merged.join(', ')}]`);
   const settings = loadSettings();
   setLocale(settings.locale ?? detectLocale());
   const root = document.getElementById('app')!;

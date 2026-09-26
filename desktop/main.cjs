@@ -1,5 +1,5 @@
 // Processo principal do Electron: janela do jogo, tela cheia, integração opcional com Steamworks.
-const { app, BrowserWindow, ipcMain, shell, dialog, protocol, net } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, protocol, net, session } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const { pathToFileURL } = require('node:url');
@@ -43,7 +43,8 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1600, height: 900, minWidth: 1024, minHeight: 640,
     title: 'Age of Earth', backgroundColor: '#0b1020', autoHideMenuBar: true, show: false,
-    webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true },
+    // spellcheck: false — sem corretor, o Chromium não baixa o dicionário (redirector.gvt1.com) ao abrir (docs/LEGAL.md §1.4)
+    webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
   });
   win.once('ready-to-show', () => { win.show(); });   // tela cheia é decidida pelo jogo (opções salvas)
   win.loadURL('app://game/index.html');
@@ -82,6 +83,11 @@ ipcMain.handle('file:open', async (e) => {
 });
 
 app.whenReady().then(() => {
+  // Nenhum pedido de rede fora do jogo e do servidor de multiplayer escolhido (docs/LEGAL.md §1.4): o corretor ortográfico
+  // do Chromium vem ligado no Electron e baixa da Google o dicionário do idioma do sistema a cada abertura. Desligar não
+  // basta (o download sai mesmo assim): a lista de idiomas vazia é o que o impede (no macOS o corretor é o do sistema).
+  session.defaultSession.setSpellCheckerEnabled(false);
+  session.defaultSession.setSpellCheckerLanguages([]);
   serveGame();
   initSteam();
   createWindow();

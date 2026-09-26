@@ -16,15 +16,19 @@ function readIndex(): MapEntry[] {
 }
 function writeIndex(list: MapEntry[]): void { storeSet(INDEX_KEY, JSON.stringify(list)); }
 
-/** "Vale do Eco" → "vale-do-eco" (só ASCII minúsculo, dígitos e hífen). */
+/** Teto do slug: com o sufixo `-NNN` de uniqueMapId cabe nos 64 de map-<id>.json do espelho em arquivos (src/game/cloud.ts). */
+const SLUG_MAX = 60;
+const capSlug = (s: string) => s.slice(0, SLUG_MAX).replace(/-+$/, '');
+/** "Vale do Eco" → "vale-do-eco" (só ASCII minúsculo, dígitos e hífen; até 60 caracteres). */
 export function slugify(name: string): string {
-  const s = name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const s = capSlug(name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''));
   return s || 'mapa';
 }
 
 /** Id livre a partir de um slug base: `slug`, `slug-2`, `slug-3`… (não colide com embutidos nem com Meus mapas). */
 export function uniqueMapId(base: string): string {
   const taken = new Set([...Object.keys(BUILTIN_MAPS), ...readIndex().map((e) => e.id)]);
+  base = capSlug(base);
   let slug = base || 'mapa'; let n = 2;
   while (taken.has(slug)) slug = `${base}-${n++}`;
   return slug;

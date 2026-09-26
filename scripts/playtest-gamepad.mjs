@@ -1,6 +1,6 @@
 // Controle (Steam Deck / Xbox, passo 6.5): injeta um gamepad falso (navigator.getGamepads devolve um objeto mutável
-// controlado pelo teste), a 1280×800 com a interface em 130 %: navega o menu principal com o D-pad e inicia uma partida
-// com A; move o cursor virtual com o analógico até um cidadão, seleciona com A, manda coletar com B, D-pad ◀ (ocioso),
+// controlado pelo teste), a 1280×800 com a interface em 130 %: navega o menu principal com o D-pad (abre os Créditos:
+// começam no topo, não rolados até o Fechar) e inicia uma partida com A; move o cursor virtual com o analógico até um cidadão, seleciona com A, manda coletar com B, D-pad ◀ (ocioso),
 // LT+A (painel de comandos), exército/atacar-mover, Start abre o menu e B fecha, analógico direito rola a câmera,
 // vibração no alerta de ataque e o mouse retomando o controle. Captura em docs/art/controle-deck.png.
 // Uso: node scripts/playtest-gamepad.mjs [url]   (exige `npm run build && npx vite preview`)
@@ -59,6 +59,24 @@ for (let i = 0; i < 40; i++) {
   if ((await focused()) === f) await tap(B.LEFT);   // fundo da coluna: vai para a esquerda
 }
 ok('D-pad chega a Jogar', (await focused()) === 'm-start', `${path.length} passos`);
+// Créditos pelo controle: o modal longo abre no topo (foco no título), não rolado até o Fechar do fim
+async function walkTo(id, dir, alt) {
+  for (let i = 0; i < 16 && (await focused()) !== id; i++) { const f = await focused(); await tap(dir); if ((await focused()) === f) await tap(alt); }
+  return (await focused()) === id;
+}
+ok('D-pad chega a Créditos', await walkTo('m-credits', B.RIGHT, B.DOWN), String(await focused()));
+await tap(B.A); await waitFrames(3);
+const cred = await page.evaluate(() => {
+  const m = document.getElementById('modal'); const team = m.querySelector('.credits-team'); const f = m.querySelector('.pad-focus');
+  const r = team?.getBoundingClientRect(), mr = m.getBoundingClientRect();
+  return { open: !document.getElementById('modal-back').classList.contains('hidden') && !!m.querySelector('#credits-licenses'), scrollTop: Math.round(m.scrollTop), of: m.scrollHeight - m.clientHeight, focus: f?.id || f?.tagName || null, teamVisible: !!r && r.top >= mr.top && r.bottom <= mr.bottom };
+});
+ok('Créditos pelo controle abrem no topo (foco no título, equipe à vista)', cred.open && cred.focus === 'H2' && cred.scrollTop <= 5 && cred.teamVisible && cred.of > 200, JSON.stringify(cred));
+await tap(B.DOWN);
+ok('D-pad desce do título para a lista', !['H2', null].includes(await page.evaluate(() => { const f = document.querySelector('#modal .pad-focus'); return f?.id || f?.tagName || null; })));
+await tap(B.B);
+ok('B fecha os Créditos', await page.evaluate(() => document.getElementById('modal-back').classList.contains('hidden')));
+ok('D-pad volta a Jogar', await walkTo('m-start', B.LEFT, B.UP), String(await focused()));
 await tap(B.A);
 await page.waitForFunction(() => !!window.aoe.session, null, { timeout: 30000 });
 await waitFrames(4);

@@ -11,7 +11,7 @@ export interface DesktopBridge {
   openFile?: () => Promise<string | null>;
   quit?: () => Promise<void>;
   /** Espelho dos saves em arquivos (Steam Cloud; src/game/cloud.ts ↔ desktop/cloud.cjs). */
-  cloudReadAll?: () => Promise<Record<string, string> | null>;
+  cloudReadAll?: () => Promise<Record<string, string | null> | null>;
   cloudWrite?: (key: string, value: string) => Promise<boolean>;
   cloudRemove?: (key: string) => Promise<boolean>;
 }

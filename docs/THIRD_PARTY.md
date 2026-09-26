@@ -38,7 +38,7 @@ vão no pacote e não entram nesta lista.
 | [undici-types](https://github.com/nodejs/undici) | 6.21.0 | MIT | Copyright (c) Matteo Collina and Undici contributors |  |
 | Chromium | via electron 33.4.11 | BSD-3-Clause | — | navegador embutido no Electron; licenças de todos os componentes em LICENSES.chromium.html, ao lado do executável |
 | Node.js | via electron 33.4.11 | MIT | — | runtime do processo principal do Electron |
-| FFmpeg | via electron 33.4.11 | LGPL-2.1-or-later | — | biblioteca dinâmica (libffmpeg) do Electron, sem codecs proprietários; pode ser substituída pelo usuário |
+| FFmpeg | via electron 33.4.11 | LGPL-2.1-or-later | — | biblioteca dinâmica (libffmpeg) do Electron, na versão sem codecs proprietários (sem H.264/AAC; trocada no empacotamento por desktop/after-pack.cjs); pode ser substituída pelo usuário |
 | Steamworks SDK (steam_api) | via steamworks.js 0.4.0 | LicenseRef-Steamworks-SDK | — | biblioteca da Valve, redistribuída conforme o Steamworks SDK Access Agreement |
 
 ## Servidor de retransmissão (`server/relay.mjs`, não vai no pacote do jogo)
@@ -462,5 +462,5 @@ SOFTWARE.
 - **@pixi/colord** (MIT): texto-padrão MIT com o aviso "Copyright (c) Vlad Shilov".
 - **Chromium** (BSD-3-Clause): navegador embutido no Electron; licenças de todos os componentes em LICENSES.chromium.html, ao lado do executável.
 - **Node.js** (MIT): runtime do processo principal do Electron.
-- **FFmpeg** (LGPL-2.1-or-later): biblioteca dinâmica (libffmpeg) do Electron, sem codecs proprietários; pode ser substituída pelo usuário.
+- **FFmpeg** (LGPL-2.1-or-later): biblioteca dinâmica (libffmpeg) do Electron, na versão sem codecs proprietários (sem H.264/AAC; trocada no empacotamento por desktop/after-pack.cjs); pode ser substituída pelo usuário.
 - **Steamworks SDK (steam_api)** (LicenseRef-Steamworks-SDK): biblioteca da Valve, redistribuída conforme o Steamworks SDK Access Agreement.

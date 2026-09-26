@@ -1,12 +1,13 @@
 // Fase 6 (Steam e legal): conquistas para o Steamworks, espelho dos saves em arquivos (Steam Cloud) e licenças de terceiros.
 import { describe, it, expect, afterEach } from 'vitest';
 import { createRequire } from 'node:module';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { ACHIEVEMENTS, Achievements, STEAM_API_NAME_RE, achievementEnglish, type AchievementDef } from '../src/game/achievements';
 import { steamAchievementProblems, steamAchievementRows, steamAchievementsCSV, steamAchievementsJSON, STEAM_DIR } from '../scripts/steam-achievements';
-import { CLOUD_FIXED_KEYS, CLOUD_MAX_BYTES, CLOUD_MAX_FILES, CLOUD_STAMPS_KEY, cloudFileForKey, cloudKeyForFile, contentStamp, initCloud, planCloudSync, storeRemove, storeSet, utf8Bytes } from '../src/game/cloud';
+import { CLOUD_FIXED_KEYS, CLOUD_MAP_ID_MAX_BYTES, CLOUD_MAX_BYTES, CLOUD_MAX_FILES, CLOUD_PREV_PREFIX, CLOUD_STAMPS_KEY, cloudFileForKey, cloudKeyForFile, cloudValueValid, contentStamp, initCloud, mergeCloudValue, planCloudSync, storeRemove, storeSet, utf8Bytes } from '../src/game/cloud';
+import { slugify, uniqueMapId } from '../src/game/maps';
 import { classifyLicense, collectDependencies, creditsJSON, detail, distributable, thirdPartyMarkdown, OUT_JSON, OUT_MD } from '../scripts/licenses';
 import { THIRD_PARTY, creditsHTML } from '../src/ui/credits';
 import { setLocale } from '../src/i18n';
@@ -15,15 +16,21 @@ import { defaultRelayUrl } from '../src/ui/menu';
 const ROOT = path.resolve(__dirname, '..');
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const cloudCjs = require('../desktop/cloud.cjs') as { FIXED: Record<string, string>; MAX_BYTES: number; MAX_FILES: number; fileForKey: (k: unknown) => string | null; keyForFile: (f: unknown) => string | null; readAll: (dir: string) => Record<string, string>; write: (dir: string, k: unknown, v: unknown) => boolean; remove: (dir: string, k: unknown) => boolean };
+const cloudCjs = require('../desktop/cloud.cjs') as { FIXED: Record<string, string>; MAX_BYTES: number; MAX_FILES: number; fileForKey: (k: unknown) => string | null; keyForFile: (f: unknown) => string | null; readAll: (dir: string) => Record<string, string | null>; write: (dir: string, k: unknown, v: unknown) => boolean; remove: (dir: string, k: unknown) => boolean };
 
-/** localStorage em memória (o vitest roda em Node). */
+/** localStorage em memória (o vitest roda em Node); `quota` (caracteres de chaves + valores) imita a cota cheia. */
 class MemoryStorage {
   private m = new Map<string, string>();
+  constructor(private quota = Infinity) {}
   get length() { return this.m.size; }
   key(i: number) { return [...this.m.keys()][i] ?? null; }
   getItem(k: string) { return this.m.has(k) ? this.m.get(k)! : null; }
-  setItem(k: string, v: string) { this.m.set(k, String(v)); }
+  setItem(k: string, v: string) {
+    let used = String(v).length + k.length;
+    for (const [kk, vv] of this.m) if (kk !== k) used += kk.length + vv.length;
+    if (used > this.quota) throw new Error('QuotaExceededError');
+    this.m.set(k, String(v));
+  }
   removeItem(k: string) { this.m.delete(k); }
   clear() { this.m.clear(); }
 }
@@ -108,27 +115,79 @@ describe('espelho dos saves em arquivos / Steam Cloud (6.4)', () => {
   });
   it('planCloudSync: restaura o que falta, grava o que falta e decide pelo carimbo quando divergem', () => {
     const s = (v: string) => contentStamp(v);
+    // (os valores são JSON, como no jogo: arquivo que não analisa nunca é restaurado — teste abaixo)
+    const V = (x: string) => JSON.stringify({ v: x });
     // localStorage apagado → restaura tudo o que há em arquivo (inclui mapas); chaves fora da lista são ignoradas
-    let p = planCloudSync({}, { aoe_settings_v1: '{"a":1}', aoe_map_x: 'M', aoe_desync_v1: 'D' }, {});
+    let p = planCloudSync({}, { aoe_settings_v1: '{"a":1}', aoe_map_x: V('M'), aoe_desync_v1: 'D' }, {});
     expect(p.restore).toEqual(['aoe_map_x', 'aoe_settings_v1']); expect(p.upload).toEqual([]);
-    expect(p.stamps).toEqual({ aoe_map_x: s('M'), aoe_settings_v1: s('{"a":1}') });
+    expect(p.stamps).toEqual({ aoe_map_x: s(V('M')), aoe_settings_v1: s('{"a":1}') });
     // saves de antes do espelho → grava os arquivos
-    p = planCloudSync({ aoe_save_v1: 'S', aoe_seat: 'x' }, {}, {});
+    p = planCloudSync({ aoe_save_v1: V('S'), aoe_seat: 'x' }, {}, {});
     expect(p.upload).toEqual(['aoe_save_v1']); expect(p.restore).toEqual([]);
     // iguais → nada
-    p = planCloudSync({ aoe_save_v1: 'S' }, { aoe_save_v1: 'S' }, {});
-    expect(p.upload).toEqual([]); expect(p.restore).toEqual([]); expect(p.stamps.aoe_save_v1).toBe(s('S'));
+    p = planCloudSync({ aoe_save_v1: V('S') }, { aoe_save_v1: V('S') }, {});
+    expect(p.upload).toEqual([]); expect(p.restore).toEqual([]); expect(p.stamps.aoe_save_v1).toBe(s(V('S')));
     // outra máquina mudou o arquivo (Steam Cloud) e o local é o último sincronizado → restaura
-    p = planCloudSync({ aoe_save_v1: 'velho' }, { aoe_save_v1: 'novo' }, { aoe_save_v1: s('velho') });
-    expect(p.restore).toEqual(['aoe_save_v1']); expect(p.stamps.aoe_save_v1).toBe(s('novo'));
+    p = planCloudSync({ aoe_save_v1: V('velho') }, { aoe_save_v1: V('novo') }, { aoe_save_v1: s(V('velho')) });
+    expect(p.restore).toEqual(['aoe_save_v1']); expect(p.stamps.aoe_save_v1).toBe(s(V('novo')));
     // o local mudou e a gravação no arquivo não chegou (carimbo = arquivo) → grava
-    p = planCloudSync({ aoe_save_v1: 'novo' }, { aoe_save_v1: 'velho' }, { aoe_save_v1: s('velho') });
+    p = planCloudSync({ aoe_save_v1: V('novo') }, { aoe_save_v1: V('velho') }, { aoe_save_v1: s(V('velho')) });
     expect(p.upload).toEqual(['aoe_save_v1']); expect(p.restore).toEqual([]);
     // os dois mudaram (ou sem carimbo) → vence o local
-    p = planCloudSync({ aoe_save_v1: 'L' }, { aoe_save_v1: 'F' }, { aoe_save_v1: s('outro') });
+    p = planCloudSync({ aoe_save_v1: V('L') }, { aoe_save_v1: V('F') }, { aoe_save_v1: s('outro') });
     expect(p.upload).toEqual(['aoe_save_v1']);
-    p = planCloudSync({ aoe_save_v1: 'L' }, { aoe_save_v1: 'F' }, {});
+    p = planCloudSync({ aoe_save_v1: V('L') }, { aoe_save_v1: V('F') }, {});
     expect(p.upload).toEqual(['aoe_save_v1']);
+  });
+  it('planCloudSync: arquivo truncado/corrompido nunca substitui o save bom do localStorage', () => {
+    const good = '{"good":true}';
+    // o carimbo diz "o local é o último sincronizado" (o caso que antes restaurava o lixo): agora o arquivo é regravado
+    let p = planCloudSync({ aoe_save_v1: good }, { aoe_save_v1: '{"goo' }, { aoe_save_v1: contentStamp(good) });
+    expect(p.restore).toEqual([]); expect(p.upload).toEqual(['aoe_save_v1']); expect(p.stamps.aoe_save_v1).toBe(contentStamp(good));
+    // sem nada no local, o lixo também não entra
+    p = planCloudSync({}, { aoe_save_v1: '{"goo', aoe_map_x: '' }, {});
+    expect(p.restore).toEqual([]); expect(p.upload).toEqual([]);
+    // idioma e dificuldade da campanha são texto simples (não JSON) e continuam restaurando
+    p = planCloudSync({}, { aoe_locale: 'en', aoe_campaign_diff: 'hard' }, {});
+    expect(p.restore).toEqual(['aoe_campaign_diff', 'aoe_locale']);
+    expect(cloudValueValid('aoe_locale', '{"x"')).toBe(false); expect(cloudValueValid('aoe_settings_v1', '')).toBe(false);
+    expect(cloudValueValid('aoe_map_vale', '{"w":8}')).toBe(true);
+    // arquivo que existe mas não foi lido (null: grande demais/ilegível) → não mexe e guarda o carimbo
+    p = planCloudSync({ aoe_save_v1: good }, { aoe_save_v1: null }, { aoe_save_v1: contentStamp(good) });
+    expect([p.restore, p.upload, p.remove]).toEqual([[], [], []]); expect(p.stamps.aoe_save_v1).toBe(contentStamp(good));
+  });
+  it('planCloudSync: exclusão feita em outra máquina se propaga (e só ela)', () => {
+    const s = (v: string) => contentStamp(v);
+    // o local é o último sincronizado e o arquivo sumiu → apagado lá: sai daqui, não volta para a nuvem
+    let p = planCloudSync({ aoe_map_vale: 'M' }, { aoe_maps_v1: '[]' }, { aoe_map_vale: s('M') });
+    expect(p.remove).toEqual(['aoe_map_vale']); expect(p.upload).toEqual([]); expect(p.restore).toEqual(['aoe_maps_v1']);
+    expect(p.stamps.aoe_map_vale).toBeUndefined();
+    // sem carimbo (save de antes do espelho) ou com o local mudado depois da última sincronização → grava
+    p = planCloudSync({ aoe_map_vale: 'M' }, { aoe_maps_v1: '[]' }, {});
+    expect(p.remove).toEqual([]); expect(p.upload).toContain('aoe_map_vale');
+    p = planCloudSync({ aoe_map_vale: 'M2' }, { aoe_maps_v1: '[]' }, { aoe_map_vale: s('M') });
+    expect(p.remove).toEqual([]); expect(p.upload).toContain('aoe_map_vale');
+    // leitura da pasta falhou ou veio vazia: initCloud desliga a propagação (nunca confunde pasta perdida com exclusão)
+    p = planCloudSync({ aoe_map_vale: 'M' }, {}, { aoe_map_vale: s('M') }, { remoteDeletes: false });
+    expect(p.remove).toEqual([]); expect(p.upload).toEqual(['aoe_map_vale']);
+  });
+  it('planCloudSync: campanha, conquistas e deuses jogados se fundem por união (nada se perde num conflito)', () => {
+    const camp = (c: string[], h?: string[]) => JSON.stringify(h ? { completed: c, hard: h } : { completed: c });
+    // o arquivo da nuvem está mais avançado e não há carimbo (build antiga): restaura em vez de descartar m2 e m3
+    let p = planCloudSync({ aoe_campaign: camp(['m1']) }, { aoe_campaign: camp(['m1', 'm2', 'm3']) }, {});
+    expect(p.restore).toEqual(['aoe_campaign']); expect(p.upload).toEqual([]);
+    // o local está mais avançado → grava
+    p = planCloudSync({ aoe_campaign: camp(['m1', 'm2'], ['m1']) }, { aoe_campaign: camp(['m1']) }, {});
+    expect(p.upload).toEqual(['aoe_campaign']);
+    // cada lado tem algo que o outro não tem → a união vai para os dois
+    p = planCloudSync({ aoe_campaign: camp(['m1', 'm4'], ['m4']), aoe_achievements_v1: '["a","b"]', aoe_gods_played: '["zeus"]' },
+      { aoe_campaign: camp(['m1', 'm2'], ['m2']), aoe_achievements_v1: '["a","c"]', aoe_gods_played: '["hades","zeus"]' }, {});
+    expect(JSON.parse(p.merged.aoe_campaign)).toEqual({ completed: ['m1', 'm4', 'm2'], hard: ['m4', 'm2'] });
+    expect(JSON.parse(p.merged.aoe_achievements_v1)).toEqual(['a', 'b', 'c']);
+    expect(p.restore).toEqual(['aoe_gods_played']);   // ["hades","zeus"] já contém ["zeus"]
+    // as outras chaves seguem a regra dos carimbos; formato inesperado também
+    expect(mergeCloudValue('aoe_save_v1', '[]', '["x"]')).toBeNull();
+    expect(mergeCloudValue('aoe_achievements_v1', '{"a":1}', '["x"]')).toBeNull();
   });
   it('utf8Bytes e contentStamp', () => {
     expect(utf8Bytes('abc')).toBe(3); expect(utf8Bytes('ção')).toBe(Buffer.byteLength('ção')); expect(utf8Bytes('⚡🏛️')).toBe(Buffer.byteLength('⚡🏛️'));
@@ -156,17 +215,46 @@ describe('espelho dos saves em arquivos / Steam Cloud (6.4)', () => {
       expect(statSync(path.join(dir, 'map-m0.json')).size).toBe(2);
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
+  it('ids de mapa longos: o nome do arquivo (e o .tmp da gravação) cabe em 255 bytes; acima de 120 bytes o mapa não é espelhado', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'aoe-cloud-'));
+    try {
+      expect(CLOUD_MAP_ID_MAX_BYTES).toBe(120);
+      for (const n of [100, 119, 120, 121, 122, 128]) {
+        const key = 'aoe_map_' + 'a'.repeat(n);   // 65+ caracteres: fora do slug → mapx-<hex>
+        const f = cloudFileForKey(key);
+        expect(cloudCjs.fileForKey(key), `${n}`).toBe(f);
+        if (n <= 120) {
+          expect(f, `${n}`).toMatch(/^mapx-[0-9a-f]+\.json$/); expect(`${f}.tmp`.length, `${n}`).toBeLessThanOrEqual(255);
+          expect(cloudCjs.write(dir, key, '{}'), `${n}`).toBe(true);
+          expect(cloudCjs.keyForFile(f)).toBe(key);
+        } else {
+          expect(f, `${n}`).toBeNull(); expect(cloudCjs.write(dir, key, '{}'), `${n}`).toBe(false);
+          expect(planCloudSync({ [key]: '{}' }, {}, {}).upload, `${n}`).toEqual([]);   // não fica tentando a cada boot
+        }
+      }
+      // multibyte: o teto é em bytes
+      expect(cloudFileForKey('aoe_map_' + 'ç'.repeat(60))).not.toBeNull(); expect(cloudFileForKey('aoe_map_' + 'ç'.repeat(61))).toBeNull();
+      // arquivo da lista que existe mas não pode ser lido vem como null (a página não o toma por apagado)
+      mkdirSync(path.join(dir, 'save.json'));
+      expect(cloudCjs.readAll(dir).aoe_save_v1).toBeNull();
+      // o editor não cria ids longos: slug até 60 caracteres, com sufixo livre ainda no formato map-<id>.json
+      g.localStorage = new MemoryStorage();
+      expect(slugify('Mapa '.repeat(40)).length).toBeLessThanOrEqual(60);
+      const copy = uniqueMapId(slugify(`${'vale-'.repeat(20)}-copia-copia-copia`));
+      expect(cloudFileForKey(`aoe_map_${copy}`)).toBe(`map-${copy}.json`);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
   it('de ponta a ponta com a pasta real: grava nos dois, apaga o localStorage e restaura do arquivo', async () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'aoe-cloud-'));
     const bridge = { cloudReadAll: async () => cloudCjs.readAll(dir), cloudWrite: async (k: string, v: string) => cloudCjs.write(dir, k, v), cloudRemove: async (k: string) => cloudCjs.remove(dir, k) };
     try {
       const ls = new MemoryStorage(); g.localStorage = ls;
-      ls.setItem('aoe_save_v1', 'save-antigo');                // save de antes do espelho
+      ls.setItem('aoe_save_v1', '{"save":"antigo"}');          // save de antes do espelho
       ls.setItem('aoe_seat:OLIMPO:Ana', 'ficha');              // ficha de vaga: nunca vai para arquivo
       g.window = { desktop: bridge };
       let r = await initCloud(); await flush();
-      expect(r).toEqual({ restored: [], uploaded: ['aoe_save_v1'], files: 0 });
-      expect(readFileSync(path.join(dir, 'save.json'), 'utf8')).toBe('save-antigo');
+      expect(r).toEqual({ restored: [], uploaded: ['aoe_save_v1'], removed: [], merged: [], files: 0 });
+      expect(readFileSync(path.join(dir, 'save.json'), 'utf8')).toBe('{"save":"antigo"}');
       storeSet('aoe_settings_v1', '{"edgeScroll":false}');
       storeSet('aoe_map_vale', '{"w":8}');
       storeSet('aoe_map_Mapa do João', '{"w":9}');
@@ -188,6 +276,61 @@ describe('espelho dos saves em arquivos / Steam Cloud (6.4)', () => {
       // no navegador (sem ponte) initCloud não faz nada e storeSet é só o localStorage
       g.window = {};
       expect(await initCloud()).toBeNull();
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+  it('de ponta a ponta: arquivo corrompido, exclusão remota, união, cópia do valor anterior e cota cheia', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'aoe-cloud-'));
+    const bridge = { cloudReadAll: async () => cloudCjs.readAll(dir), cloudWrite: async (k: string, v: string) => cloudCjs.write(dir, k, v), cloudRemove: async (k: string) => cloudCjs.remove(dir, k) };
+    const file = (f: string) => { try { return readFileSync(path.join(dir, f), 'utf8'); } catch { return null; } };
+    try {
+      const ls = new MemoryStorage(); g.localStorage = ls; g.window = { desktop: bridge };
+      await initCloud();
+      storeSet('aoe_save_v1', '{"good":true}'); storeSet('aoe_map_vale', '{"w":8}'); storeSet('aoe_maps_v1', '[{"id":"vale"}]');
+      storeSet('aoe_settings_v1', '{"v":1}'); storeSet('aoe_campaign', '{"completed":["m1"]}');
+      await flush();
+      // save.json truncado: o save bom fica e o arquivo é regravado a partir dele
+      writeFileSync(path.join(dir, 'save.json'), '{"goo');
+      // outra máquina: apagou o mapa (arquivo + índice), mudou as opções e avançou a campanha
+      rmSync(path.join(dir, 'map-vale.json')); writeFileSync(path.join(dir, 'maps-index.json'), '[]');
+      writeFileSync(path.join(dir, 'settings.json'), '{"v":2}'); writeFileSync(path.join(dir, 'campaign.json'), '{"completed":["m2"]}');
+      // e esta máquina avançou a campanha sem sincronizar (a gravação no arquivo "falhou": carimbo antigo)
+      ls.setItem('aoe_campaign', '{"completed":["m1","m3"]}');
+      const r = await initCloud(); await flush();
+      expect(r!.removed).toEqual(['aoe_map_vale']); expect(r!.merged).toEqual(['aoe_campaign']);
+      expect(r!.restored.sort()).toEqual(['aoe_maps_v1', 'aoe_settings_v1']); expect(r!.uploaded).toEqual(['aoe_save_v1']);
+      expect(ls.getItem('aoe_save_v1')).toBe('{"good":true}'); expect(file('save.json')).toBe('{"good":true}');
+      expect(ls.getItem('aoe_map_vale')).toBeNull(); expect(file('map-vale.json')).toBeNull();
+      expect(ls.getItem(CLOUD_PREV_PREFIX + 'aoe_map_vale')).toBe('{"w":8}');         // cópia do que a sincronização apagou
+      expect(ls.getItem('aoe_settings_v1')).toBe('{"v":2}'); expect(ls.getItem(CLOUD_PREV_PREFIX + 'aoe_settings_v1')).toBe('{"v":1}');
+      const camp = JSON.parse(ls.getItem('aoe_campaign')!).completed.sort();
+      expect(camp).toEqual(['m1', 'm2', 'm3']); expect(JSON.parse(file('campaign.json')!).completed.sort()).toEqual(camp);
+      // as cópias ficam fora do espelho e da próxima sincronização
+      expect(readdirSync(dir).some((f) => f.includes('prev'))).toBe(false);
+      expect((await initCloud())).toEqual({ restored: [], uploaded: [], removed: [], merged: [], files: readdirSync(dir).length });
+      // cota cheia: storeSet descarta as cópias (descartáveis) para caber; sem cópias, lança como o localStorage
+      const tight = new MemoryStorage(260); g.localStorage = tight;
+      tight.setItem(CLOUD_PREV_PREFIX + 'aoe_save_v1', 'x'.repeat(200));
+      expect(() => storeSet('aoe_replay_v1', 'r'.repeat(100))).not.toThrow();
+      expect(tight.getItem(CLOUD_PREV_PREFIX + 'aoe_save_v1')).toBeNull(); expect(tight.getItem('aoe_replay_v1')).toBe('r'.repeat(100));
+      expect(() => storeSet('aoe_replay_v1', 'r'.repeat(300))).toThrow();
+      await flush();
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+  it('restauração que não cabe (cota cheia) não faz o valor velho do local voltar para a nuvem', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'aoe-cloud-'));
+    const bridge = { cloudReadAll: async () => cloudCjs.readAll(dir), cloudWrite: async (k: string, v: string) => cloudCjs.write(dir, k, v), cloudRemove: async (k: string) => cloudCjs.remove(dir, k) };
+    try {
+      const ls = new MemoryStorage(300); g.localStorage = ls; g.window = { desktop: bridge };
+      await initCloud();
+      storeSet('aoe_save_v1', '{"v":"velho"}'); await flush();
+      const novo = JSON.stringify({ v: 'novo'.repeat(60) });   // não cabe na cota
+      writeFileSync(path.join(dir, 'save.json'), novo);        // veio de outra máquina
+      for (let i = 0; i < 2; i++) {
+        const r = await initCloud(); await flush();
+        expect(r!.restored).toEqual([]); expect(r!.uploaded).toEqual([]);
+        expect(readFileSync(path.join(dir, 'save.json'), 'utf8')).toBe(novo);   // o arquivo novo continua lá
+        expect(JSON.parse(ls.getItem(CLOUD_STAMPS_KEY)!).aoe_save_v1).toBe(contentStamp('{"v":"velho"}'));
+      }
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
   it('nenhuma gravação de chave espelhada escapa do storeSet/storeRemove', () => {
@@ -259,6 +402,7 @@ describe('licenças de terceiros e créditos (6.7)', () => {
       expect(html).toContain('Felipe Bonamigo'); expect(html).toContain('Claude Code');
       for (const p of THIRD_PARTY) expect(html).toContain(p.n.replace(/&/g, '&amp;'));
       expect(html).toContain('id="m-close"');
+      expect(html.startsWith('<h2 data-nav data-autofocus>')).toBe(true);   // controle: foco inicial no topo, não no Fechar
     }
     expect(pt).toContain('criação e direção'); expect(pt).toContain('Licenças de terceiros');
     expect(en).toContain('creation and direction'); expect(en).toContain('Third-party licenses');

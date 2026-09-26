@@ -39,14 +39,19 @@ nada deles além dos números agregados que o painel do Steamworks mostra a todo
 | Bate-papo (até 200 caracteres por mensagem, texto puro) | Repassado aos jogadores e espectadores da sala | Comunicação | **Não gravado nem registrado** |
 | Log do servidor (saída padrão) | Operador do servidor | Operação | Só a porta ao iniciar e erros técnicos (código do erro e tipo da mensagem que falhou) — sem nomes, IPs, chat ou comandos. Retenção: **[DONO: rotação/retenção do log em produção]** |
 
-O endereço do servidor é digitado pelo jogador (padrão hoje: o mesmo host da página, porta 8787). Servidor oficial em
-produção: **[DONO: endereço `wss://`, quem opera, provedor e país/região]**. Um servidor de terceiros escolhido pelo jogador
+O endereço do servidor é digitado pelo jogador. Padrão hoje (`defaultRelayUrl` em `src/ui/menu.ts`): no navegador, o
+mesmo host da página, porta 8787; na versão desktop, `ws://localhost:8787` (um servidor na própria máquina); quando houver
+servidor oficial, `OFFICIAL_RELAY_URL` passa a ser o padrão nos dois. Servidor oficial em
+produção: **[DONO: endereço `wss://`, quem opera, provedor e país/região; preencher `OFFICIAL_RELAY_URL`]**. Um servidor de terceiros escolhido pelo jogador
 é responsabilidade de quem o opera.
 
 ### 1.4 O que o jogo não faz
 - **Nenhuma telemetria**, analytics, rastreador, publicidade, perfil de jogador ou relatório automático de falhas (o
   `crashReporter` do Electron não é ligado). Os únicos pedidos de rede são os arquivos do próprio jogo e o servidor de
-  multiplayer que o jogador escolher — sem CDN, fontes externas nem atualizador automático.
+  multiplayer que o jogador escolher — sem CDN, fontes externas nem atualizador automático. Na versão desktop o corretor
+  ortográfico do Chromium fica desligado (`desktop/main.cjs`), porque ligado ele baixaria da Google o dicionário do idioma
+  do sistema ao abrir o jogo; `scripts/playtest-desktop.mjs` grava o log de rede do Chromium e falha se aparecer qualquer
+  host fora de `app://`, `file://` e `127.0.0.1`/`localhost`.
 - Nenhuma conta, e-mail, senha ou dado de pagamento (a compra é feita na Steam).
 - Se a telemetria opt-in (6.6) ou um servidor de lobby com contas entrar, §1 e a política (§2) precisam ser atualizadas **antes**.
 
@@ -118,8 +123,9 @@ Contato: **[DONO: e-mail]** · Controlador: **[DONO: razão social, CNPJ]** · E
 3. **Conduta online.** Nomes de jogador e mensagens de bate-papo não podem ser ofensivos, ilegais ou violar direitos de
    terceiros. O anfitrião de uma sala pode expulsar jogadores. **[DONO: canal para denúncias]**
 4. **Serviços online.** O multiplayer depende de um servidor de retransmissão que pode ficar indisponível, mudar ou ser
-   descontinuado; o modo de um jogador, a campanha e o editor funcionam sem ele. O código do servidor acompanha o projeto e
-   qualquer pessoa pode operar o seu.
+   descontinuado; o modo de um jogador, a campanha e o editor funcionam sem ele. **[DONO: publicar o código do servidor de
+   retransmissão (`server/relay.mjs`, que hoje não vai no pacote do jogo)? Onde (repositório, licença)? Se sim, acrescentar:
+   "o código do servidor está disponível em ‹endereço› e qualquer pessoa pode operar o seu".]**
 5. **Conteúdo criado pelo usuário.** Mapas e cenários criados no editor pertencem a você. Ao compartilhá-los (por exemplo,
    no Steam Workshop), você nos concede licença gratuita para exibi-los e distribuí-los dentro do Jogo e garante que não
    violam direitos de terceiros.
@@ -142,7 +148,9 @@ Contato: **[DONO: e-mail]** · Controlador: **[DONO: razão social, CNPJ]** · E
   distribuída não tiver licença conhecida ou tiver copyleft forte (GPL, AGPL, SSPL…) e se a lista embutida não bater com os
   lockfiles.
 - Hoje (26/09/2026): **jogo** — pixi.js 8.21 e 11 dependências (MIT, ISC, BSD-3-Clause); **desktop** — electron 33.4
-  (MIT; Chromium BSD-3-Clause e outras, Node.js MIT, FFmpeg LGPL-2.1+ como biblioteca dinâmica substituível),
+  (MIT; Chromium BSD-3-Clause e outras, Node.js MIT, FFmpeg LGPL-2.1+ como biblioteca dinâmica substituível, na versão
+  sem codecs proprietários — sem H.264/AAC — que `desktop/after-pack.cjs` põe no lugar da padrão do Electron ao empacotar;
+  `scripts/playtest-desktop.mjs` confere o binário),
   steamworks.js 0.4 (MIT) com a biblioteca `steam_api` da Valve (Steamworks SDK Access Agreement, redistribuível pelo
   parceiro Steamworks); **relay** — ws 8.21 (MIT). Nenhuma GPL/AGPL.
 - Ferramentas de desenvolvimento (Vite, TypeScript, Vitest, Playwright, three.js, pngjs, pixelmatch, electron-builder) não vão
@@ -174,6 +182,7 @@ respectivos donos; Age of Earth não é afiliado a eles").
 |---|---|
 | Razão social, CNPJ, endereço (6.1) | §2 (controlador), §3 (licenciante), EULA na Steam |
 | E-mail de contato/privacidade e canal de denúncias | §2.1 itens 8 e rodapé, §2.2, §3 item 3, página da Steam |
+| Publicar ou não o código do servidor de retransmissão (onde, licença) | §3 item 4 |
 | Encarregado (LGPD art. 41) ou canal de comunicação | §2.1 rodapé |
 | Foro (cidade/UF) | §3 item 9 |
 | Servidor oficial de multiplayer: endereço `wss://`, operador, provedor, país, retenção do log | §1.3, §2.1 item 3, §2.2 item 3, `docs/QA.md` |

@@ -50,11 +50,12 @@ O jogo guarda tudo no `localStorage`; no Electron, `src/game/cloud.ts` **espelha
 | `aoe_achievements_v1`, `aoe_gods_played` (conquistas) | `achievements.json`, `gods-played.json` |
 | `aoe_settings_v1`, `aoe_locale` (opções e idioma) | `settings.json`, `locale.json` |
 | `aoe_setup`, `aoe_mp` (última partida rápida e sala online) | `skirmish-setup.json`, `multiplayer.json` |
-| `aoe_maps_v1`, `aoe_map_<id>` (Meus mapas do editor) | `maps-index.json`, `map-<id>.json` (ids fora do formato do slug: `mapx-<hex>.json`) |
+| `aoe_maps_v1`, `aoe_map_<id>` (Meus mapas do editor) | `maps-index.json`, `map-<id>.json` (ids fora do formato do slug: `mapx-<hex>.json`, id de até 120 bytes para o nome e o `.tmp` caberem nos 255 do ext4/NTFS; id maior fica só no `localStorage` — o editor gera slugs de até 60 caracteres) |
 | `aoe_editor_autosave`, `aoe_editor_test` (rascunho do editor) | `editor-draft.json`, `editor-test.json` |
 
 Fora do espelho (ficam só nesta máquina): a ficha de vaga do relay (`aoe_seat:*`), o relatório de dessincronização
-(`aoe_desync_v1`) e os carimbos da sincronização (`aoe_cloud_sync_v1`).
+(`aoe_desync_v1`), os carimbos da sincronização (`aoe_cloud_sync_v1`) e a cópia do valor que a sincronização trocou ou
+apagou (`aoe_cloud_prev:<chave>`, uma por chave, descartada sozinha quando falta espaço para gravar algo do jogador).
 
 - **Pasta** (fixada em `desktop/main.cjs`; não mude): `app.getPath('userData')/saves` =
   Windows `%APPDATA%\age-of-earth-desktop\saves` · Linux `~/.config/age-of-earth-desktop/saves` (ou `$XDG_CONFIG_HOME/…`) ·
@@ -64,9 +65,14 @@ Fora do espelho (ficam só nesta máquina): a ficha de vaga do relay (`aoe_seat:
   máximo 300 arquivos; o nome do arquivo sai da chave, nunca de um caminho vindo da página. Gravação atômica
   (`arquivo.json.tmp` + rename).
 - **Quem vale na inicialização** (`planCloudSync`, função pura testada): só no arquivo → restaura; só no localStorage →
-  grava o arquivo (saves de antes do espelho); diferentes → se o localStorage ainda é o último sincronizado nesta máquina
-  (carimbo), o arquivo veio de outra máquina pelo Steam Cloud e é restaurado; senão vence o localStorage. Assim o Steam
-  Deck e o PC compartilham o progresso: o Steam baixa os arquivos antes de abrir o jogo e o jogo os aplica ao iniciar.
+  grava o arquivo (saves de antes do espelho), **exceto** se o localStorage ainda é o último sincronizado (carimbo): aí o
+  arquivo foi apagado em outra máquina (ex.: mapa excluído) e a chave sai daqui também (não quando a pasta veio vazia ou a
+  leitura falhou); arquivo que não analisa (truncado, corrompido) nunca substitui o localStorage e é regravado a partir
+  dele; progresso da campanha, conquistas e deuses jogados só crescem e, divergindo, viram a **união** dos dois lados;
+  demais diferenças → se o localStorage ainda é o último sincronizado nesta máquina, o arquivo veio de outra máquina pelo
+  Steam Cloud e é restaurado; senão vence o localStorage. Restauração que não cabe na cota fica para a próxima
+  inicialização (o valor velho não volta para a nuvem). Assim o Steam Deck e o PC compartilham o progresso: o Steam baixa
+  os arquivos antes de abrir o jogo e o jogo os aplica ao iniciar.
 - **Configuração no Steamworks** (dono): App Admin → Cloud → *Steam Cloud Settings*:
   - *Byte quota per user*: **200 MB** (save e replay de partidas grandes passam de 1 MB cada; mapas 0,1–1 MB);
     *Number of files allowed per user*: **300** (o mesmo teto do jogo).

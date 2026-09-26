@@ -585,8 +585,12 @@ export class GamepadController {
     if (this.focusEl && this.focusEl.isConnected && this.focusRoot === root && root.contains(this.focusEl) && this.focusEl.getClientRects().length > 0 && !(this.focusEl as HTMLButtonElement).disabled) return;
     const list = this.focusables(root);
     if (!list.length) { this.setFocus(null); return; }
+    // alvo inicial pedido pelo conteúdo novo (ex.: título dos Créditos, para o modal longo não abrir rolado até o Fechar);
+    // vale uma vez, antes da memória do último foco nesta raiz (o #modal é reaproveitado entre modais)
+    const auto = list.find((e) => e.hasAttribute('data-autofocus'));
+    if (auto) auto.removeAttribute('data-autofocus');
     const key = this.focusKeys.get(root);
-    let next = key ? list.find((e) => this.keyOf(e, list) === key) : undefined;
+    let next = auto ?? (key ? list.find((e) => this.keyOf(e, list) === key) : undefined);
     if (!next && key?.startsWith('idx:')) next = list[Math.min(list.length - 1, Number(key.slice(4)))];
     if (!next) next = root === this.d.menu.el ? list.find((e) => e.matches('.tabs .btn.active')) : list.find((e) => e.matches('.btn.primary'));
     this.focusRoot = root;

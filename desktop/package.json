@@ -20,6 +20,7 @@
   "build": {
     "appId": "com.ageofearth.game",
     "productName": "Age of Earth",
+    "afterPack": "./after-pack.cjs",
     "files": ["main.cjs", "preload.cjs", "cloud.cjs", "steam_appid.txt"],
     "extraResources": [{ "from": "../dist", "to": "game" }, { "from": "../docs/THIRD_PARTY.md", "to": "THIRD_PARTY.md" }],
     "directories": { "output": "release" },

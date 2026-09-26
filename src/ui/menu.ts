@@ -355,7 +355,7 @@ export class MainMenu {
       const id = (b.closest('.mapcard') as HTMLElement).dataset.id!; const act = (b as HTMLElement).dataset.act;
       const d = getMap(id); if (!d) { this.render(); return; }
       if (act === 'edit') this.cb.onEditor(d);
-      else if (act === 'copy') this.cb.onEditor({ ...d, id: uniqueMapId(`${id}-copia`), name: `${d.name ?? id} ${t('editor.copySuffix')}`, nameEn: d.nameEn ? `${d.nameEn} (copy)` : undefined });
+      else if (act === 'copy') this.cb.onEditor({ ...d, id: uniqueMapId(slugify(`${id}-copia`)), name: `${d.name ?? id} ${t('editor.copySuffix')}`, nameEn: d.nameEn ? `${d.nameEn} (copy)` : undefined });
       else if (act === 'dup') { try { duplicateMap(id); } catch { alert(t('msg.mapQuota')); } this.render(); }
       else if (act === 'export') void exportMapFile(d);
       else if (act === 'del') { if (confirm(t('editor.deleteConfirm', { name: mapName(d) }))) { removeMap(id); if (this.fixedMapId === id) this.setFixedMap(null); this.render(); } }

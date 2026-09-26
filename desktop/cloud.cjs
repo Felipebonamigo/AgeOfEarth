@@ -20,7 +20,9 @@ const FIXED = {
   aoe_editor_test: 'editor-test',
 };
 const MAP_ID_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
-const MAP_HEX_RE = /^(?:[0-9a-f]{2}){1,128}$/;
+// id de até 120 bytes: `mapx-` + 240 hex + `.json` = 250 caracteres e o temporário `.json.tmp` = 254, dentro dos 255 do
+// ext4/NTFS; id maior não é espelhado (igual a CLOUD_MAP_ID_MAX_BYTES em src/game/cloud.ts)
+const MAP_HEX_RE = /^(?:[0-9a-f]{2}){1,120}$/;
 /** Teto por arquivo (bytes em UTF-8) e de arquivos na pasta: iguais a CLOUD_MAX_BYTES/CLOUD_MAX_FILES em src/game/cloud.ts. */
 const MAX_BYTES = 16 * 1024 * 1024;
 const MAX_FILES = 300;
@@ -58,18 +60,23 @@ function listOwnFiles(dir) {
   try { return fs.readdirSync(dir).filter((f) => keyForFile(f) !== null); } catch { return []; }
 }
 
-/** Todos os arquivos válidos da pasta, por chave do localStorage (ignora o que não é da lista, grande demais ou ilegível). */
+/**
+ * Todos os arquivos da lista na pasta, por chave do localStorage (ignora o que não é da lista). O que existe mas não é
+ * lido (grande demais, acima do total ou ilegível) vem como null: a página não o restaura, não o regrava e — importante —
+ * não o toma por apagado em outra máquina.
+ */
 function readAll(dir) {
   const out = {};
   let total = 0;
   for (const f of listOwnFiles(dir).sort()) {
     const full = path.join(dir, f);
+    const key = keyForFile(f);
     try {
       const st = fs.statSync(full);
-      if (!st.isFile() || st.size > MAX_BYTES || total + st.size > MAX_TOTAL_READ) continue;
-      out[keyForFile(f)] = fs.readFileSync(full, 'utf8');
+      if (!st.isFile() || st.size > MAX_BYTES || total + st.size > MAX_TOTAL_READ) { out[key] = null; continue; }
+      out[key] = fs.readFileSync(full, 'utf8');
       total += st.size;
-    } catch { /* ignore */ }
+    } catch { out[key] = null; }
   }
   return out;
 }

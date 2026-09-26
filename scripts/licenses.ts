@@ -98,7 +98,7 @@ const RELAY_ONLY = new Set(['ws']);
 export const EMBEDDED: (Omit<Dependency, 'version'> & { via: string })[] = [
   { name: 'Chromium', via: 'electron', license: 'BSD-3-Clause', scope: 'desktop', note: 'navegador embutido no Electron; licenças de todos os componentes em LICENSES.chromium.html, ao lado do executável', noteEn: 'browser engine bundled with Electron; licenses of every component in LICENSES.chromium.html, next to the executable' },
   { name: 'Node.js', via: 'electron', license: 'MIT', scope: 'desktop', note: 'runtime do processo principal do Electron', noteEn: "runtime of Electron's main process" },
-  { name: 'FFmpeg', via: 'electron', license: 'LGPL-2.1-or-later', scope: 'desktop', note: 'biblioteca dinâmica (libffmpeg) do Electron, sem codecs proprietários; pode ser substituída pelo usuário', noteEn: "Electron's dynamic library (libffmpeg), without proprietary codecs; replaceable by the user" },
+  { name: 'FFmpeg', via: 'electron', license: 'LGPL-2.1-or-later', scope: 'desktop', note: 'biblioteca dinâmica (libffmpeg) do Electron, na versão sem codecs proprietários (sem H.264/AAC; trocada no empacotamento por desktop/after-pack.cjs); pode ser substituída pelo usuário', noteEn: "Electron's dynamic library (libffmpeg), in the build without proprietary codecs (no H.264/AAC; swapped in at packaging by desktop/after-pack.cjs); replaceable by the user" },
   { name: 'Steamworks SDK (steam_api)', via: 'steamworks.js', license: 'LicenseRef-Steamworks-SDK', scope: 'desktop', note: 'biblioteca da Valve, redistribuída conforme o Steamworks SDK Access Agreement', noteEn: "Valve's library, redistributed under the Steamworks SDK Access Agreement" },
 ];
 

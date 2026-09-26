@@ -21,7 +21,8 @@ export function creditsHTML(): string {
   const tables = scopes.filter((s) => THIRD_PARTY.some((p) => p.s === s)).map((s) => `<h4 style="margin:10px 0 4px;color:#f2c14e">${t(`credits.scope.${s}`)}</h4>
     <table class="credits-table"><tr><th>${t('credits.col.component')}</th><th>${t('credits.col.version')}</th><th>${t('credits.col.license')}</th><th>${t('credits.col.copyright')}</th></tr>${rows(s)}</table>`).join('');
   const texts = Object.entries(licenses.texts as Record<string, string>).map(([id, text]) => `<details style="margin:4px 0"><summary style="cursor:pointer;color:#cbd5e1">${t('credits.licenseText', { l: esc(id) })}</summary><pre style="white-space:pre-wrap;font-size:11px;color:#9aa5b8;max-width:820px">${esc(text)}</pre></details>`).join('');
-  return `<h2>${t('credits.title')}</h2>
+  // data-nav + data-autofocus: no controle o foco começa no título (topo), não no Fechar do fim da lista
+  return `<h2 data-nav data-autofocus>${t('credits.title')}</h2>
     <h3>${t('credits.team')}</h3>
     <ul class="credits-team"><li>${t('credits.owner')}</li><li>${t('credits.ai')}</li></ul>
     <h3>${t('credits.artTitle')}</h3><p>${t('credits.art')}</p>

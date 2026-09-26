@@ -30,6 +30,8 @@ xvfb-run -a node scripts/playtest-desktop.mjs [desktop/release/linux-unpacked/ag
 
 Confere: página em `app://`, `fetch` do manifesto de arte, bloqueio de caminhos fora do jogo, ponte `window.desktop`
 (Steam ausente → `null`; espelho de saves só com três operações), `THIRD_PARTY.md` e `LICENSES.chromium.html` no pacote,
+`libffmpeg` sem codecs proprietários, corretor ortográfico desligado e **nenhum host externo no log de rede** do Chromium
+(`--log-net-log`, nas três execuções),
 partida rodando, tela cheia liga/desliga, `localStorage` persistindo entre duas execuções e o **espelho dos saves**
 (Steam Cloud): grava opções e um save (F5), fecha, apaga o `localStorage` da origem `app://game`, reabre e confere que
 voltaram dos arquivos. Usa um perfil temporário (`XDG_CONFIG_HOME`), nunca o do usuário.
@@ -42,6 +44,7 @@ Build Linux verificada em set/2026: Electron 33.4, 281 MB descompactada (sem íc
 | `main.cjs` | Processo principal: protocolo `app://`, janela, Steamworks (nome, conquistas, Rich Presence), diálogos de arquivo, perfil fixo (`age-of-earth-desktop`) e os canais `cloud:*` |
 | `preload.cjs` | Ponte `window.desktop` (contextIsolation + sandbox): só funções específicas, nenhum acesso genérico a arquivos |
 | `cloud.cjs` | Espelho dos saves em `userData/saves/*.json` (lista fixa de chaves, 16 MB, 300 arquivos, gravação atômica) — `docs/STEAM.md` §4.2 |
+| `after-pack.cjs` | Gancho `afterPack` do electron-builder (só na build): troca a `libffmpeg` padrão do Electron (com H.264/AAC) pela versão sem codecs proprietários do mesmo release (`ffmpeg-v<versão>-<plataforma>-<arq>.zip`, baixada pelo `@electron/get` com SHASUMS256) |
 | `steam/achievements.json`, `steam/achievements.csv` | Planilha de cadastro das 40 conquistas no Steamworks, gerada por `npx tsx scripts/steam-achievements.ts` (não edite) |
 | `steam/rich_presence.vdf` | Localização do Rich Presence (`#Status`) para enviar no Steamworks |
 | `steam_appid.txt` | App ID (480 = app de testes da Valve até haver o nosso) |
