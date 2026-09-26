@@ -1446,6 +1446,224 @@ function m9Assault(state: GameState, tag: string): Command[] {
   return out;
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// m11 "Argos em Chamas": o êxodo até as naus de Náuplia em levas, o arconte guardado no cais e os poderes um a um
+// ---------------------------------------------------------------------------------------------------------------
+
+/**
+ * m11: o cais (os cidadãos esperam a nau a ≤ 5 tiles do centro das naus, em [19.5,113.5]), o abrigo do arconte (atrás do
+ * cais, junto à baía) e o posto da escolta (na boca do porto, onde chegam a Via de Náuplia e o caminho da margem oeste).
+ */
+const M11_QUAY = { x: 19.5, y: 110.5 }, M11_ARCHON_SAFE = { x: 12.5, y: 112.5 }, M11_GUARD = { x: 20, y: 104 };
+/** m11: instantes das naus e de Cronos por dificuldade (os mesmos do cenário) e os lugares de cada nau. */
+const M11_SHIPS: Record<CampaignDifficulty, number[]> = { easy: [240, 540, 780], normal: [240, 540, 780], hard: [240, 540, 780, 840] };
+const M11_PLACES: Record<CampaignDifficulty, number[]> = { easy: [7, 7, 6], normal: [10, 10, 10], hard: [10, 10, 10, 10] };
+const M11_CRONUS: Record<CampaignDifficulty, number> = { easy: 840, normal: 720, hard: 600 };
+/** m11: a leva sai M11_LEAD s antes da nau dela (a viagem leva ~40–50 s) e ninguém fica na cidade depois de Cronos − M11_EVAC s. */
+const M11_LEAD = 70, M11_EVAC = 80;
+/** m11: folga de cada leva (cidadãos a mais que os lugares da nau, para as perdas no caminho). */
+const M11_SPARE = 2;
+
+/** m11: quem já está no êxodo (cidadãos mandados ao cais) e a escolta do arconte (o exército inicial), por partida. */
+interface M11Memo { exodus: Set<number>; escort: Set<number>; levas: number }
+const m11Memos = new WeakMap<GameState, M11Memo>();
+function m11Memo(state: GameState): M11Memo {
+  let m = m11Memos.get(state);
+  if (!m) { m = { exodus: new Set(), escort: new Set(), levas: 0 }; m11Memos.set(state, m); }
+  return m;
+}
+const m11Diff = (state: GameState): CampaignDifficulty => state.config.campaignDifficulty ?? 'normal';
+
+/**
+ * m11: as levas da dificuldade — uma por nau, M11_LEAD s antes dela, com os lugares da nau + M11_SPARE cidadãos; a última
+ * leva leva todos os que restam e sai antes de Cronos chegar à cidade (Cronos − M11_EVAC), mesmo que a nau dela ainda demore.
+ */
+export function m11Levas(d: CampaignDifficulty): { at: number; size: number | 'all' }[] {
+  const ships = M11_SHIPS[d], places = M11_PLACES[d], evac = M11_CRONUS[d] - M11_EVAC;
+  const out: { at: number; size: number | 'all' }[] = [];
+  for (let k = 0; k < ships.length - 1; k++) {
+    const at = ships[k] - M11_LEAD;
+    if (at >= evac) break;
+    out.push({ at, size: places[k] + M11_SPARE });
+  }
+  out.push({ at: Math.min(ships[ships.length - 1] - M11_LEAD, evac), size: 'all' });
+  return out;
+}
+
+/** Unidade viva de uma tag do cenário (a primeira do grupo). */
+function tagUnit(state: GameState, tag: string): Unit | null { const id = state.scenario?.vars['#' + tag]; const u = id !== undefined ? state.units.get(id) : undefined; return u && !u.dead ? u : null; }
+const m11D2 = (u: { x: number; y: number }, p: { x: number; y: number }) => (u.x - p.x) * (u.x - p.x) + (u.y - p.y) * (u.y - p.y);
+
+/**
+ * m11: as levas. Na hora de cada uma, os cidadãos mais perto do Centro Cívico (fora de edifícios) entram no êxodo e vão ao
+ * cais; na última, todos — e, dali em diante, quem nascer ou sair de uma guarnição também (os abrigos sem inimigo por perto
+ * soltam quem está dentro). Os do êxodo que pararam longe do cais voltam a andar até ele.
+ */
+function m11Exodus(state: GameState): Command[] {
+  const memo = m11Memo(state), d = m11Diff(state), sec = state.tick / TICK_RATE;
+  const levas = m11Levas(d);
+  const out: Command[] = [];
+  const tc = firstBuilding(state, 'town_center');
+  const home = tc ? { x: tc.x, y: tc.y } : { x: 64, y: 40 };
+  const free = villagersNear(state, home.x, home.y).filter((u) => !memo.exodus.has(u.id));
+  const add: number[] = [];
+  while (memo.levas < levas.length && sec >= levas[memo.levas].at) {
+    const size = levas[memo.levas].size;
+    const pool = free.filter((u) => !add.includes(u.id));   // duas levas vencidas na mesma chamada não escolhem os mesmos
+    for (const u of size === 'all' ? pool : pool.slice(0, size)) add.push(u.id);
+    memo.levas++;
+  }
+  const last = memo.levas >= levas.length;
+  if (last) {
+    for (const u of free) if (!add.includes(u.id)) add.push(u.id);
+    // abrigos com cidadãos e sem inimigo a 12 tiles: soltam (a IA do jogador os guarneceu numa ameaça)
+    for (const b of state.buildings.values()) {
+      if (b.owner !== 0 || b.dead || !b.garrison.some((id) => state.units.get(id)?.type === 'villager')) continue;
+      if (!enemyNear(state, b.x, b.y, 12, (e) => UNITS[e.type].tags.includes('military'))) out.push({ type: 'ungarrison', player: 0, buildingId: b.id });
+    }
+  }
+  for (const id of add) memo.exodus.add(id);
+  // quem está no êxodo, fora de edifícios, parado ou coletando longe do cais: ao cais
+  const walk = [...memo.exodus].map((id) => state.units.get(id)).filter((u): u is Unit => !!u && !u.dead && u.inside === -1 && m11D2(u, M11_QUAY) > 3 * 3 && (add.includes(u.id) || u.state !== 'move'));
+  if (walk.length) out.push({ type: 'move', player: 0, ids: walk.map((u) => u.id), x: M11_QUAY.x, y: M11_QUAY.y });
+  return out;
+}
+
+/**
+ * m11: o arconte. Com a 1ª leva, ele e o exército inicial (a escolta) descem a Via de Náuplia; no porto, o arconte fica em
+ * postura passiva atrás do cais (não persegue ninguém) e a escolta guarda a boca do porto: inimigo a ≤ 20 tiles do posto, do
+ * cais ou do arconte, ela o ataca; sem inimigo, quem se afastou volta ao posto.
+ */
+function m11Archon(state: GameState): Command[] {
+  const memo = m11Memo(state), sec = state.tick / TICK_RATE;
+  const a = tagUnit(state, 'arconte'); if (!a) return [];
+  const out: Command[] = [];
+  const first = m11Levas(m11Diff(state))[0].at;
+  if (sec < first) return out;
+  if (memo.escort.size === 0) for (const id of armyOf(state)) if (id !== a.id) memo.escort.add(id);
+  if (a.stance !== 'passive') out.push({ type: 'stance', player: 0, ids: [a.id], stance: 'passive' });
+  if (a.inside === -1 && m11D2(a, M11_ARCHON_SAFE) > 2 * 2 && a.state !== 'move') out.push({ type: 'move', player: 0, ids: [a.id], x: M11_ARCHON_SAFE.x, y: M11_ARCHON_SAFE.y });
+  const escort = [...memo.escort].map((id) => state.units.get(id)).filter((u): u is Unit => !!u && !u.dead && u.inside === -1);
+  if (!escort.length) return out;
+  const foe = enemyNear(state, M11_GUARD.x, M11_GUARD.y, 20, (e) => UNITS[e.type].tags.includes('military') && !UNITS[e.type].tags.includes('titan'))
+    ?? enemyNear(state, M11_QUAY.x, M11_QUAY.y, 16, (e) => UNITS[e.type].tags.includes('military') && !UNITS[e.type].tags.includes('titan'))
+    ?? enemyNear(state, a.x, a.y, 16, (e) => UNITS[e.type].tags.includes('military') && !UNITS[e.type].tags.includes('titan'));
+  if (foe) {
+    const go = escort.filter((u) => u.state !== 'attack' || m11D2(u, foe) > 12 * 12).map((u) => u.id);
+    if (go.length) out.push({ type: 'attackMove', player: 0, ids: go, x: foe.x, y: foe.y });
+    return out;
+  }
+  const back = escort.filter((u) => m11D2(u, M11_GUARD) > 8 * 8 && u.state !== 'move').map((u) => u.id);
+  if (back.length) out.push({ type: 'attackMove', player: 0, ids: back, x: M11_GUARD.x, y: M11_GUARD.y });
+  return out;
+}
+
+/**
+ * m11: ao evacuar a cidade (a última leva), o exército que a IA do jogador treinou também desce ao porto e passa à escolta
+ * (a cidade vai cair com Cronos; o que importa é o cais).
+ */
+function m11Evacuate(state: GameState): void {
+  const memo = m11Memo(state);
+  const a = tagUnit(state, 'arconte');
+  for (const id of armyOf(state)) if (id !== a?.id && state.units.get(id)!.type !== 'prometheus') memo.escort.add(id);
+}
+
+/** m11: destacamento — o arconte, o sacerdote, Prometeu, a escolta e o êxodo (a IA do jogador levaria todos de volta à cidade). */
+function m11Detach(state: GameState): number[] {
+  const memo = m11Memo(state);
+  const out = [...memo.exodus, ...memo.escort];
+  for (const t of ['arconte', 'sacerdote', 'prometeu']) { const u = tagUnit(state, t); if (u) out.push(u.id); }
+  return out;
+}
+
+/** Centro do grupo mais denso de unidades inimigas que satisfazem `pred` num raio `r` (cada uma é candidata a centro). */
+function m11Clump(state: GameState, r: number, pred: (u: Unit) => boolean): { x: number; y: number; n: number } | null {
+  const foes = [...state.units.values()].filter((u) => !u.dead && u.inside === -1 && isEnemy(state, 0, u.owner) && pred(u));
+  let best: { x: number; y: number; n: number } | null = null;
+  for (const c of foes) {
+    const near = foes.filter((u) => m11D2(u, c) <= r * r);
+    if (!best || near.length > best.n) best = { x: near.reduce((s, u) => s + u.x, 0) / near.length, y: near.reduce((s, u) => s + u.y, 0) / near.length, n: near.length };
+  }
+  return best;
+}
+
+/**
+ * O que o jogador 0 protege perto do ponto (a até `r` tiles): um edifício (sem muralha), um cidadão fora de edifícios ou o
+ * arconte. O exército e o batedor não contam (a Tempestade não é gasta na base do Culto porque um batedor passou por lá).
+ */
+function m11Guarded(state: GameState, p: { x: number; y: number }, r: number): boolean {
+  for (const u of state.units.values()) if (u.owner === 0 && !u.dead && u.inside === -1 && (u.type === 'villager' || u.type === 'basileus') && m11D2(u, p) <= r * r) return true;
+  for (const b of state.buildings.values()) if (b.owner === 0 && !b.dead && !BUILDINGS[b.type].wall && m11D2(b, p) <= r * r) return true;
+  return false;
+}
+
+/**
+ * m11: os poderes um a um, cada um na onda para a qual veio (no máximo um por chamada):
+ * - a Maldição num grupo de ≥ 4 soldados humanos (sem heróis) num raio de 4 a ≤ 14 tiles do que o jogador protege
+ *   (m11Guarded): os hoplitas da 1ª onda, antes de chegarem à cidade;
+ * - a Tempestade de Raios num grupo de ≥ 4 arqueiros num raio de 6 a ≤ 22 tiles do arconte ou do cais (os arqueiros da 2ª
+ *   onda vêm caçar o arconte; a escolta os pegaria antes se esperássemos mais) ou, a partir dos 7 min, em ≥ 6 militares perto
+ *   do que o jogador protege;
+ * - a Trégua com ≥ 3 cavaleiros inimigos a ≤ 18 tiles do cais com cidadãos esperando a nau (a 3ª onda mira as naus: a fila
+ *   embarca enquanto ninguém mata), ou com ≥ 3 militares a ≤ 10 do arconte;
+ * - a Restauração em ≥ 6 militares nossos feridos (< 60 %) num raio de 8;
+ * - o Raio no inimigo mais valioso a ≤ 12 tiles do arconte ou do cais (e, sem ninguém assim, em Cronos quando ele chega a
+ *   14 tiles de cidadãos nossos).
+ */
+function m11Powers(state: GameState): Command | null {
+  const tags = (u: Unit) => UNITS[u.type].tags;
+  const soldier = (u: Unit) => tags(u).includes('human') && tags(u).includes('military') && !tags(u).includes('hero');
+  const mil = (u: Unit) => tags(u).includes('military') && !tags(u).includes('titan');
+  const a = tagUnit(state, 'arconte');
+  const nearArchonOrQuay = (p: { x: number; y: number }, r: number) => m11D2(p, M11_QUAY) <= r * r || (!!a && m11D2(p, a) <= r * r);
+  if (hasPower(state, 'curse')) {
+    const c = m11Clump(state, 4, soldier);
+    if (c && c.n >= 4 && m11Guarded(state, c, 14)) return { type: 'power', player: 0, power: 'curse', x: c.x, y: c.y };
+  }
+  if (hasPower(state, 'lightning_storm')) {
+    const archers = m11Clump(state, 6, (u) => tags(u).includes('archer'));
+    if (archers && archers.n >= 4 && nearArchonOrQuay(archers, 22)) return { type: 'power', player: 0, power: 'lightning_storm', x: archers.x, y: archers.y };
+    const c = state.tick >= 420 * TICK_RATE ? m11Clump(state, 6, mil) : null;
+    if (c && c.n >= 6 && m11Guarded(state, c, 14)) return { type: 'power', player: 0, power: 'lightning_storm', x: c.x, y: c.y };
+  }
+  const quayFolk = villagersNear(state, M11_QUAY.x, M11_QUAY.y).filter((u) => m11D2(u, M11_QUAY) <= 6 * 6);
+  if (hasPower(state, 'ceasefire')) {
+    const threat = (p: { x: number; y: number }, r: number, pred: (u: Unit) => boolean) => [...state.units.values()].filter((u) => !u.dead && u.inside === -1 && isEnemy(state, 0, u.owner) && pred(u) && m11D2(u, p) <= r * r).length;
+    if ((quayFolk.length && threat(M11_QUAY, 18, (u) => tags(u).includes('cavalry')) >= 3) || (a && a.inside === -1 && threat(a, 10, mil) >= 3)) return { type: 'power', player: 0, power: 'ceasefire' };
+  }
+  if (hasPower(state, 'restoration')) {
+    const hurt = armyOf(state).map((id) => state.units.get(id)!).filter((u) => u.hp < u.maxHp * 0.6);
+    for (const h of hurt) if (hurt.filter((u) => m11D2(u, h) <= 64).length >= 6) return { type: 'power', player: 0, power: 'restoration', x: h.x, y: h.y };
+  }
+  if (hasPower(state, 'bolt')) {
+    const near = (a ? enemyNear(state, a.x, a.y, 12, mil) : null) ?? enemyNear(state, M11_QUAY.x, M11_QUAY.y, 12, mil);
+    if (near && near.maxHp >= 150) return { type: 'power', player: 0, power: 'bolt', targetId: near.id };
+    const c = tagUnit(state, 'cronos');
+    if (c && c.hp > c.maxHp * 0.6 && villagersNear(state, c.x, c.y).some((u) => m11D2(u, c) <= 14 * 14)) return { type: 'power', player: 0, power: 'bolt', targetId: c.id };
+  }
+  return null;
+}
+
+/**
+ * m11: a mecânica em destaque aconteceu — a Maldição e a Tempestade de Raios foram usadas nas ondas para as quais vieram (os
+ * hoplitas da 1ª, os arqueiros que caçam o arconte na 2ª). A janela não discrimina isso: o relógio das naus põe a vitória perto
+ * dos 13 min (14 no Difícil) com ou sem poderes. A Trégua fica de fora de propósito: ela só serve quando a cavalaria da 3ª onda
+ * chega à fila do cais (Fácil e Normal); no Difícil o exército da cidade já desceu ao porto e a mata antes, com os lugares da
+ * 2ª nau cheios — gastá-la ali só para passar na checagem seria frear/forçar o roteiro.
+ */
+const M11_POWERS_USED: ScriptEndCheck[] = [{ label: 'Maldição e Tempestade de Raios usadas', when: { all: [
+  { powerUsed: { player: 0, id: 'curse' } }, { powerUsed: { player: 0, id: 'lightning_storm' } }] } }];
+
+/** m11: cidadãos a treinar (vivos + a bordo) até a meta com folga, enquanto a cidade existe e a última leva não saiu. */
+function m11Villagers(state: GameState): Command[] {
+  const sc = state.scenario; if (!sc) return [];
+  const levas = m11Levas(m11Diff(state));
+  if (state.tick / TICK_RATE >= levas[levas.length - 1].at - 20) return [];
+  let alive = 0; for (const u of state.units.values()) if (u.owner === 0 && !u.dead && u.type === 'villager') alive++;
+  const want = (sc.vars.meta ?? 30) + 8 - (sc.vars.embarcados ?? 0);
+  return alive < want ? trainVillagers(state, want) : [];
+}
+
 /**
  * Roteiros das missões registradas (o jogador 0 é uma IA "difícil"; os passos cobram o objetivo que a IA não faz sozinha).
  * Missão nova: acrescente uma entrada com o id; sem entrada, scripts/missions.ts roda só a IA do jogador.
@@ -1681,6 +1899,30 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
       { label: 'tempestade', when: { time: { gte: 1 } }, every: 1, command: (s) => dodgeStorms(s) },
       // jaulas e fendas na ordem da caminhada, cada uma quando o exército tem ≥ M9_ASSAULT_ARMY militares
       { label: 'assalto', when: { time: { gte: 10 } }, every: 10, command: (s) => { const t = m9AssaultTarget(s); return t ? m9Assault(s, t) : null; } },
+    ],
+  },
+  m11_chamas: {
+    // §4: 18 min (cronômetro fixo) ±30 %; o relógio das naus põe a vitória mais cedo perto dos 13 min (14 no Difícil, com a 4ª nau)
+    minutes: 19, expect: [12.6, 23.4],
+    // a IA do jogador defende a cidade e nunca sai em ondas; o êxodo, o arconte, a escolta e os poderes são do roteiro
+    hold: { time: { gte: 0 } },
+    keepPowers: ['bolt', 'curse', 'lightning_storm', 'ceasefire', 'restoration'],
+    detach: (s) => m11Detach(s),
+    atEnd: M11_POWERS_USED,
+    steps: [
+      { label: 'cidadãos', when: { time: { gte: 3 } }, every: 4, command: (s) => m11Villagers(s) },
+      { label: 'treino', when: { time: { gte: 5 } }, every: 5, command: (s) => trainArmy(s, 0, { reserve: { food: 150, wood: 100, gold: 60 } }) },
+      // as levas: uma por nau (a última com todos, antes de Cronos chegar à cidade); o sacerdote vai na 1ª
+      { label: 'levas', when: { time: { gte: 2 } }, every: 3, command: (s) => m11Exodus(s) },
+      { label: 'sacerdote', when: { time: { gte: 2 } }, every: 5, command: (s) => {
+        const p = tagUnit(s, 'sacerdote'); if (!p || p.inside !== -1 || s.tick / TICK_RATE < m11Levas(m11Diff(s))[0].at || m11D2(p, M11_QUAY) <= 9 || p.state === 'move') return null;
+        return { type: 'move', player: 0, ids: [p.id], x: M11_QUAY.x, y: M11_QUAY.y };
+      } },
+      // o arconte e o exército inicial descem com a 1ª leva; no porto, o arconte atrás do cais e a escolta na boca do porto
+      { label: 'arconte', when: { time: { gte: 2 } }, every: 2, command: (s) => m11Archon(s) },
+      // na última leva, o exército da cidade também desce ao porto
+      { label: 'evacuação', when: { time: { gte: 2 } }, every: 10, command: (s) => { const l = m11Levas(m11Diff(s)); if (s.tick / TICK_RATE >= l[l.length - 1].at) m11Evacuate(s); return null; } },
+      { label: 'poderes', when: { time: { gte: 2 } }, every: 1, command: (s) => m11Powers(s) },
     ],
   },
 };
