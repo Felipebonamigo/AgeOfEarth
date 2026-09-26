@@ -6,7 +6,8 @@
 //   sombra — só a sombra projetada no chão (ShadowMaterial), modelo invisível; alfa = intensidade da sombra.
 // O mapa de sombras é calculado uma vez por pose (autoUpdate desligado) e reaproveitado nos três passes.
 // Edifícios (Etapa 3): peças `userData.context` (vizinhos da muralha) só projetam sombra; `userData.decal` (dano) não
-// projetam sombra nem entram na máscara de time; `group.userData.shadowClip` recorta a sombra no chão à região da peça.
+// projetam sombra nem entram na máscara de time; `group.userData.shadowClip` recorta a sombra no chão à região da peça
+// (menos os retângulos de `cut`).
 // Ícones (`f.icon`): câmera do contrato enquadrada no modelo, ICON_PX² sem chão, passes cor e time.
 // Tudo é reproduzível: nada de Math.random; variações vêm de sementes por nome (props.js).
 
@@ -102,12 +103,14 @@ const isTeam = (mat) => !!mat?.userData?.team;
  * aceita clippingPlanes, por isso o recorte é feito nos pixels.)
  */
 function clipShadow(s, box, ppt, c) {
+  const cuts = c.cut ?? [];
   for (let py = 0; py < box.h; py++) {
     const z = (py + 0.5 - box.ay) / ppt;
     const rowOut = z < c.z0 || z > c.z1;
+    const rowCuts = cuts.filter((r) => z >= r.z0 && z <= r.z1);
     for (let px = 0; px < box.w; px++) {
       const x = (px + 0.5 - box.ax) / ppt;
-      if (rowOut || x < c.x0 || x > c.x1) s[(py * box.w + px) * 4 + 3] = 0;
+      if (rowOut || x < c.x0 || x > c.x1 || rowCuts.some((r) => x >= r.x0 && x <= r.x1)) s[(py * box.w + px) * 4 + 3] = 0;
     }
   }
 }

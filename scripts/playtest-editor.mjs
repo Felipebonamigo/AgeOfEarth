@@ -87,6 +87,25 @@ ok('Ctrl+Z desfaz (undoDepth cai, início volta)', st2.undo === undoBefore - 1 &
 await page.keyboard.press('Control+y'); await page.waitForTimeout(100);
 st2 = await info();
 ok('Ctrl+Y refaz', st2.undo === undoBefore && st2.redo === 0 && st2.starts[1][0] === dest.x);
+// 6b) muralha movida no editor (setas = moveEntity, mesmo id): o bitmask das vistas assadas acompanha a posição
+const wspot = await ed(() => { const e = window.aoe.editor, m = e.map; for (let y = 10; y < m.h - 14; y++) for (let x = 10; x < m.w - 14; x++) { let ok = true; for (let dy = 0; dy <= 4 && ok; dy++) for (let dx = 0; dx < 3 && ok; dx++) if (!e.canPlaceAt(x + dx, y + dy) || e.pickAt(x + dx, y + dy) !== null) ok = false; if (ok) return { x, y }; } return null; });
+if (wspot) {
+  await look(wspot.x + 1, wspot.y + 2);
+  const wallIds = await ed(([x, y]) => { const e = window.aoe.editor; const before = new Set(e.state.buildings.keys()); for (let dx = 0; dx < 3; dx++) e.apply({ kind: 'placeEntity', entity: { kind: 'building', type: 'wall', owner: 0, x: x + dx, y } }); return [...e.state.buildings.keys()].filter((id) => !before.has(id)); }, [wspot.x, wspot.y]);
+  const masks = () => ed((ids) => {
+    const s = window.aoe.editor.state, m = s.map, R = window.aoe.renderer;
+    const link = (b, x, y) => { if (x < 0 || y < 0 || x >= m.w || y >= m.h) return false; const id = m.buildingAt[y * m.w + x]; const o = id === -1 || id === b.id ? null : s.buildings.get(id); return !!o && o.owner === b.owner && ['wall', 'gate', 'tower'].includes(o.type); };
+    return ids.map((id) => { const b = s.buildings.get(id); const want = (link(b, b.tx, b.ty - 1) ? 1 : 0) | (link(b, b.tx + 1, b.ty) ? 2 : 0) | (link(b, b.tx, b.ty + 1) ? 4 : 0) | (link(b, b.tx - 1, b.ty) ? 8 : 0); return [want, R.views.get(id)?.bld?.mask ?? null]; });
+  }, wallIds);
+  await page.waitForTimeout(300);
+  let mk = await masks();
+  ok('muralha no editor: bitmask das vistas = vizinhos', wallIds.length === 3 && mk.every(([w, g]) => w === g), `| ${JSON.stringify(mk)}`);
+  await ed(([id, x, y]) => window.aoe.editor.apply({ kind: 'moveEntity', id, x, y: y + 3 }), [wallIds[2], wspot.x + 2, wspot.y]);
+  await page.waitForTimeout(300);
+  mk = await masks();
+  ok('muralha movida (mesmo id): bitmask refeito', mk.every(([w, g]) => w === g) && mk[1][0] === 8, `| ${JSON.stringify(mk)}`);
+  await ed(() => { for (let i = 0; i < 4; i++) window.aoe.editor.undo(); });   // a pilha volta ao que era (conferida adiante)
+} else ok('tile livre para a muralha', false);
 // 7) validação (lista com itens) — força pelo menos um aviso: início 2 sem recursos ao redor é comum; senão nada
 await page.click('#ed-validate'); await page.waitForTimeout(400);
 const issues = await page.$$eval('#editor .issues li', (l) => l.map((x) => x.className + ':' + x.querySelector('.tx')?.textContent));

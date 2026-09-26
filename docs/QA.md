@@ -195,6 +195,21 @@ Leitura:
 - **Draw calls** +1–2 (5–8 → 6–8), longe do teto de 40. Com a arte desligada (`--baked off`,
   `…-depois-baixo-procedural.json`) as texturas voltam a 7–10 MB e os sprites a 3 282 no mapa inteiro.
 
+### Revisão da Etapa 3 (26/09/2026)
+
+Correções dos 12 achados da revisão (detalhe em `docs/ART.md`, Apêndice D, "Revisão"). Verificação: `npx vitest run`
+**37 arquivos, 617 testes, código de saída 0** (a rodada da revisão dava 612/612 com saída 1 por `Timeout calling
+"onTaskUpdate"`: o teste das sortidas da m10 simulava as 3 dificuldades num `it` de ≈ 26 s, que passava de 60 s com a
+máquina carregada; agora é um `it` por dificuldade, ≈ 9 s cada); `art:check` ok (26 atlas, 12,25 MB de PNG, 193,8 MB de
+VRAM com as duas escalas — antes 206,8: o empacotador junta quadros idênticos); `playtest.mjs`, `playtest-editor.mjs`
+(com a muralha movida no editor conferindo o bitmask) e `artparade.mjs` sem erros; `artdiff etapa3-depois` 0 % contra as
+referências (as cenas do `artshot` não têm muralha, portão nem maravilha danificada). No navegador (build de preview):
+portão inimigo sob a névoa fica fechado com o hoplita dele a 0,8 tile e a casa danificada sob a névoa continua no quadro
+visto; clique direito na grama acima do Centro Cívico inimigo → `move`, no telhado → `attack`; hoplita atrás do Centro
+Cívico e do Colosso → hoplita; sob o portão ladeado por torres a faixa de sombra fica uniforme (luminância 40–60, antes
+21–33 em ≈ 0,85 × 0,45 tile). Custo por quadro: a vista de edifício ganhou uma checagem de visibilidade e a chamada do
+contorno (retorno imediato com a opção desligada); o alfa do pick é lido só na primeira consulta de cada quadro do atlas.
+
 ## Matriz manual (por versão candidata)
 
 | Ambiente | Mínimo | Verificar |

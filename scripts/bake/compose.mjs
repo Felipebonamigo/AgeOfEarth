@@ -68,7 +68,8 @@ function mask(b) {
 }
 function frameName(b) {
   let v = b.variant;
-  if (b.type === 'wall') v = String(mask(b)).padStart(2, '0');
+  // muralha e torre por bitmask (a torre só muda a sombra); reta com estandarte a cada 3 tiles, como no jogo (wallFlagAt)
+  if (b.type === 'wall' || b.type === 'tower') { const m = mask(b); v = String(m).padStart(2, '0'); if (b.type === 'wall' && (m === 5 || m === 10) && (((b.tx + b.ty) % 3) + 3) % 3 === 0) v += 'f'; }
   if (b.type === 'gate') { const m = mask(b); v = (m & 5) && !(m & 10) ? 'ns' : 'ew'; }
   const n = v ? `${b.type}/${b.state}/${v}` : `${b.type}/${b.state}`;
   return has(n) ? n : v ? `${b.type}/complete/${v}` : `${b.type}/complete`;

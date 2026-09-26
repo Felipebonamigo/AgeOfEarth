@@ -78,14 +78,15 @@ describe('edifícios (Etapa 3): estados, variantes, escombros e ícones', () => 
       expect(icon.map((f) => [f.name, f.atlas]), m.id).toEqual([[m.id, 'icons']]);
       expect(m.footprint, m.id).toBeTruthy();
     }
-    // estandartes na máscara de time em quem tem (a muralha não tem pano)
-    for (const id of ['town_center', 'house', 'gate', 'tower', 'temple']) expect(manifests.find((m) => m.id === id)!.team, id).toBe(true);
-    expect(manifests.find((m) => m.id === 'wall')!.team).toBe(false);
+    // estandartes na máscara de time em todos (a muralha: no pilar das pontas/cantos e nos trechos retos '05f'/'10f')
+    for (const id of ['town_center', 'house', 'gate', 'tower', 'temple', 'wall']) expect(manifests.find((m) => m.id === id)!.team, id).toBe(true);
   });
-  it('muralha: 16 variantes por bitmask (00–15) em todos os estados; portão ew/ns com aberto; Centro Cívico por Idade', () => {
+  it('muralha: 16 variantes por bitmask (00–15) + 2 retas com estandarte em todos os estados; torre por bitmask (só a sombra muda); portão ew/ns com aberto; Centro Cívico por Idade', () => {
     const wall = manifests.find((m) => m.id === 'wall')!;
     expect(wall.variantBy).toBe('wallMask');
-    expect(wall.variants).toEqual(Array.from({ length: 16 }, (_, i) => String(i).padStart(2, '0')));
+    expect(wall.variants).toEqual([...Array.from({ length: 16 }, (_, i) => String(i).padStart(2, '0')), '05f', '10f']);
+    const tower = manifests.find((m) => m.id === 'tower')!;
+    expect([tower.variantBy, tower.variants]).toEqual(['wallMask', Array.from({ length: 16 }, (_, i) => String(i).padStart(2, '0'))]);
     const names = new Set(expandFrames(wall).map((f) => f.name));
     for (const st of BUILDING_STATES) for (let m = 0; m < 16; m++) expect(names.has(`wall/${st}/${String(m).padStart(2, '0')}`), `${st}/${m}`).toBe(true);
     const gate = manifests.find((m) => m.id === 'gate')!;
@@ -94,7 +95,6 @@ describe('edifícios (Etapa 3): estados, variantes, escombros e ícones', () => 
     expect(expandFrames(gate).map((f) => f.name)).toEqual(expect.arrayContaining(['gate/open/ew', 'gate/open/ns', 'gate/complete/ns', 'gate/damage2/ew']));
     const tc = manifests.find((m) => m.id === 'town_center')!;
     expect([tc.variantBy, tc.variants]).toEqual(['ageTier', ['a0', 'a1', 'a2']]);
-    expect(manifests.find((m) => m.id === 'tower')!.variants).toBeUndefined();
   });
   it('escombros: um quadro por pegada w×h de todos os edifícios do jogo', () => {
     const rubble = manifests.find((m) => m.id === 'rubble')!;

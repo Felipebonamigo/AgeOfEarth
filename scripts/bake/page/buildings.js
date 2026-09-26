@@ -17,8 +17,11 @@
 //              peça como cairia no jogo, e a costura entre peças some;
 //   decal    — rachaduras/fuligem/buracos coplanares (não projetam sombra; fora do passe de time);
 //   noShadow — não projeta sombra.
-// `group.userData.shadowClip = { x0, x1, z0, z1 }` (tiles, ±Infinity = aberto): a sombra projetada no chão é recortada à
-// região "dona" da peça (muralhas: a sombra de um trecho contínuo é desenhada uma vez só, sem faixas escuras dobradas).
+// `group.userData.shadowClip = { x0, x1, z0, z1, cut? }` (tiles, ±Infinity = aberto): a sombra projetada no chão é
+// recortada à região "dona" da peça (muralhas: a sombra de um trecho contínuo é desenhada uma vez só, sem faixas escuras
+// dobradas); `cut` = retângulos a tirar dessa região (a torre tira a faixa que a muralha vizinha já sombreia).
+// `k.onDamage(level)` (opcional, definido pelo construtor do estilo): dano estrutural próprio — peças que caem, estátua
+// que tomba — aplicado antes do dano genérico (maravilhas e portal, que quase não têm paredes nem telhados).
 //
 // Sem Math.random: gerador com semente por estilo/estado/variante, então os quadros saem iguais em qualquer rodada.
 
@@ -535,6 +538,17 @@ BUILDERS.house = (k, p) => {
 BUILDERS.tower = (k, p) => {
   const { THREE, M, box, block } = k;
   const st = p.stage;
+  // variante = bitmask dos vizinhos muralha/portão/torre (como a muralha), mas só mexe na SOMBRA: a da torre cai para SE
+  // por cima da faixa de sombra que o vizinho leste/sul já desenha (a peça dele tem o próprio trecho e o vizinho
+  // oeste/norte como contexto); essa faixa sai do recorte daqui, senão fica com o dobro de escuro (dois multiply).
+  // Cor e máscara não dependem da variante (semente sem variante): o empacotador junta os quadros iguais. O recorte fica
+  // no tile do vizinho: além dele não se sabe o que há (outra torre, no padrão torre–portão–torre, não desenha essa
+  // faixa — recortar ali abria um vão claro); se for muralha, sobra só a ponta da sombra da torre somando.
+  const mask = parseInt(p.variant ?? '0', 10) & 15;
+  const cut = [];
+  if (mask & 2) cut.push({ x0: 0.5, x1: 1.5, z0: -Infinity, z1: WALL_BAND.ew });
+  if (mask & 4) cut.push({ x0: -Infinity, x1: WALL_BAND.ns, z0: 0.5, z1: 1.5 });
+  k.group.userData.shadowClip = { x0: -Infinity, x1: Infinity, z0: -Infinity, z1: Infinity, cut };
   k.debris = { x0: -1, x1: 1, z0: -1, z1: 1 };
   k.debrisMats = [M.ashlar, M.ashlar2, M.stone];
   const hw = 0.9, bodyH = 3.7;
@@ -583,6 +597,7 @@ BUILDERS.tower = (k, p) => {
     k.pile(0.9, 1.45, M.ashlar2);
   }
 };
+BUILDERS.tower.seedIgnoresVariant = true;
 
 // ---- Muralha 1×1 por bitmask (N = 1, L = 2, S = 4, O = 8): braços do centro até a borda do tile na direção de cada
 //      vizinho muralha/portão/torre; reta (5 ou 10) contínua, demais com um pilar no centro. Fiadas horizontais e
@@ -591,6 +606,9 @@ BUILDERS.tower = (k, p) => {
 //      como no jogo) e a sombra no chão é recortada à região desta peça (sem faixas dobradas). ----
 export const WALL = { T: 1.2, H: 2.4, EPS: 0.08, merlon: [0.3, 0.26, 0.5], pier: 1.5, pierH: 2.85 };
 const DIRV = { 1: [0, -1], 2: [1, 0], 4: [0, 1], 8: [-1, 0] };   // N, L, S, O → (dx, dz)
+/** Borda da faixa de sombra de um trecho reto de muralha no chão, em tiles a partir da linha central: a sombra do
+ *  capeamento (2,5 m) desloca 0,35·h para o sul e 0,55·h para o leste (sol de SUN_DIR); os merlões recortam o fim. */
+const WALL_BAND = { ew: 0.8, ns: 1.05 };
 
 /** Um braço de muralha do centro até a borda na direção `bit` (ou, com `ctx`, o trecho inteiro do vizinho). */
 function wallArm(k, bit, ctx = false) {
@@ -626,7 +644,8 @@ function wallArm(k, bit, ctx = false) {
 
 BUILDERS.wall = (k, p) => {
   const { M, block } = k;
-  const mask = Number(p.variant ?? 0) & 15;
+  // variante '00'–'15' (bitmask) ou '05f'/'10f' (trecho reto com estandarte: o renderizador escolhe um a cada 3 tiles)
+  const mask = parseInt(p.variant ?? '0', 10) & 15, flag = /f$/.test(String(p.variant ?? ''));
   const st = p.stage;
   const { T, H, pier, pierH } = WALL;
   k.debrisMats = [M.ashlar, M.ashlar2, M.stone];
@@ -655,6 +674,14 @@ BUILDERS.wall = (k, p) => {
       block(-hp - 0.01, hp + 0.01, 1.18, 1.22, -hp - 0.01, hp + 0.01, M.ashlarDark);
       block(-hp - 0.06, hp + 0.06, pierH, pierH + 0.12, -hp - 0.06, hp + 0.06, M.ashlarDark);
       for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) k.breakable(block(x * hp - (x > 0 ? 0.32 : 0), x * hp + (x < 0 ? 0.32 : 0), pierH + 0.12, pierH + 0.62, z * hp - (z > 0 ? 0.32 : 0), z * hp + (z < 0 ? 0.32 : 0), M.ashlar));
+    }
+    // estandarte de time (a muralha era o único edifício sem cor de time): no pilar das pontas, cantos e cruzamentos e
+    // nos trechos retos marcados; mastro no meio do adarve, pano de frente para a câmera, acima dos merlões
+    if (!straight || flag) {
+      const y0 = straight ? H + 0.1 : pierH + 0.12;
+      k.cyl(0.03, 0.035, 1.25, M.wood, 0, y0, 0, 6);
+      k.box(0.52, 0.34, 0.03, M.team, 0.28, y0 + 1.0, 0);
+      k.mesh(new k.THREE.SphereGeometry(0.05, 8, 6), M.gold, 0, y0 + 1.28, 0);
     }
   }
   // vizinhos oeste e norte como contexto (só sombra) e a região da sombra no chão desta peça
@@ -692,7 +719,18 @@ BUILDERS.gate = (k, p) => {
   }
   if (st >= 3) {
     B(-1 + pw, 1 - pw, gateH, gateH + 0.12, -TP / 2 - 0.05, TP / 2 + 0.05, M.ashlarDark);
-    for (const c of [-0.25, 0.25]) for (const t of [-1, 1]) k.breakable(B(c - 0.15, c + 0.15, gateH + 0.12, gateH + 0.62, t > 0 ? TP / 2 - 0.26 : -TP / 2, t > 0 ? TP / 2 : -TP / 2 + 0.26, M.ashlar));
+    // casa de guarda sobre a verga (nos dois eixos): parede baixa, telhado de quatro águas e mastro com flâmula de time no
+    // alto. Do portão norte-sul a câmera só vê o topo (as faces leste/oeste ficam de perfil e a face sul fica atrás do
+    // trecho de muralha seguinte): é o telhado e a flâmula que o distinguem da muralha.
+    const gy = gateH + 0.12, gh = 0.75, hw2 = 0.62;
+    B(-hw2, hw2, gy, gy + gh, -TP / 2 + 0.08, TP / 2 - 0.08, M.ashlar);
+    B(-hw2 - 0.05, hw2 + 0.05, gy + gh, gy + gh + 0.08, -TP / 2 + 0.03, TP / 2 - 0.03, M.ashlarDark);
+    const roof = k.mesh(new k.THREE.ConeGeometry((hw2 + 0.15) * Math.SQRT2, 0.62, 4, 1), M.terracotta, 0, gy + gh + 0.08 + 0.31, 0);
+    roof.rotation.y = Math.PI / 4; roof.userData.roof = true;
+    const my = gy + gh + 0.4;
+    k.cyl(0.025, 0.03, 1.15, M.wood, 0, my, 0, 6);
+    box(0.5, 0.32, 0.03, M.team, 0.27, my + 0.92, 0);
+    k.mesh(new k.THREE.SphereGeometry(0.05, 8, 6), M.gold, 0, my + 1.17, 0);
     // folhas de madeira com ferragens, dobradiça na face interna de cada pilar. 'ew': fechadas no plano z = 0,25 (de
     // frente para a câmera), abertas giram para dentro (norte) e somem de perfil — a passagem fica vazada; 'ns': fechadas
     // na face leste (de perfil, invisíveis nesta câmera), abertas giram para fora (leste) e aparecem de frente.
@@ -890,10 +928,12 @@ export function buildBuilding(THREE, M, style, params = {}) {
   const B = BUILDERS[style];
   if (!B) throw new Error(`edifício desconhecido: ${style}`);
   const info = stateInfo(params);
-  const k = makeKit(THREE, M, seedOf(`${style}/${params.variant ?? ''}/${info.state}/${params.w ?? ''}x${params.h ?? ''}`));
-  // o dano parte do edifício pronto: o mesmo modelo do `complete` (a semente do dano é a do estado)
+  // `seedIgnoresVariant`: a variante só mexe na sombra (torre) — cor e máscara saem idênticas em todas as variantes
+  const k = makeKit(THREE, M, seedOf(`${style}/${B.seedIgnoresVariant ? '' : params.variant ?? ''}/${info.state}/${params.w ?? ''}x${params.h ?? ''}`));
+  // o dano parte do edifício pronto: o mesmo modelo do `complete` (a semente do dano é a do estado); o dano estrutural
+  // do estilo (se houver) vem antes do genérico, para rachaduras e fuligem não ficarem nas peças que caíram
   B(k, { ...params, ...info, stage: info.stage });
-  if (info.damage) applyDamage(k, info.damage);
+  if (info.damage) { k.onDamage?.(info.damage); applyDamage(k, info.damage); }
   return k.group;
 }
 

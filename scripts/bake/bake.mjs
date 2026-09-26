@@ -275,13 +275,21 @@ function packAll(opts, manifests, hashes) {
       for (const pass of PASSES) {
         const items = [];
         const meta = new Map();
+        // quadros idênticos do mesmo asset (mesmos pixels no mesmo lugar da moldura — ex.: a torre, cujas variantes só
+        // mudam a sombra) ocupam um lugar só no atlas: o JSON lista todos os nomes apontando para o mesmo retângulo
+        const aliases = new Map(), firstOf = new Map();
         for (const { m, e, groups } of entries) {
           if (pass === 'team' && !m.team) continue;
           if (pass === 'shadow' && !m.shadow) continue;
           for (const [g, G] of groups) for (const fr of G.list) {
             const r = fr.passes[pass]; if (!r) continue;
+            const file = path.join(e.dir, r.file), trim = { x: r.x - G.x0, y: r.y - G.y0 };
+            meta.set(fr.name, { file, trim, sourceSize: { w: G.w, h: G.h }, anchor: G.anchor, m });
+            const dk = `${m.id}|${g}|${trim.x},${trim.y}|${sha(fs.readFileSync(file))}`;
+            const first = firstOf.get(dk);
+            if (first) { aliases.get(first).push(fr.name); continue; }
+            firstOf.set(dk, fr.name); aliases.set(fr.name, []);
             items.push({ key: fr.name, group: m.id, w: r.w, h: r.h });   // um asset nunca se divide entre páginas
-            meta.set(fr.name, { file: path.join(e.dir, r.file), trim: { x: r.x - G.x0, y: r.y - G.y0 }, sourceSize: { w: G.w, h: G.h }, anchor: G.anchor, m });
           }
         }
         if (!items.length) continue;
@@ -295,7 +303,7 @@ function packAll(opts, manifests, hashes) {
             const mm = meta.get(it.key);
             const img = readPng(mm.file);
             blit(data, pg.w, pg.h, img.data, img.w, img.h, it.x, it.y);
-            frames.push({ name: it.key, x: it.x, y: it.y, w: it.w, h: it.h, trim: mm.trim, sourceSize: mm.sourceSize, anchor: mm.anchor });
+            for (const name of [it.key, ...aliases.get(it.key)]) { const ma = meta.get(name); frames.push({ name, x: it.x, y: it.y, w: it.w, h: it.h, trim: ma.trim, sourceSize: ma.sourceSize, anchor: ma.anchor }); }
             ids.add(mm.m.id);
           }
           frames.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));

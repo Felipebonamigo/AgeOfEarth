@@ -3,7 +3,9 @@
 // METROS com a origem no centro da área ocupada, chão em y = 0, +x = leste, +z = sul (de frente para a câmera);
 // `p.stage` 0–2 = obra (alicerce, meia altura, estrutura sem telhas/acabamento), 3 = pronto; o dano (damage1/2) é o
 // genérico de buildings.js (applyDamage) aplicado ao modelo pronto — por isso as paredes usam os materiais de cantaria/
-// reboco/mármore do kit (os que o dano reconhece) e os telhados, terracota.
+// reboco/mármore do kit (os que o dano reconhece) e os telhados, terracota. As maravilhas e o portal quase não têm
+// parede nem telhado: ganham também um dano estrutural próprio (`k.onDamage`, antes do genérico) — colunas e peças que
+// caem, a estátua que tomba —, senão o dano 1/2 mal se via (0,3–3,8 % dos pixels contra 8–26 % dos outros).
 //
 // Portal dos titãs: além dos 6 estados, o estado `glow` (6 quadros em loop) é uma SOBREPOSIÇÃO só com a energia — o
 // redemoinho do vórtice girando, as chamas dos braseiros tremulando e as runas/fendas pulsando —, com o resto do modelo
@@ -85,6 +87,49 @@ function rod(k, a, b, r, mat, parent, seg = 8) {
   const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), d = B.clone().sub(A), len = d.length();
   const m = k.mesh(new THREE.CylinderGeometry(r, r, len, seg), mat, (A.x + B.x) / 2, (A.y + B.y) / 2, (A.z + B.z) / 2, parent);
   m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
+  return m;
+}
+
+/** Objetos que `fn` acrescenta direto em k.r (o dano estrutural acha as peças de um trecho do modelo por eles). */
+function added(k, fn) { const n0 = k.r.children.length; fn(); return k.r.children.slice(n0); }
+/** Tira as peças do modelo. */
+function drop(list) { for (const m of list) m?.parent?.remove(m); }
+/** Tambor de coluna / peça cilíndrica caída no chão (eixo horizontal, girado `yaw`), apoiada em y0. */
+function fallen(k, x, z, y0, r, len, mat, yaw) {
+  const m = k.mesh(new k.THREE.CylinderGeometry(r, r, len, 12), mat, x, y0 + r, z);
+  m.rotation.set(0, yaw, Math.PI / 2);
+  return m;
+}
+/** Bloco de pedra caído (caixa girada ao acaso), apoiado em y0. */
+function block3(k, x, z, y0, w, h, d, mat) {
+  const m = k.box(w, h, d, mat, x, y0 + h / 2 - 0.03, z);
+  m.rotation.set((k.rand() - 0.5) * 0.5, k.rand() * 3, (k.rand() - 0.5) * 0.5);
+  return m;
+}
+/** Textura de mancha de fuligem (radial, borda irregular e esfumada), semente fixa. */
+function sootTex(THREE) {
+  if (TEX.has('soot')) return TEX.get('soot');
+  const N = 64, data = new Uint8Array(N * N * 4), rnd = rng(9173);
+  const edge = Array.from({ length: 32 }, () => rnd()), grain = Array.from({ length: 64 }, () => rnd());
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const dx = (x + 0.5) / N * 2 - 1, dy = (y + 0.5) / N * 2 - 1, d = Math.sqrt(dx * dx + dy * dy);
+    const f = ((Math.atan2(dy, dx) + Math.PI) / TAU) * 32, i0 = Math.floor(f) % 32, t = f - Math.floor(f);
+    const wob = 0.7 + 0.3 * (edge[i0] * (1 - t) + edge[(i0 + 1) % 32] * t);
+    const al = (1 - smooth(0.25, 1, d / wob)) * (0.75 + 0.25 * grain[(x * 7 + y * 13) & 63]);
+    const i = (y * N + x) * 4; data[i] = 26; data[i + 1] = 21; data[i + 2] = 17; data[i + 3] = Math.round(255 * al);
+  }
+  const tex = new THREE.DataTexture(data, N, N, THREE.RGBAFormat);
+  tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter; tex.needsUpdate = true;
+  TEX.set('soot', tex);
+  return tex;
+}
+/** Mancha de fuligem deitada no chão (decalque, sem sombra) com o centro em (x, y, z) e raio r (metros). */
+function sootAt(k, x, y, z, r, opacity = 0.7) {
+  const { THREE } = k;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(2 * r, 2 * r), new THREE.MeshStandardMaterial({ map: sootTex(THREE), roughness: 1, transparent: true, opacity, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+  m.rotation.x = -Math.PI / 2; m.position.set(x, y + 0.006, z); m.scale.set(1, 0.7 + k.rand() * 0.5, 1);
+  m.userData.decal = true; m.userData.noShadow = true; m.castShadow = false; m.receiveShadow = true;
+  k.r.add(m);
   return m;
 }
 
@@ -613,13 +658,14 @@ B.titan_gate = (k, p) => {
   if (st >= 1) block(-1.4, 1.4, top, top + 0.3, cz - 0.7, cz + 0.7, S);
   // pilones ciclópicos: blocos escalonados, cada fiada um pouco recuada
   const ph = [0.8, 2.3, 4.3, 4.3][st];
+  const pyl = { '-1': [], '1': [] }, chains = { '-1': [], '1': [] }, bands = [];   // peças que o dano estrutural mexe
   for (const s of [-1, 1]) {
     const px = s * 3.55;
     const tiers = [[1.9, 2.3, 1.1], [1.7, 2.1, 1.1], [1.5, 1.9, 1.05], [1.3, 1.7, 1.05]];
     let y = top;
     for (let i = 0; i < tiers.length && y < top + ph - 1e-6; i++) {
       const [w, d, h] = tiers[i], hh = Math.min(h, top + ph - y);
-      k.box(w, hh, d, i % 2 ? D : S, px, y + hh / 2, cz);
+      pyl[s].push({ m: k.box(w, hh, d, i % 2 ? D : S, px, y + hh / 2, cz), w, d, hh, y });
       if (hh > 0.5) k.box(w + 0.02, 0.04, d + 0.02, D, px, y + hh * 0.5, cz).userData.noShadow = true;   // junta
       y += hh;
     }
@@ -637,6 +683,7 @@ B.titan_gate = (k, p) => {
         for (let i = 0; i < 6; i++) {
           const l = k.mesh(new THREE.TorusGeometry(0.09, 0.025, 5, 10), M.iron, px - s * 0.8, y - 0.45 - i * 0.16, cz + dz);
           l.rotation.y = i % 2 ? Math.PI / 2 : 0; l.rotation.z = Math.PI / 2;
+          chains[s].push(l);
         }
         k.cyl(0.07, 0.07, 0.12, M.iron, px - s * 0.78, y - 0.4, cz + dz, 8).rotation.z = Math.PI / 2;
       }
@@ -656,7 +703,7 @@ B.titan_gate = (k, p) => {
       if (Math.abs(((a + Math.PI / 2 + TAU * 1.5) % TAU) - Math.PI) > arc / 2) continue;
       const c = Math.cos(a), si = Math.sin(a);
       const band = k.box(0.14, TG.tube * 2.15, TG.tube * 2.1, M.bronze, c * TG.R, cy + si * TG.R, cz);
-      band.rotation.z = a;
+      band.rotation.z = a; bands.push(band);
       if (st === 3 && i % 2) {
         const rr = TG.R + TG.tube * 0.05;
         const rune = k.box(0.1, 0.34, 0.03, X.rune, Math.cos(a + 0.13) * rr, cy + Math.sin(a + 0.13) * rr, cz + TG.tube * 0.93);
@@ -710,7 +757,28 @@ B.titan_gate = (k, p) => {
     k.cyl(0.45, 0.45, 0.5, S, 3.55, top, 2.3, 14);
     // braseiros e estandartes na frente
     brazier(k, -2.4, 2.9, top, 0.9); brazier(k, 2.4, 2.9, top, 0.9);
-    k.banner(-1.3, 3.9, 2.8, -1); k.banner(1.3, 3.9, 2.8, 1);
+    const banners = added(k, () => { k.banner(-1.3, 3.9, 2.8, -1); k.banner(1.3, 3.9, 2.8, 1); });
+    // dano estrutural (nada do que brilha sai do lugar: a sobreposição `glow` é a mesma no pronto e no danificado):
+    // faixas de bronze arrancadas do anel, correntes caídas, blocos dos pilones no lajeado; no nível 2 a quina leste dos
+    // pilones desmorona (fiadas mais estreitas, blocos rolados), um estandarte cai e o lajeado fica chamuscado
+    k.onDamage = (level) => {
+      const nb = level === 2 ? [0, 2, 3, 5, 8, 9] : [2, 8];
+      drop(nb.map((i) => bands[i]));
+      for (const i of nb) { const b = bands[i]; if (!b) continue; const pl = k.box(1.0, 0.12, 0.9, M.bronze, b.position.x * 1.2, top + 0.06, cz + 1.3 + k.rand() * 0.8); pl.rotation.set((k.rand() - 0.5) * 0.3, k.rand() * 3, (k.rand() - 0.5) * 0.3); }
+      drop(chains['1'].slice(level === 2 ? 0 : 6));
+      for (let i = 0; i < (level === 2 ? 5 : 2); i++) block3(k, 2.3 + k.rand() * 1.8, cz + 1.4 + k.rand() * 1.6, top, 0.6 + k.rand() * 0.4, 0.45, 0.55, i % 2 ? D : S);
+      if (level === 2) {
+        for (const s of [-1, 1]) for (const t of pyl[s].slice(0, 3)) {
+          // quina externa desmoronada: a fiada perde 35–50 cm do lado de fora (o braseiro de cima continua apoiado)
+          const cut = 0.35 + k.rand() * 0.15;
+          t.m.scale.x = (t.w - cut) / t.w; t.m.position.x = s * 3.55 - s * cut / 2;
+          block3(k, s * (3.55 + t.w / 2 + 0.5 + k.rand() * 0.5), cz + 0.8 + k.rand() * 1.5, top, 0.7, 0.5, 0.6, t.m.material);
+        }
+        drop(chains['-1']);
+        drop(banners.filter((m) => m.material === M.team).slice(1));
+        sootAt(k, -1.6, top, 1.2, 1.1); sootAt(k, 1.8, top, 1.8, 1.0); sootAt(k, 0.2, top, 2.6, 0.9, 0.45);
+      }
+    };
   }
   if (glow) glowOverlay(k, p, cy, cz);
 };
@@ -758,6 +826,7 @@ B.wonder_zeus = (k, p) => {
   // êxedra: parede curva ao fundo (norte) e colunata em semicírculo
   const ex = { cx: 0, cz: -0.35, rw: 3.55, rc: 2.95, n: 9 };
   const colH = 2.9, cf = [0, 0.45, 1, 1][st];
+  const exWall = [], exCols = [], entab = [];   // peças da êxedra por posição (o dano estrutural derruba as das pontas)
   if (st >= 1) {
     const segs = 14;
     for (let i = 0; i < segs; i++) {
@@ -765,10 +834,11 @@ B.wonder_zeus = (k, p) => {
       const len = 2 * ex.rw * Math.sin((a1 - a0) / 2) + 0.06;
       const w = box(len, (colH + 0.35) * cf, 0.4, M.marble, ex.cx + Math.cos(am) * ex.rw, top + ((colH + 0.35) * cf) / 2, ex.cz + Math.sin(am) * ex.rw);
       w.rotation.y = -am - Math.PI / 2;
+      exWall.push({ m: w, am, len });
     }
     for (let i = 0; i < ex.n; i++) {
       const a = Math.PI + ((i + 0.5) / ex.n) * Math.PI, x = ex.cx + Math.cos(a) * ex.rc, z = ex.cz + Math.sin(a) * ex.rc;
-      if (cf < 1) k.cyl(0.14, 0.16, colH * cf, M.marble, x, top, z, 12); else ionic(k, x, z, top, colH, 0.16, M.marble, M.marbleDark);
+      exCols.push({ x, z, parts: added(k, () => { if (cf < 1) k.cyl(0.14, 0.16, colH * cf, M.marble, x, top, z, 12); else ionic(k, x, z, top, colH, 0.16, M.marble, M.marbleDark); }) });
     }
   }
   if (st >= 2) {
@@ -781,9 +851,11 @@ B.wonder_zeus = (k, p) => {
       e.rotation.y = -am - Math.PI / 2;
       const fr = box(2 * ex.rc * Math.sin((a1 - a0) / 2) + 0.02, 0.14, 0.05, st === 3 ? M.gold : M.marbleDark, ex.cx + Math.cos(am) * (ex.rc - 0.26), top + colH + 0.2, ex.cz + Math.sin(am) * (ex.rc - 0.26));
       fr.rotation.y = -am - Math.PI / 2;
+      entab.push([e, fr]);
     }
   }
-  if (st === 3) for (let i = 0; i <= 4; i++) { const a = Math.PI + (i / 4) * Math.PI; k.breakable(k.mesh(new THREE.ConeGeometry(0.1, 0.32, 6), M.gold, ex.cx + Math.cos(a) * (ex.rc + 0.3), top + colH + 0.52, ex.cz + Math.sin(a) * (ex.rc + 0.3))); }
+  const acro = [];
+  if (st === 3) for (let i = 0; i <= 4; i++) { const a = Math.PI + (i / 4) * Math.PI; acro.push(k.breakable(k.mesh(new THREE.ConeGeometry(0.1, 0.32, 6), M.gold, ex.cx + Math.cos(a) * (ex.rc + 0.3), top + colH + 0.52, ex.cz + Math.sin(a) * (ex.rc + 0.3)))); }
   // pedestal
   const pz0 = -1.75, pz1 = 0.55, px = 1.3, ph = [0.35, 1.05, 1.05, 1.05][st];
   block(-px, px, top, top + ph, pz0, pz1, M.marbleDark);
@@ -825,16 +897,43 @@ B.wonder_zeus = (k, p) => {
     const band = box(0.34, 1.9, 0.14, M.gold, -0.18, seatY + 1.55, backZ + 0.72); band.rotation.z = 0.62;
     // Nike na mão direita, cetro com a águia na esquerda, coroa de oliveira
     const hr = where(k, J.handR);
-    k.mesh(new THREE.ConeGeometry(0.17, 0.5, 10), M.gold, hr.x, hr.y + 0.36, hr.z);
-    k.mesh(new THREE.SphereGeometry(0.075, 10, 8), M.gold, hr.x, hr.y + 0.66, hr.z);
-    for (const s of [-1, 1]) { const w = box(0.34, 0.2, 0.03, M.gold, hr.x + s * 0.17, hr.y + 0.56, hr.z - 0.06); w.rotation.z = s * 0.5; }
+    const nike = added(k, () => {
+      k.mesh(new THREE.ConeGeometry(0.17, 0.5, 10), M.gold, hr.x, hr.y + 0.36, hr.z);
+      k.mesh(new THREE.SphereGeometry(0.075, 10, 8), M.gold, hr.x, hr.y + 0.66, hr.z);
+      for (const s of [-1, 1]) { const w = box(0.34, 0.2, 0.03, M.gold, hr.x + s * 0.17, hr.y + 0.56, hr.z - 0.06); w.rotation.z = s * 0.5; }
+    });
     const hl = where(k, J.handL);
-    rod(k, [hl.x, pt + 0.2, hl.z], [hl.x, hl.y + 1.0, hl.z], 0.045, M.gold, undefined, 8);
+    const scepter = rod(k, [hl.x, pt + 0.2, hl.z], [hl.x, hl.y + 1.0, hl.z], 0.045, M.gold, undefined, 8);
     const eagle = new THREE.Group(); eagle.position.set(hl.x, hl.y + 1.1, hl.z); k.r.add(eagle);
     k.mesh(new THREE.SphereGeometry(0.13, 10, 8), M.gold, 0, 0, 0, eagle).scale.set(1, 0.9, 1.4);
     for (const s of [-1, 1]) { const w = k.box(0.42, 0.05, 0.2, M.gold, s * 0.24, 0.1, 0, eagle); w.rotation.z = s * -0.55; k.breakable(w); }
     const hd = where(k, J.head);
-    k.mesh(new THREE.TorusGeometry(0.36, 0.05, 6, 18), M.gold, hd.x, hd.y + 0.42, hd.z + 0.01).rotation.x = Math.PI / 2;
+    const wreath = k.mesh(new THREE.TorusGeometry(0.36, 0.05, 6, 18), M.gold, hd.x, hd.y + 0.42, hd.z + 0.01); wreath.rotation.x = Math.PI / 2;
+    // dano estrutural: a Nike e o cetro caem aos pés do trono e a coluna da ponta leste da êxedra desaba; no nível 2
+    // desabam também a outra ponta (colunas, trechos da parede curva e do entablamento por cima) e a cabeça de marfim
+    k.onDamage = (level) => {
+      drop([...nike, scepter, eagle]);
+      k.mesh(new THREE.ConeGeometry(0.17, 0.5, 10), M.gold, 0.9, pt + 0.2, frontZ + 0.55).rotation.set(Math.PI / 2, 0, 0.7);
+      fallen(k, -1.2, 1.1, top, 0.045, 2.2, M.gold, 0.35);
+      const fell = level === 2 ? [0, 1, 7, 8] : [8];
+      for (const i of fell) {
+        const c = exCols[i]; if (!c) continue;
+        drop(c.parts);
+        for (let d = 0; d < 3; d++) fallen(k, c.x + (c.x > 0 ? 0.5 : -0.5) + (k.rand() - 0.5) * 0.4 + d * (c.x > 0 ? 0.35 : -0.35), c.z + 0.6 + d * 0.55, top, 0.16, 0.8, M.marble, k.rand() * 3);
+      }
+      const gone = level === 2 ? [0, 1, 2, 3, 14, 15, 16, 17] : [16, 17];
+      for (const i of gone) if (entab[i]) { drop(entab[i]); const [e] = entab[i]; block3(k, e.position.x * 1.15, e.position.z + 1.3, top, 0.8, 0.3, 0.5, M.marble); }
+      if (level === 2) {
+        for (const i of [0, 1, 12, 13]) {
+          const w = exWall[i]; if (!w) continue;
+          w.m.scale.y = 0.45 + k.rand() * 0.2; w.m.position.y = top + ((colH + 0.35) * w.m.scale.y) / 2;
+        }
+        drop([J.head, wreath]);
+        k.mesh(new THREE.SphereGeometry(0.11 * S, 12, 10), X.ivory, 0.55, top + 0.34, frontZ + 1.05);
+        for (const a of acro) drop([a]);
+        sootAt(k, -1.9, top, 1.2, 0.8); sootAt(k, 2.1, top, 0.6, 0.9); sootAt(k, 0.2, pt, -0.6, 0.7, 0.45);
+      }
+    };
     // espelho d'água de azeite, braseiros, estandartes
     for (const [x0, x1, z0, z1] of [[-1.65, 1.65, 1.3, 1.5], [-1.65, 1.65, 2.9, 3.1], [-1.65, -1.45, 1.5, 2.9], [1.45, 1.65, 1.5, 2.9]]) block(x0, x1, top, top + 0.26, z0, z1, M.marbleDark);
     block(-1.45, 1.45, top, top + 0.16, 1.5, 2.9, X.oil);
@@ -861,12 +960,15 @@ B.wonder_artemis = (k, p) => {
   const cols = [];
   for (const x of xs) { cols.push([x, 2.95, true]); cols.push([x, 2.1, true]); cols.push([x, -3.3, false]); }
   for (const z of zs.slice(1, -1)) for (const x of [-3.15, 3.15]) cols.push([x, z, false]);
+  const colParts = new Map();   // "x,z" da coluna → peças (o dano estrutural derruba algumas da fila da frente)
   cols.forEach(([x, z, front], n) => {
     if (st === 0 && n % 3 === 1) return;
-    if (cf < 1) { k.cyl(r * 0.9, r, colH * cf, M.marble, x, top, z, 12); return; }
-    ionic(k, x, z, top, colH, r, M.marble, st === 3 ? M.marbleDark : M.marble);
-    if (front) k.cyl(r * 1.18, r * 1.2, 0.55, M.marbleDark, x, top + 0.15, z, 14);          // tambor esculpido
-    if (front && st === 3) k.cyl(r * 1.22, r * 1.22, 0.04, M.gold, x, top + 0.68, z, 14);
+    colParts.set(`${x.toFixed(2)},${z}`, added(k, () => {
+      if (cf < 1) { k.cyl(r * 0.9, r, colH * cf, M.marble, x, top, z, 12); return; }
+      ionic(k, x, z, top, colH, r, M.marble, st === 3 ? M.marbleDark : M.marble);
+      if (front) k.cyl(r * 1.18, r * 1.2, 0.55, M.marbleDark, x, top + 0.15, z, 14);          // tambor esculpido
+      if (front && st === 3) k.cyl(r * 1.22, r * 1.22, 0.04, M.gold, x, top + 0.68, z, 14);
+    }));
   });
   // cela com portas de bronze
   const ch = colH * [0.15, 0.5, 1, 1][st];
@@ -889,7 +991,19 @@ B.wonder_artemis = (k, p) => {
     k.box(0.14, 0.1, 7.2, M.gold, 0, eave + 1.29, -0.17);
     for (let i = 0; i < 10; i++) for (const sx of [-1, 1]) k.breakable(k.mesh(new THREE.ConeGeometry(0.07, 0.2, 5), M.gold, sx * 3.62, eave + 0.02, -3.5 + i * (6.7 / 9)));
     // esculturas douradas no tímpano e acrotérios de ouro (quebráveis)
-    for (const [x, h] of [[-1.5, 0.3], [-0.8, 0.5], [0, 0.72], [0.8, 0.5], [1.5, 0.3]]) { const f = box(0.26, h, 0.1, M.gold, x, eave + 0.08 + h / 2, 3.33); f.userData.pediment = true; }
+    const sculpt = [];
+    for (const [x, h] of [[-1.5, 0.3], [-0.8, 0.5], [0, 0.72], [0.8, 0.5], [1.5, 0.3]]) { const f = box(0.26, h, 0.1, M.gold, x, eave + 0.08 + h / 2, 3.33); f.userData.pediment = true; sculpt.push(f); }
+    // dano estrutural: colunas da fila de fora caem na escadaria (tambores rolados) e esculturas do tímpano caem; no
+    // nível 2 caem mais colunas (também da fila de dentro) e a escadaria fica coberta de tambores e fuligem
+    k.onDamage = (level) => {
+      const fell = level === 2 ? [[xs[1], 2.95], [xs[2], 2.95], [xs[5], 2.95], [xs[6], 2.95], [xs[2], 2.1], [xs[6], 2.1]] : [[xs[5], 2.95], [xs[6], 2.95]];
+      for (const [x, z] of fell) {
+        drop(colParts.get(`${x.toFixed(2)},${z}`) ?? []);
+        for (let d = 0; d < 3; d++) fallen(k, x + (k.rand() - 0.5) * 0.9, 3.3 + d * 0.28 + k.rand() * 0.2, d === 0 ? 0.2 : 0, r * 1.1, 0.75, M.marble, 1.2 + (k.rand() - 0.5) * 1.4);
+      }
+      drop(level === 2 ? sculpt.filter((_, i) => i !== 2) : [sculpt[3], sculpt[4]]);
+      if (level === 2) { sootAt(k, -2.2, 0.6, 2.5, 0.9); sootAt(k, 2.4, 0.6, 2.2, 0.8); }
+    };
     for (const [x, y] of [[-3.55, eave + 0.2], [0, eave + 1.45], [3.55, eave + 0.2]]) {
       k.breakable(k.mesh(new THREE.ConeGeometry(0.16, 0.5, 6), M.gold, x, y, 3.3));
       k.breakable(k.mesh(new THREE.ConeGeometry(0.16, 0.5, 6), M.gold, x, y, -3.55));
@@ -927,8 +1041,10 @@ B.wonder_colossus = (k, p) => {
   const pt = b0 + d1 + d2 + 0.14;
   const S = 3.3;
   if (st >= 1) {
+    const statue = [];
     const J = figure(k, { x: 0, y: pt, z: cz, S, pose: 'stand', skin: M.bronze, hair: M.bronzeDark, chest: [1.4, 1.05, 0.92], limb: 1.15,
       arms: { L: [[-0.12, 0, -0.22], [-0.75, 0, 0]], R: [[-0.2, 0, 2.62], [0, 0, 0.3]] } });
+    statue.push(J.root);
     if (st < 3) {
       // esconde o que ainda não foi fundido: build1 = só as pernas; build2 = até o peito, sem braços nem cabeça
       const hide = (g) => g.traverse((o) => { if (o.isMesh) o.visible = false; });
@@ -943,23 +1059,48 @@ B.wonder_colossus = (k, p) => {
     } else {
       // tocha na mão direita, clâmide no braço esquerdo, coroa radiada
       const hr = where(k, J.handR);
-      rod(k, [hr.x, hr.y - 0.35, hr.z], [hr.x + 0.05, hr.y + 0.55, hr.z], 0.07, M.bronzeDark, undefined, 8);
-      k.cyl(0.14, 0.1, 0.18, M.gold, hr.x + 0.05, hr.y + 0.52, hr.z, 10);
+      const torch = [rod(k, [hr.x, hr.y - 0.35, hr.z], [hr.x + 0.05, hr.y + 0.55, hr.z], 0.07, M.bronzeDark, undefined, 8),
+        k.cyl(0.14, 0.1, 0.18, M.gold, hr.x + 0.05, hr.y + 0.52, hr.z, 10)];
       const fl = k.mesh(new THREE.ConeGeometry(0.2, 0.62, 9), X.fire, hr.x + 0.05, hr.y + 1.0, hr.z); fl.userData.noShadow = true;
       const fc = k.mesh(new THREE.ConeGeometry(0.11, 0.36, 8), X.fireCore, hr.x + 0.05, hr.y + 0.9, hr.z + 0.04); fc.userData.noShadow = true;
       const el = where(k, J.elbowL), hl = where(k, J.handL);
       const drape = box(0.42, 1.55, 0.12, M.bronzeDark, (el.x + hl.x) / 2 - 0.05, (el.y + hl.y) / 2 - 0.45, (el.z + hl.z) / 2); drape.rotation.z = -0.08;
       const hd = where(k, J.head);
+      const crown = [];
       for (let i = 0; i < 9; i++) {
         const a = Math.PI * (0.1 + (0.8 * i) / 8), rr = 0.46;
         const ray = k.mesh(new THREE.ConeGeometry(0.075, 0.62, 5), M.gold, hd.x + Math.cos(a) * rr, hd.y + 0.36 + Math.sin(a) * rr * 0.9, hd.z + 0.02);
-        ray.rotation.z = a - Math.PI / 2; k.breakable(ray);
+        ray.rotation.z = a - Math.PI / 2; k.breakable(ray); crown.push(ray);
       }
-      k.mesh(new THREE.TorusGeometry(0.33, 0.04, 6, 18), M.gold, hd.x, hd.y + 0.34, hd.z).rotation.x = Math.PI / 2 - 0.2;
+      const ring = k.mesh(new THREE.TorusGeometry(0.33, 0.04, 6, 18), M.gold, hd.x, hd.y + 0.34, hd.z); ring.rotation.x = Math.PI / 2 - 0.2;
+      statue.push(...torch, fl, fc, drape, ...crown, ring);
       brazier(k, -2.7, 2.7, top, 0.85); brazier(k, 2.7, 2.7, top, 0.85);
       k.banner(-3.5, 3.5, 2.8, 1); k.banner(3.5, 3.5, 2.8, -1);
       // estela de dedicatória à frente do pedestal
-      block(-0.45, 0.45, top, top + 0.9, 1.95, 2.1, M.marble); block(-0.5, 0.5, top + 0.9, top + 1.0, 1.9, 2.15, M.marbleDark);
+      const stela = [block(-0.45, 0.45, top, top + 0.9, 1.95, 2.1, M.marble), block(-0.5, 0.5, top + 0.9, top + 1.0, 1.9, 2.15, M.marbleDark)];
+      // dano estrutural (o Colosso caiu num terremoto): a tocha apaga e a estátua começa a tombar para leste sobre os pés;
+      // no nível 2 o antebraço da tocha e a clâmide caem na praça, a estátua pende mais, a estela tomba e o pedestal racha
+      k.onDamage = (level) => {
+        drop([fl, fc]);
+        if (level === 2) {
+          drop([J.elbowR, ...torch, drape, ring]);
+          const arm = k.mesh(new THREE.CapsuleGeometry(0.044 * S, 0.3 * S, 6, 10), M.bronze, 2.35, top + 0.16, 1.15);
+          arm.rotation.set(0.2, 0.6, Math.PI / 2 - 0.15);
+          fallen(k, 1.7, 1.75, top, 0.07, 0.9, M.bronzeDark, 1.1);
+          const cloth = k.box(1.4, 0.1, 0.5, M.bronzeDark, -2.0, top + 0.05, 1.3); cloth.rotation.set(0.05, -0.4, 0.08);
+          drop(stela); k.box(0.9, 0.15, 1.0, M.marble, 0.15, top + 0.075, 2.3).rotation.y = 0.35;
+          for (const [x, y, ang] of [[-0.55, b0 + 0.25, 0.25], [0.35, b0 + d1 + 0.2, -0.3], [0.8, b0 + 0.45, 0.4]]) {
+            const c = k.box(0.05, 0.6, 0.05, M.char, x, y + 0.3, cz + 1.36); c.rotation.z = ang; c.userData.noShadow = true;
+          }
+          sootAt(k, -0.6, top, 1.6, 0.9); sootAt(k, 1.1, top, 1.9, 0.7);
+        }
+        // tomba em volta dos pés: as peças soltas (tocha, coroa, clâmide) vão junto
+        const pivot = new THREE.Group(); pivot.position.set(0, pt, cz); k.r.add(pivot);
+        k.group.updateMatrixWorld(true);
+        for (const o of statue) if (o.parent) pivot.attach(o);
+        pivot.rotation.z = level === 2 ? -0.16 : -0.06;
+        pivot.rotation.x = level === 2 ? 0.05 : 0.02;
+      };
     }
   } else {
     k.scaffold({ x0: -1.6, x1: 1.6, z0: cz - 1.6, z1: cz + 1.6, h: 1.4, pennant: true });

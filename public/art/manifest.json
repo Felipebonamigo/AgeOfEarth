@@ -37,9 +37,9 @@
    "page": 0,
    "w": 2048,
    "h": 2048,
-   "frames": 247,
-   "bytes": 1370976,
-   "sha256": "47051a41a8725164b81dbbd00b6523526fad127d5db3e12bb085a4b353ff96f1"
+   "frames": 355,
+   "bytes": 1485398,
+   "sha256": "6195b195638f804820145f046289e3324a9154f3c107597f2a7b5d59aa327a92"
   },
   {
    "json": "buildings-1x-1.json",
@@ -48,11 +48,11 @@
    "pass": "color",
    "scale": 1,
    "page": 1,
-   "w": 2048,
-   "h": 512,
-   "frames": 12,
-   "bytes": 197618,
-   "sha256": "1011112e856debdf9a085c2b01f4d80f7f046462e1e9cef8a659edeae8d5db59"
+   "w": 1024,
+   "h": 256,
+   "frames": 6,
+   "bytes": 98181,
+   "sha256": "1ee071447caf79bd325a93d37c8837176d85c92965efd2b4e123fc4735bf7cd9"
   },
   {
    "json": "buildings-2x-0.json",
@@ -63,9 +63,9 @@
    "page": 0,
    "w": 2048,
    "h": 2048,
-   "frames": 68,
-   "bytes": 1093377,
-   "sha256": "cb06897b77e3c801c7c47e9835342c1a79f0e2c46d1fd0c2ed9fe618be979eef"
+   "frames": 74,
+   "bytes": 1103821,
+   "sha256": "612c3e1e1f068ce53cf49691fc7b678e75e3ad1fc39b170209ae597621261c4e"
   },
   {
    "json": "buildings-2x-1.json",
@@ -76,9 +76,9 @@
    "page": 1,
    "w": 2048,
    "h": 2048,
-   "frames": 41,
-   "bytes": 996141,
-   "sha256": "8c0edd7965417c6d710be7963abc06d392f8c90b85428bfcc089249bea9d58d9"
+   "frames": 35,
+   "bytes": 963889,
+   "sha256": "0f71bbd173a96688a30d518ea30419acc4bd00cf47cf9e4a7428ce217f214dcd"
   },
   {
    "json": "buildings-2x-2.json",
@@ -89,9 +89,9 @@
    "page": 2,
    "w": 2048,
    "h": 2048,
-   "frames": 132,
-   "bytes": 1267563,
-   "sha256": "a253af777780d188f2aabe1791fad52b31af4e00327af956b66559a88d6cda30"
+   "frames": 234,
+   "bytes": 1325381,
+   "sha256": "c75fe502cf2227209c5b2e729e1d18473e2fb7ebb5474bbcd5351d617ba7eb7b"
   },
   {
    "json": "buildings-2x-3.json",
@@ -103,8 +103,8 @@
    "w": 2048,
    "h": 2048,
    "frames": 18,
-   "bytes": 835713,
-   "sha256": "cd80334da45406b14f55f264c8e3e1d08f24d8b15fc7aa9ac5dbbcf097afe6f4"
+   "bytes": 858138,
+   "sha256": "afd10de8cabf5a133208b3d6fb6c48bf4598a55ad051d17103452bb96028f944"
   },
   {
    "json": "buildings-shadow-1x-0.json",
@@ -115,9 +115,9 @@
    "page": 0,
    "w": 2048,
    "h": 2048,
-   "frames": 253,
-   "bytes": 788660,
-   "sha256": "3ed3eed00509d77b1b2b9d13c117527aaded0dcbf583b40a0c97b6726cd78714"
+   "frames": 355,
+   "bytes": 754181,
+   "sha256": "3059790c666186b50829de45deefa769a5b31f75a120cc2d86fa6342a080b2cf"
   },
   {
    "json": "buildings-shadow-2x-0.json",
@@ -128,9 +128,9 @@
    "page": 0,
    "w": 2048,
    "h": 2048,
-   "frames": 86,
-   "bytes": 962362,
-   "sha256": "68ba33f19d31d52dbfbf4561b23a513a367f7bd85c9bb771dfd838dc0194f9b5"
+   "frames": 103,
+   "bytes": 1237612,
+   "sha256": "1b431e38e6b048f6c1231c35da4f4d636abb7a828fbf29f590173d29254851f3"
   },
   {
    "json": "buildings-shadow-2x-1.json",
@@ -141,9 +141,9 @@
    "page": 1,
    "w": 2048,
    "h": 2048,
-   "frames": 35,
-   "bytes": 584390,
-   "sha256": "8ccb600cf561e81be608dd84bda0ad8bbc760fef20cc56e98a1ab9f5828fc037"
+   "frames": 240,
+   "bytes": 1033930,
+   "sha256": "271fb8f8c25f93af1cec8f417983395aacc682fd6798a5df9684a5537c7a85d7"
   },
   {
    "json": "buildings-shadow-2x-2.json",
@@ -153,10 +153,10 @@
    "scale": 2,
    "page": 2,
    "w": 2048,
-   "h": 2048,
-   "frames": 132,
-   "bytes": 1102129,
-   "sha256": "5cd29b859eb59f19d54b24b39760143a4745a0347a50d6b9738edb5b0f8624b4"
+   "h": 1024,
+   "frames": 12,
+   "bytes": 275628,
+   "sha256": "c0da9fc59cd3857492299755b2db97d3eeec597c5a669c7ca569ac2fcb2b87ee"
   },
   {
    "json": "buildings-team-1x-0.json",
@@ -165,11 +165,11 @@
    "pass": "team",
    "scale": 1,
    "page": 0,
-   "w": 2048,
-   "h": 512,
-   "frames": 148,
-   "bytes": 18110,
-   "sha256": "19ddce782f44591216f1c98f8ad9443de4a28c5e015bda514c7401d257d11aac"
+   "w": 1024,
+   "h": 1024,
+   "frames": 286,
+   "bytes": 10283,
+   "sha256": "0f7bbd15d70ca2944176384ec919e8574bf5a498c9f87c9c602d467f81760532"
   },
   {
    "json": "buildings-team-2x-0.json",
@@ -180,9 +180,9 @@
    "page": 0,
    "w": 2048,
    "h": 1024,
-   "frames": 148,
-   "bytes": 35919,
-   "sha256": "252d2cc079bf68116951971eaac7eb7727dd240badeac1cf9bd212ea45333513"
+   "frames": 286,
+   "bytes": 20508,
+   "sha256": "dd283957a86d0611f0f337720bf351d2b884155220e7cb3690f9ab4d566f1803"
   },
   {
    "json": "icons-1x-0.json",
@@ -194,8 +194,8 @@
    "w": 512,
    "h": 256,
    "frames": 21,
-   "bytes": 48389,
-   "sha256": "afdddfda151d0afe528ca35263a8d20962a422aa586a1bbe3901f8575ec24c00"
+   "bytes": 47836,
+   "sha256": "ff60e221f43cc966a44dd8f359ca0aba7d296e3ec93ca9398d02135b490414e1"
   },
   {
    "json": "icons-2x-0.json",
@@ -207,8 +207,8 @@
    "w": 1024,
    "h": 512,
    "frames": 21,
-   "bytes": 124050,
-   "sha256": "f9717d050d41e936b7ecba9ca148877d2bb0647f5900dd5da690071694b905ab"
+   "bytes": 122944,
+   "sha256": "3d86d873bdff1ab97c1e0621a9c761565bd10f10549031bd7ae1f8fb10a0ac96"
   },
   {
    "json": "icons-team-1x-0.json",
@@ -219,9 +219,9 @@
    "page": 0,
    "w": 256,
    "h": 256,
-   "frames": 20,
-   "bytes": 2482,
-   "sha256": "5fb1ca8dbf84fa1b06b57769f21153812be4e83eb76c510674c941a6a90d315d"
+   "frames": 21,
+   "bytes": 2510,
+   "sha256": "63baba37a16158f5e8488c99eb13cde280b8b8f1936dab440ef8c7d75cbfff72"
   },
   {
    "json": "icons-team-2x-0.json",
@@ -232,9 +232,9 @@
    "page": 0,
    "w": 512,
    "h": 512,
-   "frames": 20,
-   "bytes": 5292,
-   "sha256": "c0ecc4d5731103343314d5699a3c6b0a5d3343d46cc6d8da989b4a5c0b70b638"
+   "frames": 21,
+   "bytes": 5371,
+   "sha256": "144351d7713607881c0e4e409f94936497a701bf15cd2a5601ce464562624305"
   },
   {
    "json": "props-1x-0.json",
@@ -296,10 +296,10 @@
    "scale": 1,
    "page": 0,
    "w": 2048,
-   "h": 512,
+   "h": 256,
    "frames": 464,
-   "bytes": 480845,
-   "sha256": "b7c90e5983c4ca77560d2ad89bb1d79fdf0e79d6efd8a13a9b7adfebb51ae0cb"
+   "bytes": 438876,
+   "sha256": "a9bc9fa6b1ded5203c841c6e70dc98fb749f6f8da5da40545001477694e80ac2"
   },
   {
    "json": "units-2x-0.json",
@@ -311,8 +311,8 @@
    "w": 2048,
    "h": 1024,
    "frames": 464,
-   "bytes": 1330913,
-   "sha256": "45da3f67cccd39626d17c02cbad0e21f30d4797f83cc5bb5cf30509494f362f3"
+   "bytes": 1224993,
+   "sha256": "013d81005d07566915dbe2a2608507c28b311c102ed5733b73740dd9a543a015"
   },
   {
    "json": "units-shadow-1x-0.json",
@@ -324,8 +324,8 @@
    "w": 2048,
    "h": 256,
    "frames": 464,
-   "bytes": 229526,
-   "sha256": "4a02e9fbb65cb78cdd77818e55519add5fb5f6d19323b28b555b429a48625727"
+   "bytes": 211118,
+   "sha256": "7fe23715e4e58e3c67413a045c7770270296fe3aad16613968f532f4fab857e0"
   },
   {
    "json": "units-shadow-2x-0.json",
@@ -337,8 +337,8 @@
    "w": 2048,
    "h": 1024,
    "frames": 464,
-   "bytes": 712959,
-   "sha256": "649ea4047fc18c1fab2c9952372be9dc33c27edfb2a3bbe39a220122a5cfd076"
+   "bytes": 654975,
+   "sha256": "de0ab2ecc9c85bbcea941c038e6eaf51a5667e2b56a9f5c938c1215e9aa4ff44"
   },
   {
    "json": "units-team-1x-0.json",
@@ -350,8 +350,8 @@
    "w": 2048,
    "h": 128,
    "frames": 464,
-   "bytes": 114483,
-   "sha256": "479d443c1543b0c9d97314fab1239a5c17ee354e4b0a341ea2b8416c4f856339"
+   "bytes": 85752,
+   "sha256": "c08e4699d6921117c4dbf33185ed0ee56dca006a2fa5bac49ebb82c1097ef28b"
   },
   {
    "json": "units-team-2x-0.json",
@@ -363,15 +363,15 @@
    "w": 2048,
    "h": 256,
    "frames": 464,
-   "bytes": 272277,
-   "sha256": "cf7061e1b0620d574133dca0d50cabc2f5c68da608343f7e2a950a2dcf897011"
+   "bytes": 203355,
+   "sha256": "ba80dad827e1435464595d0ba5c3afa2a4a4ad6e902332233e8911ef8bea0a96"
   }
  ],
  "assets": {
   "academy": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "4b2c8de634fa416b",
+   "sourceHash": "ea4e71baa181cdaa",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -468,7 +468,7 @@
   "barracks": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "8f585e2089cc4426",
+   "sourceHash": "5f75e3b933cab50a",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -565,7 +565,7 @@
   "cornucopia": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "4ce99f12c3712d66",
+   "sourceHash": "a3981fd355bb4e1c",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -662,7 +662,7 @@
   "farm": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "ffbc8f6c0da9a673",
+   "sourceHash": "b22c50f8c3ad795f",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -765,7 +765,7 @@
   "fortress": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "21fb6b5077f1f672",
+   "sourceHash": "4e1ecc5d54cdaa9a",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -862,7 +862,7 @@
   "gate": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "d0e43e6f4db3dd99",
+   "sourceHash": "aec6e04dc6060092",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -905,22 +905,22 @@
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 71,
-      "h": 105
+      "w": 76,
+      "h": 116
      },
      "anchor": {
-      "x": 0.30986,
-      "y": 0.66667
+      "x": 0.30263,
+      "y": 0.69828
      }
     },
     "2": {
      "sourceSize": {
-      "w": 142,
-      "h": 211
+      "w": 151,
+      "h": 233
      },
      "anchor": {
-      "x": 0.3169,
-      "y": 0.66351
+      "x": 0.30464,
+      "y": 0.69528
      }
     }
    },
@@ -969,7 +969,7 @@
   "granary": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "e575c11888ff31ab",
+   "sourceHash": "fe1b31f5773544fe",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1066,7 +1066,7 @@
   "hoplite": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "f98b59a4019a4650",
+   "sourceHash": "44b184e91feebd55",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -1144,7 +1144,7 @@
   "house": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "4b226522834a1a0f",
+   "sourceHash": "845324d5956c0047",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1241,7 +1241,7 @@
   "lumber_camp": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "0739089aaa7d2408",
+   "sourceHash": "646d9227c2464a99",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1264,7 +1264,7 @@
     },
     "2": {
      "color": [
-      "buildings-2x-1.json",
+      "buildings-2x-0.json",
       "icons-2x-0.json"
      ],
      "team": [
@@ -1338,7 +1338,7 @@
   "market": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "f60e13dfc3d3409b",
+   "sourceHash": "1e083bcbf0b792d3",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1435,7 +1435,7 @@
   "mine": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "314bc03dc19bc09f",
+   "sourceHash": "b7e115cebaf1941d",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1532,7 +1532,7 @@
   "props-nodes": {
    "kind": "prop",
    "group": "props",
-   "sourceHash": "f032dab979bf03b0",
+   "sourceHash": "6f3e3a0189fe1866",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -1583,7 +1583,7 @@
   "props-trees": {
    "kind": "prop",
    "group": "props",
-   "sourceHash": "a2baf50f1ec8ad03",
+   "sourceHash": "8b4095c4ed29da1e",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -1643,7 +1643,7 @@
   "rubble": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "49831f07aa3c7547",
+   "sourceHash": "b0577476cd0b9a95",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -1664,7 +1664,7 @@
       "buildings-2x-1.json"
      ],
      "shadow": [
-      "buildings-shadow-2x-1.json"
+      "buildings-shadow-2x-0.json"
      ]
     }
    },
@@ -1725,7 +1725,7 @@
   "siege_workshop": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "56b8cd72cb5377b0",
+   "sourceHash": "209e57e38e5fc003",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1756,7 +1756,7 @@
       "icons-team-2x-0.json"
      ],
      "shadow": [
-      "buildings-shadow-2x-1.json"
+      "buildings-shadow-2x-0.json"
      ]
     }
    },
@@ -1822,7 +1822,7 @@
   "stable": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "4a46739ac77b5553",
+   "sourceHash": "6acc9b8e996b65ab",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1853,7 +1853,7 @@
       "icons-team-2x-0.json"
      ],
      "shadow": [
-      "buildings-shadow-2x-1.json"
+      "buildings-shadow-2x-0.json"
      ]
     }
    },
@@ -1919,7 +1919,7 @@
   "temple": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "192b9332272de776",
+   "sourceHash": "bddade88b9d8f9d3",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2016,7 +2016,7 @@
   "titan_gate": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "ab62de73705ddd67",
+   "sourceHash": "a7327fe09f131485",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2054,22 +2054,22 @@
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 205,
-      "h": 208
+      "w": 217,
+      "h": 210
      },
      "anchor": {
-      "x": 0.39024,
-      "y": 0.56731
+      "x": 0.42396,
+      "y": 0.5619
      }
     },
     "2": {
      "sourceSize": {
-      "w": 410,
-      "h": 415
+      "w": 433,
+      "h": 418
      },
      "anchor": {
-      "x": 0.39024,
-      "y": 0.56627
+      "x": 0.42263,
+      "y": 0.5622
      }
     }
    },
@@ -2118,12 +2118,31 @@
   "tower": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "89fc353afd74065b",
+   "sourceHash": "a590fbd2cc3f79ba",
    "dirs": 1,
    "mirror": false,
    "team": true,
    "shadow": true,
-   "frames": 7,
+   "frames": 97,
+   "variants": [
+    "00",
+    "01",
+    "02",
+    "03",
+    "04",
+    "05",
+    "06",
+    "07",
+    "08",
+    "09",
+    "10",
+    "11",
+    "12",
+    "13",
+    "14",
+    "15"
+   ],
+   "variantBy": "wallMask",
    "icon": true,
    "atlases": {
     "1": {
@@ -2215,7 +2234,7 @@
   "town_center": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "accb84999966fd61",
+   "sourceHash": "86099f880e3f1af0",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2252,7 +2271,7 @@
       "icons-team-2x-0.json"
      ],
      "shadow": [
-      "buildings-shadow-2x-2.json"
+      "buildings-shadow-2x-1.json"
      ]
     }
    },
@@ -2318,7 +2337,7 @@
   "villager": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "58791169864da861",
+   "sourceHash": "94ebd634b363c712",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -2406,12 +2425,12 @@
   "wall": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "e08f8b9f4c9207a1",
+   "sourceHash": "edfc5bf242288709",
    "dirs": 1,
    "mirror": false,
-   "team": false,
+   "team": true,
    "shadow": true,
-   "frames": 97,
+   "frames": 109,
    "variants": [
     "00",
     "01",
@@ -2428,7 +2447,9 @@
     "12",
     "13",
     "14",
-    "15"
+    "15",
+    "05f",
+    "10f"
    ],
    "variantBy": "wallMask",
    "icon": true,
@@ -2437,6 +2458,10 @@
      "color": [
       "buildings-1x-0.json",
       "icons-1x-0.json"
+     ],
+     "team": [
+      "buildings-team-1x-0.json",
+      "icons-team-1x-0.json"
      ],
      "shadow": [
       "buildings-shadow-1x-0.json"
@@ -2447,29 +2472,33 @@
       "buildings-2x-2.json",
       "icons-2x-0.json"
      ],
+     "team": [
+      "buildings-team-2x-0.json",
+      "icons-team-2x-0.json"
+     ],
      "shadow": [
-      "buildings-shadow-2x-2.json"
+      "buildings-shadow-2x-1.json"
      ]
     }
    },
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 68,
+      "w": 69,
       "h": 92
      },
      "anchor": {
-      "x": 0.35294,
+      "x": 0.33333,
       "y": 0.6413
      }
     },
     "2": {
      "sourceSize": {
-      "w": 135,
+      "w": 138,
       "h": 182
      },
      "anchor": {
-      "x": 0.34815,
+      "x": 0.33333,
       "y": 0.64286
      }
     }
@@ -2514,7 +2543,7 @@
   "wonder_artemis": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "08b59ad17fc3ed07",
+   "sourceHash": "449162ee700442c1",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2545,28 +2574,28 @@
       "icons-team-2x-0.json"
      ],
      "shadow": [
-      "buildings-shadow-2x-2.json"
+      "buildings-shadow-2x-1.json"
      ]
     }
    },
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 174,
+      "w": 172,
       "h": 229
      },
      "anchor": {
-      "x": 0.39655,
+      "x": 0.38953,
       "y": 0.60262
      }
     },
     "2": {
      "sourceSize": {
-      "w": 349,
+      "w": 345,
       "h": 458
      },
      "anchor": {
-      "x": 0.39828,
+      "x": 0.3913,
       "y": 0.60262
      }
     }
@@ -2611,7 +2640,7 @@
   "wonder_colossus": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "9ffbb75a974b1dea",
+   "sourceHash": "02b35d52659229c3",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2621,7 +2650,7 @@
    "atlases": {
     "1": {
      "color": [
-      "buildings-1x-1.json",
+      "buildings-1x-0.json",
       "icons-1x-0.json"
      ],
      "team": [
@@ -2649,22 +2678,22 @@
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 184,
-      "h": 229
+      "w": 189,
+      "h": 228
      },
      "anchor": {
-      "x": 0.375,
-      "y": 0.65939
+      "x": 0.35979,
+      "y": 0.66228
      }
     },
     "2": {
      "sourceSize": {
-      "w": 368,
-      "h": 456
+      "w": 378,
+      "h": 455
      },
      "anchor": {
-      "x": 0.37228,
-      "y": 0.66009
+      "x": 0.35979,
+      "y": 0.66154
      }
     }
    },
@@ -2708,7 +2737,7 @@
   "wonder_zeus": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "590f833d3877c4e7",
+   "sourceHash": "8cc4825a02e6f3d5",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2746,22 +2775,22 @@
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 167,
-      "h": 202
+      "w": 170,
+      "h": 199
      },
      "anchor": {
-      "x": 0.41916,
-      "y": 0.59406
+      "x": 0.42941,
+      "y": 0.60302
      }
     },
     "2": {
      "sourceSize": {
-      "w": 335,
-      "h": 404
+      "w": 340,
+      "h": 397
      },
      "anchor": {
-      "x": 0.41791,
-      "y": 0.59406
+      "x": 0.42647,
+      "y": 0.60453
      }
     }
    },
@@ -2804,8 +2833,8 @@
   }
  },
  "totals": {
-  "pngBytes": 13249953,
-  "vramBytes": 216793088,
+  "pngBytes": 12840459,
+  "vramBytes": 203161600,
   "atlases": 26
  }
 }

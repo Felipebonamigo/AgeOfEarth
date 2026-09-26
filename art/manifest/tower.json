@@ -44,8 +44,28 @@
       "frames": 1
     }
   },
+  "variants": [
+    "00",
+    "01",
+    "02",
+    "03",
+    "04",
+    "05",
+    "06",
+    "07",
+    "08",
+    "09",
+    "10",
+    "11",
+    "12",
+    "13",
+    "14",
+    "15"
+  ],
+  "variantBy": "wallMask",
   "icon": {
-    "anim": "complete"
+    "anim": "complete",
+    "variant": "00"
   },
   "team": true,
   "shadow": true

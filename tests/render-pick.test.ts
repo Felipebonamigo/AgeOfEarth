@@ -67,6 +67,19 @@ describe('pick com arte assada', () => {
     expect(r.pick(st, hop.x, t.ty + t.h - 0.3, 0)?.id).toBe(hop.id);   // sobre o footprint, no corpo do hoplita
   });
 
+  it('pixel transparente do quadro não é o edifício: grama acima do CC vira mover, unidade vista atrás dele é clicável', () => {
+    const { r, st, views, cx, cy } = setup();
+    const tc = placeBuilding(st, 1, 'town_center', cx - 1, cy - 1, true);
+    // caixa alta (telhado/torre até 3 tiles acima do centro), mas só a metade de baixo é opaca — como o alfa do atlas
+    const bx = box(tc.x, tc.y, -1.7, -3.0, 1.7, 1.6);
+    views.set(tc.id, { unit: null, bld: { visible: true, contains: (x: number, y: number) => bx.contains(x, y) && y >= (tc.y - 1.6) * TILE } });
+    expect(r.pick(st, tc.x, tc.y - 2.5, 0)).toBeNull();                   // grama 1 tile ao norte da pegada: nada (mover)
+    expect(r.pick(st, tc.x, tc.y - 1.2, 0)?.id).toBe(tc.id);              // telhado opaco: o CC (atacar)
+    const hop = spawnUnit(st, 0, 'hoplite', tc.x + 0.4, tc.ty - 1.2);    // atrás do CC, desenhado acima do telhado
+    bakedUnit(views, hop.id, hop.x, hop.y);
+    expect(r.pick(st, hop.x, hop.y - 0.8, 0)?.id).toBe(hop.id);
+  });
+
   it('cidadão em cima da fazenda (plana) ganha dela, inclusive na metade de cima', () => {
     const { r, st, views, cx, cy } = setup();
     const f = placeBuilding(st, 0, 'farm', cx, cy, true);
@@ -74,5 +87,27 @@ describe('pick com arte assada', () => {
     bakedUnit(views, vil.id, vil.x, vil.y);
     expect(r.pick(st, vil.x, vil.y - 0.7, 0)?.id).toBe(vil.id);
     expect(r.pick(st, f.tx + 1.7, f.ty + 1.7, 0)?.id).toBe(f.id);   // longe do cidadão: a fazenda
+  });
+});
+
+describe('portão aberto e névoa (Etapa 3)', () => {
+  it('um inimigo escondido pela névoa não abre o portão dele na tela; à vista, abre; o do jogador local abre sempre', () => {
+    const st = quickGame();
+    const r = new Renderer();
+    const R = r as unknown as { gateCount: number; gatesOpen: Set<number>; updateGatesOpen(s: GameState, local: number): void };
+    const cx = Math.floor(st.map.w / 2), cy = Math.floor(st.map.h / 2);
+    const g1 = placeBuilding(st, 1, 'gate', cx, cy, true);
+    const g0 = placeBuilding(st, 0, 'gate', cx + 6, cy, true);
+    spawnUnit(st, 1, 'hoplite', g1.x + 0.8, g1.y + 0.3);
+    spawnUnit(st, 0, 'hoplite', g0.x + 0.8, g0.y + 0.3);
+    const vis = st.players[0].visibility;
+    vis.fill(1);                                   // tudo explorado, nada à vista
+    R.gateCount = 2;
+    R.updateGatesOpen(st, 0);
+    expect(R.gatesOpen.has(g1.id)).toBe(false);
+    expect(R.gatesOpen.has(g0.id)).toBe(true);
+    vis[Math.floor(g1.y + 0.3) * st.map.w + Math.floor(g1.x + 0.8)] = 2;   // o tile do hoplita inimigo à vista
+    R.updateGatesOpen(st, 0);
+    expect(R.gatesOpen.has(g1.id)).toBe(true);
   });
 });

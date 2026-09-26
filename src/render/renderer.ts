@@ -22,7 +22,7 @@ import { SmokeLayer } from './particles';
 import {
   animDuration, buildingState, chooseAnim, deathAlpha, dirWithHysteresis, freshHit, isWalking, mulColor, type UnitAnim,
   WALL_LINK_TYPES, wallMask, buildingVariant, ageTier, farmCrop, damageLevel, gateNear, smokeRate, smokeBudget, rubbleAlpha, GLOW_ANIM, glowVariant,
-  ghostTint, placementMasks,
+  ghostTint, placementMasks, wallFlagAt, WALL_FLAG_PROBE,
 } from './art/logic';
 
 /** Cor de fundo (fora do mapa). */
@@ -382,6 +382,17 @@ export class Renderer {
     f.update(state.players[local].visibility);
   }
 
+  /** O jogador local vê o edifício AGORA (dele, mapa revelado ou o tile do centro com visão): senão, sob a névoa, a
+   *  vista assada mantém a última versão vista (docs/ART.md §1.8). Aliados dividem a visão (vis = 2 no tile deles). */
+  private liveToLocal(state: GameState, local: number, b: Building): boolean {
+    if (b.owner === local || state.config.revealMap || this.revealAll) return true;
+    const vis = state.players[local].visibility;
+    const i = Math.floor(b.y) * state.map.w + Math.floor(b.x);
+    return i >= 0 && i < vis.length && vis[i] === 2;
+  }
+  /** Espessura (px de mundo) do contorno de time dos edifícios: ≈ 1,8 px de tela, entre 0,8 e 6 px de mundo. */
+  private outlineWidth(): number { return Math.min(6, Math.max(0.8, 1.8 / Math.max(0.05, this.cam.zoom))); }
+
   private visibleToLocal(state: GameState, local: number, e: Unit | Building): boolean {
     if (e.owner === local || state.config.revealMap || this.revealAll) return true;
     const vis = state.players[local].visibility;
@@ -456,11 +467,12 @@ export class Renderer {
   private updateEntities(state: GameState, alpha: number, ui: RenderUI): void {
     const seen = this.seen; seen.clear();
     const vt = this.cam.visibleTiles();
-    if (this.bakedMode) this.updateGatesOpen(state);
+    if (this.bakedMode) this.updateGatesOpen(state, ui.localPlayer);
     let wallSig = 0, wallCount = 0, gateCount = 0;
     for (const b of state.buildings.values()) {
       if (WALL_LINK_TYPES.has(b.type)) {
-        wallSig = (Math.imul(wallSig, 31) + b.id * 4 + b.owner) | 0; wallCount++;
+        // id, dono e POSIÇÃO: o editor move uma muralha mantendo o id (moveEntity), e o bitmask dos vizinhos muda
+        wallSig = (Math.imul(wallSig, 31) + ((b.id * 4 + b.owner) ^ (b.tx * 4096 + b.ty))) | 0; wallCount++;
         if (b.type === 'gate' && b.complete) gateCount++;
       }
       if (b.x < vt.x0 - 3 || b.x > vt.x1 + 3 || b.y < vt.y0 - 3 || b.y > vt.y1 + 3) continue;
@@ -470,27 +482,34 @@ export class Renderer {
       const tint = b.disabledUntil > state.tick ? 0xb39ddb : state.tick - b.lastDamageTick < 3 ? 0xff9999 : 0xffffff;
       if (v.bld) {
         // estado: obra pelo progresso (< 33 / 66 / 100 %), pronto, dano pela vida (≥ 1/3, ≥ 2/3 perdida) ou portão aberto;
-        // variante: bitmask da muralha / eixo do portão (recalculados só quando a topologia muda) ou Idade do dono
+        // variante: bitmask da muralha / eixo do portão (recalculados só quando a topologia muda) ou Idade do dono.
+        // Edifício de outro time sob a névoa (explorado, fora de vista): fica a última versão vista — estado, variante,
+        // fumaça e brilho não mudam (senão o portão abrindo, o dano ou a muralha nova vazariam o que a névoa esconde).
         const art = this.art.buildingArt(b.type);
-        const frac = b.complete ? 1 : b.progress / Math.max(1e-6, getBuildingStats(state, state.players[b.owner], b.type).buildTime);
-        const hpFrac = b.hp / Math.max(1, b.maxHp);
-        const open = !!art?.states.has('open') && b.complete && this.gatesOpen.has(b.id);
-        let variant: string | null = null;
-        if (art?.variantBy === 'ageTier') variant = ageTier(state.players[b.owner].age);
-        else if (art?.variantBy === 'farmCrop') variant = farmCrop((state.tick - b.builtTick) / TICK_RATE, b.id);
-        else if (art?.variantBy) {
-          if (v.bld.maskVersion !== this.wallVersion) {
-            v.bld.mask = this.wallMaskOf(state, b); v.bld.maskVersion = this.wallVersion;
-            v.bld.maskVariant = buildingVariant(art.variantBy, { mask: v.bld.mask, age: 0 });
+        const live = this.liveToLocal(state, ui.localPlayer, b) || v.bld.state === '';
+        let open = false, hpFrac = 1;
+        if (live) {
+          const frac = b.complete ? 1 : b.progress / Math.max(1e-6, getBuildingStats(state, state.players[b.owner], b.type).buildTime);
+          hpFrac = b.hp / Math.max(1, b.maxHp);
+          open = !!art?.states.has('open') && b.complete && this.gatesOpen.has(b.id);
+          let variant: string | null = null;
+          if (art?.variantBy === 'ageTier') variant = ageTier(state.players[b.owner].age);
+          else if (art?.variantBy === 'farmCrop') variant = farmCrop((state.tick - b.builtTick) / TICK_RATE, b.id);
+          else if (art?.variantBy) {
+            if (v.bld.maskVersion !== this.wallVersion) {
+              v.bld.mask = this.wallMaskOf(state, b); v.bld.maskVersion = this.wallVersion;
+              v.bld.maskVariant = buildingVariant(art.variantBy, { mask: v.bld.mask, age: 0, flag: !!art.variants?.includes(WALL_FLAG_PROBE) && wallFlagAt(b.tx, b.ty) });
+            }
+            variant = v.bld.maskVariant;
           }
-          variant = v.bld.maskVariant;
+          v.bld.show(buildingState(frac, b.complete, hpFrac, open), variant);
         }
-        v.bld.show(buildingState(frac, b.complete, hpFrac, open), variant);
         // sobreposição animada do edifício pronto (portal dos titãs), no relógio de jogo, também danificado
-        if (art?.glow) v.bld.showGlow(b.complete ? this.art.building(b.type, GLOW_ANIM, glowVariant(this.animClock, art.glow.frames, art.glow.fps)) : null);
+        if (art?.glow) v.bld.showGlow(v.bld.shownComplete ? this.art.building(b.type, GLOW_ANIM, glowVariant(this.animClock, art.glow.frames, art.glow.fps)) : null);
         v.bld.place(b.x * TILE, b.y * TILE);
-        // fumaça de dano (partícula, não assada): só pronto e danificado, dentro do orçamento do preset
-        const dmg = b.complete && !open ? damageLevel(hpFrac) : 0;
+        v.bld.setOutline(this.quality.teamOutline ? this.outlineWidth() : 0);
+        // fumaça de dano (partícula, não assada): só pronto e danificado, dentro do orçamento do preset, e à vista
+        const dmg = live && b.complete && !open ? damageLevel(hpFrac) : 0;
         if (dmg) this.emitSmoke(v.bld, b, dmg);
         v.bld.tint(tint, mulColor(color, tint));
         v.complete = b.complete;
@@ -595,14 +614,16 @@ export class Renderer {
   }
   /**
    * Portões abertos neste quadro: pronto e com uma unidade do mesmo time a GATE_OPEN_RANGE do centro (o estado que o
-   * núcleo já tem: `gateTeam` deixa o time passar). Só varre as unidades se algum portão existia no último quadro.
+   * núcleo já tem: `gateTeam` deixa o time passar). Só conta unidade que o jogador local vê (a dele, a de aliado ou a
+   * inimiga em tile visível): um inimigo escondido pela névoa não abre o portão na tela. Só varre as unidades se algum
+   * portão existia no último quadro.
    */
-  private updateGatesOpen(state: GameState): void {
+  private updateGatesOpen(state: GameState, local: number): void {
     this.gatesOpen.clear();
     if (this.gateCount === 0) return;
     const map = state.map, w = map.w;
     for (const u of state.units.values()) {
-      if (u.inside !== -1) continue;
+      if (u.inside !== -1 || !this.visibleToLocal(state, local, u)) continue;
       const team = state.players[u.owner]?.team;
       const fx = Math.floor(u.x), fy = Math.floor(u.y);
       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
@@ -785,9 +806,10 @@ export class Renderer {
       const p = ui.placement;
       const tiles = p.tiles ?? [{ x: p.tx, y: p.ty, ok: p.ok }];
       const def = BUILDINGS[p.type];
-      // com o fantasma assado por cima, o retângulo do footprint fica mais leve (continua mostrando onde pode/não pode)
-      const fillA = ghosts > 0 ? 0.2 : 0.35;
+      // com o fantasma assado por cima, o retângulo do footprint fica mais leve onde PODE; onde não pode continua forte
+      // (o fantasma vermelho sobre telhado de terracota, sozinho, lê quase como um edifício de verdade)
       for (const t of tiles) {
+        const fillA = t.ok && ghosts > 0 ? 0.2 : 0.35;
         top.rect(t.x * TILE, t.y * TILE, def.w * TILE, def.h * TILE).fill({ color: t.ok ? 0x4ade80 : 0xef4444, alpha: fillA }).rect(t.x * TILE, t.y * TILE, def.w * TILE, def.h * TILE).stroke({ width: 1.5, color: t.ok ? 0x4ade80 : 0xef4444, alpha: 0.9 });
       }
       if (def.territory) top.circle((p.tx + def.w / 2) * TILE, (p.ty + def.h / 2) * TILE, (def.territory + state.players[local].mods.player.territory) * TILE).stroke({ width: 1, color: 0xffffff, alpha: 0.3 });
@@ -817,7 +839,7 @@ export class Renderer {
       const masks = art.variantBy === 'wallMask' || art.variantBy === 'gateAxis' ? placementMasks(tiles, linked) : null;
       for (let i = 0; i < tiles.length; i++) {
         const t = tiles[i];
-        const variant = art.variantBy === 'ageTier' ? ageTier(state.players[local]?.age ?? 0) : art.variantBy ? buildingVariant(art.variantBy, { mask: masks?.[i] ?? 0, age: 0 }) : null;
+        const variant = art.variantBy === 'ageTier' ? ageTier(state.players[local]?.age ?? 0) : art.variantBy ? buildingVariant(art.variantBy, { mask: masks?.[i] ?? 0, age: 0, flag: !!art.variants?.includes(WALL_FLAG_PROBE) && wallFlagAt(t.x, t.y) }) : null;
         const f = this.art.building(p.type, 'complete', variant);
         if (!f) continue;
         let s = this.ghostSprites[used];
@@ -825,7 +847,7 @@ export class Renderer {
         s.texture = f.color; s.anchor.set(f.anchor.x, f.anchor.y);
         s.position.set((t.x + def.w / 2) * TILE, (t.y + def.h / 2) * TILE);
         s.zIndex = t.y + def.h / 2;
-        s.alpha = 0.6; s.tint = ghostTint(t.ok); s.visible = true;
+        s.alpha = t.ok ? 0.6 : 0.5; s.tint = ghostTint(t.ok); s.visible = true;
         used++;
       }
     }
@@ -970,7 +992,15 @@ export class Renderer {
               if (d) this.smoke.emit(4 + d.w * d.h * 2, (e.x - d.w / 2) * TILE, (e.x + d.w / 2) * TILE, (e.y - d.h / 2) * TILE, (e.y + d.h / 3) * TILE, false);
             }
           }
-          if (f) { const s = new Sprite(f.color); s.anchor.set(f.anchor.x, f.anchor.y); s.tint = 0x8a847c; c.addChild(s); this.bakedCollapses.add(c); }
+          if (f) {
+            // o quadro que cai vai para a faixa do edifício, na ordem por y dele (o que estava na frente continua na
+            // frente); poeira e fumaça seguem na camada de efeitos
+            const s = new Sprite(f.color); s.anchor.set(f.anchor.x, f.anchor.y); s.tint = 0x8a847c; c.addChild(s); this.bakedCollapses.add(c);
+            const d = BUILDINGS[e.data as string];
+            const zy = d?.passable ? e.y - d.h / 2 - 0.01 : e.y;
+            c.zIndex = zy;
+            this.parentFor('building', zy, false).addChild(c);
+          }
           else if (typeof e.data === 'string' && BUILDINGS[e.data]) { const s = new Sprite(this.tex.building(e.data, 0x888888, true)); s.anchor.set(0.5); s.tint = 0x777777; c.addChild(s); }
         } else if (e.type === 'quake') this.cam.shake = 10;
         c.position.set(e.x * TILE, e.y * TILE);

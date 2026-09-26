@@ -147,8 +147,19 @@ export const WALL_LINK_TYPES: ReadonlySet<string> = new Set(['wall', 'gate', 'to
 export function wallMask(n: boolean, e: boolean, s: boolean, w: boolean): number {
   return (n ? 1 : 0) | (e ? 2 : 0) | (s ? 4 : 0) | (w ? 8 : 0);
 }
-/** Nome da variante de muralha para o bitmask: '00'…'15'. */
-export function wallVariant(mask: number): string { const m = mask & 15; return m < 10 ? '0' + m : String(m); }
+/**
+ * Nome da variante de muralha para o bitmask: '00'…'15'. Com `flag`, os trechos retos (05 = norte-sul, 10 = leste-oeste)
+ * viram '05f'/'10f', a versão com estandarte de time (os outros bitmasks já têm estandarte no pilar).
+ */
+export function wallVariant(mask: number, flag = false): string {
+  const m = mask & 15, v = m < 10 ? '0' + m : String(m);
+  return flag && (m === 5 || m === 10) ? v + 'f' : v;
+}
+/** Variante com estandarte que o renderizador procura nas variantes do asset antes de pedir `flag` (a torre, também
+ *  por bitmask, não tem). */
+export const WALL_FLAG_PROBE = '10f';
+/** Trecho reto de muralha com estandarte: um a cada 3 tiles ao longo da linha (pela posição, estável). */
+export function wallFlagAt(x: number, y: number): boolean { return (((x + y) % 3) + 3) % 3 === 0; }
 /** Eixo do portão: 'ns' se liga só ao norte/sul (muralha norte-sul); senão 'ew' (padrão, inclusive isolado). */
 export function gateAxis(mask: number): 'ew' | 'ns' { return (mask & 5) !== 0 && (mask & 10) === 0 ? 'ns' : 'ew'; }
 /** Variante por Idade do Centro Cívico: a0 = Arcaica, a1 = Clássica/Heroica, a2 = Mítica/Titãs. */
@@ -169,9 +180,10 @@ export function farmCrop(seconds: number, id = 0): FarmCrop {
   const ph = (t / FARM_CYCLE + off) % 1;
   return ph < 0.3 ? 'sown' : ph < 0.65 ? 'growing' : 'ripe';
 }
-/** Variante de um edifício pelo critério do manifesto (null = sem variantes). `crop` = segundos desde a colocação. */
-export function buildingVariant(by: VariantBy | null | undefined, ctx: { mask: number; age: number; crop?: number; id?: number }): string | null {
-  if (by === 'wallMask') return wallVariant(ctx.mask);
+/** Variante de um edifício pelo critério do manifesto (null = sem variantes). `crop` = segundos desde a colocação;
+ *  `flag` = trecho reto de muralha com estandarte (wallFlagAt), só para assets que têm as variantes '05f'/'10f'. */
+export function buildingVariant(by: VariantBy | null | undefined, ctx: { mask: number; age: number; crop?: number; id?: number; flag?: boolean }): string | null {
+  if (by === 'wallMask') return wallVariant(ctx.mask, !!ctx.flag);
   if (by === 'gateAxis') return gateAxis(ctx.mask);
   if (by === 'ageTier') return ageTier(ctx.age);
   if (by === 'farmCrop') return farmCrop(ctx.crop ?? 0, ctx.id ?? 0);
@@ -220,8 +232,12 @@ export function glowVariant(clock: number, frames: number, fps: number): string 
 export function glowFrameName(id: string, clock: number, frames: number, fps: number): string {
   return buildingFrameName(id, GLOW_ANIM, glowVariant(clock, frames, fps));
 }
-/** Tint do fantasma de construção assado: verde (pode) ou vermelho (não pode), claro o bastante para ler o sprite. */
-export function ghostTint(ok: boolean): number { return ok ? 0x9cf0b0 : 0xff9c9c; }
+/**
+ * Tint do fantasma de construção assado: verde claro (pode) ou vermelho forte (não pode). O vermelho tira quase todo o
+ * verde e o azul: um telhado de terracota (#9e4c2a) vira #9e1a0e e a pedra clara vira vermelho vivo — um tint claro
+ * (0xff9c9c) quase não mudava a terracota e o fantasma inválido parecia um edifício de verdade.
+ */
+export function ghostTint(ok: boolean): number { return ok ? 0x9cf0b0 : 0xff5a5a; }
 
 // ---------------- Props ----------------
 export type TreeSpecies = 'olive' | 'cypress' | 'oak';

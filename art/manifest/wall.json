@@ -60,13 +60,15 @@
     "12",
     "13",
     "14",
-    "15"
+    "15",
+    "05f",
+    "10f"
   ],
   "variantBy": "wallMask",
   "icon": {
     "anim": "complete",
-    "variant": "10"
+    "variant": "10f"
   },
-  "team": false,
+  "team": true,
   "shadow": true
 }
