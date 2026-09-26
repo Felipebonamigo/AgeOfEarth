@@ -14,6 +14,7 @@ import { rectReachable } from '../map/components';
 import type { Unit } from '../types';
 import m5 from './missions/m5_itaca.scenario.json';
 import m6 from './missions/m6_estatua.scenario.json';
+import m7 from './missions/m7_aquiles.scenario.json';
 
 const ME = 0;
 
@@ -219,6 +220,7 @@ export const CAMPAIGN: readonly CampaignEntry[] = [
   { act: 1, id: 'm4_caucaso', source: 'json', file: m4 as unknown as ScenarioFile },   // fecha o Ato I (1º mapa fixo)
   { act: 2, id: 'm5_itaca', source: 'json', file: m5 as unknown as ScenarioFile },     // abre o Ato II (escolta, 2º mapa fixo)
   { act: 2, id: 'm6_estatua', source: 'json', file: m6 as unknown as ScenarioFile },
+  { act: 2, id: 'm7_aquiles', source: 'json', file: m7 as unknown as ScenarioFile },   // caça ao herói (mapa gerado forest 7707)
 ];
 
 /** Entrada do registro por id (undefined = não é missão oficial registrada). */
