@@ -368,6 +368,20 @@ export interface MissionScript {
   exceptions?: ScriptExceptions;
   /** Objetivos que um jogador cumpre legitimamente antes de 60 s (ex.: a colônia da m4 com 5 construtores); a checagem (d) os ignora. */
   earlyOk?: string[];
+  /** Outros caminhos medidos da mesma missão (ex.: a escolta sem trégua da m5), cada um com a própria janela; scripts/missions.ts roda todos. */
+  variants?: MissionVariant[];
+}
+
+/**
+ * Variante de um roteiro: outro caminho para a vitória, estrito como o principal (vitória dentro da própria `expect`) e com
+ * gatilhos que precisam ter disparado (`fired`) ou não (`notFired`) até o fim — é o que prova que o caminho é mesmo o anunciado.
+ */
+export interface MissionVariant extends Omit<MissionScript, 'variants'> { label: string; fired?: string[]; notFired?: string[] }
+
+/** Problemas de uma variante além da janela: gatilhos exigidos que não dispararam e proibidos que dispararam. */
+export function variantIssues(r: MissionRunResult, v: MissionVariant): string[] {
+  return [...(v.fired ?? []).filter((id) => !r.fired.includes(id)).map((id) => `gatilho '${id}' não disparou`),
+    ...(v.notFired ?? []).filter((id) => r.fired.includes(id)).map((id) => `gatilho '${id}' disparou`)];
 }
 
 /** Veredito de um roteiro: ok (vitória dentro da janela), exceção declarada ou falha com o motivo. */
@@ -384,9 +398,11 @@ export function scriptVerdict(r: MissionRunResult, script: MissionScript | undef
   return exception ? { ok: true, inWindow, exception, reason } : { ok: false, inWindow, reason };
 }
 
-/** Roda o roteiro de uma missão (MISSION_SCRIPTS) numa dificuldade, com as opções do roteiro. */
-export function runMissionScript(id: string, difficulty: CampaignDifficulty, deterministic = false): MissionRunResult {
-  const sc = MISSION_SCRIPTS[id];
+/** Roda o roteiro de uma missão (MISSION_SCRIPTS) numa dificuldade, com as opções do roteiro (ou de uma variante dele, pelo rótulo). */
+export function runMissionScript(id: string, difficulty: CampaignDifficulty, deterministic = false, variant?: string): MissionRunResult {
+  const main = MISSION_SCRIPTS[id];
+  const sc: MissionScript | undefined = variant === undefined ? main : main?.variants?.find((v) => v.label === variant);
+  if (variant !== undefined && !sc) throw new Error(`variante desconhecida: ${id}/${variant}`);
   return runScripted(id, { minutes: sc?.minutes ?? 30, difficulty, steps: sc?.steps ?? [], deterministic, playerAi: sc?.playerAi, hold: sc?.hold, earlyOk: sc?.earlyOk, reserve: sc?.reserve, detach: sc?.detach });
 }
 
@@ -739,11 +755,11 @@ function m5CastawaysPending(state: GameState): boolean {
   return (state.config.campaignDifficulty === 'hard' ? o.naufragos_todos : o.naufragos) === 'pending';
 }
 
-/** Destacamento: Odisseu, os náufragos na estrada, a escolta (até a vitória) e a guarda do Heraion (a IA do jogador não os comanda). */
+/** Destacamento: Odisseu, os náufragos (até a vitória: a IA os mandaria coletar longe do Centro Cívico), a escolta (até a vitória) e a guarda do Heraion. */
 function m5Detach(state: GameState): number[] {
   const out: number[] = [];
   const o = m5Odysseus(state); if (o) out.push(o.id);
-  if (state.scenario?.objectives.escolta === 'pending') for (const u of m5CastawaysOut(state)) out.push(u.id);
+  if (state.scenario?.objectives.escolta === 'pending') for (const u of tagUnits(state, 'naufragos')) out.push(u.id);
   if (state.scenario?.objectives.escolta === 'pending') for (const u of m5Escort(state)) out.push(u.id);
   for (const u of m5HeraionGuard(state)) out.push(u.id);
   return out;
@@ -781,11 +797,11 @@ function m5Care(state: GameState): Command | null {
   return null;
 }
 
-/** Reforço da praia: com menos de 12 na escolta (junto de Odisseu ou a caminho), até 8 militares de casa cruzam o vau sul. */
-function m5Reinforce(state: GameState): Command | null {
+/** Reforço da praia: com menos de `size` na escolta (junto de Odisseu ou a caminho), até 8 militares de casa cruzam o vau sul. */
+function m5Reinforce(state: GameState, size = 12): Command | null {
   const o = m5Odysseus(state); if (!o) return null;
   const esc = m5Escort(state);
-  if (esc.filter((u) => m5D2(u, o) <= 100 || u.state === 'move').length >= 12) return null;
+  if (esc.filter((u) => m5D2(u, o) <= 100 || u.state === 'move').length >= size) return null;
   const ids = m5HomeArmy(state).filter((u) => u.state === 'idle' && UNITS[u.type].speed >= 2.2).slice(0, 8).map((u) => u.id);
   const [x, y] = M5_ROUTE[1];
   return ids.length ? { type: 'move', player: 0, ids, x, y } : null;
@@ -831,6 +847,63 @@ function m5Travel(state: GameState): Command[] {
   out.push({ type: 'move', player: 0, ids: [o.id], x: p.x, y: p.y });
   const esc = m5Escort(state).map((u) => u.id);
   if (esc.length) out.push({ type: 'attackMove', player: 0, ids: esc, x: p.x, y: p.y });
+  return out;
+}
+
+/** m5 (variante "escolta"): militares junto de Odisseu (a até 10 tiles) com que ele deixa a praia sem trégua comprada, por dificuldade. */
+const M5_CONVOY: Record<CampaignDifficulty, number> = { easy: 16, normal: 20, hard: 24 };
+/** m5 (variante "escolta"): comboios que já partiram (a partida é uma decisão só; depois, dispersa, a escolta se reagrupa na estrada). */
+const m5Departed = new WeakMap<GameState, true>();
+/** m5 (variante "escolta"): na praia, com a escolta completa, o comboio parte; antes disso, o posto (como no roteiro principal). */
+function m5ConvoyOrPost(state: GameState): Command[] {
+  const o = m5Odysseus(state); if (!o) return [];
+  if (!m5Departed.has(state)) {
+    const size = M5_CONVOY[state.config.campaignDifficulty ?? 'normal'];
+    const near = armyOf(state).filter((id) => id !== o.id && m5D2(state.units.get(id)!, o) <= 100).length;
+    if (near < size) return [...m5Outbound(state), ...m5Post(state)];
+    m5Departed.set(state, true);
+  }
+  return m5Convoy(state);
+}
+
+/**
+ * Comboio sem trégua (variante "escolta"): Odisseu sobe a Via Sagrada colado na escolta. Quem da escolta ficou para trás (14–30
+ * tiles) e não está lutando volta até ele. Com inimigos a até 12 tiles dele, ele para e atira (postura defensiva) e quem da escolta
+ * está ocioso, andando ou afastado ataca em volta dele; sem inimigos, o comboio anda em passos de até 4 tiles pela Via Sagrada: a
+ * escolta (ao menos 4) marcha em ataque-movimento até o passo e Odisseu só o dá com o centro dela a até 4 tiles dele. Os náufragos
+ * vão atrás dele e, no pé da colina, seguem até o Centro Cívico (Odisseu espera lá por eles, como na viagem com trégua).
+ */
+function m5Convoy(state: GameState): Command[] {
+  const o = m5Odysseus(state); if (!o) return [];
+  const out: Command[] = [];
+  const road = m5CastawaysOut(state);
+  const foot = m5D2(o, M5_FOOT) <= 16;
+  for (const u of road) {
+    if (foot || m5D2(u, M5_FOOT) <= 36) { const p = m5Next(u.x, u.y); out.push({ type: 'move', player: 0, ids: [u.id], x: p.x, y: p.y }); }
+    else if (m5D2(u, o) > 9) out.push({ type: 'move', player: 0, ids: [u.id], x: o.x, y: o.y });
+  }
+  const army = armyOf(state).map((id) => state.units.get(id)!).filter((u) => u.id !== o.id);
+  const guard = army.filter((u) => m5D2(u, o) <= 196);
+  const late = army.filter((u) => m5D2(u, o) > 196 && m5D2(u, o) <= 900 && (u.state === 'idle' || u.state === 'move')).map((u) => u.id);
+  if (late.length) out.push({ type: 'attackMove', player: 0, ids: late, x: o.x, y: o.y });
+  const stop = () => { if (o.state === 'move') out.push({ type: 'stop', player: 0, ids: [o.id] }); };
+  if (enemyNear(state, o.x, o.y, 12)) {
+    stop();
+    const ids = guard.filter((u) => u.state === 'idle' || u.state === 'move' || m5D2(u, o) > 36).map((u) => u.id);
+    if (ids.length) out.push({ type: 'attackMove', player: 0, ids, x: o.x, y: o.y });
+    return out;
+  }
+  if (guard.length < 4) { stop(); return out; }
+  let p = m5Next(o.x, o.y);
+  const last = M5_ROUTE[M5_ROUTE.length - 1];
+  if (road.length > 0 && m5CastawaysPending(state) && ((p.x === last[0] && p.y === last[1]) || foot)) p = M5_FOOT;
+  // um passo de até 4 tiles rumo ao ponto: a escolta vai à frente e Odisseu só dá o passo com ela junto (o comboio anda no passo dela)
+  const dx = p.x - o.x, dy = p.y - o.y, len = Math.sqrt(dx * dx + dy * dy), k = len > 4 ? 4 / len : 1;
+  const step = { x: o.x + dx * k, y: o.y + dy * k };
+  let cx = 0, cy = 0; for (const u of guard) { cx += u.x; cy += u.y; }
+  if (m5D2(o, { x: cx / guard.length, y: cy / guard.length }) <= 16) out.push({ type: 'move', player: 0, ids: [o.id], x: step.x, y: step.y });
+  else stop();
+  out.push({ type: 'attackMove', player: 0, ids: guard.map((u) => u.id), x: step.x, y: step.y });
   return out;
 }
 
@@ -940,8 +1013,8 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
   },
   m5_itaca: {
     minutes: 40, expect: [14, 32.5],
-    // jogador paciente: guarda Odisseu na praia até o Emissário voltar (15/16/17 min) e o traz na trégua comprada; o caminho
-    // direto (a escolta chega e volta) perde Odisseu para os caçadores da estrada aos ~1m20s (docs/STORY.md §5.2)
+    // jogador paciente: guarda Odisseu na praia até o Emissário voltar (15/16/17 min) e o traz na trégua comprada; a escolta ativa
+    // sem trégua (os caçadores das fogueiras e o vau) é a variante "escolta", logo abaixo (docs/STORY.md §5.2)
     // a IA do jogador nunca sai em ondas (defende Argos da Liga); Odisseu, os náufragos, a escolta e a guarda do Heraion são do roteiro
     hold: { time: { gte: 0 } },
     detach: (s) => m5Detach(s),
@@ -963,6 +1036,24 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
       // trégua comprada: náufragos, Odisseu e escolta sobem a Via Sagrada (vau sul → Heraion → colina de Argos)
       { label: 'viagem', when: { all: [{ fired: 'resgate_pago' }, { objective: 'escolta', is: 'pending' }] }, every: 3, command: (s) => m5Travel(s) },
     ],
+    variants: [{
+      // escolta ativa, sem Mercado nem trégua: a escolta do mapa chega à praia, os reforços de casa a completam até M5_CONVOY
+      // militares e o comboio sobe a Via Sagrada sob os caçadores das fogueiras e a emboscada do vau
+      label: 'escolta', minutes: 25, expect: [5, 14],
+      fired: ['estrada_aviso', 'vau'], notFired: ['oferta', 'resgate_pago', 'sinais_caem'],
+      hold: { time: { gte: 0 } },
+      detach: (s) => m5Detach(s),
+      steps: [
+        { label: 'escolta', when: { all: [{ time: { gte: 15 } }, { objective: 'encontrar', is: 'pending' }] }, every: 4, command: (s) => m5Outbound(s) },
+        { label: 'comboio', when: { all: [{ objective: 'encontrar', is: 'done' }, { objective: 'escolta', is: 'pending' }] }, every: 2, command: (s) => m5ConvoyOrPost(s) },
+        { label: 'odisseu', when: { time: { gte: 1 } }, every: 2, command: (s) => m5Care(s) },
+        { label: 'reforço', when: { objective: 'encontrar', is: 'done' }, every: 15, command: (s) => (m5Departed.has(s) ? null : m5Reinforce(s, M5_CONVOY[s.config.campaignDifficulty ?? 'normal'] + 2)) },
+        { label: 'heraion', when: { all: [{ time: { gte: 30 } }, { objective: 'escolta', is: 'pending' }] }, every: 5, command: (s) => m5Heraion(s) },
+        { label: 'treino', when: { time: { gte: 5 } }, every: 5, command: (s) => trainArmy(s, 0, { reserve: { food: 150, wood: 100, gold: 60 } }) },
+        { label: 'poderes', when: { time: { gte: 2 } }, every: 3, command: (s) => battlePowers(s) },
+        { label: 'tempestade', when: { time: { gte: 1 } }, every: 1, command: (s) => dodgeStorms(s) },
+      ],
+    }],
   },
   m6_estatua: {
     minutes: 40, expect: [17.5, 39],

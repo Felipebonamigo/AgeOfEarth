@@ -1,7 +1,8 @@
 // m5 "O Hóspede de Ítaca" (docs/STORY.md §5.2): o mapa fixo "Planície da Argólida" é reprodutível pelo script
 // scripts/maps/m5_itaca.ts e tem a identidade da ficha (Argos na colina, o Ínaco com dois vaus, o Heraion, a praia de Náuplia,
 // Corinto atrás do istmo, as torres de sinal); a caça, a espera de Odisseu na praia, os caçadores da estrada, o vau, o Heraion,
-// os náufragos, a oferta do Emissário e o resgate, o segredo das fogueiras e as variações de dificuldade (G3) funcionam.
+// os náufragos, a oferta do Emissário e o resgate, o segredo das fogueiras e as variações de dificuldade (G3) funcionam; a vitória
+// exige o encontro na praia (nada de levar Odisseu sozinho a Argos) e a escolta ativa sem trégua é viável (variante "escolta").
 // O roteiro longo (vitória dentro da janela) fica em scripts/missions.ts; a passiva curta, em tests/missions.test.ts.
 import { describe, it, expect } from 'vitest';
 import { TICK_RATE, TERRAIN } from '../src/core/constants';
@@ -11,10 +12,11 @@ import { destroyBuilding, killUnit } from '../src/core/sim/combat';
 import { componentAt, invalidateComponents } from '../src/core/map/components';
 import { mapHash, validateMap, type FixedMapData } from '../src/core/map/fixed';
 import { placeNear, setRaidObserver, tagIds, townCenter, type RaidRecord } from '../src/core/scenario/helpers';
+import { MISSION_SCRIPTS, runMissionScript, scriptVerdict, variantIssues } from '../src/core/scenario/testing';
 import { campaignMission, missionConfig, withCampaignDifficulty } from '../src/core/scenario/campaign';
 import { gameConfigFor } from '../src/core/scenario/compile';
 import type { CampaignDifficulty, ScenarioFile } from '../src/core/scenario/schema';
-import type { GameState, Unit } from '../src/core/types';
+import type { Command, GameState, Unit } from '../src/core/types';
 import m5 from '../src/core/scenario/missions/m5_itaca.scenario.json';
 import { buildArgolisMap, POINTS, riverX } from '../scripts/maps/m5_itaca';
 
@@ -28,6 +30,8 @@ const odysseus = (s: GameState) => byTag(s, 'odisseu') as Unit;
 const dialogues = (s: GameState) => s.events.filter((e) => e.type === 'dialogue').map((e) => e.data ?? '');
 const teleport = (u: Unit, x: number, y: number) => { u.x = u.px = u.tx = x; u.y = u.py = u.ty = y; u.path = null; u.order = null; u.state = 'idle'; };
 const now = (s: GameState) => Math.floor(s.tick / TICK_RATE);
+const hunters = (s: GameState) => [...group(s, 'cacadores_norte'), ...group(s, 'cacadores_sul')];
+const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 /** 3 hoplitas junto de Odisseu na praia: o encontro se cumpre (e ele pode deixar a praia). */
 const meet = (s: GameState) => { const o = odysseus(s); [...s.units.values()].filter((u) => u.owner === 0 && !u.dead && u.type === 'hoplite').slice(0, 3).forEach((u, k) => teleport(u, o.x - 1 + k, o.y - 1)); seconds(s, 2); expect(s.scenario!.objectives.encontrar).toBe('done'); };
 /** O cenário sem a caça, sem o vau e com a Liga parada (para correr o relógio do Emissário sem que Odisseu ou Argos caiam). */
@@ -137,24 +141,45 @@ describe('m5: caça, vau, Heraion e náufragos', () => {
     expect(o.state === 'move' && Math.abs(o.tx - POINTS.beach[0]) < 1, 'não é puxado de volta').toBe(false);
   });
 
-  it('estrada: com as fogueiras acesas, Odisseu fora da praia atrai caçadores que vão direto nele (8 no Normal, 12 no Difícil), a cada 20 s', () => {
+  it('estrada: fora da praia, cada fogueira de pé manda UMA leva de cavaleiros (8 no Normal, 12 no Difícil) da própria torre, em ataque-movimento atrás dele', () => {
     for (const [d, n] of [['normal', 8], ['hard', 12]] as const) {
       const s = start(d); seconds(s, 2);
       const o = odysseus(s);
       teleport(o, 84.5, 86.5);
       seconds(s, 2);
-      expect(group(s, 'cacadores'), 'antes do encontro, nada').toEqual([]);
+      expect(hunters(s), 'antes do encontro, nada').toEqual([]);
       teleport(o, 110.5, 98.5); meet(s);
       teleport(o, 84.5, 86.5);
       seconds(s, 2);
       expect(s.scenario!.fired, d).toContain('estrada_aviso');
-      const hunters = group(s, 'cacadores');
-      expect(hunters.length, d).toBe(n);
-      for (const u of hunters) expect([u.owner, u.targetId], d).toEqual([2, o.id]);
-      const first = hunters[0].id;
-      seconds(s, 21);
-      expect(group(s, 'cacadores')[0]?.id ?? first, d).not.toBe(first);   // novo grupo 20 s depois
+      const north = group(s, 'cacadores_norte');
+      expect(north.length, d).toBe(n);
+      const t1 = byTag(s, 'sinal1')!, t2 = byTag(s, 'sinal2')!;
+      for (const u of north) {
+        expect(u.owner, d).toBe(2);
+        expect(u.state, d).toBe('attackMove');
+        expect(dist(u, t1), `${d}: nasce junto da torre do norte, não na frente de Odisseu`).toBeLessThan(8);
+      }
+      expect(group(s, 'cacadores_sul'), d).toEqual([]);
+      seconds(s, 21);   // 20 s depois, a leva da torre do sul
+      const south = group(s, 'cacadores_sul');
+      expect(south.length, d).toBe(n);
+      for (const u of south) expect(dist(u, t2), d).toBeLessThan(14);
+      teleport(o, 84.5, 86.5);
+      seconds(s, 45);   // e não há terceira leva
+      expect([s.scenario!.vars.estrada_norte, s.scenario!.vars.estrada_sul], d).toEqual([1, 1]);
     }
+  });
+
+  it('estrada: com Odisseu a 17 tiles do Centro Cívico, os caçadores nascem na torre, longe de Argos (nunca dentro da cidade)', () => {
+    const s = start('normal'); seconds(s, 2); meet(s);
+    const tc = townCenter(s, 0)!;
+    teleport(odysseus(s), 34.5, 35.5);
+    expect(dist(odysseus(s), tc)).toBeGreaterThan(16);
+    seconds(s, 2);
+    const h = hunters(s);
+    expect(h.length).toBe(8);
+    for (const u of h) expect(dist(u, tc)).toBeGreaterThan(40);
   });
 
   it('estrada: nada de caçadores na trégua comprada nem com as duas fogueiras apagadas', () => {
@@ -167,18 +192,22 @@ describe('m5: caça, vau, Heraion e náufragos', () => {
     expect(s.scenario!.fired).toContain('resgate_pago');
     teleport(odysseus(s), 84.5, 86.5);
     seconds(s, 30);
-    expect(group(s, 'cacadores')).toEqual([]);
+    expect(hunters(s)).toEqual([]);
     const f = start('normal'); seconds(f, 2); meet(f);
     for (const t of ['sinal1', 'sinal2']) { const b = byTag(f, t); if (b?.kind === 'building') destroyBuilding(f, b, 0); }
     seconds(f, 2);
     teleport(odysseus(f), 84.5, 86.5);
     seconds(f, 30);
-    expect(group(f, 'cacadores')).toEqual([]);
+    expect(hunters(f)).toEqual([]);
     expect(f.scenario!.fired).not.toContain('estrada_aviso');
   });
 
-  it('vau: Odisseu no vau sul chama a emboscada (5 cavaleiros no Normal) a leste, com a fala do Batedor', () => {
-    const s = start('normal'); seconds(s, 2);
+  it('vau: Odisseu no vau sul chama a emboscada (5 cavaleiros no Normal) a leste, com a fala do Batedor (só depois do encontro)', () => {
+    const b = start('normal'); seconds(b, 2);
+    teleport(odysseus(b), 66.5, 78.5);
+    seconds(b, 2);
+    expect(b.scenario!.fired, 'antes do encontro, nada de emboscada').not.toContain('vau');
+    const s = start('normal'); seconds(s, 2); meet(s);
     const got: RaidRecord[] = [];
     setRaidObserver((r) => got.push(r));
     try {
@@ -193,8 +222,12 @@ describe('m5: caça, vau, Heraion e náufragos', () => {
     for (const u of riders) expect(u.x, 'a emboscada vem da margem leste').toBeGreaterThan(66);
   });
 
-  it('Heraion: Odisseu passando por ele cumpre o objetivo (+80 de favor e a fala de Hera); o templo destruído o faz falhar', () => {
-    const s = start('normal'); seconds(s, 2);
+  it('Heraion: Odisseu passando por ele (depois do encontro) cumpre o objetivo (+80 de favor e a fala de Hera); o templo destruído o faz falhar', () => {
+    const b = start('normal'); seconds(b, 2);
+    teleport(odysseus(b), 55.5, 62.5);
+    seconds(b, 2);
+    expect(b.scenario!.objectives.heraion, 'sem o encontro, não conta').toBe('pending');
+    const s = start('normal'); seconds(s, 2); meet(s);
     const favor = s.players[0].resources.favor;
     teleport(odysseus(s), 55.5, 62.5);
     seconds(s, 2);
@@ -209,7 +242,7 @@ describe('m5: caça, vau, Heraion e náufragos', () => {
   });
 
   it('náufragos: 4 no Centro Cívico cumprem (Fácil/Normal); no Difícil são os 6, e perder um falha o objetivo', () => {
-    const s = start('normal'); seconds(s, 2);
+    const s = start('normal'); seconds(s, 2); meet(s);
     expect([s.scenario!.hidden.naufragos, s.scenario!.hidden.naufragos_todos]).toEqual([false, true]);
     const tc = townCenter(s, 0)!;
     group(s, 'naufragos').slice(0, 4).forEach((u, k) => teleport(u, tc.x - 2 + k, tc.y + 3));
@@ -223,8 +256,23 @@ describe('m5: caça, vau, Heraion e náufragos', () => {
     expect(h.scenario!.objectives.naufragos).toBe('pending');   // o objetivo do Fácil/Normal nem aparece no Difícil
   });
 
-  it('escolta: Odisseu no Centro Cívico vence (com a fala de Poseidon); Odisseu morto perde', () => {
-    const s = start('normal'); seconds(s, 2);
+  it('náufragos mandados sozinhos a Argos no segundo 0 voltam à praia (esperam a escolta) e o objetivo não se cumpre sem o encontro', () => {
+    for (const d of ['normal', 'hard'] as const) {
+      const s = start(d);
+      const tc = townCenter(s, 0)!;
+      tick(s, [{ type: 'move', player: 0, ids: group(s, 'naufragos').map((u) => u.id), x: tc.x + 3, y: tc.y + 4 }]);
+      seconds(s, 60);
+      expect([s.scenario!.objectives.naufragos, s.scenario!.objectives.naufragos_todos], d).toEqual(['pending', 'pending']);
+      for (const u of group(s, 'naufragos')) expect(dist(u, { x: POINTS.castaways[0], y: POINTS.castaways[1] }), d).toBeLessThan(14);
+      // mesmo teleportados ao Centro Cívico, não contam antes do encontro
+      group(s, 'naufragos').forEach((u, k) => teleport(u, tc.x - 2 + k, tc.y + 3));
+      seconds(s, 1);
+      expect([s.scenario!.objectives.naufragos, s.scenario!.objectives.naufragos_todos], d).toEqual(['pending', 'pending']);
+    }
+  });
+
+  it('escolta: Odisseu no Centro Cívico depois do encontro vence (com a fala de Poseidon); Odisseu morto perde', () => {
+    const s = start('normal'); seconds(s, 2); meet(s);
     const tc = townCenter(s, 0)!;
     teleport(odysseus(s), tc.x + 3, tc.y + 3);
     seconds(s, 2);
@@ -235,6 +283,47 @@ describe('m5: caça, vau, Heraion e náufragos', () => {
     seconds(d, 2);
     expect(d.scenario!.outcome).toBe('defeat');
   });
+
+  it('sem o encontro na praia não há vitória: nem Odisseu levado a Argos, nem 3 soldados junto dele lá', () => {
+    const s = start('normal'); seconds(s, 2);
+    const tc = townCenter(s, 0)!;
+    const o = odysseus(s);
+    teleport(o, tc.x + 3, tc.y + 3);
+    [...s.units.values()].filter((u) => u.owner === 0 && !u.dead && u.type === 'hoplite').slice(0, 3).forEach((u, k) => teleport(u, o.x - 1 + k, o.y - 1));
+    seconds(s, 1);
+    expect([s.scenario!.objectives.encontrar, s.scenario!.objectives.escolta, s.scenario!.outcome]).toEqual(['pending', 'pending', 'playing']);
+  });
+
+  it('regressão: clicar sem parar para Odisseu andar rumo a Argos (a cada 5 ticks) não vence, nem cumpre o Heraion, nem gasta a emboscada', () => {
+    for (const d of ['easy', 'normal', 'hard'] as const) {
+      const s = start(d);
+      const route: [number, number][] = [[72, 81], [57, 74], [56, 62], [40, 44], [25, 26]];
+      let at = 0;
+      for (let i = 0; i < 150 * TICK_RATE && !s.gameOver; i++) {
+        const o = odysseus(s); const cmds: Command[] = [];
+        if (o && i % 5 === 0) {
+          // um ponto ~12 tiles à frente, pela Via Sagrada (praia → vau sul → Heraion → Argos)
+          while (at < route.length - 1 && (route[at][0] - o.x) * (route[at][0] - o.x) + (route[at][1] - o.y) * (route[at][1] - o.y) <= 16) at++;
+          const next = route[at];
+          const dx = next[0] - o.x, dy = next[1] - o.y, len = Math.max(1, Math.sqrt(dx * dx + dy * dy)), k = Math.min(1, 12 / len);
+          cmds.push({ type: 'move', player: 0, ids: [o.id], x: o.x + dx * k, y: o.y + dy * k });
+        }
+        tick(s, cmds);
+      }
+      expect(s.scenario!.outcome, d).not.toBe('victory');
+      expect([s.scenario!.objectives.encontrar, s.scenario!.objectives.escolta, s.scenario!.objectives.heraion], d).toEqual(['pending', 'pending', 'pending']);
+      expect(s.scenario!.fired, d).not.toContain('vau');
+    }
+  });
+
+  it('variante "escolta" (Normal): sem Mercado nem trégua, o comboio de 20 sobe a Via Sagrada sob os caçadores e o vau e vence na janela', () => {
+    const v = MISSION_SCRIPTS.m5_itaca.variants!.find((x) => x.label === 'escolta')!;
+    const r = runMissionScript('m5_itaca', 'normal', false, 'escolta');
+    expect(scriptVerdict(r, v).inWindow, `${r.outcome}@${r.atSeconds}s`).toBe(true);
+    expect(variantIssues(r, v)).toEqual([]);
+    expect(r.fired).toEqual(expect.arrayContaining(['estrada_aviso', 'vau']));
+    expect(r.fired).not.toContain('resgate_pago');
+  }, 60_000);
 });
 
 describe('m5: oferta do Emissário, resgate, fogueiras e dificuldades', () => {
@@ -268,6 +357,16 @@ describe('m5: oferta do Emissário, resgate, fogueiras e dificuldades', () => {
     expect(s.players[0].resources.gold).toBeLessThan(600);
     expect(s.ceasefireUntil - s.tick).toBeGreaterThan(110 * TICK_RATE);
     expect(dialogues(s).some((d) => d.includes('Emissário do Istmo'))).toBe(true);
+    // a trégua comprada avisa quando faltam 30 s e quando acaba (o painel só tem o relógio do Emissário)
+    const paid = s.ceasefireUntil;
+    seconds(s, 88);
+    expect(s.scenario!.fired).not.toContain('tregua_30');
+    seconds(s, 3);
+    expect(s.scenario!.fired).toContain('tregua_30');
+    expect(Math.abs((paid - s.tick) / TICK_RATE - 30)).toBeLessThanOrEqual(3);
+    seconds(s, 31);
+    expect(s.scenario!.fired).toContain('tregua_fim');
+    expect(s.tick).toBeGreaterThanOrEqual(paid);
   });
 
   it('sem Mercado, o ouro não compra a trégua; e sem 1500 de ouro também não', () => {
