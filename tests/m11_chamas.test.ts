@@ -156,7 +156,7 @@ describe('m11_chamas', () => {
     }
   });
 
-  it('embarque (G6 remove): no cais, um cidadão a cada 2 s até encher os lugares, sem morte; o sacerdote salva a chama (G1)', () => {
+  it('embarque (G6 remove): no cais, um cidadão a cada 2 s até encher os lugares, sem morte; o sacerdote salva a chama (G1) quando pode subir a bordo', () => {
     const s = calm('normal');
     const priest = byTag(s, 'sacerdote') as Unit;
     // parado antes (tecla S): um cidadão que coletava guarda o nó antigo, e o motor o manda de volta à coleta se esse nó se esgota
@@ -164,19 +164,25 @@ describe('m11_chamas', () => {
     applyCommand(s, { type: 'stop', player: 0, ids: [priest.id] });
     applyCommand(s, { type: 'move', player: 0, ids: [priest.id], x: QUAY.x, y: QUAY.y });
     run(s, 90);
-    expect(s.scenario!.objectives.chama).toBe('done');   // chegou ao cais (antes da nau): a chama está salva e o segredo aparece
-    expect(s.scenario!.hidden.chama).toBe(false);
-    expect(lines(s).some((t) => t.includes('lareira comum sobe a bordo'))).toBe(true);
+    // no cais antes da nau: nada a bordo, e o segredo ainda não aparece (a brasa não "sobe a bordo" de um cais vazio)
+    expect((priest.x - QUAY.x) ** 2 + (priest.y - QUAY.y) ** 2).toBeLessThan(4);
+    expect(s.scenario!.objectives.chama).toBe('pending');
+    expect(s.scenario!.hidden.chama).toBe(true);
+    expect(lines(s).some((t) => t.includes('lareira comum sobe a bordo'))).toBe(false);
     crowd(s, 11);
     const losses = s.players[0].stats.losses;
     jump(s, 237); run(s, 2);
     expect(s.scenario!.vars.embarcados).toBe(0);   // antes da nau, ninguém embarca
     run(s, 1);
-    expect(s.scenario!.vars.embarcados).toBe(1);   // a nau atraca e o 1º sobe no mesmo segundo
+    // a nau atraca: no mesmo segundo o sacerdote sobe com a brasa (o segredo) e o 1º da fila também
+    expect(s.scenario!.objectives.chama).toBe('done');
+    expect(s.scenario!.hidden.chama).toBe(false);
+    expect(priest.dead).toBe(true);                   // embarcou (removido)
+    expect(lines(s).some((t) => t.includes('lareira comum sobe a bordo'))).toBe(true);
+    expect(s.scenario!.vars.embarcados).toBe(2);
     run(s, 40);
     expect(s.scenario!.vars.embarcados).toBe(10);   // os 10 lugares da 1ª nau, um a cada 2 s
     expect(s.players[0].stats.losses).toBe(losses);   // G6: sem morte nem abate
-    expect(priest.dead).toBe(true);                   // embarcou (removido)
     expect(alive(s, 0, 'villager').filter((u) => (u.x - QUAY.x) ** 2 + (u.y - 113.5) ** 2 < 25)).toHaveLength(2);   // os 2 que sobraram esperam a próxima nau
     expect(lines(s).some((t) => t.includes('O primeiro sobe a bordo'))).toBe(true);
     expect(s.scenario!.objectives).toMatchObject({ exodo: 'pending', arconte: 'pending' });
@@ -209,6 +215,26 @@ describe('m11_chamas', () => {
     run(u, 2);
     expect(u.scenario!.objectives.exodo).toBe('failed');
     expect(u.scenario!.outcome).toBe('defeat');
+    // no limite: meta − 1 a bordo e um cidadão no cais aos 18:00 — as naus zarpam sem ele e a partida termina (antes, o embarque
+    // do mesmo segundo completava a meta depois de o objetivo falhar e a partida ficava sem vitória nem derrota)
+    const v = calm('normal');
+    run(v, 3);
+    v.scenario!.vars.capacidade = 30; v.scenario!.vars.embarcados = 29;
+    jump(v, 1077); run(v, 2);
+    crowd(v, 1);
+    run(v, 1);
+    expect(now(v)).toBe(1080);
+    expect(v.scenario!.vars.embarcados).toBe(29);
+    expect(v.scenario!.objectives.exodo).toBe('failed');
+    expect(v.scenario!.outcome).toBe('defeat');
+    // as naus demolidas pelo próprio jogador (Del / botão Demolir ignoram o piso de vida): derrota na hora, com a fala
+    const w = calm('normal');
+    run(w, 3);
+    expect(applyCommand(w, { type: 'delete', player: 0, ids: [byTag(w, 'naus')!.id] }).ok).toBe(true);
+    run(w, 1);
+    expect(w.scenario!.objectives.exodo).toBe('failed');
+    expect(w.scenario!.outcome).toBe('defeat');
+    expect(lines(w).some((x) => x.includes('Sem elas, não há êxodo'))).toBe(true);
   }, 60_000);
 
   it('as ondas, um poder cada: Maldição e hoplitas (2 min), Tempestade e arqueiros atrás do arconte (5,5 min), Trégua e cavalaria rumo às naus (9,5 min), escaladas pela dificuldade', () => {
@@ -236,6 +262,31 @@ describe('m11_chamas', () => {
       check(570, 'hermes', 'ceasefire', ['hetairoi', 'hippeus'], n[2], naus);
     }
   }, 60_000);
+
+  it('a cavalaria da 3ª onda não fica presa nas naus no piso de vida: com gente na fila, ataca o cidadão mais perto; sem ninguém, caça o arconte', () => {
+    const s = calm('normal', ['ira3', 'hostes']);
+    run(s, 2);
+    const naus = byTag(s, 'naus') as Building, a = byTag(s, 'arconte') as Unit;
+    const folk = Array.from({ length: 10 }, (_, k) => spawnUnit(s, 0, 'villager', 17.6 + (k % 4) * 1.2, 106.3 + Math.floor(k / 4) * 0.4));
+    jump(s, 569); run(s, 2);
+    const cav = alive(s, 2);
+    expect(cav.length).toBe(6);
+    run(s, 45);
+    // a fila caiu e as naus chegaram ao piso; a cavalaria larga as naus e cavalga atrás do arconte (antes: batia nas naus para sempre)
+    expect(folk.every((u) => u.dead)).toBe(true);
+    expect(frac(naus)).toBe(0.3);
+    const live = cav.filter((u) => !u.dead);
+    expect(live.length).toBe(6);
+    for (const u of live) expect([u.state, u.targetId]).toEqual(['attack', a.id]);
+    // quem parar nas naus com gente de novo na fila vai para o cidadão mais perto delas
+    const stuck = [spawnUnit(s, 2, 'hippeus', 19.5, 111), spawnUnit(s, 2, 'hippeus', 21.5, 111.5)];
+    applyCommand(s, { type: 'attackMove', player: 2, ids: stuck.map((u) => u.id), x: 19.5, y: 113.5 });
+    run(s, 1);
+    expect(stuck.map((u) => u.targetId)).toEqual([naus.id, naus.id]);
+    const queue = [spawnUnit(s, 0, 'villager', 16.5, 107.5), spawnUnit(s, 0, 'villager', 18, 107)];
+    run(s, 4);
+    for (const u of stuck) expect(queue.some((v) => v.id === u.targetId || v.dead), `${u.state}->${u.targetId}`).toBe(true);
+  });
 
   it('a vanguarda de Lícaon desce pela Descida aos 7,5 min, com catapultas, rumo à cidade (G3: escalada)', () => {
     for (const [d, n] of [['easy', 8], ['normal', 12], ['hard', 18]] as const) {
@@ -272,11 +323,11 @@ describe('m11_chamas', () => {
     jump(s, 329); run(s, 2);
     expect(s.scenario!.fired).toContain('raio2');
     expect(bolt().used).toBe(false);
-    expect(lines(s).some((t) => t.includes('Tens outro'))).toBe(true);
+    expect(lines(s).some((t) => t.includes('Você tem outro'))).toBe(true);
   });
 
-  it('Prometeu surge 1 min antes de Cronos (13/11/9 min) e Cronos aos 14/12/10 min, imbatível (G9: piso de 30 %), rumo à cidade', () => {
-    for (const [d, at] of [['easy', 840], ['normal', 720], ['hard', 600]] as const) {
+  it('Prometeu surge 1 min antes de Cronos (11,5/11/9 min) e Cronos aos 12,5/12/10 min — antes da última nau —, imbatível (G9: piso de 30 %), rumo à cidade', () => {
+    for (const [d, at] of [['easy', 750], ['normal', 720], ['hard', 600]] as const) {
       const s = calm(d);
       run(s, 2);
       jump(s, at - 62); run(s, 1);
@@ -361,6 +412,9 @@ describe('m11_chamas', () => {
       const en = scenarioHudHtml(campaignMission('m11_chamas')!, s);
       for (const t of ['⛵ The ships sail in: 12:5', '⚓ Next ship in: 3:5', '⏳ Cronus arrives in: 6:5', '⛵ Aboard: 0/30']) expect(en).toContain(t);
     } finally { setLocale('pt'); }
+    const e = calm('easy');
+    run(e, 5);
+    expect(scenarioHudHtml(def, e)).toContain('⏳ Cronos chega em: 12:2');
     const h = calm('hard');
     run(h, 5);
     expect(scenarioHudHtml(def, h)).toContain('⏳ Cronos chega em: 9:5');
@@ -373,10 +427,10 @@ describe('m11_chamas', () => {
     expect(CAMPAIGN.findIndex((e) => e.id === 'm9_tenaro')).toBeLessThan(i);
     const sc = MISSION_SCRIPTS.m11_chamas;
     expect(sc.expect).toEqual([12.6, 23.4]);
-    expect(sc.atEnd?.map((c) => c.label)).toEqual(['Maldição e Tempestade de Raios usadas']);
+    expect(sc.atEnd?.map((c) => c.label)).toEqual(['Maldição e Tempestade de Raios usadas', 'Cronos desceu antes do fim']);
     // a última leva leva todos e sai antes de Cronos chegar à cidade
     expect(m11Levas('normal')).toEqual([{ at: 170, size: 12 }, { at: 470, size: 12 }, { at: 640, size: 'all' }]);
-    expect(m11Levas('easy')).toEqual([{ at: 170, size: 9 }, { at: 470, size: 9 }, { at: 710, size: 'all' }]);
+    expect(m11Levas('easy')).toEqual([{ at: 170, size: 9 }, { at: 470, size: 9 }, { at: 670, size: 'all' }]);
     expect(m11Levas('hard')).toEqual([{ at: 170, size: 12 }, { at: 470, size: 12 }, { at: 520, size: 'all' }]);
   });
 });

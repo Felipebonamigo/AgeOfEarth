@@ -18,10 +18,10 @@
       "en": "But on deck, an old priest shields an ember from the common hearth with his hands. Zeus summons his brothers: it is time for the second Titanomachy." }
   ],
   "hints": [
-    { "pt": "O arconte é a unidade com a coroa. Se ele cair, a missão acaba: guarneça-o numa torre, no Centro Cívico ou na Fortaleza (botão direito) quando as ondas o caçarem.",
-      "en": "The archon is the unit with the crown. If he falls, the mission ends: garrison him in a tower, the Town Center or the Fortress (right-click) when the waves hunt him." },
-    { "pt": "As naus de Micenas atracam no cais de Náuplia, a sudoeste, em levas. Só embarca quem estiver junto delas, um a cada 2 segundos, até encher os lugares da leva.",
-      "en": "The ships of Mycenae dock at the quay of Nauplia, to the southwest, one after another. Only those standing beside them board, one every 2 seconds, until that ship's places are full." },
+    { "pt": "O arconte começa ao lado do Centro Cívico; selecionado, o painel mostra 👑 Arconte de Argos. Se ele cair, a missão acaba: guarneça-o numa torre, no Centro Cívico ou na Fortaleza (botão direito) quando as ondas o caçarem.",
+      "en": "The archon starts beside the Town Center; when selected, the panel shows 👑 Archon of Argos. If he falls, the mission ends: garrison him in a tower, the Town Center or the Fortress (right-click) when the waves hunt him." },
+    { "pt": "As naus de Micenas atracam no cais de Náuplia, a sudoeste, em levas. Só embarcam cidadãos junto delas, um a cada 2 segundos, até encher os lugares da leva.",
+      "en": "The ships of Mycenae dock at the quay of Nauplia, to the southwest, one after another. Only villagers standing beside them board, one every 2 seconds, until that ship's places are full." },
     { "pt": "Cada onda chega com um poder novo: a Maldição (Afrodite) vira soldados em javalis, a Tempestade de Raios (Hera) castiga arqueiros amontoados e a Trégua (Hermes) dá 30 segundos para correr.",
       "en": "Each wave comes with a new power: the Curse (Aphrodite) turns soldiers into boars, the Lightning Storm (Hera) punishes huddled archers and the Truce (Hermes) buys 30 seconds to run." },
     { "pt": "Cronos não pode ser morto aqui. Prometeu o segura por um tempo e o Raio de Zeus lhe tira metade da vida, mas o Tempo não cai: saia do caminho dele.",
@@ -53,17 +53,16 @@
     { "do": "set", "player": 1, "techs": ["military1", "military2"] }
   ],
   "objectives": [
-    { "id": "exodo", "text": { "pt": "Embarque o povo nas naus de Náuplia antes que zarpem", "en": "Get the people aboard the ships at Nauplia before they sail" },
+    { "id": "exodo", "text": { "pt": "Embarque os cidadãos nas naus de Náuplia antes que zarpem", "en": "Get the villagers aboard the ships at Nauplia before they sail" },
       "done": { "var": "embarcados", "gte": { "var": "meta" } },
-      "failed": { "all": [ { "time": { "gte": 1080 } }, { "var": "embarcados", "lt": { "var": "meta" } } ] } },
+      "failed": { "any": [ { "all": [ { "time": { "gte": 1080 } }, { "var": "embarcados", "lt": { "var": "meta" } } ] }, { "entity": { "tag": "naus" }, "exists": false } ] } },
     { "id": "arconte", "text": { "pt": "O arconte deve sobreviver", "en": "The archon must survive" },
       "done": { "all": [ { "var": "embarcados", "gte": { "var": "meta" } }, { "entity": { "tag": "arconte" }, "exists": true } ] },
       "failed": { "entity": { "tag": "arconte" }, "exists": false } },
     { "id": "retaguarda", "optional": true, "text": { "pt": "O Templo de Zeus resiste até os 12 minutos", "en": "The Temple of Zeus holds until minute 12" },
       "done": { "all": [ { "time": { "gte": 720 } }, { "entity": { "tag": "templo" }, "exists": true } ] },
       "failed": { "entity": { "tag": "templo" }, "exists": false } },
-    { "id": "chama", "optional": true, "hidden": true, "text": { "pt": "Salve a chama de Héstia (o sacerdote chega às naus)", "en": "Save the flame of Hestia (the priest reaches the ships)" },
-      "done": { "units": { "player": 0, "tag": "sacerdote", "near": { "point": { "entity": { "tag": "naus" } }, "radius": 5 } }, "gte": 1 } }
+    { "id": "chama", "optional": true, "hidden": true, "text": { "pt": "Salve a chama de Héstia (o sacerdote embarca nas naus)", "en": "Save the flame of Hestia (the priest boards the ships)" } }
   ],
   "triggers": [
     { "id": "meta_facil", "when": { "all": [ { "time": { "gte": 0 } }, { "difficulty": "easy" } ] }, "then": [ { "do": "setVar", "name": "meta", "value": 20 } ] },
@@ -75,7 +74,7 @@
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
         "text": { "pt": "As naus atracam em Náuplia, a sudoeste. Selecione cidadãos e clique no cais com o botão direito; o painel conta os lugares.", "en": "The ships dock at Nauplia, to the southwest. Select villagers and right-click the quay; the panel counts the places." } },
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
-        "text": { "pt": "E guarde o arconte, o de coroa: se as ondas o cercarem, guarneça-o numa torre ou na Fortaleza.", "en": "And guard the archon, the one with the crown: if the waves close in, garrison him in a tower or the Fortress." } } ] },
+        "text": { "pt": "E guarde o arconte (👑 no painel, quando selecionado): se as ondas o cercarem, guarneça-o numa torre ou na Fortaleza.", "en": "And guard the archon (👑 in the panel when selected): if the waves close in, garrison him in a tower or the Fortress." } } ] },
     { "id": "ancia", "when": { "time": { "gte": 60 } }, "then": [
       { "do": "say", "speaker": { "pt": "Anciã de Argos", "en": "Elder of Argos" }, "icon": "👵",
         "text": { "pt": "Leve as crianças primeiro. Os velhos já viram Argos. Basta.", "en": "Take the children first. The old have seen Argos. That is enough." } } ] },
@@ -97,14 +96,14 @@
     { "id": "raio2", "when": { "all": [ { "time": { "gte": 330 } }, { "powerUsed": { "player": 0, "id": "bolt" } } ] }, "then": [
       { "do": "set", "player": 0, "powers": { "reset": ["bolt"] } },
       { "do": "say", "speaker": "Zeus", "icon": "⚡",
-        "text": { "pt": "Meu raio caiu, e minha ira não se esgotou. Tens outro, arconte.", "en": "My bolt has fallen, and my wrath is not spent. You have another, archon." } } ] },
+        "text": { "pt": "Meu raio caiu, e minha ira não se esgotou. Você tem outro, arconte.", "en": "My bolt has fallen, and my wrath is not spent. You have another, archon." } } ] },
     { "id": "vanguarda", "when": { "time": { "gte": 450 } }, "then": [
       { "do": "spawn", "player": 2, "units": ["petrobolos", "hoplite", "hoplite", "hypaspist", "hypaspist", "toxotes", "petrobolos", "hoplite", "hoplite", "hypaspist", "hypaspist", "toxotes"], "scaled": true, "at": { "at": [64, 16] }, "tag": "vanguarda" },
       { "do": "order", "units": { "tag": "vanguarda" }, "order": { "type": "attackMove", "at": { "at": [64, 40] } } },
       { "do": "say", "speaker": { "pt": "Lícaon", "en": "Lycaon" }, "icon": "🐺",
         "text": { "pt": "Argos acendeu o fogo e agora foge dele. Fique, arconte: a mesa está posta e o Tempo tem fome.", "en": "Argos lit the fire and now runs from it. Stay, archon: the table is set and Time is hungry." } },
       { "do": "say", "speaker": { "pt": "Batedor", "en": "Scout" }, "icon": "🐎",
-        "text": { "pt": "A vanguarda do Culto desce pela Descida, com catapultas! Vão arrombar a porta norte.", "en": "The Cult's vanguard is coming down the Descent, with catapults! They will break the north gate." } } ] },
+        "text": { "pt": "A vanguarda do Culto desce o desfiladeiro do norte, com catapultas! Vão arrombar o portão norte.", "en": "The Cult's vanguard is coming down the northern pass, with catapults! They will break the north gate." } } ] },
     { "id": "nau2", "when": { "time": { "gte": 540 } }, "then": [
       { "do": "addVar", "name": "capacidade", "delta": 10 },
       { "do": "say", "speaker": { "pt": "Batedor", "en": "Scout" }, "icon": "⛵",
@@ -116,14 +115,14 @@
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
         "text": { "pt": "Cavalaria rumo ao porto! Hermes concede a Trégua: trinta segundos em que ninguém mata. Use-os para correr.", "en": "Cavalry heading for the harbor! Hermes grants the Truce: thirty seconds in which no one kills. Use them to run." } } ] },
     { "id": "prometeu", "when": { "any": [
-        { "all": [ { "difficulty": "easy" }, { "time": { "gte": 780 } } ] },
+        { "all": [ { "difficulty": "easy" }, { "time": { "gte": 690 } } ] },
         { "all": [ { "difficulty": "normal" }, { "time": { "gte": 660 } } ] },
         { "all": [ { "difficulty": "hard" }, { "time": { "gte": 540 } } ] } ] }, "then": [
       { "do": "spawn", "player": 0, "units": ["prometheus"], "at": { "at": [64, 22] }, "tag": "prometeu" },
       { "do": "say", "speaker": { "pt": "Prometeu", "en": "Prometheus" }, "icon": "🔥",
         "text": { "pt": "Fui eu quem lhes deu o fogo. Deixem-me ao menos cobrir a retirada.", "en": "It was I who gave you fire. Let me at least cover your retreat." } } ] },
     { "id": "cronos", "when": { "any": [
-        { "all": [ { "difficulty": "easy" }, { "time": { "gte": 840 } } ] },
+        { "all": [ { "difficulty": "easy" }, { "time": { "gte": 750 } } ] },
         { "all": [ { "difficulty": "normal" }, { "time": { "gte": 720 } } ] },
         { "all": [ { "difficulty": "hard" }, { "time": { "gte": 600 } } ] } ] }, "then": [
       { "do": "spawn", "player": 2, "units": ["cronus"], "at": { "start": 2 }, "tag": "cronos" },
@@ -140,14 +139,24 @@
     { "id": "nau3", "when": { "time": { "gte": 780 } }, "then": [
       { "do": "addVar", "name": "capacidade", "delta": 10 },
       { "do": "say", "speaker": { "pt": "Batedor", "en": "Scout" }, "icon": "⛵",
-        "text": { "pt": "A terceira nau atracou em Náuplia! Encham o convés, arconte.", "en": "The third ship has docked at Nauplia! Fill the deck, archon." } } ] },
+        "text": { "pt": "A terceira nau atracou em Náuplia! Encha o convés, arconte.", "en": "The third ship has docked at Nauplia! Fill the deck, archon." } } ] },
     { "id": "nau3_facil", "when": { "all": [ { "fired": "nau3" }, { "difficulty": "easy" } ] }, "then": [ { "do": "addVar", "name": "capacidade", "delta": -4 } ] },
     { "id": "nau4", "when": { "all": [ { "difficulty": "hard" }, { "time": { "gte": 840 } } ] }, "then": [
       { "do": "addVar", "name": "capacidade", "delta": 10 },
       { "do": "say", "speaker": { "pt": "Batedor", "en": "Scout" }, "icon": "⛵",
         "text": { "pt": "Uma quarta nau! Atreu mandou até os barcos de pesca.", "en": "A fourth ship! Atreus has sent even the fishing boats." } } ] },
+    { "id": "chama_salva", "when": { "all": [
+        { "time": { "lt": 1080 } },
+        { "var": "embarcados", "lt": { "var": "capacidade" } },
+        { "units": { "player": 0, "tag": "sacerdote", "near": { "point": { "entity": { "tag": "naus" } }, "radius": 5 } }, "gte": 1 } ] }, "then": [
+      { "do": "objective", "id": "chama", "status": "done" },
+      { "do": "remove", "entity": { "tag": "sacerdote" } },
+      { "do": "addVar", "name": "embarcados", "delta": 1 },
+      { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
+        "text": { "pt": "Uma brasa da lareira comum sobe a bordo nas mãos do sacerdote de Héstia. Enquanto ela arder, Argos não morreu.", "en": "An ember from the common hearth goes aboard in the hands of Hestia's priest. While it burns, Argos is not dead." } } ] },
     { "id": "embarque", "repeat": true, "when": { "all": [
         { "every": { "seconds": 2 } },
+        { "time": { "lt": 1080 } },
         { "var": "embarcados", "lt": { "var": "capacidade" } },
         { "units": { "player": 0, "type": "villager", "near": { "point": { "entity": { "tag": "naus" } }, "radius": 5 } }, "gte": 1 } ] }, "then": [
       { "do": "remove", "entity": { "player": 0, "type": "villager", "pick": "nearest", "near": { "entity": { "tag": "naus" } } } },
@@ -155,9 +164,19 @@
     { "id": "primeiro_a_bordo", "when": { "var": "embarcados", "gte": 1 }, "then": [
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
         "text": { "pt": "O primeiro sobe a bordo. Não conte os que ficam, arconte; conte os que vão.", "en": "The first one climbs aboard. Don't count those who stay, archon; count those who go." } } ] },
-    { "id": "chama_salva", "when": { "objective": "chama", "is": "done" }, "then": [
-      { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
-        "text": { "pt": "Uma brasa da lareira comum sobe a bordo nas mãos do sacerdote de Héstia. Enquanto ela arder, Argos não morreu.", "en": "An ember from the common hearth goes aboard in the hands of Hestia's priest. While it burns, Argos is not dead." } } ] },
+    { "id": "cais_fila", "repeat": true, "when": { "all": [
+        { "every": { "seconds": 3 } },
+        { "entity": { "tag": "naus" }, "hp": { "lte": 0.3 } },
+        { "units": { "player": 2, "excludeTag": "cronos", "near": { "point": { "entity": { "tag": "naus" } }, "radius": 6 } }, "gte": 1 },
+        { "units": { "player": 0, "type": "villager", "near": { "point": { "entity": { "tag": "naus" } }, "radius": 8 } }, "gte": 1 } ] }, "then": [
+      { "do": "order", "units": { "player": 2, "excludeTag": "cronos", "near": { "point": { "entity": { "tag": "naus" } }, "radius": 6 } }, "order": { "type": "attack", "target": { "player": 0, "type": "villager", "pick": "nearest", "near": { "entity": { "tag": "naus" } } } } } ] },
+    { "id": "cais_arconte", "repeat": true, "when": { "all": [
+        { "every": { "seconds": 3 } },
+        { "entity": { "tag": "naus" }, "hp": { "lte": 0.3 } },
+        { "units": { "player": 2, "excludeTag": "cronos", "near": { "point": { "entity": { "tag": "naus" } }, "radius": 6 } }, "gte": 1 },
+        { "units": { "player": 0, "type": "villager", "near": { "point": { "entity": { "tag": "naus" } }, "radius": 8 } }, "eq": 0 },
+        { "entity": { "tag": "arconte" }, "exists": true } ] }, "then": [
+      { "do": "order", "units": { "player": 2, "excludeTag": "cronos", "near": { "point": { "entity": { "tag": "naus" } }, "radius": 6 } }, "order": { "type": "attack", "target": { "tag": "arconte" } } } ] },
     { "id": "hostes", "repeat": true, "when": { "all": [
         { "every": { "seconds": 5 } },
         { "units": { "player": 2, "state": "idle", "excludeTag": "cronos" }, "gte": 1 },
@@ -172,13 +191,16 @@
         "text": { "pt": "Cronos desce a Via de Náuplia. Pelo vau do norte o caminho é mais longo, arconte, mas é seu.", "en": "Cronus is coming down the Nauplia Way. By the northern ford the road is longer, archon, but it is yours." } } ] },
     { "id": "prometeu_cai", "when": { "all": [ { "fired": "prometeu" }, { "entity": { "tag": "prometeu" }, "exists": false } ] }, "then": [
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
-        "text": { "pt": "O Tempo arrasta Prometeu de volta ao Tártaro. Não olhe para trás, arconte.", "en": "Time drags Prometheus back to Tartarus. Don't look back, archon." } } ] },
+        "text": { "pt": "O Tempo derruba Prometeu. Não olhe para trás, arconte.", "en": "Time fells Prometheus. Don't look back, archon." } } ] },
     { "id": "templo_cai", "when": { "objective": "retaguarda", "is": "failed" }, "then": [
       { "do": "say", "speaker": "Zeus", "icon": "⚡",
         "text": { "pt": "Meu templo arde. Que arda: eu não moro em pedra.", "en": "My temple burns. Let it burn: I do not live in stone." } } ] },
     { "id": "argos_cai", "when": { "all": [ { "time": { "gte": 5 } }, { "buildings": { "player": 0, "type": "town_center" }, "eq": 0 } ] }, "then": [
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
         "text": { "pt": "A lareira de Argos se apagou. As pedras eram só pedras, arconte; o povo é a cidade.", "en": "The hearth of Argos has gone out. The stones were only stones, archon; the people are the city." } } ] },
+    { "id": "naus_perdidas", "when": { "all": [ { "objective": "exodo", "is": "failed" }, { "entity": { "tag": "naus" }, "exists": false } ] }, "then": [
+      { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
+        "text": { "pt": "As naus de Micenas se foram do cais. Sem elas, não há êxodo.", "en": "The ships of Mycenae are gone from the quay. Without them, there is no exodus." } } ] },
     { "id": "pressa", "when": { "all": [ { "time": { "gte": 960 } }, { "var": "embarcados", "lt": { "var": "meta" } } ] }, "then": [
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
         "text": { "pt": "Dois minutos. Os remadores já soltam as amarras, arconte.", "en": "Two minutes. The rowers are already slipping the moorings, archon." } } ] }
@@ -186,7 +208,7 @@
   "victory": { "all": [ { "objective": "exodo", "is": "done" }, { "objective": "arconte", "is": "done" } ] },
   "defeat": { "any": [
     { "entity": { "tag": "arconte" }, "exists": false },
-    { "all": [ { "time": { "gte": 1080 } }, { "var": "embarcados", "lt": { "var": "meta" } } ] }
+    { "objective": "exodo", "is": "failed" }
   ] },
   "hud": [
     { "type": "countdown", "seconds": 1080, "while": { "var": "embarcados", "lt": { "var": "meta" } }, "label": { "pt": "⛵ As naus zarpam em", "en": "⛵ The ships sail in" } },
@@ -194,7 +216,7 @@
     { "type": "countdown", "seconds": 540, "while": { "all": [ { "fired": "nau1" }, { "not": { "fired": "nau2" } } ] }, "label": { "pt": "⚓ Próxima nau em", "en": "⚓ Next ship in" } },
     { "type": "countdown", "seconds": 780, "while": { "all": [ { "fired": "nau2" }, { "not": { "fired": "nau3" } } ] }, "label": { "pt": "⚓ Próxima nau em", "en": "⚓ Next ship in" } },
     { "type": "countdown", "seconds": 840, "while": { "all": [ { "difficulty": "hard" }, { "fired": "nau3" }, { "not": { "fired": "nau4" } } ] }, "label": { "pt": "⚓ Última nau em", "en": "⚓ Last ship in" } },
-    { "type": "countdown", "seconds": 840, "while": { "all": [ { "difficulty": "easy" }, { "not": { "fired": "cronos" } } ] }, "label": { "pt": "Cronos chega em", "en": "Cronus arrives in" } },
+    { "type": "countdown", "seconds": 750, "while": { "all": [ { "difficulty": "easy" }, { "not": { "fired": "cronos" } } ] }, "label": { "pt": "Cronos chega em", "en": "Cronus arrives in" } },
     { "type": "countdown", "seconds": 720, "while": { "all": [ { "difficulty": "normal" }, { "not": { "fired": "cronos" } } ] }, "label": { "pt": "Cronos chega em", "en": "Cronus arrives in" } },
     { "type": "countdown", "seconds": 600, "while": { "all": [ { "difficulty": "hard" }, { "not": { "fired": "cronos" } } ] }, "label": { "pt": "Cronos chega em", "en": "Cronus arrives in" } },
     { "type": "progress", "var": "embarcados", "max": { "var": "meta" }, "format": "count", "label": { "pt": "⛵ A bordo", "en": "⛵ Aboard" } },

@@ -1458,7 +1458,7 @@ const M11_QUAY = { x: 19.5, y: 110.5 }, M11_ARCHON_SAFE = { x: 12.5, y: 112.5 },
 /** m11: instantes das naus e de Cronos por dificuldade (os mesmos do cenário) e os lugares de cada nau. */
 const M11_SHIPS: Record<CampaignDifficulty, number[]> = { easy: [240, 540, 780], normal: [240, 540, 780], hard: [240, 540, 780, 840] };
 const M11_PLACES: Record<CampaignDifficulty, number[]> = { easy: [7, 7, 6], normal: [10, 10, 10], hard: [10, 10, 10, 10] };
-const M11_CRONUS: Record<CampaignDifficulty, number> = { easy: 840, normal: 720, hard: 600 };
+const M11_CRONUS: Record<CampaignDifficulty, number> = { easy: 750, normal: 720, hard: 600 };
 /** m11: a leva sai M11_LEAD s antes da nau dela (a viagem leva ~40–50 s) e ninguém fica na cidade depois de Cronos − M11_EVAC s. */
 const M11_LEAD = 70, M11_EVAC = 80;
 /** m11: folga de cada leva (cidadãos a mais que os lugares da nau, para as perdas no caminho). */
@@ -1646,13 +1646,17 @@ function m11Powers(state: GameState): Command | null {
 
 /**
  * m11: a mecânica em destaque aconteceu — a Maldição e a Tempestade de Raios foram usadas nas ondas para as quais vieram (os
- * hoplitas da 1ª, os arqueiros que caçam o arconte na 2ª). A janela não discrimina isso: o relógio das naus põe a vitória perto
- * dos 13 min (14 no Difícil) com ou sem poderes. A Trégua fica de fora de propósito: ela só serve quando a cavalaria da 3ª onda
- * chega à fila do cais (Fácil e Normal); no Difícil o exército da cidade já desceu ao porto e a mata antes, com os lugares da
- * 2ª nau cheios — gastá-la ali só para passar na checagem seria frear/forçar o roteiro.
+ * hoplitas da 1ª, os arqueiros que caçam o arconte na 2ª) — e o clímax veio antes do fim (Cronos desceu: o êxodo não termina
+ * antes dele em nenhuma dificuldade). A janela não discrimina nada disso: o calendário das naus põe toda vitória possível entre
+ * a última nau + o embarque (~13 min; ~14 no Difícil, com a 4ª nau) e a partida das naus (18 min), dentro da janela da §4 ±30 %
+ * — ela só confere que houve vitória; a prova da missão são estas checagens. A Trégua fica de fora de propósito: ela só serve
+ * quando a cavalaria da 3ª onda chega à fila do cais (Fácil e Normal); no Difícil o exército da cidade já desceu ao porto e a
+ * mata antes, com os lugares da 2ª nau cheios — gastá-la ali só para passar na checagem seria frear/forçar o roteiro.
  */
-const M11_POWERS_USED: ScriptEndCheck[] = [{ label: 'Maldição e Tempestade de Raios usadas', when: { all: [
-  { powerUsed: { player: 0, id: 'curse' } }, { powerUsed: { player: 0, id: 'lightning_storm' } }] } }];
+const M11_END_CHECKS: ScriptEndCheck[] = [
+  { label: 'Maldição e Tempestade de Raios usadas', when: { all: [{ powerUsed: { player: 0, id: 'curse' } }, { powerUsed: { player: 0, id: 'lightning_storm' } }] } },
+  { label: 'Cronos desceu antes do fim', when: { fired: 'cronos' } },
+];
 
 /** m11: cidadãos a treinar (vivos + a bordo) até a meta com folga, enquanto a cidade existe e a última leva não saiu. */
 function m11Villagers(state: GameState): Command[] {
@@ -1902,13 +1906,14 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
     ],
   },
   m11_chamas: {
-    // §4: 18 min (cronômetro fixo) ±30 %; o relógio das naus põe a vitória mais cedo perto dos 13 min (14 no Difícil, com a 4ª nau)
+    // §4: 18 min (cronômetro fixo) ±30 %. Exceção de fato: toda vitória possível cai entre ~13 min (a última nau + o embarque;
+    // ~14 no Difícil) e 18 min (as naus zarpam), dentro da janela — ela só confere a vitória; a prova é o atEnd (M11_END_CHECKS)
     minutes: 19, expect: [12.6, 23.4],
     // a IA do jogador defende a cidade e nunca sai em ondas; o êxodo, o arconte, a escolta e os poderes são do roteiro
     hold: { time: { gte: 0 } },
     keepPowers: ['bolt', 'curse', 'lightning_storm', 'ceasefire', 'restoration'],
     detach: (s) => m11Detach(s),
-    atEnd: M11_POWERS_USED,
+    atEnd: M11_END_CHECKS,
     steps: [
       { label: 'cidadãos', when: { time: { gte: 3 } }, every: 4, command: (s) => m11Villagers(s) },
       { label: 'treino', when: { time: { gte: 5 } }, every: 5, command: (s) => trainArmy(s, 0, { reserve: { food: 150, wood: 100, gold: 60 } }) },
