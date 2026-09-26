@@ -1,17 +1,51 @@
 {
   "id": "temple",
   "kind": "building",
-  "docs": "Para usar um modelo .glb, troque `source` por { \"type\": \"glb\", \"path\": \"art/src/temple.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"build0\": \"Build0\", \"build1\": \"Build1\", \"build2\": \"Build2\", \"complete\": \"Complete\" }, \"teamMaterials\": [\"Banner\"] } (um clipe estático por estado; docs/ART.md §3.4).",
-  "source": { "type": "param", "rig": "building", "params": { "style": "temple" } },
-  "size": { "tiles": [4.8, 6.2] },
-  "footprint": [3, 3],
-  "anchor": [0.36, 0.61],
+  "docs": "Para usar um modelo .glb, troque `source` por { \"type\": \"glb\", \"path\": \"art/src/temple.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"build0\": \"Build0\", …, \"damage2\": \"Damage2\" }, \"teamMaterials\": [\"Banner\"] } (um clipe estático por estado; docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "building",
+    "params": {
+      "style": "temple"
+    }
+  },
+  "size": {
+    "tiles": [
+      5.0,
+      6.6
+    ]
+  },
+  "footprint": [
+    3,
+    3
+  ],
+  "anchor": [
+    0.37,
+    0.6
+  ],
   "dirs": 1,
   "anims": {
-    "build0": { "frames": 1, "params": { "stage": 0 } },
-    "build1": { "frames": 1, "params": { "stage": 1 } },
-    "build2": { "frames": 1, "params": { "stage": 2 } },
-    "complete": { "frames": 1, "params": { "stage": 3 } }
+    "build0": {
+      "frames": 1
+    },
+    "build1": {
+      "frames": 1
+    },
+    "build2": {
+      "frames": 1
+    },
+    "complete": {
+      "frames": 1
+    },
+    "damage1": {
+      "frames": 1
+    },
+    "damage2": {
+      "frames": 1
+    }
+  },
+  "icon": {
+    "anim": "complete"
   },
   "team": true,
   "shadow": true

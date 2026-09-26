@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, FRAME_NAME_RE, GROUP_OF } from '../scripts/bake/manifest.mjs';
+import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, FRAME_NAME_RE, GROUP_OF, BUILDING_STATES } from '../scripts/bake/manifest.mjs';
+import { BUILDINGS } from '../src/core/data';
 import { runCheck, BUDGET } from '../scripts/bake/check';
 import { alphaBounds, packShelf, blit, sheetJson } from '../scripts/bake/page/atlas.js';
 import { DIRS, PAD, EXTRUDE } from '../scripts/bake/page/camera.js';
@@ -11,8 +12,9 @@ const manifests = loadManifests(path.join(ROOT, 'art', 'manifest')).map((l) => l
 const hasArt = fs.existsSync(path.join(ROOT, 'public', 'art', 'manifest.json'));
 
 describe('manifestos de arte (docs/ART.md §3.4)', () => {
-  it('existem os manifestos da Etapa 2 (hoplita, cidadão, templo, árvores, nós)', () => {
+  it('existem os manifestos da Etapa 2 (hoplita, cidadão, templo, árvores, nós) e o lote 1 da Etapa 3', () => {
     expect(manifests.map((m) => m.id).sort()).toEqual(expect.arrayContaining(['hoplite', 'villager', 'temple', 'props-trees', 'props-nodes']));
+    expect(manifests.map((m) => m.id)).toEqual(expect.arrayContaining(['town_center', 'house', 'wall', 'gate', 'tower', 'rubble']));
   });
   it('todo manifesto é válido pelo esquema mínimo e os ids/quadros são únicos', () => {
     for (const m of manifests) expect(validateManifest(m), m.id).toEqual([]);
@@ -26,10 +28,15 @@ describe('manifestos de arte (docs/ART.md §3.4)', () => {
     }
   });
   it('nomes de quadro seguem o padrão <id>/<anim>/<dir>/<nn> · <id>/<estado> · <kind>/<variante>[/<tag>]', () => {
-    for (const m of manifests) for (const f of expandFrames(m)) expect(FRAME_NAME_RE[m.kind].test(f.name), f.name).toBe(true);
+    for (const m of manifests) for (const f of expandFrames(m)) expect((f.icon ? FRAME_NAME_RE.icon : FRAME_NAME_RE[m.kind]).test(f.name), f.name).toBe(true);
     expect(FRAME_NAME_RE.unit.test('hoplite/walk/3/05')).toBe(true);
     expect(FRAME_NAME_RE.unit.test('hoplite/walk/8/05')).toBe(false);
     expect(FRAME_NAME_RE.building.test('temple/build0')).toBe(true);
+    expect(FRAME_NAME_RE.building.test('wall/complete/05')).toBe(true);
+    expect(FRAME_NAME_RE.building.test('gate/open/ns')).toBe(true);
+    expect(FRAME_NAME_RE.building.test('rubble/3x3')).toBe(true);
+    expect(FRAME_NAME_RE.icon.test('town_center')).toBe(true);
+    expect(FRAME_NAME_RE.icon.test('house/complete')).toBe(false);
     expect(FRAME_NAME_RE.prop.test('olive/2/big')).toBe(true);
   });
   it('unidades: 8 direções × quadros declarados; cidadão tem carregar 6 e coletar 4', () => {
@@ -43,12 +50,58 @@ describe('manifestos de arte (docs/ART.md §3.4)', () => {
     expect(new Set(expandFrames(v, { mirror: true }).map((f) => f.dir))).toEqual(new Set([2, 3, 4, 5, 6]));
     expect(animationsOf(v, { mirror: true })['villager/idle/0'][0]).toBe('villager/idle/4/00');
   });
-  it('templo tem 3 estágios de obra + completo; props cobrem árvores, tocos, rochas, frutas, ouro e animais', () => {
+  it('templo tem 3 estágios de obra, completo e 2 de dano (+ ícone); props cobrem árvores, tocos, rochas, frutas, ouro e animais', () => {
     const t = manifests.find((m) => m.id === 'temple')!;
-    expect(expandFrames(t).map((f) => f.name)).toEqual(['temple/build0', 'temple/build1', 'temple/build2', 'temple/complete']);
+    expect(expandFrames(t).map((f) => f.name)).toEqual(['temple/build0', 'temple/build1', 'temple/build2', 'temple/complete', 'temple/damage1', 'temple/damage2', 'temple']);
     const props = manifests.filter((m) => m.kind === 'prop').flatMap((m) => expandFrames(m).map((f) => f.name));
     for (const k of ['olive/0/big', 'cypress/3/small', 'oak/0/thin', 'stump/2', 'rock/5', 'berry/empty', 'gold/2', 'lure/0', 'deer/6', 'boar/0']) expect(props).toContain(k);
     expect(GROUP_OF).toEqual({ unit: 'units', building: 'buildings', prop: 'props' });
+  });
+});
+
+describe('edifícios (Etapa 3): estados, variantes, escombros e ícones', () => {
+  const buildings = manifests.filter((m) => m.kind === 'building' && !m.rubble);
+  it('todo edifício com arte tem os 6 estados (obra 0–2, pronto, dano 1–2), passes de cor e sombra e um ícone', () => {
+    expect(buildings.length).toBeGreaterThanOrEqual(6);
+    for (const m of buildings) {
+      expect(Object.keys(m.anims!), m.id).toEqual(expect.arrayContaining(BUILDING_STATES));
+      expect(m.shadow, m.id).toBe(true);
+      expect(m.icon, m.id).toBeTruthy();
+      const icon = expandFrames(m).filter((f) => f.icon);
+      expect(icon.map((f) => [f.name, f.atlas]), m.id).toEqual([[m.id, 'icons']]);
+      expect(m.footprint, m.id).toBeTruthy();
+    }
+    // estandartes na máscara de time em quem tem (a muralha não tem pano)
+    for (const id of ['town_center', 'house', 'gate', 'tower', 'temple']) expect(manifests.find((m) => m.id === id)!.team, id).toBe(true);
+    expect(manifests.find((m) => m.id === 'wall')!.team).toBe(false);
+  });
+  it('muralha: 16 variantes por bitmask (00–15) em todos os estados; portão ew/ns com aberto; Centro Cívico por Idade', () => {
+    const wall = manifests.find((m) => m.id === 'wall')!;
+    expect(wall.variantBy).toBe('wallMask');
+    expect(wall.variants).toEqual(Array.from({ length: 16 }, (_, i) => String(i).padStart(2, '0')));
+    const names = new Set(expandFrames(wall).map((f) => f.name));
+    for (const st of BUILDING_STATES) for (let m = 0; m < 16; m++) expect(names.has(`wall/${st}/${String(m).padStart(2, '0')}`), `${st}/${m}`).toBe(true);
+    const gate = manifests.find((m) => m.id === 'gate')!;
+    expect(gate.variantBy).toBe('gateAxis');
+    expect(gate.variants).toEqual(['ew', 'ns']);
+    expect(expandFrames(gate).map((f) => f.name)).toEqual(expect.arrayContaining(['gate/open/ew', 'gate/open/ns', 'gate/complete/ns', 'gate/damage2/ew']));
+    const tc = manifests.find((m) => m.id === 'town_center')!;
+    expect([tc.variantBy, tc.variants]).toEqual(['ageTier', ['a0', 'a1', 'a2']]);
+    expect(manifests.find((m) => m.id === 'tower')!.variants).toBeUndefined();
+  });
+  it('escombros: um quadro por pegada w×h de todos os edifícios do jogo', () => {
+    const rubble = manifests.find((m) => m.id === 'rubble')!;
+    expect(rubble.rubble).toBe(true);
+    const names = new Set(expandFrames(rubble).map((f) => f.name));
+    for (const b of Object.values(BUILDINGS)) expect(names.has(`rubble/${b.w}x${b.h}`), `${b.id} ${b.w}x${b.h}`).toBe(true);
+  });
+  it('o esquema recusa edifício sem estado de dano, variante sem critério e ícone de estado inexistente', () => {
+    const base = manifests.find((m) => m.id === 'house')!;
+    const bad1 = { ...base, anims: { build0: { frames: 1 }, build1: { frames: 1 }, build2: { frames: 1 }, complete: { frames: 1 } } };
+    expect(validateManifest(bad1).join()).toMatch(/damage1/);
+    expect(validateManifest({ ...base, variants: ['a', 'b'] }).join()).toMatch(/variantBy/);
+    expect(validateManifest({ ...base, icon: { anim: 'nope' } }).join()).toMatch(/icon/);
+    expect(validateManifest({ ...base, variants: ['x'], variantBy: 'wallMask', icon: { anim: 'complete', variant: 'y' } }).join()).toMatch(/icon\.variant/);
   });
 });
 
@@ -101,9 +154,14 @@ describe('artefatos gerados (public/art, se existirem)', () => {
     for (const m of manifests) {
       const a = index.assets[m.id];
       expect(a, m.id).toBeTruthy();
-      const json = JSON.parse(fs.readFileSync(path.join(ROOT, 'public', 'art', a.atlases['1'].color[0]), 'utf8'));
-      for (const [k, list] of Object.entries(animationsOf(m, { mirror: a.mirror }))) expect(json.animations[k], k).toEqual(list);
-      for (const f of expandFrames(m, { mirror: a.mirror })) expect(json.frames[f.name], f.name).toBeTruthy();
+      for (const scale of Object.keys(a.atlases)) {
+        // união das folhas de cor do asset (o ícone mora no atlas `icons`)
+        const frames: Record<string, unknown> = {}, anims: Record<string, unknown> = {};
+        for (const j of a.atlases[scale].color) { const json = JSON.parse(fs.readFileSync(path.join(ROOT, 'public', 'art', j), 'utf8')); Object.assign(frames, json.frames); Object.assign(anims, json.animations); }
+        for (const [k, list] of Object.entries(animationsOf(m, { mirror: a.mirror }))) expect(anims[k], k).toEqual(list);
+        for (const f of expandFrames(m, { mirror: a.mirror })) expect(frames[f.name], `${f.name} ${scale}x`).toBeTruthy();
+        if (m.icon) expect(a.atlases[scale].color.some((j: string) => j.startsWith('icons-')), `${m.id} ícone ${scale}x`).toBe(true);
+      }
     }
   });
 });

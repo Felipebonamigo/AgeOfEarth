@@ -1,0 +1,13 @@
+{
+ "frames": {
+  "gate": {"frame":{"x":1,"y":1,"w":22,"h":11},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":21,"y":34,"w":22,"h":11},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "house": {"frame":{"x":27,"y":1,"w":13,"h":8},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":21,"y":39,"w":13,"h":8},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "temple": {"frame":{"x":1,"y":16,"w":20,"h":4},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":22,"y":50,"w":20,"h":4},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "tower": {"frame":{"x":25,"y":16,"w":3,"h":2},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":32,"y":13,"w":3,"h":2},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "town_center": {"frame":{"x":1,"y":24,"w":26,"h":46},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":21,"y":7,"w":26,"h":46},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}}
+ },
+ "animations": {
+
+ },
+ "meta": {"app":"age-of-earth/scripts/bake","version":"1","image":"icons-team-1x-0.png","format":"RGBA8888","size":{"w":64,"h":128},"scale":"1","aoe":{"version":1,"pass":"team","pxPerTile":32,"pitchDeg":50,"verticalFactor":0.8391,"sun":[-0.55,1,-0.35],"shadowDir":"SE","dirs":8,"dirNames":["E","SE","S","SW","W","NW","N","NE"],"fps":10,"pad":2,"extrude":1,"mirror":false}}
+}

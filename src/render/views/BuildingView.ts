@@ -1,19 +1,31 @@
-// Vista de um edifício com arte assada (docs/ART.md §1.8, §3.7): quadro do estágio de obra (build0/1/2 pelo progresso)
-// ou completo, estandartes pelo passe de time (tint = cor do jogador), sombra projetada na camada 'shadows'. A âncora é
-// o centro da área ocupada (= x/y do edifício no núcleo). Só o templo tem arte nesta etapa; os demais seguem procedurais.
+// Vista de um edifício com arte assada (docs/ART.md §1.8, §3.7; genérica desde a Etapa 3): quadro do estado — obra
+// (build0/1/2 pelo progresso), pronto, dano (damage1/2 pela vida), portão aberto — na variante pedida (bitmask da
+// muralha, eixo do portão, Idade do Centro Cívico), estandartes pelo passe de time (tint = cor do jogador), sombra
+// projetada na camada 'shadows'. A âncora é o centro da área ocupada (= x/y do edifício no núcleo). Um estado sem quadro
+// cai no mais próximo (damage2 → damage1 → complete; open → complete); sem nem o complete, o renderizador usa o
+// procedural. A vista guarda o bitmask da muralha (recalculado só quando a topologia das muralhas muda) e o acumulador
+// da fumaça de dano.
 import { Container, Sprite } from 'pixi.js';
 import { SHADOW_ALPHA } from '../palette';
 import type { ArtLibrary, BakedFrame } from '../art/ArtLibrary';
-import { frameBox, type BuildStage } from '../art/logic';
+import { fallbackState, frameBox, type BuildingState } from '../art/logic';
 
 export class BuildingView {
   readonly root = new Container();
   readonly body: Sprite;
   readonly team: Sprite;
   readonly shadow: Sprite;
-  stage: BuildStage | '' = '';
+  /** Estado pedido e variante atuais ('' = nenhum ainda). */
+  state: BuildingState | '' = '';
+  variant: string | null = null;
+  private key = '';
+  /** Bitmask da muralha e a versão da topologia em que foi calculado (renderer.wallVersion). */
+  mask = 0;
+  maskVersion = -1;
+  /** Fração de baforada de fumaça acumulada entre quadros. */
+  smokeAcc = 0;
   /** Caixa do quadro atual relativa ao centro (px): pick do telhado/fachada fora do footprint (ver contains()). */
-  private lx0 = 0; private ly0 = 0; private lx1 = 0; private ly1 = 0;
+  lx0 = 0; ly0 = 0; lx1 = 0; ly1 = 0;
   /** Topo visível do quadro atual acima do centro (px): barra de vida/obra acima do telhado. */
   top = 0;
   private px = 0; private py = 0;
@@ -27,12 +39,14 @@ export class BuildingView {
     shadowLayer.addChild(this.shadow);
   }
 
-  /** Troca o quadro quando o estágio muda; devolve false se não houver quadro assado (o renderizador cai no procedural). */
-  setStage(stage: BuildStage): boolean {
-    if (stage === this.stage) return true;
-    const f: BakedFrame | null = this.lib.building(this.type, stage);
+  /** Troca o quadro quando o estado ou a variante mudam; false se nem o `complete` tiver quadro (procedural). */
+  show(state: BuildingState, variant: string | null = null): boolean {
+    const key = variant ? `${state}|${variant}` : state;
+    if (key === this.key) return true;
+    let st: BuildingState | null = state, f: BakedFrame | null = null;
+    while (st && !(f = this.lib.building(this.type, st, variant))) st = fallbackState(st);
     if (!f) return false;
-    this.stage = stage;
+    this.key = key; this.state = state; this.variant = variant;
     for (const s of [this.body, this.team, this.shadow]) s.anchor.set(f.anchor.x, f.anchor.y);
     this.body.texture = f.color;
     this.team.visible = !!f.team; if (f.team) this.team.texture = f.team;
@@ -51,6 +65,8 @@ export class BuildingView {
     this.root.position.set(x, y);
     this.shadow.position.set(x, y);
   }
+  get x(): number { return this.px; }
+  get y(): number { return this.py; }
   /** O ponto (px de mundo) cai na caixa do quadro atual? */
   contains(x: number, y: number): boolean {
     return x >= this.px + this.lx0 && x <= this.px + this.lx1 && y >= this.py + this.ly0 && y <= this.py + this.ly1;

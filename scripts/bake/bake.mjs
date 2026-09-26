@@ -19,7 +19,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
 import { startServer } from './server.mjs';
-import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, animSummary, matchesOnly, GROUP_OF, PASSES, bakedDirs } from './manifest.mjs';
+import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, animSummary, matchesOnly, GROUP_OF, PASSES, bakedDirs, ATLAS_GROUPS, ICON_PX, atlasOf } from './manifest.mjs';
 import { alphaBounds, crop, packShelf, blit, sheetJson } from './page/atlas.js';
 import { PX_PER_TILE, PIPELINE_VERSION, MIRROR_FROM, atlasMeta } from './page/camera.js';
 
@@ -28,8 +28,10 @@ const PAGE = path.join(ROOT, 'scripts', 'bake', 'page');
 const CHROME = process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 /** Sufixo de arquivo por passe (docs/ART.md §3.3: units-1x-0 = cor, units-team-1x-0 = máscara, units-shadow-1x-0 = sombra). */
 const PASS_SUFFIX = { color: '', team: '-team', shadow: '-shadow' };
-/** Nomes das folhas de contato pedidas pelo dono (id → nome em português); os demais usam o id. */
-const CONTACT_NAME = { hoplite: 'hoplita', villager: 'cidadao', temple: 'templo', 'props-trees': 'props', 'props-nodes': 'props' };
+/** Nomes das folhas de contato pedidas pelo dono (id → nome em português); os demais usam o id. Unidades e props saem
+ *  como etapa2-<nome>, edifícios como etapa3-<nome> (mais etapa3-icones com os ícones do HUD). */
+const CONTACT_NAME = { hoplite: 'hoplita', villager: 'cidadao', temple: 'templo', 'props-trees': 'props', 'props-nodes': 'props',
+  town_center: 'centro-civico', house: 'casa', wall: 'muralha', gate: 'muralha', tower: 'muralha', rubble: 'escombros' };
 const TEAM_PREVIEW = 0x2f4fa8;   // azul de time da tabela 1.6, só nas folhas de contato
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -72,7 +74,7 @@ function sourceFiles(m) {
   const s = m.source;
   if (s.type === 'glb') files.push(s.path);
   else if (s.rig === 'human') files.push('scripts/bake/page/rigs/human.js', s.poses ?? 'art/poses/human.json');
-  else if (s.rig === 'building') files.push('scripts/bake/page/buildings.js');
+  else if (s.rig === 'building') files.push('scripts/bake/page/buildings.js', 'scripts/bake/manifest.mjs');
   else if (s.rig === 'props') files.push('scripts/bake/page/props.js');
   return files;
 }
@@ -98,8 +100,9 @@ function writePng(file, w, h, data) {
   return buf;
 }
 
-/** Caixa de render (px finais) de um quadro: manifesto ou item de prop. Âncora em px inteiros. */
+/** Caixa de render (px finais) de um quadro: manifesto ou item de prop (ícone: ICON_PX², centrado). Âncora em px inteiros. */
 function boxOf(m, f, scale) {
+  if (f.icon) { const s = ICON_PX * scale; return { w: s, h: s, ax: s / 2, ay: s / 2 }; }
   const tiles = f.item?.size ?? m.size.tiles;
   const anchor = f.item?.anchor ?? m.anchor;
   const w = Math.round(tiles[0] * PX_PER_TILE * scale), h = Math.round(tiles[1] * PX_PER_TILE * scale);
@@ -139,10 +142,10 @@ async function bakeAsset(opts, m, scale, hash) {
   const t0 = Date.now();
   const frames = expandFrames(m, { mirror: opts.mirror }).map((f) => ({ ...f, box: boxOf(m, f, scale) }));
   const poses = m.source.type === 'param' && m.source.rig === 'human' ? JSON.parse(readRel(m.source.poses ?? 'art/poses/human.json')) : null;
-  // lotes: unidade = (animação, direção); edifício = estado; prop = 6 quadros
+  // lotes: unidade = (animação, direção); edifício = estado (todas as variantes); prop = 6 quadros; ícone = sozinho
   const batches = [];
   if (m.kind === 'prop') for (let i = 0; i < frames.length; i += 6) batches.push(frames.slice(i, i + 6));
-  else { const by = new Map(); for (const f of frames) { const k = `${f.anim}/${f.dir}`; if (!by.has(k)) by.set(k, []); by.get(k).push(f); } batches.push(...by.values()); }
+  else { const by = new Map(); for (const f of frames) { const k = f.icon ? 'icon' : `${f.anim}/${f.dir}`; if (!by.has(k)) by.set(k, []); by.get(k).push(f); } batches.push(...by.values()); }
 
   const dir = cacheDir(opts, m, scale, hash);
   const tmp = dir + '.tmp';
@@ -161,13 +164,13 @@ async function bakeAsset(opts, m, scale, hash) {
         const rgba = decode(b64);
         const bb = alphaBounds(rgba, r.w, r.h);
         if (!bb) { passes[pass] = null; continue; }
-        if (bb.x === 0 || bb.y === 0 || bb.x + bb.w === r.w || bb.y + bb.h === r.h) warnings.add(`${f.name} (${pass}) encosta na borda da caixa ${r.w}×${r.h}: aumente size.tiles`);
+        if (!f.icon && (bb.x === 0 || bb.y === 0 || bb.x + bb.w === r.w || bb.y + bb.h === r.h)) warnings.add(`${f.name} (${pass}) encosta na borda da caixa ${r.w}×${r.h}: aumente size.tiles`);
         const file = `${pass}/${String(idx).padStart(4, '0')}.png`;
         writePng(path.join(tmp, file), bb.w, bb.h, crop(rgba, r.w, bb));
         passes[pass] = { ...bb, file };
       }
       if (!passes.color) warnings.add(`${f.name}: quadro de cor vazio`);
-      entry.frames.push({ name: f.name, group: f.group, anim: f.anim ?? null, dir: f.dir, frame: f.frame, box: f.box, passes });
+      entry.frames.push({ name: f.name, group: f.group, anim: f.anim ?? null, variant: f.variant ?? null, atlas: atlasOf(m, f), icon: !!f.icon, dir: f.dir, frame: f.frame, box: f.box, passes });
       idx++;
     }
   }
@@ -216,6 +219,7 @@ function groupFrames(entry) {
     }
     const box = list[0].box;
     if (x0 === Infinity) { x0 = 0; y0 = 0; x1 = 1; y1 = 1; }
+    if (list[0].icon) { x0 = 0; y0 = 0; x1 = box.w; y1 = box.h; }   // ícone: moldura fixa ICON_PX² (o HUD enquadra igual)
     // a âncora precisa ficar dentro da caixa (pé de uma sombra deslocada, por exemplo)
     x0 = Math.min(x0, box.ax); y0 = Math.min(y0, box.ay); x1 = Math.max(x1, box.ax + 1); y1 = Math.max(y1, box.ay + 1);
     const w = x1 - x0, h = y1 - y0;
@@ -242,14 +246,22 @@ function packAll(opts, manifests, hashes) {
     }
   }
 
+  const cacheOf = new Map();   // um aviso por asset sem cache (não um por grupo de atlas)
   for (const scale of opts.scales) {
-    for (const group of ['units', 'buildings', 'props']) {
-      const ms = manifests.filter((m) => GROUP_OF[m.kind] === group);
+    for (const group of ATLAS_GROUPS) {
       const entries = [];
-      for (const m of ms) {
-        const e = loadCache(opts, m, scale, hashes.get(`${m.id}/${scale}`));
-        if (!e) { console.warn(`  aviso: ${m.id} ${scale}× sem cache válido — fica fora do atlas (assar com --only ${m.id})`); continue; }
-        entries.push({ m, e, groups: groupFrames(e) });
+      for (const m of manifests) {
+        const key = `${m.id}/${scale}`;
+        if (!cacheOf.has(key)) {
+          const e0 = loadCache(opts, m, scale, hashes.get(key));
+          if (!e0) console.warn(`  aviso: ${m.id} ${scale}× sem cache válido — fica fora do atlas (assar com --only ${m.id})`);
+          cacheOf.set(key, e0);
+        }
+        const e = cacheOf.get(key);
+        if (!e) continue;
+        const frames = e.frames.filter((fr) => (fr.atlas ?? GROUP_OF[m.kind]) === group);
+        if (!frames.length) continue;
+        entries.push({ m, e: { ...e, frames }, groups: groupFrames({ frames }) });
       }
       if (!entries.length) continue;
       for (const pass of PASSES) {
@@ -301,10 +313,16 @@ function packAll(opts, manifests, hashes) {
           console.log(`  ${base}: ${pg.w}×${pg.h}, ${frames.length} quadros, ${(png.length / 1024).toFixed(0)} KB`);
         });
       }
-      // resumo por asset
+      // resumo por asset (o grupo de atlas principal: o dos ícones só acrescenta `icon`)
       for (const { m, e, groups } of entries) {
         const a = index.assets[m.id] ??= {};
-        Object.assign(a, { kind: m.kind, group, sourceHash: e.hash, dirs: m.kind === 'unit' ? m.dirs : 1, mirror: opts.mirror, team: m.team, shadow: m.shadow, frames: e.frames.length });
+        if (group === 'icons') { a.icon = true; continue; }
+        const all = cacheOf.get(`${m.id}/${scale}`);
+        Object.assign(a, { kind: m.kind, group, sourceHash: e.hash, dirs: m.kind === 'unit' ? m.dirs : 1, mirror: opts.mirror, team: m.team, shadow: m.shadow, frames: all.frames.length });
+        if (m.kind === 'building') {
+          if (m.variants) { a.variants = m.variants; a.variantBy = m.variantBy; }
+          if (m.rubble) a.rubble = true;
+        }
         if (m.kind === 'prop') a.items = e.frames.map((f) => f.name);
         else {
           const G = groups.get(m.id);
@@ -323,7 +341,8 @@ function packAll(opts, manifests, hashes) {
     const a = index.assets[id];
     const atl = {};
     for (const s of Object.keys(a.atlases ?? {}).sort()) { atl[s] = {}; for (const p of PASSES) if (a.atlases[s][p]) atl[s][p] = [...new Set(a.atlases[s][p])].sort(); }
-    sortedAssets[id] = { ...a, atlases: atl };
+    const { kind, group, sourceHash, dirs, mirror, team, shadow, frames, variants, variantBy, rubble, icon, ...rest } = a;
+    sortedAssets[id] = { kind, group, sourceHash, dirs, mirror, team, shadow, frames, ...(variants ? { variants, variantBy } : {}), ...(rubble ? { rubble } : {}), ...(icon ? { icon } : {}), ...rest, atlases: atl };
   }
   index.assets = sortedAssets;
   index.totals = { pngBytes: index.atlases.reduce((s, a) => s + a.bytes, 0), vramBytes: index.atlases.reduce((s, a) => s + a.w * a.h * 4, 0), atlases: index.atlases.length };
@@ -350,7 +369,7 @@ async function contactSheets(opts, manifests, hashes) {
     const e = loadCache(opts, m, 1, hashes.get(`${m.id}/1`));
     if (!e) continue;
     const groups = groupFrames(e);
-    const name = CONTACT_NAME[m.id] ?? m.id;
+    const name = (m.kind === 'building' ? 'etapa3-' : 'etapa2-') + (CONTACT_NAME[m.id] ?? m.id);
     const sheet = sheets.get(name) ?? { title: '', rows: [], cellW: 0, cellH: 0, zoom: 2 };
     sheets.set(name, sheet);
     const cell = (fr) => { const G = groups.get(fr.group); return { color: cellImg(e, fr, 'color', G), team: cellImg(e, fr, 'team', G), shadow: cellImg(e, fr, 'shadow', G), anchor: { x: fr.box.ax - G.x0, y: fr.box.ay - G.y0 }, w: G.w, h: G.h }; };
@@ -367,9 +386,20 @@ async function contactSheets(opts, manifests, hashes) {
       }
     } else if (m.kind === 'building') {
       const G = groups.get(m.id);
+      const body = e.frames.filter((fr) => !fr.icon);
+      // muralha/portão/torre na mesma folha: células do maior; uma linha por estado quando há variantes
       sheet.cellW = Math.max(sheet.cellW, G.w); sheet.cellH = Math.max(sheet.cellH, G.h);
-      sheet.title = `${m.id} — ${Object.keys(m.anims).join(' · ')} · 1× ampliado 2×`;
-      sheet.rows.push({ label: m.id, cells: e.frames.map((fr) => ({ ...cell(fr), label: fr.anim })) });
+      sheet.title = (sheet.title ? sheet.title + ' | ' : '') + `${m.id}: ${Object.keys(m.anims).join(' · ')}${m.variants ? ` × ${m.variants.length} variantes (${m.variantBy})` : ''}`;
+      const rowCell = { cellW: G.w, cellH: G.h };
+      if (m.variants) for (const st of Object.keys(m.anims)) sheet.rows.push({ label: `${m.id} ${st}`, cells: body.filter((fr) => fr.anim === st).map((fr) => ({ ...cell(fr), label: fr.variant })), ...rowCell });
+      else sheet.rows.push({ label: m.id, cells: body.map((fr) => ({ ...cell(fr), label: fr.anim })), ...rowCell });
+      const ic = e.frames.find((fr) => fr.icon);
+      if (ic) {
+        const icons = sheets.get('etapa3-icones') ?? { title: 'ícones do HUD (64×64 a 1×, cor + máscara de time) ampliados 2×', rows: [{ label: 'ícones', cells: [] }], cellW: ICON_PX, cellH: ICON_PX, zoom: 2 };
+        sheets.set('etapa3-icones', icons);
+        const IG = groups.get(ic.group);
+        icons.rows[0].cells.push({ color: cellImg(e, ic, 'color', IG), team: cellImg(e, ic, 'team', IG), shadow: null, anchor: null, w: IG.w, h: IG.h, label: m.id });
+      }
     } else {
       sheet.title = 'props — árvores (oliveira, cipreste, carvalho × 4 variantes × big/small + thin), tocos, rochas, frutas, ouro, Pedra de Poseidon, cervo, javali · 1× ampliado 2×';
       // props: células do tamanho do maior item do manifesto, cada item centrado na horizontal e com o pé a 80 % da altura
@@ -389,7 +419,7 @@ async function contactSheets(opts, manifests, hashes) {
   }
   for (const [name, s] of sheets) {
     const b64 = await page.evaluate((arg) => window.__bake.contactSheet(arg), { title: s.title, rows: s.rows, cellW: s.cellW, cellH: s.cellH, zoom: s.zoom, tint: TEAM_PREVIEW, labelW: 110 });
-    const file = path.join(outDir, `etapa2-${name}-contato.png`);
+    const file = path.join(outDir, `${name}-contato.png`);
     fs.writeFileSync(file, Buffer.from(b64, 'base64'));
     console.log(`  folha de contato: ${path.relative(ROOT, file)}`);
   }

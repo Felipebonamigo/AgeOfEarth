@@ -8,7 +8,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
-import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, FRAME_NAME_RE, GROUP_OF, type ArtManifest, type AssetKind } from './manifest.mjs';
+import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, FRAME_NAME_RE, GROUP_OF, BUILDING_STATES, ICON_PX, type ArtManifest, type AssetKind } from './manifest.mjs';
 import { PX_PER_TILE, PITCH_DEG, PIPELINE_VERSION, DIRS, FPS } from './page/camera.js';
 
 /** Orçamento (docs/ART.md §6 e §3.5). Tamanhos de quadro a 1× (multiplicados pela escala). */
@@ -16,13 +16,13 @@ export const BUDGET = {
   maxAtlasSide: 2048,
   maxPngMB: 150,            // pacote completo a 1× estimado em 75–150 MB (§3.5)
   maxVramMB: 250,           // texturas residentes, pior caso (§6)
-  maxSourceSize: { unit: 128, building: 256, prop: 224 } as Record<AssetKind, number>,
+  maxSourceSize: { unit: 128, building: 256, prop: 224, icon: ICON_PX } as Record<AssetKind | 'icon', number>,
 };
 
 interface SheetFrame { frame: { x: number; y: number; w: number; h: number }; spriteSourceSize: { x: number; y: number; w: number; h: number }; sourceSize: { w: number; h: number }; anchor: { x: number; y: number } }
 interface Sheet { frames: Record<string, SheetFrame>; animations: Record<string, string[]>; meta: { image: string; size: { w: number; h: number }; scale: string; aoe: Record<string, unknown> } }
 interface IndexAtlas { json: string; image: string; group: string; pass: string; scale: number; w: number; h: number; frames: number; bytes: number; sha256: string }
-interface ArtIndex { version: number; aoe: Record<string, unknown>; atlases: IndexAtlas[]; assets: Record<string, { kind: AssetKind; mirror: boolean; atlases: Record<string, Partial<Record<'color' | 'team' | 'shadow', string[]>>> }>; totals: { pngBytes: number; vramBytes: number } }
+interface ArtIndex { version: number; aoe: Record<string, unknown>; atlases: IndexAtlas[]; assets: Record<string, { kind: AssetKind; mirror: boolean; variants?: string[]; variantBy?: string; icon?: boolean; rubble?: boolean; anims?: Record<string, unknown>; atlases: Record<string, Partial<Record<'color' | 'team' | 'shadow', string[]>>> }>; totals: { pngBytes: number; vramBytes: number } }
 
 export interface CheckResult { errors: string[]; warnings: string[]; stats: { manifests: number; atlases: number; frames: number; pngBytes: number; vramBytes: number; hasArtifacts: boolean } }
 
@@ -69,7 +69,7 @@ export function runCheck(root: string): CheckResult {
     if (sheet.meta.image !== a.image || sheet.meta.scale !== String(a.scale)) errors.push(`${a.json}: meta.image/scale incoerentes`);
     for (const [name, f] of Object.entries(sheet.frames)) {
       stats.frames++;
-      const kind = (Object.keys(GROUP_OF) as AssetKind[]).find((k) => GROUP_OF[k] === a.group)!;
+      const kind: AssetKind | 'icon' = a.group === 'icons' ? 'icon' : (Object.keys(GROUP_OF) as AssetKind[]).find((k) => GROUP_OF[k] === a.group)!;
       if (!FRAME_NAME_RE[kind].test(name)) errors.push(`${a.json}: nome de quadro fora do padrão: ${name}`);
       const { x, y, w, h } = f.frame;
       if (x < 0 || y < 0 || x + w > png.width || y + h > png.height) errors.push(`${a.json}: ${name} fora do atlas`);
@@ -88,7 +88,15 @@ export function runCheck(root: string): CheckResult {
     if (!asset) { warnings.push(`${m.id}: ainda não assado (fora de public/art/manifest.json)`); continue; }
     if (asset.kind !== m.kind) errors.push(`${m.id}: kind no índice (${asset.kind}) ≠ manifesto`);
     const mirror = !!asset.mirror;
-    const expected = expandFrames(m, { mirror }).map((f) => f.name);
+    const all = expandFrames(m, { mirror });
+    const expected = all.map((f) => f.name);
+    const bodyFrames = all.filter((f) => !f.icon).map((f) => f.name);   // ícones: sem sombra, fora dos estados
+    if (m.kind === 'building') {
+      // Etapa 3: estados, variantes e ícone declarados no índice como no manifesto
+      if (JSON.stringify(asset.variants ?? null) !== JSON.stringify(m.variants ?? null)) errors.push(`${m.id}: variants do índice ≠ manifesto`);
+      if (!m.rubble) for (const st of BUILDING_STATES) if (!asset.anims || !(st in asset.anims)) errors.push(`${m.id}: estado ${st} ausente no índice`);
+      if (!!m.icon !== !!asset.icon) errors.push(`${m.id}: ícone ${m.icon ? 'ausente' : 'sobrando'} no índice`);
+    }
     for (const [scale, byPass] of Object.entries(asset.atlases)) {
       const collect = (pass: 'color' | 'team' | 'shadow') => {
         const frames = new Map<string, SheetFrame>(); const anims: Record<string, string[]> = {};
@@ -104,7 +112,7 @@ export function runCheck(root: string): CheckResult {
         else if (t < expected.length) warnings.push(`${m.id} ${scale}×: ${expected.length - t} quadros sem máscara de time (parte de time escondida na pose)`);
       } else if (team.frames.size) errors.push(`${m.id} ${scale}×: team = false mas há máscara`);
       if (m.shadow) {
-        const s = expected.filter((n) => !shadow.frames.has(n));
+        const s = bodyFrames.filter((n) => !shadow.frames.has(n));
         if (s.length) errors.push(`${m.id} ${scale}×: ${s.length} quadros sem sombra (ex.: ${s.slice(0, 3).join(', ')})`);
       }
       // âncora e sourceSize comuns aos três passes de um mesmo quadro

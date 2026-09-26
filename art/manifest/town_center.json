@@ -1,0 +1,59 @@
+{
+  "id": "town_center",
+  "kind": "building",
+  "docs": "Para usar um modelo .glb, troque `source` por { \"type\": \"glb\", \"path\": \"art/src/town_center.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"build0\": \"Build0\", …, \"damage2\": \"Damage2\" }, \"teamMaterials\": [\"Banner\"] } (um clipe estático por estado; docs/ART.md §3.4). As variantes por Idade (a0/a1/a2) viram três .glb ou três conjuntos de materiais.",
+  "source": {
+    "type": "param",
+    "rig": "building",
+    "params": {
+      "style": "town_center"
+    }
+  },
+  "size": {
+    "tiles": [
+      5.2,
+      6.4
+    ]
+  },
+  "footprint": [
+    3,
+    3
+  ],
+  "anchor": [
+    0.35,
+    0.63
+  ],
+  "dirs": 1,
+  "anims": {
+    "build0": {
+      "frames": 1
+    },
+    "build1": {
+      "frames": 1
+    },
+    "build2": {
+      "frames": 1
+    },
+    "complete": {
+      "frames": 1
+    },
+    "damage1": {
+      "frames": 1
+    },
+    "damage2": {
+      "frames": 1
+    }
+  },
+  "variants": [
+    "a0",
+    "a1",
+    "a2"
+  ],
+  "variantBy": "ageTier",
+  "icon": {
+    "anim": "complete",
+    "variant": "a1"
+  },
+  "team": true,
+  "shadow": true
+}

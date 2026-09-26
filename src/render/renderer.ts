@@ -1,6 +1,6 @@
 // Renderizador PixiJS: terreno por shader (com fronteiras), nós como sprites, entidades interpoladas, efeitos, névoa e overlays.
 import { Application, Container, Graphics, Sprite, Texture, Text, TextStyle } from 'pixi.js';
-import { effectiveResolution, resolveQuality, type Quality } from './quality';
+import { effectiveResolution, resolveQuality, PARTICLE_BUDGET, type Quality } from './quality';
 import { TILE, TICK_RATE, DT, PLAYER_COLORS, KOTH_RADIUS, rankOf } from '../core/constants';
 import { BUILDINGS, UNITS } from '../core/data';
 import type { Building, GameState, Unit, VisualEffect } from '../core/types';
@@ -18,7 +18,12 @@ import { PropLayer } from './props';
 import { ArtLibrary } from './art/ArtLibrary';
 import { UnitView } from './views/UnitView';
 import { BuildingView } from './views/BuildingView';
-import { animDuration, buildingStage, chooseAnim, deathAlpha, dirWithHysteresis, freshHit, isWalking, mulColor, type UnitAnim } from './art/logic';
+import { SmokeLayer } from './particles';
+import {
+  animDuration, buildingState, chooseAnim, deathAlpha, dirWithHysteresis, freshHit, isWalking, mulColor, type UnitAnim,
+  WALL_LINK_TYPES, wallMask, buildingVariant, ageTier, damageLevel, gateNear, smokeRate, smokeBudget, rubbleAlpha,
+  ghostTint, placementMasks,
+} from './art/logic';
 
 /** Cor de fundo (fora do mapa). */
 const BG = 0x0b1020;
@@ -43,10 +48,12 @@ export function buildingCorner(type: string, x: number, y: number): { tx: number
  *  Com arte assada, `unit`/`bld` guardam a vista assada (corpo, máscara de time e sombra do atlas) e o corpo não gira. */
 interface EntityView { root: Container; body: Sprite; shadow: Sprite | null; type: string; color: number; complete: boolean; angle: number; carry: Sprite | null; label?: Text; rank?: Graphics; rankShown?: number; unit: UnitView | null; bld: BuildingView | null }
 
-const BAKED_STAGES = ['build0', 'build1', 'build2', 'complete'] as const;
-
 /** Morte recente de uma unidade assada (o efeito 'death' do mesmo quadro herda a direção da vista que sumiu). */
 interface RecentDeath { type: string; x: number; y: number; dir: number }
+/** Edifício assado que sumiu neste quadro (o colapso do mesmo quadro usa a variante que ele mostrava). */
+interface RecentGone { type: string; x: number; y: number; variant: string | null }
+/** Escombros assados de um edifício que caiu (ficam RUBBLE_SECONDS de jogo no chão, apagando no fim). */
+interface RubbleView { body: Sprite; shadow: Sprite | null; t0: number; tx: number; ty: number }
 
 export interface RenderUI {
   localPlayer: number;
@@ -68,7 +75,7 @@ export class Renderer {
   /** Ordem (docs/ART.md §3.7): terrain (shader: chão, água e fronteiras) → shadows → props (nós) → ground →
    *  buildings → units → fx → hp → editor → fog. Com a arte assada: terrain → shadows → ground → props (faixas com nós,
    *  edifícios e unidades ordenados juntos pelo y do pé) → buildings (vazia) → units (só voadoras) → fx → hp → editor → fog. */
-  layers = { terrain: new Container(), shadows: new Container(), props: new Container(), ground: new Graphics(), buildings: new Container(), units: new Container(), fx: new Container(), hp: new Graphics(), editor: new Container(), fog: new Container() };
+  layers = { terrain: new Container(), shadows: new Container(), props: new Container(), ground: new Graphics(), buildings: new Container(), units: new Container(), fx: new Container(), hp: new Graphics(), ghost: new Container(), editor: new Container(), fog: new Container() };
   overlay = new Graphics();
   /** Compatibilidade com o editor (antes: chunks assados em cache). O terreno por shader não tem cache: no-op. */
   chunkCacheLimit = 60;
@@ -87,6 +94,27 @@ export class Renderer {
   /** Unidades assadas morrendo/petrificadas (animação no lugar do sprite procedural girado), por efeito. */
   private dying = new Map<VisualEffect, UnitView>();
   private recentDeaths: RecentDeath[] = [];
+  private recentGone: RecentGone[] = [];
+  /** Fumaça dos edifícios danificados (partículas leves, orçamento do preset). */
+  private smoke = new SmokeLayer();
+  /** Escombros no chão e colapsos já vistos (um monte por queda). */
+  private rubbleViews: RubbleView[] = [];
+  private rubbleSeen = new WeakSet<VisualEffect>();
+  /** Colapsos desenhados com o quadro assado (afundam em vez de encolher). */
+  private bakedCollapses = new WeakSet<Container>();
+  /** Topologia das muralhas (muralha/portão/torre): assinatura dos ids e versão; as vistas recalculam o bitmask só
+   *  quando a versão muda (uma muralha nova, derrubada ou trocada de dono). */
+  private wallSig = 0; private wallCount = -1; wallVersion = 0;
+  /** Portões prontos no último quadro e os abertos neste (aliado a GATE_OPEN_RANGE). */
+  private gateCount = 0;
+  private gatesOpen = new Set<number>();
+  /** Fantasma de construção assado (quadro complete translúcido tingido de verde/vermelho). */
+  private ghostSprites: Sprite[] = [];
+  /** Passo do relógio de jogo neste quadro (s): fumaça. */
+  private animDt = 0;
+  /** Ícones do HUD compostos (cor + máscara tingida) por tipo e cor, válidos até a próxima geração da arte. */
+  private iconCache = new Map<string, string | null>();
+  private iconGen = -1;
   private tmpVec = { x: 0, y: 0 };
   /** Ponto do alvo de quem está no posto (engagedTarget). */
   private tgtPt = { x: 0, y: 0 };
@@ -126,7 +154,10 @@ export class Renderer {
     this.art.configure(this.quality.bakedArt, this.quality.atlasScale);
     this.props = new PropLayer(this.tex, this.art);
     this.app.stage.addChild(this.world, this.overlay);
-    this.world.addChild(this.layers.terrain, this.layers.shadows, this.layers.props, this.edgeFrame, this.layers.ground, this.layers.buildings, this.layers.units, this.layers.fx, this.layers.hp, this.layers.editor, this.layers.fog);
+    this.world.addChild(this.layers.terrain, this.layers.shadows, this.layers.props, this.edgeFrame, this.layers.ground, this.layers.buildings, this.layers.units, this.layers.fx, this.layers.hp, this.layers.ghost, this.layers.editor, this.layers.fog);
+    this.layers.fx.addChild(this.smoke.root);
+    this.layers.ghost.sortableChildren = true;
+    this.layers.ghost.eventMode = 'none';
     this.edgeFrame.visible = false;
     // atlas prontos sobem para a GPU um por quadro (no menu, enquanto a arte carrega): a partida não paga o upload +
     // mipmaps de todos no primeiro quadro que os usa
@@ -160,6 +191,8 @@ export class Renderer {
     this.fxViews.clear();
     for (const d of this.deathViews) d.c.destroy({ children: true });
     this.deathViews = [];
+    this.clearBakedExtras();
+    this.wallCount = -1; this.wallVersion++;
     this.layers.fog.removeChildren();
     this.layers.terrain.removeChildren();
     this.fog?.destroy(); this.terrain?.destroy();
@@ -258,6 +291,7 @@ export class Renderer {
     this.terrain?.setQuality(q);
     // arte assada: liga/desliga e escala 1×/2× (a ArtLibrary muda de geração e as vistas são refeitas no próximo quadro)
     this.art?.configure(q.bakedArt, q.atlasScale);
+    this.smoke.budget = smokeBudget(PARTICLE_BUDGET[q.particles] ?? 800);
     // materiais do preset gerados em segundo plano (um por macrotarefa, ≈ 250 ms no total a 512²) enquanto o menu está
     // aberto; main.ts chama setQuality logo após init, então a primeira partida já os encontra prontos
     prewarmTerrain(materialSizeFor(q));
@@ -285,8 +319,8 @@ export class Renderer {
     const L = this.layers;
     const F = this.edgeFrame;
     const order: Container[] = this.bakedMode
-      ? [L.terrain, L.shadows, L.ground, L.props, F, L.buildings, L.units, L.fx, L.hp, L.editor, L.fog]
-      : [L.terrain, L.shadows, L.props, F, L.ground, L.buildings, L.units, L.fx, L.hp, L.editor, L.fog];
+      ? [L.terrain, L.shadows, L.ground, L.props, F, L.buildings, L.units, L.fx, L.hp, L.ghost, L.editor, L.fog]
+      : [L.terrain, L.shadows, L.props, F, L.ground, L.buildings, L.units, L.fx, L.hp, L.ghost, L.editor, L.fog];
     order.forEach((c, i) => this.world.setChildIndex(c, i));
     F.visible = this.bakedMode;   // desligada: visual idêntico ao anterior
   }
@@ -302,11 +336,22 @@ export class Renderer {
     this.clearDying();
     for (const v of this.fxViews.values()) v.destroy({ children: true });   // colapsos podem usar o atlas
     this.fxViews.clear();
+    this.clearBakedExtras();
+    this.wallVersion++;
     this.applyLayerOrder();
     if (this.state) this.props.reset(this.state, this.bakedMode, this.art.propsReady(), true);
     this.art.collect();
   }
   private clearDying(): void { for (const d of this.dying.values()) d.destroy(); this.dying.clear(); this.recentDeaths.length = 0; }
+  /** Escombros, fumaça e fantasmas assados (usam texturas do atlas: saem antes de uma troca de arte ou de partida). */
+  private clearBakedExtras(): void {
+    for (const r of this.rubbleViews) { r.body.destroy(); r.shadow?.destroy(); }
+    this.rubbleViews = []; this.rubbleSeen = new WeakSet(); this.recentGone.length = 0;
+    this.smoke.clear();
+    for (const g of this.ghostSprites) g.destroy();
+    this.ghostSprites = [];
+    this.iconCache.clear();
+  }
   /** Moldura para um mapa w×h (redesenhada só quando o tamanho muda: setState, editor). */
   private updateEdgeFrame(w: number, h: number): void {
     const k = w * 65536 + h; if (k === this.edgeKey) return;
@@ -397,8 +442,8 @@ export class Renderer {
       this.views.set(e.id, v);
       return v;
     }
-    // só com os 4 estágios assados (senão a obra ficaria sem quadro em algum momento): procedural
-    for (const st of BAKED_STAGES) if (!this.art.building(e.type, st)) return undefined;
+    // só com todos os estados assados em todas as variantes (senão a obra ou o dano ficariam sem quadro): procedural
+    if (!this.art.buildingArt(e.type)) return undefined;
     const bv = new BuildingView(this.art, e.type, color, this.layers.shadows);
     const v: EntityView = { root: bv.root, body: bv.body, shadow: bv.shadow, type: e.type, color, complete: e.complete, angle: 0, carry: null, unit: null, bld: bv };
     this.parentFor('building', this.buildingDrawY(e), false).addChild(bv.root);
@@ -411,17 +456,36 @@ export class Renderer {
   private updateEntities(state: GameState, alpha: number, ui: RenderUI): void {
     const seen = this.seen; seen.clear();
     const vt = this.cam.visibleTiles();
+    if (this.bakedMode) this.updateGatesOpen(state);
+    let wallSig = 0, wallCount = 0, gateCount = 0;
     for (const b of state.buildings.values()) {
+      if (WALL_LINK_TYPES.has(b.type)) {
+        wallSig = (Math.imul(wallSig, 31) + b.id * 4 + b.owner) | 0; wallCount++;
+        if (b.type === 'gate' && b.complete) gateCount++;
+      }
       if (b.x < vt.x0 - 3 || b.x > vt.x1 + 3 || b.y < vt.y0 - 3 || b.y > vt.y1 + 3) continue;
       if (!this.visibleToLocal(state, ui.localPlayer, b)) continue;
       const color = PLAYER_COLORS[b.owner % PLAYER_COLORS.length].num;
       const v = this.getView(b, color);
       const tint = b.disabledUntil > state.tick ? 0xb39ddb : state.tick - b.lastDamageTick < 3 ? 0xff9999 : 0xffffff;
       if (v.bld) {
-        // estágio de obra pelo progresso (< 33 / 66 / 100 %) ou completo; estandartes na cor do time
+        // estado: obra pelo progresso (< 33 / 66 / 100 %), pronto, dano pela vida (≥ 1/3, ≥ 2/3 perdida) ou portão aberto;
+        // variante: bitmask da muralha / eixo do portão (recalculados só quando a topologia muda) ou Idade do dono
+        const art = this.art.buildingArt(b.type);
         const frac = b.complete ? 1 : b.progress / Math.max(1e-6, getBuildingStats(state, state.players[b.owner], b.type).buildTime);
-        v.bld.setStage(buildingStage(frac, b.complete));
+        const hpFrac = b.hp / Math.max(1, b.maxHp);
+        const open = !!art?.states.has('open') && b.complete && this.gatesOpen.has(b.id);
+        let variant: string | null = null;
+        if (art?.variantBy === 'ageTier') variant = ageTier(state.players[b.owner].age);
+        else if (art?.variantBy) {
+          if (v.bld.maskVersion !== this.wallVersion) { v.bld.mask = this.wallMaskOf(state, b); v.bld.maskVersion = this.wallVersion; }
+          variant = buildingVariant(art.variantBy, { mask: v.bld.mask, age: 0 });
+        }
+        v.bld.show(buildingState(frac, b.complete, hpFrac, open), variant);
         v.bld.place(b.x * TILE, b.y * TILE);
+        // fumaça de dano (partícula, não assada): só pronto e danificado, dentro do orçamento do preset
+        const dmg = b.complete && !open ? damageLevel(hpFrac) : 0;
+        if (dmg) this.emitSmoke(v.bld, b, dmg);
         v.bld.tint(tint, mulColor(color, tint));
         v.complete = b.complete;
         const by = this.buildingDrawY(b);
@@ -438,6 +502,9 @@ export class Renderer {
       v.body.tint = tint;
       seen.add(b.id);
     }
+    // topologia das muralhas mudou: as vistas recalculam o bitmask no próximo quadro
+    if (wallSig !== this.wallSig || wallCount !== this.wallCount) { this.wallSig = wallSig; this.wallCount = wallCount; this.wallVersion++; }
+    this.gateCount = gateCount;
     for (const u of state.units.values()) {
       if (u.inside !== -1) continue;
       const ix = u.px + (u.x - u.px) * alpha, iy = u.py + (u.y - u.py) * alpha;
@@ -500,11 +567,54 @@ export class Renderer {
       if (!e) {
         // unidade assada que sumiu (morreu): o efeito 'death' deste quadro herda a direção dela
         if (v.unit && v.root.visible) this.recentDeaths.push({ type: v.type, x: v.root.position.x, y: v.root.position.y, dir: v.unit.dir });
+        if (v.bld && v.bld.visible) this.recentGone.push({ type: v.type, x: v.bld.x, y: v.bld.y, variant: v.bld.variant });
         this.destroyView(v); this.views.delete(id);
       } else if (v.unit) v.unit.visible = false;
       else if (v.bld) v.bld.visible = false;
       else { v.root.visible = false; if (v.shadow) v.shadow.visible = false; }
     }
+  }
+
+  /** Bitmask (N = 1, L = 2, S = 4, O = 8) dos vizinhos muralha/portão/torre do mesmo dono em volta de um edifício 1×1. */
+  private wallMaskOf(state: GameState, b: Building): number {
+    const map = state.map, w = map.w;
+    const link = (x: number, y: number): boolean => {
+      if (x < 0 || y < 0 || x >= w || y >= map.h) return false;
+      const id = map.buildingAt[y * w + x];
+      if (id === -1 || id === b.id) return false;
+      const o = state.buildings.get(id);
+      return !!o && o.owner === b.owner && WALL_LINK_TYPES.has(o.type);
+    };
+    return wallMask(link(b.tx, b.ty - 1), link(b.tx + b.w, b.ty), link(b.tx, b.ty + b.h), link(b.tx - 1, b.ty));
+  }
+  /**
+   * Portões abertos neste quadro: pronto e com uma unidade do mesmo time a GATE_OPEN_RANGE do centro (o estado que o
+   * núcleo já tem: `gateTeam` deixa o time passar). Só varre as unidades se algum portão existia no último quadro.
+   */
+  private updateGatesOpen(state: GameState): void {
+    this.gatesOpen.clear();
+    if (this.gateCount === 0) return;
+    const map = state.map, w = map.w;
+    for (const u of state.units.values()) {
+      if (u.inside !== -1) continue;
+      const team = state.players[u.owner]?.team;
+      const fx = Math.floor(u.x), fy = Math.floor(u.y);
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const x = fx + dx, y = fy + dy;
+        if (x < 0 || y < 0 || x >= w || y >= map.h) continue;
+        const i = y * w + x;
+        if (map.gateTeam[i] !== team) continue;
+        if (gateNear(u.x, u.y, x + 0.5, y + 0.5)) this.gatesOpen.add(map.buildingAt[i]);
+      }
+    }
+  }
+  /** Fumaça de um edifício danificado: baforadas do terço de cima do quadro, na taxa do nível de dano. */
+  private emitSmoke(bv: BuildingView, b: Building, level: 1 | 2): void {
+    bv.smokeAcc += smokeRate(level, b.w * b.h) * this.animDt;
+    if (bv.smokeAcc < 1) return;
+    const n = Math.floor(bv.smokeAcc); bv.smokeAcc -= n;
+    const hw = b.w * TILE * 0.38, top = bv.y - bv.top;
+    this.smoke.emit(n, bv.x - hw, bv.x + hw, top + bv.top * 0.12, top + bv.top * 0.45, level === 2);
   }
 
   /**
@@ -664,16 +774,127 @@ export class Renderer {
     }
     // fantasma de construção (e alvo de poder): no modo assado, por cima de tudo (árvores e edifícios altos o cobririam)
     const top = this.bakedMode ? hp : g;
+    const ghosts = this.updateGhost(state, ui);
     if (ui.placement) {
       const p = ui.placement;
       const tiles = p.tiles ?? [{ x: p.tx, y: p.ty, ok: p.ok }];
       const def = BUILDINGS[p.type];
+      // com o fantasma assado por cima, o retângulo do footprint fica mais leve (continua mostrando onde pode/não pode)
+      const fillA = ghosts > 0 ? 0.2 : 0.35;
       for (const t of tiles) {
-        top.rect(t.x * TILE, t.y * TILE, def.w * TILE, def.h * TILE).fill({ color: t.ok ? 0x4ade80 : 0xef4444, alpha: 0.35 }).rect(t.x * TILE, t.y * TILE, def.w * TILE, def.h * TILE).stroke({ width: 1.5, color: t.ok ? 0x4ade80 : 0xef4444, alpha: 0.9 });
+        top.rect(t.x * TILE, t.y * TILE, def.w * TILE, def.h * TILE).fill({ color: t.ok ? 0x4ade80 : 0xef4444, alpha: fillA }).rect(t.x * TILE, t.y * TILE, def.w * TILE, def.h * TILE).stroke({ width: 1.5, color: t.ok ? 0x4ade80 : 0xef4444, alpha: 0.9 });
       }
       if (def.territory) top.circle((p.tx + def.w / 2) * TILE, (p.ty + def.h / 2) * TILE, (def.territory + state.players[local].mods.player.territory) * TILE).stroke({ width: 1, color: 0xffffff, alpha: 0.3 });
     }
     if (ui.powerTarget) top.circle(ui.mouseWorld.x * TILE, ui.mouseWorld.y * TILE, ui.powerTarget.radius * TILE).stroke({ width: 2, color: 0xfde68a, alpha: 0.8 }).circle(ui.mouseWorld.x * TILE, ui.mouseWorld.y * TILE, ui.powerTarget.radius * TILE).fill({ color: 0xfde68a, alpha: 0.12 });
+  }
+
+  /**
+   * Fantasma de construção com a arte assada: o quadro `complete` de cada tile da colocação, translúcido e tingido de
+   * verde/vermelho, na variante que o edifício teria ali (bitmask da linha de muralha somada às muralhas existentes do
+   * jogador, eixo do portão, Idade do jogador). Devolve quantos sprites mostrou (0 = só o retângulo, como antes).
+   */
+  private updateGhost(state: GameState, ui: RenderUI): number {
+    let used = 0;
+    const p = ui.placement;
+    const art = this.bakedMode && p ? this.art.buildingArt(p.type) : null;
+    if (p && art) {
+      const def = BUILDINGS[p.type];
+      const tiles = p.tiles ?? [{ x: p.tx, y: p.ty, ok: p.ok }];
+      const local = ui.localPlayer, map = state.map;
+      const linked = (x: number, y: number): boolean => {
+        if (x < 0 || y < 0 || x >= map.w || y >= map.h) return false;
+        const id = map.buildingAt[y * map.w + x];
+        const o = id === -1 ? undefined : state.buildings.get(id);
+        return !!o && o.owner === local && WALL_LINK_TYPES.has(o.type);
+      };
+      const masks = art.variantBy === 'wallMask' || art.variantBy === 'gateAxis' ? placementMasks(tiles, linked) : null;
+      for (let i = 0; i < tiles.length; i++) {
+        const t = tiles[i];
+        const variant = art.variantBy === 'ageTier' ? ageTier(state.players[local]?.age ?? 0) : art.variantBy ? buildingVariant(art.variantBy, { mask: masks![i], age: 0 }) : null;
+        const f = this.art.building(p.type, 'complete', variant);
+        if (!f) continue;
+        let s = this.ghostSprites[used];
+        if (!s) { s = new Sprite(); this.ghostSprites.push(s); this.layers.ghost.addChild(s); }
+        s.texture = f.color; s.anchor.set(f.anchor.x, f.anchor.y);
+        s.position.set((t.x + def.w / 2) * TILE, (t.y + def.h / 2) * TILE);
+        s.zIndex = t.y + def.h / 2;
+        s.alpha = 0.6; s.tint = ghostTint(t.ok); s.visible = true;
+        used++;
+      }
+    }
+    for (let i = used; i < this.ghostSprites.length; i++) this.ghostSprites[i].visible = false;
+    return used;
+  }
+
+  /**
+   * Escombros de uma queda (modo assado): o monte `rubble/<w>x<h>` no lugar do edifício, com sombra, deitado na faixa
+   * da borda de cima da pegada (quem passa por cima fica na frente); some depois de RUBBLE_SECONDS de jogo, apagando.
+   */
+  private addRubble(e: VisualEffect, type: string): void {
+    const def = BUILDINGS[type]; if (!def) return;
+    const f = this.art.rubble(def.w, def.h); if (!f) return;
+    const body = new Sprite(f.color); body.anchor.set(f.anchor.x, f.anchor.y); body.position.set(e.x * TILE, e.y * TILE);
+    const zy = e.y - def.h / 2 - 0.01;
+    body.zIndex = zy;
+    this.parentFor('building', zy, false).addChild(body);
+    let shadow: Sprite | null = null;
+    if (f.shadow) { shadow = new Sprite(f.shadow); shadow.anchor.set(f.anchor.x, f.anchor.y); shadow.position.set(e.x * TILE, e.y * TILE); shadow.alpha = SHADOW_ALPHA; shadow.blendMode = 'multiply'; this.layers.shadows.addChild(shadow); }
+    this.rubbleViews.push({ body, shadow, t0: this.animClock - (e.total - e.ttl) / TICK_RATE, tx: Math.floor(e.x), ty: Math.floor(e.y) });
+  }
+  private updateRubble(state: GameState, local: number): void {
+    if (this.rubbleViews.length === 0) return;
+    const map = state.map, vis = state.players[local]?.visibility;
+    let w = 0;
+    for (const r of this.rubbleViews) {
+      const a = rubbleAlpha(this.animClock - r.t0);
+      const i = r.ty * map.w + r.tx;
+      // acabou, ou um edifício novo ocupou o lugar
+      if (a <= 0 || (i >= 0 && i < map.buildingAt.length && map.buildingAt[i] !== -1)) { r.body.destroy(); r.shadow?.destroy(); continue; }
+      const seen = this.revealAll || state.config.revealMap || !vis || (vis[i] ?? 0) >= 1;
+      r.body.alpha = a; r.body.visible = seen;
+      if (r.shadow) { r.shadow.alpha = SHADOW_ALPHA * a; r.shadow.visible = seen; }
+      this.rubbleViews[w++] = r;
+    }
+    this.rubbleViews.length = w;
+  }
+
+  /**
+   * Ícone assado de um edifício para o HUD (data URL 64×64 — 128 no atlas 2× —: cor + máscara de time na cor `color`),
+   * ou null — o HUD usa o emoji. Composto uma vez por tipo e cor e guardado até a arte mudar de geração.
+   */
+  iconUrl(type: string, color: number): string | null {
+    if (!this.art || !this.quality.bakedArt) return null;
+    if (this.art.generation !== this.iconGen) { this.iconCache.clear(); this.iconGen = this.art.generation; }
+    const key = `${type}:${color}`;
+    const hit = this.iconCache.get(key);
+    if (hit !== undefined) return hit;
+    const f = this.art.icon(type);
+    if (!f) return null;
+    let url: string | null = null;
+    try {
+      // composição em canvas 2D direto da imagem do atlas (cor por cima; máscara tingida por multiplicação e recortada
+      // pelo próprio alfa): síncrona, sem render na GPU
+      const res = f.color.source.resolution || 1, W = Math.round(f.color.orig.width * res), H = Math.round(f.color.orig.height * res);
+      const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+      const g = cv.getContext('2d')!;
+      const blit = (ctx: CanvasRenderingContext2D, t: Texture): void => {
+        const fr = t.frame, tr = t.trim;
+        ctx.drawImage(t.source.resource as CanvasImageSource, fr.x * res, fr.y * res, fr.width * res, fr.height * res, (tr?.x ?? 0) * res, (tr?.y ?? 0) * res, fr.width * res, fr.height * res);
+      };
+      blit(g, f.color);
+      if (f.team) {
+        const tc = document.createElement('canvas'); tc.width = W; tc.height = H;
+        const tg = tc.getContext('2d')!;
+        blit(tg, f.team);
+        tg.globalCompositeOperation = 'multiply'; tg.fillStyle = '#' + color.toString(16).padStart(6, '0'); tg.fillRect(0, 0, W, H);
+        tg.globalCompositeOperation = 'destination-in'; blit(tg, f.team);
+        g.drawImage(tc, 0, 0);
+      }
+      url = cv.toDataURL('image/png');
+    } catch { url = null; }
+    this.iconCache.set(key, url);
+    return url;
   }
 
   // ---------------- Efeitos ----------------
@@ -730,8 +951,20 @@ export class Renderer {
         else if (e.type === 'death' || e.type === 'petrify') {
           if (typeof e.data === 'string' && UNITS[e.data]) { const s = new Sprite(this.tex.unit(e.data, PLAYER_COLORS[(e.owner ?? 0) % PLAYER_COLORS.length].num)); s.anchor.set(0.5); s.rotation = 1.2; if (e.type === 'petrify') s.tint = 0x9ca3af; c.addChild(s); }
         } else if (e.type === 'collapse') {
-          const f = this.bakedMode && typeof e.data === 'string' ? this.art.building(e.data, 'complete') : null;
-          if (f) { const s = new Sprite(f.color); s.anchor.set(f.anchor.x, f.anchor.y); s.tint = 0x777777; c.addChild(s); }
+          // assada: o quadro damage2 (na variante que o edifício mostrava) afundando e apagando, poeira e escombros
+          let f = null;
+          if (this.bakedMode && typeof e.data === 'string') {
+            const gone = this.recentGone.find((g) => g.type === e.data && Math.abs(g.x - e.x * TILE) < 1 && Math.abs(g.y - e.y * TILE) < 1);
+            const art = this.art.buildingArt(e.data);
+            const variant = gone?.variant ?? (art?.variants ? art.variants[0] : null);
+            f = this.art.building(e.data, 'damage2', variant) ?? this.art.building(e.data, 'complete', variant);
+            if (!this.rubbleSeen.has(e)) {
+              this.rubbleSeen.add(e); this.addRubble(e, e.data);
+              const d = BUILDINGS[e.data];
+              if (d) this.smoke.emit(4 + d.w * d.h * 2, (e.x - d.w / 2) * TILE, (e.x + d.w / 2) * TILE, (e.y - d.h / 2) * TILE, (e.y + d.h / 3) * TILE, false);
+            }
+          }
+          if (f) { const s = new Sprite(f.color); s.anchor.set(f.anchor.x, f.anchor.y); s.tint = 0x8a847c; c.addChild(s); this.bakedCollapses.add(c); }
           else if (typeof e.data === 'string' && BUILDINGS[e.data]) { const s = new Sprite(this.tex.building(e.data, 0x888888, true)); s.anchor.set(0.5); s.tint = 0x777777; c.addChild(s); }
         } else if (e.type === 'quake') this.cam.shake = 10;
         c.position.set(e.x * TILE, e.y * TILE);
@@ -741,7 +974,12 @@ export class Renderer {
         c.position.set(x * TILE, y * TILE - Math.sin(p * Math.PI) * 10);
         c.rotation = Math.atan2(e.ty - e.y, e.tx - e.x);
       } else if (e.type === 'death' || e.type === 'collapse' || e.type === 'petrify') {
-        c.alpha = 1 - p; if (e.type === 'collapse') c.scale.set(1 - p * 0.2);
+        c.alpha = 1 - p;
+        if (e.type === 'collapse') {
+          // assado: afunda (o monte de escombros fica por baixo); procedural: encolhe como antes
+          if (this.bakedCollapses.has(c)) { c.scale.set(1, 1 - p * 0.55); c.position.y = e.y * TILE + p * 6; }
+          else c.scale.set(1 - p * 0.2);
+        }
       } else {
         const g = (c.children[0] as Graphics | undefined) instanceof Graphics ? (c.children[0] as Graphics) : (() => { const ng = new Graphics(); c.addChild(ng); return ng; })();
         g.clear();
@@ -771,6 +1009,7 @@ export class Renderer {
     for (const [e, c] of this.fxViews) if (!seen.has(e)) { c.destroy({ children: true }); this.fxViews.delete(e); }
     for (const [e, uv] of this.dying) if (!seen.has(e)) { uv.destroy(); this.dying.delete(e); }
     this.recentDeaths.length = 0;
+    this.recentGone.length = 0;
     void ui;
   }
 
@@ -930,12 +1169,16 @@ export class Renderer {
     this.world.position.set(-this.cam.x * this.cam.zoom + sx, -this.cam.y * this.cam.zoom + sy);
     // relógio de jogo das animações assadas (não volta: retomar a pausa com alpha < 1 não recua o quadro)
     const clock = (state.tick + alpha) / TICK_RATE;
+    const prevClock = this.animClock;
     if (clock > this.animClock || clock < this.animClock - 1) this.animClock = clock;
+    this.animDt = Math.max(0, Math.min(0.25, this.animClock - prevClock));
     if (this.bakedMode) this.updateEdgeFrame(state.map.w, state.map.h);
     this.updateTerrain(state, ui.localPlayer);
     this.updateEntities(state, alpha, ui);
     this.updateGround(state, alpha, ui);
     this.updateEffects(state, ui);
+    this.updateRubble(state, ui.localPlayer);
+    this.smoke.update(this.animDt);
     this.updateEditor(state, ui);
     this.updateFog(state, ui.localPlayer);
     const o = this.overlay; o.clear();

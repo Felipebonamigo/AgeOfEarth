@@ -1,5 +1,5 @@
 // Fonte assada (docs/ART.md §3.3, §3.7): lê public/art/manifest.json e carrega os atlas de um grupo (units, buildings,
-// props) numa escala (1× ou 2×) sob demanda, com os três passes (cor, time, sombra). Recusa atlas cujo meta.aoe difira do
+// props, icons) numa escala (1× ou 2×) sob demanda, com os três passes (cor, time, sombra). Recusa atlas cujo meta.aoe difira do
 // contrato (pxPerTile/pitchDeg/versão/passe) e, se qualquer arquivo falhar, o grupo inteiro fica "failed" e o jogo segue
 // no procedural. Carrega com Assets.load (cache com prefixo por arquivo: os três passes e as duas escalas repetem os
 // mesmos nomes de quadro); se o Assets falhar (file:// no Electron não tem fetch), cai para XHR + <img> + Spritesheet.

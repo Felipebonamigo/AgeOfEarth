@@ -1,0 +1,67 @@
+{
+  "id": "rubble",
+  "kind": "building",
+  "docs": "Escombros genéricos por pegada (um quadro por w×h). Para usar um .glb, troque `source` por { \"type\": \"glb\", \"path\": \"art/src/rubble.glb\", \"scale\": 0.5, \"anims\": { \"1x1\": \"Rubble1\", … } } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "building",
+    "params": {
+      "style": "rubble"
+    }
+  },
+  "size": {
+    "tiles": [
+      6.0,
+      6.4
+    ]
+  },
+  "footprint": [
+    5,
+    5
+  ],
+  "anchor": [
+    0.47,
+    0.5
+  ],
+  "dirs": 1,
+  "rubble": true,
+  "anims": {
+    "1x1": {
+      "frames": 1,
+      "params": {
+        "w": 1,
+        "h": 1
+      }
+    },
+    "2x2": {
+      "frames": 1,
+      "params": {
+        "w": 2,
+        "h": 2
+      }
+    },
+    "3x3": {
+      "frames": 1,
+      "params": {
+        "w": 3,
+        "h": 3
+      }
+    },
+    "4x4": {
+      "frames": 1,
+      "params": {
+        "w": 4,
+        "h": 4
+      }
+    },
+    "5x5": {
+      "frames": 1,
+      "params": {
+        "w": 5,
+        "h": 5
+      }
+    }
+  },
+  "team": false,
+  "shadow": true
+}

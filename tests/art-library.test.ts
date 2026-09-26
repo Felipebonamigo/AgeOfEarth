@@ -8,7 +8,12 @@ import {
   dirFromAngle, dirFromVector, dirWithHysteresis, chooseAnim, frameIndex, animDuration, unitFrameName, unitAnimName, buildingFrameName,
   propFrameName, buildingStage, treeLook, stumpVariant, animalDir, amountStage, nodeFrameName, nodeStage, treeScale, treeOffset, checkSheetMeta, pickScale,
   isMirrored, frameBox, mulColor, isWalking, freshHit, deathAlpha, type UnitAnim,
+  BUILDING_STATES, damageLevel, buildingState, fallbackState, WALL_LINK_TYPES, wallMask, wallVariant, gateAxis, ageTier,
+  buildingVariant, placementMasks, gateNear, GATE_OPEN_RANGE, rubbleName, rubbleAlpha, RUBBLE_SECONDS, RUBBLE_FADE, smokeRate,
+  smokeBudget, ghostTint,
 } from '../src/render/art/logic';
+import { BUILDINGS } from '../src/core/data';
+import { PARTICLE_BUDGET } from '../src/render/quality';
 import type { ArtManifest, SheetJson } from '../src/render/art/types';
 import { resolveQuality, QUALITY_PRESETS } from '../src/render/quality';
 import { DEFAULT_SETTINGS, sanitizeSettings } from '../src/game/settings';
@@ -132,6 +137,93 @@ describe('estágios (obra e props)', () => {
   });
 });
 
+describe('edifícios (Etapa 3): dano, variantes, muralha, portão, escombros, fumaça', () => {
+  it('dano pela vida perdida: ≥ 1/3 → damage1, ≥ 2/3 → damage2; obra continua pelo progresso; portão aberto vence o dano', () => {
+    expect([1, 0.9, 0.67, 0.666, 0.5, 0.34, 0.333, 0.1, 0].map(damageLevel)).toEqual([0, 0, 0, 1, 1, 1, 2, 2, 2]);
+    expect(damageLevel(Number.NaN)).toBe(0);
+    expect(buildingState(0.2, false, 0.1)).toBe('build0');            // em obra: o dano não muda o quadro da obra
+    expect(buildingState(0.5, false, 1)).toBe('build1');
+    expect(buildingState(0.9, false, 1)).toBe('build2');
+    expect(buildingState(1, true, 1)).toBe('complete');
+    expect(buildingState(1, true, 0.6)).toBe('damage1');
+    expect(buildingState(1, true, 0.3)).toBe('damage2');
+    expect(buildingState(1, true, 0.3, true)).toBe('open');
+    expect(buildingState(0.5, false, 1, true)).toBe('build1');        // portão em obra não abre
+    expect([...BUILDING_STATES]).toEqual(['build0', 'build1', 'build2', 'complete', 'damage1', 'damage2']);
+  });
+  it('estado de reserva: damage2 → damage1 → complete; open → complete; obra e complete sem reserva', () => {
+    expect(fallbackState('damage2')).toBe('damage1');
+    expect(fallbackState('damage1')).toBe('complete');
+    expect(fallbackState('open')).toBe('complete');
+    expect(fallbackState('complete')).toBeNull();
+    expect(fallbackState('build1')).toBeNull();
+  });
+  it('bitmask da muralha: N = 1, L = 2, S = 4, O = 8, as 16 combinações com nomes 00–15', () => {
+    const names = new Set<string>();
+    for (let i = 0; i < 16; i++) {
+      const m = wallMask(!!(i & 1), !!(i & 2), !!(i & 4), !!(i & 8));
+      expect(m).toBe(i);
+      names.add(wallVariant(m));
+    }
+    expect([...names]).toEqual(Array.from({ length: 16 }, (_, i) => String(i).padStart(2, '0')));
+    expect(wallVariant(5)).toBe('05'); expect(wallVariant(15)).toBe('15'); expect(wallVariant(16 + 3)).toBe('03');
+    expect([...WALL_LINK_TYPES].sort()).toEqual(['gate', 'tower', 'wall']);
+    for (const t of WALL_LINK_TYPES) expect(BUILDINGS[t], t).toBeTruthy();
+  });
+  it('eixo do portão pelos vizinhos: só norte/sul → ns; leste/oeste, cruz ou isolado → ew', () => {
+    expect(gateAxis(wallMask(true, false, true, false))).toBe('ns');
+    expect(gateAxis(wallMask(true, false, false, false))).toBe('ns');
+    expect(gateAxis(wallMask(false, true, false, true))).toBe('ew');
+    expect(gateAxis(0)).toBe('ew');
+    expect(gateAxis(15)).toBe('ew');
+    expect(gateAxis(wallMask(true, true, false, false))).toBe('ew');
+  });
+  it('Idade → variante do Centro Cívico e critério genérico de variante', () => {
+    expect([0, 1, 2, 3, 4].map(ageTier)).toEqual(['a0', 'a1', 'a1', 'a2', 'a2']);
+    expect(buildingVariant('wallMask', { mask: 10, age: 0 })).toBe('10');
+    expect(buildingVariant('gateAxis', { mask: 5, age: 0 })).toBe('ns');
+    expect(buildingVariant('ageTier', { mask: 0, age: 3 })).toBe('a2');
+    expect(buildingVariant(null, { mask: 3, age: 3 })).toBeNull();
+  });
+  it('fantasma de uma linha de muralha: liga os tiles da linha entre si e às muralhas existentes', () => {
+    const line = [{ x: 3, y: 5 }, { x: 4, y: 5 }, { x: 5, y: 5 }];
+    expect(placementMasks(line, () => false)).toEqual([2, 10, 8]);                       // ponta, reta, ponta
+    const existing = (x: number, y: number) => x === 6 && y === 5;                       // muralha pronta a leste
+    expect(placementMasks(line, existing)).toEqual([2, 10, 10]);
+    expect(placementMasks([{ x: 0, y: 0 }], (x, y) => x === 0 && y === 1)).toEqual([4]);   // portão sobre muralha ao sul
+    expect(gateAxis(placementMasks([{ x: 0, y: 0 }], (x, y) => x === 0 && (y === 1 || y === -1))[0])).toBe('ns');
+  });
+  it('portão abre com aliado perto (Chebyshev do centro do tile)', () => {
+    expect(gateNear(10.5, 10.5, 10.5, 10.5)).toBe(true);
+    expect(gateNear(10.5 + GATE_OPEN_RANGE - 1e-9, 10.5, 10.5, 10.5)).toBe(true);
+    expect(gateNear(10.5 + GATE_OPEN_RANGE + 0.01, 10.5, 10.5, 10.5)).toBe(false);
+    expect(gateNear(11.5, 12.2, 10.5, 10.5)).toBe(false);
+  });
+  it('escombros: nome por pegada, alfa 1 até apagar no fim, 0 depois', () => {
+    expect(rubbleName(3, 3)).toBe('rubble/3x3');
+    expect(rubbleAlpha(-1)).toBe(1); expect(rubbleAlpha(0)).toBe(1);
+    expect(rubbleAlpha(RUBBLE_SECONDS - RUBBLE_FADE)).toBe(1);
+    expect(rubbleAlpha(RUBBLE_SECONDS - RUBBLE_FADE / 2)).toBeCloseTo(0.5);
+    expect(rubbleAlpha(RUBBLE_SECONDS)).toBe(0); expect(rubbleAlpha(99)).toBe(0);
+  });
+  it('fumaça: 0 sem dano, mais no dano pesado e nos edifícios grandes; orçamento pela fração do preset', () => {
+    expect(smokeRate(0, 9)).toBe(0);
+    expect(smokeRate(2, 9)).toBeGreaterThan(smokeRate(1, 9));
+    expect(smokeRate(1, 9)).toBeGreaterThan(smokeRate(1, 1));
+    expect(smokeRate(1, 0)).toBe(smokeRate(1, 1));
+    for (const b of PARTICLE_BUDGET) { expect(smokeBudget(b)).toBeGreaterThan(0); expect(smokeBudget(b)).toBeLessThan(b); }
+    expect(smokeBudget(PARTICLE_BUDGET[0])).toBeLessThan(smokeBudget(PARTICLE_BUDGET[2]));
+  });
+  it('fantasma tingido de verde/vermelho claro (o sprite continua legível)', () => {
+    const ok = ghostTint(true), no = ghostTint(false);
+    expect(((ok >> 8) & 255) > ((ok >> 16) & 255)).toBe(true);
+    expect(((no >> 16) & 255) > ((no >> 8) & 255)).toBe(true);
+    for (const c of [ok, no]) expect(Math.min((c >> 16) & 255, (c >> 8) & 255, c & 255)).toBeGreaterThan(0x80);
+    expect(buildingFrameName('wall', 'complete', '05')).toBe('wall/complete/05');
+    expect(buildingFrameName('house', 'damage1', null)).toBe('house/damage1');
+  });
+});
+
 describe('atlas: meta.aoe, escala, espelhamento e cor', () => {
   const meta = (o: Record<string, unknown> = {}) => ({ version: 1, pass: 'color' as const, pxPerTile: 32, pitchDeg: 50, ...o });
   it('recusa atlas fora do contrato', () => {
@@ -238,6 +330,48 @@ describe.skipIf(!hasArt)('artefatos do bake: toda chave pedida pelo renderizador
         }
       }
     }
+  });
+
+  it('edifícios assados (lote 1): todo estado × variante na cor, sombra e (com time) máscara, nas duas escalas; ícones; escombros', () => {
+    const lot = ['temple', 'town_center', 'house', 'wall', 'gate', 'tower'];
+    for (const id of lot) {
+      const a = manifest.assets[id];
+      expect(a?.kind, id).toBe('building');
+      const states = Object.keys(a.anims!);
+      expect(states, id).toEqual(expect.arrayContaining([...BUILDING_STATES]));
+      for (const s of scales) {
+        const color = passOf('buildings', s, 'color'), shadow = passOf('buildings', s, 'shadow'), team = passOf('buildings', s, 'team');
+        let withTeam = 0;
+        for (const st of states) for (const v of a.variants ?? [null]) {
+          const n = buildingFrameName(id, st, v);
+          expect(color.frames.has(n), `${n} cor ${s}x`).toBe(true);
+          expect(shadow.frames.has(n), `${n} sombra ${s}x`).toBe(true);
+          if (team.frames.has(n)) withTeam++;
+        }
+        if (a.team) expect(withTeam, `${id} máscara ${s}x`).toBeGreaterThan(0); else expect(withTeam).toBe(0);
+        // ícone do HUD no atlas icons (cor, e máscara quando tem time)
+        expect(a.icon, id).toBe(true);
+        expect(passOf('icons', s, 'color').frames.has(id), `${id} ícone ${s}x`).toBe(true);
+        if (a.team) expect(passOf('icons', s, 'team').frames.has(id), `${id} ícone time ${s}x`).toBe(true);
+      }
+      // âncora e moldura iguais em todos os estados/variantes (a vista troca só a textura)
+      for (const s of scales) {
+        const size = a.sizes![String(s)];
+        for (const a2 of manifest.atlases) if (a2.group === 'buildings' && a2.scale === s) for (const [k, f] of Object.entries(sheets.get(a2.json)!.frames)) if (k.startsWith(id + '/')) {
+          expect(f.anchor, k).toEqual(size.anchor); expect(f.sourceSize, k).toEqual(size.sourceSize);
+        }
+      }
+    }
+    expect(manifest.assets.wall.variants).toHaveLength(16);
+    expect(manifest.assets.wall.variantBy).toBe('wallMask');
+    expect(manifest.assets.gate.variantBy).toBe('gateAxis');
+    expect(Object.keys(manifest.assets.gate.anims!)).toContain('open');
+    expect(manifest.assets.town_center.variantBy).toBe('ageTier');
+    // escombros: um por pegada de todo edifício do jogo
+    expect(manifest.assets.rubble?.rubble).toBe(true);
+    for (const s of scales) for (const b of Object.values(BUILDINGS)) expect(passOf('buildings', s, 'color').frames.has(rubbleName(b.w, b.h)), `${b.id} ${s}x`).toBe(true);
+    // ícones: 64×64 a 1× (128 a 2×)
+    for (const a2 of manifest.atlases) if (a2.group === 'icons') for (const f of Object.values(sheets.get(a2.json)!.frames)) expect(f.sourceSize).toEqual({ w: 64 * a2.scale, h: 64 * a2.scale });
   });
 
   it('templo: build0/1/2 e completo nos três passes; demais edifícios sem arte (procedurais)', () => {

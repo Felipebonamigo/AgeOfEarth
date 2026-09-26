@@ -3,8 +3,14 @@
 //
 // Um manifesto por arquivo em art/manifest/<id>.json. Nomes de quadro (os mesmos nos três passes — cor, time, sombra):
 //   unidade   <id>/<anim>/<dir>/<quadro 2 dígitos>          ex.: hoplite/walk/3/05   (animação: hoplite/walk/3)
-//   edifício  <id>/<estado>  ou  <id>/<estado>/<quadro>     ex.: temple/build0, temple/complete
+//   edifício  <id>/<estado>  ou  <id>/<estado>/<variante|quadro>   ex.: temple/build0, wall/complete/05, gate/open/ns
 //   prop      <kind>/<variante>[/<tag>]                     ex.: olive/2/big, stump/1, berry/full, deer/4
+//   ícone     <id>                                          ex.: house (atlas `icons`, 64×64 a 1×, docs/ART.md §1.10)
+//
+// Edifícios (Etapa 3): `anims` = estados; todo edifício com arte declara os 6 de BUILDING_STATES (o portão também
+// `open`); `variants` + `variantBy` multiplicam os estados (muralha: bitmask 00–15; portão: eixo ew/ns; Centro Cívico:
+// Idade a0–a2); `icon: { anim, variant? }` pede o ícone do HUD; `rubble: true` marca o conjunto de escombros (um estado
+// por pegada, ex.: rubble/3x3).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -13,14 +19,23 @@ import { DIRS, FPS, MIRROR_BAKED, MIRROR_FROM } from './page/camera.js';
 export const KINDS = ['unit', 'building', 'prop'];
 /** Grupo de atlas de cada tipo de asset (units-1x-0.png, buildings-1x-0.png, props-1x-0.png). */
 export const GROUP_OF = { unit: 'units', building: 'buildings', prop: 'props' };
+/** Todos os grupos de atlas (os ícones do HUD vão para `icons`, com cor e máscara de time). */
+export const ATLAS_GROUPS = ['units', 'buildings', 'props', 'icons'];
 export const PASSES = ['color', 'team', 'shadow'];
+/** Estados de todo edifício com arte (docs/ART.md §1.8): obra 0–2, pronto, dano 1–2. */
+export const BUILDING_STATES = ['build0', 'build1', 'build2', 'complete', 'damage1', 'damage2'];
+/** Como o renderizador escolhe a variante de um edifício (src/render/art/logic.ts). */
+export const VARIANT_BY = ['wallMask', 'gateAxis', 'ageTier'];
+/** Lado do ícone a 1× (px). */
+export const ICON_PX = 64;
 /** Rigs paramétricos conhecidos pela página de bake (scripts/bake/page/rigs/*.js, props.js, buildings.js). */
 export const RIGS = ['human', 'building', 'props'];
 
 export const FRAME_NAME_RE = {
   unit: /^[a-z][a-z0-9_]*\/[a-z][a-z0-9_]*\/[0-7]\/\d{2}$/,
-  building: /^[a-z][a-z0-9_]*\/[a-z][a-z0-9_]*(\/\d{2})?$/,
+  building: /^[a-z][a-z0-9_]*\/[a-z0-9][a-z0-9_]*(\/[a-z0-9_]+)?$/,
   prop: /^[a-z][a-z0-9_]*\/[a-z0-9_]+(\/[a-z0-9_]+)?$/,
+  icon: /^[a-z][a-z0-9_]*$/,
 };
 
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -60,7 +75,7 @@ export function validateManifest(m) {
   if (m.kind !== 'prop') {
     if (!m.anims || typeof m.anims !== 'object' || !Object.keys(m.anims).length) e.push(`${where}: anims vazio`);
     else for (const [name, a] of Object.entries(m.anims)) {
-      if (!/^[a-z][a-z0-9_]*$/.test(name)) e.push(`${where}: nome de animação inválido ${name}`);
+      if (!(m.kind === 'building' ? /^[a-z0-9][a-z0-9_]*$/ : /^[a-z][a-z0-9_]*$/).test(name)) e.push(`${where}: nome de animação inválido ${name}`);
       if (!Number.isInteger(a?.frames) || a.frames < 1 || a.frames > 32) e.push(`${where}: ${name}.frames inválido`);
       if (a?.fps !== undefined && !(isNum(a.fps) && a.fps > 0)) e.push(`${where}: ${name}.fps inválido`);
       if (m.kind === 'unit' && s?.type === 'param' && typeof a?.pose !== 'string') e.push(`${where}: ${name}.pose ausente`);
@@ -71,6 +86,20 @@ export function validateManifest(m) {
       if (it.anchor && !(Array.isArray(it.anchor) && it.anchor.every(inUnit))) e.push(`${where}: anchor de ${it.kind} fora de [0,1]`);
     }
   }
+  if (m.kind === 'building') {
+    const states = Object.keys(m.anims ?? {});
+    if (!m.rubble) for (const st of BUILDING_STATES) if (!states.includes(st)) e.push(`${where}: estado ${st} ausente (edifícios têm ${BUILDING_STATES.join(', ')})`);
+    if (m.variants !== undefined) {
+      if (!Array.isArray(m.variants) || !m.variants.length || !m.variants.every((v) => typeof v === 'string' && /^[a-z0-9_]+$/.test(v))) e.push(`${where}: variants deve ser lista de nomes [a-z0-9_]`);
+      else if (new Set(m.variants).size !== m.variants.length) e.push(`${where}: variants repetidas`);
+      if (!VARIANT_BY.includes(m.variantBy)) e.push(`${where}: variantBy deve ser ${VARIANT_BY.join('|')}`);
+      for (const [name, a] of Object.entries(m.anims ?? {})) if ((a?.frames ?? 1) > 1) e.push(`${where}: ${name} com variantes não pode ter vários quadros`);
+    } else if (m.variantBy !== undefined) e.push(`${where}: variantBy sem variants`);
+    if (m.icon !== undefined) {
+      if (!m.icon || typeof m.icon.anim !== 'string' || !m.anims?.[m.icon.anim]) e.push(`${where}: icon.anim deve ser um estado do manifesto`);
+      else if (m.variants && !m.variants.includes(m.icon.variant)) e.push(`${where}: icon.variant deve ser uma das variants`);
+    }
+  } else if (m.variants !== undefined || m.icon !== undefined || m.rubble !== undefined) e.push(`${where}: variants/icon/rubble só em edifícios`);
   if (typeof m.team !== 'boolean') e.push(`${where}: team deve ser boolean`);
   if (typeof m.shadow !== 'boolean') e.push(`${where}: shadow deve ser boolean`);
   return e;
@@ -98,9 +127,13 @@ export function bakedDirs(m, mirror = false) {
   return mirror ? [...MIRROR_BAKED] : Array.from({ length: m.dirs ?? DIRS }, (_, i) => i);
 }
 
+/** Grupo de atlas de um quadro expandido (ícones vão para `icons`). */
+export function atlasOf(m, f) { return f.atlas ?? GROUP_OF[m.kind]; }
+
 /**
- * Lista de quadros a assar de um manifesto: `{ name, group, anim?, dir, frame, frames, loop, pose?, item? }`.
- * `group` = quadros que compartilham `sourceSize`/`anchor` no atlas (unidade/edifício: o asset inteiro; prop: cada quadro).
+ * Lista de quadros a assar de um manifesto: `{ name, group, anim?, dir, frame, frames, loop, pose?, item?, variant?,
+ * atlas?, icon? }`. `group` = quadros que compartilham `sourceSize`/`anchor` no atlas (unidade/edifício: o asset
+ * inteiro; prop e ícone: cada quadro). `atlas` = grupo de atlas quando difere do kind (ícones: 'icons').
  */
 export function expandFrames(m, { mirror = false } = {}) {
   const out = [];
@@ -114,10 +147,17 @@ export function expandFrames(m, { mirror = false } = {}) {
   }
   for (const [anim, a] of Object.entries(m.anims ?? {})) {
     const loop = a.loop ?? (m.kind === 'unit' ? !['attack', 'die'].includes(anim) : true);
+    if (m.kind === 'building' && m.variants) {
+      for (const v of m.variants) out.push({ name: `${m.id}/${anim}/${v}`, group: m.id, anim, variant: v, dir: 0, frame: 0, frames: 1, loop, params: a.params });
+      continue;
+    }
     for (const dir of bakedDirs(m, mirror)) for (let i = 0; i < a.frames; i++) {
       const name = m.kind === 'unit' ? `${m.id}/${anim}/${dir}/${pad2(i)}` : a.frames > 1 ? `${m.id}/${anim}/${pad2(i)}` : `${m.id}/${anim}`;
       out.push({ name, group: m.id, anim, dir, frame: i, frames: a.frames, loop, pose: a.pose, params: a.params });
     }
+  }
+  if (m.kind === 'building' && m.icon && m.anims?.[m.icon.anim]) {
+    out.push({ name: m.id, group: `icon:${m.id}`, atlas: 'icons', icon: true, anim: m.icon.anim, variant: m.icon.variant, dir: 0, frame: 0, frames: 1, loop: false, params: m.anims[m.icon.anim].params });
   }
   return out;
 }
@@ -154,3 +194,6 @@ export function matchesOnly(m, only) {
   if (!only || !only.length) return true;
   return only.some((o) => o === m.id || m.id.startsWith(o + '-') || o === m.kind || o === GROUP_OF[m.kind]);
 }
+
+/** Nome do quadro de edifício: `<id>/<estado>` ou `<id>/<estado>/<variante>` (o mesmo de src/render/art/logic.ts). */
+export function buildingFrame(id, state, variant) { return variant ? `${id}/${state}/${variant}` : `${id}/${state}`; }

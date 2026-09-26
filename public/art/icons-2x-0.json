@@ -1,0 +1,14 @@
+{
+ "frames": {
+  "gate": {"frame":{"x":1,"y":1,"w":54,"h":118},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":37,"y":5,"w":54,"h":118},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
+  "house": {"frame":{"x":59,"y":1,"w":66,"h":103},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":31,"y":19,"w":66,"h":103},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
+  "temple": {"frame":{"x":129,"y":1,"w":72,"h":118},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":28,"y":6,"w":72,"h":118},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
+  "tower": {"frame":{"x":205,"y":1,"w":30,"h":93},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":49,"y":24,"w":30,"h":93},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
+  "town_center": {"frame":{"x":239,"y":1,"w":70,"h":111},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":29,"y":13,"w":70,"h":111},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
+  "wall": {"frame":{"x":313,"y":1,"w":68,"h":118},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":30,"y":5,"w":68,"h":118},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}}
+ },
+ "animations": {
+
+ },
+ "meta": {"app":"age-of-earth/scripts/bake","version":"1","image":"icons-2x-0.png","format":"RGBA8888","size":{"w":512,"h":128},"scale":"2","aoe":{"version":1,"pass":"color","pxPerTile":64,"pitchDeg":50,"verticalFactor":0.8391,"sun":[-0.55,1,-0.35],"shadowDir":"SE","dirs":8,"dirNames":["E","SE","S","SW","W","NW","N","NE"],"fps":10,"pad":2,"extrude":1,"mirror":false}}
+}

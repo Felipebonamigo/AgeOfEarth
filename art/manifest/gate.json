@@ -1,0 +1,61 @@
+{
+  "id": "gate",
+  "kind": "building",
+  "docs": "Para usar um modelo .glb, troque `source` por { \"type\": \"glb\", \"path\": \"art/src/gate.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"build0\": \"Build0\", …, \"damage2\": \"Damage2\", \"open\": \"Open\" }, \"teamMaterials\": [\"Banner\"] } (um clipe estático por estado; docs/ART.md §3.4). Uma cena por eixo (ew/ns).",
+  "source": {
+    "type": "param",
+    "rig": "building",
+    "params": {
+      "style": "gate"
+    }
+  },
+  "size": {
+    "tiles": [
+      2.6,
+      3.9
+    ]
+  },
+  "footprint": [
+    1,
+    1
+  ],
+  "anchor": [
+    0.28,
+    0.6
+  ],
+  "dirs": 1,
+  "anims": {
+    "build0": {
+      "frames": 1
+    },
+    "build1": {
+      "frames": 1
+    },
+    "build2": {
+      "frames": 1
+    },
+    "complete": {
+      "frames": 1
+    },
+    "damage1": {
+      "frames": 1
+    },
+    "damage2": {
+      "frames": 1
+    },
+    "open": {
+      "frames": 1
+    }
+  },
+  "variants": [
+    "ew",
+    "ns"
+  ],
+  "variantBy": "gateAxis",
+  "icon": {
+    "anim": "complete",
+    "variant": "ew"
+  },
+  "team": true,
+  "shadow": true
+}
