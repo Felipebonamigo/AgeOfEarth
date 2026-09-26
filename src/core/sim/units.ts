@@ -3,7 +3,7 @@
 import { CARRY_CAPACITY, FARM_GATHERERS, GATHER_RATES, HUNT_TYPES, NODE_RESOURCE, TICK_RATE, type ResourceType } from '../constants';
 import { BUILDINGS, UNITS } from '../data';
 import type { Building, GameState, Order, ResourceNode, Unit } from '../types';
-import { distToRect, idx, inBounds, canPass, canStep, dist } from '../map/grid';
+import { distToRect, idx, inBounds, canPass, canStep, dist, towardFrame, centerFrame } from '../map/grid';
 import { componentAt, componentSize, nearestLargeComponentTile, rectReachable } from '../map/components';
 import { findPathEx, nearestFreeTile, type PathGoal } from '../map/pathfinding';
 import { removeNode } from '../map/mapgen';
@@ -222,7 +222,7 @@ function moveTowards(state: GameState, rt: Runtime, u: Unit, step: number, tx: n
   const sx = Math.floor(u.x), sy = Math.floor(u.y);
   if (!canPass(map, sx, sy, team)) {
     // presa num tile bloqueado (ex.: portão fechado, edifício surgido em cima): sai para o tile livre mais próximo
-    const f = nearestFreeTile(map, u.x, u.y, 4);
+    const f = nearestFreeTile(map, u.x, u.y, 4, towardFrame(tx - u.x, ty - u.y, centerFrame(map, u.x, u.y)));   // sai pelo lado do destino
     if (f) stepTo(u, f.x + 0.5, f.y + 0.5, step, map, true, team);
     return 'moving';
   }
@@ -256,7 +256,7 @@ function moveTowards(state: GameState, rt: Runtime, u: Unit, step: number, tx: n
     let adjacent = false;
     if (goal) { g = goal; adjacent = true; }
     else {
-      const t = nearestFreeTile(map, tx, ty, 10);
+      const t = nearestFreeTile(map, tx, ty, 10, towardFrame(u.x - tx, u.y - ty, centerFrame(map, tx, ty)));   // destino bloqueado: o lado de quem chega (antes: o norte)
       if (!t) { u.path = null; return 'blocked'; }
       g = { tx: t.x, ty: t.y, w: 1, h: 1 };
     }

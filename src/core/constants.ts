@@ -3,6 +3,13 @@ export const TILE = 32;              // pixels por tile no zoom 1
 export const TICK_RATE = 20;         // ticks de simulação por segundo
 export const DT = 1 / TICK_RATE;     // segundos por tick
 export const MAX_PLAYERS = 4;
+/**
+ * Versão da simulação: sobe quando a mesma semente + os mesmos comandos passam a dar outra partida (replays gravados antes
+ * dessincronizariam; saves não, porque guardam o estado inteiro). 2 = correção do viés de posição (IA e buscas relativas ao
+ * centro do mapa / ao lado de quem chega, desempates no referencial local, IAs em rodízio por rodada, unidades em ordem
+ * alternada, a IA não tira o último acesso de um recurso). O relay recusa na sala quem tiver outra versão.
+ */
+export const SIM_VERSION = 2;
 
 export const RESOURCES = ['food', 'wood', 'gold', 'knowledge', 'favor'] as const;
 export type ResourceType = (typeof RESOURCES)[number];

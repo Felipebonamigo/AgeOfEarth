@@ -166,10 +166,12 @@ export class MapBuilder {
 
 /**
  * Recursos a até 12 tiles de um início, invariantes pelos espelhos locais (dx → −dx e dy → −dy). Com a simetria global
- * do mapa, todos os inícios ficam com a mesma vizinhança também na orientação absoluta — importa porque o kit inicial
- * nasce sempre ao sul do Centro Cívico. 12 frutas (leste/oeste, ~6), 6 veios de ouro (norte/sul, ~8), 4 cervos (~7),
- * 2 javalis (~11) e 4 bosquetes de 6 árvores nas diagonais (~10). O Centro Cívico (3×3), a fila dos cidadãos (dy = 3) e
- * o batedor (3, 1) ficam livres.
+ * do mapa, todos os inícios ficam com a mesma vizinhança também na orientação absoluta. Antes isso era obrigatório (o kit
+ * nascia sempre ao sul do Centro Cívico); hoje o kit, as casas e as buscas da IA usam o referencial voltado ao centro do
+ * mapa (centerFrame) e a simetria global já basta — a vizinhança invariante continua como folga para o que ainda é
+ * absoluto (ordem de vizinhos do A*). 12 frutas (leste/oeste, ~6), 6 veios de ouro (norte/sul, ~8), 4 cervos (~7),
+ * 2 javalis (~11) e 4 bosquetes de 6 árvores nas diagonais (~10). O Centro Cívico (3×3), a fila dos cidadãos (dy = ±3) e
+ * o batedor (±3, ±1) ficam livres.
  */
 export function placeStartLayout(b: MapBuilder, sx: number, sy: number): void {
   const at = (pts: Pt[]): Pt[] => quad(pts).map(([dx, dy]) => [sx + dx, sy + dy]);

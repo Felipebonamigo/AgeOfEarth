@@ -3,7 +3,7 @@ import { TICK_RATE } from '../constants';
 import { BUILDINGS, POWERS, UNITS } from '../data';
 import type { GameState, Player } from '../types';
 import { addNode } from '../map/mapgen';
-import { spiralSearch, isPassable, inBounds, idx } from '../map/grid';
+import { spiralSearchFrame, centerFrame, towardFrame, frameTile, frameRound, isPassable, inBounds, idx } from '../map/grid';
 import { placeBuilding, spawnUnit, canPlaceBuilding, pushUnitsOutOfTile } from './entities';
 import { getRuntime } from './runtime';
 import { applyDamage, killUnit } from './combat';
@@ -29,7 +29,9 @@ export function usePower(state: GameState, player: Player, powerId: string, x?: 
       break;
     }
     case 'lure': {
-      const spot = spiralSearch(Math.floor(px), Math.floor(py), 6, (a, b) => isPassable(state.map, a, b) && state.map.buildingAt[idx(state.map, a, b)] === -1);
+      // espiral no referencial do ponto voltado ao centro do mapa (antes: o norte primeiro): pontos espelhados dão iscas espelhadas
+      const f = centerFrame(state.map, px, py);
+      const spot = spiralSearchFrame(frameTile(px, f.sx), frameTile(py, f.sy), 6, (a, b) => isPassable(state.map, a, b) && state.map.buildingAt[idx(state.map, a, b)] === -1, f);
       if (!spot) return { ok: false, reason: t('err.invalidPlace') };
       addNode(state.map, 'lure', spot.x, spot.y, 800);
       pushUnitsOutOfTile(state, spot.x, spot.y);
@@ -41,7 +43,8 @@ export function usePower(state: GameState, player: Player, powerId: string, x?: 
       if (!b || b.kind !== 'building' || b.dead || b.owner !== player.id) return { ok: false, reason: t('err.chooseOwnBuilding') };
       const spots = [[b.tx - 1, b.ty - 1], [b.tx + b.w, b.ty - 1], [b.tx - 1, b.ty + b.h], [b.tx + b.w, b.ty + b.h]];
       for (const [sx, sy] of spots) {
-        const s = spiralSearch(sx, sy, 4, (a, c) => isPassable(state.map, a, c));
+        // cada canto procura primeiro para fora do edifício (antes: o norte primeiro em todos)
+        const s = spiralSearchFrame(sx, sy, 4, (a, c) => isPassable(state.map, a, c), towardFrame(sx + 0.5 - b.x, sy + 0.5 - b.y));
         if (s) { spawnUnit(state, player.id, 'sentinel', s.x + 0.5, s.y + 0.5); state.effects.push({ type: 'spawn', x: s.x + 0.5, y: s.y + 0.5, ttl: 20, total: 20 }); }
       }
       break;
@@ -79,7 +82,8 @@ export function usePower(state: GameState, player: Player, powerId: string, x?: 
         if (n >= 8) break;
         killUnit(state, u, player.id);
         if (!u.dead) { n++; continue; }   // piso de vida (G9): a Maldição só o leva até o piso (sem javali)
-        const s = spiralSearch(Math.floor(u.x), Math.floor(u.y), 3, (a, b) => isPassable(state.map, a, b) && state.map.buildingAt[idx(state.map, a, b)] === -1);
+        const f = centerFrame(state.map, u.x, u.y);
+        const s = spiralSearchFrame(frameTile(u.x, f.sx), frameTile(u.y, f.sy), 3, (a, b) => isPassable(state.map, a, b) && state.map.buildingAt[idx(state.map, a, b)] === -1, f);
         if (s) { addNode(state.map, 'boar', s.x, s.y, 120); pushUnitsOutOfTile(state, s.x, s.y); }
         state.effects.push({ type: 'curse', x: u.x, y: u.y, ttl: 20, total: 20 });
         n++;
@@ -92,10 +96,15 @@ export function usePower(state: GameState, player: Player, powerId: string, x?: 
       break;
     }
     case 'plenty': {
-      const spot = spiralSearch(Math.floor(px), Math.floor(py), 8, (a, b) => canPlaceBuilding(state, player, 'cornucopia', a, b, true).ok || (inBounds(state.map, a, b) && canPlaceIgnoringBuildable(state, player, a, b)));
-      if (!spot) return { ok: false, reason: t('err.noSpace') };
-      placeBuilding(state, player.id, 'cornucopia', spot.x, spot.y, true);
-      state.effects.push({ type: 'spawn', x: spot.x + 1, y: spot.y + 1, ttl: 20, total: 20 });
+      // a cornucópia (2×2) fica CENTRADA no ponto: a espiral anda pelos centros de pegada (inteiros), a partir do mais perto
+      // do ponto, no referencial dele voltado ao centro do mapa. Antes a espiral achava o canto superior esquerdo a partir do
+      // ponto e a pegada crescia para leste/sul: pontos espelhados davam cornucópias deslocadas de 1–2 tiles, não espelhadas.
+      const f = centerFrame(state.map, px, py);
+      const fits = (a: number, b: number) => canPlaceBuilding(state, player, 'cornucopia', a, b, true).ok || (inBounds(state.map, a, b) && canPlaceIgnoringBuildable(state, player, a, b));
+      const c = spiralSearchFrame(frameRound(px, f.sx), frameRound(py, f.sy), 8, (X, Y) => fits(X - 1, Y - 1), f);
+      if (!c) return { ok: false, reason: t('err.noSpace') };
+      placeBuilding(state, player.id, 'cornucopia', c.x - 1, c.y - 1, true);
+      state.effects.push({ type: 'spawn', x: c.x, y: c.y, ttl: 20, total: 20 });
       break;
     }
     case 'earthquake': {

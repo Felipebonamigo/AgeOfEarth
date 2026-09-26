@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import { createGame, tick, summarize } from '../src/core/sim/game';
 import { TICK_RATE } from '../src/core/constants';
 import { migrateMap, validateMap, type FixedMapData } from '../src/core/map/fixed';
+import { stateHash } from '../src/core/net/hash';
 
 const argv = process.argv.slice(2);
 let mapFile: string | undefined;
@@ -45,3 +46,5 @@ const ms = Date.now() - t0;
 console.log(`Ticks: ${state.tick}, tempo real: ${ms}ms, ${(ms / state.tick).toFixed(2)} ms/tick, unidades: ${state.units.size}, edifícios: ${state.buildings.size}`);
 console.log('Eventos:', state.events.filter((e) => ['age', 'victory', 'defeated', 'wonder', 'titan', 'powerUsed', 'buildingLost'].includes(e.type)).map((e) => `${Math.floor(e.tick / TICK_RATE / 60)}m ${e.text}`).slice(-30).join('\n  '));
 for (const p of state.players) console.log(p.name, 'ondas de ataque:', p.ai?.waves, 'abates:', p.stats.kills, 'perdas:', p.stats.losses, 'destruídos:', p.stats.razed, 'coletado:', JSON.stringify(Object.fromEntries(Object.entries(p.stats.gathered).map(([k, v]) => [k, Math.round(v as number)]))));
+// determinismo: duas execuções com os mesmos argumentos têm de imprimir o mesmo hash
+console.log(`hash final: ${stateHash(state).toString(16)} (tick ${state.tick})`);

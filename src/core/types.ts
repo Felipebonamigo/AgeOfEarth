@@ -167,9 +167,8 @@ export interface Forbid { buildings?: string[]; units?: string[]; techs?: string
 export interface GameConfig {
   seed: number; mapSize: 'small' | 'medium' | 'large';
   scenario?: string;
-  // puppet: facção roteirizada de cenário (sem IA, só gatilhos); nameText: nome da facção por idioma (G8; name = texto
-  // resolvido ao criar a config); maxAge/forbid: travas deste jogador (G6; somam-se às globais abaixo, maxAge a substitui)
-  players: { name: string; god: string; isAI: boolean; difficulty: Difficulty; team?: number; puppet?: boolean; nameText?: LocalText; maxAge?: number; forbid?: Forbid }[];
+  // puppet: facção roteirizada de cenário (sem IA, só gatilhos); nameText (G8); maxAge/forbid (G6); personality: personalidade da IA
+  players: { name: string; god: string; isAI: boolean; difficulty: Difficulty; team?: number; puppet?: boolean; nameText?: LocalText; maxAge?: number; forbid?: Forbid; personality?: number }[];
   maxAge?: number;                                      // G6: Idade máxima de todos (0–4; padrão a última); config.players[i].maxAge a substitui
   forbid?: Forbid;                                      // G6: proibidos para todos; somam-se aos de config.players[i].forbid
   revealMap?: boolean; startingAge?: number; startingResources?: Partial<Record<ResourceType, number>>;
@@ -202,6 +201,11 @@ export interface GameState {
   koth?: { x: number; y: number; team: number; seconds: number };
   /** Relíquias: no chão (carrier=-1, templeId=-1), carregada por um herói (carrier) ou guardada num Templo (templeId). */
   relics: { x: number; y: number; carrier: number; templeId: number }[];
+  /**
+   * Rodadas de IA com 2+ IAs pensando no mesmo tick (as únicas em que a ordem importa): define quem abre a vez e em que
+   * sentido (aiThinkOrder). Contar rodadas, e não segundos, faz o rodízio girar com qualquer período de pensamento.
+   */
+  aiRound: number;
 }
 import type { ScenarioState } from './scenario/types';
 import type { FixedMapData } from './map/fixed';

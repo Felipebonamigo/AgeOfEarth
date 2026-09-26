@@ -17,7 +17,7 @@ import { economySecond } from './economy';
 import { updateTimedEffects } from './powers';
 import { aiThink } from './ai';
 import { checkVictory } from './victory';
-import { spiralSearch, isPassable } from '../map/grid';
+import { spiralSearch, spiralSearchFrame, centerFrame, frameOffset, frameTile, isPassable } from '../map/grid';
 import { nearestFreeTile } from '../map/pathfinding';
 import { eliminateInScenario, getScenarioFor, initScenarioState, refreshPuppets, runScenario } from '../scenario/runner';
 import { updateKoth } from './modes';
@@ -25,6 +25,21 @@ import { placeRelics, updateRelics } from './relics';
 
 const PATH_BUDGET_PER_TICK = 48;
 const MAX_EVENTS = 200;
+
+/**
+ * Ordem dos jogadores na vez das IAs da rodada `round` (state.aiRound): abre o jogador round % n e o sentido alterna a cada
+ * n rodadas (0, 1, …, n−1 e depois 0, n−1, …, 1). Assim, entre IAs que pensam juntas, cada uma abre a vez 1/n das rodadas e
+ * cada par se alterna exatamente (só girar daria ao jogador i a frente de i+1 em (n−1)/n das rodadas). Quem pensa antes
+ * pega primeiro recursos, alvos e vagas no mesmo tick; antes era sempre o jogador 0, e na 1ª correção o rodízio seguia os
+ * segundos — com a IA Fácil (a cada 2 s) o jogador 0 abria todas as vezes.
+ */
+export function aiThinkOrder(round: number, n: number): number[] {
+  const out: number[] = [];
+  if (n <= 0) return out;
+  const first = round % n, dir = Math.floor(round / n) % 2 === 0 ? 1 : -1;
+  for (let k = 0; k < n; k++) out.push((((first + dir * k) % n) + n) % n);
+  return out;
+}
 
 export function createGame(config: GameConfig): GameState {
   resetNodeSeq();
@@ -38,7 +53,7 @@ export function createGame(config: GameConfig): GameState {
     players: [], units: new Map(), buildings: new Map(), nextId: 1,
     territory: new Int8Array(size.w * size.h).fill(-1), territoryDirty: true, territoryVersion: 0,
     events: [], effects: [], timed: [], winner: -1, gameOver: false, rng: new RNG(config.seed + 7),
-    ceasefireUntil: 0, ceasefireBy: -1, fogVersion: 0, relics: [],
+    ceasefireUntil: 0, ceasefireBy: -1, fogVersion: 0, relics: [], aiRound: 0,
   };
   config.players.forEach((pc, i) => {
     const resources = { food: 300, wood: 250, gold: 120, knowledge: 0, favor: 0 } as Record<ResourceType, number>;
@@ -52,7 +67,8 @@ export function createGame(config: GameConfig): GameState {
       stats: { kills: 0, losses: 0, unitsTrained: 0, buildingsBuilt: 0, buildingsLost: 0, razed: 0, gathered: { food: 0, wood: 0, gold: 0, knowledge: 0, favor: 0 } },
       prices: { food: MARKET_BASE_PRICE, wood: MARKET_BASE_PRICE, gold: MARKET_BASE_PRICE, knowledge: MARKET_BASE_PRICE, favor: MARKET_BASE_PRICE },
       territoryTiles: 0, visibility: new Uint8Array(size.w * size.h),
-      ai: pc.isAI ? { difficulty: pc.difficulty, nextThink: TICK_RATE * (2 + i), lastAttack: 0, attackTarget: -1, waves: 0, rallyX: 0, rallyY: 0, defending: -1000, builderIds: [], lastExpand: 0, personality: (config.seed + i * 7) % 97 } : null,
+      // todas as IAs começam a pensar no mesmo instante (antes 2 + i s: o jogador 0 ganhava 1 s por índice de vantagem)
+      ai: pc.isAI ? { difficulty: pc.difficulty, nextThink: TICK_RATE * 2, lastAttack: 0, attackTarget: -1, waves: 0, rallyX: 0, rallyY: 0, defending: -1000, builderIds: [], lastExpand: 0, personality: Number.isInteger(pc.personality) && pc.personality! >= 0 ? pc.personality! % 97 : (config.seed + i * 7) % 97 } : null,
       revealUntil: 0, bronzeUntil: 0, wonderVictoryAt: -1, titanSpawned: false,
     };
     state.players.push(p);
@@ -68,13 +84,22 @@ export function createGame(config: GameConfig): GameState {
     if (kit(i)) {
       const tc = placeBuilding(state, p.id, 'town_center', s.x - 1, s.y - 1, true);
       const spots: [number, number][] = [[-2, 2.5], [-1, 2.5], [0, 2.5], [1, 2.5], [2, 2.5], [3, 1]];
-      spots.forEach(([dx, dy], k) => {
-        const x = tc.x + dx, y = tc.y + dy;
-        const t = spiralSearch(Math.floor(x), Math.floor(y), 6, (a, b) => isPassable(map, a, b));
-        const px = t ? t.x + 0.5 : x, py = t ? t.y + 0.5 : y;
+      // Cidadãos e batedor do lado do CC voltado ao centro do mapa (antes: sempre ao sul — à frente para quem começa ao norte,
+      // atrás para quem começa ao sul). O referencial vem do vetor CC→centro (sinais e eixo dominante): num mapa leste×oeste
+      // a fileira vira coluna; espelho/rotação de 180°/transposição do início dão o kit espelhado, tile a tile.
+      const f = centerFrame(map, tc.x, tc.y);
+      spots.forEach(([a, b], k) => {
+        const q = frameOffset(f, tc.x, tc.y, a, b);
+        const t = spiralSearchFrame(frameTile(q.x, f.sx), frameTile(q.y, f.sy), 6, (x, y) => isPassable(map, x, y), f);
+        const px = t ? t.x + 0.5 : q.x, py = t ? t.y + 0.5 : q.y;
         spawnUnit(state, p.id, k < 5 ? 'villager' : 'kataskopos', px, py);
       });
-      if (mode === 'regicide') { const t = spiralSearch(Math.floor(tc.x), Math.floor(tc.y) + 3, 6, (a, b) => isPassable(map, a, b)); spawnUnit(state, p.id, 'basileus', t ? t.x + 0.5 : tc.x, t ? t.y + 0.5 : tc.y + 3.5); }
+      if (mode === 'regicide') {
+        const q = frameOffset(f, tc.x, tc.y, 0, 3);
+        const t = spiralSearchFrame(frameTile(q.x, f.sx), frameTile(q.y, f.sy), 6, (x, y) => isPassable(map, x, y), f);
+        const e = frameOffset(f, tc.x, tc.y, 0, 3.5);
+        spawnUnit(state, p.id, 'basileus', t ? t.x + 0.5 : e.x, t ? t.y + 0.5 : e.y);
+      }
     }
     recomputePop(state, p);
   });
@@ -100,7 +125,10 @@ export function createGame(config: GameConfig): GameState {
         if (e.tag) addTag(e.tag, b.id);
       } else if (e.kind === 'unit') {
         if (typeof e.type !== 'string' || !Object.prototype.hasOwnProperty.call(UNITS, e.type)) continue;
-        const t = spiralSearch(e.x, e.y, 6, (a, b) => openTile(state, a, b)) ?? nearestFreeTile(map, e.x, e.y, 6);   // prefere região com ≥ 8 tiles (não nasce presa)
+        // prefere região com ≥ 8 tiles (não nasce presa); tile ocupado → espiral no referencial do tile voltado ao centro do mapa
+        // (antes: o norte primeiro, e a mesma entidade espelhada no arquivo nascia em tiles não espelhados)
+        const f = centerFrame(map, e.x + 0.5, e.y + 0.5);
+        const t = spiralSearchFrame(e.x, e.y, 6, (a, b) => openTile(state, a, b), f) ?? nearestFreeTile(map, e.x, e.y, 6, f);
         if (!t) continue;
         const u = spawnUnit(state, e.owner, e.type, t.x + 0.5, t.y + 0.5);
         if (e.tag) addTag(e.tag, u.id);
@@ -109,7 +137,7 @@ export function createGame(config: GameConfig): GameState {
     // Regicídio sem kit: o basileus nasce perto do início só se o mapa não o pré-colocou
     if (mode === 'regicide') state.players.forEach((p, i) => {
       if (kit(i) || [...state.units.values()].some((u) => u.owner === p.id && u.type === 'basileus')) return;
-      const s = startOf(i); const t = spiralSearch(s.x, s.y, 6, (a, b) => isPassable(map, a, b));
+      const s = startOf(i); const t = spiralSearchFrame(s.x, s.y, 6, (a, b) => isPassable(map, a, b), centerFrame(map, s.x + 0.5, s.y + 0.5));
       spawnUnit(state, p.id, 'basileus', t ? t.x + 0.5 : s.x + 0.5, t ? t.y + 0.5 : s.y + 0.5);
     });
     // O setup não conta como construção/treino nem gera avisos na partida
@@ -179,14 +207,25 @@ export function tick(state: GameState, commands: Command[] = []): void {
   for (const c of commands) applyCommand(state, c);
   // Efeitos temporizados de poderes
   updateTimedEffects(state);
-  // Unidades
-  for (const u of state.units.values()) if (!u.dead && u.inside === -1) updateUnit(state, rt, u, DT);
+  // Unidades e edifícios: nos ticks ímpares a ordem é invertida. Quem é atualizado primeiro golpeia primeiro (o dano é
+  // imediato) e quem vem depois enxerga posições mais novas; com ordem fixa por id, a unidade mais antiga levava vantagem
+  // (duelo simétrico 12×12: 64 % para quem nasceu antes; alternando, 45–48 %)
+  const reverse = (state.tick & 1) === 1;
+  if (reverse) { const arr = [...state.units.values()]; for (let i = arr.length - 1; i >= 0; i--) { const u = arr[i]; if (!u.dead && u.inside === -1) updateUnit(state, rt, u, DT); } }
+  else for (const u of state.units.values()) if (!u.dead && u.inside === -1) updateUnit(state, rt, u, DT);
   applySeparation(state, rt);
-  // Edifícios
-  for (const b of state.buildings.values()) if (!b.dead) updateBuilding(state, rt, b, DT);
+  if (reverse) { const arr = [...state.buildings.values()]; for (let i = arr.length - 1; i >= 0; i--) { const b = arr[i]; if (!b.dead) updateBuilding(state, rt, b, DT); } }
+  else for (const b of state.buildings.values()) if (!b.dead) updateBuilding(state, rt, b, DT);
   // Economia e IA a cada segundo (defasadas para distribuir custo)
   if (state.tick % TICK_RATE === 0) { economySecond(state); if (state.koth) updateKoth(state); updateRelics(state); }
-  for (const p of state.players) if (p.isAI && p.alive) aiThink(state, p);
+  // IAs: com 2+ pensando neste tick, a ordem segue o rodízio por rodadas (aiThinkOrder) e a rodada avança; com uma só, a
+  // ordem não importa e a rodada fica (senão IAs de períodos diferentes desalinhariam o rodízio das que pensam juntas)
+  let ready = 0;
+  for (const p of state.players) if (p.isAI && p.alive && p.ai && state.tick >= p.ai.nextThink) ready++;
+  if (ready >= 2) {
+    for (const i of aiThinkOrder(state.aiRound, state.players.length)) { const p = state.players[i]; if (p.isAI && p.alive) aiThink(state, p); }
+    state.aiRound++;
+  } else for (const p of state.players) if (p.isAI && p.alive) aiThink(state, p);
   // Cenário: eliminação sem vencedor global (G2) e depois objetivos/gatilhos; fora dele, a vitória padrão. As marionetes
   // voltam a ser sincronizadas após os gatilhos: uma onda recém-invocada já pode ser atacada neste mesmo tick.
   if (state.scenario) { if (state.tick % TICK_RATE === TICK_RATE - 1) { eliminateInScenario(state); runScenario(state); refreshPuppets(state); } }

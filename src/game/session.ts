@@ -1,5 +1,6 @@
 // Sessão de jogo: estado, agendador de comandos, seleção, grupos de controle, velocidade e modo da interface.
-import { DT, type Formation } from '../core/constants';
+import { DT, SIM_VERSION, type Formation } from '../core/constants';
+import { t } from '../i18n';
 import type { Building, Command, GameConfig, GameState, Unit } from '../core/types';
 import { createGame } from '../core/sim/game';
 import { LocalScheduler, ReplayScheduler, type CommandScheduler, type ReplayFrame } from '../core/net/lockstep';
@@ -57,11 +58,14 @@ export class Session {
   replayJSON(): string | null {
     const sch = this.scheduler;
     if (!(sch instanceof LocalScheduler)) return null;
-    return JSON.stringify({ version: 1, config: this.state.config, frames: sch.frames, ticks: this.state.tick, base: this.replayBase ?? undefined });
+    return JSON.stringify({ version: 2, sim: SIM_VERSION, config: this.state.config, frames: sch.frames, ticks: this.state.tick, base: this.replayBase ?? undefined });
   }
   static replay(json: string): Session {
-    const o = JSON.parse(json) as { config: GameConfig; frames: ReplayFrame[]; base?: string };
-    o.config = migrateScenarioLocks(migrateLegacyPuppets(o.config));   // replay de antes das marionetes explícitas / das travas (G6)
+    const o = JSON.parse(json) as { sim?: number; config: GameConfig; frames: ReplayFrame[]; base?: string };
+    // replay = semente + comandos: numa simulação diferente mostraria outra partida (sem 'sim' = gravado antes da versão 2)
+    const sim = o.sim ?? 1;
+    if (sim !== SIM_VERSION) throw new Error(t('err.replayVersion', { v: sim, cur: SIM_VERSION }));
+    o.config = migrateScenarioLocks(migrateLegacyPuppets(o.config));
     const st = o.base ? deserialize(o.base) : createGame(o.config);
     const s = new Session(st, Math.max(0, localHumanIndex(o.config)));
     if (o.base) s.eventCursor = st.events.length;

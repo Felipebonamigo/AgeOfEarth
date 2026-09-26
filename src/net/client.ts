@@ -1,7 +1,8 @@
 // Cliente WebSocket do lobby/relay (lado do navegador).
 import type { Command, GameConfig } from '../core/types';
+import { SIM_VERSION } from '../core/constants';
 
-export interface RoomSummary { code: string; players: number; host: string; mode: string; mapSize: string; fixedMap: string | null; started?: boolean; spectators?: number }
+export interface RoomSummary { code: string; players: number; host: string; mode: string; mapSize: string; fixedMap: string | null; started?: boolean; spectators?: number; sim?: number }   // sim: versão da simulação da sala (relay antigo: ausente)
 export interface LobbyPlayer { slot: number; name: string; god: string; team: number; ready: boolean; ping?: number }
 export interface LobbyState { host: number; settings: { mapSize: string; ais: number; difficulty: string; seed: number; teams?: string; horde?: boolean; mode?: string; mapType?: string; public?: boolean; fixedMap?: { id?: string; name?: string; w: number; h: number; starts: number; hash?: number; scenario?: string } | null }; players: LobbyPlayer[]; spectators?: { slot: number; name: string }[] }   // fixedMap.scenario: título do cenário embutido (só metadado; o arquivo vai em `start`)
 type Handler = (msg: Record<string, unknown>) => void;
@@ -37,7 +38,8 @@ export class NetClient {
     });
   }
   send(msg: Record<string, unknown>) { if (this.ws && this.ws.readyState === 1) this.ws.send(JSON.stringify(msg)); }
-  join(room: string, name: string, god: string, spectate = false) { this.send({ t: 'join', room, name, god, spectate }); this.startPing(); }
+  /** Entra na sala levando a versão da simulação: o relay recusa (erro `simVersion`) quem não tiver a mesma da sala. */
+  join(room: string, name: string, god: string, spectate = false) { this.send({ t: 'join', room, name, god, spectate, sim: SIM_VERSION }); this.startPing(); }
   private startPing() { if (this.pingTimer) return; const ping = () => this.send({ t: 'ping', ts: performance.now() }); ping(); this.pingTimer = setInterval(ping, 2000); }
   snapshot(slot: number, data: string, tick: number) { this.send({ t: 'snapshot', slot, data, tick }); }
   chat(text: string) { const s = text.trim().slice(0, 200); if (s) this.send({ t: 'chat', text: s }); }
