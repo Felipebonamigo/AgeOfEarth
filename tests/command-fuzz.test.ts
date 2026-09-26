@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { createGame, tick } from '../src/core/sim/game';
 import { applyCommand } from '../src/core/sim/commands';
-import { sanitizeCommand, MAX_CMD_IDS, MAX_ORDER_QUEUE, COORD_MARGIN, MAX_CMDS_PER_TICK } from '../src/core/sim/validate';
+import { sanitizeCommand, netCommands, MAX_CMD_IDS, MAX_ORDER_QUEUE, COORD_MARGIN, MAX_CMDS_PER_TICK, MAX_OTHER_CMDS_PER_TICK, MAX_ORDER_IDS_PER_TICK, MAX_BUILD_IDS_PER_TICK } from '../src/core/sim/validate';
 import { getRuntime } from '../src/core/sim/runtime';
 import { stateHash } from '../src/core/net/hash';
 import { NetworkScheduler } from '../src/core/net/lockstep';
@@ -381,6 +381,18 @@ describe('applyCommand: regras de validação (4.5)', () => {
   });
 });
 
+describe('config vinda do lobby (4.5)', () => {
+  it('deus que é chave do protótipo (constructor, __proto__, toString…) vira Zeus e a partida roda (antes: createGame lançava)', () => {
+    for (const god of PROTO_KEYS) {
+      const s = createGame({ seed: 1, mapSize: 'small', players: [{ name: 'A', god: 'zeus', isAI: false, difficulty: 'normal' }, { name: 'B', god, isAI: false, difficulty: 'normal' }] });
+      expect(s.players[1].god).toBe('zeus');
+      expect(s.players[1].powers).toEqual(s.players[0].powers);   // o poder de Zeus
+      for (let i = 0; i < 60; i++) tick(s);
+      expect(s.players[1].alive).toBe(true);
+    }
+  });
+});
+
 describe('NetworkScheduler: entrada da rede (4.5)', () => {
   const sched = () => new NetworkScheduler(0, [0, 1], 2, { sendCmds: () => {}, sendHash: () => {} });
   const inbox = (s: NetworkScheduler) => (s as unknown as { inbox: Map<number, Map<number, Command[]>> }).inbox;
@@ -392,8 +404,10 @@ describe('NetworkScheduler: entrada da rede (4.5)', () => {
     expect(inbox(s).get(3)!.get(1)).toEqual([]);
     s.receive(1, 4, [null, 5, 'a', { type: 'stop', player: 1, ids: [2] }, { type: 'stop', player: 0, ids: [3] }] as unknown as Command[]);
     expect(inbox(s).get(4)!.get(1)).toEqual([{ type: 'stop', player: 1, ids: [2] }]);
-    s.receive(1, 5, Array.from({ length: MAX_CMDS_PER_TICK + 10 }, () => ({ type: 'stop', player: 1, ids: [] }) as Command));
-    expect(inbox(s).get(5)!.get(1)!.length).toBe(MAX_CMDS_PER_TICK);
+    s.receive(1, 5, Array.from({ length: MAX_CMDS_PER_TICK + 10 }, (_, i) => ({ type: 'build', player: 1, ids: [7], building: 'house', tx: i % 60, ty: 2 }) as Command));
+    expect(inbox(s).get(5)!.get(1)!.length).toBe(MAX_CMDS_PER_TICK);   // `build` (muralha arrastada = 1 por tile)
+    s.receive(1, 6, Array.from({ length: 200 }, () => ({ type: 'stop', player: 1, ids: [] }) as Command));
+    expect(inbox(s).get(6)!.get(1)!.length).toBe(MAX_OTHER_CMDS_PER_TICK);   // os demais: bem menos
     for (const t of [NaN, -1, 2.5, Infinity]) s.receive(1, t, []);
     expect([...inbox(s).keys()].every((t) => Number.isInteger(t) && t >= 0)).toBe(true);
   });
@@ -407,5 +421,77 @@ describe('NetworkScheduler: entrada da rede (4.5)', () => {
     expect(inbox(s).has(3)).toBe(false);
     s.receiveHash(1, 100, NaN); s.receiveHash(1, 100, -3); s.receiveHash(1, 100, 2 ** 33); s.receiveHash(1, NaN, 5);
     expect((s as unknown as { hashes: Map<number, unknown> }).hashes.size).toBe(0);
+  });
+
+  it('ids repetidos × centenas de comandos não viram centenas de milhares de ordens por tick (antes ~115 ms por tick)', () => {
+    const a = createGame(JSON.parse(JSON.stringify(CONFIG)));
+    const own = [...a.units.values()].filter((u) => u.owner === 1).map((u) => u.id);
+    const repeated = Array.from({ length: MAX_CMD_IDS }, (_, i) => own[i % own.length]);
+    // a mensagem da sonda de revisão: 299 `move` × 600 ids repetidos das próprias unidades (~512 KB, dentro dos limites do relay)
+    const flood = Array.from({ length: 299 }, () => ({ type: 'move', player: 1, ids: repeated, x: 40.5, y: 40.5 }) as Command);
+    const s = sched();
+    s.receive(1, 5, flood);
+    const got = inbox(s).get(5)!.get(1)!;
+    expect(got.length).toBeLessThanOrEqual(MAX_OTHER_CMDS_PER_TICK);
+    for (const c of got) expect((c as { ids: number[] }).ids).toEqual(own);   // sem repetição, na ordem da 1ª ocorrência
+    const orders = got.reduce((n, c) => n + (c as { ids: number[] }).ids.length, 0);
+    expect(orders).toBeLessThanOrEqual(MAX_ORDER_IDS_PER_TICK);
+    // ids distintos (inexistentes) também têm teto por tick: 600 por comando → cabem só 2 comandos de ordem
+    const distinct = (k: number) => Array.from({ length: MAX_CMD_IDS }, (_, i) => 100_000 + k * MAX_CMD_IDS + i);
+    const wide = netCommands(1, Array.from({ length: 50 }, (_, k) => ({ type: 'stop', player: 1, ids: distinct(k) })));
+    expect(wide.length).toBe(MAX_ORDER_IDS_PER_TICK / MAX_CMD_IDS);
+    const builds = netCommands(1, Array.from({ length: 1000 }, (_, k) => ({ type: 'build', player: 1, ids: distinct(k), building: 'wall', tx: k % 60, ty: 3 })));
+    expect(builds.length).toBe(Math.floor(MAX_BUILD_IDS_PER_TICK / MAX_CMD_IDS));
+    // idempotente (o relay repassa, o outro par filtra de novo): mesma lista
+    expect(netCommands(1, got)).toEqual(got);
+    expect(netCommands(1, wide)).toEqual(wide);
+  });
+
+  it('o par local aplica exatamente a lista que envia (mesmo corte que os outros aplicam): sem dessincronização por excesso', () => {
+    const sent: [number, Command[]][] = [];
+    const s = new NetworkScheduler(0, [0, 1], 2, { sendCmds: (t, c) => sent.push([t, c]), sendHash: () => {} });
+    const other = new NetworkScheduler(1, [0, 1], 2, { sendCmds: () => {}, sendHash: () => {} });
+    for (let i = 0; i < 100; i++) s.issue({ type: 'stop', player: 0, ids: [1, 1, 2] } as Command);
+    s.issue({ type: 'stop', player: 1, ids: [5] } as Command);   // em nome de outro: nem o próprio par aplica
+    s.step(createGame(JSON.parse(JSON.stringify(CONFIG))));
+    const [t, list] = sent.find(([tk]) => tk === 2)!;
+    expect(list.length).toBe(MAX_OTHER_CMDS_PER_TICK);
+    expect(list.every((c) => c.player === 0 && (c as { ids: number[] }).ids.join() === '1,2')).toBe(true);
+    expect(inbox(s).get(t)!.get(0)).toEqual(list);
+    other.receive(0, t, list);
+    expect(inbox(other).get(t)!.get(0)).toEqual(list);
+  });
+
+  it('comando para tick em que o par não é aguardado (antes do atraso, antes do retorno de quem reconectou, par que saiu) é descartado por todos', () => {
+    // A já executou os ticks 0..2 e B nenhum; C (cliente modificado) manda ordens reais para o tick 2, em que ninguém o espera:
+    // antes, A descartava (já executado) e B aplicava — dessincronização no tick 100
+    const cfg: GameConfig = { seed: 9090, mapSize: 'small', players: [
+      { name: 'A', god: 'zeus', isAI: false, difficulty: 'normal' }, { name: 'B', god: 'hades', isAI: false, difficulty: 'normal' }, { name: 'C', god: 'poseidon', isAI: false, difficulty: 'normal' } ] };
+    const states = [createGame(cfg), createGame(cfg), createGame(cfg)];
+    const scheds: NetworkScheduler[] = [];
+    for (let i = 0; i < 3; i++) scheds.push(new NetworkScheduler(i, [0, 1, 2], 4, {
+      sendCmds: (t, c) => { for (let j = 0; j < 3; j++) if (j !== i) scheds[j].receive(i, t, c); },
+      sendHash: (t, h, p) => { for (let j = 0; j < 3; j++) if (j !== i) scheds[j].receiveHash(i, t, h, p); },
+    }));
+    for (let i = 0; i < 3; i++) scheds[0].step(states[0]);
+    const cUnits = [...states[2].units.values()].filter((u) => u.owner === 2).map((u) => u.id);
+    for (const k of [0, 1]) scheds[k].receive(2, 2, [{ type: 'move', player: 2, ids: cUnits, x: 20.5, y: 20.5 } as Command]);
+    expect(inbox(scheds[1]).get(2)?.has(2) ?? false).toBe(false);
+    for (let i = 0; i < 160; i++) for (let k = 0; k < 3; k++) scheds[k].step(states[k]);
+    for (let g = 0; g < 10 && states[1].tick < states[0].tick; g++) { scheds[1].step(states[1]); scheds[2].step(states[2]); }   // B e C começaram 3 ticks depois
+    expect(states[0].tick).toBeGreaterThan(100);   // passou da 1ª troca de hashes (tick 100)
+    expect(scheds.map((x) => x.desynced)).toEqual([false, false, false]);
+    expect(states[0].tick).toBe(states[1].tick);
+    expect(stateHash(states[0])).toBe(stateHash(states[1]));
+    // reconectado: nada até o tick de retorno (inclusive); par que saiu: nada
+    const s = sched();
+    s.addPlayer(1, 50);
+    s.receive(1, 50, [{ type: 'stop', player: 1, ids: [1] } as Command]);
+    s.receive(1, 51, [{ type: 'stop', player: 1, ids: [2] } as Command]);
+    expect(inbox(s).get(50)?.has(1) ?? false).toBe(false);
+    expect(inbox(s).get(51)!.get(1)).toEqual([{ type: 'stop', player: 1, ids: [2] }]);
+    s.dropPlayer(1);
+    s.receive(1, 60, [{ type: 'stop', player: 1, ids: [3] } as Command]);
+    expect(inbox(s).get(60)?.has(1) ?? false).toBe(false);
   });
 });

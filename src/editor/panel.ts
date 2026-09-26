@@ -381,7 +381,7 @@ export class EditorPanel {
       const entry = putMap(ed.toFile());
       if (entry.id !== ed.meta.id) ed.setMeta({ id: entry.id });   // embutido → "-copia"
       ed.dirty = false; this.keys.top = ''; this.renderTop();
-      this.hud.toast(t('editor.saved', { name: esc(mapName(entry)) }), 'good');
+      this.hud.toast(t('editor.saved', { name: mapName(entry) }), 'good');
       this.autosaveNow();
       return true;
     } catch { this.hud.toast(t('msg.mapQuota'), 'warn'); return false; }

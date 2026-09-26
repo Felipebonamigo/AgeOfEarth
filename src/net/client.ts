@@ -7,12 +7,30 @@ export interface LobbyPlayer { slot: number; name: string; god: string; team: nu
 export interface LobbyState { host: number; settings: { mapSize: string; ais: number; difficulty: string; seed: number; teams?: string; horde?: boolean; mode?: string; mapType?: string; public?: boolean; fixedMap?: { id?: string; name?: string; w: number; h: number; starts: number; hash?: number; scenario?: string } | null }; players: LobbyPlayer[]; spectators?: { slot: number; name: string }[] }   // fixedMap.scenario: título do cenário embutido (só metadado; o arquivo vai em `start`)
 type Handler = (msg: Record<string, unknown>) => void;
 
+/**
+ * Ficha da vaga (relay, 4.5): o relay a manda em `joined` só para quem ocupa a vaga e a exige para retomá-la depois de uma
+ * queda (o nome é público). Guardada por sala e nome — no localStorage (sobrevive a recarregar a página) e na memória do
+ * processo (Node, teste de carga, ou sem localStorage). Sala e nome normalizados como o relay os normaliza.
+ */
+const seatMemory = new Map<string, string>();
+export const seatKey = (room: string, name: string) => `aoe_seat:${String(room || 'sala').toUpperCase().slice(0, 12)}:${String(name || 'Jogador').slice(0, 18)}`;
+export function loadSeat(key: string): string {
+  try { const v = localStorage.getItem(key); if (v) return v; } catch { /* sem localStorage */ }
+  return seatMemory.get(key) ?? '';
+}
+function saveSeat(key: string, token: string): void {
+  seatMemory.set(key, token);
+  try { localStorage.setItem(key, token); } catch { /* sem localStorage */ }
+}
+
 export class NetClient {
   ws: WebSocket | null = null;
   slot = -1; room = ''; isHost = false;
   /** Entrou como espectador (sem vaga de jogador): só assiste. */
   isSpectator = false;
   lobby: LobbyState | null = null;
+  /** Chave da ficha desta vaga (sala + nome do último join de jogador; vazia para espectador). */
+  private seat = '';
   /** Latência ida e volta medida pelo relay (ms), -1 até a primeira medição. */
   rtt = -1;
   private pingTimer: ReturnType<typeof setInterval> | null = null;
@@ -29,7 +47,7 @@ export class NetClient {
       this.ws.onmessage = (ev) => {
         let msg: Record<string, unknown>; try { msg = JSON.parse(String(ev.data)); } catch { return; }
         const t = String(msg.t);
-        if (t === 'joined') { this.slot = Number(msg.slot); this.room = String(msg.room); this.isHost = !!msg.host; this.isSpectator = !!msg.spectator; }
+        if (t === 'joined') { this.slot = Number(msg.slot); this.room = String(msg.room); this.isHost = !!msg.host; this.isSpectator = !!msg.spectator; if (this.seat && typeof msg.token === 'string' && msg.token) saveSeat(this.seat, msg.token); }
         if (t === 'lobby') { this.lobby = msg as unknown as LobbyState; this.isHost = this.lobby.host === this.slot; }
         if (t === 'host') this.isHost = Number(msg.slot) === this.slot;   // o anfitrião caiu durante a partida: outro assume
         if (t === 'pong') { this.rtt = Math.max(0, Math.round(performance.now() - Number(msg.ts))); this.send({ t: 'player', ping: this.rtt }); }
@@ -38,8 +56,14 @@ export class NetClient {
     });
   }
   send(msg: Record<string, unknown>) { if (this.ws && this.ws.readyState === 1) this.ws.send(JSON.stringify(msg)); }
-  /** Entra na sala levando a versão da simulação: o relay recusa (erro `simVersion`) quem não tiver a mesma da sala. */
-  join(room: string, name: string, god: string, spectate = false) { this.send({ t: 'join', room, name, god, spectate, sim: SIM_VERSION }); this.startPing(); }
+  /** Entra na sala levando a versão da simulação: o relay recusa (erro `simVersion`) quem não tiver a mesma da sala. Jogador
+   *  leva também a ficha guardada para esta sala e nome: com a partida em andamento, só ela retoma a vaga de quem caiu. */
+  join(room: string, name: string, god: string, spectate = false) {
+    this.seat = spectate ? '' : seatKey(room, name);
+    const token = this.seat ? loadSeat(this.seat) : '';
+    this.send({ t: 'join', room, name, god, spectate, sim: SIM_VERSION, ...(token ? { token } : {}) });
+    this.startPing();
+  }
   private startPing() { if (this.pingTimer) return; const ping = () => this.send({ t: 'ping', ts: performance.now() }); ping(); this.pingTimer = setInterval(ping, 2000); }
   snapshot(slot: number, data: string, tick: number) { this.send({ t: 'snapshot', slot, data, tick }); }
   chat(text: string) { const s = text.trim().slice(0, 200); if (s) this.send({ t: 'chat', text: s }); }

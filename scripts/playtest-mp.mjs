@@ -40,6 +40,12 @@ await guest.keyboard.press('Enter'); await guest.waitForTimeout(150);
 console.log('campo de chat aberto no convidado:', await guest.evaluate(() => !document.getElementById('chat').classList.contains('hidden')));
 await guest.keyboard.type('gg em breve'); await guest.keyboard.press('Enter'); await host.waitForTimeout(600);
 console.log('chat na partida (anfitrião):', (await host.textContent('#messages'))?.includes('gg em breve') ? 'ok' : 'FALHOU');
+// o chat da partida é texto puro: HTML enviado por outro par aparece como texto e nunca executa (revisão 4.5)
+const xss = '<img src=x onerror="window.__xss=1">';
+await guest.keyboard.press('Enter'); await guest.waitForTimeout(150);
+await guest.keyboard.type(xss); await guest.keyboard.press('Enter'); await host.waitForTimeout(800);
+const xssHost = await host.evaluate(() => ({ text: document.getElementById('messages')?.textContent ?? '', imgs: document.querySelectorAll('#messages img').length, ran: window.__xss === 1 }));
+console.log('chat com HTML aparece como texto:', xssHost.text.includes('<img src=x onerror=') && xssHost.imgs === 0 && !xssHost.ran ? 'ok' : `FALHOU (${JSON.stringify(xssHost)})`);
 // ordens diferentes em cada cliente: cada um manda seus cidadãos para um ponto distinto
 const order = (p, dx) => p.evaluate((dx) => { const s = window.aoe.session; const ids = [...s.state.units.values()].filter((u) => u.owner === s.local && u.type === 'villager').map((u) => u.id); const tc = [...s.state.buildings.values()].find((b) => b.owner === s.local && b.type === 'town_center'); s.issue({ type: 'move', player: s.local, ids, x: tc.x + dx, y: tc.y + 6 }); }, dx);
 await order(host, -6); await order(guest, 6);

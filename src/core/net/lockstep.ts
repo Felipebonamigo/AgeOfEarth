@@ -5,7 +5,7 @@ import type { Command, GameState } from '../types';
 import { tick } from '../sim/game';
 import { stateHash } from './hash';
 import { diffHashParts, stateHashParts, summarizeState, validHashParts, type DesyncReport, type StateSummary } from './desync';
-import { MAX_CMDS_PER_TICK } from '../sim/validate';
+import { netCommands } from '../sim/validate';
 
 export interface CommandScheduler {
   issue(cmd: Command): void;
@@ -102,23 +102,20 @@ export class NetworkScheduler implements CommandScheduler {
   }
 
   /**
-   * Comandos de um par para o tick t. Anti-trapaça básico (4.5): tick inteiro ainda não executado; lista que não é array vira
-   * vazia; de outro par, só comandos (objetos) em nome do próprio jogador, no máximo MAX_CMDS_PER_TICK, e só a PRIMEIRA
-   * mensagem de cada (par, tick) vale — uma segunda, diferente, chegaria a um par antes e a outro depois de executar o tick.
-   * O resto da validação (forma, dono, alvo, custo…) é de applyCommand, igual em todos os clientes.
+   * Comandos de um par para o tick t. Anti-trapaça básico (4.5): tick inteiro ainda não executado; de outro par, só ticks em
+   * que ele é aguardado (a partir do atraso, par ainda na partida e depois do tick de retorno de quem reconectou) — num tick
+   * em que ninguém o espera, quem já o executou descartaria e quem não executou aplicaria (dessincronização); e só a PRIMEIRA
+   * mensagem de cada (par, tick) vale, pelo mesmo motivo. A lista passa por netCommands (validate.ts): em nome do próprio
+   * jogador, sem ids repetidos, com limites por tick — igual para o par local, que envia essa mesma lista. O resto da
+   * validação (forma, dono, alvo, custo…) é de applyCommand, igual em todos os clientes.
    */
   receive(slot: number, t: number, cmds: Command[]): void {
     if (!Number.isSafeInteger(t) || t < 0 || t <= this.executed) return;
-    const list: unknown[] = Array.isArray(cmds) ? cmds : [];
+    if (slot !== this.local && (t < this.delay || !this.humans.has(slot) || t <= (this.rejoinAt.get(slot) ?? -1))) return;
     let m = this.inbox.get(t); if (!m) { m = new Map(); this.inbox.set(t, m); }
-    if (slot === this.local) { m.set(slot, list as Command[]); return; }
+    if (slot === this.local) { m.set(slot, netCommands(slot, cmds)); return; }
     if (m.has(slot)) return;
-    const mine: Command[] = [];
-    for (const c of list) {
-      if (mine.length >= MAX_CMDS_PER_TICK) break;
-      if (typeof c === 'object' && c !== null && (c as { player?: unknown }).player === slot) mine.push(c as Command);
-    }
-    m.set(slot, mine);
+    m.set(slot, netCommands(slot, cmds));
   }
   receiveHash(slot: number, t: number, hash: number, parts?: unknown): void {
     if (!Number.isSafeInteger(t) || t < 0 || !Number.isInteger(hash) || hash < 0 || hash > 0xffffffff) return;
@@ -151,7 +148,7 @@ export class NetworkScheduler implements CommandScheduler {
     const target = T + this.delay;
     if (this.local >= 0 && this.lastSent < target) {
       for (let t = Math.max(this.lastSent + 1, 0); t <= target; t++) {
-        const cmds = t === target ? this.outgoing : [];
+        const cmds = netCommands(this.local, t === target ? this.outgoing : []);   // a lista enviada é a mesma que o par local aplica
         this.receive(this.local, t, cmds);
         this.transport.sendCmds(t, cmds);
       }

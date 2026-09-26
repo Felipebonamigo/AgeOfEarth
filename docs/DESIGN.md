@@ -77,7 +77,7 @@ toca a simulação (pode usar `Math.random`) e só lê o estado.
 da sala) e só executa o tick `T` quando os comandos de todos os humanos para `T` chegaram. O relay (`server/relay.mjs`) apenas
 repassa mensagens (`join`, `lobby`, `start`, `cmds`, `hash`, `left`, `chat`, `ping`, `kick`, `snapshot`, `resume`). A cada 100 ticks
 os clientes trocam um hash do estado para detectar dessincronização (um relatório fica em `localStorage`; ver "Anti-trapaça e
-relatório de dessincronização" abaixo). Comandos recebidos em nome de outro jogador são descartados. Se alguém cai, todos pausam; quem entra de novo na mesma sala com o mesmo nome recebe do anfitrião
+relatório de dessincronização" abaixo). Comandos recebidos em nome de outro jogador são descartados. Se alguém cai, todos pausam; quem entra de novo na mesma sala com a ficha da própria vaga (o relay a manda em `joined` só para aquela conexão; o `NetClient` a guarda por sala e nome) recebe do anfitrião
 um instantâneo (estado serializado + comandos já recebidos) e volta a enviar comandos a partir de um tick combinado
 (`NetworkScheduler.resumeTick`); comandos que chegam antes do instantâneo para ticks posteriores a ele são preservados. Como só
 comandos trafegam, a banda é mínima e replays são gratuitos (gravar os comandos; um replay gravado após carregar um save parte desse save).
@@ -107,16 +107,33 @@ cada cliente validar tudo do mesmo jeito (comando inválido = no-op em todas as 
   fila de ordens (Shift) ≤ `MAX_ORDER_QUEUE` = 600 por unidade. O `tick` ainda envolve cada comando de fora num `try/catch` (conta em
   `getRuntime(state).commandErrors`; o esperado é 0) para que um bug nunca derrube a partida — o descarte é igual em todos.
   A validação faz parte da simulação: `SIM_VERSION` 3 (o relay não junta na mesma sala um cliente que valida e outro que não).
-- **Rede** (`NetworkScheduler.receive`): tick inteiro ainda não executado; lista que não é array vira vazia; de outro par, só
-  comandos em nome dele, até `MAX_CMDS_PER_TICK` = 1024 (uma muralha arrastada vira um comando por tile no mesmo tick), e só a
-  primeira mensagem de cada (par, tick) vale — uma segunda, diferente, chegaria a um par antes e a outro depois de executar o tick.
-  Hashes que não são uint32 são ignorados.
+- **Rede** (`NetworkScheduler.receive`): tick inteiro ainda não executado; de outro par, só ticks em que ele é aguardado (a partir
+  do atraso, par ainda na partida, depois do tick de retorno de quem reconectou) e só a primeira mensagem de cada (par, tick) — nos
+  dois casos, uma mensagem chegaria a um par antes e a outro depois de executar o tick. A lista passa por `netCommands`
+  (`validate.ts`): lista que não é array vira vazia; só comandos em nome do próprio jogador; ids sem repetição dentro de cada
+  comando; até `MAX_CMDS_PER_TICK` = 1024 `build` (uma muralha arrastada vira um comando por tile no mesmo tick) e
+  `MAX_OTHER_CMDS_PER_TICK` = 64 dos demais; soma dos ids por tick ≤ 1200 nas ordens e ≤ 32 768 nas obras (o que passa sai
+  inteiro). O par local aplica e envia exatamente essa lista, então o corte é o mesmo em todas as máquinas. Sem isso, 1024 comandos
+  × 600 ids repetidos cabiam nos limites do relay e davam ~115 ms por tick em todos os clientes (agora ~1 ms). Só a entrada da
+  rede muda: a IA e o jogo local não passam por aqui. Hashes que não são uint32 são ignorados.
 - **Relay** (`server/relay.mjs`): sabe a vaga de cada conexão e repassa só os comandos com `player` igual ao índice dela em
-  `room.slots` (a lista vai mesmo vazia: o tick precisa chegar a todos); `cmds` só com a partida começada e com tick estritamente
-  crescente por conexão; mensagem > 512 KB de quem não é anfitrião é recusada (`tooBig`) sem interpretar; JSON malformado (ou que não
-  é objeto com `t`) recebe `badMessage` e a sala segue; uma vaga por conexão; balde por conexão de 400 mensagens (repõe 100/s — o
-  lockstep manda 20/s) e 4 MB (repõe 1 MB/s; o anfitrião, que manda instantâneos, fica fora do de bytes): estourou → `rateLimit` e só
-  essa conexão cai (os outros recebem `left`, como numa queda). `--no-rate-limit` desliga os baldes (teste de carga acelerado).
+  `room.slots`, com os mesmos limites por tipo de `netCommands` (a lista vai mesmo vazia: o tick precisa chegar a todos); `cmds` só
+  com a partida começada e com tick estritamente crescente por conexão; mensagem > 512 KB é recusada (`tooBig`) sem interpretar —
+  exceto, do anfitrião, `start` (a config segue limitada a 1 MB) e o instantâneo que o relay lhe pediu (o tipo é espiado no começo
+  do texto); JSON malformado (ou que não é objeto com `t`) recebe `badMessage` e a sala segue; quadro WebSocket inválido (UTF-8
+  ruim, acima de 8 MB) fecha só aquela conexão (ouvinte de `error` em cada conexão e no servidor — antes derrubava o processo e
+  todas as salas); uma vaga por conexão; balde por conexão de 400 mensagens (repõe 100/s — o lockstep manda 20/s) e 4 MB (repõe
+  1 MB/s), **anfitrião incluído** — só o instantâneo pedido fica fora do de bytes: estourou → `rateLimit` e só essa conexão cai (os
+  outros recebem `left`, como numa queda). `--no-rate-limit` desliga os baldes (teste de carga acelerado). O instantâneo só vai a
+  quem o relay o pediu (reconexão ou espectador), uma vez por pedido. **Reconexão**: em `joined` cada jogador recebe uma ficha
+  aleatória (16 bytes) que só ele vê; a vaga de quem caiu só é retomada com ela — antes bastava o nome, que é público (lobby,
+  `list`, espectadores), e qualquer um herdava a vaga, o instantâneo e o direito de comandar por ela. **Lobby**: as configurações
+  do anfitrião passam por uma lista de chaves conhecidas, com tipos e textos curtos (`mapSize`, `mode`… `[A-Za-z0-9_-]{1,24}`;
+  `fixedMap` só com metadados), e `list` repassa só isso; o deus de cada jogador é um id `[a-z_]{1,24}` que não seja nome do
+  protótipo (senão `zeus`) — e `createGame` aceita só chave própria de `MAJOR_GODS` (`constructor` impedia a partida em todos).
+- **Interface**: textos de outros pares nunca viram HTML — `hud.toast` usa `textContent` (chat da partida, nomes de jogadores nos
+  avisos de eventos, reconexão, espectador) e as falas e objetivos de um cenário JSON do anfitrião são escapados. Antes, `<img
+  onerror>` no chat da partida rodava JS no cliente do outro e emitia comandos legítimos em nome dele (contornando toda a validação).
 - **Não coberto**: visão. A névoa é só da renderização e todo cliente tem o estado inteiro, então um cliente modificado pode revelar o
   mapa para si; comandos sobre alvos que o jogador não vê também não são recusados (a interface só os emite sobre o que é visível).
 - **Relatório de dessincronização** (`src/core/net/desync.ts`): junto com o hash total, cada par manda a cada 100 ticks um

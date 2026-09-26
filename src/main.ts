@@ -17,7 +17,6 @@ import { MapEditor } from './editor/editor';
 import { EditorPanel, type TestOpts } from './editor/panel';
 import type { EditorView } from './editor/types';
 import { issueText } from './ui/menu';
-import { esc } from './ui/html';
 import type { Difficulty } from './core/constants';
 import { NetworkScheduler, LocalScheduler } from './core/net/lockstep';
 import type { DesyncReport } from './core/net/desync';
@@ -140,7 +139,7 @@ async function boot() {
     onHotkeys: () => hud.showHotkeys(),
     setPad: (patch) => { Object.assign(settings, patch); saveSettings(settings); },
   };
-  achievements.onUnlock = (a) => { const tx = achievementText(a, getLocale()); hud.toast(`🏅 ${t('msg.achievement')}: ${a.icon} ${esc(tx.name)} — ${esc(tx.desc)}`, 'gold'); audio.play('complete'); };
+  achievements.onUnlock = (a) => { const tx = achievementText(a, getLocale()); hud.toast(`🏅 ${t('msg.achievement')}: ${a.icon} ${tx.name} — ${tx.desc}`, 'gold'); audio.play('complete'); };
   const input: Input = new Input(renderer.canvas, () => session, renderer, hud, audio);
 
   const startGame = (config: GameConfig) => {
@@ -216,11 +215,11 @@ async function boot() {
     const humans = slots.map((_, i) => i);
     const sched = new NetworkScheduler(spectator ? -1 : local, humans, delay, { sendCmds: (t, c) => client.sendCmds(t, c), sendHash: (t, h, p) => client.sendHash(t, h, p) });
     hud.onChat = (text) => client.chat(text);
-    client.on('chat', (m) => hud.toast(`💬 ${String(m.name ?? '?')}: ${String(m.text ?? '')}`, 'info'));
+    client.on('chat', (m) => hud.toast(`💬 ${String(m.name ?? '?')}: ${String(m.text ?? '')}`, 'info'));   // toast é texto puro: o chat nunca vira HTML
     sched.onDesync = (tk) => {
       hud.toast(t('msg.desync', { tick: tk }), 'warn');
       const where = sched.lastDesync ? desyncWhere(sched.lastDesync, config) : '';
-      if (where) hud.toast(t('msg.desyncWhere', { list: esc(where) }), 'warn');
+      if (where) hud.toast(t('msg.desyncWhere', { list: where }), 'warn');
       // relatório de dessincronização (4.5): tick, hashes por jogador, categorias divergentes, resumo do estado nesse tick,
       // configuração e o estado local agora; sem espaço no localStorage (save grande), fica ao menos o relatório sem o estado
       const report = { when: new Date().toISOString(), local, slots, delay, desync: sched.lastDesync, config };
@@ -362,7 +361,7 @@ async function boot() {
     if (editorOrTest()) leaveEditorView();
     editor = ed; returnToEditor = false; editorCam = null;
     showEditor(ed, null);
-    hud.toast(t('editor.opened', { name: esc(ed.meta.name ?? t('editor.untitled')) }), 'gold');
+    hud.toast(t('editor.opened', { name: ed.meta.name ?? t('editor.untitled') }), 'gold');
   };
   const exitEditor = () => {
     const ed = editor; if (!ed) return;
@@ -384,7 +383,7 @@ async function boot() {
       const base = gameConfigFor(sc);
       const issues = validateMap(file, { players: base.players.length, mode: base.mode, ai: base.players.map((p) => p.isAI) });
       const errors = issues.filter((i) => i.level === 'error');
-      if (errors.length) { hud.toast(`${t('editor.testErrors')} ${esc(errors.slice(0, 3).map(issueText).join('; '))}`, 'warn'); return; }
+      if (errors.length) { hud.toast(`${t('editor.testErrors')} ${errors.slice(0, 3).map(issueText).join('; ')}`, 'warn'); return; }
       editorPanel?.autosaveNow();
       editorCam = { x: renderer.cam.x, y: renderer.cam.y, zoom: renderer.cam.zoom };
       leaveEditorView();
@@ -408,7 +407,7 @@ async function boot() {
     }
     const issues = validateMap(file, { players: players.length, mode: opts.mode, ai: players.map((p) => p.isAI) });
     const errors = issues.filter((i) => i.level === 'error');
-    if (errors.length) { hud.toast(`${t('editor.testErrors')} ${esc(errors.slice(0, 3).map(issueText).join('; '))}`, 'warn'); return; }
+    if (errors.length) { hud.toast(`${t('editor.testErrors')} ${errors.slice(0, 3).map(issueText).join('; ')}`, 'warn'); return; }
     editorPanel?.autosaveNow();
     editorCam = { x: renderer.cam.x, y: renderer.cam.y, zoom: renderer.cam.zoom };
     leaveEditorView();

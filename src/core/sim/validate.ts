@@ -18,16 +18,27 @@ export const MAX_CMD_IDS = 600;
 export const COORD_MARGIN = 512;
 /** Ordens na fila (Shift) por unidade; uma muralha arrastada enfileira uma ordem por tile (a linha da interface tem ≤ 502). */
 export const MAX_ORDER_QUEUE = 600;
-/** Comandos de um jogador num mesmo tick aceitos da rede (NetworkScheduler; o relay usa o mesmo número). Uma muralha longa
- *  arrastada numa só vez vira um comando `build` por tile no mesmo tick. */
+/** Comandos `build` de um jogador num mesmo tick aceitos da rede (NetworkScheduler; o relay usa o mesmo número). Uma muralha
+ *  longa arrastada numa só vez vira um comando `build` por tile no mesmo tick. */
 export const MAX_CMDS_PER_TICK = 1024;
+/** Demais comandos (não `build`) de um jogador num mesmo tick aceitos da rede (o relay usa o mesmo número): a interface manda
+ *  um por ação; a folga cobre as ações acumuladas enquanto a partida espera a rede. */
+export const MAX_OTHER_CMDS_PER_TICK = 64;
+/**
+ * Soma dos ids (já sem repetição) dos comandos que não são `build` de um jogador num mesmo tick, vindos da rede: cada id vira
+ * uma ordem de unidade; 1200 ids cobrem várias ordens ao exército inteiro no mesmo tick. Sem isso, 1024 comandos × 600 ids
+ * repetidos (dentro dos limites do relay) davam 600 mil ordens por tick e travavam todos os clientes (~115 ms por tick).
+ */
+export const MAX_ORDER_IDS_PER_TICK = 2 * MAX_CMD_IDS;
+/** Soma dos ids (sem repetição) dos comandos `build` de um jogador num mesmo tick: uma muralha de 500 tiles com 60 construtores. */
+export const MAX_BUILD_IDS_PER_TICK = 32 * 1024;
 /** Maior índice de item de fila aceito em `cancel` (as filas têm no máximo 10 itens, mais sábios e Idade). */
 const MAX_QUEUE_INDEX = 64;
 
 type Rec = Record<string, unknown>;
 const isRecord = (v: unknown): v is Rec => typeof v === 'object' && v !== null && !Array.isArray(v);
 /** Chave própria de uma tabela de dados (evita `__proto__`, `constructor`, `toString`… que existem em qualquer objeto). */
-const ownKey = (table: object, v: unknown): v is string => typeof v === 'string' && Object.prototype.hasOwnProperty.call(table, v);
+export const ownKey = (table: object, v: unknown): v is string => typeof v === 'string' && Object.prototype.hasOwnProperty.call(table, v);
 const isId = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v);
 const absent = (v: unknown) => v === undefined || v === null;
 
@@ -40,6 +51,34 @@ function idList(v: unknown): number[] | null {
   if (!Array.isArray(v) || v.length > MAX_CMD_IDS) return null;
   for (const id of v) if (!isId(id)) return null;
   return v.slice() as number[];
+}
+/**
+ * Comandos de um jogador para um tick como TODOS os clientes os aplicam (NetworkScheduler: para os outros pares e também para
+ * o próprio jogador local, que envia exatamente esta lista): só objetos em nome do próprio jogador, ids sem repetição dentro de
+ * cada comando, no máximo MAX_CMDS_PER_TICK `build` e MAX_OTHER_CMDS_PER_TICK outros, e a soma dos ids limitada por tipo
+ * (MAX_BUILD_IDS_PER_TICK, MAX_ORDER_IDS_PER_TICK). O que passa de um limite sai inteiro, nunca cortado ao meio. Pura e
+ * idempotente (aplicada de novo, devolve a mesma lista): o relay pode repassá-la e o outro par filtrar de novo sem divergir.
+ * Só vale na entrada da rede — a IA e o jogo local não passam por aqui (repetições da IA seguem como sempre foram).
+ */
+export function netCommands(player: number, raw: unknown): Command[] {
+  const out: Command[] = [];
+  if (!Array.isArray(raw)) return out;
+  let builds = 0, others = 0, buildIds = 0, orderIds = 0;
+  for (const c of raw) {
+    if (!isRecord(c) || c.player !== player) continue;
+    const build = c.type === 'build';
+    if (build ? builds >= MAX_CMDS_PER_TICK : others >= MAX_OTHER_CMDS_PER_TICK) continue;
+    let cmd: Rec = c, n = 0;
+    if (Array.isArray(c.ids)) {
+      const uniq = [...new Set(c.ids as unknown[])];
+      if (uniq.length !== c.ids.length) cmd = { ...c, ids: uniq };
+      n = uniq.length;
+    }
+    if (build ? buildIds + n > MAX_BUILD_IDS_PER_TICK : orderIds + n > MAX_ORDER_IDS_PER_TICK) continue;
+    if (build) { builds++; buildIds += n; } else { others++; orderIds += n; }
+    out.push(cmd as unknown as Command);
+  }
+  return out;
 }
 /** Coordenada contínua (tiles): número finito dentro do mapa estendido por COORD_MARGIN. */
 function coord(v: unknown, size: number): number | null {
