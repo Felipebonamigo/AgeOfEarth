@@ -16,7 +16,7 @@ import type { Renderer } from '../render/renderer';
 import { Minimap } from '../render/minimap';
 import type { Audio } from '../audio/audio';
 import { getScenarioFor } from '../core/scenario/runner';
-import { HORDE, isCampaignMission } from '../core/scenario/campaign';
+import { CAMPAIGN_PLAN, HORDE, isCampaignMission, nextCampaignMission } from '../core/scenario/campaign';
 import { scenarioWon } from '../core/scenario/runner';
 import type { GameState } from '../core/types';
 import type { ScenarioDef } from '../core/scenario/types';
@@ -748,8 +748,11 @@ export class HUD {
     // Progresso da campanha só para ids oficiais: cenários JSON personalizados nunca marcam aoe_campaign (nem conquistas de missão)
     if (won && isOfficialScenario(sc.id) && !this.testMode) { try { const prog = JSON.parse(localStorage.getItem('aoe_campaign') ?? '{"completed":[]}'); if (!prog.completed.includes(sc.id)) prog.completed.push(sc.id); if (st.config.campaignDifficulty === 'hard') { prog.hard = prog.hard ?? []; if (!prog.hard.includes(sc.id)) prog.hard.push(sc.id); } localStorage.setItem('aoe_campaign', JSON.stringify(prog)); } catch { /* ignore */ } }
     const text = won ? (def.outro ?? [t('mission.done')]).map((x) => `<p>${x}</p>`).join('') : `<p>${t('mission.failedText')}</p>`;
-    this.showModal(`<h2>${won ? t('mission.done') : t('mission.failed')} — ${def.title}</h2>${text}<p><small>${t('mission.stats', { time: fmtTime(st.time), kills: s.player.stats.kills, losses: s.player.stats.losses })}</small></p>
-      <div class="actions"><button class="btn" id="m-continue">${t('mission.continue')}</button>${won && this.cb.onNextMission && isOfficialScenario(sc.id) && !this.testMode ? `<button class="btn primary" id="m-next">${t('mission.next')}</button>` : ''}<button class="btn ${won ? '' : 'primary'}" id="m-quit">${this.testMode ? t('editor.backToEditor') : t('over.menu')}</button></div>`, false);
+    // a última missão do plano (m12) fecha a campanha: sem "Próxima missão" (voltaria ao menu) e com o selo de fim; a Horda também não tem próxima
+    const finale = won && sc.id === CAMPAIGN_PLAN[CAMPAIGN_PLAN.length - 1].id;
+    const hasNext = won && this.cb.onNextMission && isOfficialScenario(sc.id) && !this.testMode && !!nextCampaignMission(sc.id);
+    this.showModal(`<h2>${won ? t('mission.done') : t('mission.failed')} — ${def.title}</h2>${text}${finale ? `<p><strong>${t('mission.campaignEnd')}</strong></p>` : ''}<p><small>${t('mission.stats', { time: fmtTime(st.time), kills: s.player.stats.kills, losses: s.player.stats.losses })}</small></p>
+      <div class="actions"><button class="btn" id="m-continue">${t('mission.continue')}</button>${hasNext ? `<button class="btn primary" id="m-next">${t('mission.next')}</button>` : ''}<button class="btn ${won && hasNext ? '' : 'primary'}" id="m-quit">${this.testMode ? t('editor.backToEditor') : t('over.menu')}</button></div>`, false);
     this.modal.querySelector('#m-continue')!.addEventListener('click', () => this.hideModal());
     this.modal.querySelector('#m-next')?.addEventListener('click', () => { this.hideModal(); this.cb.onNextMission?.(sc.id); });
     this.modal.querySelector('#m-quit')!.addEventListener('click', () => { this.hideModal(); this.cb.onQuit(); });

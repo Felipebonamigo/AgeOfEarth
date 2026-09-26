@@ -17,6 +17,7 @@ import m6 from './missions/m6_estatua.scenario.json';
 import m7 from './missions/m7_aquiles.scenario.json';
 import m8 from './missions/m8_oceano.scenario.json';
 import m9 from './missions/m9_tenaro.scenario.json';
+import m12 from './missions/m12_titanomaquia.scenario.json';
 
 const ME = 0;
 
@@ -225,6 +226,8 @@ export const CAMPAIGN: readonly CampaignEntry[] = [
   { act: 2, id: 'm7_aquiles', source: 'json', file: m7 as unknown as ScenarioFile },   // caça ao herói (mapa gerado forest 7707)
   { act: 2, id: 'm8_oceano', source: 'json', file: m8 as unknown as ScenarioFile },    // fecha o Ato II e o EA (chefe-Titã em três marés, 3º mapa fixo)
   { act: 3, id: 'm9_tenaro', source: 'json', file: m9 as unknown as ScenarioFile },    // abre o Ato III (jogando como Hades, mapa gerado lakes 9909)
+  // m10_otris e m11_chamas entram aqui, antes da m12, quando forem produzidas (a ordem do registro define o desbloqueio)
+  { act: 3, id: 'm12_titanomaquia', source: 'json', file: m12 as unknown as ScenarioFile },   // fecha o Ato III e a campanha (batalha final 3 × 1, 6º mapa fixo)
 ];
 
 /** Entrada do registro por id (undefined = não é missão oficial registrada). */

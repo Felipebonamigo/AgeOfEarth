@@ -1446,6 +1446,110 @@ function m9Assault(state: GameState, tag: string): Command[] {
   return out;
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// m12 "O Fim da Idade de Ouro": os três Altares da Foice, um por vez, e Cronos em três idades (Raio e Perseu nele)
+// ---------------------------------------------------------------------------------------------------------------
+
+/**
+ * m12: composição do exército (pesos): os três heróis de Argos (dano triplo em míticas, e o Titã é uma; retreinados se caírem),
+ * as míticas dos deuses menores concedidos (Minotauros de Atena, Mantícoras de Apolo, Medusas de Hera), infantaria pesada,
+ * arqueiros cretenses e petróbolos contra os Altares.
+ */
+const M12_MIX: Record<string, number> = { perseus: 1, heracles: 1, odysseus: 1, minotaur: 3, manticore: 2, medusa: 1, hypaspist: 3, myrmidon: 2, cretan_archer: 3, petrobolos: 2 };
+/** m12: os Altares na ordem da caminhada a partir da rampa do Olimpo (foice1 no norte do Campo, depois o sudoeste e o sudeste). */
+const M12_ALTARS = ['foice1', 'foice2', 'foice3'] as const;
+/** m12: militares para sair contra o próximo Altar (estado, não relógio), o mesmo nas três dificuldades. */
+const M12_ASSAULT_ARMY = 50;
+/** m12: o ponto de reunião, dentro do planalto do Olimpo junto da rampa do sudeste. */
+const M12_HOME = { x: 33, y: 33 };
+
+/** Cronos vivo (tag 'cronos'). */
+function m12Cronus(state: GameState): Unit | null { const id = state.scenario?.vars['#cronos']; const u = id !== undefined ? state.units.get(id) : undefined; return u && !u.dead ? u : null; }
+const m12D2 = (u: { x: number; y: number }, p: { x: number; y: number }) => (u.x - p.x) * (u.x - p.x) + (u.y - p.y) * (u.y - p.y);
+
+/**
+ * m12: Altar sob assalto agora (o próximo de pé, na ordem de M12_ALTARS): começa com ≥ M12_ASSAULT_ARMY militares e continua
+ * enquanto ≥ 10 deles estiverem a até 16 tiles dele (histerese, como na m4 e na m9); null fora de assalto.
+ */
+function m12AssaultTarget(state: GameState): string | null {
+  const next = M12_ALTARS.find((t) => entityPos(state, '#' + t)); if (!next) return null;
+  if (militaryCount(state, 0) >= M12_ASSAULT_ARMY) return next;
+  const p = entityPos(state, '#' + next)!;
+  return armyNear(state, p.x, p.y, 16) >= 10 ? next : null;
+}
+
+/** m12: Cronos ameaça a Nova Argos (a até 40 tiles do Centro Cívico, ou da Fortaleza sem ele). */
+function m12CronusAtHome(state: GameState): boolean {
+  const c = m12Cronus(state); const home = firstBuilding(state, 'town_center') ?? firstBuilding(state, 'fortress');
+  return !!c && !!home && m12D2(c, home) <= 40 * 40;
+}
+
+/**
+ * m12: a luta com Cronos — quando ele marcha sobre a Nova Argos, ou quando o exército tem ≥ M12_ASSAULT_ARMY (vai até ele onde
+ * estiver, inclusive nos acampamentos dos irmãos). Os heróis (e Prometeu) batem nele enquanto ele pode ser ferido; enquanto ele
+ * devora a hora (piso 1: nada o fere), todos lutam em ataque-movimento em volta dele, contra o Culto que ele chama.
+ */
+function m12Fight(state: GameState): Command[] {
+  const c = m12Cronus(state); if (!c) return [];
+  if (state.scenario?.vars.recuo === 1) return m12Siege(state);
+  if (!m12CronusAtHome(state) && militaryCount(state, 0) < M12_ASSAULT_ARMY && armyNear(state, c.x, c.y, 20) < 10) return [];
+  const out: Command[] = [];
+  const army = armyOf(state).map((id) => state.units.get(id)!);
+  const striker = (u: Unit) => UNITS[u.type].tags.includes('hero') || u.type === 'prometheus';
+  const open = !(c.hpFloor !== undefined && c.hpFloor >= 1);
+  if (open) {
+    const heroes = army.filter((u) => striker(u) && u.targetId !== c.id).map((u) => u.id);
+    if (heroes.length) out.push({ type: 'attack', player: 0, ids: heroes, targetId: c.id });
+  }
+  const rest = army.filter((u) => (open ? !striker(u) : true) && m12D2(u, c) > 12 * 12 && u.state !== 'attack').map((u) => u.id);
+  if (rest.length) out.push({ type: 'attackMove', player: 0, ids: rest, x: c.x, y: c.y });
+  return out;
+}
+
+/**
+ * m12, a 2ª idade: Cronos volta ao Trono do Ótris e nada o fere enquanto ele estiver de pé — o cerco. Com ≥ M12_ASSAULT_ARMY
+ * militares (ou já com ≥ 10 lá), o exército sobe a Estrada do Trono em ataque-movimento; a até 14 tiles do Trono, infantaria,
+ * cerco e heróis corpo a corpo batem nele (os arqueiros ficam nos defensores).
+ */
+function m12Siege(state: GameState): Command[] {
+  const t = entityPos(state, '#trono'); const tid = state.scenario?.vars['#trono'];
+  if (!t || tid === undefined) return [];
+  if (militaryCount(state, 0) < M12_ASSAULT_ARMY && armyNear(state, t.x, t.y, 16) < 10) return [];
+  const army = armyOf(state).map((id) => state.units.get(id)!);
+  const out: Command[] = [];
+  const far = army.filter((u) => m12D2(u, t) > 14 * 14 && u.state !== 'attack').map((u) => u.id);
+  if (far.length) out.push({ type: 'attackMove', player: 0, ids: far, x: t.x, y: t.y });
+  const breakers = army.filter((u) => m12D2(u, t) <= 14 * 14 && u.targetId !== tid && (!UNITS[u.type].tags.includes('ranged') || UNITS[u.type].tags.includes('siege'))).map((u) => u.id);
+  if (breakers.length) out.push({ type: 'attack', player: 0, ids: breakers, targetId: tid });
+  return out;
+}
+
+/** m12: o Raio de Zeus em Cronos na última idade (sem piso, metade da vida o derruba de vez: na 3ª idade ele tem ≤ 1/3). */
+function m12Bolt(state: GameState): Command | null {
+  const c = m12Cronus(state);
+  if (!c || !hasPower(state, 'bolt') || !state.scenario?.fired.includes('fase3_fere')) return null;
+  return { type: 'power', player: 0, power: 'bolt', targetId: c.id };
+}
+
+/** m12: `n` cidadãos terminam a Fortaleza da Nova Argos (obra do mapa, sem custo) enquanto ela estiver em obra ou ferida. */
+function m12Fortress(state: GameState, n: number): Command | null {
+  const f = firstBuilding(state, 'fortress'); if (!f || (f.complete && f.hp >= f.maxHp)) return null;
+  const near = villagersNear(state, f.x, f.y);
+  const working = near.filter((u) => u.state === 'build' && u.targetId === f.id).length;
+  if (working >= n) return null;
+  const ids = near.filter((u) => u.targetId !== f.id).slice(0, n - working).map((u) => u.id);
+  return ids.length ? { type: 'repair', player: 0, ids, targetId: f.id } : null;
+}
+
+/** m12: fora dos assaltos e da luta, quem se afastou mais de 30 tiles do ponto de reunião volta ao Olimpo (sem perseguir o Culto pela planície). */
+function m12Regroup(state: GameState): Command | null {
+  const ids = armyOf(state).filter((id) => { const u = state.units.get(id)!; return m12D2(u, M12_HOME) > 30 * 30 && u.state !== 'attack'; });
+  return ids.length ? { type: 'attackMove', player: 0, ids, x: M12_HOME.x, y: M12_HOME.y } : null;
+}
+
+/** m12: o chefe lutou — Cronos em `attack` por ao menos 25 s na partida (a janela não prova que ele lutou; como Oceano na m8). */
+const M12_FOUGHT: ScriptEndCheck[] = [{ label: 'Cronos atacou por ao menos 25 s', when: { units: { player: 3, tag: 'cronos', state: 'attack' }, gte: 1 }, seconds: 25 }];
+
 /**
  * Roteiros das missões registradas (o jogador 0 é uma IA "difícil"; os passos cobram o objetivo que a IA não faz sozinha).
  * Missão nova: acrescente uma entrada com o id; sem entrada, scripts/missions.ts roda só a IA do jogador.
@@ -1681,6 +1785,32 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
       { label: 'tempestade', when: { time: { gte: 1 } }, every: 1, command: (s) => dodgeStorms(s) },
       // jaulas e fendas na ordem da caminhada, cada uma quando o exército tem ≥ M9_ASSAULT_ARMY militares
       { label: 'assalto', when: { time: { gte: 10 } }, every: 10, command: (s) => { const t = m9AssaultTarget(s); return t ? m9Assault(s, t) : null; } },
+    ],
+  },
+  m12_titanomaquia: {
+    // §4: 35–40 min (±30 % = 24m30s–52m)
+    minutes: 60, expect: [24.5, 52],
+    // a IA do jogador nunca sai em ondas (o alvo "mais fraco" dela seria qualquer edifício do Culto): quem ataca os Altares e
+    // Cronos é o roteiro; o Raio fica para a última idade de Cronos (m12Bolt)
+    hold: { time: { gte: 0 } },
+    keepPowers: ['bolt'],
+    atEnd: M12_FOUGHT,
+    steps: [
+      { label: 'cidadãos', when: { time: { gte: 3 } }, every: 4, command: (s) => trainVillagers(s, 45) },
+      { label: 'casas', when: { time: { gte: 3 } }, every: 5, command: (s) => m9House(s, 15) },
+      { label: 'fortaleza', when: { time: { gte: 2 } }, every: 10, command: (s) => m12Fortress(s, 4) },
+      { label: 'quartel', when: { time: { gte: 20 } }, every: 20, command: (s) => m7Build(s, 'barracks') },
+      { label: 'oficina', when: { time: { gte: 60 } }, every: 20, command: (s) => m7Build(s, 'siege_workshop') },
+      { label: 'treino', when: { time: { gte: 5 } }, every: 5, command: (s) => trainArmy(s, 0, { mix: M12_MIX, reserve: { food: 150, wood: 100, gold: 80 } }) },
+      // Restauração nos feridos (o Raio fica guardado para Cronos: battlePowers o gastaria na primeira mítica perto do exército)
+      { label: 'restauração', when: { time: { gte: 2 } }, every: 3, command: (s) => m8Restore(s) },
+      { label: 'tempestade', when: { time: { gte: 1 } }, every: 1, command: (s) => dodgeStorms(s) },
+      // os Altares na ordem da caminhada, cada um quando o exército tem ≥ M12_ASSAULT_ARMY militares (salvo com Cronos em casa)
+      { label: 'assalto', when: { not: { objective: 'foices', is: 'done' } }, every: 10, command: (s) => { if (m12CronusAtHome(s)) return null; const t = m12AssaultTarget(s); return t ? m9Assault(s, t) : null; } },
+      { label: 'reunião', when: { time: { gte: 30 } }, every: 10, command: (s) => (m12AssaultTarget(s) || m12Cronus(s) ? null : m12Regroup(s)) },
+      // Cronos: heróis nele quando pode ser ferido, o exército em volta dele; o Raio na última idade
+      { label: 'cronos', when: { fired: 'cronos_surge' }, every: 3, command: (s) => m12Fight(s) },
+      { label: 'raio', when: { fired: 'fase3_fere' }, every: 1, command: (s) => m12Bolt(s) },
     ],
   },
 };
