@@ -16,18 +16,57 @@ function campaignAchievements(): AchievementDef[] {
     if (PROLOGUE_IDS.includes(e.id) || !e.file) continue;
     const n = CAMPAIGN_PLAN.findIndex((m) => m.id === e.id) + 1;
     const title = typeof e.file.title === 'string' ? e.file.title : e.file.title.pt;
-    out.push({ id: e.id, name: title, desc: `Complete a missão ${n} da campanha.`, icon: e.file.icon ?? '📜', check: (_s, _l, c) => c.missionsDone.includes(e.id) });
+    const titleEn = typeof e.file.title === 'string' ? e.file.title : (e.file.title.en ?? e.file.title.pt);
+    out.push({ id: e.id, name: title, desc: `Complete a missão ${n} da campanha.`, nameEn: titleEn, descEn: `Complete mission ${n} of the campaign.`, icon: e.file.icon ?? '📜', check: (_s, _l, c) => c.missionsDone.includes(e.id) });
   }
-  const acts: [CampaignAct, string, string, string][] = [[1, 'I', 'A Sombra dos Titãs', '⛓️'], [2, 'II', 'A Maré de Poseidon', '🌊'], [3, 'III', 'A Queda de Cronos', '⏳']];
-  for (const [act, roman, name, icon] of acts) {
+  const acts: [CampaignAct, string, string, string, string][] = [[1, 'I', 'A Sombra dos Titãs', 'The Shadow of the Titans', '⛓️'], [2, 'II', 'A Maré de Poseidon', "Poseidon's Tide", '🌊'], [3, 'III', 'A Queda de Cronos', 'The Fall of Cronus', '⏳']];
+  for (const [act, roman, name, nameEn, icon] of acts) {
     const ids = actMissionIds(act);
-    out.push({ id: `campaign_act${act}`, name: `Ato ${roman} completo: ${name}`, desc: `Complete todas as missões do Ato ${roman}.`, icon, check: (_s, _l, c) => ids.every((m) => c.missionsDone.includes(m)) });
+    out.push({ id: `campaign_act${act}`, name: `Ato ${roman} completo: ${name}`, desc: `Complete todas as missões do Ato ${roman}.`, nameEn: `Act ${roman} complete: ${nameEn}`, descEn: `Complete every mission of Act ${roman}.`, icon, check: (_s, _l, c) => ids.every((m) => c.missionsDone.includes(m)) });
   }
-  out.push({ id: 'campaign_all_hard', name: 'Titanomaquia no Difícil', desc: 'Complete as 12 missões da campanha no Difícil.', icon: '🏛️', check: (_s, _l, c) => CAMPAIGN_PLAN.every((m) => c.missionsHard.includes(m.id)) });
+  out.push({ id: 'campaign_all_hard', name: 'Titanomaquia no Difícil', desc: 'Complete as 12 missões da campanha no Difícil.', nameEn: 'Titanomachy on Hard', descEn: 'Complete all 12 campaign missions on Hard.', icon: '🏛️', check: (_s, _l, c) => CAMPAIGN_PLAN.every((m) => c.missionsHard.includes(m.id)) });
   return out;
 }
 
-export interface AchievementDef { id: string; name: string; desc: string; icon: string; check: (s: GameState, local: number, ctx: AchievementCtx) => boolean }
+export interface AchievementDef { id: string; name: string; desc: string; nameEn?: string; descEn?: string; icon: string; check: (s: GameState, local: number, ctx: AchievementCtx) => boolean }
+
+/** Nome e descrição em inglês das conquistas fixas (as geradas trazem nameEn/descEn). */
+const EN: Record<string, [string, string]> = {
+  first_temple: ['First Offering', 'Complete a Temple.'],
+  classical: ['Philosopher', 'Reach the Classical Age.'],
+  heroic: ['Song of Heroes', 'Reach the Heroic Age.'],
+  mythic: ['Touch of the Gods', 'Reach the Mythic Age.'],
+  titans: ['Titanomachy', 'Reach the Age of Titans.'],
+  titan_summoned: ['Broken Chains', 'Unleash a Titan.'],
+  hero_trio: ['Argonauts', 'Have three heroes alive at the same time.'],
+  menagerie: ['Bestiary', 'Have five different mythic creatures alive at the same time.'],
+  kills_100: ['Shield Wall', 'Kill 100 enemy units in one match.'],
+  kills_500: ['Scourge of Tartarus', 'Kill 500 enemy units in one match.'],
+  razed_25: ['Wrecker', 'Destroy 25 enemy buildings in one match.'],
+  territory_2000: ['Empire', 'Control 2000 tiles of territory.'],
+  all_techs_line: ['Library of Alexandria', 'Research Civics V, Commerce V, Military V and Science V.'],
+  win_conquest: ['Conqueror', 'Win by conquest.'],
+  win_wonder: ['Wonder of the World', 'Win by holding a Wonder.'],
+  win_no_loss: ['Untouchable', 'Win a quick match losing fewer than 10 units.'],
+  win_brutal: ['Titan Tamer', 'Win a quick match against a Very Hard AI.'],
+  all_gods: ['Ecumenical', 'Play matches as Zeus, Poseidon and Hades.'],
+  horde_10: ['Keeper of the Gates', 'Survive 10 waves in Horde Mode.'],
+  horde_20: ['Lord of Tartarus', 'Win Horde Mode.'],
+  m1_despertar: ['The Awakening of Argos', 'Complete mission 1 of the campaign.'],
+  m2_cerco: ['Walls of Argos', 'Complete mission 2 of the campaign.'],
+  m3_portal: ['The Sealed Gate', 'Complete mission 3 of the campaign.'],
+  campaign_prologue: ['The Shadow of the Titans', 'Complete the campaign prologue.'],
+  campaign_hard: ['Forged in Fire', 'Complete the campaign prologue on Hard.'],
+  horde_hard: ['Bronze Wall', 'Win Horde Mode on Hard or above.'],
+  garrison_defense: ['Closed Gates', 'Have 15 units garrisoned in a single building.'],
+};
+
+/** Nome e descrição da conquista no idioma pedido (PT é o original; EN cai no PT se faltar tradução). */
+export function achievementText(a: AchievementDef, locale: string): { name: string; desc: string } {
+  if (locale !== 'en') return { name: a.name, desc: a.desc };
+  const fixed = EN[a.id];
+  return { name: a.nameEn ?? fixed?.[0] ?? a.name, desc: a.descEn ?? fixed?.[1] ?? a.desc };
+}
 export interface AchievementCtx { godsPlayed: string[]; hordeWaves: number; missionsDone: string[]; missionsHard: string[] }
 
 const p = (s: GameState, l: number) => s.players[l];

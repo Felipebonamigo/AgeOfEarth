@@ -4,6 +4,7 @@ import { EN_AGES, EN_BUILDINGS, EN_MAJOR_GODS, EN_MINOR_GODS, EN_POWERS, EN_TECH
 import { ABILITIES } from '../src/core/data';
 import { STRINGS } from '../src/i18n/strings';
 import { setLocale, t, getLocale } from '../src/i18n';
+import { ACHIEVEMENTS, achievementText } from '../src/game/achievements';
 
 describe('idiomas', () => {
   it('todo conteúdo tem tradução em inglês (nome e descrição)', () => {
@@ -33,5 +34,13 @@ describe('idiomas', () => {
     setLocale('pt');
     expect(UNITS.hoplite.name).toBe(pt);
     expect(t('res.food')).toBe('Comida');
+  });
+  it('toda conquista tem nome e descrição em inglês (aviso na partida em EN)', () => {
+    for (const a of ACHIEVEMENTS) {
+      const en = achievementText(a, 'en'), pt = achievementText(a, 'pt');
+      expect(pt.name).toBe(a.name);
+      expect(en.desc, `${a.id}.desc`).not.toBe(a.desc);   // nenhuma descrição caiu no português
+      expect(en.name, `${a.id}.name`).toBeTruthy();
+    }
   });
 });

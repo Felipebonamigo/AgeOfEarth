@@ -25,8 +25,8 @@ import type { Command } from './core/types';
 import { spawnUnit, placeBuilding, canPlaceBuilding } from './core/sim/entities';
 import { getBuildingStats } from './core/sim/modifiers';
 import { nearestFreeTile } from './core/map/pathfinding';
-import { Achievements } from './game/achievements';
-import { detectLocale, setLocale, t } from './i18n';
+import { Achievements, achievementText } from './game/achievements';
+import { detectLocale, getLocale, setLocale, t } from './i18n';
 import { loadSettings, saveSettings } from './game/settings';
 import { AutoQuality, isSoftwareRenderer, levelOf, resolveQuality } from './render/quality';
 import { PerfMonitor } from './render/perf';
@@ -125,7 +125,7 @@ async function boot() {
     onHotkeys: () => hud.showHotkeys(),
     setPad: (patch) => { Object.assign(settings, patch); saveSettings(settings); },
   };
-  achievements.onUnlock = (a) => { hud.toast(`🏅 Conquista: ${a.icon} ${a.name} — ${a.desc}`, 'gold'); audio.play('complete'); };
+  achievements.onUnlock = (a) => { const tx = achievementText(a, getLocale()); hud.toast(`🏅 ${t('msg.achievement')}: ${a.icon} ${esc(tx.name)} — ${esc(tx.desc)}`, 'gold'); audio.play('complete'); };
   const input: Input = new Input(renderer.canvas, () => session, renderer, hud, audio);
 
   const startGame = (config: GameConfig) => {
