@@ -701,7 +701,12 @@ function manageArmy(state: GameState, player: Player, snap: Snapshot): void {
   if (attacking) {
     const target = state.buildings.get(ai.attackTarget);
     if (!target || target.dead) { ai.attackTarget = -1; }
-    else {
+    else if (invulnerable(target)) {
+      // o roteiro tornou o alvo invulnerável no meio da onda (G9: piso 1): a onda volta ao ponto de encontro
+      ai.attackTarget = -1;
+      applyCommand(state, { type: 'move', player: player.id, ids: army.map((u) => u.id), x: ai.rallyX, y: ai.rallyY });
+      return;
+    } else {
       const near = army.filter((u) => dist(u.x, u.y, target.x, target.y) < 18).length;
       // recuo se a força dispersou
       if (army.length < 3 || (near < 3 && state.tick - ai.lastAttack > 60 * TICK_RATE)) {
@@ -741,10 +746,16 @@ function alliedAttackTarget(state: GameState, player: Player): Building | null {
   for (const p of state.players) {
     if (p.id === player.id || !p.isAI || !p.alive || p.team !== player.team || !p.ai || p.ai.attackTarget === -1) continue;
     const b = state.buildings.get(p.ai.attackTarget);
-    if (b && !b.dead && isEnemy(state, player.id, b.owner)) return b;
+    if (b && !b.dead && !invulnerable(b) && isEnemy(state, player.id, b.owner)) return b;
   }
   return null;
 }
+
+/**
+ * Edifício invulnerável pelo roteiro (G9: piso de vida 1, ex.: os Altares da Foice da m12 sob o juramento do Estige): nada o
+ * fere, então não serve de alvo de onda (a onda ficava presa batendo na pedra até dispersar).
+ */
+function invulnerable(b: Building): boolean { return b.hpFloor !== undefined && b.hpFloor >= 1; }
 
 function chooseAttackTarget(state: GameState, player: Player, tc: Building, from: Unit): Building | null {
   // Prefere o inimigo mais fraco (menos militares) e, dentro dele, o edifício mais próximo — desde que haja caminho por terra
@@ -762,7 +773,7 @@ function chooseAttackTarget(state: GameState, player: Player, tc: Building, from
   if (!weakest) return null;
   const w = weakest;
   const fx = Math.floor(from.x), fy = Math.floor(from.y);
-  const reachable = (b: Building) => rectReachable(state.map, fx, fy, b.tx, b.ty, b.w, b.h, true);
+  const reachable = (b: Building) => !invulnerable(b) && rectReachable(state.map, fx, fy, b.tx, b.ty, b.w, b.h, true);
   return nearestEnemyBuilding(state, player.id, tc.x, tc.y, (b) => b.owner === w.id && !BUILDINGS[b.type].wall && reachable(b))
     ?? nearestEnemyBuilding(state, player.id, tc.x, tc.y, (b) => !BUILDINGS[b.type].wall && reachable(b))
     ?? nearestEnemyBuilding(state, player.id, tc.x, tc.y, reachable);

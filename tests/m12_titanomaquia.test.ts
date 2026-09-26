@@ -1,7 +1,7 @@
 // m12 "O Fim da Idade de Ouro" (docs/STORY.md §5.9): o mapa fixo "Planície da Tessália" é reprodutível pelo script
 // scripts/maps/m12_titanomaquia.ts e tem a identidade da ficha (a Nova Argos na escarpa do Olimpo com três passagens, o Ossa
 // entre o Tempe e o Ótris, o Trono na Estrada do Trono, a caverna de Hades, a costa de Poseidon, os três Altares no Campo);
-// o setup (G6: Portal só para Argos, heróis só de Argos), o juramento do Estige (os Altares e o Trono só caem com seis
+// o setup (G6: Portal só para Argos, heróis só de Argos; G8: os Altares e o Trono com nome), o juramento do Estige (os Altares e o Trono só caem com seis
 // soldados de Argos por perto; o Trono só depois que Cronos sai), as vinganças da Foice, o prazo de Cronos por dificuldade
 // (G3), as três idades do chefe (G9: piso por idade, o recuo ao Trono, a hora devorada, a cura do Difícil), o golpe final de
 // Perseu (G13) e o HUD (G4). A passiva curta roda em tests/missions.test.ts; o roteiro longo (vitória dentro da janela) só em
@@ -10,11 +10,12 @@ import { describe, it, expect } from 'vitest';
 import { TICK_RATE, TERRAIN } from '../src/core/constants';
 import { createGame, tick } from '../src/core/sim/game';
 import { destroyBuilding, killUnit } from '../src/core/sim/combat';
-import { spawnUnit } from '../src/core/sim/entities';
+import { canPlaceBuilding, placeBuilding, spawnUnit } from '../src/core/sim/entities';
 import { isForbidden } from '../src/core/sim/restrictions';
 import { componentAt, invalidateComponents } from '../src/core/map/components';
 import { mapHash, validateMap, type FixedMapData } from '../src/core/map/fixed';
 import { scriptedDamage } from '../src/core/scenario/helpers';
+import { entityDisplayName } from '../src/core/scenario/text';
 import { MISSION_SCRIPTS, missionRunConfig } from '../src/core/scenario/testing';
 import { campaignMission, nextCampaignMission, withCampaignDifficulty, CAMPAIGN, CAMPAIGN_PLAN } from '../src/core/scenario/campaign';
 import { gameConfigFor } from '../src/core/scenario/compile';
@@ -61,7 +62,7 @@ describe('m12: mapa fixo "Planície da Tessália"', () => {
     expect(mapHash(built)).toBe(mapHash(data));
   }, 60_000);
 
-  it('validateMap sem erros; 144×144, 4 inícios, sem kit e sem relíquias; a Nova Argos da ficha, o Trono e os Altares com uma tag cada', () => {
+  it('validateMap sem erros; 144×144, 4 inícios, sem kit e sem relíquias; a Nova Argos da ficha; o Trono e os Altares ficam para o setup', () => {
     expect(validateMap(data, { players: 4 }).filter((i) => i.level === 'error')).toEqual([]);
     expect([data.w, data.h, data.starts.length, data.relics, data.startKit]).toEqual([144, 144, 4, false, false]);
     expect(data.starts).toEqual([[24, 24], [24, 120], [120, 120], [120, 24]]);
@@ -73,9 +74,8 @@ describe('m12: mapa fixo "Planície da Tessália"', () => {
     expect(mineB('fortress').map((e) => e.kind === 'building' && e.complete)).toEqual([false]);
     expect(ents.filter((e) => e.kind === 'unit' && e.owner === 0 && e.type === 'villager')).toHaveLength(15);
     expect(ents.filter((e) => e.tag === 'odisseu' || e.tag === 'heracles').map((e) => [e.tag, e.type])).toEqual([['odisseu', 'odysseus'], ['heracles', 'heracles']]);
-    // o Trono (Fortaleza do Culto) e os três Altares da Foice (Templos do Culto) nos pontos da ficha, uma tag por entidade
-    expect(ents.filter((e) => e.tag === 'trono').map((e) => [e.type, e.owner, e.x, e.y])).toEqual([['fortress', 3, 111, 29]]);
-    expect(ents.filter((e) => e.tag?.startsWith('foice')).map((e) => [e.tag, e.type, e.owner, e.x + 1, e.y + 1])).toEqual(POINTS.altars.map(([x, y], k) => [`foice${k + 1}`, 'temple', 3, x, y]));
+    // o Trono e os três Altares da Foice não estão no mapa: nascem do setup do cenário com nome próprio (G8 só existe em place/spawn)
+    expect(ents.filter((e) => e.tag === 'trono' || e.tag?.startsWith('foice'))).toEqual([]);
     const tags = ents.filter((e) => e.tag).map((e) => e.tag);
     expect(new Set(tags).size).toBe(tags.length);
     // três sentinelas do Culto em volta de cada Altar; Hades e Poseidon só com o kit (nada no mapa)
@@ -127,6 +127,14 @@ describe('m12_titanomaquia', () => {
     for (const p of [1, 2, 3]) expect([...s.buildings.values()].some((b) => b.owner === p && b.type === 'town_center'), `${p}`).toBe(true);
     // o Culto tem o Trono, os Altares e as torres da Estrada do Trono; ninguém mais sai do setup com Titã
     expect([...s.units.values()].filter((u) => u.type === 'cronus')).toHaveLength(0);
+    // G8: os Altares (Templos do Culto) e o Trono (Fortaleza do Culto) nos pontos da ficha, com nome próprio e o piso do juramento
+    const altar = (k: number) => byTag(s, `foice${k + 1}`) as Building;
+    expect(POINTS.altars.map((_, k) => [altar(k).type, altar(k).owner, altar(k).tx + 1, altar(k).ty + 1, altar(k).hpFloor, entityDisplayName(altar(k))]))
+      .toEqual(POINTS.altars.map(([x, y]) => ['temple', 3, x, y, 1, 'Altar da Foice']));
+    const throne = byTag(s, 'trono') as Building;
+    expect([throne.type, throne.owner, throne.tx, throne.ty, throne.hpFloor, entityDisplayName(throne)]).toEqual(['fortress', 3, ...POINTS.throne, 1, 'Trono de Cronos']);
+    setLocale('en');
+    try { expect([entityDisplayName(altar(0)), entityDisplayName(throne)]).toEqual(['Altar of the Sickle', 'Throne of Cronus']); } finally { setLocale('pt'); }
     expect(lintScenario(file)).toEqual([]);
   }, 60_000);
 
@@ -147,9 +155,12 @@ describe('m12_titanomaquia', () => {
     scriptedDamage(s, a, 900);
     expect(frac(a)).toBe(1);
     const [x, y] = POINTS.altars[0];
+    expect(lines(s).some((t) => t.includes('Uma foice gigante'))).toBe(false);
     squad(s, x, y + 4);
     run(s, 2);
     expect(a.hpFloor).toBeUndefined();
+    // Héracles fala quando Argos abre o 1º Altar (antes de ele cair), não depois
+    expect(lines(s).some((t) => t.includes('Uma foice gigante'))).toBe(true);
     scriptedDamage(s, a, 99999);
     expect(a.dead).toBe(true);
     run(s, 1);
@@ -163,6 +174,53 @@ describe('m12_titanomaquia', () => {
     scriptedDamage(s, b, 900);
     expect(frac(b)).toBe(1);
   }, 60_000);
+
+  it('o devorar nasce no Campo, na estrada do Olimpo (fora da rampa e do alcance da torre), e ataca-move até a Nova Argos; com as passagens muradas, do lado de fora', () => {
+    for (const walled of [false, true]) {
+      const s = start('normal');
+      const m = s.map;
+      if (walled) {
+        for (const [cx, cy] of [POINTS.olympusEast, POINTS.olympusRamp, POINTS.olympusSouth]) {
+          for (let y = cy - 5; y <= cy + 5; y++) for (let x = cx - 5; x <= cx + 5; x++) if (canPlaceBuilding(s, s.players[0], 'wall', x, y, true, true).ok) placeBuilding(s, 0, 'wall', x, y, true);
+        }
+        invalidateComponents(m);
+      }
+      const field = componentAt(m, 72, 76);
+      expect(componentAt(m, 24, 28) !== field, `murada: ${walled}`).toBe(walled);
+      run(s, 240);
+      const ids = tagIdsAlive(s, 'devorar');
+      expect(ids, `murada: ${walled}`).toHaveLength(5);
+      const tower = byTag(s, 'torre_rampa')!;
+      const tc = [...s.buildings.values()].find((b) => b.owner === 0 && b.type === 'town_center')!;
+      for (const id of ids) {
+        const u = s.units.get(id)!;
+        expect(u.owner).toBe(3);
+        expect(componentAt(m, Math.floor(u.x), Math.floor(u.y)), `${u.type} murada: ${walled}`).toBe(field);
+        expect((u.x - tower.x) * (u.x - tower.x) + (u.y - tower.y) * (u.y - tower.y), u.type).toBeGreaterThan(12 * 12);
+        // sem muralha, rumo à Nova Argos (com ela, a ordem não tem caminho: a IA do Culto os leva, como às vinganças)
+        if (!walled) expect(u.order, u.type).toMatchObject({ type: 'attackMove', x: tc.x, y: tc.y });
+      }
+    }
+  }, 120_000);
+
+  it('os irmãos (IAs reais, sem marionetes) nunca lançam onda contra um Altar ou o Trono sob o juramento (piso 1): atacam o Culto', () => {
+    const s = start('normal');
+    const sworn = new Set(['foice1', 'foice2', 'foice3', 'trono'].map((t) => s.scenario!.vars['#' + t]));
+    const other: number[] = [];
+    for (let sec = 0; sec < 7 * 60 && !s.gameOver; sec++) {
+      run(s, 1);
+      for (const p of [1, 2]) {
+        const at = s.players[p].ai!.attackTarget;
+        if (at === -1) continue;
+        const b = s.buildings.get(at);
+        expect(sworn.has(at) && b?.hpFloor === 1, `${now(s)} s: jogador ${p} → ${b?.type}`).toBe(false);
+        if (!sworn.has(at)) other.push(at);
+      }
+    }
+    expect(s.players[1].ai!.waves + s.players[2].ai!.waves).toBeGreaterThan(0);
+    expect(other.length).toBeGreaterThan(0);   // as ondas foram contra outros edifícios do Culto
+    for (const t of ['foice1', 'foice2', 'foice3', 'trono']) expect(frac(byTag(s, t) as Building), t).toBe(1);
+  }, 180_000);
 
   it('prazo de Cronos por dificuldade (G3): 30, 25 ou 20 min; o aviso da Pítia 3 min antes; no Difícil, dois Colossos', () => {
     for (const [d, prazo] of [['easy', 1800], ['normal', 1500], ['hard', 1200]] as const) {
@@ -184,6 +242,7 @@ describe('m12_titanomaquia', () => {
     expect(s.scenario!.hidden.cronos).toBe(false);
     expect([...s.units.values()].filter((u) => u.owner === 3 && u.type === 'colossus' && !u.dead)).toHaveLength(2);
     expect(lines(s).some((t) => t.includes('Eu SOU a espera'))).toBe(true);
+    expect(lines(s).some((t) => t.includes('Minha espada foi feita para isto'))).toBe(true);   // Perseu vivo fala
     // Cronos marcha sobre a Nova Argos em ataque-movimento
     expect(c.order).toMatchObject({ type: 'attackMove' });
   }, 120_000);
@@ -300,6 +359,27 @@ describe('m12_titanomaquia', () => {
     expect(lines(s).some((t) => t.includes('cospe de volta'))).toBe(false);
   }, 120_000);
 
+  it('Perseu morto não fala quando Cronos sai; o Perseu retreinado fala e o golpe final dele vale o segredo (kills by type)', () => {
+    const s = calm('normal');
+    razeAltars(s);
+    killUnit(s, byTag(s, 'perseu') as Unit, 3);   // o Perseu que veio de Argos cai antes do prazo
+    run(s, 62);
+    const c = cronus(s)!;
+    expect(lines(s).some((t) => t.includes('Eu SOU a espera'))).toBe(true);
+    expect(lines(s).some((t) => t.includes('Minha espada foi feita para isto'))).toBe(false);
+    const again = spawnUnit(s, 0, 'perseus', c.x + 1.5, c.y + 0.5);   // retreinado (único: pode, com o anterior morto)
+    run(s, 1);
+    expect(lines(s).some((t) => t.includes('Minha espada foi feita para isto'))).toBe(true);
+    delete c.hpFloor;
+    s.scenario!.vars.fase = 3;
+    c.hp = 1;
+    killUnit(s, c, 0, again);
+    run(s, 2);
+    expect(s.scenario!.objectives).toMatchObject({ cronos: 'done', perseu: 'done' });
+    expect(lines(s).some((t) => t.includes('a dívida está paga'))).toBe(true);
+    expect(lines(s).some((t) => t.includes('cospe de volta'))).toBe(false);
+  }, 120_000);
+
   it('HUD (G4): a contagem de Cronos, os Altares derrubados, a idade de Cronos e a hora devorada (PT e EN)', () => {
     const s = calm('normal');
     run(s, 5);
@@ -329,7 +409,7 @@ describe('m12_titanomaquia', () => {
     expect(nextCampaignMission('m12_titanomaquia')).toBeUndefined();
     const sc = MISSION_SCRIPTS.m12_titanomaquia;
     expect(sc.expect).toEqual([24.5, 52]);
-    expect(sc.atEnd?.map((c) => c.label)).toEqual(['Cronos atacou por ao menos 25 s']);
+    expect(sc.atEnd?.map((c) => c.label)).toEqual(['Cronos atacou por ao menos 25 s', 'Altares no chão antes de Cronos sair', 'Cronos cai em até 15 min depois de sair']);
     expect(sc.keepPowers).toEqual(['bolt']);
   });
 });

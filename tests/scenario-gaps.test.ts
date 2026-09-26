@@ -1048,6 +1048,11 @@ describe('G13: autoria de abate', () => {
     act(s, [{ do: 'kill', entity: { tag: 'perseu' } }]);   // o autor morto continua no grupo da tag
     expect(cond(s, { kills: { player: 0, by: { tag: 'perseu' } }, eq: 1 })).toBe(true);
     expect(cond(s, { kills: { player: 0, by: { tag: 'nada' } }, eq: 0 })).toBe(true);
+    // by.type: qualquer autor desse tipo (o herói único retreinado conta como o original)
+    expect(s.scenario!.kills.byType).toEqual({ '0:perseus': { minotaur: 1 } });
+    expect(cond(s, { kills: { player: 0, type: 'minotaur', by: { type: 'perseus' } }, eq: 1 })).toBe(true);
+    expect(cond(s, { kills: { player: 0, by: { type: 'hoplite' } }, eq: 0 })).toBe(true);
+    expect(cond(s, { kills: { player: 1, by: { type: 'perseus' } }, eq: 0 })).toBe(true);
   });
   it('poderes contam para o jogador e não para a tag; kill/damage do roteiro e dispensar não contam; edifício derrubado conta', () => {
     const { s, p, tc1 } = arena();
@@ -1095,6 +1100,9 @@ describe('G13: autoria de abate', () => {
     expect(paths(mk({ victory: { kills: { player: 0 } } as unknown as Condition }))).toEqual(['victory']);
     expect(paths(mk({ victory: { kills: { player: 0, type: ['cronus', 'x'], by: { tag: 'p', extra: 1 } }, gte: 1 } as unknown as Condition }))).toEqual(['victory.kills.type[1]', 'victory.kills.by']);
     expect(paths(mk({ victory: { kills: { type: 'cronus' }, gte: 1 } as unknown as Condition }))).toEqual(['victory.kills.player']);
+    expect(paths(mk({ victory: { kills: { player: 0, by: { type: 'x' } }, gte: 1 } }))).toEqual(['victory.kills.by.type']);
+    expect(paths(mk({ victory: { kills: { player: 0, by: { tag: 'p', type: 'perseus' } }, gte: 1 } as unknown as Condition }))).toEqual(['victory.kills.by']);
+    expect(paths(mk({ victory: { kills: { player: 0, type: 'cronus', by: { type: 'perseus' } }, gte: 1 } }))).toEqual([]);
     expect(paths(mk({ victory: { kills: 'x', gte: 1 } as unknown as Condition }))).toEqual(['victory.kills']);
     expect(paths(mk({ victory: { all: [{ kills: { player: 0, type: 'cronus', by: { tag: 'perseu' } }, gte: 1 }, { kills: { player: 'local', type: 'town_center' }, gte: { var: 'n' } }] } }))).toEqual([]);
     // tag futura: { by: { tag } } com eq 0 vale com o grupo ausente

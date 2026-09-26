@@ -227,9 +227,10 @@ function evalCondition(env: Env, c: Condition): boolean {
     const p = player(env, c.powerUsed.player); const n = p >= 0 ? powerUseCount(s.scenario, p, c.powerUsed.id) : 0;
     return hasCmp(c) ? cmp(env, c, n) : n >= 1;
   }
-  if ('kills' in c) {   // G13: abates com autor; by.tag = só os das entidades do grupo (vivas ou não)
+  if ('kills' in c) {   // G13: abates com autor; by.tag = só os das entidades do grupo (vivas ou não); by.type = só os desse tipo
     const k = c.kills; const types = k.type === undefined ? undefined : Array.isArray(k.type) ? k.type : [k.type];
-    return cmp(env, c, killCount(s.scenario, player(env, k.player), types, k.by ? tagIds(s, k.by.tag) : undefined));
+    const by = k.by;
+    return cmp(env, c, killCount(s.scenario, player(env, k.player), types, by && 'tag' in by ? tagIds(s, by.tag) : undefined, by && 'type' in by ? by.type : undefined));
   }
   return false;
 }

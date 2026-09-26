@@ -1547,8 +1547,18 @@ function m12Regroup(state: GameState): Command | null {
   return ids.length ? { type: 'attackMove', player: 0, ids, x: M12_HOME.x, y: M12_HOME.y } : null;
 }
 
-/** m12: o chefe lutou — Cronos em `attack` por ao menos 25 s na partida (a janela não prova que ele lutou; como Oceano na m8). */
-const M12_FOUGHT: ScriptEndCheck[] = [{ label: 'Cronos atacou por ao menos 25 s', when: { units: { player: 3, tag: 'cronos', state: 'attack' }, gte: 1 }, seconds: 25 }];
+/**
+ * m12, conferido no fim (a janela não prova o que o jogador controla: o piso dela é estrutural — Cronos só sai no prazo e as
+ * duas horas devoradas duram 150 s cada, então a vitória mais rápida é prazo + 5 min = 35/30/25 min, sempre acima de 24m30s):
+ * o chefe lutou (Cronos em `attack` por ao menos 25 s, como Oceano na m8); os Altares caíram antes de Cronos sair (o exército
+ * fez a parte dele antes do prazo: `altares_caem` só dispara com os três no chão antes de `cronos_surge`); e a luta depois da
+ * saída durou no máximo 15 min (prazo + 900 s: com o exército irrelevante, Cronos não cai).
+ */
+const M12_END: ScriptEndCheck[] = [
+  { label: 'Cronos atacou por ao menos 25 s', when: { units: { player: 3, tag: 'cronos', state: 'attack' }, gte: 1 }, seconds: 25 },
+  { label: 'Altares no chão antes de Cronos sair', when: { fired: 'altares_caem' } },
+  { label: 'Cronos cai em até 15 min depois de sair', when: { time: { lte: { add: [{ var: 'prazo' }, 900] } } } },
+];
 
 /**
  * Roteiros das missões registradas (o jogador 0 é uma IA "difícil"; os passos cobram o objetivo que a IA não faz sozinha).
@@ -1788,13 +1798,13 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
     ],
   },
   m12_titanomaquia: {
-    // §4: 35–40 min (±30 % = 24m30s–52m)
+    // §4: 35–40 min (±30 % = 24m30s–52m); o piso é estrutural (vitória ≥ prazo + 5 min): ver M12_END
     minutes: 60, expect: [24.5, 52],
     // a IA do jogador nunca sai em ondas (o alvo "mais fraco" dela seria qualquer edifício do Culto): quem ataca os Altares e
     // Cronos é o roteiro; o Raio fica para a última idade de Cronos (m12Bolt)
     hold: { time: { gte: 0 } },
     keepPowers: ['bolt'],
-    atEnd: M12_FOUGHT,
+    atEnd: M12_END,
     steps: [
       { label: 'cidadãos', when: { time: { gte: 3 } }, every: 4, command: (s) => trainVillagers(s, 45) },
       { label: 'casas', when: { time: { gte: 3 } }, every: 5, command: (s) => m9House(s, 15) },

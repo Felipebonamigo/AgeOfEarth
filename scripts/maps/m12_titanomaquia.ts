@@ -21,14 +21,15 @@
 //   nordeste  o Monte Ótris: o pico no canto e o planalto do Culto (início 3 = [120,24], com kit), fechado ao sul pela serra do
 //             Ótris com duas saídas (a Estrada do Trono, a sudoeste, e a trilha do leste). O Trono de Cronos é uma Fortaleza do
 //             jogador 3 com a tag trono, com o canto em [111,29] (a ficha: [112,30]), guardando a Estrada do Trono; duas torres
-//             do Culto na saída;
+//             do Culto na saída. O Trono (e os Altares, abaixo) nasce do setup do cenário (place exact com nome, G8: o mapa
+//             não guarda nome de entidade); o mapa só reserva o chão (KEEP_OUT);
 //   sudoeste  a caverna de Hades (início 1 = [24,120], com kit): terra escura cercada de rocha, com a poça do Estige, uma boca ao
 //             norte (a estrada do Olimpo) e outra a leste (o Campo);
 //   sudeste   a costa de Poseidon (início 2 = [120,120], com kit): praia e mar (água intransponível, sem naval), aberta para o
 //             Campo e para o lago Bébeis;
-//   centro    o Campo da Titanomaquia, terra batida com os três Altares da Foice (Templos do jogador 3; centros [72,60], [56,86]
-//             e [90,86], como na ficha; tags foice1, foice2, foice3), cada um com três sentinelas do Culto (estátuas guardiãs,
-//             imóveis), ligado a todos os cantos por estradas.
+//   centro    o Campo da Titanomaquia, terra batida com os três Altares da Foice (Templos do jogador 3 postos pelo setup do
+//             cenário; centros [72,60], [56,86] e [90,86], como na ficha; tags foice1, foice2, foice3), cada um com três sentinelas
+//             do Culto (estátuas guardiãs, imóveis), ligado a todos os cantos por estradas.
 import fs from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
@@ -238,10 +239,9 @@ function entities(): MapEntity[] {
     b('house', 0, 17, 23), b('house', 0, 17, 26), b('house', 0, 20, 29), b('house', 0, 23, 30),
     // as torres das três passagens da escarpa (do lado de dentro): a rampa do sudeste, a passagem do sul e a do leste
     b('tower', 0, 36, 35, 'torre_rampa'), b('tower', 0, 18, 40, 'torre_sul'), b('tower', 0, 41, 19, 'torre_leste'),
-    // o Culto (jogador 3): o Trono de Cronos na Estrada do Trono, duas torres na saída e os três Altares da Foice no Campo
-    b('fortress', 3, POINTS.throne[0], POINTS.throne[1], 'trono'),
+    // o Culto (jogador 3): duas torres na saída da Estrada do Trono (o Trono e os três Altares da Foice vêm do setup do cenário,
+    // com nome próprio: G8 só existe em place/spawn)
     b('tower', 3, 97, 42, 'torre_trono1'), b('tower', 3, 104, 42, 'torre_trono2'),
-    ...POINTS.altars.map(([x, y], k) => b('temple', 3, x - 1, y - 1, `foice${k + 1}`)),
     // as sentinelas da Foice: três estátuas guardiãs (imóveis; a IA do Culto não as leva embora) em volta de cada Altar
     ...POINTS.altars.flatMap(([x, y]) => [u('sentinel', 3, x, y - 3), u('sentinel', 3, x - 3, y + 2), u('sentinel', 3, x + 3, y + 2)]),
     // os heróis que vieram de Argos (Perseu nasce do setup)
