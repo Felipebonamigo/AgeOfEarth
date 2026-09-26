@@ -79,7 +79,7 @@ async function boot() {
   const applyQuality = () => {
     auto = new AutoQuality(settings.quality === 'auto' && softwareGpu ? 'low' : levelOf(settings.quality));
     if (settings.quality !== 'auto') auto.decided = true;
-    renderer.setQuality(resolveQuality(settings.quality, { level: auto.level, showFps: settings.showFps, teamOutline: settings.teamOutline, bakedArt: settings.bakedArt }));
+    renderer.setQuality(resolveQuality(settings.quality, { level: auto.level, showFps: settings.showFps, teamOutline: settings.teamOutline, bakedArt: settings.bakedArt, dayCycle: settings.dayCycle }));
     perf.setVisible(perfParam || settings.showFps);
   };
   applyQuality();
@@ -140,6 +140,7 @@ async function boot() {
     setShowFps: (v) => { settings.showFps = v; saveSettings(settings); applyQuality(); },
     setTeamOutline: (v) => { settings.teamOutline = v; saveSettings(settings); applyQuality(); },
     setBakedArt: (v) => { settings.bakedArt = v; saveSettings(settings); applyQuality(); },
+    setDayCycle: (v) => { settings.dayCycle = v; saveSettings(settings); applyQuality(); },
     setFullscreen: (v) => { settings.fullscreen = v; saveSettings(settings); setFullscreen(v); },
     onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); if (session) { hud.setSession(session); hud.refreshTop(); } },
     onHotkeys: () => hud.showHotkeys(),
@@ -471,7 +472,7 @@ async function boot() {
       if (!editing) {
         if (session !== measured) { measured = session; auto.reset(); }
         const lowered = auto.sample(ms, interval);
-        if (lowered) { renderer.setQuality(resolveQuality('auto', { level: lowered, showFps: settings.showFps, teamOutline: settings.teamOutline, bakedArt: settings.bakedArt })); hud.toast(t('msg.qualityLowered', { level: t(`quality.${lowered}`) }), 'info'); }
+        if (lowered) { renderer.setQuality(resolveQuality('auto', { level: lowered, showFps: settings.showFps, teamOutline: settings.teamOutline, bakedArt: settings.bakedArt, dayCycle: settings.dayCycle })); hud.toast(t('msg.qualityLowered', { level: t(`quality.${lowered}`) }), 'info'); }
       }
       hud.update(dt);
       audio.update(dt, { state: session.state, local: session.local, view: viewFromCamera(renderer.cam), revealAll: renderer.revealAll, paused: session.paused, editor: editing });

@@ -8,7 +8,8 @@ export const ART_PX_PER_TILE = 32;
 /** Inclinação da câmera do bake (graus); um atlas assado com outra inclinação é recusado. */
 export const ART_PITCH_DEG = 50;
 
-export type ArtGroup = 'units' | 'buildings' | 'props' | 'icons';
+/** Grupos de atlas; `fx` (Etapa 5) vem do gerador próprio (scripts/bake/fx.mjs): só o passe de cor. */
+export type ArtGroup = 'units' | 'buildings' | 'props' | 'icons' | 'fx';
 export type ArtPass = 'color' | 'team' | 'shadow';
 export type ArtScale = 1 | 2;
 
@@ -19,7 +20,7 @@ export interface ArtSize { sourceSize: { w: number; h: number }; anchor: { x: nu
 
 /** Um asset do manifesto: unidade, edifício ou conjunto de props. */
 export interface ArtAssetEntry {
-  kind: 'unit' | 'building' | 'prop';
+  kind: 'unit' | 'building' | 'prop' | 'fx';
   group: ArtGroup;
   sourceHash?: string;
   dirs: number;

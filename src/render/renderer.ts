@@ -1,6 +1,7 @@
-// Renderizador PixiJS: terreno por shader (com fronteiras), nós como sprites, entidades interpoladas, efeitos, névoa e overlays.
+// Renderizador PixiJS: terreno por shader (com fronteiras), nós como sprites, entidades interpoladas, efeitos (fx/: um
+// handler por tipo de efeito, partículas, decalques), névoa e overlays.
 import { Application, Container, Graphics, Sprite, Texture, Text, TextStyle } from 'pixi.js';
-import { effectiveResolution, resolveQuality, PARTICLE_BUDGET, type Quality } from './quality';
+import { effectiveResolution, resolveQuality, type Quality } from './quality';
 import { TILE, TICK_RATE, DT, PLAYER_COLORS, KOTH_RADIUS, rankOf } from '../core/constants';
 import { ABILITIES, BUILDINGS, UNITS } from '../core/data';
 import type { Building, GameState, Unit, VisualEffect } from '../core/types';
@@ -18,10 +19,12 @@ import { PropLayer } from './props';
 import { ArtLibrary } from './art/ArtLibrary';
 import { UnitView } from './views/UnitView';
 import { BuildingView } from './views/BuildingView';
-import { SmokeLayer } from './particles';
+import { FxSystem, type FxAcc } from './fx/FxSystem';
+import { deathView } from './fx/handlers/death';
+import { DayCycle } from './fx/light';
 import {
   abilityUseTick, animDuration, buildingState, chooseAnim, corpseAlpha, CORPSE_TTL, MAX_CORPSES, dirWithHysteresis, freshHit, isWalking, isRunning, isMoveAnim, warmUnitTypes, mulColor, type UnitAnim, type AnimInput,
-  WALL_LINK_TYPES, wallMask, buildingVariant, ageTier, farmCrop, damageLevel, gateNear, smokeRate, smokeBudget, rubbleAlpha, GLOW_ANIM, glowVariant,
+  WALL_LINK_TYPES, wallMask, buildingVariant, ageTier, farmCrop, damageLevel, gateNear, smokeRate, rubbleAlpha, GLOW_ANIM, glowVariant,
   ghostTint, placementMasks, wallFlagAt, WALL_FLAG_PROBE,
 } from './art/logic';
 
@@ -51,7 +54,9 @@ export function buildingCorner(type: string, x: number, y: number): { tx: number
 
 /** Vista de uma entidade: corpo (gira com a unidade) e sombra separada na camada 'shadows' (não gira; cai para sudeste).
  *  Com arte assada, `unit`/`bld` guardam a vista assada (corpo, máscara de time e sombra do atlas) e o corpo não gira. */
-interface EntityView { root: Container; body: Sprite; shadow: Sprite | null; type: string; color: number; complete: boolean; angle: number; carry: Sprite | null; label?: Text; rank?: Graphics; rankShown?: number; unit: UnitView | null; bld: BuildingView | null }
+interface EntityView { root: Container; body: Sprite; shadow: Sprite | null; type: string; color: number; complete: boolean; angle: number; carry: Sprite | null; label?: Text; rank?: Graphics; rankShown?: number; unit: UnitView | null; bld: BuildingView | null;
+  /** Acumulador da poeira dos pés (unidade) / das chamas (edifício muito danificado) — fx/FxSystem. */
+  fxAcc: FxAcc }
 
 /** Morte recente de uma unidade assada (o efeito 'death' do mesmo quadro herda a direção da vista que sumiu). */
 interface RecentDeath { type: string; x: number; y: number; dir: number }
@@ -77,10 +82,11 @@ export class Renderer {
   tex!: TextureCache;
   cam = new Camera();
   world = new Container();
-  /** Ordem (docs/ART.md §3.7): terrain (shader: chão, água e fronteiras) → shadows → props (nós) → ground →
-   *  buildings → units → fx → hp → editor → fog. Com a arte assada: terrain → shadows → ground → props (faixas com nós,
-   *  edifícios e unidades ordenados juntos pelo y do pé) → buildings (vazia) → units (só voadoras) → fx → hp → editor → fog. */
-  layers = { terrain: new Container(), shadows: new Container(), props: new Container(), ground: new Graphics(), buildings: new Container(), units: new Container(), fx: new Container(), hp: new Graphics(), ghost: new Container(), editor: new Container(), fog: new Container() };
+  /** Ordem (docs/ART.md §3.7): terrain (shader: chão, água e fronteiras) → decals (queimaduras, rachaduras, escombros)
+   *  → shadows → props (nós) → ground → buildings → units → fx → hp → editor → fog. Com a arte assada: terrain → decals →
+   *  shadows → ground → props (faixas com nós, edifícios e unidades ordenados juntos pelo y do pé) → buildings (vazia) →
+   *  units (só voadoras) → fx → hp → editor → fog. */
+  layers = { terrain: new Container(), decals: new Container(), shadows: new Container(), props: new Container(), ground: new Graphics(), buildings: new Container(), units: new Container(), fx: new Container(), hp: new Graphics(), ghost: new Container(), editor: new Container(), fog: new Container() };
   overlay = new Graphics();
   /** Compatibilidade com o editor (antes: chunks assados em cache). O terreno por shader não tem cache: no-op. */
   chunkCacheLimit = 60;
@@ -100,20 +106,18 @@ export class Renderer {
   private unitGenSeen = -1;
   /** Idade do jogador local cujos tipos de unidade já foram pré-carregados (-1 = pedir no próximo quadro). */
   private warmAge = -1;
-  /** Unidades assadas morrendo/petrificadas (animação no lugar do sprite procedural girado), por efeito. */
-  private dying = new Map<VisualEffect, UnitView>();
   /** Cadáveres assados (docs/ART.md §1.9): a vista da queda continua no chão depois do efeito 'death', no último quadro
    *  de `die`, até CORPSE_TTL s da morte (relógio de jogo); no máximo MAX_CORPSES (sai o mais velho). */
   private corpses: { uv: UnitView; born: number }[] = [];
   private recentDeaths: RecentDeath[] = [];
   private recentGone: RecentGone[] = [];
-  /** Fumaça dos edifícios danificados (partículas leves, orçamento do preset). */
-  private smoke = new SmokeLayer();
-  /** Escombros no chão e colapsos já vistos (um monte por queda). */
+  /** Efeitos (Etapa 5, fx/): um handler por tipo de VisualEffect, partículas com orçamento e prioridade (a fumaça dos
+   *  edifícios da Etapa 3 inclusive), decalques no chão e projéteis. */
+  readonly fx = new FxSystem(() => this.art ?? null);
+  /** Ciclo de luz opcional (cor da luz por ColorMatrixFilter na camada do mundo; desligado por padrão). */
+  private dayCycle = new DayCycle();
+  /** Escombros no chão (um monte por queda). */
   private rubbleViews: RubbleView[] = [];
-  private rubbleSeen = new WeakSet<VisualEffect>();
-  /** Colapsos desenhados com o quadro assado (afundam em vez de encolher). */
-  private bakedCollapses = new WeakSet<Container>();
   /** Topologia das muralhas (muralha/portão/torre): assinatura dos ids e versão; as vistas recalculam o bitmask só
    *  quando a versão muda (uma muralha nova, derrubada ou trocada de dono). */
   private wallSig = 0; private wallCount = -1; wallVersion = 0;
@@ -122,7 +126,7 @@ export class Renderer {
   private gatesOpen = new Set<number>();
   /** Fantasma de construção assado (quadro complete translúcido tingido de verde/vermelho). */
   private ghostSprites: Sprite[] = [];
-  /** Passo do relógio de jogo neste quadro (s): fumaça. */
+  /** Passo do relógio de jogo neste quadro (s): partículas, fumaça, barras. */
   private animDt = 0;
   /** Ícones do HUD compostos (cor + máscara tingida) por tipo e cor, válidos até a próxima geração da arte. */
   private iconCache = new Map<string, string | null>();
@@ -151,8 +155,6 @@ export class Renderer {
   revealAll = false;
   private fog: FogMesh | null = null; private fogVersion = -1;
   private terrVersion = -1;
-  private fxViews = new Map<VisualEffect, Container>();
-  private deathViews: { c: Container; ttl: number; total: number; kind: string }[] = [];
   private state: GameState | null = null;
   time = 0;
 
@@ -167,8 +169,22 @@ export class Renderer {
     this.art.configure(this.quality.bakedArt, this.quality.atlasScale);
     this.props = new PropLayer(this.tex, this.art);
     this.app.stage.addChild(this.world, this.overlay);
-    this.world.addChild(this.layers.terrain, this.layers.shadows, this.layers.props, this.edgeFrame, this.layers.ground, this.layers.buildings, this.layers.units, this.layers.fx, this.layers.hp, this.layers.ghost, this.layers.editor, this.layers.fog);
-    this.layers.fx.addChild(this.smoke.root);
+    this.world.addChild(this.layers.terrain, this.layers.decals, this.layers.shadows, this.layers.props, this.edgeFrame, this.layers.ground, this.layers.buildings, this.layers.units, this.layers.fx, this.layers.hp, this.layers.ghost, this.layers.editor, this.layers.fog);
+    // efeitos: partículas/sprites na camada fx, decalques na camada decals (acima do terreno, abaixo das sombras)
+    this.layers.fx.addChild(this.fx.root);
+    this.layers.decals.addChild(this.fx.decals.root);
+    this.layers.decals.eventMode = 'none';
+    const self = this;
+    this.fx.setHost({
+      get art() { return self.art; },
+      get tex() { return self.tex; },
+      get shadows() { return self.layers.shadows; },
+      entityParent: (kind, y, flying) => this.parentFor(kind, y, flying),
+      deathDir: (type, x, y) => { for (const d of this.recentDeaths) if (d.type === type && Math.abs(d.x - x * TILE) < TILE && Math.abs(d.y - y * TILE) < TILE) return d.dir; return 2; },
+      goneVariant: (type, x, y) => this.recentGone.find((g) => g.type === type && Math.abs(g.x - x * TILE) < 1 && Math.abs(g.y - y * TILE) < 1)?.variant ?? null,
+      addRubble: (e, type) => this.addRubble(e, type),
+      addCorpse: (uv) => { this.corpses.push({ uv, born: uv.animStart }); if (this.corpses.length > MAX_CORPSES) this.corpses.shift()!.uv.destroy(); },
+    });
     this.layers.ghost.sortableChildren = true;
     this.layers.ghost.eventMode = 'none';
     this.edgeFrame.visible = false;
@@ -197,13 +213,10 @@ export class Renderer {
     this.cam.resize(this.app.screen.width, this.app.screen.height);
     for (const v of this.views.values()) this.destroyView(v);
     this.views.clear();
+    this.fx.reset();   // antes de esvaziar as sombras: as quedas assadas e os projéteis põem sombra lá
     this.clearDying();
     this.layers.shadows.removeChildren();
     this.layers.shadows.addChild(this.props.shadowRoot);
-    for (const v of this.fxViews.values()) v.destroy({ children: true });
-    this.fxViews.clear();
-    for (const d of this.deathViews) d.c.destroy({ children: true });
-    this.deathViews = [];
     this.clearBakedExtras();
     this.wallCount = -1; this.wallVersion++;
     this.layers.fog.removeChildren();
@@ -286,6 +299,7 @@ export class Renderer {
     if (ax1 < ax0 || ay1 < ay0) return;
     this.terrain?.invalidateRect(ax0, ay0, ax1, ay1);
     this.props.syncRect(st, ax0, ay0, ax1, ay1);
+    this.fx.clearRect(ax0, ay0, ax1, ay1);   // decalques do chão que mudou
   }
   /** Preset de qualidade em vigor (docs/ART.md §3.9); as etapas seguintes leem daqui sombras, partículas, água e shader. */
   quality: Quality = resolveQuality('auto');
@@ -306,7 +320,9 @@ export class Renderer {
     this.terrain?.setQuality(q);
     // arte assada: liga/desliga e escala 1×/2× (a ArtLibrary muda de geração e as vistas são refeitas no próximo quadro)
     this.art?.configure(q.bakedArt, q.atlasScale);
-    this.smoke.budget = smokeBudget(PARTICLE_BUDGET[q.particles] ?? 800);
+    // orçamento TOTAL de partículas e teto de decalques do preset (a fumaça dos edifícios ocupa até 35 % dele)
+    this.fx.setQuality(q);
+    if (this.app?.stage) this.dayCycle.set(this.world, q.dayCycle);
     // materiais do preset gerados em segundo plano (um por macrotarefa, ≈ 250 ms no total a 512²) enquanto o menu está
     // aberto; main.ts chama setQuality logo após init, então a primeira partida já os encontra prontos
     prewarmTerrain(materialSizeFor(q));
@@ -334,8 +350,8 @@ export class Renderer {
     const L = this.layers;
     const F = this.edgeFrame;
     const order: Container[] = this.bakedMode
-      ? [L.terrain, L.shadows, L.ground, L.props, F, L.buildings, L.units, L.fx, L.hp, L.ghost, L.editor, L.fog]
-      : [L.terrain, L.shadows, L.props, F, L.ground, L.buildings, L.units, L.fx, L.hp, L.ghost, L.editor, L.fog];
+      ? [L.terrain, L.decals, L.shadows, L.ground, L.props, F, L.buildings, L.units, L.fx, L.hp, L.ghost, L.editor, L.fog]
+      : [L.terrain, L.decals, L.shadows, L.props, F, L.ground, L.buildings, L.units, L.fx, L.hp, L.ghost, L.editor, L.fog];
     order.forEach((c, i) => this.world.setChildIndex(c, i));
     F.visible = this.bakedMode;   // desligada: visual idêntico ao anterior
   }
@@ -348,9 +364,8 @@ export class Renderer {
     this.bakedMode = this.quality.bakedArt;
     for (const v of this.views.values()) this.destroyView(v);
     this.views.clear();
+    this.fx.reset();   // quedas, colapsos e partículas podem usar o atlas (refeitos no próximo quadro)
     this.clearDying();
-    for (const v of this.fxViews.values()) v.destroy({ children: true });   // colapsos podem usar o atlas
-    this.fxViews.clear();
     this.clearBakedExtras();
     this.wallVersion++;
     this.applyLayerOrder();
@@ -383,15 +398,14 @@ export class Renderer {
     }
     // quedas e cadáveres numa escala que deixou de ser a servida também saem (a queda em curso é refeita no próximo quadro)
     const stale = (uv: UnitView) => { const art = this.art.unit(uv.type); return !!art && art.scale !== uv.art.scale; };
-    for (const [e, uv] of this.dying) if (stale(uv)) { uv.destroy(); this.dying.delete(e); }
+    this.fx.recreate((_e, s) => { const uv = deathView(s); return !!uv && stale(uv); });
     this.corpses = this.corpses.filter((c) => { if (!stale(c.uv)) return true; c.uv.destroy(); return false; });
     // e a escala velha das unidades sai da memória quando nenhum tipo pedido é mais servido nela (trocar 1×/2× no meio
     // da partida não deixa as duas escalas carregadas)
     this.art.collect();
   }
   private clearDying(): void {
-    for (const d of this.dying.values()) d.destroy();
-    this.dying.clear(); this.recentDeaths.length = 0;
+    this.recentDeaths.length = 0;
     for (const c of this.corpses) c.uv.destroy();
     this.corpses.length = 0;
   }
@@ -407,11 +421,11 @@ export class Renderer {
     }
     this.corpses.length = w;
   }
-  /** Escombros, fumaça e fantasmas assados (usam texturas do atlas: saem antes de uma troca de arte ou de partida). */
+  /** Escombros e fantasmas assados (usam texturas do atlas: saem antes de uma troca de arte ou de partida; a fumaça e as
+   *  demais partículas saem no fx.reset). */
   private clearBakedExtras(): void {
     for (const r of this.rubbleViews) { r.body.destroy(); r.shadow?.destroy(); }
-    this.rubbleViews = []; this.rubbleSeen = new WeakSet(); this.recentGone.length = 0;
-    this.smoke.clear();
+    this.rubbleViews = []; this.recentGone.length = 0;
     for (const g of this.ghostSprites) g.destroy();
     this.ghostSprites = [];
     this.iconCache.clear();
@@ -498,7 +512,7 @@ export class Renderer {
       if (e.kind === 'unit') { const sh = unitShadow(e.type); shadow = new Sprite(this.tex.shadowEllipse(sh.rx, sh.ry)); }
       else { const sh = buildingShadow(e.type); if (sh) shadow = new Sprite(this.tex.shadowRect(sh.w, sh.h)); }
       if (shadow) { shadow.anchor.set(0.5); shadow.alpha = SHADOW_ALPHA; shadow.blendMode = 'multiply'; this.layers.shadows.addChild(shadow); }
-      v = { root, body, shadow, type: e.type, color, complete, angle: 0, carry: null, unit: null, bld: null };
+      v = { root, body, shadow, type: e.type, color, complete, angle: 0, carry: null, unit: null, bld: null, fxAcc: { dust: Math.random() } };
       this.parentFor(e.kind, e.kind === 'building' ? this.buildingDrawY(e) : e.y, e.kind === 'unit' && !!UNITS[e.type]?.flying).addChild(root);
       this.views.set(e.id, v);
     }
@@ -513,7 +527,7 @@ export class Renderer {
       const uv = new UnitView(art, this.art, e.type, color, this.layers.shadows, 2);
       uv.lastAttackTick = e.attackTick;   // um golpe antigo não dispara a animação de ataque ao criar a vista
       uv.lastAbilityTick = abilityTick(e);   // nem uma habilidade antiga
-      const v: EntityView = { root: uv.root, body: uv.body, shadow: uv.shadow, type: e.type, color, complete: true, angle: Math.PI / 2, carry: null, unit: uv, bld: null };
+      const v: EntityView = { root: uv.root, body: uv.body, shadow: uv.shadow, type: e.type, color, complete: true, angle: Math.PI / 2, carry: null, unit: uv, bld: null, fxAcc: { dust: Math.random() } };
       this.parentFor('unit', e.y, false).addChild(uv.root);
       this.views.set(e.id, v);
       return v;
@@ -521,7 +535,7 @@ export class Renderer {
     // só com todos os estados assados em todas as variantes (senão a obra ou o dano ficariam sem quadro): procedural
     if (!this.art.buildingArt(e.type)) return undefined;
     const bv = new BuildingView(this.art, e.type, color, this.layers.shadows);
-    const v: EntityView = { root: bv.root, body: bv.body, shadow: bv.shadow, type: e.type, color, complete: e.complete, angle: 0, carry: null, unit: null, bld: bv };
+    const v: EntityView = { root: bv.root, body: bv.body, shadow: bv.shadow, type: e.type, color, complete: e.complete, angle: 0, carry: null, unit: null, bld: bv, fxAcc: { dust: Math.random() } };
     this.parentFor('building', this.buildingDrawY(e), false).addChild(bv.root);
     this.views.set(e.id, v);
     return v;
@@ -575,7 +589,7 @@ export class Renderer {
         v.bld.setOutline(this.quality.teamOutline ? this.outlineWidth() : 0);
         // fumaça de dano (partícula, não assada): só pronto e danificado, dentro do orçamento do preset, e à vista
         const dmg = live && b.complete && !open ? damageLevel(hpFrac) : 0;
-        if (dmg) this.emitSmoke(v.bld, b, dmg);
+        if (dmg) this.emitSmoke(v.bld, b, dmg, v.fxAcc);
         v.bld.tint(tint, mulColor(color, tint));
         v.complete = b.complete;
         const by = this.buildingDrawY(b);
@@ -606,6 +620,10 @@ export class Renderer {
       v.root.zIndex = iy + (flying ? 1000 : 0);
       v.root.visible = true;
       const bodyTint = state.tick - u.lastDamageTick < 3 ? 0xff8080 : (state.tick < state.players[u.owner].bronzeUntil ? 0xffd28a : 0xffffff);
+      // poeira dos pés, cascos e rodas (Etapa 5): só quem está à vista e na tela (o laço já cortou o resto), pela
+      // velocidade do tick; a densidade cai com o número de unidades andando na tela (fx/logic.ts footDustRate)
+      const mdx = u.x - u.px, mdy = u.y - u.py, md2 = mdx * mdx + mdy * mdy;
+      if (md2 > 4e-4 && !flying) this.fx.footstep(v.fxAcc, u.type, ix, iy, Math.sqrt(md2) / DT, mdx, mdy);
       if (v.unit) this.updateBakedUnit(state, u, v, ix, iy, bodyTint, color);
       else {
         // direção: movimento, ou o alvo quando parado atacando/coletando/construindo
@@ -700,13 +718,15 @@ export class Renderer {
       }
     }
   }
-  /** Fumaça de um edifício danificado: baforadas do terço de cima do quadro, na taxa do nível de dano. */
-  private emitSmoke(bv: BuildingView, b: Building, level: 1 | 2): void {
+  /** Fumaça de um edifício danificado: baforadas do terço de cima do quadro, na taxa do nível de dano (partículas do
+   *  fx, a receita da Etapa 3); muito danificado (nível 2), também chamas do flipbook `fire` no telhado (Etapa 5). */
+  private emitSmoke(bv: BuildingView, b: Building, level: 1 | 2, acc: FxAcc): void {
+    const hw = b.w * TILE * 0.38, top = bv.y - bv.top;
+    if (level === 2) this.fx.buildingFire(acc, 1.6 * Math.sqrt(b.w * b.h), bv.x - hw * 0.8, bv.x + hw * 0.8, top + bv.top * 0.3, top + bv.top * 0.62);
     bv.smokeAcc += smokeRate(level, b.w * b.h) * this.animDt;
     if (bv.smokeAcc < 1) return;
     const n = Math.floor(bv.smokeAcc); bv.smokeAcc -= n;
-    const hw = b.w * TILE * 0.38, top = bv.y - bv.top;
-    this.smoke.emit(n, bv.x - hw, bv.x + hw, top + bv.top * 0.12, top + bv.top * 0.45, level === 2);
+    this.fx.buildingSmoke(n, bv.x - hw, bv.x + hw, top + bv.top * 0.12, top + bv.top * 0.45, level === 2);
   }
 
   /**
@@ -1004,134 +1024,18 @@ export class Renderer {
     return url;
   }
 
-  // ---------------- Efeitos ----------------
-  /** Efeitos vistos no quadro (reutilizado). */
-  private fxSeen = new Set<VisualEffect>();
+  // ---------------- Efeitos (fx/: registro por tipo, partículas, decalques) ----------------
   /**
-   * Morte/petrificação de uma unidade assada: a animação 'die' (direção herdada da vista que sumiu neste quadro) ou a
-   * estátua (quadro parado em cinza), na faixa do y do pé. A queda corre no relógio de jogo a partir do tick da morte (em
-   * 2×/3× ela acelera junto com o efeito e chega ao último quadro) e só apaga depois dele. false = procedural.
+   * Efeitos do quadro: os handlers de cada VisualEffect/TimedEffect (fx/registry.ts), as partículas (orçamento total do
+   * preset com prioridade) e os decalques (névoa, vida, teto); o tremor pedido por eles vai para a câmera. Depois, os
+   * cadáveres assados e a limpeza das mortes/quedas deste quadro (que os handlers de morte e colapso já consultaram).
    */
-  private updateDying(state: GameState, e: VisualEffect): boolean {
-    const p = 1 - e.ttl / e.total;
-    let uv = this.dying.get(e);
-    if (!uv) {
-      if (this.fxViews.has(e)) return false;   // já desenhado pelo procedural (a arte chegou depois)
-      const type = typeof e.data === 'string' ? e.data : '';
-      const art = type && UNITS[type] && !UNITS[type].flying ? this.art.unit(type) : null;
-      if (!art) return false;
-      // petrificada: a estátua (efeito 'petrify' no mesmo ponto) substitui a queda
-      if (e.type === 'death' && state.effects.some((o) => o.type === 'petrify' && o.data === type && Math.abs(o.x - e.x) < 0.01 && Math.abs(o.y - e.y) < 0.01)) {
-        const c = new Container(); this.fxViews.set(e, c); this.layers.fx.addChild(c); return true;
-      }
-      let dir = 2;
-      for (const d of this.recentDeaths) if (d.type === type && Math.abs(d.x - e.x * TILE) < TILE && Math.abs(d.y - e.y * TILE) < TILE) { dir = d.dir; break; }
-      const color = PLAYER_COLORS[(e.owner ?? 0) % PLAYER_COLORS.length].num;
-      uv = new UnitView(art, this.art, type, color, this.layers.shadows, dir);
-      if (e.type === 'death') uv.pose('die', dir, this.animClock - (e.total - e.ttl) / TICK_RATE, true);
-      else { uv.pose('idle', dir, this.animClock); uv.tick(0, 0); uv.tint(0x9ca3af, 0x9ca3af); }
-      uv.place(e.x * TILE, e.y * TILE);
-      uv.root.zIndex = e.y - 0.01;
-      this.parentFor('unit', e.y, false).addChild(uv.root);
-      this.dying.set(e, uv);
-    }
-    if (e.type === 'death') { uv.tick(this.animClock, 0); uv.alpha = 1; }   // no fim do efeito vira cadáver (updateEffects)
-    else uv.alpha = 1 - p;
-    return true;
-  }
-
-  private updateEffects(state: GameState, ui: RenderUI): void {
-    const seen = this.fxSeen; seen.clear();
-    for (const e of state.effects) {
-      seen.add(e);
-      if ((e.type === 'death' || e.type === 'petrify') && this.bakedMode && this.updateDying(state, e)) continue;
-      let c = this.fxViews.get(e);
-      const p = 1 - e.ttl / e.total;
-      if (!c) {
-        c = new Container();
-        this.fxViews.set(e, c);
-        this.layers.fx.addChild(c);
-        if (e.type === 'projectile') { const s = new Sprite(this.tex.arrow(String(e.data))); s.anchor.set(0.5); c.addChild(s); }
-        else if (e.type === 'death' || e.type === 'petrify') {
-          if (typeof e.data === 'string' && UNITS[e.data]) { const s = new Sprite(this.tex.unit(e.data, PLAYER_COLORS[(e.owner ?? 0) % PLAYER_COLORS.length].num)); s.anchor.set(0.5); s.rotation = 1.2; if (e.type === 'petrify') s.tint = 0x9ca3af; c.addChild(s); }
-        } else if (e.type === 'collapse') {
-          // assada: o quadro damage2 (na variante que o edifício mostrava) afundando e apagando, poeira e escombros
-          let f = null;
-          if (this.bakedMode && typeof e.data === 'string') {
-            const gone = this.recentGone.find((g) => g.type === e.data && Math.abs(g.x - e.x * TILE) < 1 && Math.abs(g.y - e.y * TILE) < 1);
-            const art = this.art.buildingArt(e.data);
-            const variant = gone?.variant ?? (art?.variants ? art.variants[0] : null);
-            f = this.art.building(e.data, 'damage2', variant) ?? this.art.building(e.data, 'complete', variant);
-            if (!this.rubbleSeen.has(e)) {
-              this.rubbleSeen.add(e); this.addRubble(e, e.data);
-              const d = BUILDINGS[e.data];
-              if (d) this.smoke.emit(4 + d.w * d.h * 2, (e.x - d.w / 2) * TILE, (e.x + d.w / 2) * TILE, (e.y - d.h / 2) * TILE, (e.y + d.h / 3) * TILE, false);
-            }
-          }
-          if (f) {
-            // o quadro que cai vai para a faixa do edifício, na ordem por y dele (o que estava na frente continua na
-            // frente); poeira e fumaça seguem na camada de efeitos
-            const s = new Sprite(f.color); s.anchor.set(f.anchor.x, f.anchor.y); s.tint = 0x8a847c; c.addChild(s); this.bakedCollapses.add(c);
-            const d = BUILDINGS[e.data as string];
-            const zy = d?.passable ? e.y - d.h / 2 - 0.01 : e.y;
-            c.zIndex = zy;
-            this.parentFor('building', zy, false).addChild(c);
-          }
-          else if (typeof e.data === 'string' && BUILDINGS[e.data]) { const s = new Sprite(this.tex.building(e.data, 0x888888, true)); s.anchor.set(0.5); s.tint = 0x777777; c.addChild(s); }
-        } else if (e.type === 'quake') this.cam.shake = 10;
-        c.position.set(e.x * TILE, e.y * TILE);
-      }
-      if (e.type === 'projectile' && e.tx !== undefined && e.ty !== undefined) {
-        const x = e.x + (e.tx - e.x) * p, y = e.y + (e.ty - e.y) * p;
-        c.position.set(x * TILE, y * TILE - Math.sin(p * Math.PI) * 10);
-        c.rotation = Math.atan2(e.ty - e.y, e.tx - e.x);
-      } else if (e.type === 'death' || e.type === 'collapse' || e.type === 'petrify') {
-        c.alpha = 1 - p;
-        if (e.type === 'collapse') {
-          // assado: afunda (o monte de escombros fica por baixo); procedural: encolhe como antes
-          if (this.bakedCollapses.has(c)) { c.scale.set(1, 1 - p * 0.55); c.position.y = e.y * TILE + p * 6; }
-          else c.scale.set(1 - p * 0.2);
-        }
-      } else {
-        const g = (c.children[0] as Graphics | undefined) instanceof Graphics ? (c.children[0] as Graphics) : (() => { const ng = new Graphics(); c.addChild(ng); return ng; })();
-        g.clear();
-        switch (e.type) {
-          case 'hit': g.circle(0, 0, 4 + p * 6).fill({ color: 0xffffff, alpha: 0.8 * (1 - p) }); break;
-          case 'splash': g.circle(0, 0, (Number(e.data) || 1.5) * TILE * p).stroke({ width: 3, color: 0xf97316, alpha: 1 - p }); break;
-          case 'heal': g.circle(0, 0, (Number(e.data) || 8) * TILE * (0.3 + p * 0.7)).stroke({ width: 3, color: 0x4ade80, alpha: 1 - p }); break;
-          case 'spawn': g.circle(0, 0, 6 + p * 14).stroke({ width: 2, color: 0xffffff, alpha: 1 - p }); break;
-          case 'ability': g.circle(0, 0, 8 + p * Number(e.data ?? 1) * TILE).stroke({ width: 3, color: 0xfde047, alpha: 1 - p }); break;
-          case 'curse': g.circle(0, 0, 6 + p * 10).fill({ color: 0xec4899, alpha: 0.6 * (1 - p) }); break;
-          case 'pestilence': g.circle(0, 0, (Number(e.data) || 10) * TILE).fill({ color: 0x7e22ce, alpha: 0.18 * (1 - p) }); break;
-          case 'quake': g.circle(0, 0, (Number(e.data) || 7) * TILE).stroke({ width: 4, color: 0x92400e, alpha: 0.6 * (1 - p) }); this.cam.shake = Math.max(this.cam.shake, 4 * (1 - p)); break;
-          case 'titanRise': g.circle(0, 0, 20 + p * 120).stroke({ width: 6, color: 0xef4444, alpha: 1 - p }); this.cam.shake = 8; break;
-          case 'bolt': {
-            const top = -14 * TILE;
-            g.moveTo(0, top);
-            let y = top, x = 0;
-            while (y < 0) { y += 24; x += (Math.sin(y * 7.3 + e.x) * 12); g.lineTo(x * (1 - (y / top) * 0), y); }
-            g.lineTo(0, 0).stroke({ width: 3, color: 0xffffff, alpha: 1 - p * 0.7 }).moveTo(0, top).lineTo(0, 0).stroke({ width: 8, color: 0x60a5fa, alpha: 0.4 * (1 - p) });
-            g.circle(0, 0, 10 + p * 20).fill({ color: 0xbfdbfe, alpha: 0.6 * (1 - p) });
-            break;
-          }
-          default: break;
-        }
-      }
-    }
-    for (const [e, c] of this.fxViews) if (!seen.has(e)) { c.destroy({ children: true }); this.fxViews.delete(e); }
-    for (const [e, uv] of this.dying) if (!seen.has(e)) {
-      this.dying.delete(e);
-      // a queda acabou: o corpo fica no chão (último quadro de 'die') e apaga até CORPSE_TTL s da morte; a estátua sai
-      if (e.type === 'death' && uv.anim === 'die') {
-        uv.tick(this.animClock, 0);   // último quadro da queda (ela dura menos que o efeito)
-        this.corpses.push({ uv, born: uv.animStart });
-        if (this.corpses.length > MAX_CORPSES) this.corpses.shift()!.uv.destroy();
-      } else uv.destroy();
-    }
+  private updateEffects(): void {
+    const shake = this.fx.update();
+    if (shake > this.cam.shake) this.cam.shake = shake;
     this.updateCorpses();
     this.recentDeaths.length = 0;
     this.recentGone.length = 0;
-    void ui;
   }
 
   // ---------------- Editor de mapas ----------------
@@ -1296,12 +1200,14 @@ export class Renderer {
     if (clock > this.animClock || clock < this.animClock - 1) this.animClock = clock;
     this.animDt = Math.max(0, Math.min(0.25, this.animClock - prevClock));
     if (this.bakedMode) this.updateEdgeFrame(state.map.w, state.map.h);
+    // efeitos: o quadro começa antes das vistas (a poeira dos pés e a fumaça dos edifícios saem durante updateEntities)
+    this.fx.beginFrame({ state, local: ui.localPlayer, clock: this.animClock, dt: this.animDt, zoom: this.cam.zoom, baked: this.bakedMode, quality: this.quality, view: this.cam.visibleTiles(), revealAll: this.revealAll });
     this.updateTerrain(state, ui.localPlayer);
     this.updateEntities(state, alpha, ui);
     this.updateGround(state, alpha, ui);
-    this.updateEffects(state, ui);
+    this.updateEffects();
     this.updateRubble(state, ui.localPlayer);
-    this.smoke.update(this.animDt);
+    if (this.dayCycle.enabled) { const z = this.cam.zoom; this.dayCycle.update(this.animClock, { x: -this.world.x / z - 2, y: -this.world.y / z - 2, w: this.app.screen.width / z + 4, h: this.app.screen.height / z + 4 }); }
     this.updateEditor(state, ui);
     this.updateFog(state, ui.localPlayer);
     const o = this.overlay; o.clear();

@@ -157,7 +157,9 @@ export interface TimedEffect { type: string; owner: number; until: number; x?: n
 
 export interface GameEvent { tick: number; type: string; player: number; text?: string; x?: number; y?: number; data?: string }
 
-export interface VisualEffect { type: string; x: number; y: number; tx?: number; ty?: number; owner?: number; ttl: number; total: number; data?: string | number }
+/** Efeito puramente visual (fora do hash de sincronia e do save): o renderizador (src/render/fx) e o áudio o leem; `src` =
+ *  tipo de quem o causou (projétil: o atirador). */
+export interface VisualEffect { type: string; x: number; y: number; tx?: number; ty?: number; owner?: number; ttl: number; total: number; data?: string | number; src?: string }
 
 /** Texto por idioma guardado no estado ou na config (nome de entidade ou de facção, G8): resolvido por tx() ao exibir. */
 export interface LocalText { pt: string; en?: string }

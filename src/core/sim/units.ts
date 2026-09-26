@@ -426,7 +426,9 @@ function switchCargo(u: Unit, res: ResourceType): boolean {
 
 export function depleteNode(state: GameState, node: ResourceNode): void {
   removeNode(state.map, node.id);
-  state.effects.push({ type: 'nodeGone', x: node.x + 0.5, y: node.y + 0.5, ttl: 1, total: 1, data: node.type });
+  // ttl 6 (não 1): o cleanup do fim do tick desconta o ttl do efeito criado nele, e com ttl 1 nem o renderizador nem o
+  // áudio chegavam a vê-lo (efeito visual: fora do hash e do save)
+  state.effects.push({ type: 'nodeGone', x: node.x + 0.5, y: node.y + 0.5, ttl: 6, total: 6, data: node.type });
   // Redistribui todos que colhiam neste nó (inclusive quem está entregando ou voltando vazio), mantendo o recurso da tarefa
   const res = NODE_RESOURCE[node.type];
   const rt = getRuntime(state);

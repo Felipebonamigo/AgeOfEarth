@@ -25,6 +25,8 @@ export interface Quality {
   teamOutline: boolean;
   /** Arte assada (atlas do bake, docs/ART.md §3.7) onde houver; false = exatamente o visual procedural. */
   bakedArt: boolean;
+  /** Ciclo de luz (Etapa 5, pergunta 10): amanhecer/entardecer só na cor (ColorMatrixFilter); false = meio-dia fixo. */
+  dayCycle: boolean;
 }
 
 export const QUALITY_LEVELS: readonly QualityLevel[] = ['low', 'medium', 'high'];
@@ -48,7 +50,7 @@ export function isSoftwareRenderer(renderer: string | null | undefined): boolean
 /** Orçamento de partículas por nível (índice = Quality.particles). */
 export const PARTICLE_BUDGET = [200, 800, 2000] as const;
 
-type LevelSettings = Omit<Quality, 'preset' | 'showFps' | 'teamOutline' | 'antialias' | 'bakedArt'>;
+type LevelSettings = Omit<Quality, 'preset' | 'showFps' | 'teamOutline' | 'antialias' | 'bakedArt' | 'dayCycle'>;
 const LEVELS: Record<QualityLevel, LevelSettings> = {
   // Baixo / Steam Deck: 1×, sombras ligadas, partículas médias, água estática, shader simples, sem normais, cap 1
   low: { atlasScale: 1, shadows: true, particles: 1, water: 'static', terrainShader: 'simple', normalMaps: false, post: false, resolutionCap: 1 },
@@ -64,12 +66,12 @@ export function levelOf(preset: QualityPreset): QualityLevel { return preset ===
 /** Um nível abaixo ('low' fica 'low'). */
 export function lowerLevel(level: QualityLevel): QualityLevel { const i = QUALITY_LEVELS.indexOf(level); return QUALITY_LEVELS[Math.max(0, i - 1)]; }
 
-export interface QualityOptions { showFps?: boolean; teamOutline?: boolean; level?: QualityLevel; /** padrão true em todos os presets */ bakedArt?: boolean }
+export interface QualityOptions { showFps?: boolean; teamOutline?: boolean; level?: QualityLevel; /** padrão true em todos os presets */ bakedArt?: boolean; /** padrão false */ dayCycle?: boolean }
 
 /** Quality completa a partir do preset salvo e dos toggles avançados; `level` sobrepõe o nível (auto já rebaixado). */
 export function resolveQuality(preset: QualityPreset, opts: QualityOptions = {}): Quality {
   const level = opts.level ?? levelOf(preset);
-  return { preset, ...LEVELS[level], antialias: false, showFps: !!opts.showFps, teamOutline: !!opts.teamOutline, bakedArt: opts.bakedArt !== false };
+  return { preset, ...LEVELS[level], antialias: false, showFps: !!opts.showFps, teamOutline: !!opts.teamOutline, bakedArt: opts.bakedArt !== false, dayCycle: !!opts.dayCycle };
 }
 
 /** Resolução do canvas: min(teto, dpr) · renderScale (renderScale limitado a 0,25–1). */

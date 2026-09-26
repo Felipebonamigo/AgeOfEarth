@@ -21,6 +21,8 @@ export interface OptionsContext {
   setTeamOutline: (v: boolean) => void;
   /** Arte assada (sprites do bake) ligada/desligada; desligada = visual procedural. */
   setBakedArt?: (v: boolean) => void;
+  /** Ciclo de luz (amanhecer/entardecer só na cor; desligado = meio-dia fixo). */
+  setDayCycle?: (v: boolean) => void;
   setFullscreen: (v: boolean) => void;
   onLocaleChanged: () => void;
   onHotkeys: () => void;
@@ -56,6 +58,7 @@ export function optionsHTML(ctx: OptionsContext): string {
     <details style="${LBL}"><summary style="cursor:pointer">${t('menu.advanced')}</summary>
       <label style="${LBL};display:block;margin-top:4px"><input type="checkbox" id="o-fps" ${s.showFps ? 'checked' : ''}> ${t('menu.showFps')}</label>
       <label style="${LBL};display:block" title="${t('menu.teamOutlineTip')}"><input type="checkbox" id="o-outline" ${s.teamOutline ? 'checked' : ''}> ${t('menu.teamOutline')}</label>
+      <label style="${LBL};display:block" title="${t('menu.dayCycleTip')}"><input type="checkbox" id="o-daycycle" ${s.dayCycle ? 'checked' : ''}> ${t('menu.dayCycle')}</label>
     </details>
     ${ctx.setPad ? padOptionsHTML(s) : ''}
     <label style="${LBL}">${t('menu.language')} <select id="o-lang">${(Object.keys(LOCALE_NAMES) as Locale[]).map((l) => `<option value="${l}" ${getLocale() === l ? 'selected' : ''}>${LOCALE_NAMES[l]}</option>`).join('')}</select></label>
@@ -88,6 +91,7 @@ export function bindOptions(root: ParentNode, ctx: OptionsContext, rerender: () 
   q('#o-fps')?.addEventListener('change', (e) => ctx.setShowFps((e.target as HTMLInputElement).checked));
   q('#o-outline')?.addEventListener('change', (e) => ctx.setTeamOutline((e.target as HTMLInputElement).checked));
   q('#o-baked')?.addEventListener('change', (e) => ctx.setBakedArt?.((e.target as HTMLInputElement).checked));
+  q('#o-daycycle')?.addEventListener('change', (e) => ctx.setDayCycle?.((e.target as HTMLInputElement).checked));
   q('#o-lang')?.addEventListener('change', (e) => { setLocale((e.target as HTMLSelectElement).value as Locale); ctx.onLocaleChanged(); rerender(); });
   q('#o-hotkeys')?.addEventListener('click', () => ctx.onHotkeys());
   q('#o-pad-sens')?.addEventListener('change', (e) => ctx.setPad?.({ padSensitivity: Number((e.target as HTMLSelectElement).value) }));

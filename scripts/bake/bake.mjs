@@ -269,16 +269,19 @@ function measureOf(m) {
 function packAll(opts, manifests, hashes) {
   const outDir = path.resolve(ROOT, opts.out);
   fs.mkdirSync(outDir, { recursive: true });
-  // remove atlas antigos das escalas empacotadas agora (o conjunto é sempre refeito inteiro a partir do cache)
-  for (const f of fs.readdirSync(outDir)) if (opts.scales.some((s) => new RegExp(`-${s}x-\\d+\\.(png|json)$`).test(f))) fs.rmSync(path.join(outDir, f));
+  // remove atlas antigos das escalas empacotadas agora (o conjunto é sempre refeito inteiro a partir do cache); o grupo
+  // `fx` (Etapa 5) é do gerador próprio (scripts/bake/fx.mjs) e fica como está
+  for (const f of fs.readdirSync(outDir)) if (!f.startsWith('fx-') && opts.scales.some((s) => new RegExp(`-${s}x-\\d+\\.(png|json)$`).test(f))) fs.rmSync(path.join(outDir, f));
   const indexPath = path.join(outDir, 'manifest.json');
   const prev = fs.existsSync(indexPath) ? JSON.parse(fs.readFileSync(indexPath, 'utf8')) : null;
   const index = { version: 1, app: 'age-of-earth/scripts/bake', aoe: { ...atlasMeta({ pass: 'color', scale: 1, mirror: opts.mirror }) }, atlases: [], assets: {}, totals: {} };
   delete index.aoe.pass; delete index.aoe.pxPerTile;
   // escalas não refeitas agora continuam no índice
+  // (e o grupo `fx` do gerador de efeitos, em todas as escalas)
   if (prev) {
-    index.atlases = prev.atlases.filter((a) => !opts.scales.includes(a.scale));
+    index.atlases = prev.atlases.filter((a) => a.group === 'fx' || !opts.scales.includes(a.scale));
     for (const [id, a] of Object.entries(prev.assets)) {
+      if (a.kind === 'fx') { index.assets[id] = a; continue; }
       const keep = Object.fromEntries(Object.entries(a.atlases ?? {}).filter(([s]) => !opts.scales.includes(Number(s))));
       if (Object.keys(keep).length) index.assets[id] = { ...a, atlases: keep };
     }

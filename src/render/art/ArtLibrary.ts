@@ -17,7 +17,7 @@ import { ProceduralSource } from './ProceduralSource';
 import { pickScale, unitAnimName, buildingFrameName, rubbleName, BUILDING_STATES, GLOW_ANIM, glowFrameName, warmUnitTypes, type VariantBy } from './logic';
 import type { ArtAnimInfo, ArtGroup, ArtPass, ArtScale } from './types';
 
-const GROUPS: readonly ArtGroup[] = ['units', 'buildings', 'props', 'icons'];
+const GROUPS: readonly ArtGroup[] = ['units', 'buildings', 'props', 'icons', 'fx'];
 
 /** Arte assada de um tipo de unidade na escala servida. */
 export interface UnitArt {
@@ -325,6 +325,11 @@ export class ArtLibrary {
     if (!this.enabled || !this.atlas.manifest) return null;
     return this.frameOf('props', name, { team: false, shadow: true });
   }
+  /** Quadros do atlas de efeitos (`fx`, Etapa 5: projéteis, partículas, fogo, decalques) na escala servida; null =
+   *  desligada, carregando ou sem o atlas (os efeitos usam o atlas procedural de reserva, fx/FxTextures.ts). */
+  fxPass(): PassFrames | null { return this.enabled && this.atlas.manifest ? this.passOf('fx', 'color') : null; }
+  /** Escala servida do atlas `fx` (null = nenhuma). */
+  fxScale(): ArtScale | null { return this.enabled && this.atlas.manifest ? this.served('fx') : null; }
   /** Os atlas de props estão servidos (o renderizador troca o atlas procedural de nós pelos props assados). */
   propsReady(): boolean { return this.enabled && !!this.atlas.manifest && this.served('props') !== null; }
 

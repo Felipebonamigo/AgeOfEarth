@@ -11,6 +11,7 @@ import { PNG } from 'pngjs';
 import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, posesOf, FRAME_NAME_RE, GROUP_OF, BUILDING_STATES, ICON_PX, type ArtManifest, type AssetKind } from './manifest.mjs';
 import { PX_PER_TILE, PITCH_DEG, PIPELINE_VERSION, DIRS, FPS } from './page/camera.js';
 import { SHADOW_TEXEL } from './page/atlas.js';
+import { fxNames, FX_PROJECTILES, FX_DIRS, FX_FIRE_FRAMES } from './fx/catalog.mjs';
 
 /** Orçamento (docs/ART.md §6 e §3.5). Tamanhos de quadro a 1× (multiplicados pela escala). */
 export const BUDGET = {
@@ -19,13 +20,18 @@ export const BUDGET = {
   // texturas residentes, pior caso (§6: ≤ 250 MB a 1×) — POR ESCALA: uma partida carrega uma escala só (1× ou 2×, pelo
   // preset) e o pacote 2× é o mesmo conteúdo com 4× os texels, então o teto do 2× é ×4 (vramBudgetMB)
   maxVramMB: 250,
-  maxSourceSize: { unit: 128, building: 256, prop: 224, icon: ICON_PX } as Record<AssetKind | 'icon', number>,
+  maxSourceSize: { unit: 128, building: 256, prop: 224, icon: ICON_PX, fx: 64 } as Record<AssetKind | 'icon' | 'fx', number>,
+  /** Atlas `fx` (Etapa 5: projéteis, partículas, fogo, decalques — scripts/bake/fx.mjs): VRAM pequena, por escala em
+   *  texels de 1× (como os outros: o 2× pode ter 4×). */
+  maxFxVramMB: 2,
 };
+/** Nomes de quadro do atlas `fx` (`proj/arrow/3`, `fire/05`, `decal/burn/1`, `spark`). */
+export const FX_NAME_RE = /^[a-z][a-z0-9_]*(\/[a-z0-9_]+)*$/;
 
 interface SheetFrame { frame: { x: number; y: number; w: number; h: number }; spriteSourceSize: { x: number; y: number; w: number; h: number }; sourceSize: { w: number; h: number }; anchor: { x: number; y: number } }
 interface Sheet { frames: Record<string, SheetFrame>; animations: Record<string, string[]>; meta: { image: string; size: { w: number; h: number }; scale: string; aoe: Record<string, unknown> } }
 interface IndexAtlas { json: string; image: string; group: string; pass: string; scale: number; texel?: number; w: number; h: number; frames: number; bytes: number; sha256: string }
-interface ArtIndex { version: number; aoe: Record<string, unknown>; atlases: IndexAtlas[]; assets: Record<string, { kind: AssetKind; mirror: boolean; variants?: string[]; variantBy?: string; icon?: boolean; rubble?: boolean; anims?: Record<string, unknown>; atlases: Record<string, Partial<Record<'color' | 'team' | 'shadow', string[]>>> }>; totals: { pngBytes: number; vramBytes: number } }
+interface ArtIndex { version: number; aoe: Record<string, unknown>; atlases: IndexAtlas[]; assets: Record<string, { kind: AssetKind | 'fx'; items?: string[]; mirror: boolean; variants?: string[]; variantBy?: string; icon?: boolean; rubble?: boolean; anims?: Record<string, unknown>; atlases: Record<string, Partial<Record<'color' | 'team' | 'shadow', string[]>>> }>; totals: { pngBytes: number; vramBytes: number } }
 
 /** Poses que o manifesto de unidade pede (`pose` no arquivo do rig, `rider` no do cavaleiro) existem nos arquivos. */
 export function poseErrors(root: string, m: ArtManifest): string[] {
@@ -87,8 +93,8 @@ export function runCheck(root: string): CheckResult {
     if (sheet.meta.image !== a.image || sheet.meta.scale !== String(a.scale * texel)) errors.push(`${a.json}: meta.image/scale incoerentes`);
     for (const [name, f] of Object.entries(sheet.frames)) {
       stats.frames++;
-      const kind: AssetKind | 'icon' = a.group === 'icons' ? 'icon' : (Object.keys(GROUP_OF) as AssetKind[]).find((k) => GROUP_OF[k] === a.group)!;
-      if (!FRAME_NAME_RE[kind].test(name)) errors.push(`${a.json}: nome de quadro fora do padrão: ${name}`);
+      const kind: AssetKind | 'icon' | 'fx' = a.group === 'fx' ? 'fx' : a.group === 'icons' ? 'icon' : (Object.keys(GROUP_OF) as AssetKind[]).find((k) => GROUP_OF[k] === a.group)!;
+      if (!(kind === 'fx' ? FX_NAME_RE : FRAME_NAME_RE[kind]).test(name)) errors.push(`${a.json}: nome de quadro fora do padrão: ${name}`);
       const { x, y, w, h } = f.frame;
       if (x < 0 || y < 0 || x + w > png.width || y + h > png.height) errors.push(`${a.json}: ${name} fora do atlas`);
       if (!(f.anchor.x >= 0 && f.anchor.x <= 1 && f.anchor.y >= 0 && f.anchor.y <= 1)) errors.push(`${a.json}: ${name} âncora fora de [0,1]`);
@@ -169,10 +175,43 @@ export function runCheck(root: string): CheckResult {
       }
     }
   }
+  errors.push(...fxErrors(index, sheets, warnings));
   if (stats.pngBytes > BUDGET.maxPngMB * 1048576) errors.push(`PNG somam ${(stats.pngBytes / 1048576).toFixed(1)} MB > ${BUDGET.maxPngMB} MB`);
   for (const [scale, bytes] of Object.entries(stats.vramByScale)) if (bytes > vramBudgetMB(Number(scale)) * 1048576) errors.push(`atlas ${scale}× somam ${(bytes / 1048576).toFixed(1)} MB de VRAM > ${vramBudgetMB(Number(scale))} MB`);
   if (index.totals.pngBytes !== stats.pngBytes) errors.push('totals.pngBytes do índice difere dos arquivos');
   return { errors, warnings, stats };
+}
+
+/**
+ * Atlas `fx` (Etapa 5, scripts/bake/fx.mjs): o asset `fx` do índice lista os itens do catálogo; em cada escala todo item
+ * está no passe de cor, os projéteis têm as 8 direções (animação `proj/<tipo>`), o fogo os 8 quadros, e a VRAM do grupo
+ * fica dentro de `maxFxVramMB` (texels de 1×). Sem o asset (atlas ainda não gerado): aviso, não erro.
+ */
+export function fxErrors(index: ArtIndex, sheets: Map<string, Sheet>, warnings: string[]): string[] {
+  const e: string[] = [];
+  const asset = index.assets.fx;
+  if (!asset) { warnings.push('fx: atlas de efeitos ainda não gerado (npm run art:fx)'); return e; }
+  const expected = fxNames();
+  if (asset.kind !== 'fx') e.push(`fx: kind ${asset.kind} no índice`);
+  if (JSON.stringify(asset.items) !== JSON.stringify(expected)) e.push('fx: itens do índice ≠ catálogo (rode npm run art:fx)');
+  const vram: Record<string, number> = {};
+  for (const a of index.atlases) if (a.group === 'fx') vram[a.scale] = (vram[a.scale] ?? 0) + a.w * a.h * 4;
+  for (const [scale, byPass] of Object.entries(asset.atlases)) {
+    const frames = new Map<string, SheetFrame>(); const anims: Record<string, string[]> = {};
+    for (const j of byPass.color ?? []) { const sh = sheets.get(j); if (!sh) continue; for (const [n, f] of Object.entries(sh.frames)) frames.set(n, f); Object.assign(anims, sh.animations); }
+    const missing = expected.filter((n) => !frames.has(n));
+    if (missing.length) e.push(`fx ${scale}×: ${missing.length} quadros ausentes (ex.: ${missing.slice(0, 3).join(', ')})`);
+    for (const k of FX_PROJECTILES) {
+      const list = anims[`proj/${k}`];
+      if (!list || list.length !== FX_DIRS || list.some((n, d) => n !== `proj/${k}/${d}`)) e.push(`fx ${scale}×: projétil ${k} sem as ${FX_DIRS} direções na animação proj/${k}`);
+    }
+    if ((anims.fire ?? []).length !== FX_FIRE_FRAMES) e.push(`fx ${scale}×: fogo com ${(anims.fire ?? []).length} quadros (esperado ${FX_FIRE_FRAMES})`);
+    if ((byPass.team ?? []).length || (byPass.shadow ?? []).length) e.push(`fx ${scale}×: o grupo fx só tem o passe de cor`);
+    const mb = (vram[scale] ?? 0) / Number(scale) / Number(scale) / 1048576;
+    if (mb > BUDGET.maxFxVramMB) e.push(`fx ${scale}×: ${mb.toFixed(2)} MB de VRAM (texels de 1×) > ${BUDGET.maxFxVramMB} MB`);
+  }
+  if (!asset.atlases['1']) e.push('fx: sem a escala 1× (obrigatória)');
+  return e;
 }
 
 export type { ArtManifest };

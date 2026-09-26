@@ -5,7 +5,7 @@
 | Comando | O que cobre | Tempo |
 |---|---|---|
 | `npm run typecheck` | Tipos estritos | ~10 s |
-| `npm test` | 706 testes em 45 arquivos (26/09/2026, integração da Etapa 4 da arte: `art-cavalry`, `art-distancia-cerco` e `art-heroes` — kits, poses, pé/sombra/altura e silhuetas a zoom 1 das 17 unidades da etapa, habilidade Q pela recarga do núcleo — e, no `art-manifest`, a sombra a ½ resolução e as páginas em múltiplos de 32 px); antes, 631 em 40 (com a Fase 6: `steam` — conquistas servem de API name e têm PT/EN, planilha do Steamworks em dia, espelho do Steam Cloud igual no jogo e no processo principal, `planCloudSync`, limites do IPC, gravação/restauração de ponta a ponta numa pasta real, nenhuma gravação de chave espelhada fora do `storeSet`, servidor padrão no Electron, licenças SPDX sem GPL/AGPL e lista da tela Créditos em dia com os lockfiles); antes, 616 em 39 (anti-trapaça 4.5 e a revisão): fuzz determinístico de comandos e regras de validação (`command-fuzz`: 7 200 comandos malucos numa partida em curso sem exceção, invariantes — sem NaN, recursos ≥ 0, população coerente, ids/guarnições consistentes — e o mesmo hash/save em duas execuções; entrada do `NetworkScheduler`: ids repetidos e limites por tick, tick em que o par não é aguardado, deus com nome do protótipo), relatório de dessincronização (`desync-report`: dois pares em memória com estado adulterado → tick, hashes e categoria/jogador divergentes), relay anti-trapaça (`relay-anticheat`: comando em nome de outra vaga, tick repetido/para trás, JSON malformado, quadro WebSocket inválido, mensagem grande, limite de taxa também do anfitrião, ficha de reconexão, instantâneo só pedido, configurações saneadas), texto de outros pares no HUD (`hud-text`: aviso e falas nunca viram HTML), justiça de posição (`position-fairness`: referenciais, desempates, kit, rodízio das IAs, sondagens de simetria do Egeu e do Estreito, poderes e entidades espelhados), versão da simulação no relay (`relay-version`), dados (inclui `checkMap` dos mapas embutidos, recursos iguais por início e mapas oficiais reprodutíveis pelos scripts), determinismo, pathfinding, simulação, regressões, cenários, lockstep/reconexão, modos, mapas fixos, editor, qualidade, áudio, controle, shader do terreno | ~15 s |
+| `npm test` | 760 testes em 52 arquivos (26/09/2026, base da Etapa 5 da arte: `fx-registry` — o registro de efeitos contra o que o núcleo emite, sem `default`, os 16 tipos rodando numa partida em Node —, `particles` — orçamento total e prioridade por preset, tetos por família, relógio de jogo, física 2,5D, flipbook, a receita da fumaça da Etapa 3 —, `decals` — teto, vida, névoa —, `fx-logic` — arco e sombra pelo contrato de luz, direção + resto, material do golpe, poeira de marcha, ciclo de luz desligado por padrão e com `filterArea` — e `fx-atlas` — índice, catálogo = renderizador, 8 direções, fogo, VRAM, `puff` igual à da Etapa 3); antes, 706 em 45 (integração da Etapa 4 da arte: `art-cavalry`, `art-distancia-cerco` e `art-heroes` — kits, poses, pé/sombra/altura e silhuetas a zoom 1 das 17 unidades da etapa, habilidade Q pela recarga do núcleo — e, no `art-manifest`, a sombra a ½ resolução e as páginas em múltiplos de 32 px); antes, 631 em 40 (com a Fase 6: `steam` — conquistas servem de API name e têm PT/EN, planilha do Steamworks em dia, espelho do Steam Cloud igual no jogo e no processo principal, `planCloudSync`, limites do IPC, gravação/restauração de ponta a ponta numa pasta real, nenhuma gravação de chave espelhada fora do `storeSet`, servidor padrão no Electron, licenças SPDX sem GPL/AGPL e lista da tela Créditos em dia com os lockfiles); antes, 616 em 39 (anti-trapaça 4.5 e a revisão): fuzz determinístico de comandos e regras de validação (`command-fuzz`: 7 200 comandos malucos numa partida em curso sem exceção, invariantes — sem NaN, recursos ≥ 0, população coerente, ids/guarnições consistentes — e o mesmo hash/save em duas execuções; entrada do `NetworkScheduler`: ids repetidos e limites por tick, tick em que o par não é aguardado, deus com nome do protótipo), relatório de dessincronização (`desync-report`: dois pares em memória com estado adulterado → tick, hashes e categoria/jogador divergentes), relay anti-trapaça (`relay-anticheat`: comando em nome de outra vaga, tick repetido/para trás, JSON malformado, quadro WebSocket inválido, mensagem grande, limite de taxa também do anfitrião, ficha de reconexão, instantâneo só pedido, configurações saneadas), texto de outros pares no HUD (`hud-text`: aviso e falas nunca viram HTML), justiça de posição (`position-fairness`: referenciais, desempates, kit, rodízio das IAs, sondagens de simetria do Egeu e do Estreito, poderes e entidades espelhados), versão da simulação no relay (`relay-version`), dados (inclui `checkMap` dos mapas embutidos, recursos iguais por início e mapas oficiais reprodutíveis pelos scripts), determinismo, pathfinding, simulação, regressões, cenários, lockstep/reconexão, modos, mapas fixos, editor, qualidade, áudio, controle, shader do terreno | ~15 s |
 | `npm run balance 30 1,2,3,4,5,6` | 6 partidas IA×IA de 30 min: idades (Clássica ~5, Heroica 12–18, Mítica 19–26), ninguém travado | ~2 min |
 | `npx tsx scripts/missions.ts` | Todas as missões do registro × 3 dificuldades: validação, viabilidade passiva e o roteiro do jogador (`MISSION_SCRIPTS` em `src/core/scenario/testing.ts`) vencendo dentro da janela. Referência 26/09/2026 (depois da correção do viés de posição; roteiros da m2, m5 e m7 reajustados e janela da m4 revista para 15m–39m — só o roteiro/janela, nunca a missão; causas em `docs/STORY.md` §4 e §7.2): m1 14m39s/14m26s/15m55s, m2 19m33s/15m32s/15m25s, m3 18m30s/19m10s/19m16s, m4 16m14s/19m00s/19m09s, m5 15m55s/16m55s/17m55s (variante "escolta" 6m08s/7m55s/8m59s), m6 19m36s/20m02s/22m17s, m7 17m47s/17m00s/22m52s (Fácil/Normal/Difícil). Para rodar em paralelo: `npx tsx scripts/missions.ts 14 m1_despertar,m2_cerco,m3_portal` etc. | ~8 min (1 processo) |
 | `npm run map:check [arquivo.map.json…]` | Sem arquivos: os mapas embutidos. Validação (erros/avisos), tabela de recursos por início (raio 16) e 2 min de IA×IA em cada (`src/core/map/check.ts`, o mesmo que `tests/data.test.ts` exige): falha com erro, IA parada ou partida encerrada no 1º minuto | ~5 s |
@@ -257,6 +257,63 @@ Leitura:
 - **Texturas 67,9 → 83,9 MB** (Baixo): +16 MB pelas 3 páginas de unidades (cor 2048×2016 + 2048×992, máscara 2048×1024,
   sombra 2048×960, com mipmaps), já descontada a economia da sombra a ½ nos edifícios e props e das páginas NPOT.
 - **Draw calls iguais** (6–8), longe do teto de 40.
+
+## Desempenho do renderizador — Etapa 5 da arte (base: efeitos, partículas, decalques, 26/09/2026)
+
+Antes = build da `main` atual (db1877c, Etapa 4 integrada; efeitos no `switch` de `renderer.ts`; porta 4251) e depois =
+a base da Etapa 5 (porta 4250), rodadas alternadas na mesma máquina (4 CPUs). `rendercpu` ganhou `--battle N`: depois dos
+20 min da partida de perf (144×144, 3 IAs Muito difícil, 260 unidades, 133 edifícios), N × N no meio do mapa (hoplita,
+toxota, peltasta, hipeu, hipaspista com vida alta, ataque-mover um contra o outro) e um 5º cenário `fight` (zoom 1 no meio
+da batalha: flechas, dardos, golpes, poeira, decalques). É o critério "batalha 100×100 dentro do orçamento" da Etapa 5.
+
+**CPU sem rasterização** (`rendercpu --battle 100`, preset Baixo = orçamento de 800 partículas, 150 quadros × 2 passadas
+por rodada, arte assada; antes = média de 3 rodadas, depois = as 2 últimas rodadas — as 2 primeiras, sem os cortes
+de custo abaixo, davam render 0,47 / 1,45 / 0,77 / 0,52 / 0,57 ms; a build final só acrescenta os sprites de projéteis
+sob demanda; `docs/perf/2026-09-26-etapa5-antes{,-r2,-r3}-cpu.json` e `…-depois{,-r2,-r3,-r4}-cpu.json`):
+
+| Cenário | render antes → depois (ms) | Pixi antes → depois (ms) | sprites | partículas (pico) |
+|---|---|---|---|---|
+| zoom 1 (cidade) | 0,42 → 0,48 | 0,87 → 0,83 | 758–899 → 763–900 | 75–125 |
+| mapa inteiro | 1,29 → 1,38 | 3,76 → 3,57 | 5 809–5 827 → 5 834–5 836 | 189–323 |
+| zoom 1,5 aglomerado | 0,61 → 0,79 | 1,26 → 1,29 | 824–842 → 831–844 | 194–305 |
+| rolagem | 0,43 → 0,50 | 1,08 → 1,04 | 660–710 → 664–708 | 102–349 |
+| **batalha 100 × 100** (`fight`) | **0,56 → 0,54** | **1,14 → 1,09** | 1 062–1 121 → 1 063–1 114 | **161–262** (0 descartadas, 9 decalques) |
+
+No preset **Alto** (orçamento 2 000, atlas 2×; `…-{antes,depois}-alto-cpu.json`, 1 rodada): batalha 0,58 → 0,81 ms
+(Pixi 1,17 → 1,25), aglomerado 0,38 → 0,60 ms (Pixi 0,78 → 1,05), pico de 153–248 partículas.
+
+**`renderperf` no preset Baixo** (`--reveal`, 12 s por cenário; antes = 2 rodadas, depois = 3 rodadas, a última com a
+build final; `docs/perf/2026-09-26-etapa5-{antes,depois}-baixo{,-r2,-r3}.json`):
+
+| Cenário | fps antes → depois | render média ms antes → depois | draw calls | tex MB |
+|---|---|---|---|---|
+| zoom 1 (cidade) | 6,0 → 6,8 | 0,69 → 0,94 | 6 → 7 | 84,2 → 85,0 |
+| mapa inteiro | 9,7 → 8,9 | 1,30 → 1,36 | 7–8 → 8 | 84,3 → 85,1 |
+| zoom 1,5 aglomerado | 7,1 → 8,1 | 0,86 → 1,07 | 7–8 → 10 | 84,3 → 85,1 |
+| rolagem | 7,9 → 8,3 | 0,90 → 0,94 | 7 → 9 | 84,3 → 85,1 |
+
+**Perfil por parte** (build final, `fight`/`battle`/zoom 1/mapa inteiro, ms por quadro com o cronômetro em volta de
+cada chamada — números de teto): `fx.update` 0,07–0,17 (partículas 0,03–0,08, decalques ≤ 0,002, o resto nos handlers
+de 7–31 efeitos vivos), `footstep` 0,02–0,07, `beginFrame` ≤ 0,007.
+
+Leitura:
+- **A batalha 100 × 100 cabe no orçamento**: pico de 262 de 800 partículas no Baixo (248 de 2 000 no Alto), nada
+  descartado, e a CPU do cenário `fight` igual à da `main` (os efeitos de antes — um `Container` + `Graphics` por golpe —
+  custavam o mesmo que as partículas em lote de agora).
+- **CPU do nosso código +0,06–0,18 ms** nos cenários da partida (poeira dos pés, fumaça/fogo dos edifícios danificados,
+  handlers de todos os efeitos vivos do mapa) e +0,22 ms no Alto; 0,5–1,4 ms no total, bem abaixo do orçamento de §6
+  do ART.md (≤ 3 ms). O Pixi fica igual (±5 % no Baixo): dois `ParticleContainer` a mais.
+- No `renderperf` a diferença parece maior (+0,25 ms na cidade) porque a 6–9 fps de software cada quadro cobre ~0,15 s
+  de jogo e emite ~8× as partículas de um quadro a 60 fps; o `rendercpu` (60 quadros por segundo de jogo) é o número
+  que vale. fps dentro do ruído.
+- **+1–2 draw calls** (lote normal, lote aditivo e os decalques: 7–10 no total, teto 40) e **+0,8 MB de texturas** (o
+  atlas `fx` a 1×: 672×256).
+- Cortados na medição: ciclo de luz sem `filterArea` (o Pixi media os limites de todos os filhos do mundo: +0,63 ms →
+  +0,16 ms ligado; desligado não há filtro), a conferência do atlas `fx` a cada quadro (0,04 → 0,005 ms), sprites de
+  projéteis fora da tela (agora só nascem ao entrar na tela) e a poeira dos pés com o mapa inteiro na tela
+  (`DUST_MIN_ZOOM` = 0,5).
+- **Falta a GPU real**: partículas aditivas e o `multiply` dos decalques custam fill rate que o swiftshader não mostra —
+  medir com `?perf=1` no PC e no Deck (pendência do dono).
 
 ## Matriz de testes (6.8, por versão candidata)
 

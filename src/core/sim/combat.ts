@@ -134,8 +134,10 @@ export function performAttack(state: GameState, attacker: Unit | Building, targe
   const owner = state.players[attacker.owner];
   const ranged = attacker.kind === 'building' || getUnitStats(state, owner, attacker.type).range >= 1.6;
   const kind = attacker.kind === 'building' ? 'arrow' : (UNITS[attacker.type].cls === 'siege' ? 'rock' : (UNITS[attacker.type].cls === 'myth' ? 'bolt' : 'arrow'));
-  if (ranged) state.effects.push({ type: 'projectile', x: attacker.x, y: attacker.y, tx: target.x, ty: target.y, owner: attacker.owner, ttl: 8, total: 8, data: kind });
-  else state.effects.push({ type: 'hit', x: target.x, y: target.y, ttl: 6, total: 6 });
+  // efeitos puramente visuais (fora do hash e do save): `src` = quem atirou (o renderizador escolhe flecha/dardo/pedra/
+  // espinho pelo tipo) e `data` do golpe = tipo do alvo (faíscas no bronze, lascas na madeira/pedra, poeira no resto)
+  if (ranged) state.effects.push({ type: 'projectile', x: attacker.x, y: attacker.y, tx: target.x, ty: target.y, owner: attacker.owner, ttl: 8, total: 8, data: kind, src: attacker.type });
+  else state.effects.push({ type: 'hit', x: target.x, y: target.y, ttl: 6, total: 6, data: target.type });
   if (attacker.kind === 'unit') attacker.attackTick = state.tick;
   // Petrificação da Medusa
   if (attacker.kind === 'unit' && UNITS[attacker.type].special === 'petrify' && target.kind === 'unit') {

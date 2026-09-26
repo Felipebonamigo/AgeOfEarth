@@ -215,7 +215,7 @@ export class Input {
         s.issue({ type: 'repair', player: s.local, ids: cmd.ids, targetId: (target as Building).id, queue });
       } else s.issue(cmd);
       this.audio.play('command');
-      s.state.effects.push({ type: 'spawn', x, y, ttl: 8, total: 8 });
+      s.state.effects.push({ type: 'spawn', x, y, ttl: 8, total: 8, data: 'order' });   // marcador de clique (visual; fx/handlers/spawn.ts)
     }
   }
 
@@ -340,7 +340,7 @@ export class Input {
     const w = this.worldAt(this.mouse.x, this.mouse.y);
     if (!this.attackMove(w.x, w.y, queue)) return false;
     if (s.ui.mode === 'attackMove') this.hud.cancelMode();
-    s.state.effects.push({ type: 'spawn', x: w.x, y: w.y, ttl: 8, total: 8 });
+    s.state.effects.push({ type: 'spawn', x: w.x, y: w.y, ttl: 8, total: 8, data: 'order' });
     return true;
   }
   /** Q: habilidade do herói selecionado (a pronta primeiro). */

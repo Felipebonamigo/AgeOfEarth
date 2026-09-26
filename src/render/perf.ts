@@ -14,6 +14,8 @@ export interface PerfSnapshot {
   drawCalls: number; drawCallsMax: number;
   /** Texturas residentes na GPU (estimativa: largura × altura × 4 bytes, ×4/3 com mipmaps). */
   textureMB: number; textures: number;
+  /** Efeitos (Etapa 5): partículas vivas / orçamento do preset, pico, recusadas, decalques e a fonte das texturas. */
+  fx?: { particles: number; budget: number; peak: number; dropped: number; decals: number; source: string };
   /** Sprites visíveis na cena e chunks de terreno desenhados (quads do ChunkMesh no último quadro). */
   sprites: number; chunks: number;
   /** Resolução do canvas e tamanho em pixels. */
@@ -110,12 +112,14 @@ export class PerfMonitor {
       textureMB: +tex.mb.toFixed(1), textures: tex.n,
       sprites: this.countSprites(), chunks: this.renderer.visibleChunks ?? 0,
       resolution: app?.renderer?.resolution ?? 1, canvas: app ? `${app.canvas.width}×${app.canvas.height}` : '',
+      fx: this.renderer.fx?.stats(),
     };
   }
   private text(): string {
     const s = this.snapshot();
     return `${String(s.fps).padStart(5)} fps  render ${s.render.avg.toFixed(2)} ms (p95 ${s.render.p95.toFixed(1)})\n` +
       `${String(s.drawCalls).padStart(5)} draw calls (máx ${s.drawCallsMax})  ${s.textureMB.toFixed(1)} MB tex (${s.textures})\n` +
-      `${String(s.sprites).padStart(5)} sprites  ${s.chunks} chunks  ${s.canvas} @${s.resolution}x`;
+      `${String(s.sprites).padStart(5)} sprites  ${s.chunks} chunks  ${s.canvas} @${s.resolution}x` +
+      (s.fx ? `\n${String(s.fx.particles).padStart(5)}/${s.fx.budget} partículas (pico ${s.fx.peak})  ${s.fx.decals} decalques  fx ${s.fx.source}` : '');
   }
 }

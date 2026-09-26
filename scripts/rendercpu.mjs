@@ -6,7 +6,10 @@
 //   pixi   = app.renderer.render (Pixi: transformações, lotes, upload e comandos GL — sem esperar a GPU)
 // em 4 vistas (zoom 1 numa cidade, mapa inteiro, zoom 1,5 no maior aglomerado, rolagem), alternando a arte assada
 // (--modes, p = procedural, a = assada; a build base sem a opção ignora). Grava docs/perf/<data>-<rótulo>-cpu.json.
-// Uso: node scripts/rendercpu.mjs [url] [--frames 150] [--modes papa] [--quality low] [--label texto] [--minutes 20]
+// `--battle N` (Etapa 5): antes de medir, N contra N no meio do mapa (hoplita, toxota, peltasta, hipeu, hipaspista, vida
+// alta, ataque-mover um contra o outro) e um 5º cenário `fight` (zoom 1 no meio da batalha: projéteis, golpes, poeira,
+// decalques) — com o pico de partículas e os decalques do sistema de efeitos, se a build tiver (`renderer.fx`).
+// Uso: node scripts/rendercpu.mjs [url] [--frames 150] [--modes papa] [--quality low] [--label texto] [--minutes 20] [--battle 100] [--views zoom1,fight]
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -21,6 +24,8 @@ const modes = opt('--modes', 'papa').split('').map((c) => c === 'a');
 const quality = opt('--quality', 'low');
 const warm = Number(opt('--minutes', 20));
 const label = opt('--label', 'cpu');
+const battle = Number(opt('--battle', 0));
+const VIEWS = opt('--views', battle ? 'zoom1,zoomOut,battle,scroll,fight' : 'zoom1,zoomOut,battle,scroll').split(',');
 const date = new Date().toISOString().slice(0, 10);
 let commit = ''; try { commit = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch { /* fora do git */ }
 
@@ -49,6 +54,22 @@ const info = await page.evaluate((min) => {
   return { units: st.units.size, buildings: st.buildings.size, localAlive: tcs.some((b) => b.owner === s.local) };
 }, 260);
 console.log('estado:', JSON.stringify(info));
+// batalha N × N no meio do mapa (as duas IAs mais próximas do centro não importam: ids próprios, ataque-mover)
+const fightAt = battle ? await page.evaluate((N) => {
+  const s = window.aoe.session, st = s.state, me = s.local, foe = st.players.find((p) => p.id !== me && p.alive)?.id ?? 1;
+  const cx = Math.floor(st.map.w / 2), cy = Math.floor(st.map.h / 2), types = ['hoplite', 'toxotes', 'peltast', 'hippeus', 'hypaspist'];
+  const a = [], b = [];
+  for (let i = 0; i < N; i++) {
+    const t = types[i % types.length], row = Math.floor(i / 10), col = i % 10;
+    const u = window.aoe.debugSpawn(me, t, cx - 9 - col * 0.9, cy - 6 + row * 1.3); if (u) { u.hp = u.maxHp = 2500; a.push(u.id); }
+    const v = window.aoe.debugSpawn(foe, t, cx + 9 + col * 0.9, cy - 6 + row * 1.3); if (v) { v.hp = v.maxHp = 2500; b.push(v.id); }
+  }
+  s.scheduler.issue({ type: 'attackMove', player: me, ids: a, x: cx + 12, y: cy });
+  s.scheduler.issue({ type: 'attackMove', player: foe, ids: b, x: cx - 12, y: cy });
+  for (let i = 0; i < 60; i++) s.scheduler.step(st);   // 3 s: as linhas se encontram
+  return { x: cx, y: cy, a: a.length, b: b.length };
+}, battle) : null;
+if (fightAt) console.log('batalha:', JSON.stringify(fightAt));
 
 const run = (view) => page.evaluate(([view, N]) => {
   const s = window.aoe.session, st = s.state, R = window.aoe.renderer, app = R.app;
@@ -57,9 +78,11 @@ const run = (view) => page.evaluate(([view, N]) => {
   if (view === 'zoom1') { R.cam.zoom = 1; R.cam.centerOn(tc.x, tc.y + 3); }
   else if (view === 'zoomOut') R.fitMap();
   else if (view === 'scroll') { R.cam.zoom = 1; R.cam.centerOn(40, 40); }
+  else if (view === 'fight') { R.cam.zoom = 1; R.cam.centerOn(st.map.w / 2, st.map.h / 2); }
   else { R.cam.zoom = 1.5; let best = null, bn = -1; for (const u of st.units.values()) { if (u.inside !== -1) continue; let n = 0; for (const v of st.units.values()) if (v.inside === -1 && Math.abs(v.x - u.x) < 12 && Math.abs(v.y - u.y) < 8) n++; if (n > bn) { bn = n; best = u; } } R.cam.centerOn(best.x, best.y); }
   const ui = window.aoe.input.renderUI();
   const tR = [], tP = [];
+  const fx = R.fx; if (fx) fx.particles.resetStats();
   for (let i = 0; i < N + 20; i++) {
     if (i % 3 === 0) s.scheduler.step(st);
     if (view === 'scroll' && i % 3 === 0) { const t = i / 3; R.cam.centerOn(40 + (t * 3) % 100, 40 + (t * 2) % 100); }
@@ -68,7 +91,8 @@ const run = (view) => page.evaluate(([view, N]) => {
   }
   const stat = (v) => { const x = [...v].sort((p, q) => p - q); return { avg: +(x.reduce((p, q) => p + q, 0) / x.length).toFixed(3), med: +x[Math.floor(x.length / 2)].toFixed(3), p95: +x[Math.floor(x.length * 0.95)].toFixed(2) }; };
   let spr = 0; const walk = (o) => { if (!o.visible) return; if (o.texture) spr++; for (const ch of o.children ?? []) walk(ch); }; walk(R.world);
-  return { render: stat(tR), pixi: stat(tP), sprites: spr };
+  const f = fx ? fx.stats() : null;
+  return { render: stat(tR), pixi: stat(tP), sprites: spr, ...(f ? { fx: { peak: f.peak, budget: f.budget, dropped: f.dropped, decals: f.decals, effects: f.effects } } : {}) };
 }, [view, N]);
 
 const results = [];
@@ -76,16 +100,16 @@ for (const baked of modes) {
   await page.evaluate((b) => { window.aoe.settings.bakedArt = b; window.aoe.applyQuality(); }, baked);
   await page.evaluate(() => window.aoe.renderer.art?.ready());
   await page.waitForTimeout(300);
-  for (const v of ['zoom1', 'zoomOut', 'battle', 'scroll']) {
+  for (const v of VIEWS) {
     const r = await run(v);
     results.push({ baked, view: v, ...r });
-    console.log(`${baked ? 'assada    ' : 'procedural'} ${v.padEnd(8)} render ${r.render.avg} (med ${r.render.med}, p95 ${r.render.p95})  pixi ${r.pixi.avg} (med ${r.pixi.med}, p95 ${r.pixi.p95})  sprites ${r.sprites}`);
+    console.log(`${baked ? 'assada    ' : 'procedural'} ${v.padEnd(8)} render ${r.render.avg} (med ${r.render.med}, p95 ${r.render.p95})  pixi ${r.pixi.avg} (med ${r.pixi.med}, p95 ${r.pixi.p95})  sprites ${r.sprites}` + (r.fx ? `  partículas pico ${r.fx.peak}/${r.fx.budget} decalques ${r.fx.decals}` : ''));
   }
 }
 console.log('errors:', errors.length ? errors.join('\n') : 'none');
 await browser.close();
 mkdirSync('docs/perf', { recursive: true });
 const file = join('docs/perf', `${date}-${label}-cpu.json`);
-writeFileSync(file, JSON.stringify({ date, commit, label, url, quality, frames: N, note: 'CPU por quadro (ms) em laço síncrono, resolução 0,25 (sem rasterização relevante); render = renderer.render, pixi = app.renderer.render.', scenario: { ...info, warmMinutes: warm }, results, errors }, null, 2) + '\n');
+writeFileSync(file, JSON.stringify({ date, commit, label, url, quality, frames: N, note: 'CPU por quadro (ms) em laço síncrono, resolução 0,25 (sem rasterização relevante); render = renderer.render, pixi = app.renderer.render.', scenario: { ...info, warmMinutes: warm, battle: fightAt }, results, errors }, null, 2) + '\n');
 console.log('gravado em', file);
 if (errors.length) process.exit(1);
