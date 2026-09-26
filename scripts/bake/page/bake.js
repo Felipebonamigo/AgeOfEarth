@@ -39,7 +39,7 @@ const gl = renderer.getContext();
 const M = createMaterials(THREE);
 // Reflexo de ambiente só nos metais (sem ele o bronze metálico fica quase preto fora do brilho do sol)
 const envTex = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
-for (const k of ['bronze', 'bronzeDark', 'iron', 'gold', 'bronzeBlack']) { M[k].envMap = envTex; M[k].envMapIntensity = 0.55; }
+for (const k of ['bronze', 'bronzeDark', 'iron', 'gold', 'bronzeBlack', 'mirror', 'fleece']) { M[k].envMap = envTex; M[k].envMapIntensity = 0.55; }
 const scene = new THREE.Scene();
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), M.shadowGround);
 ground.rotation.x = -Math.PI / 2;

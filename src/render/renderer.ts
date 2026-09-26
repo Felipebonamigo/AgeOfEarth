@@ -2,7 +2,7 @@
 import { Application, Container, Graphics, Sprite, Texture, Text, TextStyle } from 'pixi.js';
 import { effectiveResolution, resolveQuality, PARTICLE_BUDGET, type Quality } from './quality';
 import { TILE, TICK_RATE, DT, PLAYER_COLORS, KOTH_RADIUS, rankOf } from '../core/constants';
-import { BUILDINGS, UNITS } from '../core/data';
+import { ABILITIES, BUILDINGS, UNITS } from '../core/data';
 import type { Building, GameState, Unit, VisualEffect } from '../core/types';
 import { Camera } from './camera';
 import { TextureCache, darken } from './textures';
@@ -20,7 +20,7 @@ import { UnitView } from './views/UnitView';
 import { BuildingView } from './views/BuildingView';
 import { SmokeLayer } from './particles';
 import {
-  animDuration, buildingState, chooseAnim, deathAlpha, dirWithHysteresis, freshHit, isWalking, isRunning, isMoveAnim, warmUnitTypes, mulColor, type UnitAnim, type AnimInput,
+  abilityUseTick, animDuration, buildingState, chooseAnim, deathAlpha, dirWithHysteresis, freshHit, isWalking, isRunning, isMoveAnim, warmUnitTypes, mulColor, type UnitAnim, type AnimInput,
   WALL_LINK_TYPES, wallMask, buildingVariant, ageTier, farmCrop, damageLevel, gateNear, smokeRate, smokeBudget, rubbleAlpha, GLOW_ANIM, glowVariant,
   ghostTint, placementMasks, wallFlagAt, WALL_FLAG_PROBE,
 } from './art/logic';
@@ -31,6 +31,11 @@ const BG = 0x0b1020;
 const POST_SLACK = 0.15;
 /** Zoom mínimo padrão da partida; em mapas grandes/telas pequenas cai até enquadrar o mapa inteiro (ver updateMinZoom). */
 const DEFAULT_MIN_ZOOM = 0.35;
+/** Tick do último uso da habilidade do herói (-1: nunca, ou tipo sem habilidade), lido da recarga do núcleo. */
+function abilityTick(u: Unit): number {
+  const id = UNITS[u.type]?.ability;
+  return id ? abilityUseTick(u.abilityReadyAt, ABILITIES[id].cooldown * TICK_RATE) : -1;
+}
 /** Raio (em tiles) do anel de cada início no editor: o gerador limpa esse raio e o kit inicial cabe dentro dele. */
 export const START_RING_RADIUS = 8;
 /** Deslocamentos (em tiles, a partir do centro do CC) onde createGame põe os 5 cidadãos e o batedor do kit inicial. */
@@ -122,7 +127,7 @@ export class Renderer {
   private tmpVec = { x: 0, y: 0 };
   /** Ponto do alvo de quem está no posto (engagedTarget). */
   private tgtPt = { x: 0, y: 0 };
-  private animIn: AnimInput = { moving: false, attacking: false, carrying: false, working: false, engaged: false, running: false };
+  private animIn: AnimInput = { moving: false, attacking: false, carrying: false, working: false, engaged: false, running: false, ability: false };
   /** Relógio (s) das animações assadas: tempo de JOGO, (tick + alpha)/TICK_RATE, nunca voltando para trás. Congela na
    *  pausa e na espera do lockstep (ninguém anda no lugar) e acelera em 2×/3× junto com o movimento e os efeitos (a queda
    *  cabe no efeito 'death' em qualquer velocidade). O relógio real (`time`) segue para água, balanço procedural e tremor. */
@@ -479,6 +484,7 @@ export class Renderer {
       if (!art) return undefined;
       const uv = new UnitView(art, this.art, e.type, color, this.layers.shadows, 2);
       uv.lastAttackTick = e.attackTick;   // um golpe antigo não dispara a animação de ataque ao criar a vista
+      uv.lastAbilityTick = abilityTick(e);   // nem uma habilidade antiga
       const v: EntityView = { root: uv.root, body: uv.body, shadow: uv.shadow, type: e.type, color, complete: true, angle: Math.PI / 2, carry: null, unit: uv, bld: null };
       this.parentFor('unit', e.y, false).addChild(uv.root);
       this.views.set(e.id, v);
@@ -728,7 +734,16 @@ export class Renderer {
     const hit = freshHit(u.attackTick, uv.lastAttackTick, state.tick, atk ? Math.ceil(animDuration(atk.frames, atk.fps) * TICK_RATE) : 0);
     uv.lastAttackTick = u.attackTick;
     const attacking = hit || (uv.anim === 'attack' && !uv.finished(clock));
+    // habilidade do herói (Q): toca uma vez do quadro 0 no tick do uso, por cima do resto (só com a animação no atlas)
+    const abi = art.anims.ability;
+    let abFresh = false;
+    if (abi) {
+      const used = abilityTick(u);
+      abFresh = freshHit(used, uv.lastAbilityTick, state.tick, Math.ceil(animDuration(abi.frames, abi.fps) * TICK_RATE));
+      uv.lastAbilityTick = used;
+    }
     const ai = this.animIn;
+    ai.ability = abFresh || (uv.anim === 'ability' && !uv.finished(clock));
     ai.moving = walking; ai.attacking = attacking; ai.carrying = u.carry === 'food' && u.carryAmt >= 1;
     ai.working = posted && (u.state === 'gather' || u.state === 'build');
     // cavalaria: galope (`run`) na velocidade dela; em formação com a infantaria anda mais devagar e trota (`walk`).
@@ -736,7 +751,7 @@ export class Renderer {
     ai.running = walking && art.has('run') && isRunning(disp2, DT, uv.anim === 'run');
     ai.engaged = posted && u.state === 'attack';
     const anim: UnitAnim = chooseAnim(ai, art.has);
-    uv.pose(anim, dir, clock, hit && anim === 'attack');
+    uv.pose(anim, dir, clock, (hit && anim === 'attack') || (abFresh && anim === 'ability'));
     uv.tick(clock, (u.id % 13) * 0.077);
     uv.place(ix * TILE, iy * TILE);
     uv.tint(bodyTint, mulColor(color, bodyTint));

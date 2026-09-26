@@ -34,8 +34,8 @@ for (const a of index.atlases) {
   if (!images.has(a.image)) images.set(a.image, PNG.sync.read(fs.readFileSync(path.join(ART, a.image))));
   for (const [name, f] of Object.entries(json.frames)) frames[a.pass].set(name, { ...f, img: images.get(a.image) });
 }
-// colunas: poses a mostrar (anim, dir, quadro); a mira só para quem a tem
-const POSES = [['idle', 2, 0], ['idle', 1, 0], ['idle', 0, 0], ['idle', 6, 0], ['walk', 1, 2], ['attack', 1, 1], ['aim', 1, 0], ['run', 1, 2]];
+// colunas: poses a mostrar (anim, dir, quadro); a mira, o galope e a habilidade (Q) só para quem os tem
+const POSES = [['idle', 2, 0], ['idle', 1, 0], ['idle', 0, 0], ['idle', 6, 0], ['walk', 1, 2], ['attack', 1, 1], ['aim', 1, 0], ['run', 1, 2], ['ability', 1, 3]];
 const cols = POSES.filter(([anim]) => ids.some((id) => index.assets[id]?.anims?.[anim]));
 const CW = Math.round(1.6 * PPT), CH = Math.round(1.9 * PPT);   // célula: 1,6 × 1,9 tiles (pé a 72 %)
 const cw = CW * cols.length, ch = CH * ids.length;

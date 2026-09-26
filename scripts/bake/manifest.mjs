@@ -34,9 +34,12 @@ export const RIGS = ['human', 'horse', 'siege', 'building', 'props'];
 /** Rigs de unidade (registro em scripts/bake/page/rigs/units.js) e o arquivo de poses padrão de cada um. */
 export const UNIT_RIG_POSES = DEFAULT_POSES;
 /** Animações de unidade que o renderizador conhece (src/render/art/logic.ts `UnitAnim`): as 4 obrigatórias e as
- *  especiais — carry/gather (cidadão), aim (à distância no posto entre disparos), run (galope acima de RUN_SPEED). */
-export const UNIT_ANIMS = ['idle', 'walk', 'attack', 'die', 'carry', 'gather', 'aim', 'run'];
+ *  especiais — carry/gather (cidadão), aim (à distância no posto entre disparos), run (galope acima de RUN_SPEED) e
+ *  ability (a habilidade Q do herói, uma vez, no tick em que é usada). */
+export const UNIT_ANIMS = ['idle', 'walk', 'attack', 'die', 'carry', 'gather', 'aim', 'run', 'ability'];
 export const REQUIRED_UNIT_ANIMS = ['idle', 'walk', 'attack', 'die'];
+/** Animações de unidade que tocam uma vez (sem loop), do quadro 0: golpe/disparo, morte e habilidade. */
+export const ONCE_UNIT_ANIMS = ['attack', 'die', 'ability'];
 
 /** Arquivo de poses de um manifesto de unidade paramétrico (o do rig, se o manifesto não trouxer) e o do cavaleiro. */
 export function posesOf(m) {
@@ -179,7 +182,7 @@ export function expandFrames(m, { mirror = false } = {}) {
     return out;
   }
   for (const [anim, a] of Object.entries(m.anims ?? {})) {
-    const loop = a.loop ?? (m.kind === 'unit' ? !['attack', 'die'].includes(anim) : true);
+    const loop = a.loop ?? (m.kind === 'unit' ? !ONCE_UNIT_ANIMS.includes(anim) : true);
     if (m.kind === 'building' && m.variants) {
       for (const v of m.variants) out.push({ name: `${m.id}/${anim}/${v}`, group: m.id, anim, variant: v, dir: 0, frame: 0, frames: 1, loop, params: a.params });
       continue;
@@ -217,7 +220,7 @@ export function animationsOf(m, { mirror = false } = {}) {
 export function animSummary(m) {
   const out = {};
   for (const [anim, a] of Object.entries(m.anims ?? {})) {
-    out[anim] = { frames: a.frames, fps: a.fps ?? FPS, loop: a.loop ?? (m.kind === 'unit' ? !['attack', 'die'].includes(anim) : true) };
+    out[anim] = { frames: a.frames, fps: a.fps ?? FPS, loop: a.loop ?? (m.kind === 'unit' ? !ONCE_UNIT_ANIMS.includes(anim) : true) };
   }
   return out;
 }
