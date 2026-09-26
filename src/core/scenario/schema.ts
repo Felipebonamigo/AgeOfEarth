@@ -60,7 +60,7 @@ export type Condition =
   // G13: abates com autor do jogador (vítimas inimigas: unidades e edifícios); type = tipo da vítima; by.tag = só os feitos
   // por entidades do grupo da tag (golpe, flecha, dano em área; poderes e atrito não têm entidade autora)
   | ({ kills: KillsFilter } & Cmp);
-export interface KillsFilter { player: PlayerSel; type?: string | string[]; by?: { tag: string } }
+export interface KillsFilter { player: PlayerSel; type?: string | string[]; by?: { tag: string } | { type: string } }
 /** G11: poderes por roteiro — remove tira, add concede (sem repetir), reset devolve o uso a quem já o tem (nesta ordem). */
 export interface PowersEdit { add?: string[]; remove?: string[]; reset?: string[] }
 
@@ -548,7 +548,11 @@ class Validator {
           const one = (x: unknown, p: string) => { if (typeof x !== 'string' || !(has(UNITS, x) || has(BUILDINGS, x))) this.err(p, `tipo desconhecido: '${String(x)}'`); };
           if (Array.isArray(k.type)) k.type.forEach((x, i) => one(x, `${path}.kills.type[${i}]`)); else one(k.type, `${path}.kills.type`);
         }
-        if (k.by !== undefined && (!isObj(k.by) || typeof k.by.tag !== 'string' || Object.keys(k.by).some((x) => x !== 'tag'))) this.err(`${path}.kills.by`, 'esperado { tag }');
+        if (k.by !== undefined) {
+          const b = k.by;
+          if (!isObj(b) || Object.keys(b).length !== 1 || !(typeof b.tag === 'string' || typeof b.type === 'string')) this.err(`${path}.kills.by`, 'esperado { tag } ou { type }');
+          else if (typeof b.type === 'string' && !(has(UNITS, b.type) || has(BUILDINGS, b.type))) this.err(`${path}.kills.by.type`, `tipo desconhecido: '${b.type}'`);
+        }
       }
       this.cmp(c, path, inLoop, true);
       return;

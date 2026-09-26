@@ -71,4 +71,7 @@ export interface ScenarioState {
 export interface KillLog {
   byPlayer: Record<string, number>;
   byEntity: Record<string, Record<string, number>>;
+  /** `${jogador autor}:${tipo da entidade autora}` → { tipo da vítima: n } (kills.by.type: o herói retreinado conta); só existe
+   * depois do 1º abate com entidade autora (saves antigos: ausente). */
+  byType?: Record<string, Record<string, number>>;
 }

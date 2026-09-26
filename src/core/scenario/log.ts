@@ -28,6 +28,10 @@ export function recordKill(state: GameState, victimType: string, killerOwner: nu
   const ke = `${killerOwner}:${killer.id}`;
   const row = log.byEntity[ke] ?? (log.byEntity[ke] = {});
   row[victimType] = (row[victimType] ?? 0) + 1;
+  const byType = log.byType ?? (log.byType = {});
+  const kt = `${killerOwner}:${killer.type}`;
+  const trow = byType[kt] ?? (byType[kt] = {});
+  trow[victimType] = (trow[victimType] ?? 0) + 1;
 }
 
 /** G11: quantas vezes o jogador usou o poder desde o início da partida. */
@@ -37,9 +41,10 @@ export function powerUseCount(sc: ScenarioState | undefined, player: number, pow
 
 /**
  * G13: abates do jogador `player` (autor), só das vítimas de `types` (ausente = todas) e, com `byIds`, só os feitos por
- * essas entidades (o grupo de uma tag: ids de unidades/edifícios do próprio jogador, vivos ou não).
+ * essas entidades (o grupo de uma tag: ids de unidades/edifícios do próprio jogador, vivos ou não); com `byType`, só os
+ * feitos por entidades desse tipo (qualquer uma do jogador: o herói único retreinado conta como o original).
  */
-export function killCount(sc: ScenarioState | undefined, player: number, types?: readonly string[], byIds?: readonly number[]): number {
+export function killCount(sc: ScenarioState | undefined, player: number, types?: readonly string[], byIds?: readonly number[], byType?: string): number {
   const log = sc?.kills; if (!log || player < 0) return 0;
   const sum = (row: Record<string, number> | undefined, prefix = ''): number => {
     if (!row) return 0;
@@ -47,6 +52,7 @@ export function killCount(sc: ScenarioState | undefined, player: number, types?:
     let n = 0; for (const [k, v] of Object.entries(row)) if (k.startsWith(prefix)) n += v;
     return n;
   };
+  if (byType !== undefined) return sum(log.byType?.[`${player}:${byType}`]);
   if (!byIds) return sum(log.byPlayer, `${player}:`);
   let n = 0;
   for (const id of new Set(byIds)) n += sum(log.byEntity[`${player}:${id}`]);
@@ -68,6 +74,7 @@ export function sanitizeScenarioLog(sc: { powerUses?: unknown; kills?: unknown }
   if (isObj(sc.kills)) {
     kills.byPlayer = counts(sc.kills.byPlayer);
     if (isObj(sc.kills.byEntity)) for (const [k, row] of Object.entries(sc.kills.byEntity)) { const r = counts(row); if (Object.keys(r).length) kills.byEntity[k] = r; }
+    if (isObj(sc.kills.byType)) for (const [k, row] of Object.entries(sc.kills.byType)) { const r = counts(row); if (Object.keys(r).length) (kills.byType ??= {})[k] = r; }
   }
   return { powerUses: counts(sc.powerUses), kills };
 }
