@@ -2146,7 +2146,9 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
     ],
   },
   m10_otris: {
-    minutes: 50, expect: [21, 45.5],
+    // janela revista de propósito para 20m–45m30s (§4 da STORY): com a IA que não mira alvos invulneráveis (m12), o exército de
+    // Hades deixa de ficar preso no Portão de Bronze selado e o cerco anda mais depressa — o Fácil vence aos 20m56s
+    minutes: 50, expect: [20, 45.5],
     // o exército da IA do jogador nunca sai em ondas: no Rei da Colina ele se reúne no Altar do Tempo (e o segura); o cerco é do roteiro
     hold: { time: { gte: 0 } },
     // o cofre das máquinas: a IA do jogador não gasta o preço de uma helépole enquanto faltarem máquinas (os passos o usam)

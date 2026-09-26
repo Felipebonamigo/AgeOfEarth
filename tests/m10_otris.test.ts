@@ -372,10 +372,10 @@ describe('m10_otris', () => {
     try { expect(scenarioHudHtml(campaignMission('m10_otris')!, s)).toContain('⏳ Altar of Time'); } finally { setLocale('pt'); }
   }, 60_000);
 
-  it('registro e roteiro: Ato III depois da m9; janela da §4 ±30 % (30–35 min → 21m–45m30s)', () => {
+  it('registro e roteiro: Ato III depois da m9; janela 20m–45m30s (§4 ±30 %, piso revisto: a IA não mira alvos invulneráveis)', () => {
     const ids = CAMPAIGN.map((e) => e.id);
     expect(ids.indexOf('m10_otris')).toBe(ids.indexOf('m9_tenaro') + 1);
     expect(CAMPAIGN.find((e) => e.id === 'm10_otris')?.act).toBe(3);
-    expect(MISSION_SCRIPTS.m10_otris.expect).toEqual([21, 45.5]);
+    expect(MISSION_SCRIPTS.m10_otris.expect).toEqual([20, 45.5]);
   });
 });
