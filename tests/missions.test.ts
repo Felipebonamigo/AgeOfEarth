@@ -2,7 +2,7 @@
 // validação estática (JSON: erros e lint), viabilidade passiva curta (≤ 6 min simulados: sem exceção, sem vitória, nenhum
 // objetivo antes de 60 s, no máximo 1 de cada Titã, toda invasão gerou unidades, duas execuções com o mesmo stateHash) e o
 // harness do jogador roteirizado. O roteiro longo (vitória dentro da janela) fica em scripts/missions.ts.
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
 import { CAMPAIGN } from '../src/core/scenario/campaign';
 import { lintScenario, scenarioErrors, validateScenario, type ScenarioFile } from '../src/core/scenario/schema';
 import { MISSION_SCRIPTS, failedChecks, fmtOutcome, runPassive, runScripted, scriptVerdict, staticMissionIssues, type MissionRunResult } from '../src/core/scenario/testing';
@@ -11,6 +11,11 @@ import m1Json from '../src/core/scenario/missions/m1_despertar.scenario.json';
 
 const PASSIVE_MINUTES = 6;
 const DIFFS = ['easy', 'normal', 'hard'] as const;
+
+// Os casos deste arquivo são síncronos e longos (partidas simuladas): sem ceder o laço de eventos entre eles, a resposta do
+// "onTaskUpdate" do vitest só é lida no fim do arquivo e, com a máquina carregada (> 60 s no total), o worker acusa
+// "Timeout calling onTaskUpdate" mesmo com todos os testes verdes. Um setTimeout(0) depois de cada caso deixa a RPC andar.
+afterEach(() => new Promise<void>((r) => { setTimeout(r, 0); }));
 
 describe('missões do registro: validação estática', () => {
   // TODAS as missões do registro (TS compiladas e JSON); antes só as JSON geravam casos (e o registro ainda não tem nenhuma)
@@ -93,6 +98,42 @@ describe('harness do jogador roteirizado', () => {
     // cofre que nunca vale: igual a não ter cofre (mesmo stateHash)
     const never = runScripted('m1_despertar', { minutes: 3, difficulty: 'normal', steps, deterministic: false, reserve: { when: { time: { lt: 0 } }, resources: { wood: 100000 } } });
     expect(never.hash).toBe(free.hash);
+  }, 180_000);
+
+  it('destacamento (detach): a IA do jogador não comanda as unidades destacadas; destacamento vazio não muda nada', () => {
+    const steps = MISSION_SCRIPTS.m1_despertar.steps;
+    const free = runScripted('m1_despertar', { minutes: 2, difficulty: 'normal', steps, deterministic: false });
+    const empty = runScripted('m1_despertar', { minutes: 2, difficulty: 'normal', steps, deterministic: false, detach: () => [] });
+    expect(empty.hash).toBe(free.hash);
+    // o batedor: a IA o manda explorar; destacado, ele fica onde nasceu (os passos veem e observam tudo)
+    const scoutTrail = (detached: boolean) => {
+      const at: { x: number; y: number }[] = [];
+      const scout = (st: import('../src/core/types').GameState) => [...st.units.values()].find((u) => u.owner === 0 && !u.dead && u.type === 'kataskopos');
+      const obs = { label: 'obs', when: { time: { gte: 1 } }, every: 10, command: (st: import('../src/core/types').GameState) => { const k = scout(st); if (k) at.push({ x: k.x, y: k.y }); return null; } };
+      const r = runScripted('m1_despertar', { minutes: 2, difficulty: 'normal', steps: [...steps, obs], deterministic: false, ...(detached ? { detach: (st: import('../src/core/types').GameState) => { const k = scout(st); return k ? [k.id] : []; } } : {}) });
+      expect(r.checks.noException).toBe(true);
+      const d = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
+      return Math.max(...at.map((p) => d(p, at[0])));
+    };
+    expect(scoutTrail(false)).toBeGreaterThan(10);
+    expect(scoutTrail(true)).toBeLessThan(0.5);
+  }, 180_000);
+
+  it('poderes guardados (keepPowers): a IA do jogador não gasta o poder guardado (os passos, sim); lista vazia não muda nada', () => {
+    // m7: Argos começa na Heroica com o Oráculo, que a IA do jogador usa no 2º segundo
+    let oracleUsed: boolean | undefined;
+    const watch = { label: 'olho', when: { time: { gte: 0 } }, every: 1, command: (st: import('../src/core/types').GameState) => { oracleUsed = st.players[0].powers.find((p) => p.id === 'oracle')?.used; return null; } };
+    const free = runScripted('m7_aquiles', { minutes: 1, difficulty: 'normal', steps: [watch], deterministic: false });
+    expect(oracleUsed).toBe(true);
+    runScripted('m7_aquiles', { minutes: 1, difficulty: 'normal', steps: [watch], deterministic: false, keepPowers: ['oracle'] });
+    expect(oracleUsed).toBe(false);
+    // o passo usa o poder guardado quando quer
+    const use = { label: 'oráculo', when: { time: { gte: 30 } }, command: () => ({ type: 'power' as const, player: 0, power: 'oracle' }) };
+    const kept = runScripted('m7_aquiles', { minutes: 1, difficulty: 'normal', steps: [watch, use], keepPowers: ['oracle'] });
+    expect(oracleUsed).toBe(true);
+    expect(kept.checks.deterministic).toBe(true);
+    const empty = runScripted('m7_aquiles', { minutes: 1, difficulty: 'normal', steps: [watch], deterministic: false, keepPowers: [] });
+    expect(empty.hash).toBe(free.hash);
   }, 180_000);
 
   it('as checagens pegam os defeitos de autoria: objetivo no segundo 1 (tag futura), invasão sem alvo e dois Titãs iguais', () => {
