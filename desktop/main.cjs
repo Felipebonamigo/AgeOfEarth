@@ -3,10 +3,16 @@ const { app, BrowserWindow, ipcMain, shell, dialog, protocol, net } = require('e
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const { pathToFileURL } = require('node:url');
+const cloud = require('./cloud.cjs');
 
 // O jogo é servido por um protocolo próprio (app://game/…) em vez de file://: o fetch dos atlas de arte e do
 // manifesto (public/art) não funciona em file://, e uma origem fixa mantém o localStorage (saves, opções) estável.
 const GAME_DIR = app.isPackaged ? path.join(process.resourcesPath, 'game') : path.join(__dirname, '..', 'dist');
+// Perfil fixo (localStorage, opções e a pasta saves/ do Steam Cloud): %APPDATA%\age-of-earth-desktop no Windows,
+// ~/.config/age-of-earth-desktop no Linux, ~/Library/Application Support/age-of-earth-desktop no macOS. É o nome que o
+// Electron já usava (o "name" do package.json); fixado aqui para que mudar o package.json nunca "perca" os saves nem
+// desalinhe o caminho cadastrado no Steam Auto-Cloud (docs/STEAM.md §4). Não mude.
+app.setPath('userData', path.join(app.getPath('appData'), 'age-of-earth-desktop'));
 protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }]);
 
 function serveGame() {
@@ -61,6 +67,13 @@ ipcMain.handle('file:save', async (e, name, content) => {
   await fs.writeFile(r.filePath, content, 'utf8');
   return true;
 });
+// Espelho dos saves em arquivos (Steam Auto-Cloud sincroniza esta pasta; docs/STEAM.md §4): só chaves da lista fixa de
+// cloud.cjs, texto de até 16 MB, nome do arquivo derivado da chave (a página nunca escolhe caminho).
+const savesDir = () => path.join(app.getPath('userData'), 'saves');
+const fromGame = (e) => { try { return new URL(e.senderFrame?.url ?? '').protocol === 'app:'; } catch { return false; } };
+ipcMain.handle('cloud:readAll', (e) => (fromGame(e) ? cloud.readAll(savesDir()) : {}));
+ipcMain.handle('cloud:write', (e, key, value) => fromGame(e) && cloud.write(savesDir(), key, value));
+ipcMain.handle('cloud:remove', (e, key) => fromGame(e) && cloud.remove(savesDir(), key));
 ipcMain.handle('file:open', async (e) => {
   const w = BrowserWindow.fromWebContents(e.sender);
   const r = await dialog.showOpenDialog(w, { properties: ['openFile'], filters: [{ name: 'Age of Earth', extensions: ['json'] }] });

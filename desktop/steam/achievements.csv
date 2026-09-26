@@ -1,0 +1,41 @@
+api_name,hidden,icon,name_brazilian,desc_brazilian,name_english,desc_english
+first_temple,0,⚡,Primeira Oferenda,Conclua um Templo.,First Offering,Complete a Temple.
+classical,0,🏛️,Filósofo,Alcance a Idade Clássica.,Philosopher,Reach the Classical Age.
+heroic,0,⚔️,Canção dos Heróis,Alcance a Idade Heroica.,Song of Heroes,Reach the Heroic Age.
+mythic,0,🔱,Toque dos Deuses,Alcance a Idade Mítica.,Touch of the Gods,Reach the Mythic Age.
+titans,0,🌋,Titanomaquia,Alcance a Idade dos Titãs.,Titanomachy,Reach the Age of Titans.
+titan_summoned,0,⛓️,Correntes Rompidas,Liberte um Titã.,Broken Chains,Unleash a Titan.
+hero_trio,0,🦁,Argonautas,Tenha três heróis vivos ao mesmo tempo.,Argonauts,Have three heroes alive at the same time.
+menagerie,0,🐉,Bestiário,Tenha cinco criaturas míticas diferentes vivas ao mesmo tempo.,Bestiary,Have five different mythic creatures alive at the same time.
+kills_100,0,🛡️,Muro de Escudos,Abata 100 unidades inimigas em uma partida.,Shield Wall,Kill 100 enemy units in one match.
+kills_500,0,💀,Flagelo do Tártaro,Abata 500 unidades inimigas em uma partida.,Scourge of Tartarus,Kill 500 enemy units in one match.
+razed_25,0,🪨,Demolidor,Destrua 25 edifícios inimigos em uma partida.,Wrecker,Destroy 25 enemy buildings in one match.
+territory_2000,0,🗺️,Império,Controle 2000 tiles de território.,Empire,Control 2000 tiles of territory.
+all_techs_line,0,📚,Biblioteca de Alexandria,"Pesquise Civismo V, Comércio V, Militar V e Ciência V.",Library of Alexandria,"Research Civics V, Commerce V, Military V and Science V."
+win_conquest,0,🏆,Conquistador,Vença por conquista.,Conqueror,Win by conquest.
+win_wonder,0,🗽,Maravilha do Mundo,Vença mantendo uma Maravilha.,Wonder of the World,Win by holding a Wonder.
+win_no_loss,0,✨,Intocável,Vença uma partida rápida perdendo menos de 10 unidades.,Untouchable,Win a quick match losing fewer than 10 units.
+win_brutal,0,🔥,Domador de Titãs,Vença uma partida rápida contra uma IA Muito difícil.,Titan Tamer,Win a quick match against a Very Hard AI.
+all_gods,0,🌐,Ecumênico,"Jogue partidas com Zeus, Poseidon e Hades.",Ecumenical,"Play matches as Zeus, Poseidon and Hades."
+horde_10,0,🚪,Guardião das Portas,Sobreviva a 10 ondas no Modo Horda.,Keeper of the Gates,Survive 10 waves in Horde Mode.
+horde_20,0,👑,Senhor do Tártaro,Vença o Modo Horda.,Lord of Tartarus,Win Horde Mode.
+m1_despertar,0,🏺,O Despertar de Argos,Complete a missão 1 da campanha.,The Awakening of Argos,Complete mission 1 of the campaign.
+m2_cerco,0,🏰,Muralhas de Argos,Complete a missão 2 da campanha.,Walls of Argos,Complete mission 2 of the campaign.
+m3_portal,0,🌀,O Portal Selado,Complete a missão 3 da campanha.,The Sealed Gate,Complete mission 3 of the campaign.
+campaign_prologue,0,📜,A Sombra dos Titãs,Complete o prólogo da campanha.,The Shadow of the Titans,Complete the campaign prologue.
+campaign_hard,0,🔥,Forjado no Fogo,Complete o prólogo da campanha no Difícil.,Forged in Fire,Complete the campaign prologue on Hard.
+horde_hard,0,🛡️,Muralha de Bronze,Vença o Modo Horda no Difícil ou acima.,Bronze Wall,Win Horde Mode on Hard or above.
+garrison_defense,0,🏰,Portas Fechadas,Tenha 15 unidades guarnecidas em um único edifício.,Closed Gates,Have 15 units garrisoned in a single building.
+m4_caucaso,0,🔥,O Fogo do Cáucaso,Complete a missão 4 da campanha.,The Fire of the Caucasus,Complete mission 4 of the campaign.
+m5_itaca,1,🏹,O Hóspede de Ítaca,Complete a missão 5 da campanha.,The Guest from Ithaca,Complete mission 5 of the campaign.
+m6_estatua,1,🗽,A Estátua de Zeus,Complete a missão 6 da campanha.,The Statue of Zeus,Complete mission 6 of the campaign.
+m7_aquiles,1,🔥,A Cólera de Aquiles,Complete a missão 7 da campanha.,The Wrath of Achilles,Complete mission 7 of the campaign.
+m8_oceano,1,🌊,A Maré de Oceano,Complete a missão 8 da campanha.,The Tide of Oceanus,Complete mission 8 of the campaign.
+m9_tenaro,1,💀,A Descida ao Tênaro,Complete a missão 9 da campanha.,The Descent at Taenarum,Complete mission 9 of the campaign.
+m10_otris,1,🏰,O Cerco de Ótris,Complete a missão 10 da campanha.,The Siege of Othrys,Complete mission 10 of the campaign.
+m11_chamas,1,🔥,Argos em Chamas,Complete a missão 11 da campanha.,Argos in Flames,Complete mission 11 of the campaign.
+m12_titanomaquia,1,⏳,O Fim da Idade de Ouro,Complete a missão 12 da campanha.,The End of the Golden Age,Complete mission 12 of the campaign.
+campaign_act1,0,⛓️,Ato I completo: A Sombra dos Titãs,Complete todas as missões do Ato I.,Act I complete: The Shadow of the Titans,Complete every mission of Act I.
+campaign_act2,1,🌊,Ato II completo: A Maré de Poseidon,Complete todas as missões do Ato II.,Act II complete: Poseidon's Tide,Complete every mission of Act II.
+campaign_act3,1,⏳,Ato III completo: A Queda de Cronos,Complete todas as missões do Ato III.,Act III complete: The Fall of Cronus,Complete every mission of Act III.
+campaign_all_hard,0,🏛️,Titanomaquia no Difícil,Complete as 12 missões da campanha no Difícil.,Titanomachy on Hard,Complete all 12 campaign missions on Hard.

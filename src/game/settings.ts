@@ -1,5 +1,6 @@
-// Configurações persistentes do jogador (localStorage; no Electron, o mesmo perfil de usuário).
+// Configurações persistentes do jogador (localStorage; no Electron, também em <userData>/saves/settings.json — src/game/cloud.ts).
 import { QUALITY_PRESETS, type QualityPreset } from '../render/quality';
+import { storeSet } from './cloud';
 
 /** Esquemas de botões do controle (src/ui/gamepad.ts): padrão Xbox/Steam Deck ou alternativo (A↔B e analógicos trocados). */
 export const PAD_SCHEMES = ['standard', 'alt'] as const;
@@ -66,4 +67,4 @@ export function loadSettings(): Settings {
   }
   return sanitizeSettings(raw);
 }
-export function saveSettings(s: Settings): void { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* ignore */ } }
+export function saveSettings(s: Settings): void { try { storeSet(KEY, JSON.stringify(s)); } catch { /* ignore */ } }

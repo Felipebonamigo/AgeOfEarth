@@ -1,0 +1,17 @@
+"lang"
+{
+	"english"
+	{
+		"tokens"
+		{
+			"#Status"	"%status%"
+		}
+	}
+	"brazilian"
+	{
+		"tokens"
+		{
+			"#Status"	"%status%"
+		}
+	}
+}

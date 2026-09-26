@@ -3,6 +3,7 @@
 import { canonicalize, mapHash, migrateMap, validateMap, type FixedMapData, type MapIssue, type ValidateOpts } from '../core/map/fixed';
 import { BUILTIN_MAPS } from '../core/data/maps';
 import { exportText, importText } from './files';
+import { storeRemove, storeSet } from './cloud';
 import { getLocale, t } from '../i18n';
 
 export interface MapEntry { id: string; name: string; nameEn?: string; w: number; h: number; starts: number; hash: number; updatedAt: number; builtin?: boolean }
@@ -13,7 +14,7 @@ const itemKey = (id: string) => `aoe_map_${id}`;
 function readIndex(): MapEntry[] {
   try { const v = JSON.parse(localStorage.getItem(INDEX_KEY) ?? '[]'); return Array.isArray(v) ? v.filter((e) => e && typeof e.id === 'string') : []; } catch { return []; }
 }
-function writeIndex(list: MapEntry[]): void { localStorage.setItem(INDEX_KEY, JSON.stringify(list)); }
+function writeIndex(list: MapEntry[]): void { storeSet(INDEX_KEY, JSON.stringify(list)); }
 
 /** "Vale do Eco" → "vale-do-eco" (só ASCII minúsculo, dígitos e hífen). */
 export function slugify(name: string): string {
@@ -54,14 +55,14 @@ export function putMap(input: FixedMapData, now = Date.now()): MapEntry {
   let id = data.id ?? slugify(data.name ?? 'mapa');
   if (BUILTIN_MAPS[id]) id = `${id}-copia`;   // não sobrescreve embutidos
   data.id = id;
-  localStorage.setItem(itemKey(id), JSON.stringify(data));
+  storeSet(itemKey(id), JSON.stringify(data));
   const entry = entryOf(data, false, now);
   writeIndex([...readIndex().filter((e) => e.id !== id), entry]);
   return entry;
 }
 
 export function removeMap(id: string): void {
-  try { localStorage.removeItem(itemKey(id)); } catch { /* ignore */ }
+  try { storeRemove(itemKey(id)); } catch { /* ignore */ }
   writeIndex(readIndex().filter((e) => e.id !== id));
 }
 

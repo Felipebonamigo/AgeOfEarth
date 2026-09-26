@@ -10,6 +10,10 @@ export interface DesktopBridge {
   saveFile?: (name: string, content: string) => Promise<boolean>;
   openFile?: () => Promise<string | null>;
   quit?: () => Promise<void>;
+  /** Espelho dos saves em arquivos (Steam Cloud; src/game/cloud.ts ↔ desktop/cloud.cjs). */
+  cloudReadAll?: () => Promise<Record<string, string> | null>;
+  cloudWrite?: (key: string, value: string) => Promise<boolean>;
+  cloudRemove?: (key: string) => Promise<boolean>;
 }
 
 export const UI_SCALES = [0.8, 0.9, 1, 1.15, 1.3, 1.5];
