@@ -1,8 +1,9 @@
 // Mapa fixo no lobby: o anfitrião exporta o mapa de uma partida, carrega-o na sala, o convidado vê o resumo
 // (tamanho e inícios, seletores travados), recebe o mapa inteiro ao iniciar e os dois seguem sincronizados.
-// Exige `npm run preview` (porta 4173) e `npm run relay` (porta 8787).
+// Exige `npm run preview` (porta 4173) e `npm run relay` (porta 8787) — ou os endereços passados como argumentos.
 import { chromium } from 'playwright';
 const url = process.argv[2] ?? 'http://localhost:4173/';
+const relay = process.argv[3] ?? 'ws://localhost:8787';   // relay em outra porta: node scripts/playtest-mp-fixedmap.mjs <url> <ws>
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const errors = [];
 const room = 'MAPA' + Math.floor(Math.random() * 1000);
@@ -15,7 +16,7 @@ const mk = async (name) => {
 };
 const join = async (page, name) => {
   await page.click('[data-tab="multiplayer"]'); await page.waitForTimeout(200);
-  await page.fill('#mp-url', 'ws://localhost:8787'); await page.fill('#mp-room', room); await page.fill('#mp-name', name);
+  await page.fill('#mp-url', relay); await page.fill('#mp-room', room); await page.fill('#mp-name', name);
   await page.click('#mp-join'); await page.waitForTimeout(800);
 };
 const host = await mk('Anfitrião');

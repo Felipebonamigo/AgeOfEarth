@@ -205,7 +205,12 @@ export function tick(state: GameState, commands: Command[] = []): void {
     rt.hash.insert(u);
     if (u.nodeId > 0 && (u.state === 'gather' || u.state === 'return')) rt.nodeGatherers.set(u.nodeId, (rt.nodeGatherers.get(u.nodeId) ?? 0) + 1);
   }
-  for (const c of commands) applyCommand(state, c);
+  // Comandos de fora (jogadores, rede, replay): applyCommand valida tudo e não deveria lançar; se um bug fizer lançar, o
+  // comando é descartado aqui — igual em todos os clientes, que rodam o mesmo código sobre o mesmo estado — em vez de derrubar
+  // a partida. O contador fica no runtime (não serializado) para testes e diagnóstico.
+  if (Array.isArray(commands)) for (const c of commands) {
+    try { applyCommand(state, c); } catch (e) { rt.commandErrors++; rt.lastCommandError = String((e as Error)?.stack ?? e).slice(0, 500); }
+  }
   // Efeitos temporizados de poderes
   updateTimedEffects(state);
   // Unidades e edifícios: nos ticks ímpares a ordem é invertida. Quem é atualizado primeiro golpeia primeiro (o dano é

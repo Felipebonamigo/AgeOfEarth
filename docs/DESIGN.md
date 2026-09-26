@@ -76,8 +76,8 @@ toca a simulação (pode usar `Math.random`) e só lê o estado.
 `NetworkScheduler` envia os comandos locais para o tick `T + atraso` (2–12 ticks, escolhido pelo anfitrião pela pior latência
 da sala) e só executa o tick `T` quando os comandos de todos os humanos para `T` chegaram. O relay (`server/relay.mjs`) apenas
 repassa mensagens (`join`, `lobby`, `start`, `cmds`, `hash`, `left`, `chat`, `ping`, `kick`, `snapshot`, `resume`). A cada 100 ticks
-os clientes trocam um hash do estado para detectar dessincronização (um relatório fica em `localStorage`). Comandos recebidos em nome
-de outro jogador são descartados. Se alguém cai, todos pausam; quem entra de novo na mesma sala com o mesmo nome recebe do anfitrião
+os clientes trocam um hash do estado para detectar dessincronização (um relatório fica em `localStorage`; ver "Anti-trapaça e
+relatório de dessincronização" abaixo). Comandos recebidos em nome de outro jogador são descartados. Se alguém cai, todos pausam; quem entra de novo na mesma sala com o mesmo nome recebe do anfitrião
 um instantâneo (estado serializado + comandos já recebidos) e volta a enviar comandos a partir de um tick combinado
 (`NetworkScheduler.resumeTick`); comandos que chegam antes do instantâneo para ticks posteriores a ele são preservados. Como só
 comandos trafegam, a banda é mínima e replays são gratuitos (gravar os comandos; um replay gravado após carregar um save parte desse save).
@@ -88,6 +88,46 @@ A **lista pública de salas** (`list`/`rooms`) mostra salas abertas (entrar) e e
 o `FixedMapData` inteiro vai uma vez dentro de `start.config` (limite de 1 MB no relay); cada cliente migra e valida o mapa antes de
 criar a sessão, e o hash do estado cobre terreno e recursos, de modo que qualquer divergência aparece no primeiro hash trocado.
 Na Steam, o mesmo protocolo roda sobre Steam Networking Sockets (relay da Valve) com `steamworks.js`.
+
+### Anti-trapaça e relatório de dessincronização (4.5)
+Como cada cliente simula tudo, "trapaça" aqui é um cliente modificado mandando comandos que o jogo normal não mandaria; a defesa é
+cada cliente validar tudo do mesmo jeito (comando inválido = no-op em todas as máquinas) e o relay não deixar uma vaga falar por outra.
+- **Forma** (`sanitizeCommand`, `src/core/sim/validate.ts`, chamado no início de `applyCommand` — vale para rede, interface, IA e
+  replays): objeto com `type` conhecido; `player` inteiro de um jogador existente e vivo (espectador −1 e eliminado não comandam);
+  ids inteiros (lista ≤ `MAX_CMD_IDS` = 600; repetições ficam — a própria IA as manda e tirá-las mudaria a partida); coordenadas
+  finitas até `COORD_MARGIN` = 512 tiles fora da borda (a câmera deixa clicar um pouco fora do mapa e a ordem vai à borda, como
+  sempre); cantos de obra inteiros dentro do mapa; unidade/edifício/tecnologia/poder/deus menor como chave própria das tabelas de
+  dados (`__proto__`, `constructor`, `toString` não passam); postura, formação, recurso e ação de mercado da lista; `queue` só `true`
+  liga. A cópia devolvida tem só os campos do tipo (campos a mais somem).
+- **Regras** (`applyCommand` e o que ele chama): só entidades do próprio jogador obedecem (ids alheios são ignorados, mesmo
+  misturados na lista); atacar só unidade/edifício vivo de um inimigo, e unidade guarnecida não é alvo; coletar só em nó do mapa ou
+  na própria fazenda; rezar só no próprio templo/portal; reparar só o próprio edifício; guarnecer só em edifício aliado; treinar,
+  pesquisar, contratar sábio, avançar de Idade (deus menor entre as opções) e poderes (os que o jogador tem e ainda não usou) checam
+  edifício próprio e completo, fila (≤ 10), Idade, proibições do cenário e custo **antes** de pagar; `cancel` devolve o que foi pago;
+  fila de ordens (Shift) ≤ `MAX_ORDER_QUEUE` = 600 por unidade. O `tick` ainda envolve cada comando de fora num `try/catch` (conta em
+  `getRuntime(state).commandErrors`; o esperado é 0) para que um bug nunca derrube a partida — o descarte é igual em todos.
+  A validação faz parte da simulação: `SIM_VERSION` 3 (o relay não junta na mesma sala um cliente que valida e outro que não).
+- **Rede** (`NetworkScheduler.receive`): tick inteiro ainda não executado; lista que não é array vira vazia; de outro par, só
+  comandos em nome dele, até `MAX_CMDS_PER_TICK` = 1024 (uma muralha arrastada vira um comando por tile no mesmo tick), e só a
+  primeira mensagem de cada (par, tick) vale — uma segunda, diferente, chegaria a um par antes e a outro depois de executar o tick.
+  Hashes que não são uint32 são ignorados.
+- **Relay** (`server/relay.mjs`): sabe a vaga de cada conexão e repassa só os comandos com `player` igual ao índice dela em
+  `room.slots` (a lista vai mesmo vazia: o tick precisa chegar a todos); `cmds` só com a partida começada e com tick estritamente
+  crescente por conexão; mensagem > 512 KB de quem não é anfitrião é recusada (`tooBig`) sem interpretar; JSON malformado (ou que não
+  é objeto com `t`) recebe `badMessage` e a sala segue; uma vaga por conexão; balde por conexão de 400 mensagens (repõe 100/s — o
+  lockstep manda 20/s) e 4 MB (repõe 1 MB/s; o anfitrião, que manda instantâneos, fica fora do de bytes): estourou → `rateLimit` e só
+  essa conexão cai (os outros recebem `left`, como numa queda). `--no-rate-limit` desliga os baldes (teste de carga acelerado).
+- **Não coberto**: visão. A névoa é só da renderização e todo cliente tem o estado inteiro, então um cliente modificado pode revelar o
+  mapa para si; comandos sobre alvos que o jogador não vê também não são recusados (a interface só os emite sobre o que é visível).
+- **Relatório de dessincronização** (`src/core/net/desync.ts`): junto com o hash total, cada par manda a cada 100 ticks um
+  detalhamento (`stateHashParts`: versão, nº de jogadores, "mundo" — tick, sorteio, próximo id, terreno, nós, relíquias, cessar-fogo —
+  e, por jogador, dados do jogador, recursos, unidades e edifícios). Na primeira divergência, `NetworkScheduler.lastDesync`
+  (`DesyncReport`) guarda o tick, o hash local e o de cada par, as categorias divergentes por par (`resources:1`, `units:0`, `world`;
+  `?` se o par é de uma versão sem detalhamento) e um resumo legível do estado local nesse tick (`summarizeState`: recursos,
+  população, contagem e soma de vida de unidades e edifícios por jogador, nós). A partida avisa onde divergiu ("Divergência em:
+  recursos de B…"); o relatório vai para `localStorage` (`aoe_desync_v1`, com o save; sem espaço, sem o save) e para o "Exportar
+  diagnóstico" (`desync` e `desyncLive`). Comparar o `summary` dos diagnósticos de dois jogadores aponta o valor que difere; o save
+  permite reproduzir a partida com `Session.load`. O stateHash total não mudou (o detalhamento é calculado à parte).
 
 ## Profundidade (Fase 5.2)
 Veterania: unidades militares (exceto Titãs) sobem 3 patentes com abates (3/8/15), +10% de ataque e vida por patente (estrelas na unidade).

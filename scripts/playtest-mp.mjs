@@ -2,6 +2,7 @@
 // e verificamos que os estados permanecem idênticos (hash) — prova do lockstep determinístico.
 import { chromium } from 'playwright';
 const url = process.argv[2] ?? 'http://localhost:4173/';
+const relay = process.argv[3] ?? 'ws://localhost:8787';   // relay em outra porta: node scripts/playtest-mp.mjs <url> <ws>
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const errors = [];
 const mk = async (name) => {
@@ -10,7 +11,7 @@ const mk = async (name) => {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`${name} ${m.text()}`); });
   await page.goto(url, { waitUntil: 'networkidle' });
   await page.click('[data-tab="multiplayer"]'); await page.waitForTimeout(200);
-  await page.fill('#mp-url', 'ws://localhost:8787'); await page.fill('#mp-room', 'TESTE'); await page.fill('#mp-name', name);
+  await page.fill('#mp-url', relay); await page.fill('#mp-room', 'TESTE'); await page.fill('#mp-name', name);
   await page.click('#mp-join'); await page.waitForTimeout(800);
   return page;
 };

@@ -53,6 +53,7 @@ export class NetClient {
   player(p: Record<string, unknown>) { this.send({ t: 'player', ...p }); }
   start(config: GameConfig, delay = 4) { this.send({ t: 'start', config, delay }); }
   sendCmds(tick: number, cmds: Command[]) { this.send({ t: 'cmds', tick, cmds }); }
-  sendHash(tick: number, hash: number) { this.send({ t: 'hash', tick, hash }); }
+  /** parts: detalhamento do hash por categoria (src/core/net/desync.ts) para o relatório de dessincronização dos outros. */
+  sendHash(tick: number, hash: number, parts?: number[]) { this.send(parts ? { t: 'hash', tick, hash, parts } : { t: 'hash', tick, hash }); }
   close() { if (this.pingTimer) { clearInterval(this.pingTimer); this.pingTimer = null; } this.ws?.close(); this.ws = null; }
 }

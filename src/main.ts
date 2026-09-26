@@ -20,6 +20,7 @@ import { issueText } from './ui/menu';
 import { esc } from './ui/html';
 import type { Difficulty } from './core/constants';
 import { NetworkScheduler, LocalScheduler } from './core/net/lockstep';
+import type { DesyncReport } from './core/net/desync';
 import type { NetClient } from './net/client';
 import type { Command } from './core/types';
 import { spawnUnit, placeBuilding, canPlaceBuilding } from './core/sim/entities';
@@ -45,6 +46,18 @@ const recentErrors: { when: string; msg: string }[] = [];
 const noteError = (msg: string) => { recentErrors.push({ when: new Date().toISOString(), msg: msg.slice(0, 500) }); if (recentErrors.length > 50) recentErrors.shift(); };
 window.addEventListener('error', (e) => noteError(`${e.message} @ ${e.filename}:${e.lineno}`));
 window.addEventListener('unhandledrejection', (e) => noteError(`promise: ${String((e as PromiseRejectionEvent).reason)}`));
+
+/** Onde a partida divergiu, em texto (relatório de dessincronização, 4.5): "recursos de Fulano, unidades de Beltrano". */
+function desyncWhere(report: DesyncReport, config: GameConfig): string {
+  const cats = new Set<string>();
+  for (const d of report.diverged) for (const c of d.categories) cats.add(c);
+  return [...cats].map((c) => {
+    if (c === 'world') return t('desync.world');
+    const [cat, p] = c.split(':');
+    if (p === undefined || !['players', 'resources', 'units', 'buildings'].includes(cat)) return t('desync.unknown');
+    return t(`desync.${cat}` as 'desync.units', { p: config.players[Number(p)]?.name ?? `#${p}` });
+  }).join(', ');
+}
 
 async function boot() {
   const settings = loadSettings();
@@ -106,7 +119,9 @@ async function boot() {
   /** Pacote de diagnóstico: versão, configurações, erros recentes, relatório de dessincronização e o save atual. */
   const diagnostic = (): string => {
     let desync: unknown = null; try { desync = JSON.parse(localStorage.getItem('aoe_desync_v1') ?? 'null'); } catch { /* ignore */ }
-    return JSON.stringify({ version: 1, when: new Date().toISOString(), userAgent: navigator.userAgent, screen: { w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio }, settings, locale: settings.locale, errors: recentErrors, desync, session: session ? { tick: session.state.tick, local: session.local, config: session.state.config, online: !(session.scheduler instanceof LocalScheduler), save: session.save() } : null });
+    // relatório da partida online em curso (o do localStorage pode ser de outra partida ou ter ficado sem o estado)
+    const live = session && session.scheduler instanceof NetworkScheduler ? session.scheduler.lastDesync : null;
+    return JSON.stringify({ version: 1, when: new Date().toISOString(), userAgent: navigator.userAgent, screen: { w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio }, settings, locale: settings.locale, errors: recentErrors, desync, desyncLive: live, session: session ? { tick: session.state.tick, local: session.local, config: session.state.config, online: !(session.scheduler instanceof LocalScheduler), save: session.save() } : null });
   };
   // Opções compartilhadas (menu principal e menu da partida)
   const options: OptionsContext = {
@@ -199,16 +214,21 @@ async function boot() {
     const local = spectator ? Math.max(0, localHumanIndex(config)) : slots.indexOf(client.slot);   // espectador assiste pela perspectiva do primeiro humano, com o mapa revelado
     session = Session.newGame(config, local); session.spectator = spectator;
     const humans = slots.map((_, i) => i);
-    const sched = new NetworkScheduler(spectator ? -1 : local, humans, delay, { sendCmds: (t, c) => client.sendCmds(t, c), sendHash: (t, h) => client.sendHash(t, h) });
+    const sched = new NetworkScheduler(spectator ? -1 : local, humans, delay, { sendCmds: (t, c) => client.sendCmds(t, c), sendHash: (t, h, p) => client.sendHash(t, h, p) });
     hud.onChat = (text) => client.chat(text);
     client.on('chat', (m) => hud.toast(`💬 ${String(m.name ?? '?')}: ${String(m.text ?? '')}`, 'info'));
     sched.onDesync = (tk) => {
       hud.toast(t('msg.desync', { tick: tk }), 'warn');
-      // relatório de dessincronização (para depuração): hashes, configuração e o estado local no momento
-      try { if (session) localStorage.setItem('aoe_desync_v1', JSON.stringify({ when: new Date().toISOString(), local, slots, delay, desync: sched.lastDesync, config, state: session.save() })); } catch { /* ignore */ }
+      const where = sched.lastDesync ? desyncWhere(sched.lastDesync, config) : '';
+      if (where) hud.toast(t('msg.desyncWhere', { list: esc(where) }), 'warn');
+      // relatório de dessincronização (4.5): tick, hashes por jogador, categorias divergentes, resumo do estado nesse tick,
+      // configuração e o estado local agora; sem espaço no localStorage (save grande), fica ao menos o relatório sem o estado
+      const report = { when: new Date().toISOString(), local, slots, delay, desync: sched.lastDesync, config };
+      try { if (session) localStorage.setItem('aoe_desync_v1', JSON.stringify({ ...report, state: session.save() })); }
+      catch { try { localStorage.setItem('aoe_desync_v1', JSON.stringify({ ...report, config: { ...config, map: undefined, scenarioData: undefined }, state: null })); } catch { /* ignore */ } }
     };
     client.on('cmds', (m) => { const idx = slots.indexOf(Number(m.slot)); if (idx >= 0) sched.receive(idx, Number(m.tick), (m.cmds as Command[]) ?? []); });
-    client.on('hash', (m) => { const idx = slots.indexOf(Number(m.slot)); if (idx >= 0) sched.receiveHash(idx, Number(m.tick), Number(m.hash)); });
+    client.on('hash', (m) => { const idx = slots.indexOf(Number(m.slot)); if (idx >= 0) sched.receiveHash(idx, Number(m.tick), Number(m.hash), m.parts); });
     // Queda de um jogador: todos pausam aguardando a reconexão; o anfitrião pode seguir sem ele (P → 'resume' para todos)
     let awaiting = -1;
     client.on('host', (m) => { if (Number(m.slot) === client.slot && !client.isSpectator) hud.toast(t('msg.youAreHost'), 'gold'); });

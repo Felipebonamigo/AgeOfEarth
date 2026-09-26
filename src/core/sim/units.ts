@@ -13,6 +13,7 @@ import { acquireTarget, attackInterval, canTarget, performAttack } from './comba
 import { entityById, distanceTo, nearestDropoff, nearestFreeFarm, nearestNode, nearestNodeWithRoom, nodeGatherers, nodeCapacity, farmGatherers, farmPrimary } from './queries';
 import { t } from '../../i18n';
 import { onBuildingComplete, canGarrison, enterGarrison } from './entities';
+import { MAX_ORDER_QUEUE } from './validate';
 
 const ARRIVE = 0.2;
 const LEASH = 11;
@@ -29,7 +30,7 @@ function avoided(state: GameState, u: Unit): number[] | undefined { return state
 
 // ---------------- Ordens ----------------
 export function giveOrder(state: GameState, u: Unit, order: Order, queue = false): void {
-  if (queue && (u.order || u.state !== 'idle')) { u.queue.push(order); return; }
+  if (queue && (u.order || u.state !== 'idle')) { if (u.queue.length < MAX_ORDER_QUEUE) u.queue.push(order); return; }   // fila limitada (anti-trapaça 4.5)
   u.queue.length = 0;
   startOrder(state, u, order);
 }

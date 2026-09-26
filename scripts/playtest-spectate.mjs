@@ -3,6 +3,7 @@
 // não conseguem dar ordens e veem o mapa revelado. Exige `npm run preview` e `npm run relay`.
 import { chromium } from 'playwright';
 const url = process.argv[2] ?? 'http://localhost:4173/';
+const relay = process.argv[3] ?? 'ws://localhost:8787';   // relay em outra porta: node scripts/playtest-spectate.mjs <url> <ws>
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const errors = [];
 const room = 'OLHO' + Math.floor(Math.random() * 1000);
@@ -12,7 +13,7 @@ const mk = async (name) => {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`${name} ${m.text()}`); });
   await page.goto(url, { waitUntil: 'networkidle' });
   await page.click('[data-tab="multiplayer"]'); await page.waitForTimeout(200);
-  await page.fill('#mp-url', 'ws://localhost:8787'); await page.fill('#mp-room', room); await page.fill('#mp-name', name);
+  await page.fill('#mp-url', relay); await page.fill('#mp-room', room); await page.fill('#mp-name', name);
   return page;
 };
 const host = await mk('Anfitrião'); await host.click('#mp-join'); await host.waitForTimeout(600);
