@@ -18,6 +18,7 @@ import m7 from './missions/m7_aquiles.scenario.json';
 import m8 from './missions/m8_oceano.scenario.json';
 import m9 from './missions/m9_tenaro.scenario.json';
 import m10 from './missions/m10_otris.scenario.json';
+import m11 from './missions/m11_chamas.scenario.json';
 
 const ME = 0;
 
@@ -227,6 +228,7 @@ export const CAMPAIGN: readonly CampaignEntry[] = [
   { act: 2, id: 'm8_oceano', source: 'json', file: m8 as unknown as ScenarioFile },    // fecha o Ato II e o EA (chefe-Titã em três marés, 3º mapa fixo)
   { act: 3, id: 'm9_tenaro', source: 'json', file: m9 as unknown as ScenarioFile },    // abre o Ato III (jogando como Hades, mapa gerado lakes 9909)
   { act: 3, id: 'm10_otris', source: 'json', file: m10 as unknown as ScenarioFile },   // cerco + Rei da Colina no Altar do Tempo (4º mapa fixo, Monte Ótris); a peripécia
+  { act: 3, id: 'm11_chamas', source: 'json', file: m11 as unknown as ScenarioFile },  // êxodo até as naus de Náuplia (mapa fixo "Argólida em Chamas")
 ];
 
 /** Entrada do registro por id (undefined = não é missão oficial registrada). */
