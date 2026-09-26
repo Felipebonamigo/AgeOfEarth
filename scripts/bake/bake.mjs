@@ -74,10 +74,13 @@ function sourceFiles(m) {
   const s = m.source;
   if (s.type === 'glb') files.push(s.path);
   else if (s.rig === 'human') files.push('scripts/bake/page/rigs/human.js', s.poses ?? 'art/poses/human.json');
-  else if (s.rig === 'building') files.push('scripts/bake/page/buildings.js', 'scripts/bake/manifest.mjs');
+  else if (s.rig === 'building') files.push('scripts/bake/page/buildings.js', 'scripts/bake/manifest.mjs', ...buildingModules());
   else if (s.rig === 'props') files.push('scripts/bake/page/props.js');
   return files;
 }
+
+/** Módulos de estilos de edifícios por lote (page/rigs/buildings-*.js, registrados em buildings.js): entram no hash. */
+const buildingModules = () => fs.readdirSync(path.join(PAGE, 'rigs')).filter((f) => /^buildings-.*\.js$/.test(f)).sort().map((f) => `scripts/bake/page/rigs/${f}`);
 
 function inputHash(m, scale, mirror) {
   const h = crypto.createHash('sha256');
@@ -365,11 +368,22 @@ async function contactSheets(opts, manifests, hashes) {
   const outDir = path.resolve(ROOT, opts.contact);
   fs.mkdirSync(outDir, { recursive: true });
   const sheets = new Map();   // nome → { title, rows, cellW, cellH }
+  // escombros da pegada no fim da linha de cada edifício (mesma âncora = centro da área), se estiverem no cache
+  const rm = loadManifests(path.join(ROOT, 'art', 'manifest')).map((l) => l.manifest).find((x) => x.rubble);
+  const re = rm ? loadCache(opts, rm, 1, hashes.get(`${rm.id}/1`)) : null, rg = re ? groupFrames(re) : null;
+  const rubbleCell = (m, anchor) => {
+    const fr = re && m.footprint && !m.rubble ? re.frames.find((f) => f.anim === `${m.footprint[0]}x${m.footprint[1]}`) : null;
+    if (!fr) return null;
+    const G = rg.get(fr.group), dx = anchor.x - (fr.box.ax - G.x0), dy = anchor.y - (fr.box.ay - G.y0);
+    const c = { color: cellImg(re, fr, 'color', G), team: null, shadow: cellImg(re, fr, 'shadow', G), anchor, label: 'escombros' };
+    for (const k of ['color', 'shadow']) if (c[k]) { c[k].x += dx; c[k].y += dy; }
+    return c;
+  };
   for (const m of manifests) {
     const e = loadCache(opts, m, 1, hashes.get(`${m.id}/1`));
     if (!e) continue;
     const groups = groupFrames(e);
-    const name = (m.kind === 'building' ? 'etapa3-' : 'etapa2-') + (CONTACT_NAME[m.id] ?? m.id);
+    const name = (m.kind === 'building' ? 'etapa3-' : 'etapa2-') + (m.contact ?? CONTACT_NAME[m.id] ?? m.id);
     const sheet = sheets.get(name) ?? { title: '', rows: [], cellW: 0, cellH: 0, zoom: 2 };
     sheets.set(name, sheet);
     const cell = (fr) => { const G = groups.get(fr.group); return { color: cellImg(e, fr, 'color', G), team: cellImg(e, fr, 'team', G), shadow: cellImg(e, fr, 'shadow', G), anchor: { x: fr.box.ax - G.x0, y: fr.box.ay - G.y0 }, w: G.w, h: G.h }; };
@@ -393,6 +407,8 @@ async function contactSheets(opts, manifests, hashes) {
       const rowCell = { cellW: G.w, cellH: G.h };
       if (m.variants) for (const st of Object.keys(m.anims)) sheet.rows.push({ label: `${m.id} ${st}`, cells: body.filter((fr) => fr.anim === st).map((fr) => ({ ...cell(fr), label: fr.variant })), ...rowCell });
       else sheet.rows.push({ label: m.id, cells: body.map((fr) => ({ ...cell(fr), label: fr.anim })), ...rowCell });
+      const rub = rubbleCell(m, { x: body[0].box.ax - G.x0, y: body[0].box.ay - G.y0 });
+      if (rub) sheet.rows[sheet.rows.length - 1].cells.push(rub);
       const ic = e.frames.find((fr) => fr.icon);
       if (ic) {
         const icons = sheets.get('etapa3-icones') ?? { title: 'ícones do HUD (64×64 a 1×, cor + máscara de time) ampliados 2×', rows: [{ label: 'ícones', cells: [] }], cellW: ICON_PX, cellH: ICON_PX, zoom: 2 };

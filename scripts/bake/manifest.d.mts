@@ -18,13 +18,15 @@ export interface ArtManifest {
   dirs?: number;
   footprint?: [number, number];
   anims?: Record<string, AnimDef>;
-  /** Edifícios: variantes (bitmask da muralha, eixo do portão, Idade) e como o renderizador escolhe a variante. */
+  /** Edifícios: variantes (bitmask da muralha, eixo do portão, Idade, plantação da fazenda) e como o renderizador escolhe a variante. */
   variants?: string[];
-  variantBy?: 'wallMask' | 'gateAxis' | 'ageTier';
+  variantBy?: 'wallMask' | 'gateAxis' | 'ageTier' | 'farmCrop';
   /** Edifícios: ícone do HUD a partir de um estado (e variante). */
   icon?: { anim: string; variant?: string };
   /** Conjunto de escombros (um estado por pegada w×h). */
   rubble?: boolean;
+  /** Folha de contato (`--contact`): etapa3-<contact>-contato.png; sem o campo, o nome da tabela do bake ou o id. */
+  contact?: string;
   team: boolean;
   shadow: boolean;
 }

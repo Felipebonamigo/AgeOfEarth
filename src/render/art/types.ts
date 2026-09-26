@@ -31,7 +31,7 @@ export interface ArtAssetEntry {
   footprint?: [number, number];
   /** Edifícios: variantes (bitmask da muralha '00'–'15', eixo do portão 'ew'/'ns', Idade 'a0'–'a2') e o critério. */
   variants?: string[];
-  variantBy?: 'wallMask' | 'gateAxis' | 'ageTier';
+  variantBy?: 'wallMask' | 'gateAxis' | 'ageTier' | 'farmCrop';
   /** Conjunto de escombros (estados = pegadas '1x1'…'5x5'). */
   rubble?: boolean;
   /** Tem ícone no atlas `icons` (quadro com o nome do id). */

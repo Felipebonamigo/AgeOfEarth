@@ -23,6 +23,7 @@
 // Sem Math.random: gerador com semente por estilo/estado/variante, então os quadros saem iguais em qualquer rodada.
 
 import { M2T, PITCH_DEG } from './camera.js';
+import { ECONOMY_BUILDERS } from './rigs/buildings-economy.js';
 
 /** Estados de todo edifício com arte (o portão tem também `open`). */
 export const BUILDING_STATES = ['build0', 'build1', 'build2', 'complete', 'damage1', 'damage2'];
@@ -384,6 +385,7 @@ function applyDamage(k, level) {
 // Estilos
 
 const BUILDERS = {};
+Object.assign(BUILDERS, ECONOMY_BUILDERS);   // lote "economia": fazenda, celeiro, serraria, mina, mercado, academia, cornucópia
 
 // ---- Templo 3×3 (6×6 m): estilóbato de 3 degraus, 20 colunas, cela, frontão ao sul, telhado de terracota ----
 BUILDERS.temple = (k, p) => {

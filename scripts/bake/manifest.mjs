@@ -9,8 +9,8 @@
 //
 // Edifícios (Etapa 3): `anims` = estados; todo edifício com arte declara os 6 de BUILDING_STATES (o portão também
 // `open`); `variants` + `variantBy` multiplicam os estados (muralha: bitmask 00–15; portão: eixo ew/ns; Centro Cívico:
-// Idade a0–a2); `icon: { anim, variant? }` pede o ícone do HUD; `rubble: true` marca o conjunto de escombros (um estado
-// por pegada, ex.: rubble/3x3).
+// Idade a0–a2; fazenda: plantação sown/growing/ripe); `icon: { anim, variant? }` pede o ícone do HUD; `rubble: true`
+// marca o conjunto de escombros (um estado por pegada, ex.: rubble/3x3); `contact` dá o nome da folha de contato.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -25,7 +25,7 @@ export const PASSES = ['color', 'team', 'shadow'];
 /** Estados de todo edifício com arte (docs/ART.md §1.8): obra 0–2, pronto, dano 1–2. */
 export const BUILDING_STATES = ['build0', 'build1', 'build2', 'complete', 'damage1', 'damage2'];
 /** Como o renderizador escolhe a variante de um edifício (src/render/art/logic.ts). */
-export const VARIANT_BY = ['wallMask', 'gateAxis', 'ageTier'];
+export const VARIANT_BY = ['wallMask', 'gateAxis', 'ageTier', 'farmCrop'];
 /** Lado do ícone a 1× (px). */
 export const ICON_PX = 64;
 /** Rigs paramétricos conhecidos pela página de bake (scripts/bake/page/rigs/*.js, props.js, buildings.js). */
