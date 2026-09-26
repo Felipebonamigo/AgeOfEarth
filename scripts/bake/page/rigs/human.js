@@ -11,6 +11,12 @@
 //           · 'javelin' (dardo na direita + feixe na esquerda) · 'axe'
 //   cape    'none' · 'short' · 'long' (cor de time)          greaves (grevas de bronze) · quiver (aljava; padrão com o arco)
 //   hair · headband (fita de time) · tunicTeam true | 'upper' · tool 'axe' · carry 'basket' (cidadão)
+// Heróis e rei (Etapa 4, lote heróis): helmet 'crown' (coroa radiada de ouro sobre o cabelo) · 'lion' (pele do leão de
+//   Nemeia: capuz com a cabeça, o couro nas costas e as patas no peito) · 'petasos' (chapéu de aba larga com asas);
+//   metal 'gold' (bronze dourado); armor 'bare' (peito nu com a saia curta); shield 'mirror' (bronze polido como espelho,
+//   borda de time) e shieldTeam 'ornate' (hoplon com anel de time, faixas e umbo de ouro); weapon 'harpe' (espada com o
+//   gancho de foice) · 'greatclub' (clava de 1,15 m); offhand 'scepter' (cetro de ouro na mão esquerda) · 'fleece' (velo de
+//   ouro dobrado no antebraço esquerdo); stature 'tall' (×1,05) · 'huge' (×1,1)
 // Modelado em METROS com os pés em y = 0 e a frente em −z; o grupo externo converte para tiles (`meters: true` deixa em
 // metros, para o cavaleiro montado no rig do cavalo). As poses vêm de `art/poses/human.json` (graus por pivô e por
 // quadro-chave) e são interpoladas em `poseAt`; além dos pivôs, uma pose pode ter escalares: `draw` (0–1, puxada da
@@ -24,28 +30,33 @@
 import { M2T, dirYaw } from '../camera.js';
 
 /** Pivôs que uma pose pode mover. Itens de mão também são pivôs: `spear`/`weapon` (a mesma arma da mão direita — o
- *  hoplita usa `spear`), `axe` (ferramenta), `shield`, `basket`, `bow` (mão esquerda) e `bundle` (feixe de dardos). */
-export const JOINTS = ['root', 'torso', 'head', 'shoulderL', 'elbowL', 'shoulderR', 'elbowR', 'hipL', 'kneeL', 'hipR', 'kneeR', 'spear', 'weapon', 'axe', 'shield', 'basket', 'bow', 'bundle'];
+ *  hoplita usa `spear`), `axe` (ferramenta), `shield`, `basket`, `bow` (mão esquerda), `bundle` (feixe de dardos) e
+ *  `offhand` (cetro ou velo na mão esquerda). */
+export const JOINTS = ['root', 'torso', 'head', 'shoulderL', 'elbowL', 'shoulderR', 'elbowR', 'hipL', 'kneeL', 'hipR', 'kneeR', 'spear', 'weapon', 'axe', 'shield', 'basket', 'bow', 'bundle', 'offhand'];
 /** Escalares de pose (interpolados como os ângulos). */
 export const SCALARS = ['draw', 'hold'];
 /** Valores do kit aceitos pelo manifesto (validados em scripts/bake/manifest.mjs). */
 export const KIT = {
-  armor: ['none', 'tunic', 'linothorax', 'cuirass'],
-  helmet: ['none', 'corinthian', 'chalcidian', 'phrygian', 'pilos'],
+  armor: ['none', 'tunic', 'linothorax', 'cuirass', 'bare'],
+  helmet: ['none', 'corinthian', 'chalcidian', 'phrygian', 'pilos', 'crown', 'lion', 'petasos'],
   helmetMat: ['bronze', 'felt', 'team'],
-  metal: ['bronze', 'dark'],
+  metal: ['bronze', 'dark', 'gold'],
   crest: ['long', 'transverse', 'tall', 'none'],
   crestColor: ['red', 'dark', 'team'],
-  shield: ['none', 'hoplon', 'pelte'],
-  shieldTeam: ['center', 'full', 'rim'],
-  weapon: ['none', 'spear', 'dory', 'sword', 'club', 'bow', 'javelin', 'axe'],
+  shield: ['none', 'hoplon', 'pelte', 'mirror'],
+  shieldTeam: ['center', 'full', 'rim', 'ornate'],
+  weapon: ['none', 'spear', 'dory', 'sword', 'club', 'bow', 'javelin', 'axe', 'harpe', 'greatclub'],
   cape: ['none', 'short', 'long'],
+  offhand: ['none', 'scepter', 'fleece'],
+  stature: ['normal', 'tall', 'huge'],
 };
+/** Escala do corpo inteiro por `stature` (heróis um pouco maiores que a tropa; Héracles o maior). */
+const STATURE = { normal: 1, tall: 1.05, huge: 1.1 };
 
 /** Em que animações cada item aparece por padrão (o manifesto pode sobrescrever em `params.show`). */
-const DEFAULT_SHOW = { basket: ['carry'], axe: ['gather', 'attack'], spear: ['*'], weapon: ['*'], shield: ['*'], bow: ['*'], bundle: ['*'] };
+const DEFAULT_SHOW = { basket: ['carry'], axe: ['gather', 'attack'], spear: ['*'], weapon: ['*'], shield: ['*'], bow: ['*'], bundle: ['*'], offhand: ['*'] };
 /** Crina padrão de cada elmo (o coríntio e o calcídico com crina frente-trás; frígio e pílos sem). */
-const DEFAULT_CREST = { corinthian: 'long', chalcidian: 'long', phrygian: 'none', pilos: 'none', none: 'none' };
+const DEFAULT_CREST = { corinthian: 'long', chalcidian: 'long', phrygian: 'none', pilos: 'none', none: 'none', crown: 'none', lion: 'none', petasos: 'none' };
 
 const DEG = Math.PI / 180;
 
@@ -56,14 +67,15 @@ export function buildHuman(THREE, M, params = {}, { meters = false } = {}) {
   const joint = (parent, x, y, z) => { const g = new THREE.Group(); g.position.set(x, y, z); parent.add(g); return g; };
 
   const group = new THREE.Group();
-  const rig = new THREE.Group(); rig.scale.setScalar(meters ? 1 : M2T); group.add(rig);
+  const rig = new THREE.Group(); rig.scale.setScalar((meters ? 1 : M2T) * (STATURE[P.stature] ?? 1)); group.add(rig);
   const HIP_Y = 0.92, THIGH = 0.44, SHIN = 0.44, UPPER = 0.28, FORE = 0.27;
   const J = {};
   J.root = joint(rig, 0, HIP_Y, 0);
   J.torso = joint(J.root, 0, 0, 0);
 
   // metal da armadura (elmo, couraça, grevas, escudo): bronze polido ou 'dark' (bronze escurecido, com detalhes de ferro)
-  const BZ = P.metal === 'dark' ? M.bronzeBlack : M.bronze, BZ2 = P.metal === 'dark' ? M.iron : M.bronzeDark;
+  // ('gold': bronze dourado, com os detalhes em bronze)
+  const BZ = P.metal === 'dark' ? M.bronzeBlack : P.metal === 'gold' ? M.gold : M.bronze, BZ2 = P.metal === 'dark' ? M.iron : P.metal === 'gold' ? M.bronze : M.bronzeDark;
 
   // ---- pernas ----
   for (const side of ['L', 'R']) {
@@ -91,6 +103,11 @@ export function buildHuman(THREE, M, params = {}, { meters = false } = {}) {
     mesh(new THREE.CapsuleGeometry(0.205, 0.28, 6, 14), M.linen, 0, 0.33, 0, J.torso);                        // corpo de linho
     mesh(new THREE.CylinderGeometry(0.218, 0.222, 0.11, 14), BZ2, 0, 0.17, 0, J.torso);              // faixa de escamas
     for (const s of [-1, 1]) mesh(new THREE.BoxGeometry(0.17, 0.05, 0.3), M.linen, s * 0.14, 0.555, 0, J.torso).rotation.z = -s * 0.22; // ombreiras
+  } else if (P.armor === 'bare') {
+    // peito nu (Héracles): tronco de pele largo, saia curta (perizoma; de time com `tunicTeam`) e cinto
+    mesh(new THREE.CylinderGeometry(0.21, 0.28, 0.3, 14), tunicMat, 0, -0.04, 0, J.torso);                    // saia curta
+    mesh(new THREE.CapsuleGeometry(0.205, 0.28, 6, 14), M.skin, 0, 0.33, 0, J.torso);                         // peito
+    mesh(new THREE.TorusGeometry(0.22, 0.03, 6, 20), M.leather, 0, 0.11, 0, J.torso).rotation.x = Math.PI / 2; // cinto
   } else {
     mesh(new THREE.CylinderGeometry(0.2, 0.26, 0.5, 14), tunicMat, 0, -0.1, 0, J.torso);                      // túnica (saia)
     mesh(new THREE.CapsuleGeometry(0.19, 0.28, 6, 14), chestMat, 0, 0.33, 0, J.torso);                        // túnica (peito)
@@ -153,6 +170,56 @@ export function buildHuman(THREE, M, params = {}, { meters = false } = {}) {
   } else if (P.helmet === 'pilos') {
     mesh(new THREE.ConeGeometry(0.135, 0.3, 14), P.helmetMat === 'felt' ? M.felt : P.helmetMat === 'team' ? M.team : BZ, 0, 0.22, 0, J.head);
     if (crestKind !== 'none') { const h = new THREE.Group(); h.position.set(0, 0.2, 0); J.head.add(h); crest(h); }
+  } else if (P.helmet === 'crown') {
+    // coroa radiada de ouro (stephane) sobre o cabelo: aro, 9 pontas abertas para fora e uma gema na frente
+    mesh(new THREE.SphereGeometry(0.125, 14, 12, 0, Math.PI * 2, 0, Math.PI * 0.55), M.hair, 0, 0.13, 0, J.head);
+    const c = new THREE.Group(); c.position.set(0, 0.165, 0.005); J.head.add(c);
+    mesh(new THREE.TorusGeometry(0.124, 0.02, 6, 24), M.gold, 0, 0, 0, c).rotation.x = Math.PI / 2;
+    for (let i = 0; i < 9; i++) {
+      const g = new THREE.Group(); g.rotation.y = (i / 9) * Math.PI * 2; c.add(g);
+      mesh(new THREE.ConeGeometry(0.024, 0.1, 4), M.gold, 0, 0.055, 0.124, g).rotation.x = 0.3;   // ponta (inclinada para fora)
+    }
+    mesh(new THREE.SphereGeometry(0.022, 8, 6), M.crest, 0, 0.005, -0.14, c);                         // gema
+  } else if (P.helmet === 'lion') {
+    // pele do leão de Nemeia (Héracles): o capuz é a cabeça do leão — focinho sobre a testa, orelhas, olhos e a juba em
+    // volta do rosto (aberta na frente); o couro desce pelas costas até a panturrilha, com as patas traseiras e a cauda, e
+    // as patas dianteiras se cruzam num nó no peito. Não é cor de time: o time fica na saia (`tunicTeam`).
+    const h = new THREE.Group(); h.position.set(0, 0.14, 0.01); J.head.add(h);
+    mesh(new THREE.SphereGeometry(0.152, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.64), M.lion, 0, 0, 0, h);   // capuz
+    mesh(new THREE.BoxGeometry(0.14, 0.09, 0.14), M.lion, 0, 0.06, -0.12, h).rotation.x = 0.3;               // focinho
+    mesh(new THREE.BoxGeometry(0.07, 0.045, 0.05), M.lionMane, 0, 0.075, -0.2, h).rotation.x = 0.3;          // nariz
+    for (const s of [-1, 1]) {
+      mesh(new THREE.ConeGeometry(0.04, 0.07, 6), M.lion, s * 0.1, 0.14, -0.02, h).rotation.z = -s * 0.35;  // orelhas
+      mesh(new THREE.SphereGeometry(0.016, 6, 5), M.crestDark, s * 0.045, 0.1, -0.18, h);                    // olhos
+      mesh(new THREE.ConeGeometry(0.012, 0.05, 5), M.linen, s * 0.05, -0.005, -0.19, h).rotation.x = Math.PI; // presas
+    }
+    const mg = new THREE.Group(); mg.position.set(0, -0.03, 0.01); mg.rotation.x = Math.PI / 2; h.add(mg);
+    mesh(new THREE.TorusGeometry(0.155, 0.055, 8, 20, Math.PI * 1.4), M.lionMane, 0, 0, 0, mg).rotation.z = -Math.PI * 0.2; // juba
+    // couro nas costas (mais largo em cima, sobre os ombros), patas traseiras e cauda
+    const pelt = new THREE.Group(); pelt.position.set(0, 0.56, 0.22); pelt.rotation.x = -0.2; J.torso.add(pelt);   // a ponta de baixo se afasta do corpo
+    // contorno de couro (pescoço, ombros, flancos e as patas traseiras abertas nas pontas de baixo), não uma placa
+    const hide = new THREE.Shape();
+    [[-0.14, 0.02], [0.14, 0.02], [0.3, -0.06], [0.29, -0.26], [0.22, -0.46], [0.25, -0.66], [0.36, -0.9], [0.27, -1.0], [0.16, -0.84],
+      [0.05, -0.9], [-0.05, -0.9], [-0.16, -0.84], [-0.27, -1.0], [-0.36, -0.9], [-0.25, -0.66], [-0.22, -0.46], [-0.29, -0.26], [-0.3, -0.06]]
+      .forEach(([x, y], i) => (i ? hide.lineTo(x, y) : hide.moveTo(x, y)));
+    mesh(new THREE.ExtrudeGeometry(hide, { depth: 0.04, bevelEnabled: false }), M.lion, 0, -0.04, -0.02, pelt);
+    mesh(new THREE.BoxGeometry(0.1, 0.8, 0.02), M.lionMane, 0, -0.44, 0.025, pelt);                            // lombo mais escuro
+    mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.3, 6), M.lion, 0.02, -1.04, 0.03, pelt);                    // cauda
+    mesh(new THREE.SphereGeometry(0.04, 8, 6), M.lionMane, 0.02, -1.2, 0.03, pelt);
+    // patas dianteiras sobre os ombros, cruzadas no peito
+    for (const s of [-1, 1]) mesh(new THREE.CapsuleGeometry(0.05, 0.3, 4, 8), M.lion, s * 0.1, 0.5, -0.19, J.torso).rotation.set(0.25, 0, s * 0.95);
+    mesh(new THREE.SphereGeometry(0.06, 8, 6), M.lion, 0, 0.43, -0.23, J.torso);                             // nó
+  } else if (P.helmet === 'petasos') {
+    // pétaso alado (Perseu; o "elmo de Hades" dos vasos): copa baixa, aba larga e duas asas de penas brancas
+    mesh(new THREE.SphereGeometry(0.125, 14, 12, 0, Math.PI * 2, 0, Math.PI * 0.55), M.hair, 0, 0.13, 0, J.head);
+    const hm = P.helmetMat === 'bronze' ? BZ : P.helmetMat === 'team' ? M.team : M.felt;
+    const h = new THREE.Group(); h.position.set(0, 0.15, 0); J.head.add(h);
+    mesh(new THREE.SphereGeometry(0.13, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.5), hm, 0, 0, 0, h);          // copa
+    mesh(new THREE.CylinderGeometry(0.215, 0.225, 0.02, 24), hm, 0, 0.0, 0, h);                               // aba
+    for (const s of [-1, 1]) {
+      const w = new THREE.Group(); w.position.set(s * 0.12, 0.06, 0.02); w.rotation.set(0.35, 0, -s * 0.5); h.add(w);
+      [[0.0, 0.17], [0.035, 0.14], [0.07, 0.1]].forEach(([dz, len], i) => mesh(new THREE.BoxGeometry(0.018, len, 0.05), M.linen, 0, len / 2, dz, w).rotation.x = 0.15 * i);
+    }
   } else if (P.hair) {
     mesh(new THREE.SphereGeometry(0.125, 14, 12, 0, Math.PI * 2, 0, Math.PI * 0.55), M.hair, 0, 0.13, 0, J.head);
     if (P.headband) mesh(new THREE.TorusGeometry(0.12, 0.018, 6, 20), M.team, 0, 0.15, 0, J.head).rotation.x = Math.PI / 2; // fita (time)
@@ -181,6 +248,22 @@ export function buildHuman(THREE, M, params = {}, { meters = false } = {}) {
     if (P.shieldTeam === 'full') mesh(new THREE.CylinderGeometry(0.41, 0.41, 0.062, 32), M.team, 0, 0.001, 0, sg);   // face inteira pintada
     // 'rim': o centro volta a ser de metal e só uma faixa larga perto da borda é pintada (o inverso do hoplita)
     if (P.shieldTeam === 'rim') { mesh(new THREE.CylinderGeometry(0.41, 0.41, 0.062, 32), M.team, 0, 0.001, 0, sg); mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.066, 32), BZ, 0, 0.001, 0, sg); }
+    // 'ornate' (o escudo de Aquiles, obra de Hefesto): anel de time perto da borda, campo de metal com faixas concêntricas
+    // de ouro, borda e umbo de ouro — lê como "escudo dourado" e não como o centro de time do hoplita
+    if (P.shieldTeam === 'ornate') {
+      mesh(new THREE.CylinderGeometry(0.41, 0.41, 0.062, 32), M.team, 0, 0.001, 0, sg);
+      mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.066, 32), BZ, 0, 0.001, 0, sg);
+      for (const [r, t] of [[0.43, 0.03], [0.33, 0.014], [0.24, 0.012], [0.15, 0.012]]) mesh(new THREE.TorusGeometry(r, t, 6, 32), M.gold, 0, -0.03, 0, sg).rotation.x = Math.PI / 2;
+      mesh(new THREE.SphereGeometry(0.085, 12, 10), M.gold, 0, -0.05, 0, sg);
+    }
+  } else if (P.shield === 'mirror') {
+    // escudo espelhado de Perseu (presente de Atena): disco de bronze polido como espelho, borda de time e filete de ouro
+    const sg = J.shield = joint(J.elbowL, -0.04, -FORE - 0.05, 0);
+    items.shield = sg;
+    mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.04, 32), M.mirror, 0, 0, 0, sg);
+    mesh(new THREE.TorusGeometry(0.42, 0.04, 8, 32), M.team, 0, -0.01, 0, sg).rotation.x = Math.PI / 2;
+    mesh(new THREE.TorusGeometry(0.34, 0.01, 6, 32), M.gold, 0, -0.022, 0, sg).rotation.x = Math.PI / 2;
+    mesh(new THREE.SphereGeometry(0.05, 10, 8), M.gold, 0, -0.03, 0, sg);
   } else if (P.shield === 'pelte') {
     // pelta: crescente de vime com a face pintada na cor do time (a mordida do crescente fica em cima com o braço à frente)
     const sg = J.shield = joint(J.elbowL, -0.04, -FORE - 0.04, 0);
@@ -229,6 +312,22 @@ export function buildHuman(THREE, M, params = {}, { meters = false } = {}) {
     mesh(new THREE.CylinderGeometry(0.062, 0.028, 0.78, 10), M.wood, 0, 0.3, 0, sg);
     mesh(new THREE.SphereGeometry(0.075, 10, 8), M.wood, 0, 0.68, 0, sg);
     for (const [x, y, z] of [[0.045, 0.52, 0.01], [-0.04, 0.44, -0.03], [0.02, 0.6, -0.05]]) mesh(new THREE.SphereGeometry(0.03, 6, 5), M.woodDark, x, y, z, sg);
+  } else if (W === 'harpe') {
+    // harpe de Perseu: punho, lâmina reta de ferro e o gancho em foice que sai da ponta para a frente e desce
+    const sg = J.weapon = joint(J.elbowR, 0, -FORE, 0);
+    items.weapon = sg;
+    mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.13, 8), M.woodDark, 0, 0, 0, sg);
+    mesh(new THREE.SphereGeometry(0.028, 8, 6), M.gold, 0, -0.075, 0, sg);
+    mesh(new THREE.BoxGeometry(0.1, 0.022, 0.035), M.gold, 0, 0.075, 0, sg);
+    mesh(new THREE.BoxGeometry(0.014, 0.36, 0.045), M.iron, 0, 0.26, 0, sg);
+    mesh(new THREE.TorusGeometry(0.085, 0.016, 5, 14, Math.PI * 7 / 6), M.iron, 0, 0.44, -0.085, sg).rotation.set(0, Math.PI / 2, -Math.PI / 6);
+  } else if (W === 'greatclub') {
+    // clava de Héracles (um tronco de oliveira): 1,15 m, grossa na ponta e cheia de nós
+    const sg = J.weapon = joint(J.elbowR, 0, -FORE, 0);
+    items.weapon = sg;
+    mesh(new THREE.CylinderGeometry(0.1, 0.042, 1.08, 10), M.wood, 0, 0.44, 0, sg);
+    mesh(new THREE.SphereGeometry(0.11, 10, 8), M.wood, 0, 0.98, 0, sg);
+    for (const [x, y, z, r] of [[0.07, 0.8, 0.02, 0.04], [-0.06, 0.66, -0.04, 0.035], [0.03, 0.9, -0.08, 0.04], [-0.05, 0.5, 0.04, 0.03], [0.05, 0.36, -0.03, 0.028], [-0.02, 1.05, 0.06, 0.035]]) mesh(new THREE.SphereGeometry(r, 6, 5), M.woodDark, x, y, z, sg);
   } else if (W === 'javelin') {
     // dardo (akontion) na direita, empunhado perto do meio; `hold` < 0,5 esconde (acabou de ser lançado)
     const sg = J.weapon = joint(J.elbowR, 0, -FORE, 0);
@@ -261,6 +360,28 @@ export function buildHuman(THREE, M, params = {}, { meters = false } = {}) {
     mesh(new THREE.ConeGeometry(0.016, 0.07, 6), M.iron, 0, 0.8, 0, arrow);
     mesh(new THREE.BoxGeometry(0.004, 0.09, 0.035), M.linen, 0, 0.06, 0, arrow);
     bowParts = { bg, s1: str(), s2: str(), arrow, t1: pts[0].clone(), t2: pts[pts.length - 1].clone() };
+  }
+  // mão esquerda dos heróis: cetro do rei (pivô `offhand`; em pé com o cotovelo dobrado a 90° e o pivô a −90°) ou o velo
+  // de ouro de Jasão dobrado sobre o antebraço (com o mesmo ângulo, −y local = para baixo e +z = para o cotovelo)
+  if (P.offhand === 'scepter') {
+    const og = J.offhand = joint(J.elbowL, 0, -FORE, 0);
+    items.offhand = og;
+    // haste de 2 m (−1,12 a +0,9 do punho: com a mão na cintura o pomo passa da cabeça), anéis de bronze, pomo e lótus
+    mesh(new THREE.CylinderGeometry(0.017, 0.02, 2.02, 8), M.gold, 0, -0.11, 0, og);
+    for (const y of [-0.5, 0.1, 0.5, 0.8]) mesh(new THREE.TorusGeometry(0.022, 0.008, 5, 10), M.bronzeDark, 0, y, 0, og).rotation.x = Math.PI / 2;
+    mesh(new THREE.SphereGeometry(0.05, 10, 8), M.gold, 0, 0.94, 0, og);                    // pomo
+    mesh(new THREE.ConeGeometry(0.045, 0.13, 8), M.gold, 0, 1.04, 0, og);                    // flor (lótus)
+  } else if (P.offhand === 'fleece') {
+    const og = J.offhand = joint(J.elbowL, 0, -FORE, 0);
+    items.offhand = og;
+    mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.2, 10), M.fleece, 0, 0.02, 0.1, og).rotation.x = Math.PI / 2;   // dobra sobre o braço
+    mesh(new THREE.BoxGeometry(0.15, 0.62, 0.3), M.fleece, 0, -0.3, 0.1, og);                                          // as duas metades pendendo
+    // tufos de lã (posições fixas: nada aleatório no bake)
+    for (const [x, y, z, r] of [[-0.08, -0.1, 0.0, 0.07], [0.08, -0.16, 0.18, 0.07], [-0.08, -0.34, 0.2, 0.075], [0.08, -0.4, -0.02, 0.07],
+      [-0.07, -0.55, 0.08, 0.07], [0.07, -0.58, 0.2, 0.06], [0.0, -0.64, 0.02, 0.065], [0.08, -0.05, 0.02, 0.06], [-0.08, -0.22, 0.12, 0.06]]) mesh(new THREE.SphereGeometry(r, 8, 6), M.fleece, x, y, z, og);
+    // cabeça do carneiro com os chifres enrolados, pendendo embaixo
+    mesh(new THREE.SphereGeometry(0.06, 8, 6), M.fleece, 0, -0.68, -0.04, og);
+    for (const sx of [-1, 1]) mesh(new THREE.TorusGeometry(0.035, 0.014, 5, 10), M.gold, sx * 0.06, -0.66, -0.03, og).rotation.y = Math.PI / 2;
   }
   // machado do cidadão (cabo curto + lâmina de bronze)
   if (W === 'axe' || P.tool === 'axe') {

@@ -1,14 +1,14 @@
 {
  "frames": {
-  "wonder_zeus/build0": {"frame":{"x":689,"y":1,"w":128,"h":131},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":9,"y":53,"w":128,"h":131},"sourceSize":{"w":170,"h":199},"anchor":{"x":0.42941,"y":0.60302}},
-  "wonder_zeus/build1": {"frame":{"x":557,"y":1,"w":128,"h":158},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":9,"y":26,"w":128,"h":158},"sourceSize":{"w":170,"h":199},"anchor":{"x":0.42941,"y":0.60302}},
-  "wonder_zeus/build2": {"frame":{"x":293,"y":1,"w":128,"h":184},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":9,"y":0,"w":128,"h":184},"sourceSize":{"w":170,"h":199},"anchor":{"x":0.42941,"y":0.60302}},
-  "wonder_zeus/complete": {"frame":{"x":425,"y":1,"w":128,"h":184},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":9,"y":0,"w":128,"h":184},"sourceSize":{"w":170,"h":199},"anchor":{"x":0.42941,"y":0.60302}},
-  "wonder_zeus/damage1": {"frame":{"x":151,"y":1,"w":138,"h":192},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":7,"y":0,"w":138,"h":192},"sourceSize":{"w":170,"h":199},"anchor":{"x":0.42941,"y":0.60302}},
-  "wonder_zeus/damage2": {"frame":{"x":1,"y":1,"w":146,"h":199},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":0,"y":0,"w":146,"h":199},"sourceSize":{"w":170,"h":199},"anchor":{"x":0.42941,"y":0.60302}}
+  "wonder_zeus/build0": {"frame":{"x":689,"y":1,"w":128,"h":131},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":10,"y":53,"w":128,"h":131},"sourceSize":{"w":172,"h":200},"anchor":{"x":0.43023,"y":0.6}},
+  "wonder_zeus/build1": {"frame":{"x":557,"y":1,"w":128,"h":158},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":10,"y":26,"w":128,"h":158},"sourceSize":{"w":172,"h":200},"anchor":{"x":0.43023,"y":0.6}},
+  "wonder_zeus/build2": {"frame":{"x":293,"y":1,"w":128,"h":184},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":10,"y":0,"w":128,"h":184},"sourceSize":{"w":172,"h":200},"anchor":{"x":0.43023,"y":0.6}},
+  "wonder_zeus/complete": {"frame":{"x":425,"y":1,"w":128,"h":184},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":10,"y":0,"w":128,"h":184},"sourceSize":{"w":172,"h":200},"anchor":{"x":0.43023,"y":0.6}},
+  "wonder_zeus/damage1": {"frame":{"x":151,"y":1,"w":138,"h":192},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":8,"y":0,"w":138,"h":192},"sourceSize":{"w":172,"h":200},"anchor":{"x":0.43023,"y":0.6}},
+  "wonder_zeus/damage2": {"frame":{"x":1,"y":1,"w":146,"h":199},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":1,"y":0,"w":146,"h":199},"sourceSize":{"w":172,"h":200},"anchor":{"x":0.43023,"y":0.6}}
  },
  "animations": {
 
  },
- "meta": {"app":"age-of-earth/scripts/bake","version":"1","image":"buildings-1x-1.png","format":"RGBA8888","size":{"w":1024,"h":256},"scale":"1","aoe":{"version":1,"pass":"color","pxPerTile":32,"pitchDeg":50,"verticalFactor":0.8391,"sun":[-0.55,1,-0.35],"shadowDir":"SE","dirs":8,"dirNames":["E","SE","S","SW","W","NW","N","NE"],"fps":10,"pad":2,"extrude":1,"mirror":false}}
+ "meta": {"app":"age-of-earth/scripts/bake","version":"1","image":"buildings-1x-1.png","format":"RGBA8888","size":{"w":832,"h":224},"scale":"1","aoe":{"version":1,"pass":"color","pxPerTile":32,"pitchDeg":50,"verticalFactor":0.8391,"sun":[-0.55,1,-0.35],"shadowDir":"SE","dirs":8,"dirNames":["E","SE","S","SW","W","NW","N","NE"],"fps":10,"pad":2,"extrude":1,"mirror":false}}
 }

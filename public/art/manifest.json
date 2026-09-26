@@ -36,10 +36,10 @@
    "scale": 1,
    "page": 0,
    "w": 2048,
-   "h": 2048,
+   "h": 1920,
    "frames": 355,
-   "bytes": 1485398,
-   "sha256": "6195b195638f804820145f046289e3324a9154f3c107597f2a7b5d59aa327a92"
+   "bytes": 1484356,
+   "sha256": "cf23cc0606c522370c70f8ade568b437d7291691975652266257665d689ecde4"
   },
   {
    "json": "buildings-1x-1.json",
@@ -48,11 +48,11 @@
    "pass": "color",
    "scale": 1,
    "page": 1,
-   "w": 1024,
-   "h": 256,
+   "w": 832,
+   "h": 224,
    "frames": 6,
-   "bytes": 98181,
-   "sha256": "1ee071447caf79bd325a93d37c8837176d85c92965efd2b4e123fc4735bf7cd9"
+   "bytes": 97203,
+   "sha256": "e90fa5491e4da57e4abdd09cdbd1ed76507ad859a98dd4df64e02370b97c4edf"
   },
   {
    "json": "buildings-2x-0.json",
@@ -61,11 +61,11 @@
    "pass": "color",
    "scale": 2,
    "page": 0,
-   "w": 2048,
-   "h": 2048,
+   "w": 2016,
+   "h": 1888,
    "frames": 74,
-   "bytes": 1103821,
-   "sha256": "612c3e1e1f068ce53cf49691fc7b678e75e3ad1fc39b170209ae597621261c4e"
+   "bytes": 1101954,
+   "sha256": "3de4f934c6d1be34f17c9b0857c418098bb236b3c710332313388baf546f7f89"
   },
   {
    "json": "buildings-2x-1.json",
@@ -74,11 +74,11 @@
    "pass": "color",
    "scale": 2,
    "page": 1,
-   "w": 2048,
-   "h": 2048,
+   "w": 1984,
+   "h": 1696,
    "frames": 35,
-   "bytes": 963889,
-   "sha256": "0f71bbd173a96688a30d518ea30419acc4bd00cf47cf9e4a7428ce217f214dcd"
+   "bytes": 959401,
+   "sha256": "ddc98b6f600df876cee4673dfd72ec52a53de9c1a7ff2f2d441bce822b0936bb"
   },
   {
    "json": "buildings-2x-2.json",
@@ -100,11 +100,11 @@
    "pass": "color",
    "scale": 2,
    "page": 3,
-   "w": 2048,
-   "h": 2048,
+   "w": 1920,
+   "h": 1248,
    "frames": 18,
-   "bytes": 858138,
-   "sha256": "afd10de8cabf5a133208b3d6fb6c48bf4598a55ad051d17103452bb96028f944"
+   "bytes": 848961,
+   "sha256": "7441f68a97f941b0488a16ffc1fe1a1a5dba5ca6852952a4aebfb8e5f6373c9b"
   },
   {
    "json": "buildings-shadow-1x-0.json",
@@ -112,12 +112,13 @@
    "group": "buildings",
    "pass": "shadow",
    "scale": 1,
+   "texel": 0.5,
    "page": 0,
    "w": 2048,
-   "h": 2048,
+   "h": 448,
    "frames": 355,
-   "bytes": 754181,
-   "sha256": "3059790c666186b50829de45deefa769a5b31f75a120cc2d86fa6342a080b2cf"
+   "bytes": 248737,
+   "sha256": "da6a1fa2bb61432a4decf96d1c44ceddc64813559c94fd0be3ca952e88bc9488"
   },
   {
    "json": "buildings-shadow-2x-0.json",
@@ -125,38 +126,13 @@
    "group": "buildings",
    "pass": "shadow",
    "scale": 2,
+   "texel": 0.5,
    "page": 0,
    "w": 2048,
-   "h": 2048,
-   "frames": 103,
-   "bytes": 1237612,
-   "sha256": "1b431e38e6b048f6c1231c35da4f4d636abb7a828fbf29f590173d29254851f3"
-  },
-  {
-   "json": "buildings-shadow-2x-1.json",
-   "image": "buildings-shadow-2x-1.png",
-   "group": "buildings",
-   "pass": "shadow",
-   "scale": 2,
-   "page": 1,
-   "w": 2048,
-   "h": 2048,
-   "frames": 240,
-   "bytes": 1033930,
-   "sha256": "271fb8f8c25f93af1cec8f417983395aacc682fd6798a5df9684a5537c7a85d7"
-  },
-  {
-   "json": "buildings-shadow-2x-2.json",
-   "image": "buildings-shadow-2x-2.png",
-   "group": "buildings",
-   "pass": "shadow",
-   "scale": 2,
-   "page": 2,
-   "w": 2048,
-   "h": 1024,
-   "frames": 12,
-   "bytes": 275628,
-   "sha256": "c0da9fc59cd3857492299755b2db97d3eeec597c5a669c7ca569ac2fcb2b87ee"
+   "h": 1472,
+   "frames": 355,
+   "bytes": 773838,
+   "sha256": "086c84736e48d25a87a20730098ec7cd332e96ded14fe363ffd2c8a79eb8cfcc"
   },
   {
    "json": "buildings-team-1x-0.json",
@@ -165,11 +141,11 @@
    "pass": "team",
    "scale": 1,
    "page": 0,
-   "w": 1024,
-   "h": 1024,
+   "w": 640,
+   "h": 544,
    "frames": 286,
-   "bytes": 10283,
-   "sha256": "0f7bbd15d70ca2944176384ec919e8574bf5a498c9f87c9c602d467f81760532"
+   "bytes": 7553,
+   "sha256": "e424da09404a621f2b59de28bf423b8ac77ab5b249bbcde3ff4e532af2a93d3b"
   },
   {
    "json": "buildings-team-2x-0.json",
@@ -178,11 +154,11 @@
    "pass": "team",
    "scale": 2,
    "page": 0,
-   "w": 2048,
-   "h": 1024,
+   "w": 1248,
+   "h": 992,
    "frames": 286,
-   "bytes": 20508,
-   "sha256": "dd283957a86d0611f0f337720bf351d2b884155220e7cb3690f9ab4d566f1803"
+   "bytes": 17031,
+   "sha256": "3773c43ac2a0044aad70c3d1f4f1f3937b11a7c8490253bc23cb8b988b6b8959"
   },
   {
    "json": "icons-1x-0.json",
@@ -191,11 +167,11 @@
    "pass": "color",
    "scale": 1,
    "page": 0,
-   "w": 512,
-   "h": 256,
+   "w": 352,
+   "h": 192,
    "frames": 21,
-   "bytes": 47836,
-   "sha256": "ff60e221f43cc966a44dd8f359ca0aba7d296e3ec93ca9398d02135b490414e1"
+   "bytes": 47053,
+   "sha256": "510605d936dd202613429d3d826daa9055f64c7f695eca335322d67188766924"
   },
   {
    "json": "icons-2x-0.json",
@@ -204,11 +180,11 @@
    "pass": "color",
    "scale": 2,
    "page": 0,
-   "w": 1024,
-   "h": 512,
+   "w": 768,
+   "h": 352,
    "frames": 21,
-   "bytes": 122944,
-   "sha256": "3d86d873bdff1ab97c1e0621a9c761565bd10f10549031bd7ae1f8fb10a0ac96"
+   "bytes": 120365,
+   "sha256": "0b3364905f9cf19600e01934603a3de8faa194e5c8b671f17cb375068d0e8074"
   },
   {
    "json": "icons-team-1x-0.json",
@@ -217,11 +193,11 @@
    "pass": "team",
    "scale": 1,
    "page": 0,
-   "w": 256,
-   "h": 256,
+   "w": 192,
+   "h": 224,
    "frames": 21,
-   "bytes": 2510,
-   "sha256": "63baba37a16158f5e8488c99eb13cde280b8b8f1936dab440ef8c7d75cbfff72"
+   "bytes": 2376,
+   "sha256": "cd7c8426ca956775c0bf748dcfeb39016df52d3b5917d1fca43c7d9c0a4bfe58"
   },
   {
    "json": "icons-team-2x-0.json",
@@ -230,11 +206,11 @@
    "pass": "team",
    "scale": 2,
    "page": 0,
-   "w": 512,
-   "h": 512,
+   "w": 352,
+   "h": 416,
    "frames": 21,
-   "bytes": 5371,
-   "sha256": "144351d7713607881c0e4e409f94936497a701bf15cd2a5601ce464562624305"
+   "bytes": 4800,
+   "sha256": "79421801a9d05c3eda9f893f2ba6baf46dff8b3d790cf6b7de1d2233706e2f6d"
   },
   {
    "json": "props-1x-0.json",
@@ -243,11 +219,11 @@
    "pass": "color",
    "scale": 1,
    "page": 0,
-   "w": 2048,
-   "h": 512,
+   "w": 1152,
+   "h": 288,
    "frames": 51,
-   "bytes": 134566,
-   "sha256": "ae604f4c777363ca630d2ded91f67f313bb54d4777b0f3c36e0ec6899c093bd4"
+   "bytes": 129399,
+   "sha256": "9a3593b3d0f9dc0718017840acf4ce48a1148ceae1b210c7cb25d57a0cef7fa0"
   },
   {
    "json": "props-2x-0.json",
@@ -256,11 +232,11 @@
    "pass": "color",
    "scale": 2,
    "page": 0,
-   "w": 2048,
-   "h": 1024,
+   "w": 2016,
+   "h": 544,
    "frames": 51,
-   "bytes": 364982,
-   "sha256": "668f02b530ee5609e16098aca5ae606e1d81f1de5cda8f6d69c801855b923ac2"
+   "bytes": 360501,
+   "sha256": "0d7e135f2c24e093fd63730cc491ff3f919e42bb4845f39b8b9cf3f7b7f2f794"
   },
   {
    "json": "props-shadow-1x-0.json",
@@ -268,12 +244,13 @@
    "group": "props",
    "pass": "shadow",
    "scale": 1,
+   "texel": 0.5,
    "page": 0,
-   "w": 2048,
-   "h": 256,
+   "w": 640,
+   "h": 128,
    "frames": 51,
-   "bytes": 45202,
-   "sha256": "7917c04dceb4744562d017a5bdc77ea50a401b410be9496b4785f978d5fb7cc8"
+   "bytes": 17627,
+   "sha256": "3b65f88a426a476a9c113ea3e328907c7ed1d598c0a11e118557f40656a126db"
   },
   {
    "json": "props-shadow-2x-0.json",
@@ -281,12 +258,13 @@
    "group": "props",
    "pass": "shadow",
    "scale": 2,
+   "texel": 0.5,
    "page": 0,
-   "w": 2048,
-   "h": 512,
+   "w": 1056,
+   "h": 224,
    "frames": 51,
-   "bytes": 131029,
-   "sha256": "4c095d6f04d99d20219b8919b5d9f3c706ce47b7fd0a06ae23aa4d732ae9195a"
+   "bytes": 45744,
+   "sha256": "847209c5bd02fada1986e601574964e01df43c5c5b6befa1b9159b2bd7703ea0"
   },
   {
    "json": "units-1x-0.json",
@@ -296,10 +274,23 @@
    "scale": 1,
    "page": 0,
    "w": 2048,
-   "h": 1024,
-   "frames": 1248,
-   "bytes": 1249104,
-   "sha256": "55c2d1a47208dcd8f6925f07d12b07a3079e95dd0ab96bbe7203b2e3029740f8"
+   "h": 2016,
+   "frames": 2488,
+   "bytes": 4036119,
+   "sha256": "c1796f3b15e64f52274e3f8c28d940dfdac69bf60901b2cd12a2e676fd0a2866"
+  },
+  {
+   "json": "units-1x-1.json",
+   "image": "units-1x-1.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 1,
+   "page": 1,
+   "w": 2048,
+   "h": 992,
+   "frames": 1768,
+   "bytes": 2139068,
+   "sha256": "f6e18c7bef3f4657ab7837b05d5364d48134d3a90729828bdb35438c88c4126d"
   },
   {
    "json": "units-2x-0.json",
@@ -309,10 +300,88 @@
    "scale": 2,
    "page": 0,
    "w": 2048,
-   "h": 2048,
-   "frames": 1248,
-   "bytes": 3479259,
-   "sha256": "67757d4c5ced1d5a2e14411c55c0f790dd9b2c2902101b7ec9e810b01c081cff"
+   "h": 1216,
+   "frames": 656,
+   "bytes": 2130034,
+   "sha256": "0c9d5c7d4c9465449da866abf3caacab9e3067703409ed84ba6dbe375969c58a"
+  },
+  {
+   "json": "units-2x-1.json",
+   "image": "units-2x-1.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 2,
+   "page": 1,
+   "w": 2048,
+   "h": 1984,
+   "frames": 424,
+   "bytes": 2946551,
+   "sha256": "82051d42f1a1b5a9dcecd5a02efab97daa9337ee9b554685daa568b37ff89821"
+  },
+  {
+   "json": "units-2x-2.json",
+   "image": "units-2x-2.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 2,
+   "page": 2,
+   "w": 2048,
+   "h": 1760,
+   "frames": 512,
+   "bytes": 2912002,
+   "sha256": "9ff0de66e806df80c4b80e6aaf96ae8b9698a70c00d3a1939b8ac17cbda313a1"
+  },
+  {
+   "json": "units-2x-3.json",
+   "image": "units-2x-3.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 2,
+   "page": 3,
+   "w": 2048,
+   "h": 1440,
+   "frames": 640,
+   "bytes": 2101903,
+   "sha256": "5c8b9acef2a894b675c1f454dc771457e638a67c4ca9293c28ec114f09db5f80"
+  },
+  {
+   "json": "units-2x-4.json",
+   "image": "units-2x-4.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 2,
+   "page": 4,
+   "w": 2048,
+   "h": 1792,
+   "frames": 912,
+   "bytes": 3193874,
+   "sha256": "9c0faf32d1e02978ff80900d1f9fc01cc626ceadaf9f013f102da8f41d6ba8f4"
+  },
+  {
+   "json": "units-2x-5.json",
+   "image": "units-2x-5.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 2,
+   "page": 5,
+   "w": 2048,
+   "h": 1952,
+   "frames": 840,
+   "bytes": 3521150,
+   "sha256": "9399d66effc69aeb00e210f7cf9a2ee77d549dba53efbd760cf74993324e119a"
+  },
+  {
+   "json": "units-2x-6.json",
+   "image": "units-2x-6.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 2,
+   "page": 6,
+   "w": 2048,
+   "h": 352,
+   "frames": 272,
+   "bytes": 564676,
+   "sha256": "77c048538044ca8013b98507d055e60f00c779df413d85abd8d8098560324b2b"
   },
   {
    "json": "units-shadow-1x-0.json",
@@ -320,12 +389,13 @@
    "group": "units",
    "pass": "shadow",
    "scale": 1,
+   "texel": 0.5,
    "page": 0,
    "w": 2048,
-   "h": 1024,
-   "frames": 1248,
-   "bytes": 591494,
-   "sha256": "2a4963bc997b937b6c5154401a8569b6e0324b7fe8116ab617652a65f933fe98"
+   "h": 960,
+   "frames": 4256,
+   "bytes": 1033723,
+   "sha256": "2ea03261292051d9a06dc0666421ad659da05f3c79dbedeecf89e5cdc938ab6d"
   },
   {
    "json": "units-shadow-2x-0.json",
@@ -333,12 +403,27 @@
    "group": "units",
    "pass": "shadow",
    "scale": 2,
+   "texel": 0.5,
    "page": 0,
    "w": 2048,
-   "h": 2048,
-   "frames": 1248,
-   "bytes": 1823756,
-   "sha256": "644b44e307faed5c0f6daee2d75f944e485ba0186443c918940823584bbd98ab"
+   "h": 2016,
+   "frames": 2680,
+   "bytes": 1845564,
+   "sha256": "4ff19e2c4595b39485fc6de3793dbe35ccf97c47647632f1f24af664b0e07eb8"
+  },
+  {
+   "json": "units-shadow-2x-1.json",
+   "image": "units-shadow-2x-1.png",
+   "group": "units",
+   "pass": "shadow",
+   "scale": 2,
+   "texel": 0.5,
+   "page": 1,
+   "w": 2048,
+   "h": 896,
+   "frames": 1576,
+   "bytes": 1009034,
+   "sha256": "636c1e20b3517c4e426c99af246e48f333975657f6b2fee9a8a098c77dc5c879"
   },
   {
    "json": "units-team-1x-0.json",
@@ -348,10 +433,10 @@
    "scale": 1,
    "page": 0,
    "w": 2048,
-   "h": 512,
-   "frames": 1248,
-   "bytes": 292755,
-   "sha256": "d7cdb919c663b1b46adf38eb64c877b7653fbaee2e48207a95ce56ebe16f798f"
+   "h": 1024,
+   "frames": 4255,
+   "bytes": 1192004,
+   "sha256": "ba12456f6fac0ed4b97cb7be9fe6f60638e0f34011e55c6c63b7ca1697306ab1"
   },
   {
    "json": "units-team-2x-0.json",
@@ -361,17 +446,30 @@
    "scale": 2,
    "page": 0,
    "w": 2048,
-   "h": 1024,
-   "frames": 1248,
-   "bytes": 696323,
-   "sha256": "6e9a4a40a93b51e474cdb67a6d4b5a96b1ef4278a45ed9bcea094ec508f49ba3"
+   "h": 2048,
+   "frames": 2679,
+   "bytes": 1872997,
+   "sha256": "d2c00d7f08e377cbc7e237f032c6dc33622bd6addd4f5289749acd40737857a1"
+  },
+  {
+   "json": "units-team-2x-1.json",
+   "image": "units-team-2x-1.png",
+   "group": "units",
+   "pass": "team",
+   "scale": 2,
+   "page": 1,
+   "w": 2048,
+   "h": 1056,
+   "frames": 1576,
+   "bytes": 949913,
+   "sha256": "1aa152661fc96fbfeea245aa3b07bbfab66aa230c5d9b2422cccdb9a9b5a81d5"
   }
  ],
  "assets": {
   "academy": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "14a064d965587aee",
+   "sourceHash": "cd1ec2c79c92bb52",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -409,21 +507,21 @@
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 144,
-      "h": 156
+      "w": 146,
+      "h": 158
      },
      "anchor": {
-      "x": 0.38194,
-      "y": 0.64744
+      "x": 0.38356,
+      "y": 0.64557
      }
     },
     "2": {
      "sourceSize": {
-      "w": 288,
+      "w": 290,
       "h": 312
      },
      "anchor": {
-      "x": 0.38542,
+      "x": 0.38621,
       "y": 0.64744
      }
     }
@@ -465,10 +563,93 @@
     3
    ]
   },
+  "achilles": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "844d0d3c69943dfe",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 256,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-0.json"
+     ],
+     "team": [
+      "units-team-1x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-0.json"
+     ],
+     "team": [
+      "units-team-2x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 64,
+      "h": 80
+     },
+     "anchor": {
+      "x": 0.40625,
+      "y": 0.6
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 126,
+      "h": 160
+     },
+     "anchor": {
+      "x": 0.39683,
+      "y": 0.6
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "ability": {
+     "frames": 8,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   }
+  },
   "barracks": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "b3f612e307666b35",
+   "sourceHash": "7bbf464e7479c0f2",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -507,21 +688,21 @@
     "1": {
      "sourceSize": {
       "w": 138,
-      "h": 161
+      "h": 162
      },
      "anchor": {
       "x": 0.3913,
-      "y": 0.59006
+      "y": 0.59259
      }
     },
     "2": {
      "sourceSize": {
-      "w": 275,
-      "h": 323
+      "w": 276,
+      "h": 324
      },
      "anchor": {
-      "x": 0.38909,
-      "y": 0.58824
+      "x": 0.3913,
+      "y": 0.58642
      }
     }
    },
@@ -562,10 +743,88 @@
     3
    ]
   },
+  "basileus": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "157c540f2d4ed8c8",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 192,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-0.json"
+     ],
+     "team": [
+      "units-team-1x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-0.json"
+     ],
+     "team": [
+      "units-team-2x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 64,
+      "h": 88
+     },
+     "anchor": {
+      "x": 0.4375,
+      "y": 0.52273
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 126,
+      "h": 176
+     },
+     "anchor": {
+      "x": 0.42857,
+      "y": 0.52273
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   }
+  },
   "cornucopia": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "00f0d3bbe1cbe852",
+   "sourceHash": "c6d7c3e01252f40a",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -603,22 +862,22 @@
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 92,
-      "h": 127
+      "w": 94,
+      "h": 128
      },
      "anchor": {
-      "x": 0.3587,
-      "y": 0.56693
+      "x": 0.3617,
+      "y": 0.5625
      }
     },
     "2": {
      "sourceSize": {
-      "w": 185,
-      "h": 253
+      "w": 186,
+      "h": 254
      },
      "anchor": {
-      "x": 0.35676,
-      "y": 0.56917
+      "x": 0.35484,
+      "y": 0.56693
      }
     }
    },
@@ -659,10 +918,93 @@
     2
    ]
   },
+  "cretan_archer": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "d65b04cf2f026784",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 208,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-0.json"
+     ],
+     "team": [
+      "units-team-1x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-0.json"
+     ],
+     "team": [
+      "units-team-2x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 54,
+      "h": 66
+     },
+     "anchor": {
+      "x": 0.44444,
+      "y": 0.57576
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 110,
+      "h": 130
+     },
+     "anchor": {
+      "x": 0.45455,
+      "y": 0.56923
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "aim": {
+     "frames": 2,
+     "fps": 10,
+     "loop": true
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   }
+  },
   "farm": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "31a30ab7a69a5d12",
+   "sourceHash": "c6d614083be0940a",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -706,22 +1048,22 @@
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 79,
-      "h": 86
+      "w": 80,
+      "h": 88
      },
      "anchor": {
-      "x": 0.48101,
-      "y": 0.52326
+      "x": 0.475,
+      "y": 0.52273
      }
     },
     "2": {
      "sourceSize": {
-      "w": 157,
-      "h": 173
+      "w": 158,
+      "h": 174
      },
      "anchor": {
-      "x": 0.47771,
-      "y": 0.52023
+      "x": 0.48101,
+      "y": 0.51724
      }
     }
    },
@@ -765,7 +1107,7 @@
   "fortress": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "9233872c12ecc729",
+   "sourceHash": "e7dc4f07f2da5cae",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -804,21 +1146,21 @@
     "1": {
      "sourceSize": {
       "w": 176,
-      "h": 217
+      "h": 218
      },
      "anchor": {
       "x": 0.40909,
-      "y": 0.56682
+      "y": 0.56881
      }
     },
     "2": {
      "sourceSize": {
       "w": 352,
-      "h": 433
+      "h": 434
      },
      "anchor": {
       "x": 0.40909,
-      "y": 0.56582
+      "y": 0.56682
      }
     }
    },
@@ -862,7 +1204,7 @@
   "gate": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "a0be2d7b373bbb47",
+   "sourceHash": "bcec468b31e3bff6",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -905,22 +1247,22 @@
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 76,
-      "h": 116
+      "w": 78,
+      "h": 118
      },
      "anchor": {
-      "x": 0.30263,
-      "y": 0.69828
+      "x": 0.30769,
+      "y": 0.69492
      }
     },
     "2": {
      "sourceSize": {
-      "w": 151,
-      "h": 233
+      "w": 152,
+      "h": 234
      },
      "anchor": {
-      "x": 0.30464,
-      "y": 0.69528
+      "x": 0.30263,
+      "y": 0.69231
      }
     }
    },
@@ -969,7 +1311,7 @@
   "granary": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "36baa6d5977c034a",
+   "sourceHash": "aaac6d00e0c87ef8",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1007,22 +1349,22 @@
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 81,
+      "w": 82,
       "h": 114
      },
      "anchor": {
-      "x": 0.45679,
+      "x": 0.46341,
       "y": 0.70175
      }
     },
     "2": {
      "sourceSize": {
       "w": 162,
-      "h": 227
+      "h": 228
      },
      "anchor": {
       "x": 0.45679,
-      "y": 0.70485
+      "y": 0.70175
      }
     }
    },
@@ -1063,10 +1405,337 @@
     2
    ]
   },
+  "helepolis": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "a51e17fe8104ebf3",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 168,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-0.json"
+     ],
+     "team": [
+      "units-team-1x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-1.json"
+     ],
+     "team": [
+      "units-team-2x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 94,
+      "h": 122
+     },
+     "anchor": {
+      "x": 0.38298,
+      "y": 0.63934
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 188,
+      "h": 240
+     },
+     "anchor": {
+      "x": 0.38298,
+      "y": 0.64167
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 6,
+     "fps": 10,
+     "loop": true
+    },
+    "attack": {
+     "frames": 8,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   }
+  },
+  "heracles": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "191527b2bca34d2a",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 256,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-0.json"
+     ],
+     "team": [
+      "units-team-1x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-1.json"
+     ],
+     "team": [
+      "units-team-2x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 72,
+      "h": 92
+     },
+     "anchor": {
+      "x": 0.38889,
+      "y": 0.58696
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 142,
+      "h": 180
+     },
+     "anchor": {
+      "x": 0.39437,
+      "y": 0.58889
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "ability": {
+     "frames": 8,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   }
+  },
+  "hetairoi": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "86ead6afa688f75a",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 256,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-0.json"
+     ],
+     "team": [
+      "units-team-1x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-2.json"
+     ],
+     "team": [
+      "units-team-2x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 92,
+      "h": 120
+     },
+     "anchor": {
+      "x": 0.3913,
+      "y": 0.6
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 184,
+      "h": 238
+     },
+     "anchor": {
+      "x": 0.3913,
+      "y": 0.58824
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true
+    },
+    "run": {
+     "frames": 8,
+     "fps": 12,
+     "loop": true
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   }
+  },
+  "hippeus": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "a410982271453c0e",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 256,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-0.json"
+     ],
+     "team": [
+      "units-team-1x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-2.json"
+     ],
+     "team": [
+      "units-team-2x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 68,
+      "h": 90
+     },
+     "anchor": {
+      "x": 0.38235,
+      "y": 0.6
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 134,
+      "h": 178
+     },
+     "anchor": {
+      "x": 0.37313,
+      "y": 0.59551
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true
+    },
+    "run": {
+     "frames": 8,
+     "fps": 12,
+     "loop": true
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   }
+  },
   "hoplite": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "5eca8d9964c794f6",
+   "sourceHash": "87dd5f532200c740",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -1086,7 +1755,7 @@
     },
     "2": {
      "color": [
-      "units-2x-0.json"
+      "units-2x-3.json"
      ],
      "team": [
       "units-team-2x-0.json"
@@ -1099,22 +1768,22 @@
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 88,
-      "h": 108
+      "w": 90,
+      "h": 110
      },
      "anchor": {
-      "x": 0.39773,
-      "y": 0.56481
+      "x": 0.4,
+      "y": 0.56364
      }
     },
     "2": {
      "sourceSize": {
       "w": 178,
-      "h": 217
+      "h": 218
      },
      "anchor": {
       "x": 0.40449,
-      "y": 0.56682
+      "y": 0.56881
      }
     }
    },
@@ -1144,7 +1813,7 @@
   "house": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "3c1ee43784ee5f5d",
+   "sourceHash": "66b1f215f3041292",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1182,22 +1851,22 @@
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 99,
-      "h": 125
+      "w": 100,
+      "h": 126
      },
      "anchor": {
-      "x": 0.35354,
-      "y": 0.6
+      "x": 0.36,
+      "y": 0.60317
      }
     },
     "2": {
      "sourceSize": {
       "w": 198,
-      "h": 249
+      "h": 250
      },
      "anchor": {
       "x": 0.35354,
-      "y": 0.59839
+      "y": 0.6
      }
     }
    },
@@ -1241,7 +1910,7 @@
   "hypaspist": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "7a0195861cee97eb",
+   "sourceHash": "fd2c25c963d5c5ca",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -1261,7 +1930,7 @@
     },
     "2": {
      "color": [
-      "units-2x-0.json"
+      "units-2x-3.json"
      ],
      "team": [
       "units-team-2x-0.json"
@@ -1275,21 +1944,21 @@
     "1": {
      "sourceSize": {
       "w": 58,
-      "h": 73
+      "h": 74
      },
      "anchor": {
       "x": 0.41379,
-      "y": 0.60274
+      "y": 0.59459
      }
     },
     "2": {
      "sourceSize": {
       "w": 116,
-      "h": 144
+      "h": 146
      },
      "anchor": {
       "x": 0.41379,
-      "y": 0.60417
+      "y": 0.60274
      }
     }
    },
@@ -1316,10 +1985,176 @@
     }
    }
   },
+  "jason": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "35d7d9048cde0682",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 256,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-0.json"
+     ],
+     "team": [
+      "units-team-1x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-3.json"
+     ],
+     "team": [
+      "units-team-2x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 94,
+      "h": 114
+     },
+     "anchor": {
+      "x": 0.40426,
+      "y": 0.5614
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 188,
+      "h": 228
+     },
+     "anchor": {
+      "x": 0.40426,
+      "y": 0.5614
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "ability": {
+     "frames": 8,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   }
+  },
+  "kataskopos": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "cac3bedf764e7ba2",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 256,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-0.json"
+     ],
+     "team": [
+      "units-team-1x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-4.json"
+     ],
+     "team": [
+      "units-team-2x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 64,
+      "h": 84
+     },
+     "anchor": {
+      "x": 0.375,
+      "y": 0.61905
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 130,
+      "h": 170
+     },
+     "anchor": {
+      "x": 0.36923,
+      "y": 0.62353
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true
+    },
+    "run": {
+     "frames": 8,
+     "fps": 12,
+     "loop": true
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   }
+  },
   "lumber_camp": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "1315f7403a4624c4",
+   "sourceHash": "54ee363604d70dc2",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1357,22 +2192,22 @@
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 87,
+      "w": 88,
       "h": 114
      },
      "anchor": {
-      "x": 0.42529,
+      "x": 0.43182,
       "y": 0.63158
      }
     },
     "2": {
      "sourceSize": {
-      "w": 173,
-      "h": 227
+      "w": 174,
+      "h": 228
      },
      "anchor": {
-      "x": 0.42197,
-      "y": 0.62996
+      "x": 0.42529,
+      "y": 0.63158
      }
     }
    },
@@ -1416,7 +2251,7 @@
   "market": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "d3b9ad0771bc8eef",
+   "sourceHash": "f812c686d7b5137a",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1454,22 +2289,22 @@
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 133,
-      "h": 159
+      "w": 134,
+      "h": 160
      },
      "anchor": {
-      "x": 0.38346,
-      "y": 0.61006
+      "x": 0.38806,
+      "y": 0.6125
      }
     },
     "2": {
      "sourceSize": {
       "w": 266,
-      "h": 318
+      "h": 320
      },
      "anchor": {
       "x": 0.38346,
-      "y": 0.61321
+      "y": 0.6125
      }
     }
    },
@@ -1513,7 +2348,7 @@
   "militia": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "6e37d84eb38cf6dd",
+   "sourceHash": "b559f57d143da824",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -1522,7 +2357,7 @@
    "atlases": {
     "1": {
      "color": [
-      "units-1x-0.json"
+      "units-1x-1.json"
      ],
      "team": [
       "units-team-1x-0.json"
@@ -1533,7 +2368,7 @@
     },
     "2": {
      "color": [
-      "units-2x-0.json"
+      "units-2x-4.json"
      ],
      "team": [
       "units-team-2x-0.json"
@@ -1546,22 +2381,22 @@
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 53,
-      "h": 67
+      "w": 54,
+      "h": 68
      },
      "anchor": {
-      "x": 0.37736,
-      "y": 0.58209
+      "x": 0.37037,
+      "y": 0.58824
      }
     },
     "2": {
      "sourceSize": {
-      "w": 107,
-      "h": 135
+      "w": 108,
+      "h": 136
      },
      "anchor": {
-      "x": 0.38318,
-      "y": 0.58519
+      "x": 0.38889,
+      "y": 0.58824
      }
     }
    },
@@ -1591,7 +2426,7 @@
   "mine": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "d7fe80d2facaa253",
+   "sourceHash": "f3f2b5f1bdf113f8",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1688,7 +2523,7 @@
   "myrmidon": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "3e8571eeb944a462",
+   "sourceHash": "eff40a6350a46090",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -1697,7 +2532,7 @@
    "atlases": {
     "1": {
      "color": [
-      "units-1x-0.json"
+      "units-1x-1.json"
      ],
      "team": [
       "units-team-1x-0.json"
@@ -1708,35 +2543,35 @@
     },
     "2": {
      "color": [
-      "units-2x-0.json"
+      "units-2x-4.json"
      ],
      "team": [
-      "units-team-2x-0.json"
+      "units-team-2x-1.json"
      ],
      "shadow": [
-      "units-shadow-2x-0.json"
+      "units-shadow-2x-1.json"
      ]
     }
    },
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 71,
+      "w": 72,
       "h": 88
      },
      "anchor": {
-      "x": 0.39437,
+      "x": 0.38889,
       "y": 0.56818
      }
     },
     "2": {
      "sourceSize": {
       "w": 144,
-      "h": 177
+      "h": 178
      },
      "anchor": {
       "x": 0.40278,
-      "y": 0.56497
+      "y": 0.5618
      }
     }
    },
@@ -1763,10 +2598,342 @@
     }
    }
   },
+  "odysseus": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "877567c84d0965bd",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 272,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-1.json"
+     ],
+     "team": [
+      "units-team-1x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-4.json"
+     ],
+     "team": [
+      "units-team-2x-1.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-1.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 54,
+      "h": 68
+     },
+     "anchor": {
+      "x": 0.40741,
+      "y": 0.58824
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 104,
+      "h": 132
+     },
+     "anchor": {
+      "x": 0.40385,
+      "y": 0.59091
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "aim": {
+     "frames": 2,
+     "fps": 10,
+     "loop": true
+    },
+    "ability": {
+     "frames": 8,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   }
+  },
+  "peltast": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "0bd3950f8094c6b2",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 208,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-1.json"
+     ],
+     "team": [
+      "units-team-1x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-5.json"
+     ],
+     "team": [
+      "units-team-2x-1.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-1.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 66,
+      "h": 80
+     },
+     "anchor": {
+      "x": 0.39394,
+      "y": 0.575
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 132,
+      "h": 162
+     },
+     "anchor": {
+      "x": 0.39394,
+      "y": 0.5679
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "aim": {
+     "frames": 2,
+     "fps": 10,
+     "loop": true
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   }
+  },
+  "perseus": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "c7f802440459febd",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 256,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-1.json"
+     ],
+     "team": [
+      "units-team-1x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-5.json"
+     ],
+     "team": [
+      "units-team-2x-1.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-1.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 62,
+      "h": 76
+     },
+     "anchor": {
+      "x": 0.41935,
+      "y": 0.60526
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 120,
+      "h": 150
+     },
+     "anchor": {
+      "x": 0.41667,
+      "y": 0.6
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "ability": {
+     "frames": 8,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   }
+  },
+  "petrobolos": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "45032cc9eb8a51bb",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 168,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-1.json"
+     ],
+     "team": [
+      "units-team-1x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-5.json"
+     ],
+     "team": [
+      "units-team-2x-1.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-1.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 76,
+      "h": 88
+     },
+     "anchor": {
+      "x": 0.44737,
+      "y": 0.54545
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 154,
+      "h": 174
+     },
+     "anchor": {
+      "x": 0.44156,
+      "y": 0.55172
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 6,
+     "fps": 10,
+     "loop": true
+    },
+    "attack": {
+     "frames": 8,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   }
+  },
   "props-nodes": {
    "kind": "prop",
    "group": "props",
-   "sourceHash": "3336172c1c736a30",
+   "sourceHash": "9c0016fa2ec48c14",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -1817,7 +2984,7 @@
   "props-trees": {
    "kind": "prop",
    "group": "props",
-   "sourceHash": "f038980d40c70a50",
+   "sourceHash": "c3f3c1344087e64d",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -1877,7 +3044,7 @@
   "rubble": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "db608583178ff4b1",
+   "sourceHash": "388da3c97c6dd337",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -1905,22 +3072,22 @@
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 141,
+      "w": 142,
       "h": 146
      },
      "anchor": {
-      "x": 0.47518,
+      "x": 0.47887,
       "y": 0.50685
      }
     },
     "2": {
      "sourceSize": {
-      "w": 281,
-      "h": 293
+      "w": 282,
+      "h": 294
      },
      "anchor": {
-      "x": 0.47687,
-      "y": 0.50512
+      "x": 0.47518,
+      "y": 0.5034
      }
     }
    },
@@ -1959,7 +3126,7 @@
   "siege_workshop": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "0adef19a3aed06b1",
+   "sourceHash": "000e89de5b8b73f3",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1997,21 +3164,21 @@
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 141,
-      "h": 157
+      "w": 142,
+      "h": 158
      },
      "anchor": {
-      "x": 0.39007,
-      "y": 0.6051
+      "x": 0.39437,
+      "y": 0.60759
      }
     },
     "2": {
      "sourceSize": {
-      "w": 281,
+      "w": 282,
       "h": 314
      },
      "anchor": {
-      "x": 0.3879,
+      "x": 0.39007,
       "y": 0.6051
      }
     }
@@ -2056,7 +3223,7 @@
   "stable": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "5e6a5bfad0b29259",
+   "sourceHash": "8ea0241cbd83ebd3",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2094,22 +3261,22 @@
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 136,
-      "h": 154
+      "w": 138,
+      "h": 156
      },
      "anchor": {
-      "x": 0.38971,
-      "y": 0.6039
+      "x": 0.3913,
+      "y": 0.60256
      }
     },
     "2": {
      "sourceSize": {
-      "w": 272,
-      "h": 310
+      "w": 274,
+      "h": 312
      },
      "anchor": {
-      "x": 0.39338,
-      "y": 0.60323
+      "x": 0.39416,
+      "y": 0.60256
      }
     }
    },
@@ -2153,7 +3320,7 @@
   "temple": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "caddff4534196480",
+   "sourceHash": "5653d6d1318369d0",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2184,28 +3351,28 @@
       "icons-team-2x-0.json"
      ],
      "shadow": [
-      "buildings-shadow-2x-1.json"
+      "buildings-shadow-2x-0.json"
      ]
     }
    },
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 137,
-      "h": 185
+      "w": 138,
+      "h": 186
      },
      "anchor": {
-      "x": 0.40876,
-      "y": 0.59459
+      "x": 0.4058,
+      "y": 0.5914
      }
     },
     "2": {
      "sourceSize": {
-      "w": 272,
+      "w": 274,
       "h": 370
      },
      "anchor": {
-      "x": 0.40809,
+      "x": 0.40876,
       "y": 0.59459
      }
     }
@@ -2250,7 +3417,7 @@
   "titan_gate": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "ad32ecbb76df19b4",
+   "sourceHash": "f75b0079e4934dd1",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2281,29 +3448,29 @@
       "icons-team-2x-0.json"
      ],
      "shadow": [
-      "buildings-shadow-2x-1.json"
+      "buildings-shadow-2x-0.json"
      ]
     }
    },
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 217,
+      "w": 218,
       "h": 210
      },
      "anchor": {
-      "x": 0.42396,
+      "x": 0.42202,
       "y": 0.5619
      }
     },
     "2": {
      "sourceSize": {
-      "w": 433,
-      "h": 418
+      "w": 434,
+      "h": 420
      },
      "anchor": {
-      "x": 0.42263,
-      "y": 0.5622
+      "x": 0.42396,
+      "y": 0.5619
      }
     }
    },
@@ -2352,7 +3519,7 @@
   "tower": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "47bbb5fc911a19e8",
+   "sourceHash": "e5c43717434e5c9a",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2402,29 +3569,29 @@
       "icons-team-2x-0.json"
      ],
      "shadow": [
-      "buildings-shadow-2x-1.json"
+      "buildings-shadow-2x-0.json"
      ]
     }
    },
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 86,
+      "w": 88,
       "h": 134
      },
      "anchor": {
-      "x": 0.26744,
+      "x": 0.27273,
       "y": 0.64179
      }
     },
     "2": {
      "sourceSize": {
       "w": 172,
-      "h": 269
+      "h": 270
      },
      "anchor": {
       "x": 0.26744,
-      "y": 0.64312
+      "y": 0.64444
      }
     }
    },
@@ -2468,7 +3635,7 @@
   "town_center": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "ce1b9fd69bac8e50",
+   "sourceHash": "865f48d983c0f49f",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2505,29 +3672,29 @@
       "icons-team-2x-0.json"
      ],
      "shadow": [
-      "buildings-shadow-2x-1.json"
+      "buildings-shadow-2x-0.json"
      ]
     }
    },
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 146,
-      "h": 177
+      "w": 148,
+      "h": 178
      },
      "anchor": {
-      "x": 0.37671,
-      "y": 0.61582
+      "x": 0.37838,
+      "y": 0.61798
      }
     },
     "2": {
      "sourceSize": {
-      "w": 291,
-      "h": 354
+      "w": 292,
+      "h": 356
      },
      "anchor": {
-      "x": 0.37457,
-      "y": 0.61864
+      "x": 0.37671,
+      "y": 0.61798
      }
     }
    },
@@ -2571,7 +3738,7 @@
   "toxotes": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "b5aa303e3e387ce0",
+   "sourceHash": "1d51a29924f8dde5",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -2580,7 +3747,7 @@
    "atlases": {
     "1": {
      "color": [
-      "units-1x-0.json"
+      "units-1x-1.json"
      ],
      "team": [
       "units-team-1x-0.json"
@@ -2591,34 +3758,34 @@
     },
     "2": {
      "color": [
-      "units-2x-0.json"
+      "units-2x-5.json"
      ],
      "team": [
-      "units-team-2x-0.json"
+      "units-team-2x-1.json"
      ],
      "shadow": [
-      "units-shadow-2x-0.json"
+      "units-shadow-2x-1.json"
      ]
     }
    },
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 49,
-      "h": 63
+      "w": 50,
+      "h": 64
      },
      "anchor": {
-      "x": 0.40816,
-      "y": 0.5873
+      "x": 0.4,
+      "y": 0.59375
      }
     },
     "2": {
      "sourceSize": {
-      "w": 99,
+      "w": 100,
       "h": 126
      },
      "anchor": {
-      "x": 0.40404,
+      "x": 0.4,
       "y": 0.5873
      }
     }
@@ -2654,7 +3821,7 @@
   "villager": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "83047b8f7209b01d",
+   "sourceHash": "348f8b2ceedac229",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -2663,7 +3830,7 @@
    "atlases": {
     "1": {
      "color": [
-      "units-1x-0.json"
+      "units-1x-1.json"
      ],
      "team": [
       "units-team-1x-0.json"
@@ -2674,35 +3841,35 @@
     },
     "2": {
      "color": [
-      "units-2x-0.json"
+      "units-2x-6.json"
      ],
      "team": [
-      "units-team-2x-0.json"
+      "units-team-2x-1.json"
      ],
      "shadow": [
-      "units-shadow-2x-0.json"
+      "units-shadow-2x-1.json"
      ]
     }
    },
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 51,
+      "w": 52,
       "h": 66
      },
      "anchor": {
-      "x": 0.37255,
+      "x": 0.38462,
       "y": 0.63636
      }
     },
     "2": {
      "sourceSize": {
       "w": 102,
-      "h": 133
+      "h": 134
      },
      "anchor": {
       "x": 0.37255,
-      "y": 0.63158
+      "y": 0.62687
      }
     }
    },
@@ -2742,7 +3909,7 @@
   "wall": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "7149f2d529e952cc",
+   "sourceHash": "0f84ad1da32cd3c1",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2794,29 +3961,29 @@
       "icons-team-2x-0.json"
      ],
      "shadow": [
-      "buildings-shadow-2x-1.json"
+      "buildings-shadow-2x-0.json"
      ]
     }
    },
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 69,
-      "h": 92
+      "w": 70,
+      "h": 94
      },
      "anchor": {
-      "x": 0.33333,
-      "y": 0.6413
+      "x": 0.34286,
+      "y": 0.6383
      }
     },
     "2": {
      "sourceSize": {
       "w": 138,
-      "h": 182
+      "h": 184
      },
      "anchor": {
       "x": 0.33333,
-      "y": 0.64286
+      "y": 0.6413
      }
     }
    },
@@ -2860,7 +4027,7 @@
   "wonder_artemis": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "de49ee22d4ac9ec5",
+   "sourceHash": "bdc9214252b3513f",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2891,28 +4058,28 @@
       "icons-team-2x-0.json"
      ],
      "shadow": [
-      "buildings-shadow-2x-1.json"
+      "buildings-shadow-2x-0.json"
      ]
     }
    },
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 172,
-      "h": 229
+      "w": 174,
+      "h": 230
      },
      "anchor": {
-      "x": 0.38953,
-      "y": 0.60262
+      "x": 0.3908,
+      "y": 0.6
      }
     },
     "2": {
      "sourceSize": {
-      "w": 345,
+      "w": 346,
       "h": 458
      },
      "anchor": {
-      "x": 0.3913,
+      "x": 0.39306,
       "y": 0.60262
      }
     }
@@ -2957,7 +4124,7 @@
   "wonder_colossus": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "afb83543b87d56cd",
+   "sourceHash": "ca70423eab8f1ad1",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2988,29 +4155,29 @@
       "icons-team-2x-0.json"
      ],
      "shadow": [
-      "buildings-shadow-2x-2.json"
+      "buildings-shadow-2x-0.json"
      ]
     }
    },
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 189,
-      "h": 228
+      "w": 190,
+      "h": 230
      },
      "anchor": {
-      "x": 0.35979,
-      "y": 0.66228
+      "x": 0.35789,
+      "y": 0.66087
      }
     },
     "2": {
      "sourceSize": {
       "w": 378,
-      "h": 455
+      "h": 456
      },
      "anchor": {
       "x": 0.35979,
-      "y": 0.66154
+      "y": 0.66228
      }
     }
    },
@@ -3054,7 +4221,7 @@
   "wonder_zeus": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "ea3b0fff43530235",
+   "sourceHash": "c539ac07cc5d8f8a",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -3085,29 +4252,29 @@
       "icons-team-2x-0.json"
      ],
      "shadow": [
-      "buildings-shadow-2x-2.json"
+      "buildings-shadow-2x-0.json"
      ]
     }
    },
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 170,
-      "h": 199
+      "w": 172,
+      "h": 200
      },
      "anchor": {
-      "x": 0.42941,
-      "y": 0.60302
+      "x": 0.43023,
+      "y": 0.6
      }
     },
     "2": {
      "sourceSize": {
-      "w": 340,
-      "h": 397
+      "w": 342,
+      "h": 398
      },
      "anchor": {
-      "x": 0.42647,
-      "y": 0.60453
+      "x": 0.4269,
+      "y": 0.60302
      }
     }
    },
@@ -3150,8 +4317,8 @@
   }
  },
  "totals": {
-  "pngBytes": 18154081,
-  "vramBytes": 241958912,
-  "atlases": 26
+  "pngBytes": 39040892,
+  "vramBytes": 278851584,
+  "atlases": 33
  }
 }

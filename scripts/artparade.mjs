@@ -1,17 +1,24 @@
-// "Desfile" da arte assada (docs/ART.md §5, Etapa 2 parte B): partida com semente fixa (42, mapa pequeno, 1 IA) e, numa
-// área aberta ao sul de um bosque perto do Centro Cívico, um templo completo, um templo em obra (≈ 45 %, cidadãos
-// construindo), 8 hoplitas indo e voltando nas 8 direções (roda do desfile, postura passiva), 6 contra 6 hoplitas lutando
-// (vida alta para a luta durar as capturas), um aglomerado de 5 contra 5 em ataque-mover que se mistura, cidadãos cortando
-// o bosque (dos dois jogadores) e carregando madeira. Etapa 4 (lote 1): mais ao sul, uma segunda roda com milícias,
-// hipaspistas, mirmidões e toxotas indo e voltando nas 8 direções, toxotas atirando (mira entre um disparo e outro) e
-// mirmidões contra hipaspistas inimigos; captura própria <prefixo>-lote1-{z10,z22}.png.
-// O mapa é revelado só no renderizador e o HUD fica oculto.
-// Capturas em docs/art/: <prefixo>-desfile-z10.png e -desfile-z22.png (preset médio, atlas 1×), -desfile-z22-2x.png
-// (preset alto, atlas 2×) e <prefixo>-procedural-z10.png (a mesma cena com a arte assada desligada, para comparar).
-// Imprime o estado da ArtLibrary e falha se houver erro de página, se a arte assada não for servida, se quem anda olhar
-// para fora da velocidade, se mais de 10 % dos quadros de 'attack' (amostrados na luta e no aglomerado, onde o empurrão
-// da separação mexe em todos) estiverem a 90° ou mais do alvo, se algum tipo do lote 1 sair procedural ou se nenhum
-// toxota aparecer atirando e mirando.
+// "Desfile" da arte assada (docs/ART.md §5; Etapa 2 parte B, ampliado na integração da Etapa 4): quatro cenas, cada uma
+// numa partida nova com semente fixa (42, 1 IA fácil; a cena no mapa pequeno, as outras no médio, numa clareira longe
+// do Centro Cívico), o mapa revelado só no renderizador e o HUD oculto.
+//  1. cena: ao sul de um bosque perto do Centro Cívico, um templo completo, um templo em obra (≈ 45 %, cidadãos
+//     construindo), 8 hoplitas indo e voltando nas 8 direções, 6 contra 6 hoplitas lutando (vida alta), um aglomerado de
+//     5 contra 5 em ataque-mover que se mistura, cidadãos cortando o bosque (dos dois jogadores) e carregando madeira.
+//  2. roda: as 17 unidades da Etapa 4 (lote 1, distância-cerco, cavalaria, heróis), uma roda por tipo numa grade, cada
+//     uma indo e voltando e girando a direção a cada ida — em 4 voltas cada tipo anda nas 8 direções (a cavalaria
+//     solta galopa).
+//  3. batalha mista: os 18 tipos humanos/montados/cerco (os 17 + hoplita) de cada lado em ataque-mover um contra o outro
+//     (vida alta), os heróis usando a habilidade Q no meio da luta e, no fim, um de cada tipo caindo (queda assada).
+//  4. desfile: os 19 tipos (os 18 + cidadão) parados em fila virados para a câmera — 14 a pé na frente, cavalaria e cerco
+//     atrás — diante de quartel, estábulo, oficina de cerco, templo e academia.
+// Capturas em <out>/ (padrão docs/art/): <prefixo>-cena-{z10,z22}.png, -roda-z10.png, -batalha-{z10,z22}.png,
+// -desfile-{z10,z22}.png (preset médio, atlas 1×), -procedural-z10.png (o desfile com a arte assada desligada: o "antes")
+// e -desfile-z22-2x.png (preset alto, atlas 2×).
+// Falha se houver erro de página, se a arte assada não for servida, se algum tipo sair procedural, se quem anda olhar
+// para fora da velocidade (> 5 % das amostras), se algum tipo da Etapa 4 não andar nas 8 direções, se a cavalaria não
+// galopar, se > 10 % dos quadros de 'attack' (aglomerado de hoplitas e batalha mista) estiverem a 90° ou mais do alvo, se
+// algum tipo não atacar na batalha, se os de arco/dardo não atirarem E mirarem, se um herói usar a Q sem a animação
+// `ability` ou se a queda de algum tipo não sair assada.
 // Exige `npm run preview` (ou a URL passada). Uso: node scripts/artparade.mjs [url] [--out docs/art] [--prefix etapa2b]
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
@@ -25,6 +32,17 @@ const outDir = opt('--out', 'docs/art');
 const prefix = opt('--prefix', 'etapa2b');
 mkdirSync(outDir, { recursive: true });
 const SEED = 42;
+/** A pé, na ordem da fila do desfile (cidadão, infantaria, à distância, rei e heróis). */
+const FOOT = ['villager', 'militia', 'hoplite', 'hypaspist', 'myrmidon', 'peltast', 'toxotes', 'cretan_archer', 'basileus', 'jason', 'odysseus', 'heracles', 'achilles', 'perseus'];
+/** Montados e cerco (a fila de trás do desfile). */
+const BIG = ['petrobolos', 'kataskopos', 'hippeus', 'hetairoi', 'helepolis'];
+/** Os 17 tipos da Etapa 4 (tudo menos cidadão e hoplita, da Etapa 2). */
+const NEW = [...FOOT, ...BIG].filter((t) => t !== 'villager' && t !== 'hoplite');
+/** Os 18 da batalha mista (os 17 + hoplita). */
+const ARMY = [...NEW, 'hoplite'];
+const RANGED = ['toxotes', 'peltast', 'cretan_archer', 'odysseus'];
+const CAVALRY = ['kataskopos', 'hippeus', 'hetairoi'];
+const HEROES_Q = ['jason', 'odysseus', 'heracles', 'achilles', 'perseus'];
 
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
@@ -34,22 +52,66 @@ page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 await page.addInitScript(() => { try { const k = 'aoe_settings_v1'; localStorage.setItem(k, JSON.stringify({ ...JSON.parse(localStorage.getItem(k) ?? '{}'), edgeScroll: false, quality: 'medium', bakedArt: true, showFps: false })); } catch { /* ignore */ } });
 await page.goto(url, { waitUntil: 'networkidle' });
 await page.mouse.move(720, 450);
-await page.evaluate((seed) => {
-  const players = [{ name: 'Jogador', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 }, { name: 'Leônidas (IA)', god: 'poseidon', isAI: true, difficulty: 'easy', team: 1 }];
-  window.aoe.startGame({ seed, mapSize: 'small', players, revealMap: false, mode: 'conquest', mapType: 'continental' });
-  window.aoe.session.paused = true;
-  const h = document.getElementById('hud'); if (h) h.style.visibility = 'hidden';
-}, SEED);
-await page.evaluate(() => window.aoe.renderer.art.ready());
 
-// Cena: bosque com área aberta ao sul, perto do CC do jogador
+const look = (p, zoom) => page.evaluate(([x, y, z]) => { const c = window.aoe.renderer.cam; c.zoom = z; c.centerOn(x, y); }, [p.x, p.y, zoom]);
+const shot = async (name, wait = 1400) => { await page.waitForTimeout(wait); const f = join(outDir, `${prefix}-${name}.png`); await page.screenshot({ path: f }); console.log('captura:', f); };
+const diff8 = (a, b) => Math.min((a - b + 8) % 8, (b - a + 8) % 8);
+/** Partida nova (pausada, HUD oculto) com as páginas dos tipos pedidas e já na GPU. */
+async function newGame(types, mapSize = 'small') {
+  await page.evaluate(() => { clearInterval(window.__walkTimer); clearInterval(window.__sampler); });
+  await page.evaluate(([seed, mapSize]) => {
+    const players = [{ name: 'Jogador', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 }, { name: 'Leônidas (IA)', god: 'poseidon', isAI: true, difficulty: 'easy', team: 1 }];
+    window.aoe.startGame({ seed, mapSize, players, revealMap: false, mode: 'conquest', mapType: 'continental' });
+    window.aoe.session.paused = true;
+    const h = document.getElementById('hud'); if (h) h.style.visibility = 'hidden';
+  }, [SEED, mapSize]);
+  await page.evaluate(() => window.aoe.renderer.art.ready());
+  // funções de apoio da cena (no navegador): tile livre e a área retangular mais livre do mapa — longe do Centro Cívico
+  // (os cidadãos e o batedor do começo não entram na cena) e com o centro a meia tela da borda (a captura a zoom 1,
+  // 45 × 28 tiles, não mostra fora do mapa)
+  await page.evaluate(() => {
+    const s = window.aoe.session, map = s.state.map;
+    window.__open = (x, y) => { if (x < 0 || y < 0 || x >= map.w || y >= map.h) return false; const i = y * map.w + x; return !map.blocked[i] && map.nodeAt[i] === -1 && map.buildingAt[i] === -1 && map.terrain[i] !== 1 && map.terrain[i] !== 2 && map.terrain[i] !== 5; };
+    window.__area = (w, h, { minTc = 14, mx = 23, my = 15 } = {}) => {
+      const tcs = [...s.state.buildings.values()].filter((b) => b.type === 'town_center');
+      const tc = tcs.find((b) => b.owner === s.local);
+      let area = null, best = -Infinity;
+      for (let y0 = 3; y0 + h <= map.h - 3; y0++) for (let x0 = 3; x0 + w <= map.w - 3; x0++) {
+        const cx = x0 + w / 2, cy = y0 + h / 2, d = Math.sqrt((cx - tc.x) ** 2 + (cy - tc.y) ** 2);
+        if (cx < mx || cx > map.w - mx || cy < my || cy > map.h - my) continue;
+        if (tcs.some((b) => Math.sqrt((cx - b.x) ** 2 + (cy - b.y) ** 2) < minTc + Math.max(w, h) / 2)) continue;
+        let free = 0; for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) if (window.__open(x, y)) free++;
+        const score = 4 * free - d / 8;   // o mais livre possível; entre os livres, o mais perto do Centro Cívico
+        if (score > best) { best = score; area = { x: x0, y: y0, free, of: w * h }; }
+      }
+      return area;
+    };
+    window.__ids = (list) => list.filter(Boolean).map((u) => u.id);
+    window.__tough = (u, hp = 5000) => { if (u) { u.hp = u.maxHp = hp; } return u; };
+  });
+  if (types?.length) await page.evaluate((t) => { window.aoe.renderer.art.prewarmUnits(t); return window.aoe.renderer.art.ready(); }, types);
+}
+/** Depois de montar a cena: reaplica o preset (o automático mede o começo de cada partida) e espera as páginas. */
+async function settle(types) {
+  await page.waitForTimeout(300);
+  await page.evaluate(() => window.aoe.applyQuality());
+  await page.evaluate((t) => { window.aoe.renderer.art.prewarmUnits(t); return window.aoe.renderer.art.ready(); }, types);
+}
+/** Vistas procedurais (sem arte) de unidades vivas destes tipos. */
+const procedural = (types) => page.evaluate((types) => {
+  const out = {}; for (const [id, v] of window.aoe.renderer.views) if (window.aoe.session.state.units.get(id) && types.includes(v.type) && !v.unit) out[v.type] = (out[v.type] ?? 0) + 1;
+  return out;
+}, types);
+
+// ------------------------------------------------------------------------------------------------------------------
+// 1. cena: bosque, templos, cidadãos, desfile e lutas de hoplitas
+await newGame([]);
 const scene = await page.evaluate(() => {
   const s = window.aoe.session, st = s.state, map = st.map, me = s.local, foe = (me + 1) % st.players.length;
-  const sp = window.aoe.debugSpawn;
+  const sp = window.aoe.debugSpawn, open = window.__open, ids = window.__ids, tough = window.__tough;
   const tc = [...st.buildings.values()].find((b) => b.owner === me && b.type === 'town_center');
   const trees = [...map.nodes.values()].filter((n) => n.type === 'tree');
   const d2 = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
-  const open = (x, y) => { if (x < 0 || y < 0 || x >= map.w || y >= map.h) return false; const i = y * map.w + x; return !map.blocked[i] && map.nodeAt[i] === -1 && map.buildingAt[i] === -1 && map.terrain[i] !== 1 && map.terrain[i] !== 2 && map.terrain[i] !== 5; };
   // árvore de borda de bosque (≥ 5 vizinhas no raio 3) com o retângulo 21 × 10 ao sul o mais livre possível
   let tree = null, best = -Infinity;
   for (const t of trees) {
@@ -64,13 +126,11 @@ const scene = await page.evaluate(() => {
   const E = { x: tree.x, y: tree.y + 2 };
   const free3 = (tx, ty) => { for (let y = ty - 1; y < ty + 4; y++) for (let x = tx - 1; x < tx + 4; x++) if (!open(x, y)) return false; return true; };
   const spot = (x0, y0) => { for (let r = 0; r < 10; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue; if (free3(x0 + dx, y0 + dy)) return { x: x0 + dx, y: y0 + dy }; } return null; };
-  const ids = (list) => list.filter(Boolean).map((u) => u.id);
   const a = spot(E.x - 9, E.y + 1), templeDone = a ? window.aoe.debugBuild(me, 'temple', a.x, a.y, 1) : null;
   const b = spot(E.x + 5, E.y + 1), templeWip = b ? window.aoe.debugBuild(me, 'temple', b.x, b.y, 0.45) : null;
   // luta: 6 × 6 frente a frente (vida alta para durar)
   const F = { x: E.x, y: E.y + 7 };
   const mine = [], theirs = [];
-  const tough = (u) => { if (u) { u.hp = u.maxHp = 5000; } return u; };
   for (let i = 0; i < 6; i++) { mine.push(tough(sp(me, 'hoplite', F.x - 1.5, F.y - 2 + i * 0.8))); theirs.push(tough(sp(foe, 'hoplite', F.x + 1.5, F.y - 2 + i * 0.8))); }
   mine.forEach((u, i) => { if (u && theirs[i]) s.issue({ type: 'attack', player: me, ids: [u.id], targetId: theirs[i].id }); });
   theirs.forEach((u, i) => { if (u && mine[i]) s.scheduler.issue({ type: 'attack', player: foe, ids: [u.id], targetId: mine[i].id }); });
@@ -100,132 +160,294 @@ const scene = await page.evaluate(() => {
   const far = trees.filter((t) => { const d = Math.sqrt(d2(t, E)); return d >= 9 && d <= 16 && t.y <= E.y; }).sort((p, q) => d2(p, E) - d2(q, E)).slice(0, 3);
   const foeCut = [];
   for (let i = 0; i < far.length; i++) { const u = sp(foe, 'villager', far[i].x, far[i].y + 1); if (u) { foeCut.push(u); s.scheduler.issue({ type: 'gather', player: foe, ids: [u.id], targetId: far[i].id }); } }
-  // Etapa 4 (lote 1): segunda roda com os tipos novos, toxotas atirando e mirmidões × hipaspistas inimigos
-  const LOT = ['militia', 'hypaspist', 'myrmidon', 'toxotes'];
-  // área aberta de 22 × 11 tiles ao sul da cena (a mais livre num raio de 16): roda à esquerda, tiro e luta à direita
-  let area = null, bestFree = -1;
-  for (let y0 = E.y + 8; y0 <= E.y + 24; y0++) for (let x0 = E.x - 18; x0 <= E.x + 8; x0++) {
-    if (x0 < 2 || y0 < 2 || x0 + 22 >= map.w - 2 || y0 + 11 >= map.h - 2) continue;
-    let free = 0; for (let y = y0; y < y0 + 11; y++) for (let x = x0; x < x0 + 22; x++) if (open(x, y)) free++;
-    if (free > bestFree) { bestFree = free; area = { x: x0, y: y0 }; }
-  }
-  area ??= { x: W.x - 2, y: W.y + 5 };
-  const W2 = { x: area.x + 5, y: area.y + 5 };
-  const walkers2 = [];
-  for (let k = 0; k < 8; k++) walkers2.push(sp(me, LOT[k % 4], W2.x, W2.y));
-  s.issue({ type: 'stance', player: me, ids: ids(walkers2), stance: 'passive' });
-  const R = { x: area.x + 15, y: area.y + 3 };
-  const archers = [], targets = [], myr = [], hyp = [];
-  for (let i = 0; i < 3; i++) {
-    archers.push(tough(sp(me, 'toxotes', R.x - 3, R.y - 1 + i)));
-    targets.push(tough(sp(foe, 'militia', R.x + 2, R.y - 1 + i)));
-    myr.push(tough(sp(me, 'myrmidon', R.x - 1, R.y + 3 + i * 0.8)));
-    hyp.push(tough(sp(foe, 'hypaspist', R.x + 1, R.y + 3 + i * 0.8)));
-  }
-  s.scheduler.issue({ type: 'stance', player: foe, ids: ids(targets), stance: 'passive' });
-  archers.forEach((u, i) => { if (u && targets[i]) s.issue({ type: 'attack', player: me, ids: [u.id], targetId: targets[i].id }); });
-  myr.forEach((u, i) => { if (u && hyp[i]) s.issue({ type: 'attack', player: me, ids: [u.id], targetId: hyp[i].id }); });
-  hyp.forEach((u, i) => { if (u && myr[i]) s.scheduler.issue({ type: 'attack', player: foe, ids: [u.id], targetId: myr[i].id }); });
-  window.__walkers = ids(walkers); window.__wc = W;
-  window.__walkers2 = ids(walkers2); window.__wc2 = W2; window.__lot = LOT;
+  window.__rodas = [{ c: W, ids: ids(walkers), r: 4, fixed: true }];
   window.aoe.renderer.revealAll = true;
-  return { tc: { x: tc.x, y: tc.y }, tree: { x: tree.x, y: tree.y }, edge: E, fight: F, walk: W, walk2: W2, ranged: R, lotArea: area, templeDone: templeDone?.id ?? null, templeWip: templeWip?.id ?? null, foeVillagers: foeCut.length, units: st.units.size };
+  return { tc: { x: tc.x, y: tc.y }, tree: { x: tree.x, y: tree.y }, edge: E, fight: F, walk: W, templeDone: templeDone?.id ?? null, templeWip: templeWip?.id ?? null, foeVillagers: foeCut.length, units: st.units.size };
 });
 console.log('cena:', JSON.stringify(scene));
-// o preset automático mede o começo de cada partida mesmo com preset fixo: reaplica o preset escolhido (médio)
-await page.waitForTimeout(300);
-await page.evaluate(() => window.aoe.applyQuality());
-// carregamento por tipo: hipaspista e mirmidão (de Idades seguintes) não estavam quentes; chegam na primeira vista —
-// aqui só se pede junto e se espera (as páginas sobem para a GPU uma por quadro)
-await page.evaluate(() => { window.aoe.renderer.art.prewarmUnits(window.__lot); return window.aoe.renderer.art.ready(); });
-// vai e volta: a cada 2,6 s cada hoplita do desfile alterna entre o centro da roda e 4 tiles na sua direção
-await page.evaluate(() => {
-  let out = true;
-  const go = () => {
-    const s = window.aoe.session; if (!s) return;
-    for (const [list, c] of [[window.__walkers, window.__wc], [window.__walkers2, window.__wc2]]) list.forEach((id, k) => {
-      const u = s.state.units.get(id); if (!u) return;
-      const a = (k * Math.PI) / 4, r = out ? 4 : 0;
-      s.issue({ type: 'move', player: u.owner, ids: [id], x: c.x + 0.5 + Math.cos(a) * r, y: c.y + 0.5 + Math.sin(a) * r });
-    });
-    out = !out;
-  };
-  go(); window.__walkTimer = setInterval(go, 2600);
-  window.aoe.session.paused = false; window.aoe.session.speed = 1;
-});
+await settle(['hoplite', 'villager']);
+/**
+ * Rodas: a cada `leg` ms cada unidade alterna entre o centro da sua roda e `r` tiles numa direção. Com `fixed` a direção
+ * é a do índice (k · 45°); senão gira uma casa a cada volta (k + volta), e em 4 voltas cada uma anda nas 8 direções.
+ */
+async function startWalking(leg) {
+  await page.evaluate((leg) => {
+    let n = 0;
+    const go = () => {
+      const s = window.aoe.session; if (!s) return;
+      const out = n % 2 === 0, lap = Math.floor(n / 2);
+      for (const R of window.__rodas) R.ids.forEach((id, k) => {
+        const u = s.state.units.get(id); if (!u) return;
+        const a = ((R.fixed ? k : k + lap) % 8) * Math.PI / 4, r = out ? R.r : 0;
+        s.issue({ type: 'move', player: u.owner, ids: [id], x: R.c.x + 0.5 + Math.cos(a) * r, y: R.c.y + 0.5 + Math.sin(a) * r });
+      });
+      n++;
+    };
+    go(); window.__walkTimer = setInterval(go, leg);
+    window.aoe.session.paused = false; window.aoe.session.speed = 1;
+  }, leg);
+}
+/**
+ * Amostrador no navegador (a cada `every` ms): por tipo, as animações vistas, as direções da vista em que andou coerente
+ * com a velocidade, quem anda olhando para fora dela (±1 octante de folga, a histerese) e golpes × alvo.
+ */
+async function startSampler(types, every = 200) {
+  await page.evaluate(([types, every]) => {
+    const st = window.__stats = { byType: {}, dirs: {}, dirOk: 0, dirBad: 0, hitOk: 0, hitOff: 0, hitSamples: [], procedural: {}, n: 0 };
+    const oct = (dx, dy) => ((Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) % 8) + 8) % 8;
+    const diff = (a, b) => Math.min((a - b + 8) % 8, (b - a + 8) % 8);
+    window.__sampler = setInterval(() => {
+      const s = window.aoe.session, R = window.aoe.renderer; if (!s) return;
+      st.n++;
+      for (const [id, v] of R.views) {
+        const u = s.state.units.get(id);
+        if (!u || !types.includes(v.type)) continue;
+        if (!v.unit) { st.procedural[v.type] = (st.procedural[v.type] ?? 0) + 1; continue; }
+        const bt = st.byType[v.type] ??= {}; bt[v.unit.anim] = (bt[v.unit.anim] ?? 0) + 1;
+        const dx = u.x - u.px, dy = u.y - u.py, a = v.unit.anim;
+        if (dx * dx + dy * dy > 1e-6 && (a === 'walk' || a === 'run' || a === 'carry')) {
+          const d = oct(dx, dy);
+          // direções (quadros das 8) em que a vista andou coerente com a velocidade (±1 octante, a histerese)
+          if (diff(d, v.unit.dir) <= 1) { st.dirOk++; const ds = st.dirs[v.type] ??= []; if (!ds.includes(v.unit.dir)) ds.push(v.unit.dir); } else st.dirBad++;
+        }
+        const t = a === 'attack' ? s.state.units.get(u.targetId) : null;
+        if (t) {
+          if (diff(oct(t.x - u.x, t.y - u.y), v.unit.dir) >= 2) { st.hitOff++; if (st.hitSamples.length < 6) st.hitSamples.push({ type: v.type, dir: v.unit.dir, to: oct(t.x - u.x, t.y - u.y) }); } else st.hitOk++;
+        }
+      }
+    }, every);
+  }, [types, every]);
+}
+const stopSampler = () => page.evaluate(() => { clearInterval(window.__sampler); return window.__stats; });
+const checkDirs = (st, label) => {
+  const n = st.dirOk + st.dirBad;
+  if (st.dirBad > 0.05 * n) errors.push(`${label}: direção incoerente em ${st.dirBad} de ${n} amostras andando`);
+};
+const checkHits = (st, label) => {
+  const n = st.hitOk + st.hitOff;
+  if (n === 0) errors.push(`${label}: nenhum quadro de 'attack' com alvo`);
+  else if (st.hitOff > 0.1 * n) errors.push(`${label}: ${st.hitOff} de ${n} quadros de 'attack' a 90° ou mais do alvo (${JSON.stringify(st.hitSamples)})`);
+};
 
-const look = (p, zoom) => page.evaluate(([x, y, z]) => { const c = window.aoe.renderer.cam; c.zoom = z; c.centerOn(x, y); }, [p.x, p.y, zoom]);
-const shot = async (name) => { await page.waitForTimeout(1400); const f = join(outDir, `${prefix}-${name}.png`); await page.screenshot({ path: f }); console.log('captura:', f); };
+await startWalking(2600);
+await startSampler(['hoplite', 'villager']);
 await page.waitForTimeout(3500);   // os cidadãos chegam às árvores, a luta começa, o desfile sai da roda
 const mid = { x: scene.edge.x - 3, y: scene.edge.y + 5 };
-await look(mid, 1.0); await shot('desfile-z10');
-// conferência das vistas assadas: animações em uso e direção de quem anda coerente com a velocidade (±1 octante, histerese)
-const checks = await page.evaluate(() => {
-  const s = window.aoe.session, R = window.aoe.renderer, out = { baked: 0, anims: {}, dirOk: 0, dirBad: 0, byType: {}, procedural: {} };
-  for (const [id, v] of R.views) {
-    if (s.state.units.get(id) && !v.unit && window.__lot.includes(v.type)) out.procedural[v.type] = (out.procedural[v.type] ?? 0) + 1;
-    if (!v.unit) continue;
-    out.baked++; out.anims[v.unit.anim] = (out.anims[v.unit.anim] ?? 0) + 1;
-    const bt = out.byType[v.type] ??= {}; bt[v.unit.anim] = (bt[v.unit.anim] ?? 0) + 1;
-    const u = s.state.units.get(id); if (!u) continue;
-    const dx = u.x - u.px, dy = u.y - u.py;
-    if (dx * dx + dy * dy > 1e-6 && (v.unit.anim === 'walk' || v.unit.anim === 'carry')) {
-      const d = ((Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) % 8) + 8) % 8, diff = Math.min((d - v.unit.dir + 8) % 8, (v.unit.dir - d + 8) % 8);
-      if (diff <= 1) out.dirOk++; else out.dirBad++;
-    }
+await look(mid, 1.0); await shot('cena-z10');
+await page.waitForTimeout(1500);
+await look(mid, 2.2); await shot('cena-z22');
+const st1 = await stopSampler();
+console.log('cena — vistas:', JSON.stringify({ byType: st1.byType, dirOk: st1.dirOk, dirBad: st1.dirBad, hitOk: st1.hitOk, hitOff: st1.hitOff, procedural: st1.procedural }));
+checkDirs(st1, 'cena');
+checkHits(st1, 'cena (luta e aglomerado de hoplitas)');
+for (const a of ['walk', 'gather', 'attack']) if (!Object.values(st1.byType).some((m) => m[a])) errors.push(`cena: nenhuma unidade em '${a}'`);
+if (Object.keys(st1.procedural).length) errors.push(`cena procedural: ${JSON.stringify(st1.procedural)}`);
+const statusMedium = await page.evaluate(() => ({ ...window.aoe.renderer.art.status(), preset: window.aoe.renderer.quality.preset }));
+
+// ------------------------------------------------------------------------------------------------------------------
+// 2. roda: os 17 tipos da Etapa 4 nas 8 direções
+await newGame(NEW, 'medium');
+const roda = await page.evaluate((NEW) => {
+  const s = window.aoe.session, me = s.local, sp = window.aoe.debugSpawn, ids = window.__ids;
+  // uma roda por tipo, cada uma numa célula de 5 × 5 tiles toda livre (ninguém cruza o caminho de outro no centro nem
+  // tropeça numa árvore): a janela de 40 × 25 tiles do mapa (longe dos Centros Cívicos, sem mostrar fora do mapa) com
+  // mais células livres, e nela as mais centrais
+  const map = s.state.map, tcs = [...s.state.buildings.values()].filter((b) => b.type === 'town_center');
+  const freeCell = (cx, cy) => { for (let y = Math.floor(cy - 2.5); y < cy + 2.5; y++) for (let x = Math.floor(cx - 2.5); x < cx + 2.5; x++) if (!window.__open(x, y)) return false; return true; };
+  let area = null, cells = [];
+  for (let y0 = 3; y0 + 25 <= map.h - 3; y0 += 5) for (let x0 = 3; x0 + 40 <= map.w - 3; x0 += 5) {
+    const cx = x0 + 20, cy = y0 + 12.5;
+    if (cx < 23 || cx > map.w - 23 || cy < 15 || cy > map.h - 15 || tcs.some((b) => Math.sqrt((cx - b.x) ** 2 + (cy - b.y) ** 2) < 30)) continue;
+    const got = [];
+    for (let j = 0; j < 5; j++) for (let i = 0; i < 8; i++) { const c = { x: x0 + 2.5 + i * 5, y: y0 + 2.5 + j * 5 }; if (freeCell(c.x, c.y)) got.push({ c, d: (c.x - cx) ** 2 + (c.y - cy) ** 2 }); }
+    if (got.length > cells.length) { cells = got; area = { x: x0, y: y0 }; }
   }
-  return out;
-});
-console.log('vistas assadas:', JSON.stringify(checks));
-if (checks.dirBad > 0) errors.push(`direção incoerente em ${checks.dirBad} unidade(s) andando`);
-for (const a of ['walk', 'gather']) if (!checks.anims[a]) errors.push(`nenhuma unidade em '${a}'`);
-for (const t of ['militia', 'hypaspist', 'myrmidon', 'toxotes']) if (!checks.byType[t]) errors.push(`${t}: nenhuma vista assada`);
-if (Object.keys(checks.procedural).length) errors.push(`lote 1 procedural: ${JSON.stringify(checks.procedural)}`);
-// golpes virados para o alvo: amostra os quadros de 'attack' (luta em linha e aglomerado) por alguns segundos
-const facing = { ok: 0, off: 0, samples: [] };
-for (let k = 0; k < 12; k++) {
-  const r = await page.evaluate(() => {
-    const s = window.aoe.session, R = window.aoe.renderer, out = [];
-    for (const [id, v] of R.views) {
-      if (!v.unit || v.unit.anim !== 'attack') continue;
-      const u = s.state.units.get(id), t = u && s.state.units.get(u.targetId); if (!t) continue;
-      const d = ((Math.round(Math.atan2(t.y - u.y, t.x - u.x) / (Math.PI / 4)) % 8) + 8) % 8;
-      out.push({ id, dir: v.unit.dir, toTarget: d, diff: Math.min((d - v.unit.dir + 8) % 8, (v.unit.dir - d + 8) % 8) });
+  cells.sort((p, q) => p.d - q.d);
+  while (cells.length < NEW.length) cells.push(cells[cells.length - 1]);   // mapa sem espaço: repete (e a conferência acusa)
+  window.__rodas = NEW.map((t, i) => {
+    const c = cells[i].c;
+    const u = sp(me, t, c.x, c.y);
+    if (u) { s.issue({ type: 'stance', player: me, ids: [u.id], stance: 'passive' }); u.x = u.px = u.tx = c.x; u.y = u.py = u.ty = c.y; }
+    return { c: { x: c.x - 0.5, y: c.y - 0.5 }, ids: ids([u]), r: 2, fixed: false };
+  });
+  window.aoe.renderer.revealAll = true;
+  const used = cells.slice(0, NEW.length);
+  return { area, walkers: window.__rodas.reduce((n, R) => n + R.ids.length, 0), freeCells: new Set(used.map((c) => `${c.c.x},${c.c.y}`)).size,
+    center: { x: used.reduce((v, c) => v + c.c.x, 0) / used.length, y: used.reduce((v, c) => v + c.c.y, 0) / used.length } };
+}, NEW);
+console.log('roda:', JSON.stringify(roda));
+await settle(NEW);
+await startSampler(NEW, 120);
+await startWalking(3000);   // 10 idas/voltas de 3 s: o cerco (1,2–1,4 tile/s) chega à ponta; a cavalaria galopa e espera
+await look(roda.center, 1.0);
+await page.waitForTimeout(8300);   // fim da 3ª ida: todos longe do centro da roda
+await shot('roda-z10', 0);
+await page.waitForTimeout(22000);
+const st2 = await stopSampler();
+await page.evaluate(() => clearInterval(window.__walkTimer));
+console.log('roda — direções por tipo:', JSON.stringify(Object.fromEntries(Object.entries(st2.dirs).map(([t, d]) => [t, d.length]))));
+console.log('roda — animações:', JSON.stringify(st2.byType), `dirOk=${st2.dirOk} dirBad=${st2.dirBad}`);
+checkDirs(st2, 'roda');
+if (Object.keys(st2.procedural).length) errors.push(`roda procedural: ${JSON.stringify(st2.procedural)}`);
+for (const t of NEW) {
+  const d = st2.dirs[t] ?? [];
+  if (d.length < 8) errors.push(`${t}: andou em ${d.length} das 8 direções (${d.sort().join(',')})`);
+}
+for (const t of CAVALRY) if (!st2.byType[t]?.run) errors.push(`${t}: nenhuma amostra galopando (run)`);
+
+// ------------------------------------------------------------------------------------------------------------------
+// 3. batalha mista: 18 tipos contra 18 tipos, heróis usando a Q e uma queda de cada tipo
+await newGame(ARMY, 'medium');
+const battle = await page.evaluate((ARMY) => {
+  const s = window.aoe.session, me = s.local, foe = (me + 1) % s.state.players.length, sp = window.aoe.debugSpawn, ids = window.__ids, tough = window.__tough;
+  const area = window.__area(26, 12);
+  const cx = area.x + 13, cy = area.y + 6;
+  // corpo a corpo na frente, à distância atrás, cerco no fundo; os dois exércitos espelhados em torno de cx
+  const rank = (t) => (['petrobolos', 'helepolis'].includes(t) ? 3 : ['toxotes', 'peltast', 'cretan_archer', 'odysseus'].includes(t) ? 2 : 0);
+  const side = (owner, sign) => {
+    const out = [], n = [0, 0, 0, 0];
+    for (const t of ARMY) {
+      const r = rank(t), k = n[r]++;
+      // o cerco nas pontas da linha (atrás dos arqueiros ele não alcançava a luta)
+      if (r === 3) out.push(tough(sp(owner, t, cx + sign * 4.8, cy + (k ? 5 : -5))));
+      else out.push(tough(sp(owner, t, cx + sign * (3 + r * 1.5 + (k % 2) * 0.8), cy - 4 + (k * 1.15) % 9)));
     }
     return out;
+  };
+  const A = side(me, -1), B = side(foe, 1);
+  s.issue({ type: 'attackMove', player: me, ids: ids(A), x: cx + 6, y: cy });
+  s.scheduler.issue({ type: 'attackMove', player: foe, ids: ids(B), x: cx - 6, y: cy });
+  window.__armyA = ids(A); window.__armyB = ids(B); window.__bc = { x: cx, y: cy };
+  window.aoe.renderer.revealAll = true;
+  return { area, center: { x: cx, y: cy }, a: ids(A).length, b: ids(B).length };
+}, ARMY);
+console.log('batalha:', JSON.stringify(battle));
+await settle(ARMY);
+await page.evaluate(() => { window.aoe.session.paused = false; window.aoe.session.speed = 1; });
+await page.waitForTimeout(2000);   // os exércitos se encontram
+// o cerco mira a unidade inimiga mais próxima (no ataque-mover ele fica atrás do corpo a corpo, fora do alcance)
+await page.evaluate(() => {
+  const s = window.aoe.session, st = s.state;
+  for (const [mine, theirs] of [[window.__armyA, window.__armyB], [window.__armyB, window.__armyA]]) for (const id of mine) {
+    const u = st.units.get(id); if (!u || !['petrobolos', 'helepolis'].includes(u.type)) continue;
+    let best = null, bd = Infinity;
+    for (const tid of theirs) { const t = st.units.get(tid); if (!t) continue; const d = (t.x - u.x) ** 2 + (t.y - u.y) ** 2; if (d < bd) { bd = d; best = t; } }
+    if (!best) continue;
+    const c = { type: 'attack', player: u.owner, ids: [u.id], targetId: best.id };
+    if (u.owner === s.local) s.issue(c); else s.scheduler.issue(c);
+  }
+});
+await page.waitForTimeout(1500);   // e se misturam
+await startSampler(ARMY, 150);
+await page.waitForTimeout(2500);
+await look(battle.center, 1.0); await shot('batalha-z10', 300);
+await page.waitForTimeout(2000);
+await look({ x: battle.center.x, y: battle.center.y }, 2.2); await shot('batalha-z22', 300);
+await page.waitForTimeout(4000);
+const st3 = await stopSampler();
+console.log('batalha — animações:', JSON.stringify(st3.byType), `golpes ok=${st3.hitOk} fora=${st3.hitOff}`);
+checkHits(st3, 'batalha mista');
+if (Object.keys(st3.procedural).length) errors.push(`batalha procedural: ${JSON.stringify(st3.procedural)}`);
+for (const t of ARMY) if (!st3.byType[t]?.attack) errors.push(`${t}: nenhuma amostra atacando na batalha (${JSON.stringify(st3.byType[t] ?? {})})`);
+for (const t of RANGED) if (!st3.byType[t]?.aim) errors.push(`${t}: nenhuma amostra mirando na batalha (${JSON.stringify(st3.byType[t] ?? {})})`);
+// habilidade Q: os heróis dos dois lados usam a habilidade no mesmo tick; a vista toca `ability` (o rei não tem)
+await page.evaluate(() => {
+  const s = window.aoe.session;
+  for (const id of [...window.__armyA, ...window.__armyB]) { const u = s.state.units.get(id); if (!u) continue; const c = { type: 'ability', player: u.owner, unitId: id }; if (u.owner === s.local) s.issue(c); else s.scheduler.issue(c); }
+});
+const used = {};
+for (let k = 0; k < 8; k++) {
+  const r = await page.evaluate((H) => { const out = []; for (const [, v] of window.aoe.renderer.views) if (v.unit && H.includes(v.type)) out.push([v.type, v.unit.anim]); return out; }, [...HEROES_Q, 'basileus']);
+  for (const [t, a] of r) if (a === 'ability') used[t] = (used[t] ?? 0) + 1;
+  await page.waitForTimeout(100);
+}
+console.log('habilidade Q (amostras em ability):', JSON.stringify(used));
+for (const t of HEROES_Q) if (!used[t]) errors.push(`${t}: usou a Q sem a animação 'ability'`);
+if (used.basileus) errors.push('basileus: o rei não tem habilidade e tocou ability');
+// quedas: um de cada tipo do jogador fica com vida 1 e vira o alvo de uma unidade inimiga (o arqueiro e o cerco da
+// retaguarda não estariam sob ataque) — a morte sai assada ('die') na faixa do pé
+await page.evaluate(() => {
+  const s = window.aoe.session, seen = new Set();
+  const hunters = window.__armyB.map((id) => s.state.units.get(id)).filter((u) => u && !['petrobolos', 'helepolis'].includes(u.type));
+  let h = 0;
+  for (const id of window.__armyA) {
+    const u = s.state.units.get(id); if (!u || seen.has(u.type)) continue;
+    seen.add(u.type); u.hp = 1;
+    const by = hunters[h++ % hunters.length];
+    if (by) s.scheduler.issue({ type: 'attack', player: by.owner, ids: [by.id], targetId: u.id });
+  }
+});
+const falls = {};
+for (let k = 0; k < 40; k++) {
+  const r = await page.evaluate(() => { const out = []; for (const uv of window.aoe.renderer.dying.values()) out.push([uv.type, uv.anim]); return out; });
+  for (const [t, a] of r) if (a === 'die') falls[t] = (falls[t] ?? 0) + 1;
+  await page.waitForTimeout(150);
+}
+console.log('quedas assadas:', JSON.stringify(falls));
+for (const t of ARMY) if (!falls[t]) errors.push(`${t}: a morte não saiu assada`);
+
+// ------------------------------------------------------------------------------------------------------------------
+// 4. desfile: os 19 tipos em fila diante dos edifícios militares
+await newGame([...FOOT, ...BIG], 'medium');
+const parade = await page.evaluate(([FOOT, BIG]) => {
+  const s = window.aoe.session, st = s.state, me = s.local, sp = window.aoe.debugSpawn, ids = window.__ids;
+  // área 24 × 12 com as duas filas (linhas 5–11) toda livre e o fundo (edifícios) o mais livre possível
+  const map = st.map, tcs = [...st.buildings.values()].filter((b) => b.type === 'town_center'), tc0 = tcs.find((b) => b.owner === me);
+  let area = null, best = -Infinity;
+  for (let y0 = 3; y0 + 12 <= map.h - 3; y0++) for (let x0 = 3; x0 + 24 <= map.w - 3; x0++) {
+    const cx = x0 + 12, cy = y0 + 6;
+    if (cx < 23 || cx > map.w - 23 || cy < 15 || cy > map.h - 15 || tcs.some((b) => Math.sqrt((cx - b.x) ** 2 + (cy - b.y) ** 2) < 24)) continue;   // longe das flechas dos Centros Cívicos
+    let rows = true; for (let y = y0 + 5; y < y0 + 12 && rows; y++) for (let x = x0 + 1; x < x0 + 23; x++) if (!window.__open(x, y)) { rows = false; break; }
+    if (!rows) continue;
+    let free = 0; for (let y = y0; y < y0 + 5; y++) for (let x = x0; x < x0 + 24; x++) if (window.__open(x, y)) free++;
+    const score = 4 * free - Math.sqrt((cx - tc0.x) ** 2 + (cy - tc0.y) ** 2) / 8;
+    if (score > best) { best = score; area = { x: x0, y: y0, free, of: 120 }; }
+  }
+  area ??= window.__area(24, 12, { minTc: 10 });
+  // o jogador na Idade Heroica; edifícios prontos ao fundo, cada um no primeiro lugar livre perto do previsto
+  st.players[me].age = Math.max(st.players[me].age, 2);
+  const built = [];
+  ['barracks', 'stable', 'siege_workshop', 'temple', 'academy'].forEach((t, i) => {
+    const x0 = area.x + 1 + Math.floor(i * 4.5), y0 = area.y + 1;
+    const offs = [];
+    for (let dy = -2; dy <= 1; dy++) for (let dx = -3; dx <= 3; dx++) offs.push([dx, dy]);
+    offs.sort((p, q) => Math.abs(p[0]) + 2 * Math.abs(p[1]) - Math.abs(q[0]) - 2 * Math.abs(q[1]));
+    for (const [dx, dy] of offs) { const b = window.aoe.debugBuild(me, t, x0 + dx, y0 + dy, 1); if (b) { built.push(t); break; } }
   });
-  for (const f of r) { if (f.diff >= 2) { facing.off++; if (facing.samples.length < 5) facing.samples.push(f); } else facing.ok++; }
-  await page.waitForTimeout(250);
-}
-console.log('golpes × direção do alvo:', JSON.stringify(facing));
-// toxotas: atirando (attack, a corda solta no tick do disparo) e mirando entre um disparo e outro (aim)
-const archery = { attack: 0, aim: 0, other: 0 };
-for (let k = 0; k < 12; k++) {
-  const r = await page.evaluate(() => { const out = []; for (const [, v] of window.aoe.renderer.views) if (v.unit && v.type === 'toxotes') out.push(v.unit.anim); return out; });
-  for (const a of r) archery[a === 'attack' || a === 'aim' ? a : 'other']++;
-  await page.waitForTimeout(200);
-}
-console.log('toxotas (disparo/mira):', JSON.stringify(archery));
-if (!archery.aim || !archery.attack) errors.push(`toxotas sem disparo e mira: ${JSON.stringify(archery)}`);
-await look({ x: scene.lotArea.x + 11, y: scene.lotArea.y + 5 }, 1.0); await shot('lote1-z10');
-await look({ x: scene.ranged.x - 1.5, y: scene.ranged.y + 2 }, 2.2); await shot('lote1-z22');
-if (facing.ok + facing.off === 0) errors.push("nenhuma unidade em 'attack'");
-else if (facing.off > 0.1 * (facing.ok + facing.off)) errors.push(`${facing.off} de ${facing.ok + facing.off} quadros de 'attack' a 90° ou mais do alvo`);
-await look(mid, 2.2); await shot('desfile-z22');
-const status1 = await page.evaluate(() => ({ ...window.aoe.renderer.art.status(), preset: window.aoe.renderer.quality.preset }));
-// a mesma cena com a arte assada desligada (visual procedural)
+  // posição exata (fora da grade dos tiles), sem a barra de vida do começo da partida (a de quem "acabou de levar dano")
+  const place = (u, x, y) => { if (!u) return u; u.x = u.px = u.tx = x; u.y = u.py = u.ty = y; u.lastDamageTick = -1e9; return u; };
+  const cx = area.x + 12;
+  const back = BIG.map((t, i) => place(sp(me, t, cx, area.y + 6), cx + (i - (BIG.length - 1) / 2) * 2.6, area.y + 6.8));
+  const front = FOOT.map((t, i) => place(sp(me, t, cx, area.y + 9), cx + (i - (FOOT.length - 1) / 2) * 1.35, area.y + 9.8));
+  s.issue({ type: 'stance', player: me, ids: ids([...back, ...front]), stance: 'passive' });
+  window.aoe.renderer.revealAll = true;
+  return { area, built, back: ids(back).length, front: ids(front).length, cx };
+}, [FOOT, BIG]);
+console.log('desfile:', JSON.stringify(parade));
+await settle([...FOOT, ...BIG]);
+await page.evaluate(() => { window.aoe.session.paused = false; window.aoe.session.speed = 1; });
+await page.waitForTimeout(600);
+await page.evaluate(() => { window.aoe.session.paused = true; });   // parados: congela o relógio das animações
+const lineup = { x: parade.cx, y: parade.area.y + 6 };
+await look(lineup, 1.0); await shot('desfile-z10');
+await look({ x: parade.cx, y: parade.area.y + 6.6 }, 2.2); await shot('desfile-z22');
+const proc4 = await procedural([...FOOT, ...BIG]);
+if (Object.keys(proc4).length) errors.push(`desfile procedural: ${JSON.stringify(proc4)}`);
+if (parade.built.length < 5) errors.push(`desfile: só ${parade.built.length} dos 5 edifícios couberam (${parade.built.join(',')})`);
+// a mesma fila com a arte assada desligada (visual procedural: o "antes")
 await page.evaluate(() => { window.aoe.settings.bakedArt = false; window.aoe.applyQuality(); });
-await look(mid, 1.0); await shot('procedural-z10');
+await look(lineup, 1.0); await shot('procedural-z10');
 // de volta à arte assada, preset alto (atlas 2×)
 await page.evaluate(() => { window.aoe.settings.bakedArt = true; window.aoe.settings.quality = 'high'; window.aoe.applyQuality(); });
-await page.evaluate(() => window.aoe.renderer.art.ready());
-await look(mid, 2.2); await shot('desfile-z22-2x');
-const status2 = await page.evaluate(() => ({ ...window.aoe.renderer.art.status(), preset: window.aoe.renderer.quality.preset }));
-await page.evaluate(() => clearInterval(window.__walkTimer));
-console.log('arte (médio):', JSON.stringify(status1));
-console.log('arte (alto):', JSON.stringify(status2));
+await page.evaluate((t) => { window.aoe.renderer.art.prewarmUnits(t); return window.aoe.renderer.art.ready(); }, [...FOOT, ...BIG]);
+await look({ x: parade.cx, y: parade.area.y + 6.6 }, 2.2); await shot('desfile-z22-2x', 2000);
+const proc4b = await procedural([...FOOT, ...BIG]);
+if (Object.keys(proc4b).length) errors.push(`desfile procedural no 2×: ${JSON.stringify(proc4b)}`);
+const statusHigh = await page.evaluate(() => ({ ...window.aoe.renderer.art.status(), preset: window.aoe.renderer.quality.preset }));
+console.log('arte (médio):', JSON.stringify(statusMedium));
+console.log('arte (alto):', JSON.stringify(statusHigh));
 console.log('errors:', errors.length ? errors.join('\n') : 'none');
 await browser.close();
-const bakedOk = /servida:1/.test(status1.units) && /servida:1/.test(status1.buildings) && /servida:1/.test(status1.props) && /servida:2/.test(status2.units);
+const bakedOk = /servida:1/.test(statusMedium.units) && /servida:1/.test(statusMedium.buildings) && /servida:1/.test(statusMedium.props) && /servida:2/.test(statusHigh.units);
 if (!bakedOk) console.error('arte assada não foi servida como esperado');
 if (errors.length || !bakedOk) process.exit(1);

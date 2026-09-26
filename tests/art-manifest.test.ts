@@ -3,9 +3,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, posesOf, FRAME_NAME_RE, GROUP_OF, BUILDING_STATES, UNIT_ANIMS, REQUIRED_UNIT_ANIMS, type ArtManifest } from '../scripts/bake/manifest.mjs';
 import { BUILDINGS, UNITS } from '../src/core/data';
-import { runCheck, poseErrors, BUDGET } from '../scripts/bake/check';
+import { runCheck, poseErrors, BUDGET, vramBudgetMB } from '../scripts/bake/check';
 import { UNIT_KITS, UNIT_POSE_KEYS, DEFAULT_POSES, type UnitRig } from '../scripts/bake/page/rigs/units.js';
-import { alphaBounds, packShelf, blit, sheetJson } from '../scripts/bake/page/atlas.js';
+import { alphaBounds, packShelf, blit, sheetJson, halve, SHADOW_TEXEL, PAGE_ALIGN } from '../scripts/bake/page/atlas.js';
 import { DIRS, PAD, EXTRUDE } from '../scripts/bake/page/camera.js';
 
 const ROOT = path.resolve(__dirname, '..');
@@ -239,6 +239,23 @@ describe('empacotador de atlas (scripts/bake/page/atlas.js)', () => {
       }
     }
     expect(packShelf(items, { maxSize: 320 })).toEqual(packShelf(items, { maxSize: 320 }));   // determinístico
+    // lados em múltiplos de PAGE_ALIGN (NPOT: o WebGL2 aceita com mipmaps), não na potência de 2 de cima
+    for (const p of pages) expect([p.w % PAGE_ALIGN, p.h % PAGE_ALIGN, p.w <= 320 && p.h <= 320]).toEqual([0, 0, true]);
+  });
+  it('sombra a ½ (SHADOW_TEXEL): média 2×2 na grade par da caixa do asset, recortada ao alfa', () => {
+    expect(SHADOW_TEXEL).toBe(0.5);
+    // recorte 3×2 em (1, 0) da caixa: o texel 0 cobre as colunas 0–1 da caixa (só a 1 é do recorte), o texel 1 as 2–3
+    const src = new Uint8Array(3 * 2 * 4);
+    for (let i = 0; i < 6; i++) src[i * 4 + 3] = 200;
+    const h = halve(src, 3, 2, 1, 0);
+    expect([h.x, h.y, h.w, h.h]).toEqual([0, 0, 2, 1]);
+    expect([h.data[3], h.data[7]]).toEqual([100, 200]);
+    // bordas transparentes saem do recorte (o texel da caixa em que começa fica no x/y devolvido)
+    const pad = new Uint8Array(4 * 4 * 4); pad[(3 * 4 + 3) * 4 + 3] = 255;
+    const g = halve(pad, 4, 4, 2, 2);
+    expect([g.x, g.y, g.w, g.h, g.data[3]]).toEqual([2, 2, 1, 1, 64]);
+    // vazio: um texel transparente
+    expect(halve(new Uint8Array(16), 2, 2, 0, 0)).toMatchObject({ w: 1, h: 1 });
   });
   it('extrusão repete a borda e o JSON segue o formato Spritesheet do Pixi', () => {
     const dst = new Uint8Array(6 * 6 * 4);
@@ -256,7 +273,8 @@ describe('artefatos gerados (public/art, se existirem)', () => {
     const r = runCheck(ROOT);
     expect(r.errors).toEqual([]);
     expect(r.stats.pngBytes).toBeLessThanOrEqual(BUDGET.maxPngMB * 1048576);
-    expect(r.stats.vramBytes).toBeLessThanOrEqual(BUDGET.maxVramMB * 1048576);
+    // VRAM por escala (uma partida carrega uma escala só; o 2× é o mesmo conteúdo com 4× os texels)
+    for (const [scale, bytes] of Object.entries(r.stats.vramByScale)) expect(bytes, `${scale}×`).toBeLessThanOrEqual(vramBudgetMB(Number(scale)) * 1048576);
   });
   it.runIf(hasArt)('todo manifesto está no índice e as animações declaradas estão no JSON do atlas', () => {
     const index = JSON.parse(fs.readFileSync(path.join(ROOT, 'public', 'art', 'manifest.json'), 'utf8'));

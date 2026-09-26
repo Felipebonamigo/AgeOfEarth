@@ -6,7 +6,8 @@
 // logo depois do bake, sem abrir o navegador.
 //
 // Uso: node scripts/bake/lineup.mjs [--art public/art] [--scale 1] [--zoom 3] [--ids hoplite,militia,…]
-//                                   [--team 0x3b82f6] [--out docs/art/etapa4-lote1-fila.png]
+//                                   [--team 0x3b82f6] [--out docs/art/etapa4-lote1-fila.png] [--cell 1.6,1.9]
+// `--cell w,h` (tiles): tamanho da célula — o cerco pede ≈ 3,2 × 4,4 (padrão 1,6 × 1,9, para humanos).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -32,12 +33,13 @@ for (const a of index.atlases) {
   if (a.group !== 'units' || a.scale !== SCALE) continue;
   const json = JSON.parse(fs.readFileSync(path.join(ART, a.json), 'utf8'));
   if (!images.has(a.image)) images.set(a.image, PNG.sync.read(fs.readFileSync(path.join(ART, a.image))));
-  for (const [name, f] of Object.entries(json.frames)) frames[a.pass].set(name, { ...f, img: images.get(a.image) });
+  for (const [name, f] of Object.entries(json.frames)) frames[a.pass].set(name, { ...f, img: images.get(a.image), k: 1 / (a.texel ?? 1) });   // sombra a ½: k = 2
 }
-// colunas: poses a mostrar (anim, dir, quadro); a mira só para quem a tem
-const POSES = [['idle', 2, 0], ['idle', 1, 0], ['idle', 0, 0], ['idle', 6, 0], ['walk', 1, 2], ['attack', 1, 1], ['aim', 1, 0], ['run', 1, 2]];
+// colunas: poses a mostrar (anim, dir, quadro); a mira, o galope e a habilidade (Q) só para quem os tem
+const POSES = [['idle', 2, 0], ['idle', 1, 0], ['idle', 0, 0], ['idle', 6, 0], ['walk', 1, 2], ['attack', 1, 1], ['aim', 1, 0], ['run', 1, 2], ['ability', 1, 3]];
 const cols = POSES.filter(([anim]) => ids.some((id) => index.assets[id]?.anims?.[anim]));
-const CW = Math.round(1.6 * PPT), CH = Math.round(1.9 * PPT);   // célula: 1,6 × 1,9 tiles (pé a 72 %)
+const CELL = opt('--cell', '1.6,1.9').split(',').map(Number);
+const CW = Math.round(CELL[0] * PPT), CH = Math.round(CELL[1] * PPT);   // célula: 1,6 × 1,9 tiles (pé a 72 %)
 const cw = CW * cols.length, ch = CH * ids.length;
 const out = new Uint8Array(cw * ch * 4);
 for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
@@ -45,13 +47,13 @@ for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
   out[i] = 0x5f + n - 3 - cell; out[i + 1] = 0x7a + n - 3 - cell; out[i + 2] = 0x33 + n; out[i + 3] = 255;
 }
 function draw(f, px, py, mode, tint = 0xffffff) {
-  const { img, frame: fr, spriteSourceSize: ss, sourceSize: so, anchor } = f;
-  const ox = Math.round(px - anchor.x * so.w + ss.x), oy = Math.round(py - anchor.y * so.h + ss.y);
+  const { img, frame: fr, spriteSourceSize: ss, sourceSize: so, anchor, k } = f;
+  const ox = Math.round(px - (anchor.x * so.w - ss.x) * k), oy = Math.round(py - (anchor.y * so.h - ss.y) * k);
   const tr = ((tint >> 16) & 255) / 255, tg = ((tint >> 8) & 255) / 255, tb = (tint & 255) / 255;
-  for (let y = 0; y < fr.h; y++) for (let x = 0; x < fr.w; x++) {
+  for (let y = 0; y < fr.h * k; y++) for (let x = 0; x < fr.w * k; x++) {
     const dx = ox + x, dy = oy + y;
     if (dx < 0 || dy < 0 || dx >= cw || dy >= ch) continue;
-    const s = ((fr.y + y) * img.width + fr.x + x) * 4, d = (dy * cw + dx) * 4;
+    const s = ((fr.y + Math.floor(y / k)) * img.width + fr.x + Math.floor(x / k)) * 4, d = (dy * cw + dx) * 4;
     const a = img.data[s + 3] / 255; if (!a) continue;
     if (mode === 'shadow') { const k = 1 - 0.45 * a; out[d] *= k; out[d + 1] *= k; out[d + 2] *= k; continue; }
     out[d] = img.data[s] * tr * a + out[d] * (1 - a); out[d + 1] = img.data[s + 1] * tg * a + out[d + 1] * (1 - a); out[d + 2] = img.data[s + 2] * tb * a + out[d + 2] * (1 - a);

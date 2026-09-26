@@ -5,7 +5,7 @@
 | Comando | O que cobre | Tempo |
 |---|---|---|
 | `npm run typecheck` | Tipos estritos | ~10 s |
-| `npm test` | 631 testes em 40 arquivos (26/09/2026, com a Fase 6: `steam` — conquistas servem de API name e têm PT/EN, planilha do Steamworks em dia, espelho do Steam Cloud igual no jogo e no processo principal, `planCloudSync`, limites do IPC, gravação/restauração de ponta a ponta numa pasta real, nenhuma gravação de chave espelhada fora do `storeSet`, servidor padrão no Electron, licenças SPDX sem GPL/AGPL e lista da tela Créditos em dia com os lockfiles); antes, 616 em 39 (anti-trapaça 4.5 e a revisão): fuzz determinístico de comandos e regras de validação (`command-fuzz`: 7 200 comandos malucos numa partida em curso sem exceção, invariantes — sem NaN, recursos ≥ 0, população coerente, ids/guarnições consistentes — e o mesmo hash/save em duas execuções; entrada do `NetworkScheduler`: ids repetidos e limites por tick, tick em que o par não é aguardado, deus com nome do protótipo), relatório de dessincronização (`desync-report`: dois pares em memória com estado adulterado → tick, hashes e categoria/jogador divergentes), relay anti-trapaça (`relay-anticheat`: comando em nome de outra vaga, tick repetido/para trás, JSON malformado, quadro WebSocket inválido, mensagem grande, limite de taxa também do anfitrião, ficha de reconexão, instantâneo só pedido, configurações saneadas), texto de outros pares no HUD (`hud-text`: aviso e falas nunca viram HTML), justiça de posição (`position-fairness`: referenciais, desempates, kit, rodízio das IAs, sondagens de simetria do Egeu e do Estreito, poderes e entidades espelhados), versão da simulação no relay (`relay-version`), dados (inclui `checkMap` dos mapas embutidos, recursos iguais por início e mapas oficiais reprodutíveis pelos scripts), determinismo, pathfinding, simulação, regressões, cenários, lockstep/reconexão, modos, mapas fixos, editor, qualidade, áudio, controle, shader do terreno | ~15 s |
+| `npm test` | 706 testes em 45 arquivos (26/09/2026, integração da Etapa 4 da arte: `art-cavalry`, `art-distancia-cerco` e `art-heroes` — kits, poses, pé/sombra/altura e silhuetas a zoom 1 das 17 unidades da etapa, habilidade Q pela recarga do núcleo — e, no `art-manifest`, a sombra a ½ resolução e as páginas em múltiplos de 32 px); antes, 631 em 40 (com a Fase 6: `steam` — conquistas servem de API name e têm PT/EN, planilha do Steamworks em dia, espelho do Steam Cloud igual no jogo e no processo principal, `planCloudSync`, limites do IPC, gravação/restauração de ponta a ponta numa pasta real, nenhuma gravação de chave espelhada fora do `storeSet`, servidor padrão no Electron, licenças SPDX sem GPL/AGPL e lista da tela Créditos em dia com os lockfiles); antes, 616 em 39 (anti-trapaça 4.5 e a revisão): fuzz determinístico de comandos e regras de validação (`command-fuzz`: 7 200 comandos malucos numa partida em curso sem exceção, invariantes — sem NaN, recursos ≥ 0, população coerente, ids/guarnições consistentes — e o mesmo hash/save em duas execuções; entrada do `NetworkScheduler`: ids repetidos e limites por tick, tick em que o par não é aguardado, deus com nome do protótipo), relatório de dessincronização (`desync-report`: dois pares em memória com estado adulterado → tick, hashes e categoria/jogador divergentes), relay anti-trapaça (`relay-anticheat`: comando em nome de outra vaga, tick repetido/para trás, JSON malformado, quadro WebSocket inválido, mensagem grande, limite de taxa também do anfitrião, ficha de reconexão, instantâneo só pedido, configurações saneadas), texto de outros pares no HUD (`hud-text`: aviso e falas nunca viram HTML), justiça de posição (`position-fairness`: referenciais, desempates, kit, rodízio das IAs, sondagens de simetria do Egeu e do Estreito, poderes e entidades espelhados), versão da simulação no relay (`relay-version`), dados (inclui `checkMap` dos mapas embutidos, recursos iguais por início e mapas oficiais reprodutíveis pelos scripts), determinismo, pathfinding, simulação, regressões, cenários, lockstep/reconexão, modos, mapas fixos, editor, qualidade, áudio, controle, shader do terreno | ~15 s |
 | `npm run balance 30 1,2,3,4,5,6` | 6 partidas IA×IA de 30 min: idades (Clássica ~5, Heroica 12–18, Mítica 19–26), ninguém travado | ~2 min |
 | `npx tsx scripts/missions.ts` | Todas as missões do registro × 3 dificuldades: validação, viabilidade passiva e o roteiro do jogador (`MISSION_SCRIPTS` em `src/core/scenario/testing.ts`) vencendo dentro da janela. Referência 26/09/2026 (depois da correção do viés de posição; roteiros da m2, m5 e m7 reajustados e janela da m4 revista para 15m–39m — só o roteiro/janela, nunca a missão; causas em `docs/STORY.md` §4 e §7.2): m1 14m39s/14m26s/15m55s, m2 19m33s/15m32s/15m25s, m3 18m30s/19m10s/19m16s, m4 16m14s/19m00s/19m09s, m5 15m55s/16m55s/17m55s (variante "escolta" 6m08s/7m55s/8m59s), m6 19m36s/20m02s/22m17s, m7 17m47s/17m00s/22m52s (Fácil/Normal/Difícil). Para rodar em paralelo: `npx tsx scripts/missions.ts 14 m1_despertar,m2_cerco,m3_portal` etc. | ~8 min (1 processo) |
 | `npm run map:check [arquivo.map.json…]` | Sem arquivos: os mapas embutidos. Validação (erros/avisos), tabela de recursos por início (raio 16) e 2 min de IA×IA em cada (`src/core/map/check.ts`, o mesmo que `tests/data.test.ts` exige): falha com erro, IA parada ou partida encerrada no 1º minuto | ~5 s |
@@ -212,6 +212,51 @@ visto; clique direito na grama acima do Centro Cívico inimigo → `move`, no te
 Cívico e do Colosso → hoplita; sob o portão ladeado por torres a faixa de sombra fica uniforme (luminância 40–60, antes
 21–33 em ≈ 0,85 × 0,45 tile). Custo por quadro: a vista de edifício ganhou uma checagem de visibilidade e a chamada do
 contorno (retorno imediato com a opção desligada); o alfa do pick é lido só na primeira consulta de cada quadro do atlas.
+
+## Desempenho do renderizador — Etapa 4 da arte (as 19 unidades não míticas assadas, 26/09/2026)
+
+Antes = build da `main` atual (2a9c61f, Etapa 3 integrada: só hoplita e cidadão assados entre as unidades; porta 4241) e
+depois = a integração da Etapa 4 (base + lotes cavalaria, distância-cerco e heróis, com a sombra a ½ resolução e as
+páginas NPOT; porta 4240), rodadas alternadas na mesma máquina (4 CPUs, sem outro trabalho pesado durante a medição).
+Mesmo método das Etapas 2B/3: preset Baixo, `--reveal`, 12 s por cenário, 3 rodadas de cada lado (duas gravadas em
+`docs/perf/2026-09-26-etapa4-{antes,depois}-baixo{,-r2}.json`). Na partida medida (144×144, 3 IAs Muito difícil, 20 min,
+261 unidades, 133 edifícios) há 11 dos 19 tipos assados (cidadão, hoplita, hipaspista, mirmidão, toxota, arqueiro
+cretense, hetairo, helépole, Jasão, Héracles, Perseu) e sobem também os 3 quentes da Arcaica que não estão no mapa (batedor,
+milícia, rei) — antes só hoplita e cidadão saíam assados.
+
+**`renderperf` no preset Baixo** (mediana das 3 rodadas):
+
+| Cenário | fps antes → depois | render média ms antes → depois | draw calls | tex MB | sprites |
+|---|---|---|---|---|---|
+| zoom 1 (cidade) | 7,0 → 7,2 (+3 %) | 0,70 → 0,73 (+4 %) | 6 → 6 | 67,7 → 83,8 | 801–810 → 842–848 |
+| mapa inteiro | 8,9 → 9,0 (+1 %) | 1,14 → 1,17 (+3 %) | 7–8 → 7–8 | 67,9 → 83,9 | 5 164–5 172 → 5 216–5 224 |
+| zoom 1,5 aglomerado | 7,8 → 8,1 (+4 %) | 0,80 → 0,83 (+4 %) | 8 → 8 | 67,9 → 83,9 | cena variável |
+| rolagem | 7,4 → 7,9 (+7 %) | 0,70 → 0,76 (+9 %) | 7 → 7 | 67,9 → 83,9 | cena variável |
+
+**Texturas residentes (critério da Etapa 4: ≤ 100 MB no cenário de perf)**: **83,9 MB** no preset Baixo e **95,3 MB** no
+Médio (`…-depois-medio.json`; o Médio carrega os materiais do terreno a 512²: antes 79,2 MB). Com os atlas como os lotes
+os entregaram (sombra a 1:1, páginas em potência de 2) a mesma partida dava **134,9 MB** no Baixo (106,9 no Médio já com a
+sombra a ½) — ver `docs/ART.md`, Apêndice E, "Integração".
+
+**CPU sem rasterização** (`rendercpu`, 150 quadros × 2 passadas, média das duas em ms, arte assada;
+`docs/perf/2026-09-26-etapa4-{antes,depois}-cpu.json`):
+
+| Cenário | render antes → depois | Pixi antes → depois | sprites antes → depois |
+|---|---|---|---|
+| zoom 1 (cidade) | 0,24 → 0,25 | 0,58 → 0,55 | 718–755 → 721–770 |
+| mapa inteiro | 0,70 → 0,70 | 2,88 → 2,81 | 5 167–5 179 → 5 216–5 229 |
+| zoom 1,5 aglomerado | 0,41 → 0,46 (+11 %) | 0,96 → 0,98 | 625–952 → 660–993 |
+| rolagem | 0,39 → 0,36 | 0,91 → 1,01 (+10 %) | 641–646 → 641–646 |
+
+Leitura:
+- **fps (o quadro inteiro por software) igual ou melhor** em todos os cenários (+1 a +7 %): as unidades assadas trocam
+  o disco procedural (vários `Graphics` por unidade) por 3 sprites do mesmo atlas.
+- **CPU do nosso código** +0,03–0,06 ms no `renderperf` (+3 a +9 %) e dentro de ±11 % no `rendercpu` (o aglomerado
+  +0,05 ms: mais vistas assadas, com a escolha de animação e o `ability` dos heróis); o Pixi fica igual (±10 %). Nada
+  pior que ~15 %, e o absoluto (0,7–1,2 ms) segue bem abaixo do orçamento de §6 do ART.md (≤ 3 ms).
+- **Texturas 67,9 → 83,9 MB** (Baixo): +16 MB pelas 3 páginas de unidades (cor 2048×2016 + 2048×992, máscara 2048×1024,
+  sombra 2048×960, com mipmaps), já descontada a economia da sombra a ½ nos edifícios e props e das páginas NPOT.
+- **Draw calls iguais** (6–8), longe do teto de 40.
 
 ## Matriz de testes (6.8, por versão candidata)
 

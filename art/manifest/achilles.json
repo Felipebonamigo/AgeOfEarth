@@ -1,0 +1,64 @@
+{
+  "id": "achilles",
+  "kind": "unit",
+  "stage": 4,
+  "docs": "Kit do rig humano escolhido só por parâmetros (docs/ART.md, Apêndice E; lote heróis). Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/achilles.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Walk\", \"attack\": \"Attack\", \"ability\": \"Ability\", \"die\": \"Death\" }, \"teamMaterials\": [\"Crest\", \"Cape\", \"ShieldRing\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "human",
+    "poses": "art/poses/human.json",
+    "params": {
+      "helmet": "corinthian",
+      "crest": "tall",
+      "crestColor": "team",
+      "armor": "cuirass",
+      "metal": "gold",
+      "greaves": true,
+      "cape": "long",
+      "shield": "hoplon",
+      "shieldTeam": "ornate",
+      "weapon": "sword",
+      "stature": "tall"
+    }
+  },
+  "size": {
+    "tiles": [
+      3.2,
+      3.6
+    ]
+  },
+  "anchor": [
+    0.45,
+    0.58
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": {
+      "frames": 4,
+      "fps": 10,
+      "pose": "idle_sword"
+    },
+    "walk": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "walk_sword"
+    },
+    "attack": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "attack_sword"
+    },
+    "ability": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "ability_achilles"
+    },
+    "die": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "die"
+    }
+  },
+  "team": true,
+  "shadow": true
+}

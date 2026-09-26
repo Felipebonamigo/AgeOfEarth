@@ -8,6 +8,9 @@ export function alphaBounds(rgba: Uint8Array, w: number, h: number): Rect | null
 export function crop(rgba: Uint8Array, w: number, rect: Rect): Uint8Array;
 export function flipX(rgba: Uint8Array, w: number, h: number): Uint8Array;
 export function packShelf(items: PackItem[], opts?: { maxSize?: number; pad?: number; extrude?: number }): { pages: PackedPage[] };
+export const SHADOW_TEXEL: number;
+export const PAGE_ALIGN: number;
+export function halve(rgba: Uint8Array, w: number, h: number, ox: number, oy: number): { data: Uint8Array; w: number; h: number; x: number; y: number };
 export function blit(dst: Uint8Array, dw: number, dh: number, src: Uint8Array, w: number, h: number, x: number, y: number, extrude?: number): void;
 export function sheetJson(o: { image: string; size: { w: number; h: number }; scale: number; frames: SheetFrameIn[]; animations: Record<string, string[]>; aoe: Record<string, unknown> }): {
   frames: Record<string, { frame: Rect; rotated: boolean; trimmed: boolean; spriteSourceSize: Rect; sourceSize: { w: number; h: number }; anchor: { x: number; y: number } }>;

@@ -114,7 +114,7 @@ describe.skipIf(!hasArt)('atlas do lote economia (public/art)', () => {
       const size = manifest.assets[id].sizes![String(s)];
       let n = 0;
       for (const a of manifest.atlases) if (a.group === 'buildings' && a.scale === s) for (const [k, f] of Object.entries(sheets.get(a.json)!.frames)) if (k.startsWith(id + '/')) {
-        expect(f.anchor, k).toEqual(size.anchor); expect(f.sourceSize, k).toEqual(size.sourceSize); n++;
+        expect(f.anchor, k).toEqual(size.anchor); expect({ w: f.sourceSize.w / (a.texel ?? 1), h: f.sourceSize.h / (a.texel ?? 1) }, k).toEqual(size.sourceSize); n++;
       }
       expect(n, `${id} ${s}x`).toBeGreaterThanOrEqual(6 * 3);   // cor, sombra e máscara dos 6 estados
     }

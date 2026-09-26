@@ -7,11 +7,12 @@
 //   escalares: `stone` (≥ 0,5 = pedra na colher) e `collapse` (0–1: peças soltas caem e se espalham, na morte)
 // Estilos (`source.params.style`):
 //   petrobolos — litóbolo de torção (um braço) num carro de 4 rodas: feixe de corda torcida entre as longarinas, braço
-//                com colher e pedra, batente acolchoado (almofada na cor do time) num cavalete à frente, sarilho atrás,
-//                flâmula de time. Disparo = o braço sobe de deitado para trás até bater no batente.
-//   helepolis  — torre de assalto de 3 andares (≈ 3,7 m + estandarte) sobre 4 rodas maciças, paredes cobertas de couro cru, vigas e
-//                cantos de madeira, janelas com portinholas na frente (as do último andar na cor do time), ameias de
-//                madeira e estandarte de time no alto; disparo = a portinhola de cima abre e o braço sai pela janela.
+//                com colher e pedra, batente acolchoado (almofada na cor do time envolvendo a travessa) num cavalete à
+//                frente, sarilho atrás, flâmula de time. Disparo = o braço sobe de deitado para trás até bater no batente.
+//   helepolis  — torre de assalto de 3 andares (≈ 3,5 m + estandarte) sobre 4 rodas maciças, paredes cobertas de couro cru, vigas e
+//                cantos de madeira, janelas com portinholas na frente (as do último andar na cor do time), porta atrás,
+//                ameias de madeira com uma sanefa de couro tingido na cor do time em volta do topo e estandarte de time;
+//                disparo = a portinhola de cima abre e o braço sai pela janela.
 // Metros, frente (para onde atira) em −z, rodas no chão (y = 0). O grupo externo converte para tiles.
 
 import { M2T, dirYaw } from '../camera.js';
@@ -86,27 +87,32 @@ export function buildSiege(THREE, M, params = {}) {
       beam([s * 0.5, 0.54, -1.1], [s * 0.46, 1.62, -0.28], 0.1, M.woodDark, J.body);                         // escora
     }
     const bar = box(1.06, 0.15, 0.15, M.wood, 0, 1.62, -0.2, J.body);
-    const pad = box(0.5, 0.2, 0.12, M.team, 0, 1.58, -0.1, J.body);
+    // almofada de couro na cor do time ENVOLVENDO a travessa (lote distância-cerco): vista de frente, de trás e de cima
+    // — é a mancha de time mais alta da máquina (a de antes só aparecia pelas costas)
+    const pad = box(0.56, 0.23, 0.27, M.team, 0, 1.61, -0.17, J.body);
     breakable(bar, 0, -1.1, -0.3, 0.8, 0.4); breakable(pad, 0.2, -1.2, -0.2, 1.2, 0);
     // sarilho atrás com as manivelas
     J.winch = joint(J.body, 0, 0.66, 1.02);
     mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.9, 12), M.woodDark, 0, 0, 0, J.winch).rotation.z = Math.PI / 2;
     for (const s of [-1, 1]) { for (let i = 0; i < 2; i++) { const h = box(0.04, 0.5, 0.04, M.wood, s * 0.47, 0, 0, J.winch); h.rotation.x = (i * Math.PI) / 2; } }
     // flâmula de time num mastro no canto traseiro
-    beam([0.56, 0.56, 1.18], [0.56, 1.95, 1.18], 0.045, M.woodDark, J.body);
-    const flag = box(0.02, 0.26, 0.46, M.team, 0.56, 1.8, 0.95, J.body);
+    beam([0.56, 0.56, 1.18], [0.56, 2.05, 1.18], 0.045, M.woodDark, J.body);
+    const flag = box(0.02, 0.34, 0.54, M.team, 0.56, 1.86, 0.91, J.body);
     breakable(flag, 0.3, -1.5, 0.2, 0.5, 1.2);
     breakable(arm, 0, -0.3, 0.2, 0.6, 0.3);   // o grupo de dentro (o pivô J.arm é da pose)
     return finish({ stone });
   }
 
   if (P.style === 'helepolis') {
-    const LEVELS = [0.5, 1.6, 2.7, 3.7];   // pisos (m): térreo, 1º, 2º andar, topo (torre ≈ 4,7 m com o estandarte)
-    const W0 = 2.2, D0 = 2.3, W1 = 1.66, D1 = 1.74;
+    // (lote distância-cerco) um pouco menor que o exemplo da base — 3,5 m + estandarte e base 2,1 × 2,2 m, perto do
+    // círculo do jogo (raio 0,5 tile) — para caber no teto de 128 px de unidade a 1× e numa página 2048² a 2×
+    const LEVELS = [0.5, 1.52, 2.54, 3.5];   // pisos (m): térreo, 1º, 2º andar, topo (torre ≈ 4,4 m com o estandarte)
+    const W0 = 2.1, D0 = 2.2, W1 = 1.6, D1 = 1.66;
     const size = (y) => { const t = (y - LEVELS[0]) / (LEVELS[3] - LEVELS[0]); return [W0 + (W1 - W0) * t, D0 + (D1 - D0) * t]; };
+    const WIN = 0.47;                        // altura da janela no andar (fração), abaixo da sanefa do topo
     // chassi e rodas maciças
     box(W0 + 0.2, 0.22, D0 + 0.1, M.woodDark, 0, 0.5, 0, J.body);
-    for (const z of [-0.78, 0.78]) for (const s of [-1, 1]) breakable(wheel(s * (W0 / 2 + 0.2), z, 0.42, true), s * 0.6, -0.1, 0, 0, s * 1.4);
+    for (const z of [-0.76, 0.76]) for (const s of [-1, 1]) breakable(wheel(s * (W0 / 2 + 0.2), z, 0.42, true), s * 0.3, -0.1, 0, 0, s * 1.4);
     // andares: tronco de pirâmide de 4 lados coberto de couro cru, vigas nos pisos e nos cantos
     const storeys = [];
     for (let i = 0; i < 3; i++) {
@@ -118,22 +124,33 @@ export function buildSiege(THREE, M, params = {}) {
       box(w0 + 0.08, 0.14, d0 + 0.08, M.wood, 0, y0 + 0.07, 0, st);                                        // viga do piso
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) beam([sx * w0 / 2, y0, sz * d0 / 2], [sx * w1 / 2, y1, sz * d1 / 2], 0.13, M.woodDark, st);
       // janela da frente com portinhola (a do último andar é o pivô `shutter`, na cor do time)
-      const wy = y0 + (y1 - y0) * 0.55, fz = -((d0 + d1) / 4) - 0.02;
+      const wy = y0 + (y1 - y0) * WIN, fz = -((d0 + d1) / 4) - 0.02;
       box(0.62, 0.5, 0.06, M.char, 0, wy, fz + 0.03, st);                                                     // vão escuro
       if (i < 2) box(0.58, 0.46, 0.05, M.wood, 0, wy, fz - 0.01, st);
+      // térreo: porta de trás (por onde a tropa entra), com o batente de madeira — o que se vê de norte
+      if (i === 0) {
+        const bz = (d0 + d1) / 4 + 0.03;
+        box(0.72, 0.78, 0.05, M.char, 0, y0 + 0.47, bz, st);
+        box(0.84, 0.08, 0.07, M.woodDark, 0, y0 + 0.88, bz + 0.01, st);
+        for (const sx of [-1, 1]) box(0.07, 0.8, 0.07, M.woodDark, sx * 0.4, y0 + 0.47, bz + 0.01, st);
+      }
     }
-    // na morte cada andar desaba um andar abaixo do de baixo e escorrega para trás, girando (o de cima vai mais longe)
-    storeys.forEach((st, i) => breakable(st, (i - 1) * 0.3, -1.0 * i, 0.1 + i * 0.15, 0.1 + i * 0.1, (i - 1) * 0.15));
-    // topo: plataforma, ameias de madeira e estandarte
+    // na morte cada andar desaba sobre o de baixo e escorrega um pouco para trás, girando (o de cima vai mais longe);
+    // a queda fica dentro da silhueta de pé (caixa do atlas ≤ 128 px a 1×)
+    storeys.forEach((st, i) => breakable(st, (i - 1) * 0.12, -0.95 * i, 0.05 + i * 0.08, 0.06 + i * 0.07, (i - 1) * 0.1));
+    // topo: plataforma, ameias de madeira, sanefa de couro tingido na cor do time (vista de todo lado) e estandarte
     const [wt, dt] = size(LEVELS[3]);
     const top = new THREE.Group(); J.body.add(top);
     box(wt + 0.14, 0.12, dt + 0.14, M.wood, 0, LEVELS[3] + 0.06, 0, top);
     for (let k = -2; k <= 2; k++) for (const [x, z, w, d] of [[k * wt / 5, -dt / 2, 0.2, 0.08], [k * wt / 5, dt / 2, 0.2, 0.08], [-wt / 2, k * dt / 5, 0.08, 0.2], [wt / 2, k * dt / 5, 0.08, 0.2]]) box(w, 0.3, d, M.woodDark, x, LEVELS[3] + 0.27, z, top);
-    beam([wt / 2 - 0.15, LEVELS[3], dt / 2 - 0.15], [wt / 2 - 0.15, LEVELS[3] + 1.0, dt / 2 - 0.15], 0.06, M.woodDark, top);
-    box(0.02, 0.32, 0.56, M.team, wt / 2 - 0.15, LEVELS[3] + 0.82, dt / 2 - 0.48, top);
-    breakable(top, 0.3, -3.0, 0.4, 0.35, 0.3);   // (o giro é em volta do chão: ângulos pequenos)
+    const VY = LEVELS[3] - 0.1, VH = 0.26;   // sanefa pendurada na borda da plataforma (acima da janela de cima)
+    for (const sz of [-1, 1]) box(wt + 0.2, VH, 0.035, M.team, 0, VY, sz * (dt / 2 + 0.09), top);
+    for (const sx of [-1, 1]) box(0.035, VH, dt + 0.2, M.team, sx * (wt / 2 + 0.09), VY, 0, top);
+    beam([wt / 2 - 0.15, LEVELS[3], dt / 2 - 0.15], [wt / 2 - 0.15, LEVELS[3] + 0.95, dt / 2 - 0.15], 0.06, M.woodDark, top);
+    box(0.02, 0.34, 0.56, M.team, wt / 2 - 0.15, LEVELS[3] + 0.76, dt / 2 - 0.48, top);
+    breakable(top, 0.12, -2.85, 0.22, 0.2, 0.16);   // (o giro é em volta do chão: ângulos pequenos)
     // portinhola do último andar (time), articulada em cima; o braço da catapulta sai pela janela ao disparar
-    const y2 = LEVELS[2] + (LEVELS[3] - LEVELS[2]) * 0.55, [w2a, d2a] = size(LEVELS[2]), [w2b, d2b] = size(LEVELS[3]);
+    const y2 = LEVELS[2] + (LEVELS[3] - LEVELS[2]) * WIN, [, d2a] = size(LEVELS[2]), [, d2b] = size(LEVELS[3]);
     const fz2 = -((d2a + d2b) / 4) - 0.04;
     J.shutter = joint(storeys[2], 0, y2 + 0.25, fz2);          // no último andar: cai junto na morte
     box(0.62, 0.5, 0.05, M.team, 0, -0.25, 0, J.shutter);
@@ -142,7 +159,6 @@ export function buildSiege(THREE, M, params = {}) {
     J.arm = joint(storeys[2], 0, LEVELS[2] + 0.2, -0.2);
     box(0.1, 0.1, 0.9, M.wood, 0, 0, -0.45, J.arm);
     const stone = mesh(new THREE.IcosahedronGeometry(0.1, 1), M.stone, 0, 0.1, -0.86, J.arm);
-    void w2a; void w2b;
     return finish({ stone });
   }
   throw new Error(`estilo de cerco desconhecido: ${P.style}`);

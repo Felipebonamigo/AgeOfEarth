@@ -1,0 +1,55 @@
+{
+  "id": "basileus",
+  "kind": "unit",
+  "stage": 4,
+  "docs": "Kit do rig humano escolhido só por parâmetros (docs/ART.md, Apêndice E; lote heróis). Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/basileus.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Walk\", \"attack\": \"Attack\", \"die\": \"Death\" }, \"teamMaterials\": [\"Cape\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "human",
+    "poses": "art/poses/human.json",
+    "params": {
+      "helmet": "crown",
+      "armor": "cuirass",
+      "metal": "gold",
+      "cape": "long",
+      "weapon": "sword",
+      "offhand": "scepter",
+      "stature": "tall"
+    }
+  },
+  "size": {
+    "tiles": [
+      3.2,
+      3.6
+    ]
+  },
+  "anchor": [
+    0.45,
+    0.58
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": {
+      "frames": 4,
+      "fps": 10,
+      "pose": "idle_king"
+    },
+    "walk": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "walk_king"
+    },
+    "attack": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "attack_king"
+    },
+    "die": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "die_king"
+    }
+  },
+  "team": true,
+  "shadow": true
+}

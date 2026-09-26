@@ -36,10 +36,11 @@ export function dirWithHysteresis(angle: number, prev: number, margin = 0.12): n
 // ---------------- Animação ----------------
 /**
  * Animações de unidade: as 4 de todo manifesto (parado, andar, atacar, morrer) e as especiais — carregar e coletar
- * (cidadão), `aim` (à distância no posto entre um disparo e outro: arco puxado, dardo armado, braço do cerco carregado)
- * e `run` (galope da cavalaria acima de RUN_SPEED; sem ela, `walk` — o trote — cobre qualquer velocidade).
+ * (cidadão), `aim` (à distância no posto entre um disparo e outro: arco puxado, dardo armado, braço do cerco carregado),
+ * `run` (galope da cavalaria acima de RUN_SPEED; sem ela, `walk` — o trote — cobre qualquer velocidade) e `ability` (a
+ * habilidade Q do herói, uma vez, a partir do tick em que foi usada).
  */
-export type UnitAnim = 'idle' | 'walk' | 'attack' | 'die' | 'carry' | 'gather' | 'aim' | 'run';
+export type UnitAnim = 'idle' | 'walk' | 'attack' | 'die' | 'carry' | 'gather' | 'aim' | 'run' | 'ability';
 
 export interface AnimInput {
   /** A unidade se deslocou desde o tick anterior. */
@@ -54,12 +55,16 @@ export interface AnimInput {
   engaged?: boolean;
   /** Andando depressa (≥ RUN_SPEED tiles/s: cavalaria solta; em formação com a infantaria, trota). */
   running?: boolean;
+  /** Usando a habilidade (herói): foi usada há menos que a duração da animação `ability`. */
+  ability?: boolean;
 }
 /**
- * Animação a tocar: ataque em curso > andar (carregar, galopar) > mirar (no posto, entre disparos) > coletar > parado;
- * cai para a mais próxima que existir (sem `run` → `walk`, sem `aim` → parado).
+ * Animação a tocar: habilidade em curso > ataque em curso > andar (carregar, galopar) > mirar (no posto, entre
+ * disparos) > coletar > parado; cai para a mais próxima que existir (sem `run` → `walk`, sem `aim` → parado, sem
+ * `ability` → o resto).
  */
 export function chooseAnim(i: AnimInput, has: (a: UnitAnim) => boolean): UnitAnim {
+  if (i.ability && has('ability')) return 'ability';
   if (i.attacking && has('attack')) return 'attack';
   if (i.moving) return i.carrying && has('carry') ? 'carry' : i.running && has('run') ? 'run' : 'walk';
   if (i.engaged && has('aim')) return 'aim';
@@ -73,6 +78,13 @@ export const RUN_SPEED = 3.2;
 export function isRunning(disp2: number, dt: number, wasRunning: boolean): boolean {
   const v = RUN_SPEED * dt * (wasRunning ? 0.9 : 1);
   return disp2 >= v * v;
+}
+/**
+ * Tick em que o herói usou a habilidade pela última vez, ou -1 (nunca). O núcleo só guarda a recarga
+ * (`abilityReadyAt` = uso + recarga, fixa por habilidade); o renderizador só lê.
+ */
+export function abilityUseTick(abilityReadyAt: number, cooldownTicks: number): number {
+  return abilityReadyAt > 0 && cooldownTicks > 0 ? abilityReadyAt - cooldownTicks : -1;
 }
 /** Andando (walk/carry/run): o que a histerese de `isWalking` considera "já estava andando". */
 export function isMoveAnim(a: UnitAnim): boolean { return a === 'walk' || a === 'carry' || a === 'run'; }

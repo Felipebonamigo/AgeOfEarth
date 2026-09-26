@@ -18,6 +18,9 @@ export const PALETTE = {
   // preto), crina/cauda, couro cru das coberturas do cerco
   felt: 0x6b5238, crestDark: 0x2a221c, horseBay: 0x6e4326, horseChestnut: 0x8a4f2a, horseGrey: 0xa5a19a, horseBlack: 0x2f2925,
   mane: 0x231c16, hide: 0x9c7b52, bronzeBlack: 0x4a3a28,
+  // heróis (Etapa 4): bronze polido como espelho (escudo de Perseu), pele e juba do leão de Nemeia (Héracles), velo de
+  // ouro (Jasão)
+  mirror: 0xdfe0dc, lion: 0xa8793c, lionMane: 0x4e321a, fleece: 0xc99a38,
   teamNeutral: 0x8f9098,   // cor de time no passe de cor (neutra; o jogo desenha a máscara tingida por cima)
   teamMask: 0xffffff,      // cor de time no passe de máscara (branco iluminado → tint)
 };
@@ -55,6 +58,12 @@ export function createMaterials(THREE) {
     horseBay: std(PALETTE.horseBay, 0.7), horseChestnut: std(PALETTE.horseChestnut, 0.7), horseGrey: std(PALETTE.horseGrey, 0.75),
     horseBlack: std(PALETTE.horseBlack, 0.65), mane: std(PALETTE.mane, 0.9), hide: std(PALETTE.hide, 0.9),
     bronzeBlack: std(PALETTE.bronzeBlack, 0.42, 0.85),
+  });
+  // Etapa 4, lote heróis: também no fim (a ordem dos anteriores não muda); espelho e velo recebem o reflexo de ambiente
+  // dos metais em bake.js
+  Object.assign(M, {
+    mirror: std(PALETTE.mirror, 0.12, 1.0), lion: std(PALETTE.lion, 0.95), lionMane: std(PALETTE.lionMane, 0.95),
+    fleece: std(PALETTE.fleece, 0.6, 0.45),
   });
   return M;
 }

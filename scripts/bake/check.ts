@@ -10,18 +10,21 @@ import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
 import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, posesOf, FRAME_NAME_RE, GROUP_OF, BUILDING_STATES, ICON_PX, type ArtManifest, type AssetKind } from './manifest.mjs';
 import { PX_PER_TILE, PITCH_DEG, PIPELINE_VERSION, DIRS, FPS } from './page/camera.js';
+import { SHADOW_TEXEL } from './page/atlas.js';
 
 /** Orçamento (docs/ART.md §6 e §3.5). Tamanhos de quadro a 1× (multiplicados pela escala). */
 export const BUDGET = {
   maxAtlasSide: 2048,
   maxPngMB: 150,            // pacote completo a 1× estimado em 75–150 MB (§3.5)
-  maxVramMB: 250,           // texturas residentes, pior caso (§6)
+  // texturas residentes, pior caso (§6: ≤ 250 MB a 1×) — POR ESCALA: uma partida carrega uma escala só (1× ou 2×, pelo
+  // preset) e o pacote 2× é o mesmo conteúdo com 4× os texels, então o teto do 2× é ×4 (vramBudgetMB)
+  maxVramMB: 250,
   maxSourceSize: { unit: 128, building: 256, prop: 224, icon: ICON_PX } as Record<AssetKind | 'icon', number>,
 };
 
 interface SheetFrame { frame: { x: number; y: number; w: number; h: number }; spriteSourceSize: { x: number; y: number; w: number; h: number }; sourceSize: { w: number; h: number }; anchor: { x: number; y: number } }
 interface Sheet { frames: Record<string, SheetFrame>; animations: Record<string, string[]>; meta: { image: string; size: { w: number; h: number }; scale: string; aoe: Record<string, unknown> } }
-interface IndexAtlas { json: string; image: string; group: string; pass: string; scale: number; w: number; h: number; frames: number; bytes: number; sha256: string }
+interface IndexAtlas { json: string; image: string; group: string; pass: string; scale: number; texel?: number; w: number; h: number; frames: number; bytes: number; sha256: string }
 interface ArtIndex { version: number; aoe: Record<string, unknown>; atlases: IndexAtlas[]; assets: Record<string, { kind: AssetKind; mirror: boolean; variants?: string[]; variantBy?: string; icon?: boolean; rubble?: boolean; anims?: Record<string, unknown>; atlases: Record<string, Partial<Record<'color' | 'team' | 'shadow', string[]>>> }>; totals: { pngBytes: number; vramBytes: number } }
 
 /** Poses que o manifesto de unidade pede (`pose` no arquivo do rig, `rider` no do cavaleiro) existem nos arquivos. */
@@ -41,7 +44,9 @@ export function poseErrors(root: string, m: ArtManifest): string[] {
   return e;
 }
 
-export interface CheckResult { errors: string[]; warnings: string[]; stats: { manifests: number; atlases: number; frames: number; pngBytes: number; vramBytes: number; hasArtifacts: boolean } }
+export interface CheckResult { errors: string[]; warnings: string[]; stats: { manifests: number; atlases: number; frames: number; pngBytes: number; vramBytes: number; vramByScale: Record<string, number>; hasArtifacts: boolean } }
+/** Teto de VRAM (MB) de uma escala se tudo dela for carregado: o de 1× vezes a área do pixel (2× = 4×). */
+export const vramBudgetMB = (scale: number): number => BUDGET.maxVramMB * scale * scale;
 
 export function runCheck(root: string): CheckResult {
   const errors: string[] = [], warnings: string[] = [];
@@ -54,7 +59,7 @@ export function runCheck(root: string): CheckResult {
 
   const outDir = path.join(root, 'public', 'art');
   const indexFile = path.join(outDir, 'manifest.json');
-  const stats = { manifests: manifests.length, atlases: 0, frames: 0, pngBytes: 0, vramBytes: 0, hasArtifacts: fs.existsSync(indexFile) };
+  const stats = { manifests: manifests.length, atlases: 0, frames: 0, pngBytes: 0, vramBytes: 0, vramByScale: {} as Record<string, number>, hasArtifacts: fs.existsSync(indexFile) };
   if (!stats.hasArtifacts) return { errors, warnings, stats };
 
   const index = JSON.parse(fs.readFileSync(indexFile, 'utf8')) as ArtIndex;
@@ -67,6 +72,7 @@ export function runCheck(root: string): CheckResult {
     const sheet = JSON.parse(fs.readFileSync(jf, 'utf8')) as Sheet;
     sheets.set(a.json, sheet);
     stats.atlases++; stats.pngBytes += buf.length; stats.vramBytes += png.width * png.height * 4;
+    stats.vramByScale[a.scale] = (stats.vramByScale[a.scale] ?? 0) + png.width * png.height * 4;
     if (crypto.createHash('sha256').update(buf).digest('hex') !== a.sha256) errors.push(`${a.image}: sha256 difere do índice (rode art:bake --pack-only)`);
     if (png.width !== sheet.meta.size.w || png.height !== sheet.meta.size.h) errors.push(`${a.image}: tamanho ${png.width}×${png.height} ≠ meta.size`);
     if (png.width > BUDGET.maxAtlasSide || png.height > BUDGET.maxAtlasSide) errors.push(`${a.image}: maior que ${BUDGET.maxAtlasSide}²`);
@@ -75,7 +81,10 @@ export function runCheck(root: string): CheckResult {
     if (aoe.pitchDeg !== PITCH_DEG) errors.push(`${a.json}: meta.aoe.pitchDeg ${aoe.pitchDeg} ≠ ${PITCH_DEG}`);
     if (aoe.version !== PIPELINE_VERSION) errors.push(`${a.json}: meta.aoe.version ${aoe.version} ≠ ${PIPELINE_VERSION} (reasse)`);
     if (aoe.pass !== a.pass) errors.push(`${a.json}: meta.aoe.pass ${aoe.pass} ≠ ${a.pass}`);
-    if (sheet.meta.image !== a.image || sheet.meta.scale !== String(a.scale)) errors.push(`${a.json}: meta.image/scale incoerentes`);
+    // sombra a ½ resolução (SHADOW_TEXEL): meta.scale = escala × texel (a resolução da textura no Pixi) e o mesmo no índice
+    const texel = a.pass === 'shadow' ? SHADOW_TEXEL : 1;
+    if ((aoe.texel ?? 1) !== texel || (a.texel ?? 1) !== texel) errors.push(`${a.json}: texel ${String(aoe.texel ?? 1)} (índice ${a.texel ?? 1}) ≠ ${texel} do passe ${a.pass}`);
+    if (sheet.meta.image !== a.image || sheet.meta.scale !== String(a.scale * texel)) errors.push(`${a.json}: meta.image/scale incoerentes`);
     for (const [name, f] of Object.entries(sheet.frames)) {
       stats.frames++;
       const kind: AssetKind | 'icon' = a.group === 'icons' ? 'icon' : (Object.keys(GROUP_OF) as AssetKind[]).find((k) => GROUP_OF[k] === a.group)!;
@@ -85,7 +94,7 @@ export function runCheck(root: string): CheckResult {
       if (!(f.anchor.x >= 0 && f.anchor.x <= 1 && f.anchor.y >= 0 && f.anchor.y <= 1)) errors.push(`${a.json}: ${name} âncora fora de [0,1]`);
       const s = f.spriteSourceSize;
       if (s.x < 0 || s.y < 0 || s.x + s.w > f.sourceSize.w || s.y + s.h > f.sourceSize.h || s.w !== w || s.h !== h) errors.push(`${a.json}: ${name} recorte fora do sourceSize`);
-      const max = BUDGET.maxSourceSize[kind] * a.scale;
+      const max = BUDGET.maxSourceSize[kind] * a.scale * texel;
       if (f.sourceSize.w > max || f.sourceSize.h > max) errors.push(`${a.json}: ${name} sourceSize ${f.sourceSize.w}×${f.sourceSize.h} acima do orçamento ${max}`);
     }
     for (const [anim, list] of Object.entries(sheet.animations)) for (const n of list) if (!sheet.frames[n]) errors.push(`${a.json}: animação ${anim} referencia quadro ausente ${n}`);
@@ -108,9 +117,15 @@ export function runCheck(root: string): CheckResult {
       if (!!m.icon !== !!asset.icon) errors.push(`${m.id}: ícone ${m.icon ? 'ausente' : 'sobrando'} no índice`);
     }
     for (const [scale, byPass] of Object.entries(asset.atlases)) {
+      // quadros de um passe com o sourceSize em px da escala (a sombra vem em texels da metade)
       const collect = (pass: 'color' | 'team' | 'shadow') => {
         const frames = new Map<string, SheetFrame>(); const anims: Record<string, string[]> = {};
-        for (const j of byPass[pass] ?? []) { const sh = sheets.get(j); if (!sh) continue; for (const [k, v] of Object.entries(sh.frames)) frames.set(k, v); Object.assign(anims, sh.animations); }
+        for (const j of byPass[pass] ?? []) {
+          const sh = sheets.get(j); if (!sh) continue;
+          const k = Number(scale) / Number(sh.meta.scale);
+          for (const [n, v] of Object.entries(sh.frames)) frames.set(n, k === 1 ? v : { ...v, sourceSize: { w: v.sourceSize.w * k, h: v.sourceSize.h * k } });
+          Object.assign(anims, sh.animations);
+        }
         return { frames, anims };
       };
       const color = collect('color'), team = collect('team'), shadow = collect('shadow');
@@ -145,7 +160,7 @@ export function runCheck(root: string): CheckResult {
     }
   }
   if (stats.pngBytes > BUDGET.maxPngMB * 1048576) errors.push(`PNG somam ${(stats.pngBytes / 1048576).toFixed(1)} MB > ${BUDGET.maxPngMB} MB`);
-  if (stats.vramBytes > BUDGET.maxVramMB * 1048576) errors.push(`atlas somam ${(stats.vramBytes / 1048576).toFixed(1)} MB de VRAM > ${BUDGET.maxVramMB} MB`);
+  for (const [scale, bytes] of Object.entries(stats.vramByScale)) if (bytes > vramBudgetMB(Number(scale)) * 1048576) errors.push(`atlas ${scale}× somam ${(bytes / 1048576).toFixed(1)} MB de VRAM > ${vramBudgetMB(Number(scale))} MB`);
   if (index.totals.pngBytes !== stats.pngBytes) errors.push('totals.pngBytes do índice difere dos arquivos');
   return { errors, warnings, stats };
 }
@@ -159,6 +174,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   for (const w of r.warnings) console.warn('aviso:', w);
   for (const e of r.errors) console.error('ERRO:', e);
   const s = r.stats;
-  console.log(`art:check — ${s.manifests} manifestos` + (s.hasArtifacts ? `, ${s.atlases} atlas, ${s.frames} quadros, ${(s.pngBytes / 1048576).toFixed(2)} MB de PNG, ${(s.vramBytes / 1048576).toFixed(1)} MB de VRAM (orçamento ${BUDGET.maxPngMB} MB / ${BUDGET.maxVramMB} MB)` : ' (public/art ainda não gerado)') + (r.errors.length ? ` — ${r.errors.length} erro(s)` : ' — ok'));
+  console.log(`art:check — ${s.manifests} manifestos` + (s.hasArtifacts ? `, ${s.atlases} atlas, ${s.frames} quadros, ${(s.pngBytes / 1048576).toFixed(2)} MB de PNG, ${(s.vramBytes / 1048576).toFixed(1)} MB de VRAM (${Object.entries(s.vramByScale).map(([k, v]) => `${k}× ${(v / 1048576).toFixed(1)}/${vramBudgetMB(Number(k))}`).join(', ')} MB; PNG até ${BUDGET.maxPngMB} MB)` : ' (public/art ainda não gerado)') + (r.errors.length ? ` — ${r.errors.length} erro(s)` : ' — ok'));
   process.exit(r.errors.length ? 1 : 0);
 }

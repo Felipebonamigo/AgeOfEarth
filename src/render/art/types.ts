@@ -42,7 +42,8 @@ export interface ArtAssetEntry {
   atlases: Record<string, Partial<Record<ArtPass, string[]>>>;
 }
 
-export interface ArtAtlasEntry { json: string; image: string; group: ArtGroup; pass: ArtPass; scale: number; page: number; w: number; h: number; frames: number; bytes: number; sha256: string }
+/** `texel`: densidade de texels em relação à escala (a sombra vem a ½ — `SHADOW_TEXEL` de scripts/bake/page/atlas.js). */
+export interface ArtAtlasEntry { json: string; image: string; group: ArtGroup; pass: ArtPass; scale: number; texel?: number; page: number; w: number; h: number; frames: number; bytes: number; sha256: string }
 
 export interface ArtManifest {
   version: number;
@@ -54,7 +55,7 @@ export interface ArtManifest {
 }
 
 /** Bloco meta.aoe de um JSON de atlas. */
-export interface SheetAoeMeta { version: number; pass: ArtPass; pxPerTile: number; pitchDeg: number; dirs?: number; fps?: number; mirror?: boolean; mirrored?: Record<string, number> }
+export interface SheetAoeMeta { version: number; pass: ArtPass; pxPerTile: number; pitchDeg: number; texel?: number; dirs?: number; fps?: number; mirror?: boolean; mirrored?: Record<string, number> }
 
 /** Quadro do JSON de atlas (formato Spritesheet do Pixi + âncora). */
 export interface SheetFrame {

@@ -25,7 +25,7 @@ import { PNG } from 'pngjs';
 import { startServer } from './server.mjs';
 import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, animSummary, matchesOnly, GROUP_OF, PASSES, bakedDirs, ATLAS_GROUPS, ICON_PX, atlasOf, posesOf } from './manifest.mjs';
 import { RIG_FILES } from './page/rigs/units.js';
-import { alphaBounds, crop, packShelf, blit, sheetJson } from './page/atlas.js';
+import { alphaBounds, crop, packShelf, blit, sheetJson, halve, SHADOW_TEXEL } from './page/atlas.js';
 import { PX_PER_TILE, PIPELINE_VERSION, MIRROR_FROM, atlasMeta } from './page/camera.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -222,8 +222,11 @@ function formatSheet(json) {
   return `{\n "frames": {\n${block(json.frames)}\n },\n "animations": {\n${block(json.animations)}\n },\n "meta": ${JSON.stringify(json.meta)}\n}\n`;
 }
 
-/** União dos recortes de um grupo de quadros (todos os passes) → sourceSize e âncora comuns. */
-function groupFrames(entry) {
+/**
+ * União dos recortes de um grupo de quadros (todos os passes) → sourceSize e âncora comuns. `even` (atlas): caixa par com
+ * a âncora num canto par (ver abaixo); as folhas de contato usam a caixa justa, a mesma de antes da sombra a ½.
+ */
+function groupFrames(entry, { even = false } = {}) {
   const groups = new Map();
   for (const fr of entry.frames) {
     if (!groups.has(fr.group)) groups.set(fr.group, []);
@@ -241,6 +244,9 @@ function groupFrames(entry) {
     if (list[0].icon) { x0 = 0; y0 = 0; x1 = box.w; y1 = box.h; }   // ícone: moldura fixa ICON_PX² (o HUD enquadra igual)
     // a âncora precisa ficar dentro da caixa (pé de uma sombra deslocada, por exemplo)
     x0 = Math.min(x0, box.ax); y0 = Math.min(y0, box.ay); x1 = Math.max(x1, box.ax + 1); y1 = Math.max(y1, box.ay + 1);
+    // caixa par e com a âncora num canto par (sombra a ½: SHADOW_TEXEL): o sourceSize da metade é exato e as bordas dos
+    // tiles (a ±16·k px da âncora) caem entre dois blocos 2×2 — a sombra recortada da muralha emenda na vizinha
+    if (even && !list[0].icon) { x0 -= (box.ax - x0) % 2; y0 -= (box.ay - y0) % 2; x1 += (x1 - x0) % 2; y1 += (y1 - y0) % 2; }
     const w = x1 - x0, h = y1 - y0;
     out.set(g, { x0, y0, w, h, anchor: { x: r5((box.ax - x0) / w), y: r5((box.ay - y0) / h) }, list });
   }
@@ -280,12 +286,14 @@ function packAll(opts, manifests, hashes) {
         if (!e) continue;
         const frames = e.frames.filter((fr) => (fr.atlas ?? GROUP_OF[m.kind]) === group);
         if (!frames.length) continue;
-        entries.push({ m, e: { ...e, frames }, groups: groupFrames({ frames }) });
+        entries.push({ m, e: { ...e, frames }, groups: groupFrames({ frames }, { even: true }) });
       }
       if (!entries.length) continue;
       for (const pass of PASSES) {
         const items = [];
         const meta = new Map();
+        // sombra a ½ resolução (SHADOW_TEXEL): o recorte é reduzido aqui, no empacotamento (o cache guarda o de 1:1)
+        const texel = pass === 'shadow' ? SHADOW_TEXEL : 1;
         // quadros idênticos do mesmo asset (mesmos pixels no mesmo lugar da moldura — ex.: a torre, cujas variantes só
         // mudam a sombra) ocupam um lugar só no atlas: o JSON lista todos os nomes apontando para o mesmo retângulo
         const aliases = new Map(), firstOf = new Map();
@@ -294,13 +302,15 @@ function packAll(opts, manifests, hashes) {
           if (pass === 'shadow' && !m.shadow) continue;
           for (const [g, G] of groups) for (const fr of G.list) {
             const r = fr.passes[pass]; if (!r) continue;
-            const file = path.join(e.dir, r.file), trim = { x: r.x - G.x0, y: r.y - G.y0 };
-            meta.set(fr.name, { file, trim, sourceSize: { w: G.w, h: G.h }, anchor: G.anchor, m });
+            const file = path.join(e.dir, r.file);
+            let trim = { x: r.x - G.x0, y: r.y - G.y0 }, img = null;
+            if (texel !== 1) { const src = readPng(file); img = halve(src.data, src.w, src.h, trim.x, trim.y); trim = { x: img.x, y: img.y }; }
+            meta.set(fr.name, { file, img, trim, sourceSize: { w: G.w * texel, h: G.h * texel }, anchor: G.anchor, m });
             const dk = `${m.id}|${g}|${trim.x},${trim.y}|${sha(fs.readFileSync(file))}`;
             const first = firstOf.get(dk);
             if (first) { aliases.get(first).push(fr.name); continue; }
             firstOf.set(dk, fr.name); aliases.set(fr.name, []);
-            items.push({ key: fr.name, group: m.id, w: r.w, h: r.h });   // um asset nunca se divide entre páginas
+            items.push({ key: fr.name, group: m.id, w: img ? img.w : r.w, h: img ? img.h : r.h });   // um asset nunca se divide entre páginas
           }
         }
         if (!items.length) continue;
@@ -312,7 +322,7 @@ function packAll(opts, manifests, hashes) {
           const ids = new Set();
           for (const it of pg.items) {
             const mm = meta.get(it.key);
-            const img = readPng(mm.file);
+            const img = mm.img ?? readPng(mm.file);
             blit(data, pg.w, pg.h, img.data, img.w, img.h, it.x, it.y);
             for (const name of [it.key, ...aliases.get(it.key)]) { const ma = meta.get(name); frames.push({ name, x: it.x, y: it.y, w: it.w, h: it.h, trim: ma.trim, sourceSize: ma.sourceSize, anchor: ma.anchor }); }
             ids.add(mm.m.id);
@@ -326,10 +336,11 @@ function packAll(opts, manifests, hashes) {
           }
           const aoe = atlasMeta({ pass, scale, mirror: opts.mirror });
           if (opts.mirror) aoe.mirrored = MIRROR_FROM;
-          const json = sheetJson({ image: `${base}.png`, size: { w: pg.w, h: pg.h }, scale, frames, animations, aoe });
+          if (texel !== 1) aoe.texel = texel;
+          const json = sheetJson({ image: `${base}.png`, size: { w: pg.w, h: pg.h }, scale: scale * texel, frames, animations, aoe });
           const png = writePng(path.join(outDir, `${base}.png`), pg.w, pg.h, data);
           fs.writeFileSync(path.join(outDir, `${base}.json`), formatSheet(json));
-          index.atlases.push({ json: `${base}.json`, image: `${base}.png`, group, pass, scale, page: n, w: pg.w, h: pg.h, frames: frames.length, bytes: png.length, sha256: sha(png) });
+          index.atlases.push({ json: `${base}.json`, image: `${base}.png`, group, pass, scale, ...(texel !== 1 ? { texel } : {}), page: n, w: pg.w, h: pg.h, frames: frames.length, bytes: png.length, sha256: sha(png) });
           for (const id of ids) {
             const m = manifests.find((x) => x.id === id);
             const a = index.assets[id] ??= {};

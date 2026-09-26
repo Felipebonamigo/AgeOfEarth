@@ -30,7 +30,7 @@ for (const a of index.atlases) {
   if (a.group !== 'buildings' || a.scale !== SCALE) continue;
   const json = JSON.parse(fs.readFileSync(path.join(ART, a.json), 'utf8'));
   if (!images.has(a.image)) images.set(a.image, PNG.sync.read(fs.readFileSync(path.join(ART, a.image))));
-  for (const [name, f] of Object.entries(json.frames)) frames[a.pass].set(name, { ...f, img: images.get(a.image) });
+  for (const [name, f] of Object.entries(json.frames)) frames[a.pass].set(name, { ...f, img: images.get(a.image), k: 1 / (a.texel ?? 1) });   // sombra a ½: k = 2
 }
 const has = (name) => frames.color.has(name);
 
@@ -84,13 +84,13 @@ for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
 }
 /** Desenha o quadro `f` com a âncora em (px, py): modo 'over' (alfa), 'shadow' (multiplica 1 − 0,45·a) ou tinta (máscara). */
 function draw(f, px, py, mode, tint = 0xffffff) {
-  const { img, frame: fr, spriteSourceSize: ss, sourceSize: so, anchor } = f;
-  const ox = Math.round(px - anchor.x * so.w + ss.x), oy = Math.round(py - anchor.y * so.h + ss.y);
+  const { img, frame: fr, spriteSourceSize: ss, sourceSize: so, anchor, k } = f;
+  const ox = Math.round(px - (anchor.x * so.w - ss.x) * k), oy = Math.round(py - (anchor.y * so.h - ss.y) * k);
   const tr = ((tint >> 16) & 255) / 255, tg = ((tint >> 8) & 255) / 255, tb = (tint & 255) / 255;
-  for (let y = 0; y < fr.h; y++) for (let x = 0; x < fr.w; x++) {
+  for (let y = 0; y < fr.h * k; y++) for (let x = 0; x < fr.w * k; x++) {
     const dx = ox + x, dy = oy + y;
     if (dx < 0 || dy < 0 || dx >= cw || dy >= ch) continue;
-    const s = ((fr.y + y) * img.width + fr.x + x) * 4, d = (dy * cw + dx) * 4;
+    const s = ((fr.y + Math.floor(y / k)) * img.width + fr.x + Math.floor(x / k)) * 4, d = (dy * cw + dx) * 4;
     const a = img.data[s + 3] / 255; if (!a) continue;
     if (mode === 'shadow') { const k = 1 - 0.45 * a; out[d] *= k; out[d + 1] *= k; out[d + 2] *= k; continue; }
     const r = img.data[s] * tr, g = img.data[s + 1] * tg, bl = img.data[s + 2] * tb;

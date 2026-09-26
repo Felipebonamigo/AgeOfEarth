@@ -11,7 +11,7 @@ import type { ArtLibrary, UnitArt } from '../art/ArtLibrary';
 import { frameBox, frameIndex, isMirrored, type Box, type UnitAnim } from '../art/logic';
 
 /** Índice numérico das animações (chave sem string para a troca de pose). */
-const ANIM_INDEX: Record<UnitAnim, number> = { idle: 0, walk: 1, attack: 2, die: 3, carry: 4, gather: 5, aim: 6, run: 7 };
+const ANIM_INDEX: Record<UnitAnim, number> = { idle: 0, walk: 1, attack: 2, die: 3, carry: 4, gather: 5, aim: 6, run: 7, ability: 8 };
 /** Caixa de trabalho de updateBounds (reutilizada). */
 const BOX: Box = { x0: 0, y0: 0, x1: 0, y1: 0 };
 
@@ -26,6 +26,8 @@ export class UnitView {
   animStart = 0;
   /** Último attackTick já transformado em golpe (cada golpe recomeça o ataque). */
   lastAttackTick = -1;
+  /** Último uso da habilidade (herói) já animado (`abilityUseTick`). */
+  lastAbilityTick = -1;
   private poseKey = -1;
   private frame = -1;
   private cur: readonly Texture[] | null = null;
@@ -105,7 +107,7 @@ export class UnitView {
     this.updateBounds();
   }
 
-  /** Terminou a animação sem loop (ataque ou morte)? */
+  /** Terminou a animação sem loop (ataque, habilidade ou morte)? */
   finished(time: number): boolean {
     const info = this.art.anims[this.anim];
     return !info || (!info.loop && time - this.animStart >= info.frames / Math.max(1, info.fps));

@@ -1,0 +1,62 @@
+{
+  "id": "jason",
+  "kind": "unit",
+  "stage": 4,
+  "docs": "Kit do rig humano escolhido só por parâmetros (docs/ART.md, Apêndice E; lote heróis). Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/jason.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Walk\", \"attack\": \"Attack\", \"ability\": \"Ability\", \"die\": \"Death\" }, \"teamMaterials\": [\"Cape\", \"Headband\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "human",
+    "poses": "art/poses/human.json",
+    "params": {
+      "helmet": "none",
+      "hair": true,
+      "headband": true,
+      "armor": "linothorax",
+      "greaves": true,
+      "cape": "long",
+      "weapon": "spear",
+      "offhand": "fleece",
+      "stature": "tall"
+    }
+  },
+  "size": {
+    "tiles": [
+      3.6,
+      3.9
+    ]
+  },
+  "anchor": [
+    0.4,
+    0.535
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": {
+      "frames": 4,
+      "fps": 10,
+      "pose": "idle_jason"
+    },
+    "walk": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "walk_jason"
+    },
+    "attack": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "attack_jason"
+    },
+    "ability": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "ability_jason"
+    },
+    "die": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "die_jason"
+    }
+  },
+  "team": true,
+  "shadow": true
+}

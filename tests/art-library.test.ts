@@ -353,13 +353,15 @@ describe.skipIf(!hasArt)('artefatos do bake: toda chave pedida pelo renderizador
     return { frames, anims };
   };
   const scales = [...new Set(manifest.atlases.map((a) => a.scale))].sort();
+  /** sourceSize em px da escala (a sombra fica no atlas a ½: `texel` 0,5). */
+  const inPx = (a: { texel?: number }, z: { w: number; h: number }) => ({ w: z.w / (a.texel ?? 1), h: z.h / (a.texel ?? 1) });
 
   it('todo atlas passa na checagem de meta.aoe da sua escala e do seu passe (e a imagem existe)', () => {
     expect(scales).toEqual([1, 2]);
     for (const a of manifest.atlases) {
       const j = sheets.get(a.json)!;
       expect(checkSheetMeta(j.meta.aoe, a.scale as 1 | 2, a.pass), a.json).toBeNull();
-      expect(j.meta.scale).toBe(String(a.scale));
+      expect(j.meta.scale).toBe(String(a.scale * (a.texel ?? 1)));   // a sombra vem a ½ (texel 0,5)
       expect(fs.existsSync(path.join(ART, j.meta.image)), j.meta.image).toBe(true);
     }
   });
@@ -383,7 +385,7 @@ describe.skipIf(!hasArt)('artefatos do bake: toda chave pedida pelo renderizador
       for (const s of scales) {
         const size = a.sizes![String(s)];
         for (const a2 of manifest.atlases) if (a2.group === a.group && a2.scale === s) for (const [k, f] of Object.entries(sheets.get(a2.json)!.frames)) if (k.startsWith(id + '/')) {
-          expect(f.anchor).toEqual(size.anchor); expect(f.sourceSize).toEqual(size.sourceSize);
+          expect(f.anchor).toEqual(size.anchor); expect(inPx(a2, f.sourceSize)).toEqual(size.sourceSize);
         }
       }
     }
@@ -413,7 +415,7 @@ describe.skipIf(!hasArt)('artefatos do bake: toda chave pedida pelo renderizador
         for (const pass of ['color', 'team', 'shadow'] as const) expect(a.atlases[String(s)][pass], `${m.id} ${pass} ${s}x`).toHaveLength(1);
         const size = a.sizes![String(s)];
         for (const a2 of manifest.atlases) if (a2.group === a.group && a2.scale === s) for (const [k, f] of Object.entries(sheets.get(a2.json)!.frames)) if (k.startsWith(m.id + '/')) {
-          expect(f.anchor, k).toEqual(size.anchor); expect(f.sourceSize, k).toEqual(size.sourceSize);
+          expect(f.anchor, k).toEqual(size.anchor); expect(inPx(a2, f.sourceSize), k).toEqual(size.sourceSize);
         }
       }
     }
@@ -427,7 +429,7 @@ describe.skipIf(!hasArt)('artefatos do bake: toda chave pedida pelo renderizador
         const f = sheets.get(a.json)!.frames[name];
         if (!f) continue;
         if (!imgs.has(a.image)) imgs.set(a.image, PNG.sync.read(fs.readFileSync(path.join(ART, a.image))));
-        return { f, img: imgs.get(a.image)! };
+        return { f, img: imgs.get(a.image)!, k: 1 / ((a as { texel?: number }).texel ?? 1) };   // sombra a ½: cada texel cobre k × k px
       }
       return null;
     };
@@ -436,10 +438,10 @@ describe.skipIf(!hasArt)('artefatos do bake: toda chave pedida pelo renderizador
       const out = new Float32Array(W * H * 4);
       const put = (p: string, tint: number | null) => {
         const r = frameOf(p, unitFrameName(id, anim, dir, 0)); if (!r) return;
-        const { f, img } = r;
-        const ox = Math.round(AX - f.anchor.x * f.sourceSize.w + f.spriteSourceSize.x), oy = Math.round(AY - f.anchor.y * f.sourceSize.h + f.spriteSourceSize.y);
-        for (let y = 0; y < f.frame.h; y++) for (let x = 0; x < f.frame.w; x++) {
-          const s = ((f.frame.y + y) * img.width + f.frame.x + x) * 4, dx = ox + x, dy = oy + y, a = img.data[s + 3] / 255;
+        const { f, img, k } = r;
+        const ox = Math.round(AX - (f.anchor.x * f.sourceSize.w - f.spriteSourceSize.x) * k), oy = Math.round(AY - (f.anchor.y * f.sourceSize.h - f.spriteSourceSize.y) * k);
+        for (let y = 0; y < f.frame.h * k; y++) for (let x = 0; x < f.frame.w * k; x++) {
+          const s = ((f.frame.y + Math.floor(y / k)) * img.width + f.frame.x + Math.floor(x / k)) * 4, dx = ox + x, dy = oy + y, a = img.data[s + 3] / 255;
           if (!a || dx < 0 || dy < 0 || dx >= W || dy >= H) continue;
           const d = (dy * W + dx) * 4;
           for (let c = 0; c < 3; c++) { const tc = tint === null ? 1 : ((tint >> (16 - 8 * c)) & 255) / 255; out[d + c] = img.data[s + c] * tc * a + out[d + c] * (1 - a); }
@@ -512,7 +514,7 @@ describe.skipIf(!hasArt)('artefatos do bake: toda chave pedida pelo renderizador
       for (const s of scales) {
         const size = a.sizes![String(s)];
         for (const a2 of manifest.atlases) if (a2.group === 'buildings' && a2.scale === s) for (const [k, f] of Object.entries(sheets.get(a2.json)!.frames)) if (k.startsWith(id + '/')) {
-          expect(f.anchor, k).toEqual(size.anchor); expect(f.sourceSize, k).toEqual(size.sourceSize);
+          expect(f.anchor, k).toEqual(size.anchor); expect(inPx(a2, f.sourceSize), k).toEqual(size.sourceSize);
         }
       }
     }

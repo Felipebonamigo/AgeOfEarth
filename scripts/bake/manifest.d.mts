@@ -50,6 +50,7 @@ export const RIGS: string[];
 export const UNIT_RIG_POSES: Record<string, string>;
 export const UNIT_ANIMS: string[];
 export const REQUIRED_UNIT_ANIMS: string[];
+export const ONCE_UNIT_ANIMS: string[];
 export function posesOf(m: ArtManifest): { main: string | null; rider: string | null };
 export const FRAME_NAME_RE: Record<AssetKind | 'icon', RegExp>;
 export function atlasOf(m: ArtManifest, f: ExpandedFrame): string;
