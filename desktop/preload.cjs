@@ -11,4 +11,8 @@ contextBridge.exposeInMainWorld('desktop', {
   onFullscreen: (cb) => ipcRenderer.on('fullscreen', (_e, v) => cb(v)),
   saveFile: (name, content) => ipcRenderer.invoke('file:save', name, content),
   openFile: () => ipcRenderer.invoke('file:open'),
+  // Espelho dos saves (Steam Cloud): só as três operações, por chave; o processo principal confere a chave e o tamanho.
+  cloudReadAll: () => ipcRenderer.invoke('cloud:readAll'),
+  cloudWrite: (key, value) => (typeof key === 'string' && typeof value === 'string' ? ipcRenderer.invoke('cloud:write', key, value) : Promise.resolve(false)),
+  cloudRemove: (key) => (typeof key === 'string' ? ipcRenderer.invoke('cloud:remove', key) : Promise.resolve(false)),
 });

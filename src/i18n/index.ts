@@ -2,6 +2,7 @@
 import { AGES, BUILDINGS, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS, ABILITIES } from '../core/data';
 import { EN_AGES, EN_BUILDINGS, EN_MAJOR_GODS, EN_MINOR_GODS, EN_POWERS, EN_TECHS, EN_UNITS, EN_ABILITIES, type TextOverlay } from './en-data';
 import { STRINGS } from './strings';
+import { storeSet } from '../game/cloud';
 
 export type Locale = 'pt' | 'en';
 let current: Locale = 'pt';
@@ -35,7 +36,7 @@ export function setLocale(locale: Locale): void {
   for (const [id, g] of Object.entries(MINOR_GODS)) apply(g as unknown as Record<string, unknown>, EN_MINOR_GODS[id]);
   for (const [id, g] of Object.entries(MAJOR_GODS)) apply(g as unknown as Record<string, unknown>, EN_MAJOR_GODS[id]);
   AGES.forEach((a, i) => apply(a as unknown as Record<string, unknown>, EN_AGES[String(i)]));
-  try { localStorage.setItem('aoe_locale', locale); } catch { /* ambiente sem localStorage */ }
+  try { storeSet('aoe_locale', locale); } catch { /* ambiente sem localStorage */ }
 }
 
 export function detectLocale(): Locale {

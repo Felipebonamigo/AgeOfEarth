@@ -11,6 +11,7 @@ import { mapHash, validateMap, blankMap, mapToData, migrateMap, MAP_LIMITS, type
 import { generateMap } from '../core/map/mapgen';
 import { allMaps, getMap, hasErrors, importMapFile, parseMapFile, mapName, putMap, startOrderFor, slugify, duplicateMap, removeMap, exportMapFile, uniqueMapId } from '../game/maps';
 import { importText } from '../game/files';
+import { storeSet } from '../game/cloud';
 import { validateScenario, type ScenarioFile } from '../core/scenario/schema';
 import { gameConfigFor } from '../core/scenario/compile';
 import { tx } from '../core/scenario/text';
@@ -23,7 +24,19 @@ const fixedMapLabel = (d: { name?: string; nameEn?: string; id?: string; w: numb
 export const issueText = (i: MapIssue) => t(`map.issue.${i.code}`, i.params ?? {}) + (i.x !== undefined && i.y !== undefined ? ' ' + t('map.issues.at', { x: i.x, y: i.y }) : '');
 const issuesSummary = (issues: MapIssue[]) => { const e = issues.filter((i) => i.level === 'error').length, w = issues.length - e; return e === 0 && w === 0 ? t('map.issues.ok') : [e ? t('map.issues.errors', { n: e }) : '', w ? t('map.issues.warnings', { n: w }) : ''].filter(Boolean).join(' · '); };
 
-export interface MenuCallbacks { onStart: (config: GameConfig) => void; onLoad: () => void; hasSave: () => boolean; onHelp: () => void; onEncyclopedia: () => void; onMission: (id: string, difficulty: 'easy' | 'normal' | 'hard') => void; onScenarioFile: (map: FixedMapData) => void; onNetworkStart: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onNetworkRejoin: (client: NetClient, config: GameConfig, slots: number[], delay: number, dropped?: number[]) => void; onHorde: (god: string, difficulty: Difficulty) => void; onReplay: () => void; hasReplay: () => boolean; onEditor: (file: FixedMapData) => void; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onHotkeys?: () => void }
+/**
+ * Servidor oficial de multiplayer (wss://…), vazio até o dono definir quem opera o relay em produção (docs/LEGAL.md §7,
+ * docs/QA.md). Sem ele o padrão é o host da página na porta 8787 — e, no Electron (origem app://game, sem host de rede),
+ * localhost:8787, em vez do inválido ws://game:8787.
+ */
+export const OFFICIAL_RELAY_URL = '';
+export function defaultRelayUrl(loc: { protocol: string; hostname: string } = location): string {
+  if (OFFICIAL_RELAY_URL) return OFFICIAL_RELAY_URL;
+  if (loc.protocol === 'app:' || loc.protocol === 'file:') return 'ws://localhost:8787';
+  return `${loc.protocol === 'https:' ? 'wss' : 'ws'}://${loc.hostname || 'localhost'}:8787`;
+}
+
+export interface MenuCallbacks { onStart: (config: GameConfig) => void; onLoad: () => void; hasSave: () => boolean; onHelp: () => void; onEncyclopedia: () => void; onMission: (id: string, difficulty: 'easy' | 'normal' | 'hard') => void; onScenarioFile: (map: FixedMapData) => void; onNetworkStart: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onNetworkRejoin: (client: NetClient, config: GameConfig, slots: number[], delay: number, dropped?: number[]) => void; onHorde: (god: string, difficulty: Difficulty) => void; onReplay: () => void; hasReplay: () => boolean; onEditor: (file: FixedMapData) => void; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onHotkeys?: () => void; onCredits?: () => void }
 
 export class MainMenu {
   root: HTMLElement; el: HTMLElement;
@@ -60,7 +73,7 @@ export class MainMenu {
   setFixedMap(d: FixedMapData | null, id: string | null = d?.id ?? null) {
     this.fixedMap = d; this.fixedMapId = d ? id : null;
     this.fixedIssues = d ? validateMap(d) : [];
-    try { const setup = JSON.parse(localStorage.getItem('aoe_setup') ?? '{}'); setup.fixedMapId = this.fixedMapId; localStorage.setItem('aoe_setup', JSON.stringify(setup)); } catch { /* ignore */ }
+    try { const setup = JSON.parse(localStorage.getItem('aoe_setup') ?? '{}'); setup.fixedMapId = this.fixedMapId; storeSet('aoe_setup', JSON.stringify(setup)); } catch { /* ignore */ }
     if (this.net?.isHost && this.net.lobby) this.net.settings({ fixedMap: d ? { id: this.fixedMapId ?? undefined, name: mapName(d), w: d.w, h: d.h, starts: d.starts.length, hash: mapHash(d), scenario: d.scenario ? tx(d.scenario.title) : undefined } : null });
     this.render();
   }
@@ -156,7 +169,7 @@ export class MainMenu {
     const q = (id: string) => this.el.querySelector(id) as HTMLInputElement | null;
     const url = q('#mp-url')?.value, room = q('#mp-room')?.value, name = q('#mp-name')?.value;
     if (url === undefined || room === undefined || name === undefined) return;
-    try { localStorage.setItem('aoe_mp', JSON.stringify({ url: url.trim(), room: room.trim() || 'OLIMPO', name: name.trim() || t('main.player') })); } catch { /* ignore */ }
+    try { storeSet('aoe_mp', JSON.stringify({ url: url.trim(), room: room.trim() || 'OLIMPO', name: name.trim() || t('main.player') })); } catch { /* ignore */ }
   }
   private async startBrowsing(url: string, joinRoom: (room: string, spectate?: boolean) => Promise<void>) {
     this.rememberJoinFields();
@@ -238,6 +251,7 @@ export class MainMenu {
         <button class="btn" id="m-load" ${this.cb.hasSave() ? '' : 'disabled'}>${t('main.load')}</button>
         <button class="btn" id="m-help">${t('main.help')}</button>
         <button class="btn" id="m-enc">${t('main.enc')}</button>
+        <button class="btn" id="m-credits">${t('main.creditsBtn')}</button>
         <button class="btn" id="m-options">${this.showOptions ? t('menu.optionsHide') : t('menu.options')}</button>
       </div>
       <div id="m-options-panel" class="${this.showOptions ? '' : 'hidden'}" style="margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--panel)">${opts ? optionsHTML(opts) : ''}</div>
@@ -248,7 +262,7 @@ export class MainMenu {
     this.bindMultiplayer();
     if (this.tab === 'editor') this.bindEditor();
     if (this.tab === 'campaign') this.bindCustomScenarios();
-    (this.el.querySelector('#m-cdiff') as HTMLSelectElement | null)?.addEventListener('change', (e) => { try { localStorage.setItem('aoe_campaign_diff', (e.target as HTMLSelectElement).value); } catch { /* ignore */ } });
+    (this.el.querySelector('#m-cdiff') as HTMLSelectElement | null)?.addEventListener('change', (e) => { try { storeSet('aoe_campaign_diff', (e.target as HTMLSelectElement).value); } catch { /* ignore */ } });
     this.el.querySelectorAll('.mission').forEach((m) => m.addEventListener('click', () => { if ((m as HTMLElement).classList.contains('locked')) return; this.cb.onMission((m as HTMLElement).dataset.id!, this.campaignDifficulty()); }));
     this.el.querySelectorAll('.god').forEach((g) => g.addEventListener('click', () => { this.god = (g as HTMLElement).dataset.god!; this.el.querySelectorAll('.god').forEach((x) => x.classList.toggle('sel', (x as HTMLElement).dataset.god === this.god)); }));
     const q = (id: string) => this.el.querySelector(id) as HTMLInputElement;
@@ -267,7 +281,7 @@ export class MainMenu {
         players.push({ name: `${names[(seed + i) % names.length]} (IA)`, god: aiGod === 'random' ? gods[(seed + i * 7) % gods.length] : aiGod, isAI: true, difficulty: diff, team });
       }
       const mode = q('#m-mode').value as GameMode, mapType = q('#m-maptype').value as MapType;
-      try { localStorage.setItem('aoe_setup', JSON.stringify({ name, god: this.god, map, ais, diff, teams, mode, mapType })); } catch { /* ignore */ }
+      try { storeSet('aoe_setup', JSON.stringify({ name, god: this.god, map, ais, diff, teams, mode, mapType })); } catch { /* ignore */ }
       const fixed = this.fixedMap ?? undefined;
       if (fixed) {
         const issues = validateMap(fixed, { players: players.length, mode, ai: players.map((p) => p.isAI) });
@@ -283,6 +297,7 @@ export class MainMenu {
     q('#m-replay').addEventListener('click', () => this.cb.onReplay());
     q('#m-help').addEventListener('click', () => this.cb.onHelp());
     q('#m-enc').addEventListener('click', () => this.cb.onEncyclopedia());
+    q('#m-credits').addEventListener('click', () => this.cb.onCredits?.());
     q('#m-options').addEventListener('click', () => { this.showOptions = !this.showOptions; this.render(); });
     if (opts) bindOptions(this.el, opts, () => this.render());
   }
@@ -340,7 +355,7 @@ export class MainMenu {
       const id = (b.closest('.mapcard') as HTMLElement).dataset.id!; const act = (b as HTMLElement).dataset.act;
       const d = getMap(id); if (!d) { this.render(); return; }
       if (act === 'edit') this.cb.onEditor(d);
-      else if (act === 'copy') this.cb.onEditor({ ...d, id: uniqueMapId(`${id}-copia`), name: `${d.name ?? id} ${t('editor.copySuffix')}`, nameEn: d.nameEn ? `${d.nameEn} (copy)` : undefined });
+      else if (act === 'copy') this.cb.onEditor({ ...d, id: uniqueMapId(slugify(`${id}-copia`)), name: `${d.name ?? id} ${t('editor.copySuffix')}`, nameEn: d.nameEn ? `${d.nameEn} (copy)` : undefined });
       else if (act === 'dup') { try { duplicateMap(id); } catch { alert(t('msg.mapQuota')); } this.render(); }
       else if (act === 'export') void exportMapFile(d);
       else if (act === 'del') { if (confirm(t('editor.deleteConfirm', { name: mapName(d) }))) { removeMap(id); if (this.fixedMapId === id) this.setFixedMap(null); this.render(); } }
@@ -361,7 +376,7 @@ export class MainMenu {
     const lobby = this.net?.lobby;
     let saved: Partial<{ url: string; room: string; name: string }> = {};
     try { saved = JSON.parse(localStorage.getItem('aoe_mp') ?? '{}'); } catch { /* ignore */ }
-    const defaultUrl = saved.url ?? `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.hostname || 'localhost'}:8787`;
+    const defaultUrl = saved.url ?? defaultRelayUrl();
     if (!this.net || !lobby) {
       return `<p style="color:#9aa5b8;font-size:13px;margin:0 0 8px">${t('mp.intro')}</p>
         <div class="grid"><div><label>${t('mp.server')}</label><input id="mp-url" value="${defaultUrl}"><label>${t('mp.room')}</label><input id="mp-room" value="${saved.room ?? 'OLIMPO'}" maxlength="12"></div>
@@ -395,7 +410,7 @@ export class MainMenu {
     const q = (id: string) => this.el.querySelector(id) as HTMLInputElement | null;
     const joinRoom = async (room: string, spectate = false) => {
       const url = q('#mp-url')!.value.trim(), name = q('#mp-name')!.value.trim() || t('main.player'), god = q('#mp-god')!.value;
-      try { localStorage.setItem('aoe_mp', JSON.stringify({ url, room, name })); } catch { /* ignore */ }
+      try { storeSet('aoe_mp', JSON.stringify({ url, room, name })); } catch { /* ignore */ }
       this.stopBrowsing();
       const net = new NetClient();
       net.on('lobby', () => { if (this.tab === 'multiplayer') this.render(); });

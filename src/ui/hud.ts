@@ -33,6 +33,8 @@ import { esc } from './html';
 import { optionsHTML, bindOptions, type OptionsContext } from './options';
 import { padHelpRows } from './gamepad';
 import { DialogueQueue } from './dialogue';
+import { creditsHTML } from './credits';
+import { storeSet } from '../game/cloud';
 
 export interface HUDCallbacks { onSave: () => void; onLoad: () => void; onQuit: () => void; hasSave: () => boolean; onNextMission?: (currentId: string) => void; onExport?: () => void; onImport?: () => void; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onDiagnostic?: () => void; onExportMap?: () => void; onSaveMapLocal?: () => void }
 
@@ -685,6 +687,13 @@ export class HUD {
     this.modal.querySelector('#m-hotkeys')!.addEventListener('click', () => this.showHotkeys());
   }
 
+  /** Créditos: equipe, arte/áudio, tecnologias e licenças de terceiros (src/ui/credits.ts). */
+  showCredits() {
+    this.showModal(creditsHTML());
+    this.modal.scrollTop = 0;   // o #modal é reaproveitado: sem isso abriria rolado onde o último modal longo parou
+    this.modal.querySelector('#m-close')!.addEventListener('click', () => this.hideModal());
+  }
+
   /** Tela de atalhos: controles gerais (traduzidos) e teclas de construção/treino geradas a partir dos dados. */
   showHotkeys() {
     const k = (...keys: string[]) => keys.map((x) => `<kbd>${x}</kbd>`).join(' ');
@@ -749,7 +758,7 @@ export class HUD {
     const won = scenarioWon(sc, s.player.team);
     this.audio.play(won ? 'victory' : 'defeat');
     // Progresso da campanha só para ids oficiais: cenários JSON personalizados nunca marcam aoe_campaign (nem conquistas de missão)
-    if (won && isOfficialScenario(sc.id) && !this.testMode) { try { const prog = JSON.parse(localStorage.getItem('aoe_campaign') ?? '{"completed":[]}'); if (!prog.completed.includes(sc.id)) prog.completed.push(sc.id); if (st.config.campaignDifficulty === 'hard') { prog.hard = prog.hard ?? []; if (!prog.hard.includes(sc.id)) prog.hard.push(sc.id); } localStorage.setItem('aoe_campaign', JSON.stringify(prog)); } catch { /* ignore */ } }
+    if (won && isOfficialScenario(sc.id) && !this.testMode) { try { const prog = JSON.parse(localStorage.getItem('aoe_campaign') ?? '{"completed":[]}'); if (!prog.completed.includes(sc.id)) prog.completed.push(sc.id); if (st.config.campaignDifficulty === 'hard') { prog.hard = prog.hard ?? []; if (!prog.hard.includes(sc.id)) prog.hard.push(sc.id); } storeSet('aoe_campaign', JSON.stringify(prog)); } catch { /* ignore */ } }
     const text = won ? (def.outro ?? [t('mission.done')]).map((x) => `<p>${x}</p>`).join('') : `<p>${t('mission.failedText')}</p>`;
     // a última missão do plano (m12) fecha a campanha: sem "Próxima missão" (voltaria ao menu) e com o selo de fim; a Horda também não tem próxima
     const finale = won && sc.id === CAMPAIGN_PLAN[CAMPAIGN_PLAN.length - 1].id;

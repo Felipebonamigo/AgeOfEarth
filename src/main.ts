@@ -31,6 +31,7 @@ import { loadSettings, saveSettings } from './game/settings';
 import { AutoQuality, isSoftwareRenderer, levelOf, resolveQuality } from './render/quality';
 import { PerfMonitor } from './render/perf';
 import { exportText, importText } from './game/files';
+import { initCloud, storeSet } from './game/cloud';
 import { applyUiScale, initDisplay, isFullscreen, setFullscreen, desktop, setPresence } from './game/display';
 import type { OptionsContext } from './ui/options';
 import { MAJOR_GODS, MAJOR_GOD_LIST, AGES } from './core/data';
@@ -59,6 +60,9 @@ function desyncWhere(report: DesyncReport, config: GameConfig): string {
 }
 
 async function boot() {
+  // Electron: restaura do espelho em arquivos (Steam Cloud) o que faltar no localStorage antes de ler opções e saves
+  const cloud = await initCloud().catch((e) => { noteError(`cloud: ${(e as Error).message}`); return null; });
+  if (cloud && (cloud.restored.length || cloud.uploaded.length || cloud.removed.length || cloud.merged.length)) console.log(`cloud: ${cloud.restored.length} restaurado(s) [${cloud.restored.join(', ')}], ${cloud.uploaded.length} gravado(s) em arquivo, ${cloud.removed.length} apagado(s) em outra máquina [${cloud.removed.join(', ')}], ${cloud.merged.length} unido(s) [${cloud.merged.join(', ')}]`);
   const settings = loadSettings();
   setLocale(settings.locale ?? detectLocale());
   const root = document.getElementById('app')!;
@@ -84,6 +88,7 @@ async function boot() {
   });
   let session: Session | null = null;
   const achievements = new Achievements();
+  achievements.syncToSteam();   // conquistas destravadas fora da Steam (ou vindas do Steam Cloud) chegam à conta
   const hasSave = () => { try { return !!localStorage.getItem(SAVE_KEY); } catch { return false; } };
   const hasReplay = () => { try { return !!localStorage.getItem(REPLAY_KEY); } catch { return false; } };
   let replaySaved = false;
@@ -94,11 +99,11 @@ async function boot() {
   let editorCam: { x: number; y: number; zoom: number } | null = null;
   const inEditor = () => !!session && session.ui.mode === 'editor';
   const editorOrTest = () => returnToEditor || inEditor();
-  const saveReplay = () => { if (!session || session.spectator || editorOrTest()) return; const json = session.replayJSON(); if (!json) return; try { localStorage.setItem(REPLAY_KEY, json); replaySaved = true; } catch { /* ignore */ } };
+  const saveReplay = () => { if (!session || session.spectator || editorOrTest()) return; const json = session.replayJSON(); if (!json) return; try { storeSet(REPLAY_KEY, json); replaySaved = true; } catch { /* ignore */ } };
 
   const hud: HUD = new HUD(root, renderer, audio, {
     hasSave,
-    onSave: () => { if (!session) return; if (editorOrTest()) { hud.toast(t('editor.noSaveInTest'), 'warn'); return; } try { localStorage.setItem(SAVE_KEY, session.save()); hud.toast(t('msg.saved'), 'good'); } catch (e) { hud.toast(t('msg.saveFail', { err: (e as Error).message }), 'warn'); } },
+    onSave: () => { if (!session) return; if (editorOrTest()) { hud.toast(t('editor.noSaveInTest'), 'warn'); return; } try { storeSet(SAVE_KEY, session.save()); hud.toast(t('msg.saved'), 'good'); } catch (e) { hud.toast(t('msg.saveFail', { err: (e as Error).message }), 'warn'); } },
     onExport: () => { if (!session) return; void exportText(`age-of-earth-${new Date().toISOString().slice(0, 10)}.json`, session.save()).then((ok) => { if (ok) hud.toast(t('msg.saved'), 'good'); }); },
     onImport: () => { void importText().then((json) => { if (!json) return; try { if (editorOrTest()) leaveEditorView(); session = Session.load(json); replaySaved = false; renderer.setState(session.state); hud.setSession(session); hud.setVisible(true); menu.hide(); hud.toast(t('msg.loaded'), 'good'); } catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); } }); },
     getOptions: () => options,
@@ -423,7 +428,7 @@ async function boot() {
     showEditor(ed, editorCam);
   };
 
-  const menu = new MainMenu(root, { onStart: (cfg) => { replaySaved = false; startGame(cfg); }, onLoad: loadGame, hasSave, onEditor: startEditor, onHelp: () => hud.showHelp(), onEncyclopedia: () => hud.showEncyclopedia(), onMission: startMission, onScenarioFile: startScenarioFile, onNetworkStart: startNetworkGame, onNetworkRejoin: rejoinNetworkGame, onHorde: startHorde, onReplay: watchReplay, hasReplay, onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); }, getOptions: () => options, onHotkeys: () => hud.showHotkeys() });
+  const menu = new MainMenu(root, { onStart: (cfg) => { replaySaved = false; startGame(cfg); }, onLoad: loadGame, hasSave, onEditor: startEditor, onHelp: () => hud.showHelp(), onEncyclopedia: () => hud.showEncyclopedia(), onCredits: () => hud.showCredits(), onMission: startMission, onScenarioFile: startScenarioFile, onNetworkStart: startNetworkGame, onNetworkRejoin: rejoinNetworkGame, onHorde: startHorde, onReplay: watchReplay, hasReplay, onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); }, getOptions: () => options, onHotkeys: () => hud.showHotkeys() });
   input.edgeScroll = settings.edgeScroll;
   // Controle (Steam Deck/Xbox): lido a cada quadro no laço; gera as mesmas ações do Input (src/ui/gamepad.ts)
   const pad = new GamepadController({ input, hud, renderer, menu, settings, getSession: () => session, inEditor: () => inEditor() });
@@ -436,7 +441,7 @@ async function boot() {
   window.addEventListener('keydown', (e) => {
     if (!session) return;
     if (editorOrTest()) { if (e.key === 'F5' || e.key === 'F9') e.preventDefault(); return; }   // editor/teste: nada de salvar ou carregar
-    if (e.key === 'F5') { e.preventDefault(); try { localStorage.setItem(SAVE_KEY, session.save()); hud.toast(t('msg.savedF5'), 'good'); } catch { /* ignore */ } }
+    if (e.key === 'F5') { e.preventDefault(); try { storeSet(SAVE_KEY, session.save()); hud.toast(t('msg.savedF5'), 'good'); } catch { /* ignore */ } }
     if (e.key === 'F9') { e.preventDefault(); loadGame(); }
   });
   window.addEventListener('resize', () => renderer.resize());

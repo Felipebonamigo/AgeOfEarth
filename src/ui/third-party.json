@@ -1,0 +1,216 @@
+{
+ "generatedBy": "scripts/licenses.ts (não edite à mão)",
+ "packages": [
+  {
+   "n": "@pixi/colord",
+   "v": "2.9.6",
+   "l": "MIT",
+   "s": "game",
+   "c": [
+    "Copyright (c) Vlad Shilov"
+   ],
+   "u": "https://github.com/omgovich/colord"
+  },
+  {
+   "n": "@types/earcut",
+   "v": "3.0.0",
+   "l": "MIT",
+   "s": "game",
+   "c": [
+    "Copyright (c) Microsoft Corporation."
+   ],
+   "u": "https://github.com/DefinitelyTyped/DefinitelyTyped"
+  },
+  {
+   "n": "@webgpu/types",
+   "v": "0.1.74",
+   "l": "BSD-3-Clause",
+   "s": "game",
+   "c": [
+    "Copyright 2022 WebGPU Developers"
+   ],
+   "u": "https://github.com/gpuweb/types"
+  },
+  {
+   "n": "@xmldom/xmldom",
+   "v": "0.8.15",
+   "l": "MIT",
+   "s": "game",
+   "c": [
+    "Copyright 2019 - present Christopher J. Brody and other contributors, as listed in: https://github.com/xmldom/xmldom/graphs/contributors",
+    "Copyright 2012 - 2017 @jindw <jindw@xidea.org> and other contributors, as listed in: https://github.com/jindw/xmldom/graphs/contributors"
+   ],
+   "u": "https://github.com/xmldom/xmldom"
+  },
+  {
+   "n": "earcut",
+   "v": "3.2.3",
+   "l": "ISC",
+   "s": "game",
+   "c": [
+    "Copyright (c) 2026, Mapbox"
+   ],
+   "u": "https://github.com/mapbox/earcut"
+  },
+  {
+   "n": "eventemitter3",
+   "v": "5.0.4",
+   "l": "MIT",
+   "s": "game",
+   "c": [
+    "Copyright (c) 2014 Arnout Kazemier"
+   ],
+   "u": "https://github.com/primus/eventemitter3"
+  },
+  {
+   "n": "gifuct-js",
+   "v": "2.1.2",
+   "l": "MIT",
+   "s": "game",
+   "c": [
+    "Copyright (c) 2015 Matt Way"
+   ],
+   "u": "https://github.com/matt-way/gifuct-js"
+  },
+  {
+   "n": "ismobilejs",
+   "v": "1.1.1",
+   "l": "MIT",
+   "s": "game",
+   "c": [
+    "Copyright (c) 2019 Kai Mallea"
+   ],
+   "u": "https://github.com/kaimallea/isMobile"
+  },
+  {
+   "n": "js-binary-schema-parser",
+   "v": "2.0.3",
+   "l": "MIT",
+   "s": "game",
+   "c": [
+    "Copyright (c) 2015 Matt Way"
+   ],
+   "u": "https://github.com/matt-way/jsBinarySchemaParser"
+  },
+  {
+   "n": "parse-svg-path",
+   "v": "0.2.0",
+   "l": "MIT",
+   "s": "game",
+   "c": [
+    "Copyright (c) 2013 Jake Rosoman <jkroso@gmail.com>"
+   ],
+   "u": "https://github.com/jkroso/parse-svg-path"
+  },
+  {
+   "n": "pixi.js",
+   "v": "8.21.0",
+   "l": "MIT",
+   "s": "game",
+   "c": [
+    "Copyright (c) 2013-2023 Mathew Groves, Chad Engler"
+   ],
+   "u": "https://github.com/pixijs/pixijs"
+  },
+  {
+   "n": "tiny-lru",
+   "v": "11.4.7",
+   "l": "BSD-3-Clause",
+   "s": "game",
+   "c": [
+    "Copyright (c) 2026, Jason Mulligan"
+   ],
+   "u": "https://github.com/avoidwork/tiny-lru"
+  },
+  {
+   "n": "ws",
+   "v": "8.21.3",
+   "l": "MIT",
+   "s": "relay",
+   "c": [
+    "Copyright (c) 2011 Einar Otto Stangvik <einaros@gmail.com>",
+    "Copyright (c) 2013 Arnout Kazemier and contributors",
+    "Copyright (c) 2016 Luigi Pinca and contributors"
+   ],
+   "u": "https://github.com/websockets/ws"
+  },
+  {
+   "n": "@types/node",
+   "v": "20.19.43",
+   "l": "MIT",
+   "s": "desktop",
+   "c": [
+    "Copyright (c) Microsoft Corporation."
+   ],
+   "u": "https://github.com/DefinitelyTyped/DefinitelyTyped"
+  },
+  {
+   "n": "electron",
+   "v": "33.4.11",
+   "l": "MIT",
+   "s": "desktop",
+   "c": [
+    "Copyright (c) Electron contributors",
+    "Copyright (c) 2013-2020 GitHub Inc."
+   ],
+   "u": "https://github.com/electron/electron"
+  },
+  {
+   "n": "steamworks.js",
+   "v": "0.4.0",
+   "l": "MIT",
+   "s": "desktop",
+   "c": [
+    "Copyright (c) 2022 Gabriel Francisco Dos Santos"
+   ],
+   "u": "https://github.com/ceifa/steamworks.js"
+  },
+  {
+   "n": "undici-types",
+   "v": "6.21.0",
+   "l": "MIT",
+   "s": "desktop",
+   "c": [
+    "Copyright (c) Matteo Collina and Undici contributors"
+   ],
+   "u": "https://github.com/nodejs/undici"
+  },
+  {
+   "n": "Chromium",
+   "v": "via electron 33.4.11",
+   "l": "BSD-3-Clause",
+   "s": "desktop",
+   "x": "navegador embutido no Electron; licenças de todos os componentes em LICENSES.chromium.html, ao lado do executável",
+   "xe": "browser engine bundled with Electron; licenses of every component in LICENSES.chromium.html, next to the executable"
+  },
+  {
+   "n": "Node.js",
+   "v": "via electron 33.4.11",
+   "l": "MIT",
+   "s": "desktop",
+   "x": "runtime do processo principal do Electron",
+   "xe": "runtime of Electron's main process"
+  },
+  {
+   "n": "FFmpeg",
+   "v": "via electron 33.4.11",
+   "l": "LGPL-2.1-or-later",
+   "s": "desktop",
+   "x": "biblioteca dinâmica (libffmpeg) do Electron, na versão sem codecs proprietários (sem H.264/AAC; trocada no empacotamento por desktop/after-pack.cjs); pode ser substituída pelo usuário",
+   "xe": "Electron's dynamic library (libffmpeg), in the build without proprietary codecs (no H.264/AAC; swapped in at packaging by desktop/after-pack.cjs); replaceable by the user"
+  },
+  {
+   "n": "Steamworks SDK (steam_api)",
+   "v": "via steamworks.js 0.4.0",
+   "l": "LicenseRef-Steamworks-SDK",
+   "s": "desktop",
+   "x": "biblioteca da Valve, redistribuída conforme o Steamworks SDK Access Agreement",
+   "xe": "Valve's library, redistributed under the Steamworks SDK Access Agreement"
+  }
+ ],
+ "texts": {
+  "MIT": "Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.",
+  "ISC": "Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.",
+  "BSD-3-Clause": "Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:\n\n1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.\n2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.\n3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.\n\nTHIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
+ }
+}

@@ -2,33 +2,42 @@
 import { AGES, UNITS } from '../core/data';
 import type { GameState } from '../core/types';
 import { desktop } from './files';
+import { storeSet } from './cloud';
 import { CAMPAIGN, CAMPAIGN_PLAN, PROLOGUE_IDS } from '../core/scenario/campaign';
 import { actMissionIds, type CampaignAct } from '../core/scenario/official';
 
 /**
  * Conquistas geradas do registro da campanha (G0): uma por missão nova registrada (as do prólogo são feitas à mão acima),
  * "Ato I/II/III completo" (todas as missões oficiais do ato — só destrava quando o ato inteiro estiver registrado) e
- * "Campanha no Difícil" (as 12 missões oficiais no Difícil).
+ * "Campanha no Difícil" (as 12 missões oficiais no Difícil). As dos Atos II e III ficam ocultas na Steam (nomes contam a história).
  */
 function campaignAchievements(): AchievementDef[] {
   const out: AchievementDef[] = [];
   for (const e of CAMPAIGN) {
     if (PROLOGUE_IDS.includes(e.id) || !e.file) continue;
-    const n = CAMPAIGN_PLAN.findIndex((m) => m.id === e.id) + 1;
+    const idx = CAMPAIGN_PLAN.findIndex((m) => m.id === e.id), n = idx + 1;
     const title = typeof e.file.title === 'string' ? e.file.title : e.file.title.pt;
-    const titleEn = typeof e.file.title === 'string' ? e.file.title : (e.file.title.en ?? e.file.title.pt);
-    out.push({ id: e.id, name: title, desc: `Complete a missão ${n} da campanha.`, nameEn: titleEn, descEn: `Complete mission ${n} of the campaign.`, icon: e.file.icon ?? '📜', check: (_s, _l, c) => c.missionsDone.includes(e.id) });
+    // sem título em inglês no cenário: nameEn fica ausente (achievementEnglish acusa; a tela cai no português)
+    const titleEn = typeof e.file.title === 'string' ? undefined : e.file.title.en;
+    out.push({ id: e.id, name: title, desc: `Complete a missão ${n} da campanha.`, nameEn: titleEn, descEn: `Complete mission ${n} of the campaign.`, icon: e.file.icon ?? '📜', hidden: (CAMPAIGN_PLAN[idx]?.act ?? 1) >= 2, check: (_s, _l, c) => c.missionsDone.includes(e.id) });
   }
   const acts: [CampaignAct, string, string, string, string][] = [[1, 'I', 'A Sombra dos Titãs', 'The Shadow of the Titans', '⛓️'], [2, 'II', 'A Maré de Poseidon', "Poseidon's Tide", '🌊'], [3, 'III', 'A Queda de Cronos', 'The Fall of Cronus', '⏳']];
   for (const [act, roman, name, nameEn, icon] of acts) {
     const ids = actMissionIds(act);
-    out.push({ id: `campaign_act${act}`, name: `Ato ${roman} completo: ${name}`, desc: `Complete todas as missões do Ato ${roman}.`, nameEn: `Act ${roman} complete: ${nameEn}`, descEn: `Complete every mission of Act ${roman}.`, icon, check: (_s, _l, c) => ids.every((m) => c.missionsDone.includes(m)) });
+    out.push({ id: `campaign_act${act}`, name: `Ato ${roman} completo: ${name}`, desc: `Complete todas as missões do Ato ${roman}.`, nameEn: `Act ${roman} complete: ${nameEn}`, descEn: `Complete every mission of Act ${roman}.`, icon, hidden: act >= 2, check: (_s, _l, c) => ids.every((m) => c.missionsDone.includes(m)) });
   }
   out.push({ id: 'campaign_all_hard', name: 'Titanomaquia no Difícil', desc: 'Complete as 12 missões da campanha no Difícil.', nameEn: 'Titanomachy on Hard', descEn: 'Complete all 12 campaign missions on Hard.', icon: '🏛️', check: (_s, _l, c) => CAMPAIGN_PLAN.every((m) => c.missionsHard.includes(m.id)) });
   return out;
 }
 
-export interface AchievementDef { id: string; name: string; desc: string; nameEn?: string; descEn?: string; icon: string; check: (s: GameState, local: number, ctx: AchievementCtx) => boolean }
+/**
+ * Conquista. O `id` é também o API name no Steamworks (letras ASCII, dígitos e `_`; `scripts/steam-achievements.ts` gera a
+ * planilha de cadastro e `window.desktop.achievement(id)` a destrava). `hidden`: oculta na Steam até ser destravada.
+ */
+export interface AchievementDef { id: string; name: string; desc: string; nameEn?: string; descEn?: string; icon: string; hidden?: boolean; check: (s: GameState, local: number, ctx: AchievementCtx) => boolean }
+
+/** API name aceito pelo Steamworks (e usado como id aqui): letras ASCII, dígitos e sublinhado. */
+export const STEAM_API_NAME_RE = /^[A-Za-z0-9_]{1,64}$/;
 
 /** Nome e descrição em inglês das conquistas fixas (as geradas trazem nameEn/descEn). */
 const EN: Record<string, [string, string]> = {
@@ -60,6 +69,13 @@ const EN: Record<string, [string, string]> = {
   horde_hard: ['Bronze Wall', 'Win Horde Mode on Hard or above.'],
   garrison_defense: ['Closed Gates', 'Have 15 units garrisoned in a single building.'],
 };
+
+/** Nome e descrição em inglês, ou null se faltar algum dos dois (teste e cadastro na Steam exigem a tradução completa). */
+export function achievementEnglish(a: AchievementDef): { name: string; desc: string } | null {
+  const fixed = EN[a.id];
+  const name = a.nameEn ?? fixed?.[0], desc = a.descEn ?? fixed?.[1];
+  return name && desc ? { name, desc } : null;
+}
 
 /** Nome e descrição da conquista no idioma pedido (PT é o original; EN cai no PT se faltar tradução). */
 export function achievementText(a: AchievementDef, locale: string): { name: string; desc: string } {
@@ -113,12 +129,20 @@ export class Achievements {
   onUnlock: ((a: AchievementDef) => void) | null = null;
   private acc = 0;
   constructor() { try { for (const id of JSON.parse(localStorage.getItem(KEY) ?? '[]')) this.unlocked.add(id); } catch { /* ignore */ } }
+  /**
+   * Reenvia à Steam as conquistas já destravadas aqui (jogadas fora da Steam, antes da integração ou restauradas do Steam
+   * Cloud): `activate` é idempotente na Steam. Sem a ponte do Electron não faz nada.
+   */
+  syncToSteam(): void {
+    const d = desktop(); if (!d?.achievement) return;
+    for (const id of this.unlocked) if (ACHIEVEMENTS.some((a) => a.id === id)) void d.achievement(id);
+  }
   private ctx(): AchievementCtx {
     let godsPlayed: string[] = [], missionsDone: string[] = [], missionsHard: string[] = [];
     try { godsPlayed = JSON.parse(localStorage.getItem('aoe_gods_played') ?? '[]'); const prog = JSON.parse(localStorage.getItem('aoe_campaign') ?? '{"completed":[]}'); missionsDone = prog.completed ?? []; missionsHard = prog.hard ?? []; } catch { /* ignore */ }
     return { godsPlayed, hordeWaves: 0, missionsDone, missionsHard };
   }
-  recordGod(god: string) { try { const g: string[] = JSON.parse(localStorage.getItem('aoe_gods_played') ?? '[]'); if (!g.includes(god)) { g.push(god); localStorage.setItem('aoe_gods_played', JSON.stringify(g)); } } catch { /* ignore */ } }
+  recordGod(god: string) { try { const g: string[] = JSON.parse(localStorage.getItem('aoe_gods_played') ?? '[]'); if (!g.includes(god)) { g.push(god); storeSet('aoe_gods_played', JSON.stringify(g)); } } catch { /* ignore */ } }
   /** Chamar a cada quadro; avalia uma vez por segundo. */
   update(state: GameState, local: number, dt: number) {
     this.acc += dt; if (this.acc < 1) return; this.acc = 0;
@@ -130,7 +154,7 @@ export class Achievements {
       try { ok = a.check(state, local, ctx); } catch { ok = false; }
       if (!ok) continue;
       this.unlocked.add(a.id);
-      try { localStorage.setItem(KEY, JSON.stringify([...this.unlocked])); } catch { /* ignore */ }
+      try { storeSet(KEY, JSON.stringify([...this.unlocked])); } catch { /* ignore */ }
       void desktop()?.achievement?.(a.id);
       this.onUnlock?.(a);
     }

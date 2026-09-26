@@ -5,7 +5,7 @@
 | Comando | O que cobre | Tempo |
 |---|---|---|
 | `npm run typecheck` | Tipos estritos | ~10 s |
-| `npm test` | 616 testes em 39 arquivos (26/09/2026, com o anti-trapaça 4.5 e a revisão): fuzz determinístico de comandos e regras de validação (`command-fuzz`: 7 200 comandos malucos numa partida em curso sem exceção, invariantes — sem NaN, recursos ≥ 0, população coerente, ids/guarnições consistentes — e o mesmo hash/save em duas execuções; entrada do `NetworkScheduler`: ids repetidos e limites por tick, tick em que o par não é aguardado, deus com nome do protótipo), relatório de dessincronização (`desync-report`: dois pares em memória com estado adulterado → tick, hashes e categoria/jogador divergentes), relay anti-trapaça (`relay-anticheat`: comando em nome de outra vaga, tick repetido/para trás, JSON malformado, quadro WebSocket inválido, mensagem grande, limite de taxa também do anfitrião, ficha de reconexão, instantâneo só pedido, configurações saneadas), texto de outros pares no HUD (`hud-text`: aviso e falas nunca viram HTML), justiça de posição (`position-fairness`: referenciais, desempates, kit, rodízio das IAs, sondagens de simetria do Egeu e do Estreito, poderes e entidades espelhados), versão da simulação no relay (`relay-version`), dados (inclui `checkMap` dos mapas embutidos, recursos iguais por início e mapas oficiais reprodutíveis pelos scripts), determinismo, pathfinding, simulação, regressões, cenários, lockstep/reconexão, modos, mapas fixos, editor, qualidade, áudio, controle, shader do terreno | ~15 s |
+| `npm test` | 631 testes em 40 arquivos (26/09/2026, com a Fase 6: `steam` — conquistas servem de API name e têm PT/EN, planilha do Steamworks em dia, espelho do Steam Cloud igual no jogo e no processo principal, `planCloudSync`, limites do IPC, gravação/restauração de ponta a ponta numa pasta real, nenhuma gravação de chave espelhada fora do `storeSet`, servidor padrão no Electron, licenças SPDX sem GPL/AGPL e lista da tela Créditos em dia com os lockfiles); antes, 616 em 39 (anti-trapaça 4.5 e a revisão): fuzz determinístico de comandos e regras de validação (`command-fuzz`: 7 200 comandos malucos numa partida em curso sem exceção, invariantes — sem NaN, recursos ≥ 0, população coerente, ids/guarnições consistentes — e o mesmo hash/save em duas execuções; entrada do `NetworkScheduler`: ids repetidos e limites por tick, tick em que o par não é aguardado, deus com nome do protótipo), relatório de dessincronização (`desync-report`: dois pares em memória com estado adulterado → tick, hashes e categoria/jogador divergentes), relay anti-trapaça (`relay-anticheat`: comando em nome de outra vaga, tick repetido/para trás, JSON malformado, quadro WebSocket inválido, mensagem grande, limite de taxa também do anfitrião, ficha de reconexão, instantâneo só pedido, configurações saneadas), texto de outros pares no HUD (`hud-text`: aviso e falas nunca viram HTML), justiça de posição (`position-fairness`: referenciais, desempates, kit, rodízio das IAs, sondagens de simetria do Egeu e do Estreito, poderes e entidades espelhados), versão da simulação no relay (`relay-version`), dados (inclui `checkMap` dos mapas embutidos, recursos iguais por início e mapas oficiais reprodutíveis pelos scripts), determinismo, pathfinding, simulação, regressões, cenários, lockstep/reconexão, modos, mapas fixos, editor, qualidade, áudio, controle, shader do terreno | ~15 s |
 | `npm run balance 30 1,2,3,4,5,6` | 6 partidas IA×IA de 30 min: idades (Clássica ~5, Heroica 12–18, Mítica 19–26), ninguém travado | ~2 min |
 | `npx tsx scripts/missions.ts` | Todas as missões do registro × 3 dificuldades: validação, viabilidade passiva e o roteiro do jogador (`MISSION_SCRIPTS` em `src/core/scenario/testing.ts`) vencendo dentro da janela. Referência 26/09/2026 (depois da correção do viés de posição; roteiros da m2, m5 e m7 reajustados e janela da m4 revista para 15m–39m — só o roteiro/janela, nunca a missão; causas em `docs/STORY.md` §4 e §7.2): m1 14m39s/14m26s/15m55s, m2 19m33s/15m32s/15m25s, m3 18m30s/19m10s/19m16s, m4 16m14s/19m00s/19m09s, m5 15m55s/16m55s/17m55s (variante "escolta" 6m08s/7m55s/8m59s), m6 19m36s/20m02s/22m17s, m7 17m47s/17m00s/22m52s (Fácil/Normal/Difícil). Para rodar em paralelo: `npx tsx scripts/missions.ts 14 m1_despertar,m2_cerco,m3_portal` etc. | ~8 min (1 processo) |
 | `npm run map:check [arquivo.map.json…]` | Sem arquivos: os mapas embutidos. Validação (erros/avisos), tabela de recursos por início (raio 16) e 2 min de IA×IA em cada (`src/core/map/check.ts`, o mesmo que `tests/data.test.ts` exige): falha com erro, IA parada ou partida encerrada no 1º minuto | ~5 s |
@@ -25,6 +25,9 @@
 | `node scripts/playtest-editor.mjs` | Editor de mapas: novo mapa gerado, pintar lago/bosque com o mouse, torre e hoplita por jogador, mover início, desfazer/refazer, validação (Ir até), salvar, Testar (partida real) e voltar à mesma instância, exportar, P (conta-gotas, sem pausar)/F5 sem efeito, Esc/menu; Etapa 4: balde (botão 🪣), conta-gotas (botão 💧), cerca com gargalo → **Corrigir** faz o aviso sumir (e Ctrl+Z o traz de volta), tabela de recursos, redimensionar 80→96 (Ctrl+Z volta à instância anterior, Ctrl+Y refaz; o rascunho acompanha a instância exibida, também após Ctrl+S), Estreito e Egeu abertos no editor sem avisos e com recursos iguais, Testar contra IAs e voltar; capturas `docs/art/editor-estreito.png` e `editor-egeu.png` (67 verificações) | ~2 min |
 | `npm run relay` + `node scripts/playtest-mp.mjs`, `playtest-reconnect.mjs`, `playtest-mp-fixedmap.mjs`, `playtest-rooms.mjs`, `playtest-spectate.mjs` (todos aceitam `[url] [ws]`, ex.: `node scripts/playtest-mp.mjs http://localhost:4220/ ws://localhost:8797` com `node server/relay.mjs 8797`) | Dois navegadores em lockstep, chat (o da partida é texto puro: `<img onerror>` aparece como texto), ping, queda e reconexão (com a ficha da vaga), mapa fixo no lobby, lista de salas (sala iniciada fica só para assistir), espectadores — com os limites do relay (4.5) ligados | ~4 min |
 | `npm run loadtest -- --minutes 40 --bots 4` (+ `--jitter 60 --drop-at 8 --spectator-at 12`, `--map arquivo.map.json`, `--realtime`) | Teste de carga do multiplayer (4.4): relay próprio (acelerado: `--no-rate-limit`, porque os bots mandam ~1 000 ticks/s; `--realtime`: com os limites de taxa do relay ligados) + N bots em Node, cada um com NetClient e a própria simulação (fluxo de `startNetworkGame`/`rejoinNetworkGame`), comandos determinísticos (coleta, casas/quartel/templo/academia, treino, Idades, pesquisa, mercado, ataque-mover a cada ~3 min, poderes). Hash de todos a cada 100 ticks (divergência → estado de todos + refazer offline até o primeiro tick e diff por caminho), banda, instantâneo, ms/tick, espera pela rede, CPU/RSS do relay; queda com espera+reconexão, "seguir sem ele" (`--drop-mode resume`/`resume-rejoin`), espectador no meio; `--inject-desync M[:cmd]` autotesta o detector. Relatório em `docs/perf/loadtest-<data>.json`. Referência 25/09/2026 (4 CPUs, carga ~10–14 de outros processos): **4 bots × 40 min, mapa grande, atraso 4**: 480/480 hashes iguais, 91–155 s reais, 1,0–1,8 ms/tick, ~42 KB/min enviados e ~159 KB/min recebidos por jogador (20 msg/s env., 61 msg/s rec.), relay 70 MB RSS e ~0,3 s de CPU por minuto simulado, pico 183 unidades/102 edifícios; **4 × 20 min, jitter 60, queda aos 8 (espera+reconexão) e espectador aos 12**: 240/240 iguais, instantâneo 695–728 KB (serialize 18–24 ms, aplicado em 11–16 ms); **2 × 10 min no Estreito**: 120/120; **tempo real, jitter 20–80**: atraso 4 → ≤ 0,04 % de quadros travados; atraso 2 → 1,8–3,7 % (lentidão 0,2–0,4 %); relay 2,2 % de um núcleo por sala de 4 | 2–6 min |
+| `npx tsx scripts/steam-achievements.ts --check` · `npx tsx scripts/licenses.ts --check` | Planilha das conquistas (`desktop/steam/achievements.{json,csv}`) e licenças de terceiros (`docs/THIRD_PARTY.md`, `src/ui/third-party.json`) em dia; licenças conhecidas e sem copyleft forte no pacote distribuído (sem `--check`: regeram) | ~2 s |
+| `node scripts/playtest-credits.mjs [url]` | Tela Créditos pelo menu principal em PT e EN: equipe, tecnologias, tabela de licenças igual a `src/ui/third-party.json`, textos das licenças, abre no topo, cabe na janela; capturas `docs/art/creditos-{pt,en}.png` | ~20 s |
+| `npm run dist:linux` (em `desktop/`, depois de `npm ci` lá) + `xvfb-run -a node scripts/playtest-desktop.mjs` | Build Linux do Electron (perfil temporário via `XDG_CONFIG_HOME`): `app://`, bloqueio de caminhos, ponte `window.desktop` (Steam ausente → `null`; espelho só com 3 operações), `THIRD_PARTY.md` e `LICENSES.chromium.html` no pacote, IPC do espelho recusa chave fora da lista/caminho/não-texto/> 16 MB, opções e save (F5) gravados em `saves/*.json`, partida, tela cheia, `localStorage` entre execuções; depois **apaga o localStorage da origem `app://game`**, reabre e confere opções (inglês, sem rolagem pela borda) e save restaurados dos arquivos (Carregar funciona). Referência 26/09/2026: 29 verificações, 5 chaves restauradas, save de 283 KB | ~2 min (+ ~1 min da build) |
 | `npm run relay` + `node scripts/playtest-scenario.mjs [url] [relay]` | Cenário JSON embutido: editor → Gatilhos (modelos, validação ao vivo com path, JSON inválido bloqueia Salvar) → Testar com cenário (intro, objetivos, diálogo) e voltar ao editor; exportar/importar em Campanha → Cenários personalizados (id reservado recusado, sem progresso da campanha); multiplayer com "Cenário: …" no lobby, scenarioData nos dois clientes e mesmo hash | ~2 min |
 
 ## Desempenho do renderizador — números de base (Etapa 0 da arte, 25/09/2026)
@@ -151,30 +154,83 @@ Leitura:
   quando ele entra na tela: `PropLayer.reset` do 144×144 caiu de 30–53 ms para 0,3–0,5 ms (260 sprites na tela inicial
   contra 2 806 do mapa inteiro). Ligar a opção no meio da partida reconstrói uma vez só (antes, duas).
 
-## Matriz manual (por versão candidata)
+## Matriz de testes (6.8, por versão candidata)
 
-| Ambiente | Mínimo | Verificar |
-|---|---|---|
-| Windows 10/11, GPU integrada | 60 fps no menu, ≥ 30 fps em partida grande | Tela cheia/janela, F11, escala da interface 125%, teclado ABNT (atalhos), salvar/carregar/exportar, conquistas Steam |
-| Windows, GPU dedicada | 60 fps | Qualidade de renderização 100%, mapa grande com 4 IAs Muito difícil por 30 min |
-| Linux (Steam Deck em modo desktop e Gaming Mode) | 40 fps a 1280×800 | Legibilidade com escala 130% (barra superior numa linha, menu e modais inteiros na tela), tela cheia. **Controle integrado** (layout "Gamepad" do Steam Input, não "teclado e mouse"): aviso de conexão; menu principal só pelo D-pad (abas com LB/RB, A confirma, B volta, listas com A → ✚ → A); cursor virtual (analógico esquerdo, acelera ao segurar, freia sobre unidades), A seleciona/segurar e mover faz retângulo, B ordem, X atacar-mover, Y parar, LT + A/B/X/Y painel, D-pad ◀▶▲▼, ⧉ visão geral, Start menu; vibração ao sofrer ataque; mexer no trackpad/mouse devolve o cursor do sistema; Opções → 🎮 Controle (sensibilidade, eixo, esquema alternativo, vibração) |
-| macOS | 60 fps | Tela cheia nativa, atalhos com ⌘ não conflitando (Ctrl+M/Ctrl+A) |
-| Máquina fraca (4 GB, GPU antiga) | Jogável a 50% de renderização | Sem travamentos; tempo de carregamento < 10 s |
+Automáticos primeiro (checklist abaixo); a matriz é o que só uma pessoa com o hardware consegue conferir. Cada célula
+marcada roda o **roteiro base**: 1 partida rápida completa (vitória por conquista), 1 missão da campanha, 1 partida online
+com outro computador (chat, queda proposital e reconexão), 1 Horda até a onda 10, salvar/carregar/exportar, trocar o idioma.
 
-Para cada linha: 1 partida rápida completa (vitória por conquista), 1 missão da campanha, 1 partida online com outro computador
-(chat, queda proposital e reconexão), 1 Horda até a onda 10.
+### Plataformas e hardware
+| Plataforma | Máquina de referência | Build | Metas | Além do roteiro base |
+|---|---|---|---|---|
+| Windows 11 x64 | GPU integrada (Intel Iris Xe / Radeon Vega 8), 8 GB | `dist:win` pela Steam | 60 fps no menu, ≥ 30 fps em partida grande (preset Média) | Tela cheia/janela, F11, escala 125 %, teclado ABNT2 (atalhos), conquista destravada aparece no overlay da Steam, Rich Presence visível a um amigo |
+| Windows 10 22H2 x64 | GPU dedicada (GTX 1060 / RX 580), 16 GB | `dist:win` pela Steam | 60 fps no preset Alta | Mapa grande, 4 IAs Muito difícil por 30 min; renderização 100 % |
+| Linux desktop (Ubuntu 22.04/24.04, X11 e Wayland) | GPU integrada | `dist:linux` pela Steam | ≥ 30 fps (Média) | `xvfb-run -a node scripts/playtest-desktop.mjs` antes; sessão real com tela cheia e controle |
+| Steam Deck (LCD e OLED), Gaming Mode e Desktop | Deck | build Windows pelo Proton **e** build Linux nativa | 40 fps a 1280×800 (Baixa/Média) | Tudo da tabela "Controle e Steam" abaixo; teclado virtual da Steam nos campos de texto (nome, sala, chat); suspender e retomar no meio da partida |
+| macOS 13+ (Apple Silicon e Intel) | MacBook Air M1 8 GB | `dist:mac` (assinado/notarizado) | 60 fps | Tela cheia nativa; atalhos com ⌘ sem conflito (Ctrl+M/Ctrl+A); Retina |
+| Máquina fraca | 4 GB RAM, GPU de 2015 (Intel HD 520), HDD | Windows | Jogável com renderização 50 % e preset Baixa; carregar < 10 s | Sem travamentos em 20 min; o preset automático desce sozinho |
+
+### Resoluções e escala da interface
+| Resolução | Escala | Onde testar | Verificar |
+|---|---|---|---|
+| 1280×800 (Deck) | 130 % | Deck | Barra superior compacta numa linha; menu e modais (Créditos, Opções, Enciclopédia) inteiros na tela, rolando por dentro; dicas de botões |
+| 1366×768 | 100 % | notebook fraco | HUD sem sobreposição; minimapa e painel de comandos inteiros |
+| 1920×1080 | 100 % e 115 % | Windows | Referência das capturas (`npm run art:shot`) |
+| 2560×1440 | 115 % | GPU dedicada | Textos nítidos, sem serrilhado no mapa |
+| 3840×2160 (4K) | 150 % e DPI 200 % do sistema | Windows / macOS Retina | Interface legível (`devicePixelRatio` 2), 60 fps com renderização 100 % e 75 %, nada borrado |
+| Janela redimensionada e ultrawide 3440×1440 | 100 % | qualquer | O canvas acompanha, sem faixa preta; o menu centraliza |
+
+### Idiomas
+| Idioma | Verificar |
+|---|---|
+| Português (Brasil) | Todos os textos, acentos, teclado ABNT2; campanha inteira (falas, objetivos, fim da m12) |
+| English | `node scripts/playtest-i18n.mjs` e `playtest-credits.mjs` (automáticos) + menu, campanha (falas), enciclopédia, conquistas (aviso), Créditos, Rich Presence em inglês |
+| Sistema em outro idioma (ex.: espanhol) | Primeira execução abre em inglês (`detectLocale`); trocar para PT no menu e na partida |
+
+### Controle e Steam (versão Steam)
+| Item | Verificar |
+|---|---|
+| Controle | Layout "Gamepad" do Steam Input (não "teclado e mouse"): aviso de conexão; menu só pelo D-pad (abas com LB/RB, A confirma, B volta); cursor virtual (analógico esquerdo, acelera, freia sobre unidades), A seleciona/retângulo, B ordem, X atacar-mover, Y parar, LT + A/B/X/Y painel, D-pad ◀▶▲▼, ⧉ visão geral, Start menu; vibração ao sofrer ataque; trackpad/mouse devolve o cursor do sistema; Opções → 🎮 Controle |
+| Conquistas | Destravar 2–3 (ex.: Primeira Oferenda, Filósofo) e ver no overlay/perfil; conquista destravada fora da Steam aparece na Steam na próxima abertura (`syncToSteam`) |
+| Steam Cloud | PC → Deck: salvar (F5), avançar a campanha e mudar uma opção no PC; fechar; abrir no Deck → save, campanha, opções e Meus mapas aparecem; o caminho inverso também. Conflito (as duas máquinas jogaram offline) → o diálogo da Steam decide; o jogo aplica o que ficou nos arquivos |
+| Rich Presence | Um amigo vê "No menu principal" e "‹Idade› · ‹min› min" |
 
 ## Checklist de lançamento (Early Access)
 
-- [ ] Versão e notas de atualização (PT/EN) escritas; `desktop/package.json` com a versão certa.
-- [ ] Build Electron para Windows (x64), Linux (x64) e macOS; testes de fumaça em cada um.
-- [ ] `THIRD_PARTY.txt`, EULA e política de privacidade incluídos e linkados (ver `docs/LEGAL.md`).
-- [ ] Conquistas cadastradas no Steamworks com os mesmos ids de `src/game/achievements.ts`.
-- [ ] Servidor de retransmissão em produção (VPS com `wss://` e certificado), endereço padrão no jogo apontando para ele, monitoramento de uptime.
-- [ ] Página da Steam: cápsulas, 6+ screenshots atuais, trailer, descrição PT/EN, tags, requisitos mínimos/recomendados.
-- [ ] Depot e branches na Steam: `default` (público) e `beta` (testadores); upload via SteamPipe testado com a conta de desenvolvedor.
+### Automáticos (o agente roda; todos têm de passar na build candidata)
+- [ ] `npm run typecheck` e `npm test`
+- [ ] `npm run build`
+- [ ] `npx tsx scripts/missions.ts` — 12 missões × 3 dificuldades dentro da janela
+- [ ] `npm run smoke 20 42` duas vezes — mesmo `hash final`
+- [ ] `npm run map:check` e `npx tsx scripts/horde.ts`
+- [ ] `npm run balance 30 1,2,3,4,5,6` — idades nos minutos de referência, ninguém travado
+- [ ] `npx tsx scripts/perf.ts` — média < 3 ms/tick, pior < 50 ms
+- [ ] `npx tsx scripts/steam-achievements.ts --check` — planilha em dia (40 conquistas, 10 ocultas); a contagem no Steamworks bate
+- [ ] `npx tsx scripts/licenses.ts --check` — licenças em dia, nenhuma GPL/AGPL/desconhecida no pacote
+- [ ] `npm run preview` + `node scripts/playtest.mjs`, `playtest-campaign.mjs`, `playtest-options.mjs`, `playtest-i18n.mjs`, `playtest-credits.mjs`, `playtest-gamepad.mjs`, `playtest-editor.mjs`, `playtest-horde-replay.mjs`
+- [ ] `npm run relay` + `playtest-mp.mjs`, `playtest-reconnect.mjs`, `playtest-rooms.mjs`, `playtest-spectate.mjs`, `playtest-scenario.mjs`
+- [ ] `npm run loadtest -- --minutes 40 --bots 4` — 480/480 hashes iguais
+- [ ] `npm run art:shot` + `npm run art:diff` — só diferenças intencionais
+- [ ] `npm ci` e `npm run dist:linux` em `desktop/` + `xvfb-run -a node scripts/playtest-desktop.mjs` — `app://`, ponte, partida, tela cheia, espelho do Steam Cloud (apagar o localStorage e restaurar dos arquivos)
+- [ ] `npm run dist:win` (e `dist:mac` quando houver conta Apple) gerados da mesma revisão
+
+### Manuais e do dono
+- [ ] Matriz acima com a build candidata (cada linha de plataforma com o roteiro base; resoluções e idiomas distribuídos entre as máquinas).
+- [ ] Versão e notas de atualização (PT/EN); `package.json` e `desktop/package.json` com a mesma versão; `SIM_VERSION` subiu se a mesma semente passou a dar outra partida.
+- [ ] Conta Steamworks e App ID em `desktop/steam_appid.txt` (hoje 480, o app de testes da Valve).
+- [ ] Conquistas cadastradas conforme `docs/STEAM.md` §4.1 (API name = id, English + Portuguese-Brazil, ocultas), com os ícones 256×256; destravar uma com a build da Steam.
+- [ ] Steam Cloud configurado conforme `docs/STEAM.md` §4.2 (200 MB, 300 arquivos, raiz Windows + overrides Linux/macOS) e testado entre duas máquinas.
+- [ ] Rich Presence: `desktop/steam/rich_presence.vdf` enviado.
+- [ ] Depots Windows e Linux (macOS se houver) via SteamPipe, opções de inicialização, branches `default` (público) e `beta` (testadores); upload testado com a conta de desenvolvedor.
+- [ ] Steam Input: configuração padrão "Gamepad" publicada; verificação do Steam Deck submetida.
+- [ ] Ícone/logo do executável (`desktop/icon.ico` e equivalentes Linux/macOS).
+- [ ] Assinatura de código no Windows (evita o aviso do SmartScreen) e notarização no macOS.
+- [ ] EULA e política de privacidade (PT/EN) preenchidas, revisadas e publicadas; link na página da Steam (`docs/LEGAL.md` §6–7).
+- [ ] Servidor de retransmissão em produção: `wss://` com certificado, `OFFICIAL_RELAY_URL` em `src/ui/menu.ts` apontando para ele (hoje vazio: o desktop usa `ws://localhost:8787`), monitoramento de uptime, retenção do log definida.
+- [ ] Página da Steam: cápsulas, 6+ screenshots atuais, trailer, descrição PT/EN, tags, requisitos mínimos/recomendados (tirados da matriz).
+- [ ] Classificação indicativa (questionário IARC na Steam).
 - [ ] Plano de hotfix: quem aprova, como publicar em < 24 h, canal de suporte (Discord/e-mail) na página.
-- [ ] Backup do repositório e das chaves (Steamworks, certificado do servidor).
+- [ ] Backup do repositório e das chaves (Steamworks, certificado do servidor, assinatura de código).
 
 ## Relato de problemas pelos jogadores
 

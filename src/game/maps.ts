@@ -3,6 +3,7 @@
 import { canonicalize, mapHash, migrateMap, validateMap, type FixedMapData, type MapIssue, type ValidateOpts } from '../core/map/fixed';
 import { BUILTIN_MAPS } from '../core/data/maps';
 import { exportText, importText } from './files';
+import { storeRemove, storeSet } from './cloud';
 import { getLocale, t } from '../i18n';
 
 export interface MapEntry { id: string; name: string; nameEn?: string; w: number; h: number; starts: number; hash: number; updatedAt: number; builtin?: boolean }
@@ -13,17 +14,21 @@ const itemKey = (id: string) => `aoe_map_${id}`;
 function readIndex(): MapEntry[] {
   try { const v = JSON.parse(localStorage.getItem(INDEX_KEY) ?? '[]'); return Array.isArray(v) ? v.filter((e) => e && typeof e.id === 'string') : []; } catch { return []; }
 }
-function writeIndex(list: MapEntry[]): void { localStorage.setItem(INDEX_KEY, JSON.stringify(list)); }
+function writeIndex(list: MapEntry[]): void { storeSet(INDEX_KEY, JSON.stringify(list)); }
 
-/** "Vale do Eco" → "vale-do-eco" (só ASCII minúsculo, dígitos e hífen). */
+/** Teto do slug: com o sufixo `-NNN` de uniqueMapId cabe nos 64 de map-<id>.json do espelho em arquivos (src/game/cloud.ts). */
+const SLUG_MAX = 60;
+const capSlug = (s: string) => s.slice(0, SLUG_MAX).replace(/-+$/, '');
+/** "Vale do Eco" → "vale-do-eco" (só ASCII minúsculo, dígitos e hífen; até 60 caracteres). */
 export function slugify(name: string): string {
-  const s = name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const s = capSlug(name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''));
   return s || 'mapa';
 }
 
 /** Id livre a partir de um slug base: `slug`, `slug-2`, `slug-3`… (não colide com embutidos nem com Meus mapas). */
 export function uniqueMapId(base: string): string {
   const taken = new Set([...Object.keys(BUILTIN_MAPS), ...readIndex().map((e) => e.id)]);
+  base = capSlug(base);
   let slug = base || 'mapa'; let n = 2;
   while (taken.has(slug)) slug = `${base}-${n++}`;
   return slug;
@@ -54,14 +59,14 @@ export function putMap(input: FixedMapData, now = Date.now()): MapEntry {
   let id = data.id ?? slugify(data.name ?? 'mapa');
   if (BUILTIN_MAPS[id]) id = `${id}-copia`;   // não sobrescreve embutidos
   data.id = id;
-  localStorage.setItem(itemKey(id), JSON.stringify(data));
+  storeSet(itemKey(id), JSON.stringify(data));
   const entry = entryOf(data, false, now);
   writeIndex([...readIndex().filter((e) => e.id !== id), entry]);
   return entry;
 }
 
 export function removeMap(id: string): void {
-  try { localStorage.removeItem(itemKey(id)); } catch { /* ignore */ }
+  try { storeRemove(itemKey(id)); } catch { /* ignore */ }
   writeIndex(readIndex().filter((e) => e.id !== id));
 }
 

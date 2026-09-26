@@ -1,0 +1,530 @@
+{
+  "generatedBy": "scripts/steam-achievements.ts (não edite à mão)",
+  "languages": {
+    "pt": "brazilian",
+    "en": "english"
+  },
+  "count": 40,
+  "achievements": [
+    {
+      "apiName": "first_temple",
+      "hidden": false,
+      "icon": "⚡",
+      "displayName": {
+        "brazilian": "Primeira Oferenda",
+        "english": "First Offering"
+      },
+      "description": {
+        "brazilian": "Conclua um Templo.",
+        "english": "Complete a Temple."
+      }
+    },
+    {
+      "apiName": "classical",
+      "hidden": false,
+      "icon": "🏛️",
+      "displayName": {
+        "brazilian": "Filósofo",
+        "english": "Philosopher"
+      },
+      "description": {
+        "brazilian": "Alcance a Idade Clássica.",
+        "english": "Reach the Classical Age."
+      }
+    },
+    {
+      "apiName": "heroic",
+      "hidden": false,
+      "icon": "⚔️",
+      "displayName": {
+        "brazilian": "Canção dos Heróis",
+        "english": "Song of Heroes"
+      },
+      "description": {
+        "brazilian": "Alcance a Idade Heroica.",
+        "english": "Reach the Heroic Age."
+      }
+    },
+    {
+      "apiName": "mythic",
+      "hidden": false,
+      "icon": "🔱",
+      "displayName": {
+        "brazilian": "Toque dos Deuses",
+        "english": "Touch of the Gods"
+      },
+      "description": {
+        "brazilian": "Alcance a Idade Mítica.",
+        "english": "Reach the Mythic Age."
+      }
+    },
+    {
+      "apiName": "titans",
+      "hidden": false,
+      "icon": "🌋",
+      "displayName": {
+        "brazilian": "Titanomaquia",
+        "english": "Titanomachy"
+      },
+      "description": {
+        "brazilian": "Alcance a Idade dos Titãs.",
+        "english": "Reach the Age of Titans."
+      }
+    },
+    {
+      "apiName": "titan_summoned",
+      "hidden": false,
+      "icon": "⛓️",
+      "displayName": {
+        "brazilian": "Correntes Rompidas",
+        "english": "Broken Chains"
+      },
+      "description": {
+        "brazilian": "Liberte um Titã.",
+        "english": "Unleash a Titan."
+      }
+    },
+    {
+      "apiName": "hero_trio",
+      "hidden": false,
+      "icon": "🦁",
+      "displayName": {
+        "brazilian": "Argonautas",
+        "english": "Argonauts"
+      },
+      "description": {
+        "brazilian": "Tenha três heróis vivos ao mesmo tempo.",
+        "english": "Have three heroes alive at the same time."
+      }
+    },
+    {
+      "apiName": "menagerie",
+      "hidden": false,
+      "icon": "🐉",
+      "displayName": {
+        "brazilian": "Bestiário",
+        "english": "Bestiary"
+      },
+      "description": {
+        "brazilian": "Tenha cinco criaturas míticas diferentes vivas ao mesmo tempo.",
+        "english": "Have five different mythic creatures alive at the same time."
+      }
+    },
+    {
+      "apiName": "kills_100",
+      "hidden": false,
+      "icon": "🛡️",
+      "displayName": {
+        "brazilian": "Muro de Escudos",
+        "english": "Shield Wall"
+      },
+      "description": {
+        "brazilian": "Abata 100 unidades inimigas em uma partida.",
+        "english": "Kill 100 enemy units in one match."
+      }
+    },
+    {
+      "apiName": "kills_500",
+      "hidden": false,
+      "icon": "💀",
+      "displayName": {
+        "brazilian": "Flagelo do Tártaro",
+        "english": "Scourge of Tartarus"
+      },
+      "description": {
+        "brazilian": "Abata 500 unidades inimigas em uma partida.",
+        "english": "Kill 500 enemy units in one match."
+      }
+    },
+    {
+      "apiName": "razed_25",
+      "hidden": false,
+      "icon": "🪨",
+      "displayName": {
+        "brazilian": "Demolidor",
+        "english": "Wrecker"
+      },
+      "description": {
+        "brazilian": "Destrua 25 edifícios inimigos em uma partida.",
+        "english": "Destroy 25 enemy buildings in one match."
+      }
+    },
+    {
+      "apiName": "territory_2000",
+      "hidden": false,
+      "icon": "🗺️",
+      "displayName": {
+        "brazilian": "Império",
+        "english": "Empire"
+      },
+      "description": {
+        "brazilian": "Controle 2000 tiles de território.",
+        "english": "Control 2000 tiles of territory."
+      }
+    },
+    {
+      "apiName": "all_techs_line",
+      "hidden": false,
+      "icon": "📚",
+      "displayName": {
+        "brazilian": "Biblioteca de Alexandria",
+        "english": "Library of Alexandria"
+      },
+      "description": {
+        "brazilian": "Pesquise Civismo V, Comércio V, Militar V e Ciência V.",
+        "english": "Research Civics V, Commerce V, Military V and Science V."
+      }
+    },
+    {
+      "apiName": "win_conquest",
+      "hidden": false,
+      "icon": "🏆",
+      "displayName": {
+        "brazilian": "Conquistador",
+        "english": "Conqueror"
+      },
+      "description": {
+        "brazilian": "Vença por conquista.",
+        "english": "Win by conquest."
+      }
+    },
+    {
+      "apiName": "win_wonder",
+      "hidden": false,
+      "icon": "🗽",
+      "displayName": {
+        "brazilian": "Maravilha do Mundo",
+        "english": "Wonder of the World"
+      },
+      "description": {
+        "brazilian": "Vença mantendo uma Maravilha.",
+        "english": "Win by holding a Wonder."
+      }
+    },
+    {
+      "apiName": "win_no_loss",
+      "hidden": false,
+      "icon": "✨",
+      "displayName": {
+        "brazilian": "Intocável",
+        "english": "Untouchable"
+      },
+      "description": {
+        "brazilian": "Vença uma partida rápida perdendo menos de 10 unidades.",
+        "english": "Win a quick match losing fewer than 10 units."
+      }
+    },
+    {
+      "apiName": "win_brutal",
+      "hidden": false,
+      "icon": "🔥",
+      "displayName": {
+        "brazilian": "Domador de Titãs",
+        "english": "Titan Tamer"
+      },
+      "description": {
+        "brazilian": "Vença uma partida rápida contra uma IA Muito difícil.",
+        "english": "Win a quick match against a Very Hard AI."
+      }
+    },
+    {
+      "apiName": "all_gods",
+      "hidden": false,
+      "icon": "🌐",
+      "displayName": {
+        "brazilian": "Ecumênico",
+        "english": "Ecumenical"
+      },
+      "description": {
+        "brazilian": "Jogue partidas com Zeus, Poseidon e Hades.",
+        "english": "Play matches as Zeus, Poseidon and Hades."
+      }
+    },
+    {
+      "apiName": "horde_10",
+      "hidden": false,
+      "icon": "🚪",
+      "displayName": {
+        "brazilian": "Guardião das Portas",
+        "english": "Keeper of the Gates"
+      },
+      "description": {
+        "brazilian": "Sobreviva a 10 ondas no Modo Horda.",
+        "english": "Survive 10 waves in Horde Mode."
+      }
+    },
+    {
+      "apiName": "horde_20",
+      "hidden": false,
+      "icon": "👑",
+      "displayName": {
+        "brazilian": "Senhor do Tártaro",
+        "english": "Lord of Tartarus"
+      },
+      "description": {
+        "brazilian": "Vença o Modo Horda.",
+        "english": "Win Horde Mode."
+      }
+    },
+    {
+      "apiName": "m1_despertar",
+      "hidden": false,
+      "icon": "🏺",
+      "displayName": {
+        "brazilian": "O Despertar de Argos",
+        "english": "The Awakening of Argos"
+      },
+      "description": {
+        "brazilian": "Complete a missão 1 da campanha.",
+        "english": "Complete mission 1 of the campaign."
+      }
+    },
+    {
+      "apiName": "m2_cerco",
+      "hidden": false,
+      "icon": "🏰",
+      "displayName": {
+        "brazilian": "Muralhas de Argos",
+        "english": "Walls of Argos"
+      },
+      "description": {
+        "brazilian": "Complete a missão 2 da campanha.",
+        "english": "Complete mission 2 of the campaign."
+      }
+    },
+    {
+      "apiName": "m3_portal",
+      "hidden": false,
+      "icon": "🌀",
+      "displayName": {
+        "brazilian": "O Portal Selado",
+        "english": "The Sealed Gate"
+      },
+      "description": {
+        "brazilian": "Complete a missão 3 da campanha.",
+        "english": "Complete mission 3 of the campaign."
+      }
+    },
+    {
+      "apiName": "campaign_prologue",
+      "hidden": false,
+      "icon": "📜",
+      "displayName": {
+        "brazilian": "A Sombra dos Titãs",
+        "english": "The Shadow of the Titans"
+      },
+      "description": {
+        "brazilian": "Complete o prólogo da campanha.",
+        "english": "Complete the campaign prologue."
+      }
+    },
+    {
+      "apiName": "campaign_hard",
+      "hidden": false,
+      "icon": "🔥",
+      "displayName": {
+        "brazilian": "Forjado no Fogo",
+        "english": "Forged in Fire"
+      },
+      "description": {
+        "brazilian": "Complete o prólogo da campanha no Difícil.",
+        "english": "Complete the campaign prologue on Hard."
+      }
+    },
+    {
+      "apiName": "horde_hard",
+      "hidden": false,
+      "icon": "🛡️",
+      "displayName": {
+        "brazilian": "Muralha de Bronze",
+        "english": "Bronze Wall"
+      },
+      "description": {
+        "brazilian": "Vença o Modo Horda no Difícil ou acima.",
+        "english": "Win Horde Mode on Hard or above."
+      }
+    },
+    {
+      "apiName": "garrison_defense",
+      "hidden": false,
+      "icon": "🏰",
+      "displayName": {
+        "brazilian": "Portas Fechadas",
+        "english": "Closed Gates"
+      },
+      "description": {
+        "brazilian": "Tenha 15 unidades guarnecidas em um único edifício.",
+        "english": "Have 15 units garrisoned in a single building."
+      }
+    },
+    {
+      "apiName": "m4_caucaso",
+      "hidden": false,
+      "icon": "🔥",
+      "displayName": {
+        "brazilian": "O Fogo do Cáucaso",
+        "english": "The Fire of the Caucasus"
+      },
+      "description": {
+        "brazilian": "Complete a missão 4 da campanha.",
+        "english": "Complete mission 4 of the campaign."
+      }
+    },
+    {
+      "apiName": "m5_itaca",
+      "hidden": true,
+      "icon": "🏹",
+      "displayName": {
+        "brazilian": "O Hóspede de Ítaca",
+        "english": "The Guest from Ithaca"
+      },
+      "description": {
+        "brazilian": "Complete a missão 5 da campanha.",
+        "english": "Complete mission 5 of the campaign."
+      }
+    },
+    {
+      "apiName": "m6_estatua",
+      "hidden": true,
+      "icon": "🗽",
+      "displayName": {
+        "brazilian": "A Estátua de Zeus",
+        "english": "The Statue of Zeus"
+      },
+      "description": {
+        "brazilian": "Complete a missão 6 da campanha.",
+        "english": "Complete mission 6 of the campaign."
+      }
+    },
+    {
+      "apiName": "m7_aquiles",
+      "hidden": true,
+      "icon": "🔥",
+      "displayName": {
+        "brazilian": "A Cólera de Aquiles",
+        "english": "The Wrath of Achilles"
+      },
+      "description": {
+        "brazilian": "Complete a missão 7 da campanha.",
+        "english": "Complete mission 7 of the campaign."
+      }
+    },
+    {
+      "apiName": "m8_oceano",
+      "hidden": true,
+      "icon": "🌊",
+      "displayName": {
+        "brazilian": "A Maré de Oceano",
+        "english": "The Tide of Oceanus"
+      },
+      "description": {
+        "brazilian": "Complete a missão 8 da campanha.",
+        "english": "Complete mission 8 of the campaign."
+      }
+    },
+    {
+      "apiName": "m9_tenaro",
+      "hidden": true,
+      "icon": "💀",
+      "displayName": {
+        "brazilian": "A Descida ao Tênaro",
+        "english": "The Descent at Taenarum"
+      },
+      "description": {
+        "brazilian": "Complete a missão 9 da campanha.",
+        "english": "Complete mission 9 of the campaign."
+      }
+    },
+    {
+      "apiName": "m10_otris",
+      "hidden": true,
+      "icon": "🏰",
+      "displayName": {
+        "brazilian": "O Cerco de Ótris",
+        "english": "The Siege of Othrys"
+      },
+      "description": {
+        "brazilian": "Complete a missão 10 da campanha.",
+        "english": "Complete mission 10 of the campaign."
+      }
+    },
+    {
+      "apiName": "m11_chamas",
+      "hidden": true,
+      "icon": "🔥",
+      "displayName": {
+        "brazilian": "Argos em Chamas",
+        "english": "Argos in Flames"
+      },
+      "description": {
+        "brazilian": "Complete a missão 11 da campanha.",
+        "english": "Complete mission 11 of the campaign."
+      }
+    },
+    {
+      "apiName": "m12_titanomaquia",
+      "hidden": true,
+      "icon": "⏳",
+      "displayName": {
+        "brazilian": "O Fim da Idade de Ouro",
+        "english": "The End of the Golden Age"
+      },
+      "description": {
+        "brazilian": "Complete a missão 12 da campanha.",
+        "english": "Complete mission 12 of the campaign."
+      }
+    },
+    {
+      "apiName": "campaign_act1",
+      "hidden": false,
+      "icon": "⛓️",
+      "displayName": {
+        "brazilian": "Ato I completo: A Sombra dos Titãs",
+        "english": "Act I complete: The Shadow of the Titans"
+      },
+      "description": {
+        "brazilian": "Complete todas as missões do Ato I.",
+        "english": "Complete every mission of Act I."
+      }
+    },
+    {
+      "apiName": "campaign_act2",
+      "hidden": true,
+      "icon": "🌊",
+      "displayName": {
+        "brazilian": "Ato II completo: A Maré de Poseidon",
+        "english": "Act II complete: Poseidon's Tide"
+      },
+      "description": {
+        "brazilian": "Complete todas as missões do Ato II.",
+        "english": "Complete every mission of Act II."
+      }
+    },
+    {
+      "apiName": "campaign_act3",
+      "hidden": true,
+      "icon": "⏳",
+      "displayName": {
+        "brazilian": "Ato III completo: A Queda de Cronos",
+        "english": "Act III complete: The Fall of Cronus"
+      },
+      "description": {
+        "brazilian": "Complete todas as missões do Ato III.",
+        "english": "Complete every mission of Act III."
+      }
+    },
+    {
+      "apiName": "campaign_all_hard",
+      "hidden": false,
+      "icon": "🏛️",
+      "displayName": {
+        "brazilian": "Titanomaquia no Difícil",
+        "english": "Titanomachy on Hard"
+      },
+      "description": {
+        "brazilian": "Complete as 12 missões da campanha no Difícil.",
+        "english": "Complete all 12 campaign missions on Hard."
+      }
+    }
+  ]
+}

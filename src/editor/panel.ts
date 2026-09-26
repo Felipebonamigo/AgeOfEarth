@@ -10,6 +10,7 @@ import { NODE_AMOUNT } from '../core/map/mapgen';
 import { MAP_LIMITS, RESIZE_ANCHORS, resizeMapData, type MapIssue, type ResizeAnchor, type ResizeReport } from '../core/map/fixed';
 import { idx, inBounds } from '../core/map/grid';
 import { exportMapFile, putMap, mapName, slugify } from '../game/maps';
+import { storeRemove, storeSet } from '../game/cloud';
 import type { HUD } from '../ui/hud';
 import type { Renderer } from '../render/renderer';
 import { terrainHex } from '../render/palette';
@@ -364,7 +365,7 @@ export class EditorPanel {
   autosaveNow(): boolean {
     if (this.autosaveTimer) { clearTimeout(this.autosaveTimer); this.autosaveTimer = null; }
     if (!this.touched && !this.editor.dirty) return true;   // abrir e fechar sem editar não substitui o rascunho anterior
-    try { localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(this.editor.toFile())); return true; }
+    try { storeSet(AUTOSAVE_KEY, JSON.stringify(this.editor.toFile())); return true; }
     catch { if (!this.quotaWarned) { this.quotaWarned = true; this.hud.toast(t('editor.autosaveFail'), 'warn'); } return false; }   // cota cheia: avisa uma vez
   }
 
@@ -420,7 +421,7 @@ export class EditorPanel {
     q('#et-go').addEventListener('click', () => {
       const opts: TestOpts = { as: Number(q('#et-as').value), slots: starts.map((_, i) => (m.querySelector(`[data-slot="${i}"]`) as HTMLSelectElement).value as Difficulty | 'empty'), god: q('#et-god').value, mode: q('#et-mode').value as GameMode, reveal: q('#et-reveal').checked, scenario: !!ed.meta.scenario && !!q('#et-scenario')?.checked };
       const remember = q('#et-remember').checked;
-      try { if (remember) localStorage.setItem(TEST_OPTS_KEY, JSON.stringify({ ...opts, remember })); else localStorage.removeItem(TEST_OPTS_KEY); } catch { /* ignore */ }
+      try { if (remember) storeSet(TEST_OPTS_KEY, JSON.stringify({ ...opts, remember })); else storeRemove(TEST_OPTS_KEY); } catch { /* ignore */ }
       const warns = this.issues.filter((i) => i.level === 'warn').length;
       if (warns > 0 && !confirm(t('editor.testWarnConfirm', { n: warns }))) return;
       this.hud.hideModal();
