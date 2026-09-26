@@ -117,7 +117,7 @@ export function buildingStage(frac: number, complete: boolean): BuildStage {
 export const BUILDING_STATES = ['build0', 'build1', 'build2', 'complete', 'damage1', 'damage2'] as const;
 export type BuildingState = BuildStage | 'damage1' | 'damage2' | 'open';
 /** Como escolher a variante de um edifício (manifesto `variantBy`). */
-export type VariantBy = 'wallMask' | 'gateAxis' | 'ageTier';
+export type VariantBy = 'wallMask' | 'gateAxis' | 'ageTier' | 'farmCrop';
 
 /** Nível de dano pela vida: ≥ 1/3 perdida → 1, ≥ 2/3 perdida → 2 (docs/ART.md §1.8). */
 export function damageLevel(hpFrac: number): 0 | 1 | 2 {
@@ -153,11 +153,28 @@ export function wallVariant(mask: number): string { const m = mask & 15; return 
 export function gateAxis(mask: number): 'ew' | 'ns' { return (mask & 5) !== 0 && (mask & 10) === 0 ? 'ns' : 'ew'; }
 /** Variante por Idade do Centro Cívico: a0 = Arcaica, a1 = Clássica/Heroica, a2 = Mítica/Titãs. */
 export function ageTier(age: number): 'a0' | 'a1' | 'a2' { return age <= 0 ? 'a0' : age <= 2 ? 'a1' : 'a2'; }
-/** Variante de um edifício pelo critério do manifesto (null = sem variantes). */
-export function buildingVariant(by: VariantBy | null | undefined, ctx: { mask: number; age: number }): string | null {
+/**
+ * Plantação da fazenda (variante `farmCrop`): 'sown' (semeado), 'growing' (crescendo), 'ripe' (maduro). No núcleo a
+ * fazenda não tem estoque (fonte infinita para 1 cidadão), então o campo segue um ciclo de colheita de FARM_CYCLE s de
+ * jogo contado da colocação (`seconds` = (tick − builtTick)/TICK_RATE): semeado → crescendo → maduro → colhido e
+ * semeado de novo. Uma defasagem pequena por id (≤ 12 % do ciclo) evita que fazendas colocadas juntas (mapas e
+ * cenários) troquem no mesmo quadro; a obra (25 s) termina ainda no semeado.
+ */
+export const FARM_CROPS = ['sown', 'growing', 'ripe'] as const;
+export type FarmCrop = (typeof FARM_CROPS)[number];
+export const FARM_CYCLE = 150;
+export function farmCrop(seconds: number, id = 0): FarmCrop {
+  const off = ((Math.abs(id) * 0.6180339887) % 1) * 0.12;
+  const t = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
+  const ph = (t / FARM_CYCLE + off) % 1;
+  return ph < 0.3 ? 'sown' : ph < 0.65 ? 'growing' : 'ripe';
+}
+/** Variante de um edifício pelo critério do manifesto (null = sem variantes). `crop` = segundos desde a colocação. */
+export function buildingVariant(by: VariantBy | null | undefined, ctx: { mask: number; age: number; crop?: number; id?: number }): string | null {
   if (by === 'wallMask') return wallVariant(ctx.mask);
   if (by === 'gateAxis') return gateAxis(ctx.mask);
   if (by === 'ageTier') return ageTier(ctx.age);
+  if (by === 'farmCrop') return farmCrop(ctx.crop ?? 0, ctx.id ?? 0);
   return null;
 }
 /**
@@ -192,6 +209,17 @@ export function smokeRate(level: 0 | 1 | 2, area: number): number {
 }
 /** Parte do orçamento de partículas do preset (quality.ts) que a fumaça dos edifícios pode ocupar. */
 export function smokeBudget(particleBudget: number): number { return Math.floor(particleBudget * 0.35); }
+/**
+ * Sobreposição animada de um edifício pronto (manifesto: estado `glow` com vários quadros, ex.: o vórtice do portal dos
+ * titãs): nome do quadro `<id>/glow/<nn>` no instante `clock` (s de jogo), em loop a `fps`. O renderizador a desenha
+ * por cima do estado atual (pronto ou danificado) com blend aditivo.
+ */
+export const GLOW_ANIM = 'glow';
+/** Quadro da sobreposição ('00', '01', …) no instante `clock`: a "variante" de `building(id, GLOW_ANIM, …)`. */
+export function glowVariant(clock: number, frames: number, fps: number): string { return pad2(frameIndex(clock, frames, fps, true)); }
+export function glowFrameName(id: string, clock: number, frames: number, fps: number): string {
+  return buildingFrameName(id, GLOW_ANIM, glowVariant(clock, frames, fps));
+}
 /** Tint do fantasma de construção assado: verde (pode) ou vermelho (não pode), claro o bastante para ler o sprite. */
 export function ghostTint(ok: boolean): number { return ok ? 0x9cf0b0 : 0xff9c9c; }
 

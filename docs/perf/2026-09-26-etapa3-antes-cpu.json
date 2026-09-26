@@ -1,0 +1,258 @@
+{
+  "date": "2026-09-26",
+  "commit": "a0cd508 (main antes da Etapa 3, porta 4211)",
+  "label": "etapa3-antes",
+  "url": "http://localhost:4211/",
+  "quality": "low",
+  "frames": 150,
+  "note": "CPU por quadro (ms) em laço síncrono, resolução 0,25 (sem rasterização relevante); render = renderer.render, pixi = app.renderer.render.",
+  "scenario": {
+    "units": 260,
+    "buildings": 133,
+    "localAlive": false,
+    "warmMinutes": 20
+  },
+  "results": [
+    {
+      "baked": false,
+      "view": "zoom1",
+      "render": {
+        "avg": 0.488,
+        "med": 0.4,
+        "p95": 0.9
+      },
+      "pixi": {
+        "avg": 0.74,
+        "med": 0.6,
+        "p95": 1.2
+      },
+      "sprites": 545
+    },
+    {
+      "baked": false,
+      "view": "zoomOut",
+      "render": {
+        "avg": 0.561,
+        "med": 0.5,
+        "p95": 0.9
+      },
+      "pixi": {
+        "avg": 0.938,
+        "med": 0.8,
+        "p95": 1.3
+      },
+      "sprites": 3292
+    },
+    {
+      "baked": false,
+      "view": "battle",
+      "render": {
+        "avg": 0.371,
+        "med": 0.3,
+        "p95": 0.6
+      },
+      "pixi": {
+        "avg": 0.569,
+        "med": 0.5,
+        "p95": 0.9
+      },
+      "sprites": 414
+    },
+    {
+      "baked": false,
+      "view": "scroll",
+      "render": {
+        "avg": 0.125,
+        "med": 0.1,
+        "p95": 0.3
+      },
+      "pixi": {
+        "avg": 0.205,
+        "med": 0.2,
+        "p95": 0.6
+      },
+      "sprites": 405
+    },
+    {
+      "baked": true,
+      "view": "zoom1",
+      "render": {
+        "avg": 0.222,
+        "med": 0.2,
+        "p95": 0.4
+      },
+      "pixi": {
+        "avg": 0.517,
+        "med": 0.5,
+        "p95": 1
+      },
+      "sprites": 680
+    },
+    {
+      "baked": true,
+      "view": "zoomOut",
+      "render": {
+        "avg": 0.665,
+        "med": 0.6,
+        "p95": 1.1
+      },
+      "pixi": {
+        "avg": 2.571,
+        "med": 2.4,
+        "p95": 3.9
+      },
+      "sprites": 5009
+    },
+    {
+      "baked": true,
+      "view": "battle",
+      "render": {
+        "avg": 0.258,
+        "med": 0.2,
+        "p95": 0.5
+      },
+      "pixi": {
+        "avg": 0.622,
+        "med": 0.6,
+        "p95": 1
+      },
+      "sprites": 623
+    },
+    {
+      "baked": true,
+      "view": "scroll",
+      "render": {
+        "avg": 0.42,
+        "med": 0.3,
+        "p95": 0.7
+      },
+      "pixi": {
+        "avg": 0.803,
+        "med": 0.7,
+        "p95": 1.2
+      },
+      "sprites": 645
+    },
+    {
+      "baked": false,
+      "view": "zoom1",
+      "render": {
+        "avg": 0.181,
+        "med": 0.2,
+        "p95": 0.3
+      },
+      "pixi": {
+        "avg": 0.27,
+        "med": 0.3,
+        "p95": 0.5
+      },
+      "sprites": 440
+    },
+    {
+      "baked": false,
+      "view": "zoomOut",
+      "render": {
+        "avg": 0.587,
+        "med": 0.5,
+        "p95": 0.9
+      },
+      "pixi": {
+        "avg": 0.846,
+        "med": 0.8,
+        "p95": 1.1
+      },
+      "sprites": 3271
+    },
+    {
+      "baked": false,
+      "view": "battle",
+      "render": {
+        "avg": 0.293,
+        "med": 0.3,
+        "p95": 0.5
+      },
+      "pixi": {
+        "avg": 0.465,
+        "med": 0.4,
+        "p95": 0.7
+      },
+      "sprites": 240
+    },
+    {
+      "baked": false,
+      "view": "scroll",
+      "render": {
+        "avg": 0.231,
+        "med": 0.2,
+        "p95": 0.5
+      },
+      "pixi": {
+        "avg": 0.45,
+        "med": 0.3,
+        "p95": 0.9
+      },
+      "sprites": 433
+    },
+    {
+      "baked": true,
+      "view": "zoom1",
+      "render": {
+        "avg": 0.221,
+        "med": 0.2,
+        "p95": 0.4
+      },
+      "pixi": {
+        "avg": 0.521,
+        "med": 0.5,
+        "p95": 0.7
+      },
+      "sprites": 638
+    },
+    {
+      "baked": true,
+      "view": "zoomOut",
+      "render": {
+        "avg": 0.713,
+        "med": 0.6,
+        "p95": 1.2
+      },
+      "pixi": {
+        "avg": 3.003,
+        "med": 2.8,
+        "p95": 4.3
+      },
+      "sprites": 4989
+    },
+    {
+      "baked": true,
+      "view": "battle",
+      "render": {
+        "avg": 0.447,
+        "med": 0.4,
+        "p95": 0.6
+      },
+      "pixi": {
+        "avg": 1.019,
+        "med": 1,
+        "p95": 1.3
+      },
+      "sprites": 918
+    },
+    {
+      "baked": true,
+      "view": "scroll",
+      "render": {
+        "avg": 0.279,
+        "med": 0.2,
+        "p95": 0.5
+      },
+      "pixi": {
+        "avg": 0.795,
+        "med": 0.8,
+        "p95": 1.3
+      },
+      "sprites": 636
+    }
+  ],
+  "errors": []
+}

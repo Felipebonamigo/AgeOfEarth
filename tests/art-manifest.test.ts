@@ -16,6 +16,13 @@ describe('manifestos de arte (docs/ART.md §3.4)', () => {
     expect(manifests.map((m) => m.id).sort()).toEqual(expect.arrayContaining(['hoplite', 'villager', 'temple', 'props-trees', 'props-nodes']));
     expect(manifests.map((m) => m.id)).toEqual(expect.arrayContaining(['town_center', 'house', 'wall', 'gate', 'tower', 'rubble']));
   });
+  it('Etapa 3 completa: todo tipo de BUILDINGS tem manifesto de edifício com a pegada do jogo', () => {
+    for (const b of Object.values(BUILDINGS)) {
+      const m = manifests.find((x) => x.id === b.id);
+      expect(m?.kind, b.id).toBe('building');
+      expect(m!.footprint, b.id).toEqual([b.w, b.h]);
+    }
+  });
   it('todo manifesto é válido pelo esquema mínimo e os ids/quadros são únicos', () => {
     for (const m of manifests) expect(validateManifest(m), m.id).toEqual([]);
     expect(validateAll(manifests)).toEqual([]);

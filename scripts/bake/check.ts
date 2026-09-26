@@ -90,7 +90,8 @@ export function runCheck(root: string): CheckResult {
     const mirror = !!asset.mirror;
     const all = expandFrames(m, { mirror });
     const expected = all.map((f) => f.name);
-    const bodyFrames = all.filter((f) => !f.icon).map((f) => f.name);   // ícones: sem sombra, fora dos estados
+    // ícones: sem sombra, fora dos estados; `glow` (sobreposição aditiva do portal dos titãs): só cor, sem sombra
+    const bodyFrames = all.filter((f) => !f.icon && f.anim !== 'glow').map((f) => f.name);
     if (m.kind === 'building') {
       // Etapa 3: estados, variantes e ícone declarados no índice como no manifesto
       if (JSON.stringify(asset.variants ?? null) !== JSON.stringify(m.variants ?? null)) errors.push(`${m.id}: variants do índice ≠ manifesto`);

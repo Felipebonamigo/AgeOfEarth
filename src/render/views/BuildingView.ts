@@ -4,7 +4,8 @@
 // projetada na camada 'shadows'. A âncora é o centro da área ocupada (= x/y do edifício no núcleo). Um estado sem quadro
 // cai no mais próximo (damage2 → damage1 → complete; open → complete); sem nem o complete, o renderizador usa o
 // procedural. A vista guarda o bitmask da muralha (recalculado só quando a topologia das muralhas muda) e o acumulador
-// da fumaça de dano.
+// da fumaça de dano. Um edifício com sobreposição animada (o vórtice do portal dos titãs) ganha um sprite aditivo por
+// cima do corpo, criado só quando pedido (muralhas e casas não pagam o sprite extra).
 import { Container, Sprite } from 'pixi.js';
 import { SHADOW_ALPHA } from '../palette';
 import type { ArtLibrary, BakedFrame } from '../art/ArtLibrary';
@@ -18,9 +19,10 @@ export class BuildingView {
   /** Estado pedido e variante atuais ('' = nenhum ainda). */
   state: BuildingState | '' = '';
   variant: string | null = null;
-  private key = '';
-  /** Bitmask da muralha e a versão da topologia em que foi calculado (renderer.wallVersion). */
+  /** Bitmask da muralha, a variante que ele dá (bitmask/eixo) e a versão da topologia em que foi calculado
+   *  (renderer.wallVersion): recalculados só quando a topologia muda, sem string nova por quadro. */
   mask = 0;
+  maskVariant: string | null = null;
   maskVersion = -1;
   /** Fração de baforada de fumaça acumulada entre quadros. */
   smokeAcc = 0;
@@ -30,6 +32,7 @@ export class BuildingView {
   top = 0;
   private px = 0; private py = 0;
   private hasShadow = false;
+  private glowSprite: Sprite | null = null;
 
   constructor(private lib: ArtLibrary, readonly type: string, readonly color: number, shadowLayer: Container) {
     this.body = new Sprite(); this.team = new Sprite(); this.shadow = new Sprite();
@@ -41,12 +44,12 @@ export class BuildingView {
 
   /** Troca o quadro quando o estado ou a variante mudam; false se nem o `complete` tiver quadro (procedural). */
   show(state: BuildingState, variant: string | null = null): boolean {
-    const key = variant ? `${state}|${variant}` : state;
-    if (key === this.key) return true;
+    // chamado a cada quadro para cada edifício na tela: comparação direta, sem montar chave
+    if (state === this.state && variant === this.variant) return true;
     let st: BuildingState | null = state, f: BakedFrame | null = null;
     while (st && !(f = this.lib.building(this.type, st, variant))) st = fallbackState(st);
     if (!f) return false;
-    this.key = key; this.state = state; this.variant = variant;
+    this.state = state; this.variant = variant;
     for (const s of [this.body, this.team, this.shadow]) s.anchor.set(f.anchor.x, f.anchor.y);
     this.body.texture = f.color;
     this.team.visible = !!f.team; if (f.team) this.team.texture = f.team;
@@ -72,8 +75,17 @@ export class BuildingView {
     return x >= this.px + this.lx0 && x <= this.px + this.lx1 && y >= this.py + this.ly0 && y <= this.py + this.ly1;
   }
 
+  /** Quadro da sobreposição animada (blend aditivo, mesma âncora do corpo) ou null para escondê-la. */
+  showGlow(f: BakedFrame | null): void {
+    if (!f) { if (this.glowSprite) this.glowSprite.visible = false; return; }
+    let g = this.glowSprite;
+    if (!g) { g = this.glowSprite = new Sprite(); g.blendMode = 'add'; g.tint = this.body.tint; this.root.addChild(g); }
+    if (g.texture !== f.color) { g.texture = f.color; g.anchor.set(f.anchor.x, f.anchor.y); }
+    g.visible = true;
+  }
+
   tint(body: number, team: number): void {
-    if (this.body.tint !== body) this.body.tint = body;
+    if (this.body.tint !== body) { this.body.tint = body; if (this.glowSprite) this.glowSprite.tint = body; }
     if (this.team.tint !== team) this.team.tint = team;
   }
   set visible(v: boolean) { this.root.visible = v; this.shadow.visible = v && this.hasShadow; }

@@ -36,10 +36,23 @@
    "scale": 1,
    "page": 0,
    "w": 2048,
-   "h": 1024,
-   "frames": 151,
-   "bytes": 461863,
-   "sha256": "adfa1a15aae08f4400da4eef4aded5f44be6328af73795149d55c706264570da"
+   "h": 2048,
+   "frames": 247,
+   "bytes": 1370976,
+   "sha256": "47051a41a8725164b81dbbd00b6523526fad127d5db3e12bb085a4b353ff96f1"
+  },
+  {
+   "json": "buildings-1x-1.json",
+   "image": "buildings-1x-1.png",
+   "group": "buildings",
+   "pass": "color",
+   "scale": 1,
+   "page": 1,
+   "w": 2048,
+   "h": 512,
+   "frames": 12,
+   "bytes": 197618,
+   "sha256": "1011112e856debdf9a085c2b01f4d80f7f046462e1e9cef8a659edeae8d5db59"
   },
   {
    "json": "buildings-2x-0.json",
@@ -50,9 +63,48 @@
    "page": 0,
    "w": 2048,
    "h": 2048,
-   "frames": 151,
-   "bytes": 1147329,
-   "sha256": "9099b0fcab507e2b335840c92a9357914921b42cb1b6c6232ecadf8ab45bfdad"
+   "frames": 68,
+   "bytes": 1093377,
+   "sha256": "cb06897b77e3c801c7c47e9835342c1a79f0e2c46d1fd0c2ed9fe618be979eef"
+  },
+  {
+   "json": "buildings-2x-1.json",
+   "image": "buildings-2x-1.png",
+   "group": "buildings",
+   "pass": "color",
+   "scale": 2,
+   "page": 1,
+   "w": 2048,
+   "h": 2048,
+   "frames": 41,
+   "bytes": 996141,
+   "sha256": "8c0edd7965417c6d710be7963abc06d392f8c90b85428bfcc089249bea9d58d9"
+  },
+  {
+   "json": "buildings-2x-2.json",
+   "image": "buildings-2x-2.png",
+   "group": "buildings",
+   "pass": "color",
+   "scale": 2,
+   "page": 2,
+   "w": 2048,
+   "h": 2048,
+   "frames": 132,
+   "bytes": 1267563,
+   "sha256": "a253af777780d188f2aabe1791fad52b31af4e00327af956b66559a88d6cda30"
+  },
+  {
+   "json": "buildings-2x-3.json",
+   "image": "buildings-2x-3.png",
+   "group": "buildings",
+   "pass": "color",
+   "scale": 2,
+   "page": 3,
+   "w": 2048,
+   "h": 2048,
+   "frames": 18,
+   "bytes": 835713,
+   "sha256": "cd80334da45406b14f55f264c8e3e1d08f24d8b15fc7aa9ac5dbbcf097afe6f4"
   },
   {
    "json": "buildings-shadow-1x-0.json",
@@ -62,10 +114,10 @@
    "scale": 1,
    "page": 0,
    "w": 2048,
-   "h": 1024,
-   "frames": 151,
-   "bytes": 299197,
-   "sha256": "ccdab15f9d121062f6d1e524046d5d6896edfa197cdf147ff63fa1dc08ddfd2c"
+   "h": 2048,
+   "frames": 253,
+   "bytes": 788660,
+   "sha256": "3ed3eed00509d77b1b2b9d13c117527aaded0dcbf583b40a0c97b6726cd78714"
   },
   {
    "json": "buildings-shadow-2x-0.json",
@@ -76,9 +128,35 @@
    "page": 0,
    "w": 2048,
    "h": 2048,
-   "frames": 151,
-   "bytes": 993629,
-   "sha256": "9b426dedabb536bbc9e255efd131f0a2a553972b6940b0f2399879bb6b50e0bc"
+   "frames": 86,
+   "bytes": 962362,
+   "sha256": "68ba33f19d31d52dbfbf4561b23a513a367f7bd85c9bb771dfd838dc0194f9b5"
+  },
+  {
+   "json": "buildings-shadow-2x-1.json",
+   "image": "buildings-shadow-2x-1.png",
+   "group": "buildings",
+   "pass": "shadow",
+   "scale": 2,
+   "page": 1,
+   "w": 2048,
+   "h": 2048,
+   "frames": 35,
+   "bytes": 584390,
+   "sha256": "8ccb600cf561e81be608dd84bda0ad8bbc760fef20cc56e98a1ab9f5828fc037"
+  },
+  {
+   "json": "buildings-shadow-2x-2.json",
+   "image": "buildings-shadow-2x-2.png",
+   "group": "buildings",
+   "pass": "shadow",
+   "scale": 2,
+   "page": 2,
+   "w": 2048,
+   "h": 2048,
+   "frames": 132,
+   "bytes": 1102129,
+   "sha256": "5cd29b859eb59f19d54b24b39760143a4745a0347a50d6b9738edb5b0f8624b4"
   },
   {
    "json": "buildings-team-1x-0.json",
@@ -87,11 +165,11 @@
    "pass": "team",
    "scale": 1,
    "page": 0,
-   "w": 1024,
-   "h": 256,
-   "frames": 50,
-   "bytes": 4546,
-   "sha256": "b91c3918fddf2720841e2d4eddc92d48adc7ef7ff702fc354da617398a400a52"
+   "w": 2048,
+   "h": 512,
+   "frames": 148,
+   "bytes": 18110,
+   "sha256": "19ddce782f44591216f1c98f8ad9443de4a28c5e015bda514c7401d257d11aac"
   },
   {
    "json": "buildings-team-2x-0.json",
@@ -101,10 +179,10 @@
    "scale": 2,
    "page": 0,
    "w": 2048,
-   "h": 512,
-   "frames": 50,
-   "bytes": 11269,
-   "sha256": "4db130b324f87d28d0335188de590aafbc3ad345e00eab5d6a741ce3b49e51f0"
+   "h": 1024,
+   "frames": 148,
+   "bytes": 35919,
+   "sha256": "252d2cc079bf68116951971eaac7eb7727dd240badeac1cf9bd212ea45333513"
   },
   {
    "json": "icons-1x-0.json",
@@ -113,11 +191,11 @@
    "pass": "color",
    "scale": 1,
    "page": 0,
-   "w": 256,
-   "h": 64,
-   "frames": 6,
-   "bytes": 7683,
-   "sha256": "cb9d54a167967252eadb22b97f8325a2a3eeaaf17cdc2e1544ec732aa05bc84e"
+   "w": 512,
+   "h": 256,
+   "frames": 21,
+   "bytes": 48389,
+   "sha256": "afdddfda151d0afe528ca35263a8d20962a422aa586a1bbe3901f8575ec24c00"
   },
   {
    "json": "icons-2x-0.json",
@@ -126,11 +204,11 @@
    "pass": "color",
    "scale": 2,
    "page": 0,
-   "w": 512,
-   "h": 128,
-   "frames": 6,
-   "bytes": 16727,
-   "sha256": "06f245c53e94ad01b5cb7a8dbca1a888e4e30a17f392ce82cf1ba2be375ddda6"
+   "w": 1024,
+   "h": 512,
+   "frames": 21,
+   "bytes": 124050,
+   "sha256": "f9717d050d41e936b7ecba9ca148877d2bb0647f5900dd5da690071694b905ab"
   },
   {
    "json": "icons-team-1x-0.json",
@@ -139,11 +217,11 @@
    "pass": "team",
    "scale": 1,
    "page": 0,
-   "w": 64,
-   "h": 128,
-   "frames": 5,
-   "bytes": 558,
-   "sha256": "7d49545ddbc45aec10780e7fb8812073261ecf56ea80bd2f8c3d050b4712ad6a"
+   "w": 256,
+   "h": 256,
+   "frames": 20,
+   "bytes": 2482,
+   "sha256": "5fb1ca8dbf84fa1b06b57769f21153812be4e83eb76c510674c941a6a90d315d"
   },
   {
    "json": "icons-team-2x-0.json",
@@ -152,11 +230,11 @@
    "pass": "team",
    "scale": 2,
    "page": 0,
-   "w": 128,
-   "h": 256,
-   "frames": 5,
-   "bytes": 1104,
-   "sha256": "df0d99f04a22182a5d263fc9a5c181d34adc775f7fadd863bbb467a6882801ac"
+   "w": 512,
+   "h": 512,
+   "frames": 20,
+   "bytes": 5292,
+   "sha256": "c0ecc4d5731103343314d5699a3c6b0a5d3343d46cc6d8da989b4a5c0b70b638"
   },
   {
    "json": "props-1x-0.json",
@@ -290,10 +368,501 @@
   }
  ],
  "assets": {
+  "academy": {
+   "kind": "building",
+   "group": "buildings",
+   "sourceHash": "4b2c8de634fa416b",
+   "dirs": 1,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 7,
+   "icon": true,
+   "atlases": {
+    "1": {
+     "color": [
+      "buildings-1x-0.json",
+      "icons-1x-0.json"
+     ],
+     "team": [
+      "buildings-team-1x-0.json",
+      "icons-team-1x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "buildings-2x-0.json",
+      "icons-2x-0.json"
+     ],
+     "team": [
+      "buildings-team-2x-0.json",
+      "icons-team-2x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 144,
+      "h": 156
+     },
+     "anchor": {
+      "x": 0.38194,
+      "y": 0.64744
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 288,
+      "h": 312
+     },
+     "anchor": {
+      "x": 0.38542,
+      "y": 0.64744
+     }
+    }
+   },
+   "anims": {
+    "build0": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "complete": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    }
+   },
+   "footprint": [
+    3,
+    3
+   ]
+  },
+  "barracks": {
+   "kind": "building",
+   "group": "buildings",
+   "sourceHash": "8f585e2089cc4426",
+   "dirs": 1,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 7,
+   "icon": true,
+   "atlases": {
+    "1": {
+     "color": [
+      "buildings-1x-0.json",
+      "icons-1x-0.json"
+     ],
+     "team": [
+      "buildings-team-1x-0.json",
+      "icons-team-1x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "buildings-2x-0.json",
+      "icons-2x-0.json"
+     ],
+     "team": [
+      "buildings-team-2x-0.json",
+      "icons-team-2x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 138,
+      "h": 161
+     },
+     "anchor": {
+      "x": 0.3913,
+      "y": 0.59006
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 275,
+      "h": 323
+     },
+     "anchor": {
+      "x": 0.38909,
+      "y": 0.58824
+     }
+    }
+   },
+   "anims": {
+    "build0": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "complete": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    }
+   },
+   "footprint": [
+    3,
+    3
+   ]
+  },
+  "cornucopia": {
+   "kind": "building",
+   "group": "buildings",
+   "sourceHash": "4ce99f12c3712d66",
+   "dirs": 1,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 7,
+   "icon": true,
+   "atlases": {
+    "1": {
+     "color": [
+      "buildings-1x-0.json",
+      "icons-1x-0.json"
+     ],
+     "team": [
+      "buildings-team-1x-0.json",
+      "icons-team-1x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "buildings-2x-0.json",
+      "icons-2x-0.json"
+     ],
+     "team": [
+      "buildings-team-2x-0.json",
+      "icons-team-2x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 92,
+      "h": 127
+     },
+     "anchor": {
+      "x": 0.3587,
+      "y": 0.56693
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 185,
+      "h": 253
+     },
+     "anchor": {
+      "x": 0.35676,
+      "y": 0.56917
+     }
+    }
+   },
+   "anims": {
+    "build0": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "complete": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    }
+   },
+   "footprint": [
+    2,
+    2
+   ]
+  },
+  "farm": {
+   "kind": "building",
+   "group": "buildings",
+   "sourceHash": "ffbc8f6c0da9a673",
+   "dirs": 1,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 19,
+   "variants": [
+    "sown",
+    "growing",
+    "ripe"
+   ],
+   "variantBy": "farmCrop",
+   "icon": true,
+   "atlases": {
+    "1": {
+     "color": [
+      "buildings-1x-0.json",
+      "icons-1x-0.json"
+     ],
+     "team": [
+      "buildings-team-1x-0.json",
+      "icons-team-1x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "buildings-2x-0.json",
+      "icons-2x-0.json"
+     ],
+     "team": [
+      "buildings-team-2x-0.json",
+      "icons-team-2x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 79,
+      "h": 86
+     },
+     "anchor": {
+      "x": 0.48101,
+      "y": 0.52326
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 157,
+      "h": 173
+     },
+     "anchor": {
+      "x": 0.47771,
+      "y": 0.52023
+     }
+    }
+   },
+   "anims": {
+    "build0": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "complete": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    }
+   },
+   "footprint": [
+    2,
+    2
+   ]
+  },
+  "fortress": {
+   "kind": "building",
+   "group": "buildings",
+   "sourceHash": "21fb6b5077f1f672",
+   "dirs": 1,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 7,
+   "icon": true,
+   "atlases": {
+    "1": {
+     "color": [
+      "buildings-1x-0.json",
+      "icons-1x-0.json"
+     ],
+     "team": [
+      "buildings-team-1x-0.json",
+      "icons-team-1x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "buildings-2x-0.json",
+      "icons-2x-0.json"
+     ],
+     "team": [
+      "buildings-team-2x-0.json",
+      "icons-team-2x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 176,
+      "h": 217
+     },
+     "anchor": {
+      "x": 0.40909,
+      "y": 0.56682
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 352,
+      "h": 433
+     },
+     "anchor": {
+      "x": 0.40909,
+      "y": 0.56582
+     }
+    }
+   },
+   "anims": {
+    "build0": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "complete": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    }
+   },
+   "footprint": [
+    4,
+    4
+   ]
+  },
   "gate": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "0bf01219341fbd36",
+   "sourceHash": "d0e43e6f4db3dd99",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -397,6 +966,103 @@
     1
    ]
   },
+  "granary": {
+   "kind": "building",
+   "group": "buildings",
+   "sourceHash": "e575c11888ff31ab",
+   "dirs": 1,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 7,
+   "icon": true,
+   "atlases": {
+    "1": {
+     "color": [
+      "buildings-1x-0.json",
+      "icons-1x-0.json"
+     ],
+     "team": [
+      "buildings-team-1x-0.json",
+      "icons-team-1x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "buildings-2x-0.json",
+      "icons-2x-0.json"
+     ],
+     "team": [
+      "buildings-team-2x-0.json",
+      "icons-team-2x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 81,
+      "h": 114
+     },
+     "anchor": {
+      "x": 0.45679,
+      "y": 0.70175
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 162,
+      "h": 227
+     },
+     "anchor": {
+      "x": 0.45679,
+      "y": 0.70485
+     }
+    }
+   },
+   "anims": {
+    "build0": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "complete": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    }
+   },
+   "footprint": [
+    2,
+    2
+   ]
+  },
   "hoplite": {
    "kind": "unit",
    "group": "units",
@@ -478,7 +1144,7 @@
   "house": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "d6d240019c0b5caa",
+   "sourceHash": "4b226522834a1a0f",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -532,6 +1198,297 @@
      "anchor": {
       "x": 0.35354,
       "y": 0.59839
+     }
+    }
+   },
+   "anims": {
+    "build0": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "complete": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    }
+   },
+   "footprint": [
+    2,
+    2
+   ]
+  },
+  "lumber_camp": {
+   "kind": "building",
+   "group": "buildings",
+   "sourceHash": "0739089aaa7d2408",
+   "dirs": 1,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 7,
+   "icon": true,
+   "atlases": {
+    "1": {
+     "color": [
+      "buildings-1x-0.json",
+      "icons-1x-0.json"
+     ],
+     "team": [
+      "buildings-team-1x-0.json",
+      "icons-team-1x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "buildings-2x-1.json",
+      "icons-2x-0.json"
+     ],
+     "team": [
+      "buildings-team-2x-0.json",
+      "icons-team-2x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 87,
+      "h": 114
+     },
+     "anchor": {
+      "x": 0.42529,
+      "y": 0.63158
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 173,
+      "h": 227
+     },
+     "anchor": {
+      "x": 0.42197,
+      "y": 0.62996
+     }
+    }
+   },
+   "anims": {
+    "build0": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "complete": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    }
+   },
+   "footprint": [
+    2,
+    2
+   ]
+  },
+  "market": {
+   "kind": "building",
+   "group": "buildings",
+   "sourceHash": "f60e13dfc3d3409b",
+   "dirs": 1,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 7,
+   "icon": true,
+   "atlases": {
+    "1": {
+     "color": [
+      "buildings-1x-0.json",
+      "icons-1x-0.json"
+     ],
+     "team": [
+      "buildings-team-1x-0.json",
+      "icons-team-1x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "buildings-2x-1.json",
+      "icons-2x-0.json"
+     ],
+     "team": [
+      "buildings-team-2x-0.json",
+      "icons-team-2x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 133,
+      "h": 159
+     },
+     "anchor": {
+      "x": 0.38346,
+      "y": 0.61006
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 266,
+      "h": 318
+     },
+     "anchor": {
+      "x": 0.38346,
+      "y": 0.61321
+     }
+    }
+   },
+   "anims": {
+    "build0": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "complete": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    }
+   },
+   "footprint": [
+    3,
+    3
+   ]
+  },
+  "mine": {
+   "kind": "building",
+   "group": "buildings",
+   "sourceHash": "314bc03dc19bc09f",
+   "dirs": 1,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 7,
+   "icon": true,
+   "atlases": {
+    "1": {
+     "color": [
+      "buildings-1x-0.json",
+      "icons-1x-0.json"
+     ],
+     "team": [
+      "buildings-team-1x-0.json",
+      "icons-team-1x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "buildings-2x-1.json",
+      "icons-2x-0.json"
+     ],
+     "team": [
+      "buildings-team-2x-0.json",
+      "icons-team-2x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 76,
+      "h": 80
+     },
+     "anchor": {
+      "x": 0.5,
+      "y": 0.55
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 152,
+      "h": 160
+     },
+     "anchor": {
+      "x": 0.5,
+      "y": 0.55
      }
     }
    },
@@ -686,7 +1643,7 @@
   "rubble": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "9470acc005e6a8c1",
+   "sourceHash": "49831f07aa3c7547",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -704,10 +1661,10 @@
     },
     "2": {
      "color": [
-      "buildings-2x-0.json"
+      "buildings-2x-1.json"
      ],
      "shadow": [
-      "buildings-shadow-2x-0.json"
+      "buildings-shadow-2x-1.json"
      ]
     }
    },
@@ -765,10 +1722,10 @@
     5
    ]
   },
-  "temple": {
+  "siege_workshop": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "01209a9ca8182a5e",
+   "sourceHash": "56b8cd72cb5377b0",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -791,7 +1748,7 @@
     },
     "2": {
      "color": [
-      "buildings-2x-0.json",
+      "buildings-2x-1.json",
       "icons-2x-0.json"
      ],
      "team": [
@@ -799,7 +1756,201 @@
       "icons-team-2x-0.json"
      ],
      "shadow": [
-      "buildings-shadow-2x-0.json"
+      "buildings-shadow-2x-1.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 141,
+      "h": 157
+     },
+     "anchor": {
+      "x": 0.39007,
+      "y": 0.6051
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 281,
+      "h": 314
+     },
+     "anchor": {
+      "x": 0.3879,
+      "y": 0.6051
+     }
+    }
+   },
+   "anims": {
+    "build0": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "complete": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    }
+   },
+   "footprint": [
+    3,
+    3
+   ]
+  },
+  "stable": {
+   "kind": "building",
+   "group": "buildings",
+   "sourceHash": "4a46739ac77b5553",
+   "dirs": 1,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 7,
+   "icon": true,
+   "atlases": {
+    "1": {
+     "color": [
+      "buildings-1x-0.json",
+      "icons-1x-0.json"
+     ],
+     "team": [
+      "buildings-team-1x-0.json",
+      "icons-team-1x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "buildings-2x-1.json",
+      "icons-2x-0.json"
+     ],
+     "team": [
+      "buildings-team-2x-0.json",
+      "icons-team-2x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-2x-1.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 136,
+      "h": 154
+     },
+     "anchor": {
+      "x": 0.38971,
+      "y": 0.6039
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 272,
+      "h": 310
+     },
+     "anchor": {
+      "x": 0.39338,
+      "y": 0.60323
+     }
+    }
+   },
+   "anims": {
+    "build0": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "complete": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    }
+   },
+   "footprint": [
+    3,
+    3
+   ]
+  },
+  "temple": {
+   "kind": "building",
+   "group": "buildings",
+   "sourceHash": "192b9332272de776",
+   "dirs": 1,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 7,
+   "icon": true,
+   "atlases": {
+    "1": {
+     "color": [
+      "buildings-1x-0.json",
+      "icons-1x-0.json"
+     ],
+     "team": [
+      "buildings-team-1x-0.json",
+      "icons-team-1x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "buildings-2x-1.json",
+      "icons-2x-0.json"
+     ],
+     "team": [
+      "buildings-team-2x-0.json",
+      "icons-team-2x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-2x-1.json"
      ]
     }
    },
@@ -862,10 +2013,112 @@
     3
    ]
   },
+  "titan_gate": {
+   "kind": "building",
+   "group": "buildings",
+   "sourceHash": "ab62de73705ddd67",
+   "dirs": 1,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 13,
+   "icon": true,
+   "atlases": {
+    "1": {
+     "color": [
+      "buildings-1x-0.json",
+      "icons-1x-0.json"
+     ],
+     "team": [
+      "buildings-team-1x-0.json",
+      "icons-team-1x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "buildings-2x-2.json",
+      "icons-2x-0.json"
+     ],
+     "team": [
+      "buildings-team-2x-0.json",
+      "icons-team-2x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-2x-1.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 205,
+      "h": 208
+     },
+     "anchor": {
+      "x": 0.39024,
+      "y": 0.56731
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 410,
+      "h": 415
+     },
+     "anchor": {
+      "x": 0.39024,
+      "y": 0.56627
+     }
+    }
+   },
+   "anims": {
+    "build0": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "complete": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "glow": {
+     "frames": 6,
+     "fps": 8,
+     "loop": true
+    }
+   },
+   "footprint": [
+    5,
+    5
+   ]
+  },
   "tower": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "616bd489e342abf9",
+   "sourceHash": "89fc353afd74065b",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -888,7 +2141,7 @@
     },
     "2": {
      "color": [
-      "buildings-2x-0.json",
+      "buildings-2x-2.json",
       "icons-2x-0.json"
      ],
      "team": [
@@ -896,7 +2149,7 @@
       "icons-team-2x-0.json"
      ],
      "shadow": [
-      "buildings-shadow-2x-0.json"
+      "buildings-shadow-2x-1.json"
      ]
     }
    },
@@ -962,7 +2215,7 @@
   "town_center": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "54851862e02b267a",
+   "sourceHash": "accb84999966fd61",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -991,7 +2244,7 @@
     },
     "2": {
      "color": [
-      "buildings-2x-0.json",
+      "buildings-2x-2.json",
       "icons-2x-0.json"
      ],
      "team": [
@@ -999,7 +2252,7 @@
       "icons-team-2x-0.json"
      ],
      "shadow": [
-      "buildings-shadow-2x-0.json"
+      "buildings-shadow-2x-2.json"
      ]
     }
    },
@@ -1153,7 +2406,7 @@
   "wall": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "935aca9db22bab5f",
+   "sourceHash": "e08f8b9f4c9207a1",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -1191,11 +2444,11 @@
     },
     "2": {
      "color": [
-      "buildings-2x-0.json",
+      "buildings-2x-2.json",
       "icons-2x-0.json"
      ],
      "shadow": [
-      "buildings-shadow-2x-0.json"
+      "buildings-shadow-2x-2.json"
      ]
     }
    },
@@ -1257,11 +2510,302 @@
     1,
     1
    ]
+  },
+  "wonder_artemis": {
+   "kind": "building",
+   "group": "buildings",
+   "sourceHash": "08b59ad17fc3ed07",
+   "dirs": 1,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 7,
+   "icon": true,
+   "atlases": {
+    "1": {
+     "color": [
+      "buildings-1x-0.json",
+      "icons-1x-0.json"
+     ],
+     "team": [
+      "buildings-team-1x-0.json",
+      "icons-team-1x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "buildings-2x-3.json",
+      "icons-2x-0.json"
+     ],
+     "team": [
+      "buildings-team-2x-0.json",
+      "icons-team-2x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-2x-2.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 174,
+      "h": 229
+     },
+     "anchor": {
+      "x": 0.39655,
+      "y": 0.60262
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 349,
+      "h": 458
+     },
+     "anchor": {
+      "x": 0.39828,
+      "y": 0.60262
+     }
+    }
+   },
+   "anims": {
+    "build0": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "complete": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    }
+   },
+   "footprint": [
+    4,
+    4
+   ]
+  },
+  "wonder_colossus": {
+   "kind": "building",
+   "group": "buildings",
+   "sourceHash": "9ffbb75a974b1dea",
+   "dirs": 1,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 7,
+   "icon": true,
+   "atlases": {
+    "1": {
+     "color": [
+      "buildings-1x-1.json",
+      "icons-1x-0.json"
+     ],
+     "team": [
+      "buildings-team-1x-0.json",
+      "icons-team-1x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "buildings-2x-3.json",
+      "icons-2x-0.json"
+     ],
+     "team": [
+      "buildings-team-2x-0.json",
+      "icons-team-2x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-2x-2.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 184,
+      "h": 229
+     },
+     "anchor": {
+      "x": 0.375,
+      "y": 0.65939
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 368,
+      "h": 456
+     },
+     "anchor": {
+      "x": 0.37228,
+      "y": 0.66009
+     }
+    }
+   },
+   "anims": {
+    "build0": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "complete": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    }
+   },
+   "footprint": [
+    4,
+    4
+   ]
+  },
+  "wonder_zeus": {
+   "kind": "building",
+   "group": "buildings",
+   "sourceHash": "590f833d3877c4e7",
+   "dirs": 1,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 7,
+   "icon": true,
+   "atlases": {
+    "1": {
+     "color": [
+      "buildings-1x-1.json",
+      "icons-1x-0.json"
+     ],
+     "team": [
+      "buildings-team-1x-0.json",
+      "icons-team-1x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "buildings-2x-3.json",
+      "icons-2x-0.json"
+     ],
+     "team": [
+      "buildings-team-2x-0.json",
+      "icons-team-2x-0.json"
+     ],
+     "shadow": [
+      "buildings-shadow-2x-2.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 167,
+      "h": 202
+     },
+     "anchor": {
+      "x": 0.41916,
+      "y": 0.59406
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 335,
+      "h": 404
+     },
+     "anchor": {
+      "x": 0.41791,
+      "y": 0.59406
+     }
+    }
+   },
+   "anims": {
+    "build0": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "build2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "complete": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage1": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    },
+    "damage2": {
+     "frames": 1,
+     "fps": 10,
+     "loop": true
+    }
+   },
+   "footprint": [
+    4,
+    4
+   ]
   }
  },
  "totals": {
-  "pngBytes": 6760687,
-  "vramBytes": 101154816,
-  "atlases": 20
+  "pngBytes": 13249953,
+  "vramBytes": 216793088,
+  "atlases": 26
  }
 }

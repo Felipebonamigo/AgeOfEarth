@@ -21,7 +21,7 @@ import { BuildingView } from './views/BuildingView';
 import { SmokeLayer } from './particles';
 import {
   animDuration, buildingState, chooseAnim, deathAlpha, dirWithHysteresis, freshHit, isWalking, mulColor, type UnitAnim,
-  WALL_LINK_TYPES, wallMask, buildingVariant, ageTier, damageLevel, gateNear, smokeRate, smokeBudget, rubbleAlpha,
+  WALL_LINK_TYPES, wallMask, buildingVariant, ageTier, farmCrop, damageLevel, gateNear, smokeRate, smokeBudget, rubbleAlpha, GLOW_ANIM, glowVariant,
   ghostTint, placementMasks,
 } from './art/logic';
 
@@ -477,11 +477,17 @@ export class Renderer {
         const open = !!art?.states.has('open') && b.complete && this.gatesOpen.has(b.id);
         let variant: string | null = null;
         if (art?.variantBy === 'ageTier') variant = ageTier(state.players[b.owner].age);
+        else if (art?.variantBy === 'farmCrop') variant = farmCrop((state.tick - b.builtTick) / TICK_RATE, b.id);
         else if (art?.variantBy) {
-          if (v.bld.maskVersion !== this.wallVersion) { v.bld.mask = this.wallMaskOf(state, b); v.bld.maskVersion = this.wallVersion; }
-          variant = buildingVariant(art.variantBy, { mask: v.bld.mask, age: 0 });
+          if (v.bld.maskVersion !== this.wallVersion) {
+            v.bld.mask = this.wallMaskOf(state, b); v.bld.maskVersion = this.wallVersion;
+            v.bld.maskVariant = buildingVariant(art.variantBy, { mask: v.bld.mask, age: 0 });
+          }
+          variant = v.bld.maskVariant;
         }
         v.bld.show(buildingState(frac, b.complete, hpFrac, open), variant);
+        // sobreposição animada do edifício pronto (portal dos titãs), no relógio de jogo, também danificado
+        if (art?.glow) v.bld.showGlow(b.complete ? this.art.building(b.type, GLOW_ANIM, glowVariant(this.animClock, art.glow.frames, art.glow.fps)) : null);
         v.bld.place(b.x * TILE, b.y * TILE);
         // fumaça de dano (partícula, não assada): só pronto e danificado, dentro do orçamento do preset
         const dmg = b.complete && !open ? damageLevel(hpFrac) : 0;
@@ -811,7 +817,7 @@ export class Renderer {
       const masks = art.variantBy === 'wallMask' || art.variantBy === 'gateAxis' ? placementMasks(tiles, linked) : null;
       for (let i = 0; i < tiles.length; i++) {
         const t = tiles[i];
-        const variant = art.variantBy === 'ageTier' ? ageTier(state.players[local]?.age ?? 0) : art.variantBy ? buildingVariant(art.variantBy, { mask: masks![i], age: 0 }) : null;
+        const variant = art.variantBy === 'ageTier' ? ageTier(state.players[local]?.age ?? 0) : art.variantBy ? buildingVariant(art.variantBy, { mask: masks?.[i] ?? 0, age: 0 }) : null;
         const f = this.art.building(p.type, 'complete', variant);
         if (!f) continue;
         let s = this.ghostSprites[used];

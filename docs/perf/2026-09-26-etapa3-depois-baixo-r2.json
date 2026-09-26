@@ -1,0 +1,112 @@
+{
+  "date": "2026-09-26",
+  "commit": "a9df4d9 + 4573b7b + 2e73037 (integração da Etapa 3, porta 4210)",
+  "label": "etapa3-depois-baixo-r2",
+  "url": "http://localhost:4210/",
+  "note": "Chromium headless + swiftshader (software): ms/fps pessimistas, sem GPU; comparar antes/depois. Ver docs/ART.md §6.",
+  "scenario": {
+    "seed": 42,
+    "tick": 24004,
+    "minutes": 20,
+    "units": 261,
+    "buildings": 133,
+    "map": "144×144",
+    "quality": "low",
+    "bakedArt": true,
+    "art": {
+      "enabled": "true",
+      "wanted": "1x",
+      "manifest": "ready",
+      "generation": "1",
+      "units": "1x:ready 2x:idle servida:1",
+      "buildings": "1x:ready 2x:idle servida:1",
+      "props": "1x:ready 2x:idle servida:1",
+      "icons": "1x:ready 2x:idle servida:1"
+    },
+    "resolution": 1,
+    "viewport": "1600×900",
+    "warmMinutes": 20,
+    "spawned": 79,
+    "measureMs": 12000,
+    "reveal": true
+  },
+  "results": {
+    "zoom1": {
+      "name": "zoom1",
+      "title": "zoom 1 (cidade do jogador)",
+      "fps": 6.7,
+      "render": {
+        "avg": 0.67,
+        "p95": 1.2,
+        "max": 1.8,
+        "n": 83
+      },
+      "drawCalls": 6,
+      "drawCallsMax": 6,
+      "textureMB": 74.4,
+      "textures": 50,
+      "sprites": 808,
+      "chunks": 12,
+      "resolution": 1,
+      "canvas": "1600×900"
+    },
+    "zoomOut": {
+      "name": "zoomOut",
+      "title": "zoom mínimo (mapa inteiro)",
+      "fps": 8.7,
+      "render": {
+        "avg": 1.18,
+        "p95": 2.2,
+        "max": 6.2,
+        "n": 105
+      },
+      "drawCalls": 7,
+      "drawCallsMax": 9,
+      "textureMB": 74.5,
+      "textures": 55,
+      "sprites": 5164,
+      "chunks": 81,
+      "resolution": 1,
+      "canvas": "1600×900"
+    },
+    "battle": {
+      "name": "battle",
+      "title": "zoom 1,5 (maior aglomerado)",
+      "fps": 7.8,
+      "render": {
+        "avg": 0.88,
+        "p95": 1.2,
+        "max": 5.1,
+        "n": 95
+      },
+      "drawCalls": 8,
+      "drawCallsMax": 10,
+      "textureMB": 74.6,
+      "textures": 56,
+      "sprites": 443,
+      "chunks": 9,
+      "resolution": 1,
+      "canvas": "1600×900"
+    },
+    "scroll": {
+      "name": "scroll",
+      "title": "rolagem contínua (chunks novos)",
+      "fps": 7.4,
+      "render": {
+        "avg": 0.84,
+        "p95": 2.1,
+        "max": 3.3,
+        "n": 85
+      },
+      "drawCalls": 7,
+      "drawCallsMax": 8,
+      "textureMB": 74.6,
+      "textures": 56,
+      "sprites": 408,
+      "chunks": 8,
+      "resolution": 1,
+      "canvas": "1600×900"
+    }
+  },
+  "errors": []
+}

@@ -1,14 +1,29 @@
 {
  "frames": {
-  "gate": {"frame":{"x":1,"y":1,"w":28,"h":60},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":18,"y":2,"w":28,"h":60},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
-  "house": {"frame":{"x":33,"y":1,"w":33,"h":52},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":15,"y":9,"w":33,"h":52},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
-  "temple": {"frame":{"x":70,"y":1,"w":36,"h":59},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":14,"y":3,"w":36,"h":59},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
-  "tower": {"frame":{"x":110,"y":1,"w":16,"h":47},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":24,"y":12,"w":16,"h":47},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
-  "town_center": {"frame":{"x":130,"y":1,"w":35,"h":55},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":14,"y":7,"w":35,"h":55},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
-  "wall": {"frame":{"x":169,"y":1,"w":34,"h":60},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":15,"y":2,"w":34,"h":60},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}}
+  "academy": {"frame":{"x":1,"y":1,"w":40,"h":51},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":12,"y":8,"w":40,"h":51},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "barracks": {"frame":{"x":1,"y":56,"w":40,"h":55},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":12,"y":7,"w":40,"h":55},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "cornucopia": {"frame":{"x":45,"y":1,"w":38,"h":49},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":13,"y":13,"w":38,"h":49},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "farm": {"frame":{"x":45,"y":56,"w":44,"h":53},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":10,"y":9,"w":44,"h":53},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "fortress": {"frame":{"x":93,"y":56,"w":38,"h":55},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":13,"y":7,"w":38,"h":55},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "gate": {"frame":{"x":1,"y":115,"w":28,"h":60},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":18,"y":2,"w":28,"h":60},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "granary": {"frame":{"x":135,"y":56,"w":38,"h":52},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":13,"y":9,"w":38,"h":52},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "house": {"frame":{"x":177,"y":56,"w":33,"h":52},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":15,"y":9,"w":33,"h":52},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "lumber_camp": {"frame":{"x":33,"y":115,"w":38,"h":60},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":13,"y":2,"w":38,"h":60},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "market": {"frame":{"x":75,"y":115,"w":42,"h":60},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":11,"y":2,"w":42,"h":60},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "mine": {"frame":{"x":87,"y":1,"w":39,"h":42},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":13,"y":20,"w":39,"h":42},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "siege_workshop": {"frame":{"x":130,"y":1,"w":36,"h":51},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":14,"y":11,"w":36,"h":51},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "stable": {"frame":{"x":121,"y":115,"w":42,"h":56},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":11,"y":6,"w":42,"h":56},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "temple": {"frame":{"x":167,"y":115,"w":36,"h":59},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":14,"y":3,"w":36,"h":59},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "titan_gate": {"frame":{"x":170,"y":1,"w":36,"h":45},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":14,"y":17,"w":36,"h":45},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "tower": {"frame":{"x":210,"y":1,"w":16,"h":47},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":24,"y":12,"w":16,"h":47},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "town_center": {"frame":{"x":214,"y":56,"w":35,"h":55},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":14,"y":7,"w":35,"h":55},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "wall": {"frame":{"x":207,"y":115,"w":34,"h":60},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":15,"y":2,"w":34,"h":60},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "wonder_artemis": {"frame":{"x":245,"y":115,"w":38,"h":58},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":13,"y":4,"w":38,"h":58},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "wonder_colossus": {"frame":{"x":230,"y":1,"w":30,"h":48},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":17,"y":14,"w":30,"h":48},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
+  "wonder_zeus": {"frame":{"x":264,"y":1,"w":36,"h":50},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":14,"y":12,"w":36,"h":50},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}}
  },
  "animations": {
 
  },
- "meta": {"app":"age-of-earth/scripts/bake","version":"1","image":"icons-1x-0.png","format":"RGBA8888","size":{"w":256,"h":64},"scale":"1","aoe":{"version":1,"pass":"color","pxPerTile":32,"pitchDeg":50,"verticalFactor":0.8391,"sun":[-0.55,1,-0.35],"shadowDir":"SE","dirs":8,"dirNames":["E","SE","S","SW","W","NW","N","NE"],"fps":10,"pad":2,"extrude":1,"mirror":false}}
+ "meta": {"app":"age-of-earth/scripts/bake","version":"1","image":"icons-1x-0.png","format":"RGBA8888","size":{"w":512,"h":256},"scale":"1","aoe":{"version":1,"pass":"color","pxPerTile":32,"pitchDeg":50,"verticalFactor":0.8391,"sun":[-0.55,1,-0.35],"shadowDir":"SE","dirs":8,"dirNames":["E","SE","S","SW","W","NW","N","NE"],"fps":10,"pad":2,"extrude":1,"mirror":false}}
 }

@@ -32,6 +32,8 @@ const PASS_SUFFIX = { color: '', team: '-team', shadow: '-shadow' };
  *  como etapa2-<nome>, edifícios como etapa3-<nome> (mais etapa3-icones com os ícones do HUD). */
 const CONTACT_NAME = { hoplite: 'hoplita', villager: 'cidadao', temple: 'templo', 'props-trees': 'props', 'props-nodes': 'props',
   town_center: 'centro-civico', house: 'casa', wall: 'muralha', gate: 'muralha', tower: 'muralha', rubble: 'escombros' };
+// lote militar da Etapa 3 numa folha só (docs/art/etapa3-militar-contato.png)
+for (const id of ['barracks', 'stable', 'siege_workshop', 'fortress', 'titan_gate', 'wonder_zeus', 'wonder_artemis', 'wonder_colossus']) CONTACT_NAME[id] = 'militar';
 const TEAM_PREVIEW = 0x2f4fa8;   // azul de time da tabela 1.6, só nas folhas de contato
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -74,10 +76,16 @@ function sourceFiles(m) {
   const s = m.source;
   if (s.type === 'glb') files.push(s.path);
   else if (s.rig === 'human') files.push('scripts/bake/page/rigs/human.js', s.poses ?? 'art/poses/human.json');
-  else if (s.rig === 'building') files.push('scripts/bake/page/buildings.js', 'scripts/bake/manifest.mjs');
+  else if (s.rig === 'building') {
+    // buildings.js, os módulos de lote em page/ (buildings-*.js) e em page/rigs/ (buildings-*.js), em ordem estável
+    files.push(...fs.readdirSync(PAGE).filter((f) => /^buildings(-[a-z0-9-]+)?\.js$/.test(f)).sort().map((f) => `scripts/bake/page/${f}`), 'scripts/bake/manifest.mjs', ...buildingModules());
+  }
   else if (s.rig === 'props') files.push('scripts/bake/page/props.js');
   return files;
 }
+
+/** Módulos de estilos de edifícios por lote (page/rigs/buildings-*.js, registrados em buildings.js): entram no hash. */
+const buildingModules = () => fs.readdirSync(path.join(PAGE, 'rigs')).filter((f) => /^buildings-.*\.js$/.test(f)).sort().map((f) => `scripts/bake/page/rigs/${f}`);
 
 function inputHash(m, scale, mirror) {
   const h = crypto.createHash('sha256');
@@ -360,7 +368,41 @@ function cellImg(e, fr, pass, G) {
   return { b64: Buffer.from(img.data.buffer, img.data.byteOffset, img.data.length).toString('base64'), w: img.w, h: img.h, x: r.x - G.x0, y: r.y - G.y0 };
 }
 
-async function contactSheets(opts, manifests, hashes) {
+/**
+ * Célula dos escombros da pegada de um edifício (`rubble/<w>x<h>`), com a âncora no mesmo ponto da âncora do edifício na
+ * célula (`anc`, px na caixa de união do edifício). null sem manifesto/cache de escombros.
+ */
+function rubbleCell(opts, all, hashes, m, anc) {
+  const rm = all.find((x) => x.rubble);
+  const fp = m.footprint;
+  if (!rm || !fp) return null;
+  const e = loadCache(opts, rm, 1, hashes.get(`${rm.id}/1`));
+  const fr = e?.frames.find((f) => f.name === `rubble/${fp[0]}x${fp[1]}`);
+  if (!fr) return null;
+  const G = { x0: fr.box.ax - anc.x, y0: fr.box.ay - anc.y };
+  return { color: cellImg(e, fr, 'color', G), team: null, shadow: cellImg(e, fr, 'shadow', G), anchor: { ...anc }, label: 'escombros' };
+}
+
+/** Célula com o quadro `top` somado (blend aditivo, como no jogo) sobre a cor de `base` (brilho animado do portal). */
+function addCell(base, top) {
+  const W = base.w, H = base.h, out = new Uint8Array(W * H * 4);
+  const put = (img, add) => {
+    if (!img) return;
+    const src = Buffer.from(img.b64, 'base64');
+    for (let y = 0; y < img.h; y++) for (let x = 0; x < img.w; x++) {
+      const dx = img.x + x, dy = img.y + y;
+      if (dx < 0 || dy < 0 || dx >= W || dy >= H) continue;
+      const s = (y * img.w + x) * 4, d = (dy * W + dx) * 4, a = src[s + 3] / 255;
+      if (!a) continue;
+      if (add) { for (let c = 0; c < 3; c++) out[d + c] = Math.min(255, out[d + c] + src[s + c] * a); out[d + 3] = Math.max(out[d + 3], src[s + 3]); }
+      else { for (let c = 0; c < 4; c++) out[d + c] = src[s + c]; }
+    }
+  };
+  put(base.color, false); put(top.color, true);
+  return { ...base, color: { b64: Buffer.from(out).toString('base64'), w: W, h: H, x: 0, y: 0 } };
+}
+
+async function contactSheets(opts, manifests, hashes, all = manifests) {
   const { page } = await browser();
   const outDir = path.resolve(ROOT, opts.contact);
   fs.mkdirSync(outDir, { recursive: true });
@@ -369,7 +411,7 @@ async function contactSheets(opts, manifests, hashes) {
     const e = loadCache(opts, m, 1, hashes.get(`${m.id}/1`));
     if (!e) continue;
     const groups = groupFrames(e);
-    const name = (m.kind === 'building' ? 'etapa3-' : 'etapa2-') + (CONTACT_NAME[m.id] ?? m.id);
+    const name = (m.kind === 'building' ? 'etapa3-' : 'etapa2-') + (m.contact ?? CONTACT_NAME[m.id] ?? m.id);
     const sheet = sheets.get(name) ?? { title: '', rows: [], cellW: 0, cellH: 0, zoom: 2 };
     sheets.set(name, sheet);
     const cell = (fr) => { const G = groups.get(fr.group); return { color: cellImg(e, fr, 'color', G), team: cellImg(e, fr, 'team', G), shadow: cellImg(e, fr, 'shadow', G), anchor: { x: fr.box.ax - G.x0, y: fr.box.ay - G.y0 }, w: G.w, h: G.h }; };
@@ -391,8 +433,22 @@ async function contactSheets(opts, manifests, hashes) {
       sheet.cellW = Math.max(sheet.cellW, G.w); sheet.cellH = Math.max(sheet.cellH, G.h);
       sheet.title = (sheet.title ? sheet.title + ' | ' : '') + `${m.id}: ${Object.keys(m.anims).join(' · ')}${m.variants ? ` × ${m.variants.length} variantes (${m.variantBy})` : ''}`;
       const rowCell = { cellW: G.w, cellH: G.h };
-      if (m.variants) for (const st of Object.keys(m.anims)) sheet.rows.push({ label: `${m.id} ${st}`, cells: body.filter((fr) => fr.anim === st).map((fr) => ({ ...cell(fr), label: fr.variant })), ...rowCell });
-      else sheet.rows.push({ label: m.id, cells: body.map((fr) => ({ ...cell(fr), label: fr.anim })), ...rowCell });
+      if (m.variants) {
+        for (const st of Object.keys(m.anims)) sheet.rows.push({ label: `${m.id} ${st}`, cells: body.filter((fr) => fr.anim === st).map((fr) => ({ ...cell(fr), label: fr.variant })), ...rowCell });
+        // escombros da pegada no fim da última linha (mesma âncora = centro da área)
+        const rb = body.length ? rubbleCell(opts, all, hashes, m, cell(body[0]).anchor) : null;
+        if (rb) sheet.rows[sheet.rows.length - 1].cells.push(rb);
+      } else {
+        // estados de um quadro + escombros da pegada; animações (brilho do portal) numa linha própria, somadas ao complete
+        const still = body.filter((fr) => (m.anims[fr.anim]?.frames ?? 1) === 1);
+        const cells = still.map((fr) => ({ ...cell(fr), label: fr.anim }));
+        const rb = still.length ? rubbleCell(opts, all, hashes, m, cell(still[0]).anchor) : null;
+        if (rb) cells.push(rb);
+        sheet.rows.push({ label: m.id, cells, ...rowCell });
+        const loops = body.filter((fr) => (m.anims[fr.anim]?.frames ?? 1) > 1);
+        const base = still.find((fr) => fr.anim === 'complete');
+        if (loops.length && base) sheet.rows.push({ label: `${m.id} ${loops[0].anim}`, cells: loops.map((fr) => ({ ...addCell(cell(base), cell(fr)), label: `${fr.anim} ${fr.frame} (aditivo sobre complete)` })), ...rowCell });
+      }
       const ic = e.frames.find((fr) => fr.icon);
       if (ic) {
         const icons = sheets.get('etapa3-icones') ?? { title: 'ícones do HUD (64×64 a 1×, cor + máscara de time) ampliados 2×', rows: [{ label: 'ícones', cells: [] }], cellW: ICON_PX, cellH: ICON_PX, zoom: 2 };
@@ -479,7 +535,7 @@ async function main() {
       await bakeAsset(opts, m, scale, hash);
     }
     packAll(opts, manifests, hashes);
-    if (opts.contact) await contactSheets(opts, selected, hashes);
+    if (opts.contact) await contactSheets(opts, selected, hashes, manifests);
   } finally {
     await closeBrowser();
   }

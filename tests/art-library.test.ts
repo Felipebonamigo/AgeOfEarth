@@ -332,12 +332,15 @@ describe.skipIf(!hasArt)('artefatos do bake: toda chave pedida pelo renderizador
     }
   });
 
-  it('edifícios assados (lote 1): todo estado × variante na cor, sombra e (com time) máscara, nas duas escalas; ícones; escombros', () => {
-    const lot = ['temple', 'town_center', 'house', 'wall', 'gate', 'tower'];
+  it('edifícios assados (os 21 do jogo, Etapa 3): todo estado × variante na cor, sombra e (com time) máscara, nas duas escalas; ícones; escombros', () => {
+    // nenhum tipo de BUILDINGS cai no ProceduralSource numa partida com a arte assada ligada (critério da Etapa 3)
+    const lot = Object.keys(BUILDINGS);
+    expect(lot).toHaveLength(21);
     for (const id of lot) {
       const a = manifest.assets[id];
       expect(a?.kind, id).toBe('building');
-      const states = Object.keys(a.anims!);
+      // o `glow` do portal é sobreposição só de cor, conferida em tests/art-military.test.ts
+      const states = Object.keys(a.anims!).filter((st) => st !== 'glow');
       expect(states, id).toEqual(expect.arrayContaining([...BUILDING_STATES]));
       for (const s of scales) {
         const color = passOf('buildings', s, 'color'), shadow = passOf('buildings', s, 'shadow'), team = passOf('buildings', s, 'team');
@@ -374,14 +377,16 @@ describe.skipIf(!hasArt)('artefatos do bake: toda chave pedida pelo renderizador
     for (const a2 of manifest.atlases) if (a2.group === 'icons') for (const f of Object.values(sheets.get(a2.json)!.frames)) expect(f.sourceSize).toEqual({ w: 64 * a2.scale, h: 64 * a2.scale });
   });
 
-  it('templo: build0/1/2 e completo nos três passes; demais edifícios sem arte (procedurais)', () => {
+  it('templo: build0/1/2 e completo nos três passes; tipo sem manifesto fica sem arte no índice (procedural)', () => {
     const a = manifest.assets.temple;
     expect(a?.kind).toBe('building');
     for (const s of scales) for (const pass of ['color', 'team', 'shadow']) {
       const p = passOf('buildings', s, pass);
       for (const st of [0, 0.4, 0.8].map((f) => buildingStage(f, false)).concat(['complete'])) expect(p.frames.has(buildingFrameName('temple', st)), `${st} ${pass} ${s}x`).toBe(true);
     }
-    expect(manifest.assets.barracks).toBeUndefined();
+    // tipo sem manifesto em art/manifest continua sem arte no índice (procedural)
+    const withManifest = new Set(fs.readdirSync(path.join(ROOT, 'art', 'manifest')).map((f) => f.replace(/\.json$/, '')));
+    for (const id of Object.keys(BUILDINGS)) if (!withManifest.has(id)) expect(manifest.assets[id], id).toBeUndefined();
   });
 
   it('props: todo quadro que nodeFrameName/toco podem pedir existe em cor e sombra, nas duas escalas', () => {

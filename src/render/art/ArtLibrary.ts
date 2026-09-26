@@ -9,7 +9,7 @@ import type { Texture } from 'pixi.js';
 import type { TextureCache } from '../textures';
 import { AtlasSource, type PassFrames } from './AtlasSource';
 import { ProceduralSource } from './ProceduralSource';
-import { pickScale, unitAnimName, buildingFrameName, rubbleName, BUILDING_STATES, type VariantBy } from './logic';
+import { pickScale, unitAnimName, buildingFrameName, rubbleName, BUILDING_STATES, GLOW_ANIM, glowFrameName, type VariantBy } from './logic';
 import type { ArtAnimInfo, ArtGroup, ArtPass, ArtScale } from './types';
 
 const GROUPS: readonly ArtGroup[] = ['units', 'buildings', 'props', 'icons'];
@@ -47,6 +47,8 @@ export interface BuildingArt {
   variantBy: VariantBy | null;
   team: boolean;
   shadow: boolean;
+  /** Sobreposição animada do edifício pronto (estado `glow` com todos os quadros no atlas de cor) ou null. */
+  glow: ArtAnimInfo | null;
 }
 
 export class ArtLibrary {
@@ -224,7 +226,10 @@ export class ArtLibrary {
       if (!states.has(st)) { this.buildingsArt.set(id, null); return null; }
       for (const v of variants ?? [null]) if (!color?.frames.has(buildingFrameName(id, st, v))) { this.buildingsArt.set(id, null); return null; }
     }
-    const art: BuildingArt = { id, states, variants, variantBy: variants ? (a.variantBy ?? null) : null, team: !!a.team, shadow: !!a.shadow };
+    const g = a.anims[GLOW_ANIM];
+    let glow: ArtAnimInfo | null = g && g.frames > 1 && !variants ? g : null;
+    for (let i = 0; glow && i < glow.frames; i++) if (!color?.frames.has(glowFrameName(id, i / glow.fps, glow.frames, glow.fps))) glow = null;
+    const art: BuildingArt = { id, states, variants, variantBy: variants ? (a.variantBy ?? null) : null, team: !!a.team, shadow: !!a.shadow, glow };
     this.buildingsArt.set(id, art);
     return art;
   }
