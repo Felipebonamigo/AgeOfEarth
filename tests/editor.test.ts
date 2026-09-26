@@ -878,3 +878,67 @@ describe('editor: Etapa 4 (balde, conta-gotas, correções, recursos por início
 
 /** Tiles do retângulo [x0..x1]×[y0..y1]. */
 function rectTiles(x0: number, y0: number, x1: number, y1: number): [number, number][] { const out: [number, number][] = []; for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) out.push([x, y]); return out; }
+
+describe('editor: relíquias fixas (G10)', () => {
+  const relicIssues = (ed: MapEditor) => ed.validate().filter((i) => i.code.startsWith('relic')).map((i) => [i.code, i.x, i.y]);
+  it('sobreposição, Corrigir (mover para terra livre alcançável ou tirar) e desfazer/refazer num passo', () => {
+    const ed = editorOf({ ...blankMap(64, 64, 2, 7), startKit: false, relics: [[24, 24], [5, 58]] });
+    expect(ed.ui.relics).toEqual([{ x: 24, y: 24, bad: false }, { x: 5, y: 58, bad: false }]);
+    expect(relicIssues(ed)).toEqual([]);
+    // pintar água sobre a relíquia gera relicBlocked; "Mover relíquia" vai para a terra livre mais próxima
+    ed.apply({ kind: 'paint', tiles: [tile(ed.map, 24, 24)], terrain: TERRAIN.WATER });
+    expect(relicIssues(ed)).toEqual([['relicBlocked', 24, 24]]); expect(ed.ui.relics[0].bad).toBe(true);
+    const spot = ed.relicSpot(24, 24)!;
+    expect(spot).not.toBeNull();
+    expect(Math.max(Math.abs(spot.x - 24), Math.abs(spot.y - 24))).toBe(1);
+    expect(ed.fixRelicAt(24, 24)).toBe(true);
+    expect(ed.meta.relics).toEqual([[spot.x, spot.y], [5, 58]]);
+    expect(ed.ui.relics[0]).toEqual({ ...spot, bad: false });
+    expect(relicIssues(ed)).toEqual([]);
+    expect(ed.undo()).toBe(true);   // a correção é um passo de Ctrl+Z
+    expect(ed.meta.relics).toEqual([[24, 24], [5, 58]]); expect(ed.ui.relics[0]).toEqual({ x: 24, y: 24, bad: true });
+    expect(ed.redo()).toBe(true);
+    expect(ed.meta.relics).toEqual([[spot.x, spot.y], [5, 58]]);
+    // sem terra livre por perto (lago grande): a correção tira a relíquia
+    const lake = brushTiles(5, 58, 8, 'square', ed.map.w, ed.map.h);
+    ed.apply({ kind: 'paint', tiles: lake, terrain: TERRAIN.WATER });
+    expect(relicIssues(ed)).toEqual([['relicBlocked', 5, 58]]);
+    expect(ed.relicSpot(5, 58)).toBeNull();
+    expect(ed.fixRelicAt(5, 58)).toBe(true);
+    expect(ed.meta.relics).toEqual([[spot.x, spot.y]]);
+    expect(dirtyRectOf({ kind: 'setRelics' }, 64)).toBeNull();
+  });
+  it('o CC do kit inicial sobre a relíquia, repetida e fora do mapa têm correção; a borracha tira e o "Pôr relíquia" acrescenta', () => {
+    const base = blankMap(64, 64, 2, 7);
+    const [sx, sy] = base.starts[0];
+    const ed = editorOf({ ...base, relics: [[sx + 1, sy], [30, 30], [30, 30], [70, 3]] });
+    expect(relicIssues(ed)).toEqual([['relicBlocked', sx + 1, sy], ['relicDup', 30, 30], ['relicOut', 70, 3]]);
+    expect(ed.ui.relics.map((r) => r.bad)).toEqual([true, false, false, true]);   // CC do kit e fora do mapa: anel vermelho
+    expect(ed.fixRelicAt(sx + 1, sy)).toBe(true);
+    const moved = (ed.meta.relics as [number, number][])[0];
+    expect(Math.max(Math.abs(moved[0] - sx), Math.abs(moved[1] - sy))).toBe(2);   // fora do 3×3 do CC
+    expect(ed.removeRelicAt(30, 30, true)).toBe(true);
+    expect(ed.fixRelicAt(70, 3)).toBe(true);   // fora do mapa: começa da borda mais próxima
+    const inside = (ed.meta.relics as [number, number][])[2];
+    expect(inside[0]).toBe(63); expect(inside[1]).toBe(3);
+    expect(relicIssues(ed)).toEqual([]);
+    // borracha num tile só com a relíquia (desfazível); Pôr relíquia acrescenta e recusa o tile repetido
+    ed.ui.tool = 'erase'; ed.pointerDown(30, 30, 0); ed.pointerUp(30, 30, 0);
+    expect(ed.relicIndexAt(30, 30)).toBe(-1);
+    expect(ed.undo()).toBe(true); expect(ed.relicIndexAt(30, 30)).toBe(1);
+    expect(ed.addRelic(40, 40)).toBe(true); expect(ed.addRelic(40, 40)).toBe(false);
+    expect(ed.toFile().relics).toEqual([moved, [30, 30], inside, [40, 40]]);
+    // desmarcar "Relíquias" (setRelics false) também é desfazível: a lista volta
+    expect(ed.setRelics(false)).toBe(true); expect(ed.ui.relics).toEqual([]);
+    expect(ed.undo()).toBe(true); expect(ed.toFile().relics).toEqual([moved, [30, 30], inside, [40, 40]]);
+    // tirar todas: lista vazia = nenhuma relíquia no arquivo
+    for (const [x, y] of [moved, [30, 30], inside, [40, 40]] as [number, number][]) expect(ed.removeRelicAt(x, y)).toBe(true);
+    expect(ed.toFile().relics).toBe(false);
+  });
+  it('lista com item malformado ou acima do limite: "Limpar lista de relíquias"', () => {
+    const ed = editorOf({ ...blankMap(64, 64, 2, 7), startKit: false, relics: [[20, 20], [1.5, 2]] as unknown as [number, number][] });
+    expect(relicIssues(ed)).toEqual([['relicsFormat', undefined, undefined]]);
+    expect(ed.tidyRelics()).toBe(true);
+    expect(ed.meta.relics).toEqual([[20, 20]]); expect(relicIssues(ed)).toEqual([]);
+  });
+});

@@ -24,12 +24,13 @@ export interface EditorUI {
   bucket: boolean;                                   // terreno: o clique preenche a região contígua (balde) em vez de pintar com o pincel
   eyedrop: boolean;                                  // conta-gotas armado: o próximo clique copia o que está sob o cursor (P ou Alt+clique)
   koth: { x: number; y: number } | null;             // colina do Rei da Colina do arquivo (null = centro do mapa); o editor mantém em dia
+  relics: { x: number; y: number; bad: boolean }[]; // G10: relíquias em posições fixas do arquivo (meta.relics em lista); bad = fora do mapa, tile bloqueado ou CC do kit; o editor mantém em dia
   selected: { kind: 'unit' | 'building' | 'node' | 'start'; id: number } | null;   // inspetor (start: id = índice do início)
   flash: { x: number; y: number; until: number } | null;   // "ir até": tile a piscar (until = performance.now() alvo)
 }
 
 export function defaultEditorUI(): EditorUI {
-  return { tool: 'terrain', terrain: 0, brushRadius: 2, brushShape: 'circle', nodeType: 'tree', nodeAmount: null, buildingType: 'tower', unitType: 'hoplite', player: 0, complete: true, hover: null, ghostOk: false, lineFrom: null, showGrid: false, showRegions: false, showPassable: false, showKit: true, bucket: false, eyedrop: false, koth: null, selected: null, flash: null };
+  return { tool: 'terrain', terrain: 0, brushRadius: 2, brushShape: 'circle', nodeType: 'tree', nodeAmount: null, buildingType: 'tower', unitType: 'hoplite', player: 0, complete: true, hover: null, ghostOk: false, lineFrom: null, showGrid: false, showRegions: false, showPassable: false, showKit: true, bucket: false, eyedrop: false, koth: null, relics: [], selected: null, flash: null };
 }
 
 /** Operações do editor. Cada uma tem inversa exata (applyEditOp devolve-a). Tiles são índices y*w+x.
@@ -46,6 +47,7 @@ export type EditOp =
   | { kind: 'removeEntity'; id: number; nextId?: number }            // id de unidade ou edifício vivo; nextId: restaura state.nextId (inversa de placeEntity)
   | { kind: 'setEntity'; id: number; owner?: number; complete?: boolean; tag?: string | null }
   | { kind: 'moveEntity'; id: number; x: number; y: number }        // edifício: canto; unidade: tile
+  | { kind: 'setRelics'; relics?: boolean | [number, number][] }   // G10: meta.relics (posições fixas; ausente = sorteio); vive na MapEditor, fora do estado
   | { kind: 'batch'; ops: EditOp[]; nodeSeq?: number };   // nodeSeq: valor do contador de ids de nós a restaurar depois de aplicar (inversas exatas: o contador está no save)
 
 /** Quem desenha: o editor acumula um retângulo sujo por quadro e chama isto uma vez (renderer + minimapa). */

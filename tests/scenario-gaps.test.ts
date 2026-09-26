@@ -851,6 +851,34 @@ describe('G10: relíquias em cenário', () => {
     expect(shrink.data.relics).toEqual([[24, 24]]); expect(shrink.report.relics).toBe(1);
     expect(resizeMapData({ ...data, relics: [[5, 58]] }, 64, 56, 'n').data.relics).toBe(false);
   });
+  it('validateMap recusa relics malformado (texto, número, [x, y, extra], não inteiro) e repetido; no map.data do cenário vira erro', () => {
+    const data: FixedMapData = { ...blankMap(64, 64, 2, 7), startKit: false };
+    const codes = (relics: unknown) => validateMap({ ...data, relics } as unknown as FixedMapData).filter((i) => i.code.startsWith('relic')).map((i) => [i.code, i.x, i.y]);
+    expect(codes('abc')).toEqual([['relicsFormat', undefined, undefined]]);
+    expect(codes(5)).toEqual([['relicsFormat', undefined, undefined]]);
+    expect(codes([[20, 20, 999]])).toEqual([['relicsFormat', 20, 20]]);
+    expect(codes([[1.5, 2], [7]])).toEqual([['relicsFormat', undefined, undefined], ['relicsFormat', undefined, undefined]]);
+    expect(codes([[20, 20], [24, 24], [20, 20]])).toEqual([['relicDup', 20, 20]]);
+    expect(codes([[20, 20], [24, 24]])).toEqual([]); expect(codes(true)).toEqual([]); expect(codes(false)).toEqual([]);
+    // cenário com mapa fixo inline: antes sorteava 4 relíquias em silêncio ('abc' !== false)
+    const f = mk({ config: { ...mk().config, startKit: false }, map: { data: { ...data, relics: 'abc' } as unknown as FixedMapData } });
+    expect(paths(f)).toEqual(['map.data']);
+    expect(paths({ ...f, map: { data: { ...data, relics: [[20, 20], [20, 20]] } } })).toEqual(['map.data']);
+  });
+  it('mapa fixo: só as relíquias do mapa valem — config.relics (map.gen.relics de um cenário embutido) não as troca nem apaga', () => {
+    const data: FixedMapData = { ...blankMap(64, 64, 2, 7), startKit: false, relics: [[24, 24]] };
+    const players: GameConfig['players'] = [{ name: 'A', god: 'zeus', isAI: false, difficulty: 'normal' }, { name: 'B', god: 'hades', isAI: false, difficulty: 'normal' }];
+    const at = (s: GameState) => s.relics.map((r) => [r.x, r.y]);
+    expect(at(createGame({ seed: 3, mapSize: 'large', players, map: data, relics: [[40, 40], [10, 10]] }))).toEqual([[24.5, 24.5]]);
+    expect(at(createGame({ seed: 3, mapSize: 'large', players, map: data, relics: false }))).toEqual([[24.5, 24.5]]);
+    expect(createGame({ seed: 3, mapSize: 'large', players, map: { ...data, relics: false }, relics: true }).relics.length).toBe(0);
+    // como startScenarioFile / Testar do editor / lobby montam a partida: { ...gameConfigFor(cenário), map }
+    const sc = mk({ config: { ...mk().config, startKit: false }, map: { gen: { mapSize: 'large', seed: 1 }, relics: [[40, 40], [10, 10]] } });
+    expect(validateScenario(sc)).toEqual([]);
+    expect(at(createGame({ ...gameConfigFor(sc), map: data, scenarioData: sc }))).toEqual([[24.5, 24.5]]);
+    const off = mk({ config: { ...mk().config, startKit: false }, map: { gen: { mapSize: 'large', seed: 1 }, relics: false } });
+    expect(at(createGame({ ...gameConfigFor(off), map: data, scenarioData: off }))).toEqual([[24.5, 24.5]]);
+  });
 });
 
 describe('G11: poderes por roteiro', () => {
@@ -1047,6 +1075,21 @@ describe('G13: autoria de abate', () => {
     const x = spawnUnit(plain, 1, 'hoplite', 20, 20);
     applyDamage(plain, x, 1e6, 0);
     expect(x.dead).toBe(true); expect(plain.scenario).toBeUndefined();
+  });
+  it('alicerce (obra incompleta) derrubado não conta como abate, como stats.razed; o edifício completo conta', () => {
+    const { s, p, tc1 } = arena();
+    const obra = placeBuilding(s, 1, 'town_center', tc1.tx - 12, tc1.ty + 12, false);
+    expect(obra.complete).toBe(false);
+    applyDamage(s, obra, 1e6, 0, p);
+    expect(obra.dead).toBe(true);
+    expect(s.players[0].stats.razed).toBe(0);
+    expect(cond(s, { kills: { player: 0, type: 'town_center' }, eq: 0 })).toBe(true);
+    expect(s.scenario!.kills.byEntity[`0:${p.id}`]).toBeUndefined();
+    const cc = placeBuilding(s, 1, 'town_center', tc1.tx - 12, tc1.ty + 12, true);
+    applyDamage(s, cc, 1e6, 0, p);
+    expect(cc.dead).toBe(true);
+    expect(s.players[0].stats.razed).toBe(1);
+    expect(cond(s, { kills: { player: 0, type: 'town_center', by: { tag: 'perseu' } }, eq: 1 })).toBe(true);
   });
   it('validação e lint de kills', () => {
     expect(paths(mk({ victory: { kills: { player: 0 } } as unknown as Condition }))).toEqual(['victory']);

@@ -180,7 +180,7 @@ export interface GameConfig {
   campaignDifficulty?: 'easy' | 'normal' | 'hard';      // campanha/Horda: escala das invasões roteirizadas e das IAs inimigas
   startKit?: boolean | boolean[];                       // kit inicial (CC + cidadãos + batedor) por partida ou por jogador; padrão map?.startKit ?? true
   scenarioData?: ScenarioFile;                          // cenário declarativo (JSON, docs/EDITOR.md §2.3): compilado por getScenarioFor no lugar de scenario
-  relics?: boolean | [number, number][];                // G10: relíquias da partida (cenário em mapa gerado): lista = posições fixas (tiles); false = nenhuma; padrão map?.relics ?? sorteio
+  relics?: boolean | [number, number][];                // G10: relíquias da partida (cenário em mapa gerado): lista = posições fixas (tiles); false = nenhuma; ignorado com config.map (valem as do mapa fixo); padrão sorteio
 }
 
 export interface GameState {

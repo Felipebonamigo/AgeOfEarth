@@ -488,15 +488,24 @@ export function validateMap(input: FixedMapData, opts: ValidateOpts = {}): MapIs
     const hc = hill ? componentAt(map, hill.x, hill.y) : -1;
     if (hc < 0 || startComp.some((c) => c !== hc)) warn('kothUnreachable', kx, ky);
   }
-  // relíquias em posições fixas (G10): dentro do mapa, em terra livre (sem água, montanha, recurso ou edifício que bloqueia)
-  // e na região de algum início (ninguém recolhe uma relíquia num bolsão, numa ilha ou atrás de muralha sem portão)
+  // relíquias em posições fixas (G10): true/false ou lista de [x, y] inteiros sem repetir (como checkRelics do cenário),
+  // dentro do mapa, em terra livre (sem água, montanha, recurso ou edifício que bloqueia) e na região de algum início
+  // (ninguém recolhe uma relíquia num bolsão, numa ilha ou atrás de muralha sem portão). O formato é conferido no valor
+  // recebido: migrateMap apaga `relics` que não é boolean nem lista, mas createGame usaria o original (map.data de cenário).
+  const rawRelics = (input as { relics?: unknown }).relics;
+  if (rawRelics !== undefined && typeof rawRelics !== 'boolean' && !Array.isArray(rawRelics)) err('relicsFormat');
   if (Array.isArray(data.relics)) {
     if (data.relics.length > MAX_FIXED_RELICS) err('relicsCount', undefined, undefined, { count: data.relics.length, max: MAX_FIXED_RELICS });
     const regions = new Set(startComp.filter((c) => c >= 0));
-    for (const r of data.relics) {
-      if (!Array.isArray(r) || !Number.isInteger(r[0]) || !Number.isInteger(r[1]) || r[0] < 0 || r[1] < 0 || r[0] >= w || r[1] >= h) { err('relicOut', Number(Array.isArray(r) ? r[0] : NaN) || 0, Number(Array.isArray(r) ? r[1] : NaN) || 0); continue; }
-      if (map.blocked[r[1] * w + r[0]]) err('relicBlocked', r[0], r[1]);
-      else if (!regions.has(componentAt(map, r[0], r[1]))) err('relicUnreachable', r[0], r[1]);
+    const seen = new Set<number>();
+    for (const r of data.relics as unknown[]) {
+      if (!Array.isArray(r) || r.length !== 2 || !Number.isInteger(r[0]) || !Number.isInteger(r[1])) { err('relicsFormat', ...(Array.isArray(r) && Number.isInteger(r[0]) && Number.isInteger(r[1]) ? [r[0] as number, r[1] as number] : [])); continue; }
+      const [x, y] = r as [number, number];
+      if (x < 0 || y < 0 || x >= w || y >= h) { err('relicOut', x, y); continue; }
+      if (seen.has(y * w + x)) { err('relicDup', x, y); continue; }
+      seen.add(y * w + x);
+      if (map.blocked[y * w + x]) err('relicBlocked', x, y);
+      else if (!regions.has(componentAt(map, x, y))) err('relicUnreachable', x, y);
     }
   }
   for (const p of pockets) warn('pocket', p.x, p.y, { tiles: p.size });

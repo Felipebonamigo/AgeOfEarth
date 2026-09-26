@@ -39,6 +39,10 @@ export type TagMap = Map<number, string>;
 
 export type Rect = { x0: number; y0: number; x1: number; y1: number };
 
+/** Metadados do arquivo que ops alteram (setRelics, G10). Vivem na MapEditor (meta), fora do estado; ops recebe a referência. */
+export type MetaRef = { relics?: boolean | [number, number][] };
+const copyRelics = (v: boolean | [number, number][]): boolean | [number, number][] => (Array.isArray(v) ? v.map(([x, y]) => [x, y] as [number, number]) : v);
+
 const isSolid = (t: number) => t === TERRAIN.WATER || t === TERRAIN.DEEP || t === TERRAIN.MOUNTAIN;
 const MAX_TERRAIN = Math.max(...Object.values(TERRAIN));
 
@@ -108,7 +112,7 @@ export function dirtyRectOf(op: EditOp, w: number, state?: GameState): Rect | nu
     }
     case 'addNode': case 'removeNode': case 'setNodeAmount': case 'setStart':
       return { x0: op.x, y0: op.y, x1: op.x, y1: op.y };
-    case 'removeStart': return null;
+    case 'removeStart': case 'setRelics': return null;   // relíquias: sobreposição redesenhada a cada quadro
     case 'placeEntity': return entityRect(op.entity);
     case 'removeEntity': case 'setEntity': {
       if (!state) return null;
@@ -202,16 +206,22 @@ function refreshWonderMods(state: GameState, ...owners: number[]): void {
  * a op é recusada (ver códigos). tags: mapa externo id → tag mantido pela MapEditor (opcional).
  */
 /** Aplica a operação e devolve a inversa exata. O contador global de ids de nós (gravado no save) também é restaurado pela inversa. */
-export function applyEditOp(state: GameState, op: EditOp, tags?: TagMap): EditOp {
+export function applyEditOp(state: GameState, op: EditOp, tags?: TagMap, meta?: MetaRef): EditOp {
   const prev = getNodeSeq();
   let inv: EditOp;
-  try { inv = applyEditOpInner(state, op, tags); } catch (e) { resetNodeSeq(prev); throw e; }   // op recusada: nada muda, nem o contador
+  try { inv = applyEditOpInner(state, op, tags, meta); } catch (e) { resetNodeSeq(prev); throw e; }   // op recusada: nada muda, nem o contador
   if ('nodeSeq' in op && op.nodeSeq !== undefined) resetNodeSeq(op.nodeSeq);
   if (inv.kind === 'paint' || inv.kind === 'addNode' || inv.kind === 'removeNode' || inv.kind === 'batch') inv.nodeSeq = prev;
   return inv;
 }
-function applyEditOpInner(state: GameState, op: EditOp, tags?: TagMap): EditOp {
+function applyEditOpInner(state: GameState, op: EditOp, tags?: TagMap, meta?: MetaRef): EditOp {
   switch (op.kind) {
+    case 'setRelics': {   // G10: troca a lista de relíquias dos metadados; a inversa devolve a anterior (ausente = sorteio)
+      if (!meta) throw new EditError('notFound');
+      const before = meta.relics;
+      if (op.relics === undefined) delete meta.relics; else meta.relics = copyRelics(op.relics);
+      return before === undefined ? { kind: 'setRelics' } : { kind: 'setRelics', relics: copyRelics(before) };
+    }
     case 'paint': return applyPaint(state, op);
     case 'addNode': {
       const map = state.map;
@@ -332,10 +342,10 @@ function applyEditOpInner(state: GameState, op: EditOp, tags?: TagMap): EditOp {
     case 'batch': {
       const done: EditOp[] = [];
       try {
-        for (const o of op.ops) done.push(applyEditOp(state, o, tags));
+        for (const o of op.ops) done.push(applyEditOp(state, o, tags, meta));
       } catch (err) {
         // desfaz o que já foi aplicado para a op composta ser atômica
-        for (let i = done.length - 1; i >= 0; i--) applyEditOp(state, done[i], tags);
+        for (let i = done.length - 1; i >= 0; i--) applyEditOp(state, done[i], tags, meta);
         throw err;
       }
       return { kind: 'batch', ops: done.reverse() };

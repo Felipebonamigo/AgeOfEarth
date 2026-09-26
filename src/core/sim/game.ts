@@ -116,7 +116,7 @@ export function createGame(config: GameConfig): GameState {
     for (const p of state.players) { recomputePop(state, p); p.stats.buildingsBuilt = 0; p.stats.unitsTrained = 0; }
     state.events = [];
   }
-  const relics = config.relics ?? config.map?.relics;   // G10: lista = posições fixas; false = nenhuma; padrão sorteio
+  const relics = config.map ? config.map.relics : config.relics;   // G10: lista = posições fixas; false = nenhuma; padrão sorteio. Mapa fixo: só as dele (map.gen de um cenário embutido não as troca)
   if (Array.isArray(relics)) placeRelicsAt(state, relics); else if (relics !== false) placeRelics(state);
   if (mode === 'koth') {
     const raw = config.map?.koth;

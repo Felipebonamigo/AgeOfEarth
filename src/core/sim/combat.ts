@@ -207,7 +207,7 @@ export function killUnit(state: GameState, u: Unit, killerOwner: number, killer?
 export function destroyBuilding(state: GameState, b: Building, killerOwner: number, killer?: Unit | Building): void {
   if (b.dead) return;
   b.dead = true; b.hp = 0;
-  if (killerOwner >= 0 && killerOwner !== b.owner) recordKill(state, b.type, killerOwner, killer);   // G13: autoria para o cenário (só registra)
+  if (b.complete && killerOwner >= 0 && killerOwner !== b.owner) recordKill(state, b.type, killerOwner, killer);   // G13: autoria para o cenário (só registra); alicerce não conta, como stats.razed
   const def = BUILDINGS[b.type];
   const victim = state.players[b.owner];
   // Libera tiles
