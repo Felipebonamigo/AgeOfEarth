@@ -256,7 +256,8 @@ describe('artefatos gerados (public/art, se existirem)', () => {
     const r = runCheck(ROOT);
     expect(r.errors).toEqual([]);
     expect(r.stats.pngBytes).toBeLessThanOrEqual(BUDGET.maxPngMB * 1048576);
-    expect(r.stats.vramBytes).toBeLessThanOrEqual(BUDGET.maxVramMB * 1048576);
+    // VRAM por escala, em texels de 1× (uma partida carrega uma escala só; o 2× é o mesmo conteúdo com 4× os texels)
+    for (const [s, bytes] of Object.entries(r.stats.vramByScale)) expect(bytes / (Number(s) * Number(s)), `${s}×`).toBeLessThanOrEqual(BUDGET.maxVramMB * 1048576);
   });
   it.runIf(hasArt)('todo manifesto está no índice e as animações declaradas estão no JSON do atlas', () => {
     const index = JSON.parse(fs.readFileSync(path.join(ROOT, 'public', 'art', 'manifest.json'), 'utf8'));

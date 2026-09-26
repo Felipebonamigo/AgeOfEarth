@@ -1,0 +1,60 @@
+{
+  "id": "cretan_archer",
+  "kind": "unit",
+  "stage": 4,
+  "docs": "Kit do rig humano escolhido só por parâmetros (docs/ART.md, Apêndice E). Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/cretan_archer.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Walk\", \"attack\": \"Shoot\", \"aim\": \"Aim\", \"die\": \"Death\" }, \"teamMaterials\": [\"Crest\", \"Cape\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "human",
+    "poses": "art/poses/human.json",
+    "params": {
+      "helmet": "pilos",
+      "crest": "tall",
+      "crestColor": "team",
+      "armor": "cuirass",
+      "greaves": true,
+      "cape": "long",
+      "weapon": "bow"
+    }
+  },
+  "size": {
+    "tiles": [
+      3.2,
+      3.6
+    ]
+  },
+  "anchor": [
+    0.45,
+    0.58
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": {
+      "frames": 4,
+      "fps": 10,
+      "pose": "idle_bow"
+    },
+    "walk": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "walk_bow"
+    },
+    "attack": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "attack_bow"
+    },
+    "aim": {
+      "frames": 2,
+      "fps": 10,
+      "pose": "aim_bow"
+    },
+    "die": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "die"
+    }
+  },
+  "team": true,
+  "shadow": true
+}

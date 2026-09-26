@@ -6,7 +6,8 @@
 // logo depois do bake, sem abrir o navegador.
 //
 // Uso: node scripts/bake/lineup.mjs [--art public/art] [--scale 1] [--zoom 3] [--ids hoplite,militia,…]
-//                                   [--team 0x3b82f6] [--out docs/art/etapa4-lote1-fila.png]
+//                                   [--team 0x3b82f6] [--out docs/art/etapa4-lote1-fila.png] [--cell 1.6,1.9]
+// `--cell w,h` (tiles): tamanho da célula — o cerco pede ≈ 3,2 × 4,4 (padrão 1,6 × 1,9, para humanos).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -37,7 +38,8 @@ for (const a of index.atlases) {
 // colunas: poses a mostrar (anim, dir, quadro); a mira só para quem a tem
 const POSES = [['idle', 2, 0], ['idle', 1, 0], ['idle', 0, 0], ['idle', 6, 0], ['walk', 1, 2], ['attack', 1, 1], ['aim', 1, 0], ['run', 1, 2]];
 const cols = POSES.filter(([anim]) => ids.some((id) => index.assets[id]?.anims?.[anim]));
-const CW = Math.round(1.6 * PPT), CH = Math.round(1.9 * PPT);   // célula: 1,6 × 1,9 tiles (pé a 72 %)
+const CELL = opt('--cell', '1.6,1.9').split(',').map(Number);
+const CW = Math.round(CELL[0] * PPT), CH = Math.round(CELL[1] * PPT);   // célula: 1,6 × 1,9 tiles (pé a 72 %)
 const cw = CW * cols.length, ch = CH * ids.length;
 const out = new Uint8Array(cw * ch * 4);
 for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {

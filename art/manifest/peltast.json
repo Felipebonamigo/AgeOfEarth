@@ -1,0 +1,60 @@
+{
+  "id": "peltast",
+  "kind": "unit",
+  "stage": 4,
+  "docs": "Kit do rig humano escolhido só por parâmetros (docs/ART.md, Apêndice E). Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/peltast.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Walk\", \"attack\": \"Throw\", \"aim\": \"Aim\", \"die\": \"Death\" }, \"teamMaterials\": [\"Headband\", \"Cloak\", \"PelteFace\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "human",
+    "poses": "art/poses/human.json",
+    "params": {
+      "helmet": "none",
+      "hair": true,
+      "headband": true,
+      "armor": "tunic",
+      "cape": "short",
+      "shield": "pelte",
+      "weapon": "javelin"
+    }
+  },
+  "size": {
+    "tiles": [
+      3.2,
+      3.6
+    ]
+  },
+  "anchor": [
+    0.45,
+    0.58
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": {
+      "frames": 4,
+      "fps": 10,
+      "pose": "idle_pelte"
+    },
+    "walk": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "walk_pelte"
+    },
+    "attack": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "attack_javelin"
+    },
+    "aim": {
+      "frames": 2,
+      "fps": 10,
+      "pose": "aim_javelin"
+    },
+    "die": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "die"
+    }
+  },
+  "team": true,
+  "shadow": true
+}
