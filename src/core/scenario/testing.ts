@@ -4,7 +4,7 @@
 //   runScripted: o jogador 0 ganha um estado de IA (aiThink a cada tick, economia e exército como numa partida IA × missão)
 //                e, por cima, passos roteirizados { when: Condition, command } aplicados por applyCommand (via tick).
 import { TICK_RATE, type Difficulty, type ResourceType } from '../constants';
-import { BUILDINGS, UNITS } from '../data';
+import { ACADEMY_LINES, BUILDINGS, TECHS, UNITS } from '../data';
 import type { Building, Command, GameConfig, GameState, Unit } from '../types';
 import { createGame, tick } from '../sim/game';
 import { aiThink, findBuildSpot } from '../sim/ai';
@@ -13,7 +13,7 @@ import type { ObjectiveStatus, ScenarioDef } from './types';
 import { validateScenario, type CampaignDifficulty, type Condition, type ScenarioFile } from './schema';
 import { compileCondition, gameConfigFor } from './compile';
 import { campaignMission, isCampaignMission, missionConfig, withCampaignDifficulty, type CampaignEntry } from './campaign';
-import { canResearch, canTrain } from '../sim/commands';
+import { academyTechCount, canAdvanceAge, canResearch, canTrain } from '../sim/commands';
 import { getBuildingStats, getUnitStats } from '../sim/modifiers';
 import { canAfford } from '../sim/economy';
 import { isEnemy, nearestNode } from '../sim/queries';
@@ -44,8 +44,9 @@ export interface ScriptedRunOpts extends MissionRunOpts {
   steps: ScriptStep[];
   /** Enquanto valer, a IA do jogador 0 não lança ondas de ataque (joga na defesa); a defesa de ameaças continua. */
   hold?: Condition;
-  /** Cofre do jogador: enquanto `when` valer, a IA do jogador 0 não enxerga (nem gasta) até `resources` do estoque; os passos veem tudo. */
-  reserve?: ScriptReserve;
+  /** Cofre do jogador: enquanto `when` valer, a IA do jogador 0 não enxerga (nem gasta) até `resources` do estoque; os passos veem tudo.
+   * Uma lista soma os cofres que valem no momento (cada um com a sua condição). */
+  reserve?: ScriptReserve | ScriptReserve[];
   /** Destacamento: unidades do jogador 0 que a IA dele não enxerga (nem comanda) durante o aiThink; só os passos as conduzem. */
   detach?: ScriptDetach;
   /** Poderes guardados para os passos: a IA do jogador 0 não os usa (ver MissionScript.keepPowers). */
@@ -111,7 +112,7 @@ export function missionRunConfig(src: MissionSource, difficulty: CampaignDifficu
 
 const TITANS = Object.keys(UNITS).filter((k) => UNITS[k].tags.includes('titan'));
 
-function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; reserve?: ScriptReserve; detach?: ScriptDetach; keepPowers?: string[] }, steps: ScriptStep[] | null): MissionRunResult {
+function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; reserve?: ScriptReserve | ScriptReserve[]; detach?: ScriptDetach; keepPowers?: string[] }, steps: ScriptStep[] | null): MissionRunResult {
   const difficulty = opts.difficulty ?? 'normal';
   const raids: RaidRecord[] = [];
   const checks: MissionChecks = { noException: true, noEarlyObjective: true, oneTitanEach: true, raidsSpawned: true, deterministic: true };
@@ -127,8 +128,9 @@ function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; 
     if (steps) me.ai = { difficulty: opts.playerAi ?? 'hard', nextThink: TICK_RATE * 2, lastAttack: 0, attackTarget: -1, waves: 0, rallyX: 0, rallyY: 0, defending: -1000, builderIds: [], lastExpand: 0, personality: (run.config.seed + 3) % 97 };
     const conds = (steps ?? []).map((s) => compileCondition(s.when));
     const hold = steps && opts.hold ? compileCondition(opts.hold) : null;
-    const reserve = steps && opts.reserve ? { when: compileCondition(opts.reserve.when), resources: opts.reserve.resources } : null;
-    let saving = false;   // cofre ativo (reavaliado uma vez por segundo)
+    // cofres (um ou vários, cada um com a sua condição): com um só, exatamente como antes
+    const reserves = steps && opts.reserve ? (Array.isArray(opts.reserve) ? opts.reserve : [opts.reserve]).map((r) => ({ when: compileCondition(r.when), resources: r.resources })) : [];
+    let saving = reserves.map(() => false);   // cofres ativos (reavaliados uma vez por segundo)
     let detached: number[] = [];   // destacamento (reavaliado uma vez por segundo)
     const next = (steps ?? []).map(() => 0);   // próximo segundo em que o passo pode disparar (-1 = encerrado)
     const total = Math.round(opts.minutes * 60 * TICK_RATE);
@@ -143,12 +145,12 @@ function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; 
       });
       tick(state, cmds);
       if (hold && me.ai && state.tick % TICK_RATE === 0 && hold(state)) me.ai.lastAttack = state.tick;   // "segura" as ondas da IA do jogador
-      if (reserve && state.tick % TICK_RATE === 0) saving = reserve.when(state);
+      if (reserves.length && state.tick % TICK_RATE === 0) saving = reserves.map((r) => r.when(state!));
       if (steps && opts.detach && state.tick % TICK_RATE === 0) detached = opts.detach(state);
       if (steps && me.alive && !state.gameOver) {
         // cofre: a IA pensa sem a parte guardada do estoque (não a gasta) e ela volta intacta logo depois
         const hidden: [ResourceType, number][] = [];
-        if (reserve && saving) for (const [r, v] of Object.entries(reserve.resources) as [ResourceType, number][]) { const h = Math.max(0, Math.min(me.resources[r], v)); me.resources[r] -= h; hidden.push([r, h]); }
+        reserves.forEach((rv, k) => { if (saving[k]) for (const [r, v] of Object.entries(rv.resources) as [ResourceType, number][]) { const h = Math.max(0, Math.min(me.resources[r], v)); me.resources[r] -= h; hidden.push([r, h]); } });
         // destacamento: a IA pensa sem enxergar essas unidades (como se estivessem guarnecidas) e elas voltam logo depois
         const away: Unit[] = [];
         for (const id of detached) { const u = state.units.get(id); if (u && !u.dead && u.owner === 0 && u.inside === -1) { u.inside = -2; away.push(u); } }
@@ -189,7 +191,7 @@ function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; 
   };
 }
 
-function withDeterminism(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; reserve?: ScriptReserve; detach?: ScriptDetach; keepPowers?: string[] }, steps: ScriptStep[] | null): MissionRunResult {
+function withDeterminism(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; reserve?: ScriptReserve | ScriptReserve[]; detach?: ScriptDetach; keepPowers?: string[] }, steps: ScriptStep[] | null): MissionRunResult {
   const a = runOnce(src, opts, steps);
   if (opts.deterministic === false || !a.checks.noException) return a;
   const b = runOnce(src, opts, steps);
@@ -366,8 +368,8 @@ export interface MissionScript {
   playerAi?: Difficulty;
   /** Enquanto valer, a IA do jogador não lança ondas de ataque (defesa); os passos continuam valendo. */
   hold?: Condition;
-  /** Cofre: parte do estoque que a IA do jogador não gasta enquanto a condição valer (ScriptReserve). */
-  reserve?: ScriptReserve;
+  /** Cofre: parte do estoque que a IA do jogador não gasta enquanto a condição valer (ScriptReserve; uma lista soma os que valem). */
+  reserve?: ScriptReserve | ScriptReserve[];
   /** Destacamento: unidades que a IA do jogador não comanda (ScriptDetach); os passos as conduzem. */
   detach?: ScriptDetach;
   /** Dificuldades em que a vitória dentro da janela não é exigida, com o motivo (listadas na saída; use só depois de esforço honesto). */
@@ -1122,6 +1124,238 @@ function m7Hunt(state: GameState): Command[] {
   return out;
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// m8 "A Maré de Oceano": defesa de Argos na crista da Áspis e o chefe-Titã em três marés (o Raio guardado para a última)
+// ---------------------------------------------------------------------------------------------------------------
+
+/** m8: composição do exército (pesos): os quatro heróis (dano triplo em míticas, e o Titã é uma), infantaria pesada na frente,
+ * arqueiros cretenses atrás, Minotauros de Atena e petróbolos contra as ondas da Liga. */
+const M8_MIX: Record<string, number> = { jason: 1, odysseus: 1, heracles: 1, achilles: 1, hypaspist: 3, myrmidon: 3, cretan_archer: 3, minotaur: 2, hetairoi: 1, petrobolos: 1 };
+/** m8: a brecha da crista (as três casas abertas entre os muros das pontas) e o ponto de reunião do exército, dentro da muralha. */
+const M8_BREACH: [number, number][] = [[63, 38], [64, 38], [65, 38]];
+const M8_HOME = { x: 64, y: 32 };
+/** m8: as torres do sul (atrás das três passagens da crista, do lado de dentro). */
+const M8_TOWERS: [number, number][] = [[48, 34], [53, 33], [60, 34], [68, 34], [61, 31], [67, 31], [75, 33], [80, 34]];
+
+/** Oceano vivo (tag 'oceano'). */
+function m8Oceanus(state: GameState): Unit | null { const id = state.scenario?.vars['#oceano']; const u = id !== undefined ? state.units.get(id) : undefined; return u && !u.dead ? u : null; }
+/** Maré alta: Oceano marcha sobre Argos (entre o ergue_k e o recua_k do cenário). */
+function m8High(state: GameState): boolean { return state.scenario?.vars.alta === 1; }
+
+/** m8: até `n` torres nos pontos de M8_TOWERS (na ordem), uma por chamada, com recurso de sobra. */
+function m8Towers(state: GameState, n: number): Command | null {
+  const p = state.players[0];
+  let have = 0;
+  for (const b of state.buildings.values()) if (b.owner === 0 && !b.dead && b.type === 'tower' && b.y > 28) have++;
+  if (have >= n) return null;
+  const cost = getBuildingStats(state, p, 'tower').cost;
+  if (p.resources.wood < (cost.wood ?? 0) + 200 || p.resources.gold < (cost.gold ?? 0) + 150) return null;
+  for (const [x, y] of M8_TOWERS) {
+    if (!canPlaceBuilding(state, p, 'tower', x, y).ok) continue;
+    const v = villagersNear(state, x, y).find((u) => u.state !== 'build'); if (!v) return null;
+    return { type: 'build', player: 0, ids: [v.id], building: 'tower', tx: x, ty: y };
+  }
+  return null;
+}
+
+/** m8: fecha a brecha com muralha (um cidadão por casa), como a dica de Jasão sugere; nada se ela já estiver fechada. */
+function m8Breach(state: GameState): Command[] {
+  const p = state.players[0];
+  const open = M8_BREACH.filter(([x, y]) => canPlaceBuilding(state, p, 'wall', x, y).ok);
+  if (!open.length) return [];
+  const vills = villagersNear(state, 64, 34).filter((u) => u.state !== 'build');
+  const out: Command[] = [];
+  open.forEach(([x, y], k) => { const v = vills[k]; if (v) out.push({ type: 'build', player: 0, ids: [v.id], building: 'wall', tx: x, ty: y }); });
+  return out;
+}
+
+/**
+ * m8, a luta na maré alta: com Oceano a até 34 tiles do Centro Cívico (ele desce da praia e bate na crista), os heróis (menos
+ * Jasão) e Prometeu batem nele (dano triplo dos heróis) e o resto do exército vai em ataque-movimento até ele (a escolta e as
+ * ondas ficam pelo caminho). Com `cautious` (variante dos Titãs, que guarda o Favor e fica sem heróis), a 1ª maré — que só bate na
+ * crista — não é enfrentada sem ao menos dois deles: o exército fica em casa e o Titã desmancha muros e torres até a maré baixar.
+ * Na maré baixa, ninguém persegue o mar até a praia: quem está a mais de 20 tiles do ponto de reunião volta para dentro da muralha.
+ * Jasão fica sempre de fora (m8JasonCare).
+ */
+function m8Fight(state: GameState, cautious = false): Command[] {
+  const o = m8Oceanus(state);
+  const tc = firstBuilding(state, 'town_center');
+  const out: Command[] = [];
+  const army = armyOf(state).map((id) => state.units.get(id)!).filter((u) => u.type !== 'jason');
+  const d2 = (u: { x: number; y: number }, p: { x: number; y: number }) => (u.x - p.x) * (u.x - p.x) + (u.y - p.y) * (u.y - p.y);
+  const striker = (u: Unit) => UNITS[u.type].tags.includes('hero') || u.type === 'prometheus';
+  if (o && tc && m8High(state) && d2(o, tc) <= 34 * 34) {
+    const engage = !cautious || army.filter(striker).length >= 2 || (state.scenario?.vars.mare ?? 0) >= 2;
+    if (engage) {
+      const heroes = army.filter((u) => striker(u) && u.targetId !== o.id).map((u) => u.id);
+      if (heroes.length) out.push({ type: 'attack', player: 0, ids: heroes, targetId: o.id });
+      const rest = army.filter((u) => !striker(u) && d2(u, o) > 12 * 12 && u.state !== 'attack').map((u) => u.id);
+      if (rest.length) out.push({ type: 'attackMove', player: 0, ids: rest, x: o.x, y: o.y });
+      return out;
+    }
+  }
+  const disengage = !m8High(state) || (cautious && (state.scenario?.vars.mare ?? 0) < 2);
+  if (m8High(state) && !disengage) return out;   // maré alta com Oceano ainda longe: o exército espera em casa (a IA do jogador defende)
+  // maré baixa (ou a 1ª maré, com cautela): quem persegue Oceano desengaja com 'move' (num ataque-movimento, o Titã a um passo
+  // seria o alvo de novo; na praia ele é invulnerável e esmaga quem chega — medido: 76 de 82 militares morreram assim no 1º recuo);
+  // os demais longe de casa voltam em ataque-movimento
+  const chasing = o ? army.filter((u) => (u.targetId === o.id && (u.state === 'attack' || u.state === 'attackMove')) || d2(u, o) <= 14 * 14).map((u) => u.id) : [];
+  if (chasing.length) out.push({ type: 'move', player: 0, ids: chasing, x: M8_HOME.x, y: M8_HOME.y - (cautious ? 14 : 0) });
+  const far = army.filter((u) => !chasing.includes(u.id) && ((d2(u, M8_HOME) > 20 * 20 && u.state !== 'attack') || d2(u, M8_HOME) > 45 * 45)).map((u) => u.id);
+  if (far.length) out.push({ type: 'attackMove', player: 0, ids: far, x: M8_HOME.x, y: M8_HOME.y });
+  return out;
+}
+
+/**
+ * m8, o segredo de Lerna: antes de Oceano subir, os heróis (menos Jasão) e até 8 militares vão aos pântanos e matam a Hidra (dano
+ * triplo dos heróis); morta a Hidra, quem foi volta para dentro da muralha. null quando não há o que fazer.
+ */
+function m8Hydra(state: GameState): Command | null {
+  const h = entityPos(state, '#hidra');
+  const army = armyOf(state).map((id) => state.units.get(id)!).filter((u) => u.type !== 'jason');
+  if (!h) {
+    const back = army.filter((u) => u.y > 44 && u.state !== 'attack').map((u) => u.id);
+    return back.length ? { type: 'attackMove', player: 0, ids: back, x: M8_HOME.x, y: M8_HOME.y } : null;
+  }
+  const heroes = army.filter((u) => UNITS[u.type].tags.includes('hero'));
+  if (heroes.length < 2) return null;
+  const hydra = state.scenario!.vars['#hidra'];
+  const escort = army.filter((u) => !UNITS[u.type].tags.includes('hero') && !UNITS[u.type].tags.includes('siege')).slice(0, 8);
+  const ids = [...heroes, ...escort].filter((u) => u.targetId !== hydra).map((u) => u.id);
+  return ids.length ? { type: 'attack', player: 0, ids, targetId: hydra } : null;
+}
+
+/**
+ * m8, o caminho dos Titãs (a 3ª resposta da ficha): as pesquisas da Academia que faltam para 6 (a de nível mais baixo primeiro),
+ * a Fortaleza perto do Centro Cívico, a Idade dos Titãs assim que der e o Portal dos Titãs com 8 cidadãos (em cenário, a IA do
+ * jogador não põe construtores no Portal: quem o ergue é o roteiro). Um comando por chamada, na ordem do que falta.
+ */
+function m8Titans(state: GameState): Command | null {
+  const p = state.players[0];
+  const tc = firstBuilding(state, 'town_center'); if (!tc || !tc.complete) return null;
+  if (p.age >= 4) {
+    const gate = firstBuilding(state, 'titan_gate');
+    if (gate) {
+      if (gate.complete) return null;
+      const near = villagersNear(state, gate.x, gate.y).filter((u) => u.state !== 'pray');
+      const working = near.filter((u) => u.state === 'build' && u.targetId === gate.id).length;
+      const ids = near.filter((u) => u.targetId !== gate.id).slice(0, Math.max(0, 8 - working)).map((u) => u.id);
+      return ids.length ? { type: 'repair', player: 0, ids, targetId: gate.id } : null;
+    }
+    if (!canAfford(p, getBuildingStats(state, p, 'titan_gate').cost)) return null;
+    const spot = findBuildSpot(state, p, 'titan_gate', tc.x, tc.y, 4, 16); if (!spot) return null;
+    const ids = villagersNear(state, spot.x + 2, spot.y + 2).filter((u) => u.state !== 'pray').slice(0, 8).map((u) => u.id);
+    return ids.length ? { type: 'build', player: 0, ids, building: 'titan_gate', tx: spot.x, ty: spot.y } : null;
+  }
+  if (academyTechCount(p) < 6) {
+    const ac = [...state.buildings.values()].find((b) => b.owner === 0 && !b.dead && b.complete && b.type === 'academy' && b.queue.length === 0); if (!ac) return null;
+    const next = Object.keys(TECHS).filter((t) => TECHS[t].line && ACADEMY_LINES.includes(TECHS[t].line!) && !p.techs.includes(t) && canResearchNow(state, ac.id, t))
+      .sort((a, b) => (TECHS[a].level ?? 0) - (TECHS[b].level ?? 0) || (a < b ? -1 : 1))[0];
+    return next ? { type: 'research', player: 0, buildingId: ac.id, tech: next } : null;
+  }
+  if (!firstBuilding(state, 'fortress')) {
+    if (!canAfford(p, getBuildingStats(state, p, 'fortress').cost)) return null;
+    const spot = findBuildSpot(state, p, 'fortress', tc.x, tc.y, 4, 14); if (!spot) return null;
+    const ids = villagersNear(state, spot.x + 2, spot.y + 2).filter((u) => u.state !== 'pray').slice(0, 4).map((u) => u.id);
+    return ids.length ? { type: 'build', player: 0, ids, building: 'fortress', tx: spot.x, ty: spot.y } : null;
+  }
+  const f = firstBuilding(state, 'fortress');
+  if (!f || !f.complete) return null;
+  return canAdvanceAge(state, p, tc).ok ? { type: 'advanceAge', player: 0, buildingId: tc.id } : null;
+}
+
+/** m8, variante dos Titãs: cidadãos rezando no Templo de Argos (o Favor da Idade dos Titãs e do Portal: 500). */
+const M8_WORSHIPPERS = 10;
+/** Cidadãos do jogador 0 rezando agora (menor id primeiro). */
+function m8Praying(state: GameState): Unit[] {
+  return [...state.units.values()].filter((u) => u.owner === 0 && !u.dead && u.type === 'villager' && u.state === 'pray').sort((a, b) => a.id - b.id);
+}
+/** m8, variante dos Titãs: completa M8_WORSHIPPERS cidadãos rezando no Templo (os mais perto dele), até Prometeu atender. */
+function m8Pray(state: GameState): Command | null {
+  const t = [...state.buildings.values()].find((b) => b.owner === 0 && !b.dead && b.complete && b.type === 'temple'); if (!t) return null;
+  const n = M8_WORSHIPPERS - m8Praying(state).length; if (n <= 0) return null;
+  const ids = villagersNear(state, t.x, t.y).filter((u) => u.state !== 'pray' && u.state !== 'build').slice(0, n).map((u) => u.id);
+  return ids.length ? { type: 'pray', player: 0, ids, targetId: t.id } : null;
+}
+
+/** m8: o abrigo de Jasão durante as marés (atrás do Centro Cívico, junto das casas) e o instante em que ele vai para lá. */
+const M8_JASON_SAFE = { x: 64, y: 8 }, M8_JASON_FROM = 570;
+/** Jasão vivo (tag 'jasao'). */
+function m8Jason(state: GameState): Unit | null { const id = state.scenario?.vars['#jasao']; const u = id !== undefined ? state.units.get(id) : undefined; return u && !u.dead ? u : null; }
+/**
+ * m8, "Jasão sobrevive à onda": pouco antes da 1ª maré, Jasão (200 de vida, dois golpes do Titã) sai da linha — postura passiva e
+ * abrigo atrás do Centro Cívico, fora do alcance da IA do jogador (destacamento), como um jogador que quer o objetivo o guardaria.
+ */
+function m8JasonCare(state: GameState): Command[] {
+  const j = m8Jason(state); if (!j || j.inside !== -1) return [];
+  const out: Command[] = [];
+  if (j.stance !== 'passive') out.push({ type: 'stance', player: 0, ids: [j.id], stance: 'passive' });
+  if ((j.x - M8_JASON_SAFE.x) * (j.x - M8_JASON_SAFE.x) + (j.y - M8_JASON_SAFE.y) * (j.y - M8_JASON_SAFE.y) > 9) out.push({ type: 'move', player: 0, ids: [j.id], x: M8_JASON_SAFE.x, y: M8_JASON_SAFE.y });
+  return out;
+}
+
+/**
+ * m8: destacamento — Jasão a partir de pouco antes da 1ª maré (a IA do jogador não o comanda; m8JasonCare o guarda) e, na variante
+ * dos Titãs, quem reza no Templo até Prometeu atender (a IA os mandaria coletar).
+ */
+function m8Detach(state: GameState, titans: boolean): number[] {
+  const j = m8Jason(state);
+  const out = j && state.tick >= M8_JASON_FROM * TICK_RATE ? [j.id] : [];
+  if (titans && !state.scenario?.fired.includes('prometeu')) for (const u of m8Praying(state).slice(0, M8_WORSHIPPERS)) out.push(u.id);
+  return out;
+}
+
+/**
+ * m8: folga das filas militares. No roteiro principal, só uma sobra; na variante dos Titãs, também o custo do que falta, na
+ * ordem (Fortaleza, Idade dos Titãs, Portal) e o Favor da Idade e do Portal, até Prometeu atender.
+ */
+function m8ArmyReserve(state: GameState, titans: boolean): Partial<Record<ResourceType, number>> {
+  const base = { food: 150, wood: 150, gold: 100 };
+  if (!titans || state.scenario?.fired.includes('prometeu')) return base;
+  if (!firstBuilding(state, 'fortress')) return { food: 150, wood: 550, gold: 400, favor: 500 };
+  if (state.players[0].age < 4) return { food: 1650, wood: 150, gold: 1600, favor: 500 };
+  if (!firstBuilding(state, 'titan_gate')) return { food: 750, wood: 750, gold: 700, favor: 200 };
+  return base;
+}
+
+/** m8: os passos do roteiro (titans: a variante dos Titãs acrescenta o caminho até Prometeu e guarda o custo dele). */
+function m8Steps(titans: boolean): ScriptStep[] {
+  return [
+    { label: 'cidadãos', when: { time: { gte: 3 } }, every: 4, command: (s) => trainVillagers(s, 45) },
+    { label: 'jasão', when: { time: { gte: M8_JASON_FROM } }, every: 2, command: (s) => m8JasonCare(s) },
+    { label: 'treino', when: { time: { gte: 5 } }, every: 5, command: (s) => trainArmy(s, 0, { mix: M8_MIX, reserve: m8ArmyReserve(s, titans) }) },
+    ...(titans ? [
+      { label: 'titãs', when: { all: [{ time: { gte: 10 } }, { not: { fired: 'prometeu' } }] }, every: 5, command: (s: GameState) => m8Titans(s) } satisfies ScriptStep,
+      { label: 'reza', when: { all: [{ time: { gte: 10 } }, { not: { fired: 'prometeu' } }] }, every: 10, command: (s: GameState) => m8Pray(s) } satisfies ScriptStep,
+    ] : []),
+    // a brecha da crista fechada com muralha (a dica de Jasão) e torres atrás das três passagens
+    { label: 'brecha', when: { time: { gte: 20 } }, every: 20, command: (s) => m8Breach(s) },
+    { label: 'torres', when: { time: { gte: 30 } }, every: 15, command: (s) => m8Towers(s, 8) },
+    { label: 'tempestade', when: { time: { gte: 1 } }, every: 1, command: (s) => dodgeStorms(s) },
+    { label: 'restauração', when: { time: { gte: 2 } }, every: 3, command: (s) => m8Restore(s) },
+    // o segredo de Lerna: com dois heróis, a Hidra do pântano antes de Oceano subir (e quem foi volta)
+    { label: 'hidra', when: { all: [{ time: { gte: 240 } }, { not: { fired: 'ergue' } }] }, every: 10, command: (s) => m8Hydra(s) },
+    // maré alta: heróis (e Prometeu) em Oceano e o exército junto dele; maré baixa: todos dentro da muralha
+    { label: 'maré', when: { fired: 'ergue' }, every: 2, command: (s) => m8Fight(s, titans) },
+    { label: 'raio', when: { fired: 'ergue3' }, every: 1, command: (s) => m8Bolt(s) },
+  ];
+}
+
+/** m8: o Raio de Zeus em Oceano na última maré (sem piso, metade da vida o derruba de vez), com ele a até 40 tiles do CC. */
+function m8Bolt(state: GameState): Command | null {
+  const o = m8Oceanus(state); const tc = firstBuilding(state, 'town_center');
+  if (!o || !tc || !m8High(state) || state.scenario?.vars.mare !== 3 || !hasPower(state, 'bolt')) return null;
+  return (o.x - tc.x) * (o.x - tc.x) + (o.y - tc.y) * (o.y - tc.y) <= 40 * 40 ? { type: 'power', player: 0, power: 'bolt', targetId: o.id } : null;
+}
+
+/** m8: Restauração onde houver ≥ 8 militares feridos (< 60 % de vida) num raio de 8 (o Raio fica para Oceano: m8Bolt). */
+function m8Restore(state: GameState): Command | null {
+  if (!hasPower(state, 'restoration')) return null;
+  const hurt = armyOf(state).map((id) => state.units.get(id)!).filter((u) => u.hp < u.maxHp * 0.6);
+  for (const h of hurt) { const n = hurt.filter((u) => (u.x - h.x) * (u.x - h.x) + (u.y - h.y) * (u.y - h.y) <= 64).length; if (n >= 8) return { type: 'power', player: 0, power: 'restoration', x: h.x, y: h.y }; }
+  return null;
+}
+
 /**
  * Roteiros das missões registradas (o jogador 0 é uma IA "difícil"; os passos cobram o objetivo que a IA não faz sozinha).
  * Missão nova: acrescente uma entrada com o id; sem entrada, scripts/missions.ts roda só a IA do jogador.
@@ -1319,6 +1553,29 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
       // sem as naus, Aquiles vem até Argos (isca): todos atrás dele e foco nele
       { label: 'caça', when: { fired: 'isca' }, every: 5, command: (s) => m7Hunt(s) },
     ],
+  },
+  m8_oceano: {
+    minutes: 50, expect: [21, 45.5],
+    // defesa: a IA do jogador nunca sai em ondas (o exército guarda a crista); o Raio fica para a última maré (m8Bolt)
+    hold: { time: { gte: 0 } },
+    keepPowers: ['bolt'],
+    detach: (s) => m8Detach(s, false),
+    steps: m8Steps(false),
+    variants: [{
+      // a 3ª resposta da ficha: Idade dos Titãs e Prometeu pelo Portal (Fortaleza, 6 pesquisas da Academia, a Idade e o Portal,
+      // com os cofres na ordem); Prometeu entra na luta junto dos heróis e o Raio continua guardado para a última maré
+      label: 'titãs', minutes: 50, expect: [21, 45.5], fired: ['prometeu'],
+      hold: { time: { gte: 0 } },
+      keepPowers: ['bolt'],
+      detach: (s) => m8Detach(s, true),
+      reserve: [
+        { when: { not: { fired: 'prometeu' } }, resources: { favor: 500, knowledge: 1000 } },
+        { when: { buildings: { player: 0, type: 'fortress' }, eq: 0 }, resources: { wood: 400, gold: 300 } },
+        { when: { all: [{ buildings: { player: 0, type: 'fortress', complete: true }, gte: 1 }, { value: { stat: 'age', player: 0 }, lt: 4 }] }, resources: { food: 1500, gold: 1500 } },
+        { when: { all: [{ value: { stat: 'age', player: 0 }, gte: 4 }, { buildings: { player: 0, type: 'titan_gate' }, eq: 0 }] }, resources: { food: 600, wood: 600, gold: 600 } },
+      ],
+      steps: m8Steps(true),
+    }],
   },
 };
 

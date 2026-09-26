@@ -98,6 +98,11 @@ describe('harness do jogador roteirizado', () => {
     // cofre que nunca vale: igual a não ter cofre (mesmo stateHash)
     const never = runScripted('m1_despertar', { minutes: 3, difficulty: 'normal', steps, deterministic: false, reserve: { when: { time: { lt: 0 } }, resources: { wood: 100000 } } });
     expect(never.hash).toBe(free.hash);
+    // lista de cofres (m8, variante dos Titãs): uma lista com o cofre avulso é o mesmo cofre (mesmo stateHash); os que valem somam
+    const listed = runScripted('m1_despertar', { minutes: 3, difficulty: 'normal', steps, deterministic: false, reserve: [{ when: { time: { gte: 0 } }, resources: { wood: 100000 } }] });
+    expect(listed.hash).toBe(saved.hash);
+    const split = runScripted('m1_despertar', { minutes: 3, difficulty: 'normal', steps, deterministic: false, reserve: [{ when: { time: { lt: 0 } }, resources: { wood: 100000 } }, { when: { time: { gte: 0 } }, resources: { wood: 60000 } }, { when: { time: { gte: 0 } }, resources: { wood: 40000 } }] });
+    expect(split.hash).toBe(saved.hash);
   }, 180_000);
 
   it('destacamento (detach): a IA do jogador não comanda as unidades destacadas; destacamento vazio não muda nada', () => {
