@@ -81,7 +81,7 @@ button { font-family: inherit; cursor: pointer; }
 #tooltip .desc { color: var(--muted); }
 
 #modal-back { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); display: flex; align-items: center; justify-content: center; z-index: 40; }
-#modal { background: var(--panel2); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; min-width: 420px; max-width: 900px; max-height: 88vh; overflow: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+#modal { background: rgb(24, 31, 51); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; min-width: 420px; max-width: 900px; max-height: 88vh; overflow: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
 #modal h2 { margin: 0 0 6px; color: var(--gold); }
 #modal h3 { margin: 12px 0 6px; color: var(--marble); }
 #modal p { color: var(--muted); line-height: 1.4; }
