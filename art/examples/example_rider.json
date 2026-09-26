@@ -1,0 +1,69 @@
+{
+  "id": "example_rider",
+  "kind": "unit",
+  "stage": 4,
+  "contact": "exemplo-cavaleiro",
+  "docs": "Exemplo do rig (fora de art/manifest: `npm run art:bake -- --preview art/examples` só gera a folha de contato). Um lote copia para art/manifest/<id>.json, troca o id e o kit; para .glb, troque só `source` (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "horse",
+    "poses": "art/poses/horse.json",
+    "riderPoses": "art/poses/human.json",
+    "params": {
+      "coat": "bay",
+      "cloth": true,
+      "rider": {
+        "helmet": "chalcidian",
+        "crest": "long",
+        "armor": "linothorax",
+        "cape": "short",
+        "weapon": "spear"
+      }
+    }
+  },
+  "size": {
+    "tiles": [
+      4.0,
+      4.2
+    ]
+  },
+  "anchor": [
+    0.46,
+    0.62
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": {
+      "frames": 4,
+      "fps": 10,
+      "pose": "idle_horse",
+      "rider": "ride_idle"
+    },
+    "walk": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "trot",
+      "rider": "ride_trot"
+    },
+    "run": {
+      "frames": 8,
+      "fps": 12,
+      "pose": "gallop",
+      "rider": "ride_gallop"
+    },
+    "attack": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "attack_horse",
+      "rider": "ride_attack_spear"
+    },
+    "die": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "die_horse",
+      "rider": "ride_die"
+    }
+  },
+  "team": true,
+  "shadow": true
+}

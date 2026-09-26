@@ -3,9 +3,9 @@
 export type AssetKind = 'unit' | 'building' | 'prop';
 export type Pass = 'color' | 'team' | 'shadow';
 
-export interface AnimDef { frames: number; fps?: number; loop?: boolean; pose?: string; clip?: string; params?: Record<string, unknown> }
+export interface AnimDef { frames: number; fps?: number; loop?: boolean; pose?: string; rider?: string; clip?: string; params?: Record<string, unknown> }
 export interface PropItem { kind: string; variants: (number | string)[]; tags?: string[]; size?: [number, number]; anchor?: [number, number] }
-export interface ParamSource { type: 'param'; rig: 'human' | 'building' | 'props'; poses?: string; params?: Record<string, unknown>; items?: PropItem[] }
+export interface ParamSource { type: 'param'; rig: 'human' | 'horse' | 'siege' | 'building' | 'props'; poses?: string; riderPoses?: string; params?: Record<string, unknown>; items?: PropItem[] }
 export interface GlbSource { type: 'glb'; path: string; scale: number; forward?: '-z' | '+z' | '+x' | '-x'; anims?: Record<string, string>; teamMaterials?: string[] }
 
 export interface ArtManifest {
@@ -27,12 +27,14 @@ export interface ArtManifest {
   rubble?: boolean;
   /** Folha de contato (`--contact`): etapa3-<contact>-contato.png; sem o campo, o nome da tabela do bake ou o id. */
   contact?: string;
+  /** Etapa do prefixo da folha de contato (`etapa<stage>-<nome>-contato.png`); padrão 3 nos edifícios e 2 no resto. */
+  stage?: number;
   team: boolean;
   shadow: boolean;
 }
 
 export interface ExpandedFrame {
-  name: string; group: string; anim?: string; dir: number; frame: number; frames: number; loop: boolean; pose?: string;
+  name: string; group: string; anim?: string; dir: number; frame: number; frames: number; loop: boolean; pose?: string; rider?: string;
   variant?: string; atlas?: string; icon?: boolean;
   params?: Record<string, unknown>; item?: { kind: string; variant: number | string; tag: string | null; size?: [number, number]; anchor?: [number, number] };
 }
@@ -45,6 +47,10 @@ export const BUILDING_STATES: string[];
 export const VARIANT_BY: string[];
 export const ICON_PX: number;
 export const RIGS: string[];
+export const UNIT_RIG_POSES: Record<string, string>;
+export const UNIT_ANIMS: string[];
+export const REQUIRED_UNIT_ANIMS: string[];
+export function posesOf(m: ArtManifest): { main: string | null; rider: string | null };
 export const FRAME_NAME_RE: Record<AssetKind | 'icon', RegExp>;
 export function atlasOf(m: ArtManifest, f: ExpandedFrame): string;
 export function buildingFrame(id: string, state: string, variant?: string | null): string;

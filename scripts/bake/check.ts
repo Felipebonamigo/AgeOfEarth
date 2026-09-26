@@ -8,7 +8,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
-import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, FRAME_NAME_RE, GROUP_OF, BUILDING_STATES, ICON_PX, type ArtManifest, type AssetKind } from './manifest.mjs';
+import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, posesOf, FRAME_NAME_RE, GROUP_OF, BUILDING_STATES, ICON_PX, type ArtManifest, type AssetKind } from './manifest.mjs';
 import { PX_PER_TILE, PITCH_DEG, PIPELINE_VERSION, DIRS, FPS } from './page/camera.js';
 
 /** Orçamento (docs/ART.md §6 e §3.5). Tamanhos de quadro a 1× (multiplicados pela escala). */
@@ -24,6 +24,23 @@ interface Sheet { frames: Record<string, SheetFrame>; animations: Record<string,
 interface IndexAtlas { json: string; image: string; group: string; pass: string; scale: number; w: number; h: number; frames: number; bytes: number; sha256: string }
 interface ArtIndex { version: number; aoe: Record<string, unknown>; atlases: IndexAtlas[]; assets: Record<string, { kind: AssetKind; mirror: boolean; variants?: string[]; variantBy?: string; icon?: boolean; rubble?: boolean; anims?: Record<string, unknown>; atlases: Record<string, Partial<Record<'color' | 'team' | 'shadow', string[]>>> }>; totals: { pngBytes: number; vramBytes: number } }
 
+/** Poses que o manifesto de unidade pede (`pose` no arquivo do rig, `rider` no do cavaleiro) existem nos arquivos. */
+export function poseErrors(root: string, m: ArtManifest): string[] {
+  const e: string[] = [];
+  const pf = posesOf(m);
+  const read = (rel: string): { anims: Record<string, unknown> } | null => {
+    const file = path.join(root, rel);
+    if (!fs.existsSync(file)) { e.push(`${m.id}: poses ${rel} não existe`); return null; }
+    return JSON.parse(fs.readFileSync(file, 'utf8')) as { anims: Record<string, unknown> };
+  };
+  const main = pf.main ? read(pf.main) : null, rider = pf.rider ? read(pf.rider) : null;
+  for (const [a, d] of Object.entries(m.anims ?? {})) {
+    if (main && d.pose && !main.anims[d.pose]) e.push(`${m.id}: pose ${d.pose} (${a}) ausente em ${pf.main}`);
+    if (rider && d.rider && !rider.anims[d.rider]) e.push(`${m.id}: pose de cavaleiro ${d.rider} (${a}) ausente em ${pf.rider}`);
+  }
+  return e;
+}
+
 export interface CheckResult { errors: string[]; warnings: string[]; stats: { manifests: number; atlases: number; frames: number; pngBytes: number; vramBytes: number; hasArtifacts: boolean } }
 
 export function runCheck(root: string): CheckResult {
@@ -33,15 +50,7 @@ export function runCheck(root: string): CheckResult {
   const manifests = loaded.map((l) => l.manifest);
   errors.push(...validateAll(manifests));
   for (const l of loaded) if (path.basename(l.file) !== `${l.manifest.id}.json`) errors.push(`${path.relative(root, l.file)}: o nome do arquivo deve ser <id>.json`);
-  for (const m of manifests) {
-    const poses = m.source.type === 'param' ? m.source.poses : undefined;
-    if (poses) {
-      const file = path.join(root, poses);
-      if (!fs.existsSync(file)) { errors.push(`${m.id}: poses ${poses} não existe`); continue; }
-      const def = JSON.parse(fs.readFileSync(file, 'utf8')) as { anims: Record<string, unknown> };
-      for (const [a, d] of Object.entries(m.anims ?? {})) if (d.pose && !def.anims[d.pose]) errors.push(`${m.id}: pose ${d.pose} (${a}) ausente em ${poses}`);
-    }
-  }
+  for (const m of manifests) errors.push(...poseErrors(root, m));
 
   const outDir = path.join(root, 'public', 'art');
   const indexFile = path.join(outDir, 'manifest.json');

@@ -7,12 +7,15 @@ import path from 'node:path';
 import {
   dirFromAngle, dirFromVector, dirWithHysteresis, chooseAnim, frameIndex, animDuration, unitFrameName, unitAnimName, buildingFrameName,
   propFrameName, buildingStage, treeLook, stumpVariant, animalDir, amountStage, nodeFrameName, nodeStage, treeScale, treeOffset, checkSheetMeta, pickScale,
-  isMirrored, frameBox, mulColor, isWalking, freshHit, deathAlpha, type UnitAnim,
+  isMirrored, frameBox, mulColor, isWalking, freshHit, deathAlpha, isRunning, isMoveAnim, RUN_SPEED, warmUnitTypes, type UnitAnim,
   BUILDING_STATES, damageLevel, buildingState, fallbackState, WALL_LINK_TYPES, wallMask, wallVariant, gateAxis, ageTier,
   buildingVariant, placementMasks, gateNear, GATE_OPEN_RANGE, rubbleName, rubbleAlpha, RUBBLE_SECONDS, RUBBLE_FADE, smokeRate,
   smokeBudget, ghostTint, wallFlagAt, WALL_FLAG_PROBE,
 } from '../src/render/art/logic';
-import { BUILDINGS } from '../src/core/data';
+import { BUILDINGS, UNITS } from '../src/core/data';
+import { DT } from '../src/core/constants';
+import { PNG } from 'pngjs';
+import { loadManifests } from '../scripts/bake/manifest.mjs';
 import { maskHit, ALPHA_HIT } from '../src/render/art/alphaMask';
 import { PARTICLE_BUDGET } from '../src/render/quality';
 import type { ArtManifest, SheetJson } from '../src/render/art/types';
@@ -92,6 +95,41 @@ describe('animação e quadro por tempo (10 fps)', () => {
     expect(buildingFrameName('temple', 'build1')).toBe('temple/build1');
     expect(propFrameName('olive', 2, 'big')).toBe('olive/2/big');
     expect(propFrameName('berry', 'half')).toBe('berry/half');
+  });
+});
+
+describe('animação das unidades da Etapa 4: mira, galope e pré-carregamento por tipo', () => {
+  const idle = { moving: false, attacking: false, carrying: false, working: false };
+  const archer = (a: UnitAnim) => ['idle', 'walk', 'attack', 'die', 'aim'].includes(a);
+  const rider = (a: UnitAnim) => ['idle', 'walk', 'attack', 'die', 'run'].includes(a);
+  it('à distância no posto entre disparos: mira (aim); o disparo (attack) vence; sem aim fica parado', () => {
+    expect(chooseAnim({ ...idle, engaged: true }, archer)).toBe('aim');
+    expect(chooseAnim({ ...idle, engaged: true, attacking: true }, archer)).toBe('attack');
+    expect(chooseAnim({ ...idle, engaged: true }, (a) => a !== 'aim')).toBe('idle');
+    expect(chooseAnim({ ...idle, engaged: true, moving: true }, archer)).toBe('walk');
+  });
+  it('cavalaria: galope (run) acima de RUN_SPEED, trote (walk) abaixo — em formação com a infantaria trota', () => {
+    expect(chooseAnim({ ...idle, moving: true, running: true }, rider)).toBe('run');
+    expect(chooseAnim({ ...idle, moving: true, running: false }, rider)).toBe('walk');
+    expect(chooseAnim({ ...idle, moving: true, running: true }, archer)).toBe('walk');   // sem run: anda
+    const step = (speed: number) => (speed * DT) ** 2;
+    for (const id of ['hippeus', 'hetairoi', 'kataskopos']) expect(isRunning(step(UNITS[id].speed), DT, false), id).toBe(true);
+    const infantry = Object.values(UNITS).filter((u) => !u.tags.includes('cavalry') && u.tags.includes('human'));
+    for (const u of infantry) expect(isRunning(step(u.speed), DT, false), u.id).toBe(false);
+    expect(RUN_SPEED).toBeLessThan(Math.min(...['hippeus', 'hetairoi', 'kataskopos'].map((id) => UNITS[id].speed)));
+    expect(isRunning(step(RUN_SPEED * 0.95), DT, true)).toBe(true);    // histerese: já galopando, segue até 90 %
+    expect(isRunning(step(RUN_SPEED * 0.95), DT, false)).toBe(false);
+    expect(['walk', 'carry', 'run'].every((a) => isMoveAnim(a as UnitAnim))).toBe(true);
+    expect(isMoveAnim('aim')).toBe(false);
+  });
+  it('pré-carregamento por tipo: os da Idade do jogador (treináveis e humanos sem edifício) e os presentes; voadoras fora', () => {
+    const a0 = warmUnitTypes(UNITS, 0);
+    for (const id of ['villager', 'hoplite', 'toxotes', 'kataskopos', 'militia', 'basileus']) expect(a0, id).toContain(id);
+    for (const id of ['hypaspist', 'myrmidon', 'hippeus', 'helepolis', 'pegasus']) expect(a0, id).not.toContain(id);
+    const a3 = warmUnitTypes(UNITS, 3, ['cronus']);
+    for (const id of ['hypaspist', 'myrmidon', 'helepolis', 'cronus']) expect(a3, id).toContain(id);
+    expect(a3).not.toContain('pegasus');
+    expect(warmUnitTypes(UNITS, 0)).toEqual(warmUnitTypes(UNITS, 0));   // estável (ordenado)
   });
 });
 
@@ -348,6 +386,100 @@ describe.skipIf(!hasArt)('artefatos do bake: toda chave pedida pelo renderizador
           expect(f.anchor).toEqual(size.anchor); expect(f.sourceSize).toEqual(size.sourceSize);
         }
       }
+    }
+  });
+
+  it('toda unidade com arte (Etapa 4: hoplita, cidadão e o lote 1): cada animação × 8 direções × quadros nos três passes, nas duas escalas', () => {
+    const unitManifests = loadManifests(path.join(ROOT, 'art', 'manifest')).map((l) => l.manifest).filter((m) => m.kind === 'unit');
+    expect(unitManifests.map((m) => m.id)).toEqual(expect.arrayContaining(['hoplite', 'villager', 'militia', 'hypaspist', 'myrmidon', 'toxotes']));
+    for (const m of unitManifests) {
+      const a = manifest.assets[m.id];
+      expect(a?.kind, m.id).toBe('unit');
+      expect(a.team && a.shadow, m.id).toBe(true);
+      expect(Object.keys(a.anims!).sort(), m.id).toEqual(Object.keys(m.anims!).sort());
+      expect(Object.keys(a.atlases).sort(), m.id).toEqual(['1', '2']);
+      for (const s of scales) {
+        for (const pass of ['color', 'team', 'shadow']) {
+          const p = passOf(a.group, s, pass);
+          for (const [anim, info] of Object.entries(a.anims!)) for (let d = 0; d < 8; d++) {
+            const list = p.anims.get(unitAnimName(m.id, anim, d));
+            // a máscara de time pode faltar num quadro em que a parte de time fica toda atrás do corpo (art:check avisa)
+            if (pass === 'team' && !list) continue;
+            expect(list, `${m.id}/${anim}/${d} ${pass} ${s}x`).toHaveLength(info.frames);
+            for (let i = 0; i < info.frames; i++) expect(p.frames.has(unitFrameName(m.id, anim, d, i)), `${unitFrameName(m.id, anim, d, i)} ${pass} ${s}x`).toBe(true);
+          }
+        }
+        // o tipo inteiro numa página por passe (o carregamento por tipo pede só essas)
+        for (const pass of ['color', 'team', 'shadow'] as const) expect(a.atlases[String(s)][pass], `${m.id} ${pass} ${s}x`).toHaveLength(1);
+        const size = a.sizes![String(s)];
+        for (const a2 of manifest.atlases) if (a2.group === a.group && a2.scale === s) for (const [k, f] of Object.entries(sheets.get(a2.json)!.frames)) if (k.startsWith(m.id + '/')) {
+          expect(f.anchor, k).toEqual(size.anchor); expect(f.sourceSize, k).toEqual(size.sourceSize);
+        }
+      }
+    }
+  });
+
+  it('lote 1 a zoom 1: pé na âncora, sombra para SE, altura do hoplita e silhuetas distintas entre si e do hoplita', () => {
+    // composição a 1× (32 px/tile = zoom 1): cor + máscara de time tingida, alinhadas pela âncora
+    const imgs = new Map<string, PNG>();
+    const frameOf = (pass: string, name: string) => {
+      for (const a of manifest.atlases) if (a.group === 'units' && a.scale === 1 && a.pass === pass) {
+        const f = sheets.get(a.json)!.frames[name];
+        if (!f) continue;
+        if (!imgs.has(a.image)) imgs.set(a.image, PNG.sync.read(fs.readFileSync(path.join(ART, a.image))));
+        return { f, img: imgs.get(a.image)! };
+      }
+      return null;
+    };
+    const W = 112, H = 112, AX = 56, AY = 84;
+    const compose = (id: string, anim: string, dir: number, pass = 'color') => {
+      const out = new Float32Array(W * H * 4);
+      const put = (p: string, tint: number | null) => {
+        const r = frameOf(p, unitFrameName(id, anim, dir, 0)); if (!r) return;
+        const { f, img } = r;
+        const ox = Math.round(AX - f.anchor.x * f.sourceSize.w + f.spriteSourceSize.x), oy = Math.round(AY - f.anchor.y * f.sourceSize.h + f.spriteSourceSize.y);
+        for (let y = 0; y < f.frame.h; y++) for (let x = 0; x < f.frame.w; x++) {
+          const s = ((f.frame.y + y) * img.width + f.frame.x + x) * 4, dx = ox + x, dy = oy + y, a = img.data[s + 3] / 255;
+          if (!a || dx < 0 || dy < 0 || dx >= W || dy >= H) continue;
+          const d = (dy * W + dx) * 4;
+          for (let c = 0; c < 3; c++) { const tc = tint === null ? 1 : ((tint >> (16 - 8 * c)) & 255) / 255; out[d + c] = img.data[s + c] * tc * a + out[d + c] * (1 - a); }
+          out[d + 3] = Math.max(out[d + 3], a);
+        }
+      };
+      put(pass, null);
+      if (pass === 'color') put('team', 0x3b82f6);
+      return out;
+    };
+    const opaque = (img: Float32Array, i: number) => img[i * 4 + 3] > 0.5;
+    const lot = ['hoplite', 'militia', 'hypaspist', 'myrmidon', 'toxotes'];
+    const topOf = (id: string) => { let top = Infinity; for (let d = 0; d < 8; d++) { const c = compose(id, 'idle', d); let y0 = H; for (let i = 0; i < W * H; i++) if (opaque(c, i)) { y0 = Math.floor(i / W); break; } top = Math.min(top, AY - y0); } return top; };
+    const hopTop = topOf('hoplite');
+    for (const id of lot) {
+      const c = compose(id, 'idle', 2);
+      // o pé: o pixel opaco mais baixo na faixa de ±3 px em volta da âncora (a arma apontada para a câmera passa do pé)
+      let bottom = -1; for (let i = 0; i < W * H; i++) if (opaque(c, i) && Math.abs((i % W) - AX) <= 3) bottom = Math.floor(i / W);
+      expect(Math.abs(bottom - AY), `${id}: pé a ${bottom - AY} px da âncora`).toBeLessThanOrEqual(3);
+      const sh = compose(id, 'idle', 2, 'shadow');
+      let sx = 0, sy = 0, sw = 0; for (let i = 0; i < W * H; i++) { const a = sh[i * 4 + 3]; sx += (i % W - AX) * a; sy += (Math.floor(i / W) - AY) * a; sw += a; }
+      expect(sw, `${id}: sombra`).toBeGreaterThan(20);
+      expect(sx / sw > 1 && sy / sw > 0.5, `${id}: sombra para SE (${(sx / sw).toFixed(1)}, ${(sy / sw).toFixed(1)})`).toBe(true);
+      const t = topOf(id);
+      // o corpo é o mesmo rig (mesma altura); o topo muda com o elmo/crina (gorro da milícia ≈ 25 px, crina do hoplita 30)
+      expect(t / hopTop, `${id}: altura ${t} px × hoplita ${hopTop} px`).toBeGreaterThan(0.8);
+      expect(t / hopTop, `${id}: altura ${t} px × hoplita ${hopTop} px`).toBeLessThan(1.2);
+    }
+    // silhuetas: nas vistas de frente (S) e de 3/4 (SE), pelo menos 30 % dos pixels opacos de qualquer um dos dois diferem
+    // (um só é opaco, ou a cor muda > 60 num canal) entre quaisquer dois do lote e o hoplita
+    for (const dir of [1, 2]) for (let i = 0; i < lot.length; i++) for (let j = i + 1; j < lot.length; j++) {
+      const a = compose(lot[i], 'idle', dir), b = compose(lot[j], 'idle', dir);
+      let union = 0, diff = 0;
+      for (let k = 0; k < W * H; k++) {
+        const oa = opaque(a, k), ob = opaque(b, k);
+        if (!oa && !ob) continue;
+        union++;
+        if (oa !== ob || Math.max(Math.abs(a[k * 4] - b[k * 4]), Math.abs(a[k * 4 + 1] - b[k * 4 + 1]), Math.abs(a[k * 4 + 2] - b[k * 4 + 2])) > 60) diff++;
+      }
+      expect(diff / union, `${lot[i]} × ${lot[j]} (dir ${dir}): ${(100 * diff / union).toFixed(0)} % diferentes`).toBeGreaterThanOrEqual(0.3);
     }
   });
 

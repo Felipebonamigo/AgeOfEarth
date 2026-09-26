@@ -17,7 +17,8 @@ import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { PX_PER_TILE, SSAA, M2T, dirYaw, makeCamera, makeLights, HEMI_INTENSITY, HEMI_INTENSITY_BUILDINGS } from './camera.js';
 import { createMaterials } from './materials.js';
-import { buildHuman, applyPose, poseAt } from './rigs/human.js';
+import { buildHuman } from './rigs/human.js';
+import { UNIT_RIGS } from './rigs/units.js';
 import { buildProp } from './props.js';
 import { buildBuilding } from './buildings.js';
 
@@ -38,7 +39,7 @@ const gl = renderer.getContext();
 const M = createMaterials(THREE);
 // Reflexo de ambiente só nos metais (sem ele o bronze metálico fica quase preto fora do brilho do sol)
 const envTex = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
-for (const k of ['bronze', 'bronzeDark', 'iron', 'gold']) { M[k].envMap = envTex; M[k].envMapIntensity = 0.55; }
+for (const k of ['bronze', 'bronzeDark', 'iron', 'gold', 'bronzeBlack']) { M[k].envMap = envTex; M[k].envMapIntensity = 0.55; }
 const scene = new THREE.Scene();
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), M.shadowGround);
 ground.rotation.x = -Math.PI / 2;
@@ -209,19 +210,11 @@ async function sourceFor(manifest, poses, state, f) {
       },
     };
   }
-  if (src.rig === 'human') {
-    if (!state.human) state.human = buildHuman(THREE, M, src.params ?? {});
-    const rig = state.human;
-    return {
-      model: rig.group,
-      pose(fr) {
-        const def = poses.anims[fr.pose];
-        if (!def) throw new Error(`pose ${fr.pose} ausente em ${src.poses}`);
-        rig.setAnim(fr.anim);
-        applyPose(rig, poseAt(def, fr.frame, fr.frames));
-        rig.group.rotation.y = dirYaw(fr.dir);
-      },
-    };
+  // unidades: rig do registro (humano, cavalo + cavaleiro, cerco), kit pelos parâmetros do manifesto (Etapa 4)
+  if (UNIT_RIGS[src.rig]) {
+    if (!state.unit) state.unit = UNIT_RIGS[src.rig](THREE, M, src.params ?? {});
+    const rig = state.unit;
+    return { model: rig.group, pose(fr) { rig.pose(fr, poses); } };
   }
   if (src.rig === 'building') {
     const key = fr_key(f);
@@ -255,8 +248,8 @@ function iconCamera(model) {
 }
 
 /**
- * Assa um lote de quadros de um manifesto. `job` = { manifest, poses, scale, frames: [{ name, anim, dir, frame,
- * frames, loop, pose, item, box: {w, h, ax, ay} }] }. Devolve `[{ name, w, h, color, team, shadow }]` (base64 RGBA).
+ * Assa um lote de quadros de um manifesto. `job` = { manifest, poses: { main, rider }, scale, frames: [{ name, anim, dir,
+ * frame, frames, loop, pose, rider, item, box: {w, h, ax, ay} }] }. Devolve `[{ name, w, h, color, team, shadow }]` (base64 RGBA).
  */
 export async function bakeBatch(job) {
   const { manifest, poses, scale } = job;
@@ -264,7 +257,9 @@ export async function bakeBatch(job) {
   window.__state = state;
   const results = [];
   let extent = -1;
-  const hemi = manifest.kind === 'building' ? HEMI_INTENSITY_BUILDINGS : HEMI_INTENSITY;
+  // edifícios e máquinas de cerco (paredes de madeira/couro voltadas para a câmera, que nunca pegam o sol de noroeste)
+  // com o preenchimento dos edifícios; pessoas, cavalos e props com o de sempre
+  const hemi = manifest.kind === 'building' || manifest.source?.rig === 'siege' ? HEMI_INTENSITY_BUILDINGS : HEMI_INTENSITY;
   for (const f of job.frames) {
     const ppt = PX_PER_TILE * scale;
     const { model, pose } = await sourceFor(manifest, poses, state, f);

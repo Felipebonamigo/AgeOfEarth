@@ -2,13 +2,16 @@
 // área aberta ao sul de um bosque perto do Centro Cívico, um templo completo, um templo em obra (≈ 45 %, cidadãos
 // construindo), 8 hoplitas indo e voltando nas 8 direções (roda do desfile, postura passiva), 6 contra 6 hoplitas lutando
 // (vida alta para a luta durar as capturas), um aglomerado de 5 contra 5 em ataque-mover que se mistura, cidadãos cortando
-// o bosque (dos dois jogadores) e carregando madeira.
+// o bosque (dos dois jogadores) e carregando madeira. Etapa 4 (lote 1): mais ao sul, uma segunda roda com milícias,
+// hipaspistas, mirmidões e toxotas indo e voltando nas 8 direções, toxotas atirando (mira entre um disparo e outro) e
+// mirmidões contra hipaspistas inimigos; captura própria <prefixo>-lote1-{z10,z22}.png.
 // O mapa é revelado só no renderizador e o HUD fica oculto.
 // Capturas em docs/art/: <prefixo>-desfile-z10.png e -desfile-z22.png (preset médio, atlas 1×), -desfile-z22-2x.png
 // (preset alto, atlas 2×) e <prefixo>-procedural-z10.png (a mesma cena com a arte assada desligada, para comparar).
 // Imprime o estado da ArtLibrary e falha se houver erro de página, se a arte assada não for servida, se quem anda olhar
-// para fora da velocidade ou se mais de 10 % dos quadros de 'attack' (amostrados na luta e no aglomerado, onde o empurrão
-// da separação mexe em todos) estiverem a 90° ou mais do alvo.
+// para fora da velocidade, se mais de 10 % dos quadros de 'attack' (amostrados na luta e no aglomerado, onde o empurrão
+// da separação mexe em todos) estiverem a 90° ou mais do alvo, se algum tipo do lote 1 sair procedural ou se nenhum
+// toxota aparecer atirando e mirando.
 // Exige `npm run preview` (ou a URL passada). Uso: node scripts/artparade.mjs [url] [--out docs/art] [--prefix etapa2b]
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
@@ -97,23 +100,53 @@ const scene = await page.evaluate(() => {
   const far = trees.filter((t) => { const d = Math.sqrt(d2(t, E)); return d >= 9 && d <= 16 && t.y <= E.y; }).sort((p, q) => d2(p, E) - d2(q, E)).slice(0, 3);
   const foeCut = [];
   for (let i = 0; i < far.length; i++) { const u = sp(foe, 'villager', far[i].x, far[i].y + 1); if (u) { foeCut.push(u); s.scheduler.issue({ type: 'gather', player: foe, ids: [u.id], targetId: far[i].id }); } }
+  // Etapa 4 (lote 1): segunda roda com os tipos novos, toxotas atirando e mirmidões × hipaspistas inimigos
+  const LOT = ['militia', 'hypaspist', 'myrmidon', 'toxotes'];
+  // área aberta de 22 × 11 tiles ao sul da cena (a mais livre num raio de 16): roda à esquerda, tiro e luta à direita
+  let area = null, bestFree = -1;
+  for (let y0 = E.y + 8; y0 <= E.y + 24; y0++) for (let x0 = E.x - 18; x0 <= E.x + 8; x0++) {
+    if (x0 < 2 || y0 < 2 || x0 + 22 >= map.w - 2 || y0 + 11 >= map.h - 2) continue;
+    let free = 0; for (let y = y0; y < y0 + 11; y++) for (let x = x0; x < x0 + 22; x++) if (open(x, y)) free++;
+    if (free > bestFree) { bestFree = free; area = { x: x0, y: y0 }; }
+  }
+  area ??= { x: W.x - 2, y: W.y + 5 };
+  const W2 = { x: area.x + 5, y: area.y + 5 };
+  const walkers2 = [];
+  for (let k = 0; k < 8; k++) walkers2.push(sp(me, LOT[k % 4], W2.x, W2.y));
+  s.issue({ type: 'stance', player: me, ids: ids(walkers2), stance: 'passive' });
+  const R = { x: area.x + 15, y: area.y + 3 };
+  const archers = [], targets = [], myr = [], hyp = [];
+  for (let i = 0; i < 3; i++) {
+    archers.push(tough(sp(me, 'toxotes', R.x - 3, R.y - 1 + i)));
+    targets.push(tough(sp(foe, 'militia', R.x + 2, R.y - 1 + i)));
+    myr.push(tough(sp(me, 'myrmidon', R.x - 1, R.y + 3 + i * 0.8)));
+    hyp.push(tough(sp(foe, 'hypaspist', R.x + 1, R.y + 3 + i * 0.8)));
+  }
+  s.scheduler.issue({ type: 'stance', player: foe, ids: ids(targets), stance: 'passive' });
+  archers.forEach((u, i) => { if (u && targets[i]) s.issue({ type: 'attack', player: me, ids: [u.id], targetId: targets[i].id }); });
+  myr.forEach((u, i) => { if (u && hyp[i]) s.issue({ type: 'attack', player: me, ids: [u.id], targetId: hyp[i].id }); });
+  hyp.forEach((u, i) => { if (u && myr[i]) s.scheduler.issue({ type: 'attack', player: foe, ids: [u.id], targetId: myr[i].id }); });
   window.__walkers = ids(walkers); window.__wc = W;
+  window.__walkers2 = ids(walkers2); window.__wc2 = W2; window.__lot = LOT;
   window.aoe.renderer.revealAll = true;
-  return { tc: { x: tc.x, y: tc.y }, tree: { x: tree.x, y: tree.y }, edge: E, fight: F, walk: W, templeDone: templeDone?.id ?? null, templeWip: templeWip?.id ?? null, foeVillagers: foeCut.length, units: st.units.size };
+  return { tc: { x: tc.x, y: tc.y }, tree: { x: tree.x, y: tree.y }, edge: E, fight: F, walk: W, walk2: W2, ranged: R, lotArea: area, templeDone: templeDone?.id ?? null, templeWip: templeWip?.id ?? null, foeVillagers: foeCut.length, units: st.units.size };
 });
 console.log('cena:', JSON.stringify(scene));
 // o preset automático mede o começo de cada partida mesmo com preset fixo: reaplica o preset escolhido (médio)
 await page.waitForTimeout(300);
 await page.evaluate(() => window.aoe.applyQuality());
+// carregamento por tipo: hipaspista e mirmidão (de Idades seguintes) não estavam quentes; chegam na primeira vista —
+// aqui só se pede junto e se espera (as páginas sobem para a GPU uma por quadro)
+await page.evaluate(() => { window.aoe.renderer.art.prewarmUnits(window.__lot); return window.aoe.renderer.art.ready(); });
 // vai e volta: a cada 2,6 s cada hoplita do desfile alterna entre o centro da roda e 4 tiles na sua direção
 await page.evaluate(() => {
   let out = true;
   const go = () => {
     const s = window.aoe.session; if (!s) return;
-    window.__walkers.forEach((id, k) => {
+    for (const [list, c] of [[window.__walkers, window.__wc], [window.__walkers2, window.__wc2]]) list.forEach((id, k) => {
       const u = s.state.units.get(id); if (!u) return;
       const a = (k * Math.PI) / 4, r = out ? 4 : 0;
-      s.issue({ type: 'move', player: u.owner, ids: [id], x: window.__wc.x + 0.5 + Math.cos(a) * r, y: window.__wc.y + 0.5 + Math.sin(a) * r });
+      s.issue({ type: 'move', player: u.owner, ids: [id], x: c.x + 0.5 + Math.cos(a) * r, y: c.y + 0.5 + Math.sin(a) * r });
     });
     out = !out;
   };
@@ -128,10 +161,12 @@ const mid = { x: scene.edge.x - 3, y: scene.edge.y + 5 };
 await look(mid, 1.0); await shot('desfile-z10');
 // conferência das vistas assadas: animações em uso e direção de quem anda coerente com a velocidade (±1 octante, histerese)
 const checks = await page.evaluate(() => {
-  const s = window.aoe.session, R = window.aoe.renderer, out = { baked: 0, anims: {}, dirOk: 0, dirBad: 0 };
+  const s = window.aoe.session, R = window.aoe.renderer, out = { baked: 0, anims: {}, dirOk: 0, dirBad: 0, byType: {}, procedural: {} };
   for (const [id, v] of R.views) {
+    if (s.state.units.get(id) && !v.unit && window.__lot.includes(v.type)) out.procedural[v.type] = (out.procedural[v.type] ?? 0) + 1;
     if (!v.unit) continue;
     out.baked++; out.anims[v.unit.anim] = (out.anims[v.unit.anim] ?? 0) + 1;
+    const bt = out.byType[v.type] ??= {}; bt[v.unit.anim] = (bt[v.unit.anim] ?? 0) + 1;
     const u = s.state.units.get(id); if (!u) continue;
     const dx = u.x - u.px, dy = u.y - u.py;
     if (dx * dx + dy * dy > 1e-6 && (v.unit.anim === 'walk' || v.unit.anim === 'carry')) {
@@ -144,6 +179,8 @@ const checks = await page.evaluate(() => {
 console.log('vistas assadas:', JSON.stringify(checks));
 if (checks.dirBad > 0) errors.push(`direção incoerente em ${checks.dirBad} unidade(s) andando`);
 for (const a of ['walk', 'gather']) if (!checks.anims[a]) errors.push(`nenhuma unidade em '${a}'`);
+for (const t of ['militia', 'hypaspist', 'myrmidon', 'toxotes']) if (!checks.byType[t]) errors.push(`${t}: nenhuma vista assada`);
+if (Object.keys(checks.procedural).length) errors.push(`lote 1 procedural: ${JSON.stringify(checks.procedural)}`);
 // golpes virados para o alvo: amostra os quadros de 'attack' (luta em linha e aglomerado) por alguns segundos
 const facing = { ok: 0, off: 0, samples: [] };
 for (let k = 0; k < 12; k++) {
@@ -161,6 +198,17 @@ for (let k = 0; k < 12; k++) {
   await page.waitForTimeout(250);
 }
 console.log('golpes × direção do alvo:', JSON.stringify(facing));
+// toxotas: atirando (attack, a corda solta no tick do disparo) e mirando entre um disparo e outro (aim)
+const archery = { attack: 0, aim: 0, other: 0 };
+for (let k = 0; k < 12; k++) {
+  const r = await page.evaluate(() => { const out = []; for (const [, v] of window.aoe.renderer.views) if (v.unit && v.type === 'toxotes') out.push(v.unit.anim); return out; });
+  for (const a of r) archery[a === 'attack' || a === 'aim' ? a : 'other']++;
+  await page.waitForTimeout(200);
+}
+console.log('toxotas (disparo/mira):', JSON.stringify(archery));
+if (!archery.aim || !archery.attack) errors.push(`toxotas sem disparo e mira: ${JSON.stringify(archery)}`);
+await look({ x: scene.lotArea.x + 11, y: scene.lotArea.y + 5 }, 1.0); await shot('lote1-z10');
+await look({ x: scene.ranged.x - 1.5, y: scene.ranged.y + 2 }, 2.2); await shot('lote1-z22');
 if (facing.ok + facing.off === 0) errors.push("nenhuma unidade em 'attack'");
 else if (facing.off > 0.1 * (facing.ok + facing.off)) errors.push(`${facing.off} de ${facing.ok + facing.off} quadros de 'attack' a 90° ou mais do alvo`);
 await look(mid, 2.2); await shot('desfile-z22');

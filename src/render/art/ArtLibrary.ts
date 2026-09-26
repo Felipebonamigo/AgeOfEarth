@@ -2,14 +2,19 @@
 // (ProceduralSource, o TextureCache de hoje). As vistas pedem quadros por (id, animação, direção), edifício por estágio e
 // prop por nome; quando não há quadro assado (tipo não assado, atlas carregando/recusado ou opção desligada) a resposta
 // é null e quem chamou desenha o procedural — sem erro. Carregamento: com a opção ligada, o configure (ainda no menu) lê o
-// manifesto e em seguida os atlas dos grupos units/buildings/props na escala do preset — a primeira partida já começa
-// assada, sem trocar o visual no meio do jogo —; o prewarm do início da partida só confere. `generation` muda quando o
-// conjunto de quadros SERVIDOS muda (carregou, falhou, trocou a escala, ligou/desligou): o renderizador refaz vistas e props.
+// manifesto e em seguida os atlas dos grupos buildings/props/icons na escala do preset e, das unidades, só as páginas
+// dos tipos "quentes" (os do começo de partida: `warmUnitTypes`) — a primeira partida já começa assada, sem trocar o
+// visual no meio do jogo. Unidades são carregadas POR TIPO (Etapa 4): o renderizador pede os tipos da Idade do jogador
+// local (`prewarmUnits`) e qualquer tipo que apareça antes disso é pedido na primeira vista (procedural até chegar).
+// `generation` muda quando o conjunto de quadros SERVIDOS dos grupos muda (carregou, falhou, trocou a escala,
+// ligou/desligou): o renderizador refaz vistas e props. A chegada das páginas de um tipo de unidade muda só `unitGen`:
+// o renderizador troca as vistas procedurais daquele tipo, sem reconstruir o resto.
 import type { Texture } from 'pixi.js';
 import type { TextureCache } from '../textures';
-import { AtlasSource, type PassFrames } from './AtlasSource';
+import { UNITS } from '../../core/data';
+import { AtlasSource, type LoadKind, type PassFrames } from './AtlasSource';
 import { ProceduralSource } from './ProceduralSource';
-import { pickScale, unitAnimName, buildingFrameName, rubbleName, BUILDING_STATES, GLOW_ANIM, glowFrameName, type VariantBy } from './logic';
+import { pickScale, unitAnimName, buildingFrameName, rubbleName, BUILDING_STATES, GLOW_ANIM, glowFrameName, warmUnitTypes, type VariantBy } from './logic';
 import type { ArtAnimInfo, ArtGroup, ArtPass, ArtScale } from './types';
 
 const GROUPS: readonly ArtGroup[] = ['units', 'buildings', 'props', 'icons'];
@@ -32,6 +37,8 @@ export interface UnitArt {
   shadow: boolean;
   /** A animação existe para este tipo (criada uma vez: sem closure por quadro na escolha da animação). */
   has: (anim: string) => boolean;
+  /** Quadros dos três passes na escala servida (a união das páginas do grupo; o tipo está nelas). */
+  passes: { color: PassFrames; team: PassFrames | null; shadow: PassFrames | null };
 }
 
 /** Um quadro assado com os passes que existirem (edifícios e props). */
@@ -60,6 +67,11 @@ export class ArtLibrary {
   wanted: ArtScale = 1;
   /** Muda quando o conjunto de quadros servidos muda (carregou, falhou, trocou a escala, ligou/desligou). */
   generation = 0;
+  /** Muda quando chegam as páginas de um tipo de unidade (carregamento por tipo): o renderizador troca as vistas
+   *  procedurais dos tipos que passaram a ter arte (e as de outra escala), sem reconstruir o resto. */
+  unitGen = 0;
+  /** Tipos de unidade pré-carregados (os do começo de partida já no menu; o renderizador acrescenta os da Idade). */
+  private warm = new Set<string>(warmUnitTypes(UNITS, 0));
   private units = new Map<string, UnitArt | null>();
   private buildingsArt = new Map<string, BuildingArt | null>();
   private prewarmed = false;
@@ -72,7 +84,11 @@ export class ArtLibrary {
     this.atlas = new AtlasSource(base);
     // um carregamento terminou: o prewarm pede os grupos (se o manifesto acabou de chegar) e a geração só muda quando
     // nada mais está carregando (uma reconstrução das vistas por leva, não uma por atlas)
-    this.atlas.onChange = () => { if (this.prewarmed) this.prewarm(); if (this.atlas.busy === 0) this.bump(); };
+    this.atlas.onChange = (kind: LoadKind) => {
+      if (kind === 'unit') { this.units.clear(); this.unitGen++; return; }
+      if (this.prewarmed) this.prewarm();
+      if (this.atlas.busyOf('group') === 0) this.bump();
+    };
   }
 
   private bump(): void { this.generation++; this.units.clear(); this.buildingsArt.clear(); this.servedCache.clear(); this.passCache.clear(); }
@@ -90,19 +106,41 @@ export class ArtLibrary {
     if (enabled) this.prewarm();
     if (this.servedKey() !== before) this.bump();
   }
-  /** Assinatura do que é servido agora ('off' = nada assado: desligada ou nada pronto ainda). */
+  /** Assinatura do que é servido agora ('off' = nada assado: desligada ou nada pronto ainda). As unidades ficam fora:
+   *  vão por tipo e pelo `unitGen`. */
   private servedKey(): string {
     if (!this.enabled || !this.atlas.manifest) return 'off';
-    const k = GROUPS.map((g) => this.served(g) ?? '-');
+    const k = GROUPS.filter((g) => g !== 'units').map((g) => this.served(g) ?? '-');
     return k.every((x) => x === '-') ? 'off' : k.join(',');
   }
 
-  /** Pré-aquecimento: manifesto + atlas de units/buildings/props na escala do preset, sem esperar (idempotente). */
+  /** Pré-aquecimento: manifesto + atlas de buildings/props/icons na escala do preset e as páginas dos tipos de unidade
+   *  quentes, sem esperar (idempotente). */
   prewarm(): void {
     this.prewarmed = true;
     if (!this.enabled) return;
     if (!this.atlas.manifest) { void this.atlas.loadManifest(); return; }   // onChange chama prewarm de novo
-    for (const g of GROUPS) this.atlas.ensure(g, this.scaleFor(g));
+    for (const g of GROUPS) if (g !== 'units') this.atlas.ensure(g, this.scaleFor(g));
+    for (const id of this.warm) this.requestUnit(id);
+  }
+  /** Pré-carrega as páginas destes tipos de unidade (os treináveis na Idade do jogador local, os da partida), sem esperar. */
+  prewarmUnits(types: Iterable<string>): void {
+    for (const id of types) { if (this.warm.has(id)) continue; this.warm.add(id); this.requestUnit(id); }
+  }
+  /** Pede as páginas de um tipo na escala desejada (nada se desligada, sem manifesto ou sem arte). */
+  private requestUnit(id: string): void {
+    const a = this.enabled ? this.atlas.manifest?.assets[id] : undefined;
+    if (a?.kind === 'unit') this.atlas.ensureAsset(id, this.unitWanted(a));
+  }
+  /** Escala desejada para um tipo de unidade: a do preset se o tipo a tiver. */
+  private unitWanted(a: { atlases: Record<string, unknown> }): ArtScale { return pickScale(this.wanted, Object.keys(a.atlases).map(Number)); }
+  /** Escala SERVIDA para um tipo: a desejada se as páginas dele estão prontas; senão a outra, se prontas (troca sem
+   *  piscar); null enquanto nada chegou (a primeira chamada já pede as páginas). */
+  private unitScale(id: string, a: { atlases: Record<string, unknown> }): ArtScale | null {
+    const w = this.unitWanted(a);
+    if (this.atlas.ensureAsset(id, w) === 'ready') return w;
+    const o: ArtScale = w === 1 ? 2 : 1;
+    return a.atlases[String(o)] && this.atlas.assetStatus(id, o) === 'ready' ? o : null;
   }
 
   /** Resolve quando nada mais está carregando (capturas e testes do navegador). */
@@ -110,18 +148,23 @@ export class ArtLibrary {
 
   /** Escala a carregar para um grupo: a do preset se o manifesto a tiver. */
   private scaleFor(group: ArtGroup): ArtScale { return pickScale(this.wanted, this.atlas.scalesOf(group)); }
-  /** Escala servida agora para um grupo: a pedida se pronta, senão a outra se já estiver pronta (troca sem piscar). */
+  /**
+   * Escala servida agora para um grupo: a pedida se pronta, senão a outra se já estiver pronta (troca sem piscar). As
+   * unidades vão por tipo (`unitScale`): aqui só se lê o estado das páginas já pedidas (sem pedir o grupo inteiro nem
+   * guardar no cache, que só é limpo a cada geração).
+   */
   private served(group: ArtGroup): ArtScale | null {
-    const hit = this.servedCache.get(group);
+    const byType = group === 'units';
+    const hit = byType ? undefined : this.servedCache.get(group);
     if (hit !== undefined) return hit;
     const w = this.scaleFor(group);
     let r: ArtScale | null = w;
     if (this.atlas.status(group, w) !== 'ready') {
-      this.atlas.ensure(group, w);
+      if (!byType) this.atlas.ensure(group, w);
       const o: ArtScale = w === 1 ? 2 : 1;
       r = this.atlas.status(group, o) === 'ready' ? o : null;
     }
-    this.servedCache.set(group, r);
+    if (!byType) this.servedCache.set(group, r);
     return r;
   }
   private passOf(group: ArtGroup, pass: ArtPass): PassFrames | null {
@@ -158,8 +201,8 @@ export class ArtLibrary {
     if (!m) { if (this.atlas.manifestStatus === 'idle') void this.atlas.loadManifest(); return null; }
     const a = m.assets[id];
     if (!a || a.kind !== 'unit' || !a.anims) { this.units.set(id, null); return null; }
-    const scale = this.served(a.group);
-    if (scale === null) return null;          // carregando: não guarda (a próxima geração tenta de novo)
+    const scale = this.unitScale(id, a);
+    if (scale === null) return null;          // carregando: não guarda (a chegada muda unitGen e limpa o cache)
     const color = this.atlas.pass(a.group, scale, 'color');
     const size = a.sizes?.[String(scale)] ?? a.sizes?.['1'];
     if (!color || !size) { this.units.set(id, null); return null; }
@@ -177,18 +220,19 @@ export class ArtLibrary {
       if (dirTop > 0 && (top === 0 || dirTop < top)) top = dirTop;
     }
     const res = scale, anims = a.anims;
+    const team = a.team ? this.atlas.pass(a.group, scale, 'team') : null, shadow = a.shadow ? this.atlas.pass(a.group, scale, 'shadow') : null;
     const art: UnitArt = {
       id, scale, anchor: { ...size.anchor }, size: { w: size.sourceSize.w / res, h: size.sourceSize.h / res }, anims: a.anims,
       top: top || size.anchor.y * size.sourceSize.h / res, mirrored: color.mirrored,
-      team: !!a.team && !!this.atlas.pass(a.group, scale, 'team'), shadow: !!a.shadow && !!this.atlas.pass(a.group, scale, 'shadow'),
+      team: !!team, shadow: !!shadow,
       has: (anim: string) => !!anims[anim],
+      passes: { color, team, shadow },
     };
     this.units.set(id, art);
     return art;
   }
   private unitAnim(art: UnitArt, pass: ArtPass, anim: string, dir: number): readonly Texture[] | null {
-    const p = this.passOf('units', pass);
-    return p?.anims.get(unitAnimName(art.id, anim, dir)) ?? null;
+    return art.passes[pass]?.anims.get(unitAnimName(art.id, anim, dir)) ?? null;
   }
   /** Quadros de cor de (id, anim, dir); null se não houver. */
   frames(art: UnitArt, anim: string, dir: number): readonly Texture[] | null { return this.unitAnim(art, 'color', anim, dir); }
@@ -262,9 +306,15 @@ export class ArtLibrary {
   /** Os atlas de props estão servidos (o renderizador troca o atlas procedural de nós pelos props assados). */
   propsReady(): boolean { return this.enabled && !!this.atlas.manifest && this.served('props') !== null; }
 
-  /** Resumo para diagnóstico/scripts: estado do manifesto e de cada grupo. */
+  /** Tipos de unidade com páginas prontas numa escala (diagnóstico). */
+  unitsReady(scale: ArtScale): string[] {
+    const m = this.atlas.manifest; if (!m) return [];
+    return Object.entries(m.assets).filter(([id, a]) => a.kind === 'unit' && this.atlas.assetStatus(id, scale) === 'ready').map(([id]) => id).sort();
+  }
+
+  /** Resumo para diagnóstico/scripts: estado do manifesto e de cada grupo (unidades: as páginas pedidas até agora). */
   status(): Record<string, string> {
-    const out: Record<string, string> = { enabled: String(this.enabled), wanted: `${this.wanted}x`, manifest: this.atlas.manifestStatus, generation: String(this.generation) };
+    const out: Record<string, string> = { enabled: String(this.enabled), wanted: `${this.wanted}x`, manifest: this.atlas.manifestStatus, generation: String(this.generation), unitGen: String(this.unitGen) };
     for (const g of GROUPS) out[g] = `1x:${this.atlas.status(g, 1)} 2x:${this.atlas.status(g, 2)} servida:${this.served(g) ?? '-'}`;
     return out;
   }

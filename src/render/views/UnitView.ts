@@ -1,4 +1,5 @@
-// Vista de uma unidade com arte assada (docs/ART.md §1.8, §3.7): corpo (passe de cor) + máscara de time (mesma âncora,
+// Vista de uma unidade com arte assada (docs/ART.md §1.8, §3.7) — GENÉRICA: serve qualquer tipo com atlas (humano,
+// montado, cerco; Etapa 4), com as animações que o manifesto dele tiver: corpo (passe de cor) + máscara de time (mesma âncora,
 // tint = cor do jogador) num Container posicionado no pé, e a sombra projetada (passe de sombra) na camada 'shadows',
 // alfa SHADOW_ALPHA, sem espelhar (o sol é fixo: a sombra cai sempre para SE). Direção 0–7 e animação vêm do
 // renderizador; aqui só se escolhe o quadro pelo tempo (10 fps), com troca de textura apenas quando o quadro muda.
@@ -10,7 +11,7 @@ import type { ArtLibrary, UnitArt } from '../art/ArtLibrary';
 import { frameBox, frameIndex, isMirrored, type Box, type UnitAnim } from '../art/logic';
 
 /** Índice numérico das animações (chave sem string para a troca de pose). */
-const ANIM_INDEX: Record<UnitAnim, number> = { idle: 0, walk: 1, attack: 2, die: 3, carry: 4, gather: 5 };
+const ANIM_INDEX: Record<UnitAnim, number> = { idle: 0, walk: 1, attack: 2, die: 3, carry: 4, gather: 5, aim: 6, run: 7 };
 /** Caixa de trabalho de updateBounds (reutilizada). */
 const BOX: Box = { x0: 0, y0: 0, x1: 0, y1: 0 };
 

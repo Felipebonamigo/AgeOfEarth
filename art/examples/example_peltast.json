@@ -1,0 +1,60 @@
+{
+  "id": "example_peltast",
+  "kind": "unit",
+  "stage": 4,
+  "contact": "exemplo-peltasta",
+  "docs": "Exemplo do rig (fora de art/manifest: `npm run art:bake -- --preview art/examples` só gera a folha de contato). Um lote copia para art/manifest/<id>.json, troca o id e o kit; para .glb, troque só `source` (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "human",
+    "poses": "art/poses/human.json",
+    "params": {
+      "helmet": "none",
+      "hair": true,
+      "headband": true,
+      "armor": "tunic",
+      "shield": "pelte",
+      "weapon": "javelin"
+    }
+  },
+  "size": {
+    "tiles": [
+      3.2,
+      3.6
+    ]
+  },
+  "anchor": [
+    0.45,
+    0.58
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": {
+      "frames": 4,
+      "fps": 10,
+      "pose": "idle_javelin"
+    },
+    "walk": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "walk_javelin"
+    },
+    "attack": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "attack_javelin"
+    },
+    "aim": {
+      "frames": 2,
+      "fps": 10,
+      "pose": "aim_javelin"
+    },
+    "die": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "die"
+    }
+  },
+  "team": true,
+  "shadow": true
+}

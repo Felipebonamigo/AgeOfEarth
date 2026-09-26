@@ -20,7 +20,7 @@ import { UnitView } from './views/UnitView';
 import { BuildingView } from './views/BuildingView';
 import { SmokeLayer } from './particles';
 import {
-  animDuration, buildingState, chooseAnim, deathAlpha, dirWithHysteresis, freshHit, isWalking, mulColor, type UnitAnim,
+  animDuration, buildingState, chooseAnim, deathAlpha, dirWithHysteresis, freshHit, isWalking, isRunning, isMoveAnim, warmUnitTypes, mulColor, type UnitAnim, type AnimInput,
   WALL_LINK_TYPES, wallMask, buildingVariant, ageTier, farmCrop, damageLevel, gateNear, smokeRate, smokeBudget, rubbleAlpha, GLOW_ANIM, glowVariant,
   ghostTint, placementMasks, wallFlagAt, WALL_FLAG_PROBE,
 } from './art/logic';
@@ -91,6 +91,10 @@ export class Renderer {
   private bakedMode = false;
   /** Geração da ArtLibrary já refletida nas vistas/props (mudou → reconstrói). */
   private artGen = -1;
+  /** `unitGen` da ArtLibrary já refletido (chegaram as páginas de um tipo de unidade → troca só as vistas dele). */
+  private unitGenSeen = -1;
+  /** Idade do jogador local cujos tipos de unidade já foram pré-carregados (-1 = pedir no próximo quadro). */
+  private warmAge = -1;
   /** Unidades assadas morrendo/petrificadas (animação no lugar do sprite procedural girado), por efeito. */
   private dying = new Map<VisualEffect, UnitView>();
   private recentDeaths: RecentDeath[] = [];
@@ -118,7 +122,7 @@ export class Renderer {
   private tmpVec = { x: 0, y: 0 };
   /** Ponto do alvo de quem está no posto (engagedTarget). */
   private tgtPt = { x: 0, y: 0 };
-  private animIn = { moving: false, attacking: false, carrying: false, working: false };
+  private animIn: AnimInput = { moving: false, attacking: false, carrying: false, working: false, engaged: false, running: false };
   /** Relógio (s) das animações assadas: tempo de JOGO, (tick + alpha)/TICK_RATE, nunca voltando para trás. Congela na
    *  pausa e na espera do lockstep (ninguém anda no lugar) e acelera em 2×/3× junto com o movimento e os efeitos (a queda
    *  cabe no efeito 'death' em qualquer velocidade). O relógio real (`time`) segue para água, balanço procedural e tremor. */
@@ -151,6 +155,7 @@ export class Renderer {
     parent.appendChild(this.app.canvas);
     this.tex = new TextureCache(this.app.renderer);
     this.art = new ArtLibrary(this.tex, `${import.meta.env.BASE_URL ?? './'}art/`);
+    this.art.atlas.gpuUpload = true;   // página servida só depois de subir para a GPU (uploadNextAtlas, uma por quadro)
     this.art.configure(this.quality.bakedArt, this.quality.atlasScale);
     this.props = new PropLayer(this.tex, this.art);
     this.app.stage.addChild(this.world, this.overlay);
@@ -206,6 +211,7 @@ export class Renderer {
     this.applyLayerOrder();
     this.props.reset(state, this.bakedMode, this.art.propsReady());
     this.art.prewarm();
+    this.warmAge = -1; this.unitGenSeen = this.art.unitGen;   // tipos da partida/Idade: no primeiro quadro (render)
     // Camada do editor: regiões e passabilidade como texturas w×h (regeneradas só quando algo muda), gráfico e rótulos
     this.layers.editor.removeChildren();
     for (const l of this.edLabels) l.destroy(); this.edLabels = [];
@@ -342,6 +348,31 @@ export class Renderer {
     if (this.state) this.props.reset(this.state, this.bakedMode, this.art.propsReady(), true);
     this.art.collect();
   }
+  /**
+   * Carregamento por tipo (Etapa 4): no começo da partida e a cada Idade do jogador local, pede as páginas dos tipos de
+   * unidade que ele pode treinar até ali e dos que já estão no mapa (sem esperar: sobem para a GPU uma por quadro).
+   */
+  private warmUnits(state: GameState, local: number): void {
+    const age = state.players[local]?.age ?? 0;
+    if (age === this.warmAge) return;
+    this.warmAge = age;
+    const present = new Set<string>();
+    for (const u of state.units.values()) present.add(u.type);
+    this.art.prewarmUnits(warmUnitTypes(UNITS, age, present));
+  }
+  /**
+   * Chegaram as páginas de algum tipo de unidade: as vistas procedurais dos tipos que agora têm arte (e as assadas numa
+   * escala que deixou de ser a servida) saem; o próximo quadro as recria assadas. Nada mais é reconstruído.
+   */
+  private refreshUnitViews(state: GameState): void {
+    this.unitGenSeen = this.art.unitGen;
+    if (!this.bakedMode) return;
+    for (const [id, v] of this.views) {
+      if (v.bld || !state.units.has(id) || UNITS[v.type]?.flying) continue;
+      const art = this.art.unit(v.type);
+      if (art && (!v.unit || v.unit.art.scale !== art.scale)) { this.destroyView(v); this.views.delete(id); }
+    }
+  }
   private clearDying(): void { for (const d of this.dying.values()) d.destroy(); this.dying.clear(); this.recentDeaths.length = 0; }
   /** Escombros, fumaça e fantasmas assados (usam texturas do atlas: saem antes de uma troca de arte ou de partida). */
   private clearBakedExtras(): void {
@@ -365,12 +396,12 @@ export class Renderer {
     g.rect(-M, 0, M, H).fill(BG);
     g.rect(W, 0, M, H).fill(BG);
   }
-  /** Sobe para a GPU a próxima imagem de atlas pronta (uma por quadro do ticker). */
+  /** Sobe para a GPU a próxima imagem de atlas pronta (uma por quadro do ticker); só então a página passa a ser servida. */
   private uploadNextAtlas(): void {
     const q = this.art?.atlas.uploads; if (!q || q.length === 0) return;
-    const src = q.shift()!;
-    if (src.destroyed) return;
-    try { this.app.renderer.texture.initSource(src); } catch { /* sobe no primeiro uso */ }
+    const job = q.shift()!;
+    if (!job.source.destroyed) { try { this.app.renderer.texture.initSource(job.source); } catch { /* sobe no primeiro uso */ } }
+    job.done();
   }
 
   // ---------------- Névoa (bordas macias por shader em fog.ts) ----------------
@@ -688,8 +719,8 @@ export class Renderer {
   private updateBakedUnit(state: GameState, u: Unit, v: EntityView, ix: number, iy: number, bodyTint: number, color: number): void {
     const uv = v.unit!, art = uv.art, clock = this.animClock;
     const posted = this.engagedTarget(state, u);
-    const dx = u.x - u.px, dy = u.y - u.py;
-    const walking = !posted && isWalking(dx * dx + dy * dy, getUnitStats(state, state.players[u.owner], u.type).speed * DT, uv.anim === 'walk' || uv.anim === 'carry');
+    const dx = u.x - u.px, dy = u.y - u.py, disp2 = dx * dx + dy * dy;
+    const walking = !posted && isWalking(disp2, getUnitStats(state, state.players[u.owner], u.type).speed * DT, isMoveAnim(uv.anim));
     let dir = uv.dir;
     const s = posted ? this.cam.worldDeltaToScreen(this.tgtPt.x - ix, this.tgtPt.y - iy, this.tmpVec) : walking ? this.cam.worldDeltaToScreen(dx, dy, this.tmpVec) : null;
     if (s && (s.x * s.x + s.y * s.y) > 1e-6) dir = dirWithHysteresis(Math.atan2(s.y, s.x), uv.dir);
@@ -700,6 +731,10 @@ export class Renderer {
     const ai = this.animIn;
     ai.moving = walking; ai.attacking = attacking; ai.carrying = u.carry === 'food' && u.carryAmt >= 1;
     ai.working = posted && (u.state === 'gather' || u.state === 'build');
+    // cavalaria: galope (`run`) na velocidade dela; em formação com a infantaria anda mais devagar e trota (`walk`).
+    // À distância no posto, entre um disparo e outro: `aim` (arco puxado, dardo armado; o cerco fica carregado)
+    ai.running = walking && art.has('run') && isRunning(disp2, DT, uv.anim === 'run');
+    ai.engaged = posted && u.state === 'attack';
     const anim: UnitAnim = chooseAnim(ai, art.has);
     uv.pose(anim, dir, clock, hit && anim === 'attack');
     uv.tick(clock, (u.id % 13) * 0.077);
@@ -1198,6 +1233,8 @@ export class Renderer {
   render(state: GameState, alpha: number, ui: RenderUI, dtReal: number): void {
     this.time += dtReal;
     if (this.art.generation !== this.artGen) this.rebuildArt();
+    this.warmUnits(state, ui.localPlayer);
+    if (this.art.unitGen !== this.unitGenSeen) this.refreshUnitViews(state);
     this.cam.resize(this.app.screen.width, this.app.screen.height);
     const sx = this.cam.shake > 0 ? (Math.random() - 0.5) * this.cam.shake : 0, sy = this.cam.shake > 0 ? (Math.random() - 0.5) * this.cam.shake : 0;
     if (this.cam.shake > 0) this.cam.shake = Math.max(0, this.cam.shake - dtReal * 12);

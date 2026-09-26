@@ -1,0 +1,50 @@
+{
+  "id": "example_helepolis",
+  "kind": "unit",
+  "stage": 4,
+  "contact": "exemplo-helepole",
+  "docs": "Exemplo do rig (fora de art/manifest: `npm run art:bake -- --preview art/examples` só gera a folha de contato). Um lote copia para art/manifest/<id>.json, troca o id e o kit; para .glb, troque só `source` (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "siege",
+    "poses": "art/poses/siege.json",
+    "params": {
+      "style": "helepolis"
+    }
+  },
+  "size": {
+    "tiles": [
+      4.4,
+      4.6
+    ]
+  },
+  "anchor": [
+    0.45,
+    0.6
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": {
+      "frames": 1,
+      "fps": 10,
+      "pose": "idle_helepolis"
+    },
+    "walk": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "roll_helepolis"
+    },
+    "attack": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "fire_helepolis"
+    },
+    "die": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "die_helepolis"
+    }
+  },
+  "team": true,
+  "shadow": true
+}

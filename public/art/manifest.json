@@ -296,10 +296,10 @@
    "scale": 1,
    "page": 0,
    "w": 2048,
-   "h": 256,
-   "frames": 464,
-   "bytes": 438876,
-   "sha256": "a9bc9fa6b1ded5203c841c6e70dc98fb749f6f8da5da40545001477694e80ac2"
+   "h": 1024,
+   "frames": 1248,
+   "bytes": 1249104,
+   "sha256": "55c2d1a47208dcd8f6925f07d12b07a3079e95dd0ab96bbe7203b2e3029740f8"
   },
   {
    "json": "units-2x-0.json",
@@ -309,10 +309,10 @@
    "scale": 2,
    "page": 0,
    "w": 2048,
-   "h": 1024,
-   "frames": 464,
-   "bytes": 1224993,
-   "sha256": "013d81005d07566915dbe2a2608507c28b311c102ed5733b73740dd9a543a015"
+   "h": 2048,
+   "frames": 1248,
+   "bytes": 3479259,
+   "sha256": "67757d4c5ced1d5a2e14411c55c0f790dd9b2c2902101b7ec9e810b01c081cff"
   },
   {
    "json": "units-shadow-1x-0.json",
@@ -322,10 +322,10 @@
    "scale": 1,
    "page": 0,
    "w": 2048,
-   "h": 256,
-   "frames": 464,
-   "bytes": 211118,
-   "sha256": "7fe23715e4e58e3c67413a045c7770270296fe3aad16613968f532f4fab857e0"
+   "h": 1024,
+   "frames": 1248,
+   "bytes": 591494,
+   "sha256": "2a4963bc997b937b6c5154401a8569b6e0324b7fe8116ab617652a65f933fe98"
   },
   {
    "json": "units-shadow-2x-0.json",
@@ -335,10 +335,10 @@
    "scale": 2,
    "page": 0,
    "w": 2048,
-   "h": 1024,
-   "frames": 464,
-   "bytes": 654975,
-   "sha256": "de0ab2ecc9c85bbcea941c038e6eaf51a5667e2b56a9f5c938c1215e9aa4ff44"
+   "h": 2048,
+   "frames": 1248,
+   "bytes": 1823756,
+   "sha256": "644b44e307faed5c0f6daee2d75f944e485ba0186443c918940823584bbd98ab"
   },
   {
    "json": "units-team-1x-0.json",
@@ -348,10 +348,10 @@
    "scale": 1,
    "page": 0,
    "w": 2048,
-   "h": 128,
-   "frames": 464,
-   "bytes": 85752,
-   "sha256": "c08e4699d6921117c4dbf33185ed0ee56dca006a2fa5bac49ebb82c1097ef28b"
+   "h": 512,
+   "frames": 1248,
+   "bytes": 292755,
+   "sha256": "d7cdb919c663b1b46adf38eb64c877b7653fbaee2e48207a95ce56ebe16f798f"
   },
   {
    "json": "units-team-2x-0.json",
@@ -361,17 +361,17 @@
    "scale": 2,
    "page": 0,
    "w": 2048,
-   "h": 256,
-   "frames": 464,
-   "bytes": 203355,
-   "sha256": "ba80dad827e1435464595d0ba5c3afa2a4a4ad6e902332233e8911ef8bea0a96"
+   "h": 1024,
+   "frames": 1248,
+   "bytes": 696323,
+   "sha256": "6e9a4a40a93b51e474cdb67a6d4b5a96b1ef4278a45ed9bcea094ec508f49ba3"
   }
  ],
  "assets": {
   "academy": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "ea4e71baa181cdaa",
+   "sourceHash": "14a064d965587aee",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -468,7 +468,7 @@
   "barracks": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "5f75e3b933cab50a",
+   "sourceHash": "b3f612e307666b35",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -565,7 +565,7 @@
   "cornucopia": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "a3981fd355bb4e1c",
+   "sourceHash": "00f0d3bbe1cbe852",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -662,7 +662,7 @@
   "farm": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "b22c50f8c3ad795f",
+   "sourceHash": "31a30ab7a69a5d12",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -765,7 +765,7 @@
   "fortress": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "4e1ecc5d54cdaa9a",
+   "sourceHash": "9233872c12ecc729",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -862,7 +862,7 @@
   "gate": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "aec6e04dc6060092",
+   "sourceHash": "a0be2d7b373bbb47",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -969,7 +969,7 @@
   "granary": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "fe1b31f5773544fe",
+   "sourceHash": "36baa6d5977c034a",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1066,7 +1066,7 @@
   "hoplite": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "44b184e91feebd55",
+   "sourceHash": "5eca8d9964c794f6",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -1144,7 +1144,7 @@
   "house": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "845324d5956c0047",
+   "sourceHash": "3c1ee43784ee5f5d",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1238,10 +1238,88 @@
     2
    ]
   },
+  "hypaspist": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "7a0195861cee97eb",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 192,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-0.json"
+     ],
+     "team": [
+      "units-team-1x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-0.json"
+     ],
+     "team": [
+      "units-team-2x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 58,
+      "h": 73
+     },
+     "anchor": {
+      "x": 0.41379,
+      "y": 0.60274
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 116,
+      "h": 144
+     },
+     "anchor": {
+      "x": 0.41379,
+      "y": 0.60417
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   }
+  },
   "lumber_camp": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "646d9227c2464a99",
+   "sourceHash": "1315f7403a4624c4",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1338,7 +1416,7 @@
   "market": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "1e083bcbf0b792d3",
+   "sourceHash": "d3b9ad0771bc8eef",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1432,10 +1510,88 @@
     3
    ]
   },
+  "militia": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "6e37d84eb38cf6dd",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 192,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-0.json"
+     ],
+     "team": [
+      "units-team-1x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-0.json"
+     ],
+     "team": [
+      "units-team-2x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 53,
+      "h": 67
+     },
+     "anchor": {
+      "x": 0.37736,
+      "y": 0.58209
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 107,
+      "h": 135
+     },
+     "anchor": {
+      "x": 0.38318,
+      "y": 0.58519
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   }
+  },
   "mine": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "b7e115cebaf1941d",
+   "sourceHash": "d7fe80d2facaa253",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1529,10 +1685,88 @@
     2
    ]
   },
+  "myrmidon": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "3e8571eeb944a462",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 192,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-0.json"
+     ],
+     "team": [
+      "units-team-1x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-0.json"
+     ],
+     "team": [
+      "units-team-2x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 71,
+      "h": 88
+     },
+     "anchor": {
+      "x": 0.39437,
+      "y": 0.56818
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 144,
+      "h": 177
+     },
+     "anchor": {
+      "x": 0.40278,
+      "y": 0.56497
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   }
+  },
   "props-nodes": {
    "kind": "prop",
    "group": "props",
-   "sourceHash": "6f3e3a0189fe1866",
+   "sourceHash": "3336172c1c736a30",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -1583,7 +1817,7 @@
   "props-trees": {
    "kind": "prop",
    "group": "props",
-   "sourceHash": "8b4095c4ed29da1e",
+   "sourceHash": "f038980d40c70a50",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -1643,7 +1877,7 @@
   "rubble": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "b0577476cd0b9a95",
+   "sourceHash": "db608583178ff4b1",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -1725,7 +1959,7 @@
   "siege_workshop": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "209e57e38e5fc003",
+   "sourceHash": "0adef19a3aed06b1",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1822,7 +2056,7 @@
   "stable": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "6acc9b8e996b65ab",
+   "sourceHash": "5e6a5bfad0b29259",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1919,7 +2153,7 @@
   "temple": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "bddade88b9d8f9d3",
+   "sourceHash": "caddff4534196480",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2016,7 +2250,7 @@
   "titan_gate": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "a7327fe09f131485",
+   "sourceHash": "ad32ecbb76df19b4",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2118,7 +2352,7 @@
   "tower": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "a590fbd2cc3f79ba",
+   "sourceHash": "47bbb5fc911a19e8",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2234,7 +2468,7 @@
   "town_center": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "86099f880e3f1af0",
+   "sourceHash": "ce1b9fd69bac8e50",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2334,10 +2568,93 @@
     3
    ]
   },
+  "toxotes": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "b5aa303e3e387ce0",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 208,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-0.json"
+     ],
+     "team": [
+      "units-team-1x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-0.json"
+     ],
+     "team": [
+      "units-team-2x-0.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-0.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 49,
+      "h": 63
+     },
+     "anchor": {
+      "x": 0.40816,
+      "y": 0.5873
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 99,
+      "h": 126
+     },
+     "anchor": {
+      "x": 0.40404,
+      "y": 0.5873
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "aim": {
+     "frames": 2,
+     "fps": 10,
+     "loop": true
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   }
+  },
   "villager": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "94ebd634b363c712",
+   "sourceHash": "83047b8f7209b01d",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -2425,7 +2742,7 @@
   "wall": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "edfc5bf242288709",
+   "sourceHash": "7149f2d529e952cc",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2543,7 +2860,7 @@
   "wonder_artemis": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "449162ee700442c1",
+   "sourceHash": "de49ee22d4ac9ec5",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2640,7 +2957,7 @@
   "wonder_colossus": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "02b35d52659229c3",
+   "sourceHash": "afb83543b87d56cd",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2737,7 +3054,7 @@
   "wonder_zeus": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "8cc4825a02e6f3d5",
+   "sourceHash": "ea3b0fff43530235",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2833,8 +3150,8 @@
   }
  },
  "totals": {
-  "pngBytes": 12840459,
-  "vramBytes": 203161600,
+  "pngBytes": 18154081,
+  "vramBytes": 241958912,
   "atlases": 26
  }
 }

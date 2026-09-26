@@ -1,0 +1,50 @@
+{
+  "id": "example_petrobolos",
+  "kind": "unit",
+  "stage": 4,
+  "contact": "exemplo-petrobolo",
+  "docs": "Exemplo do rig (fora de art/manifest: `npm run art:bake -- --preview art/examples` só gera a folha de contato). Um lote copia para art/manifest/<id>.json, troca o id e o kit; para .glb, troque só `source` (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "siege",
+    "poses": "art/poses/siege.json",
+    "params": {
+      "style": "petrobolos"
+    }
+  },
+  "size": {
+    "tiles": [
+      3.8,
+      3.8
+    ]
+  },
+  "anchor": [
+    0.46,
+    0.6
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": {
+      "frames": 1,
+      "fps": 10,
+      "pose": "idle_petrobolos"
+    },
+    "walk": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "roll_petrobolos"
+    },
+    "attack": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "fire_petrobolos"
+    },
+    "die": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "die_petrobolos"
+    }
+  },
+  "team": true,
+  "shadow": true
+}

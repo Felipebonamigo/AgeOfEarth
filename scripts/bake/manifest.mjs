@@ -15,6 +15,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { DIRS, FPS, MIRROR_BAKED, MIRROR_FROM } from './page/camera.js';
+import { UNIT_KITS, DEFAULT_POSES } from './page/rigs/units.js';
 
 export const KINDS = ['unit', 'building', 'prop'];
 /** Grupo de atlas de cada tipo de asset (units-1x-0.png, buildings-1x-0.png, props-1x-0.png). */
@@ -29,7 +30,30 @@ export const VARIANT_BY = ['wallMask', 'gateAxis', 'ageTier', 'farmCrop'];
 /** Lado do ícone a 1× (px). */
 export const ICON_PX = 64;
 /** Rigs paramétricos conhecidos pela página de bake (scripts/bake/page/rigs/*.js, props.js, buildings.js). */
-export const RIGS = ['human', 'building', 'props'];
+export const RIGS = ['human', 'horse', 'siege', 'building', 'props'];
+/** Rigs de unidade (registro em scripts/bake/page/rigs/units.js) e o arquivo de poses padrão de cada um. */
+export const UNIT_RIG_POSES = DEFAULT_POSES;
+/** Animações de unidade que o renderizador conhece (src/render/art/logic.ts `UnitAnim`): as 4 obrigatórias e as
+ *  especiais — carry/gather (cidadão), aim (à distância no posto entre disparos), run (galope acima de RUN_SPEED). */
+export const UNIT_ANIMS = ['idle', 'walk', 'attack', 'die', 'carry', 'gather', 'aim', 'run'];
+export const REQUIRED_UNIT_ANIMS = ['idle', 'walk', 'attack', 'die'];
+
+/** Arquivo de poses de um manifesto de unidade paramétrico (o do rig, se o manifesto não trouxer) e o do cavaleiro. */
+export function posesOf(m) {
+  const s = m?.source;
+  if (!s || s.type !== 'param' || !DEFAULT_POSES[s.rig]) return { main: null, rider: null };
+  return { main: s.poses ?? DEFAULT_POSES[s.rig], rider: s.rig === 'horse' && s.params?.rider !== null ? (s.riderPoses ?? DEFAULT_POSES.human) : null };
+}
+
+/** Erros do kit (`source.params`) contra os valores aceitos pelo rig (e o kit humano do cavaleiro). */
+function kitErrors(where, kit, params) {
+  const e = [];
+  for (const [k, allowed] of Object.entries(kit ?? {})) {
+    const v = params?.[k];
+    if (v !== undefined && !allowed.includes(v)) e.push(`${where}: ${k} = ${JSON.stringify(v)} (aceitos: ${allowed.join(', ')})`);
+  }
+  return e;
+}
 
 export const FRAME_NAME_RE = {
   unit: /^[a-z][a-z0-9_]*\/[a-z][a-z0-9_]*\/[0-7]\/\d{2}$/,
@@ -63,6 +87,11 @@ export function validateManifest(m) {
   else if (s.type === 'param') {
     if (!RIGS.includes(s.rig)) e.push(`${where}: source.rig desconhecido (${s.rig})`);
     if (s.rig === 'props' && (!Array.isArray(s.items) || !s.items.length)) e.push(`${where}: props sem items`);
+    if (UNIT_KITS[s.rig]) {
+      if (m.kind !== 'unit') e.push(`${where}: rig ${s.rig} é de unidade`);
+      e.push(...kitErrors(where, UNIT_KITS[s.rig], s.params));
+      if (s.rig === 'horse' && s.params?.rider) e.push(...kitErrors(`${where} (cavaleiro)`, UNIT_KITS.human, s.params.rider));
+    }
   } else {
     if (typeof s.path !== 'string') e.push(`${where}: source.path ausente`);
     if (!isNum(s.scale)) e.push(`${where}: source.scale ausente`);
@@ -71,6 +100,8 @@ export function validateManifest(m) {
   if (!Array.isArray(t) || t.length !== 2 || !t.every((v) => isNum(v) && v > 0 && v <= 12)) e.push(`${where}: size.tiles [w, h] inválido`);
   if (!Array.isArray(m.anchor) || m.anchor.length !== 2 || !m.anchor.every(inUnit)) e.push(`${where}: anchor fora de [0,1]`);
   if (m.kind === 'unit' && m.dirs !== 8) e.push(`${where}: unidades têm 8 direções`);
+  if (m.kind === 'unit' && m.anims) for (const a of REQUIRED_UNIT_ANIMS) if (!m.anims[a]) e.push(`${where}: animação ${a} ausente (unidades têm ${REQUIRED_UNIT_ANIMS.join(', ')})`);
+  if (m.stage !== undefined && !(Number.isInteger(m.stage) && m.stage >= 2 && m.stage <= 8)) e.push(`${where}: stage (etapa da folha de contato) deve ser 2–8`);
   if (m.kind !== 'unit' && m.dirs !== undefined && m.dirs !== 1) e.push(`${where}: só unidades têm direções`);
   if (m.kind !== 'prop') {
     if (!m.anims || typeof m.anims !== 'object' || !Object.keys(m.anims).length) e.push(`${where}: anims vazio`);
@@ -79,6 +110,8 @@ export function validateManifest(m) {
       if (!Number.isInteger(a?.frames) || a.frames < 1 || a.frames > 32) e.push(`${where}: ${name}.frames inválido`);
       if (a?.fps !== undefined && !(isNum(a.fps) && a.fps > 0)) e.push(`${where}: ${name}.fps inválido`);
       if (m.kind === 'unit' && s?.type === 'param' && typeof a?.pose !== 'string') e.push(`${where}: ${name}.pose ausente`);
+      if (m.kind === 'unit' && s?.type === 'param' && s.rig === 'horse' && s.params?.rider !== null && typeof a?.rider !== 'string') e.push(`${where}: ${name}.rider (pose do cavaleiro) ausente`);
+      if (m.kind === 'unit' && !UNIT_ANIMS.includes(name)) e.push(`${where}: animação de unidade desconhecida ${name} (${UNIT_ANIMS.join(', ')})`);
     }
   } else if (s?.type === 'param' && Array.isArray(s.items)) {
     for (const it of s.items) {
@@ -153,7 +186,7 @@ export function expandFrames(m, { mirror = false } = {}) {
     }
     for (const dir of bakedDirs(m, mirror)) for (let i = 0; i < a.frames; i++) {
       const name = m.kind === 'unit' ? `${m.id}/${anim}/${dir}/${pad2(i)}` : a.frames > 1 ? `${m.id}/${anim}/${pad2(i)}` : `${m.id}/${anim}`;
-      out.push({ name, group: m.id, anim, dir, frame: i, frames: a.frames, loop, pose: a.pose, params: a.params });
+      out.push({ name, group: m.id, anim, dir, frame: i, frames: a.frames, loop, pose: a.pose, ...(a.rider ? { rider: a.rider } : {}), params: a.params });
     }
   }
   if (m.kind === 'building' && m.icon && m.anims?.[m.icon.anim]) {

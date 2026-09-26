@@ -1,0 +1,58 @@
+{
+  "id": "myrmidon",
+  "kind": "unit",
+  "stage": 4,
+  "docs": "Kit do rig humano escolhido só por parâmetros (docs/ART.md, Apêndice E). Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/myrmidon.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Walk\", \"attack\": \"Attack\", \"die\": \"Death\" }, \"teamMaterials\": [\"Cape\", \"ShieldRim\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "human",
+    "poses": "art/poses/human.json",
+    "params": {
+      "helmet": "chalcidian",
+      "crest": "transverse",
+      "crestColor": "dark",
+      "metal": "dark",
+      "armor": "cuirass",
+      "greaves": true,
+      "cape": "long",
+      "shield": "hoplon",
+      "shieldTeam": "rim",
+      "weapon": "dory"
+    }
+  },
+  "size": {
+    "tiles": [
+      3.2,
+      3.6
+    ]
+  },
+  "anchor": [
+    0.45,
+    0.58
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": {
+      "frames": 4,
+      "fps": 10,
+      "pose": "idle_dory"
+    },
+    "walk": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "walk_dory"
+    },
+    "attack": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "attack_dory"
+    },
+    "die": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "die"
+    }
+  },
+  "team": true,
+  "shadow": true
+}

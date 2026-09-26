@@ -34,7 +34,12 @@ export function dirWithHysteresis(angle: number, prev: number, margin = 0.12): n
 }
 
 // ---------------- Animação ----------------
-export type UnitAnim = 'idle' | 'walk' | 'attack' | 'die' | 'carry' | 'gather';
+/**
+ * Animações de unidade: as 4 de todo manifesto (parado, andar, atacar, morrer) e as especiais — carregar e coletar
+ * (cidadão), `aim` (à distância no posto entre um disparo e outro: arco puxado, dardo armado, braço do cerco carregado)
+ * e `run` (galope da cavalaria acima de RUN_SPEED; sem ela, `walk` — o trote — cobre qualquer velocidade).
+ */
+export type UnitAnim = 'idle' | 'walk' | 'attack' | 'die' | 'carry' | 'gather' | 'aim' | 'run';
 
 export interface AnimInput {
   /** A unidade se deslocou desde o tick anterior. */
@@ -45,13 +50,44 @@ export interface AnimInput {
   carrying: boolean;
   /** Parada trabalhando: coletando, construindo ou reparando. */
   working: boolean;
+  /** No posto atacando (alvo ao alcance), entre um golpe/disparo e outro. */
+  engaged?: boolean;
+  /** Andando depressa (≥ RUN_SPEED tiles/s: cavalaria solta; em formação com a infantaria, trota). */
+  running?: boolean;
 }
-/** Animação a tocar: ataque em curso > andar (ou carregar) > coletar > parado; cai para a mais próxima que existir. */
+/**
+ * Animação a tocar: ataque em curso > andar (carregar, galopar) > mirar (no posto, entre disparos) > coletar > parado;
+ * cai para a mais próxima que existir (sem `run` → `walk`, sem `aim` → parado).
+ */
 export function chooseAnim(i: AnimInput, has: (a: UnitAnim) => boolean): UnitAnim {
   if (i.attacking && has('attack')) return 'attack';
-  if (i.moving) return i.carrying && has('carry') ? 'carry' : 'walk';
+  if (i.moving) return i.carrying && has('carry') ? 'carry' : i.running && has('run') ? 'run' : 'walk';
+  if (i.engaged && has('aim')) return 'aim';
   if (i.working && has('gather')) return 'gather';
   return 'idle';
+}
+/** Velocidade (tiles/s) a partir da qual quem tem `run` galopa: acima de toda infantaria e dos heróis a pé (≤ 3,0) e abaixo da cavalaria
+ *  solta (hipeu 3,6; hetairo 3,4; batedor 4,3). Em formação a cavalaria anda no passo do mais lento e trota. */
+export const RUN_SPEED = 3.2;
+/** Deslocamento do tick (`disp2`, tiles²) de quem corre: ≥ RUN_SPEED · dt, com 10 % de folga para não piscar. */
+export function isRunning(disp2: number, dt: number, wasRunning: boolean): boolean {
+  const v = RUN_SPEED * dt * (wasRunning ? 0.9 : 1);
+  return disp2 >= v * v;
+}
+/** Andando (walk/carry/run): o que a histerese de `isWalking` considera "já estava andando". */
+export function isMoveAnim(a: UnitAnim): boolean { return a === 'walk' || a === 'carry' || a === 'run'; }
+
+/** Definição mínima de unidade para o pré-carregamento (UNITS de src/core/data). */
+export interface WarmDef { age: number; building: string | null; tags: readonly string[]; flying?: boolean }
+/**
+ * Tipos de unidade cujos atlas vale pré-carregar (Etapa 4, carregamento por tipo): os que existem na partida, os
+ * treináveis até a Idade `age` do jogador local e os humanos sem edifício da mesma Idade (milícia, rei). O resto é
+ * carregado na primeira aparição (procedural até lá, sem travar a partida).
+ */
+export function warmUnitTypes(defs: Readonly<Record<string, WarmDef>>, age: number, present: Iterable<string> = []): string[] {
+  const out = new Set<string>(present);
+  for (const [id, d] of Object.entries(defs)) if (!d.flying && d.age <= age && (d.building !== null || d.tags.includes('human'))) out.add(id);
+  return [...out].sort();
 }
 /**
  * A unidade anda de fato neste tick? O deslocamento `disp2` (tiles², desde o tick anterior) tem de passar de 30 % do

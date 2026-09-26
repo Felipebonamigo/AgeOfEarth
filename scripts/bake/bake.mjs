@@ -5,13 +5,17 @@
 // Uso:
 //   node scripts/bake/bake.mjs [--only hoplite,villager,temple,props] [--scale 1|2|1,2] [--dirs 8|5] [--mirror]
 //                              [--pack-only] [--out public/art] [--cache art/cache] [--contact docs/art] [--selftest-glb]
+//                              [--preview art/examples[,outro.json]]
 //
 // Etapas: (1) valida os manifestos; (2) para cada asset/escala calcula o hash de entrada (manifesto + poses + fontes da
 // página + versão do three + PIPELINE_VERSION); se art/cache/<id>/<escala>x-<hash>/ existe, não reassa; senão abre a
 // página, assa os quadros (3 passes: cor, time, sombra), recorta e grava no cache; (3) reempacota TODOS os assets com
 // cache válido nos atlas `<grupo>[-team|-shadow]-<escala>x-<n>.png/.json` e escreve public/art/manifest.json.
 // `--pack-only` pula a etapa 2 (só reempacota o cache; falha se faltar algum asset selecionado).
-// `--contact dir` grava as folhas de contato (grade de todas as direções/quadros) em dir/etapa2-<nome>-contato.png.
+// `--contact dir` grava as folhas de contato (grade de todas as direções/quadros) em dir/etapa<N>-<nome>-contato.png
+// (N = `stage` do manifesto; padrão 3 nos edifícios e 2 no resto).
+// `--preview pasta|arquivo.json,...` assa manifestos de FORA de art/manifest (exemplos dos rigs, protótipos de um lote)
+// só para o cache e as folhas de contato (`--contact`, padrão docs/art): não entram nos atlas nem em public/art.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,7 +23,8 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
 import { startServer } from './server.mjs';
-import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, animSummary, matchesOnly, GROUP_OF, PASSES, bakedDirs, ATLAS_GROUPS, ICON_PX, atlasOf } from './manifest.mjs';
+import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, animSummary, matchesOnly, GROUP_OF, PASSES, bakedDirs, ATLAS_GROUPS, ICON_PX, atlasOf, posesOf } from './manifest.mjs';
+import { RIG_FILES } from './page/rigs/units.js';
 import { alphaBounds, crop, packShelf, blit, sheetJson } from './page/atlas.js';
 import { PX_PER_TILE, PIPELINE_VERSION, MIRROR_FROM, atlasMeta } from './page/camera.js';
 
@@ -40,7 +45,7 @@ const TEAM_PREVIEW = 0x2f4fa8;   // azul de time da tabela 1.6, só nas folhas d
 // argumentos
 
 function parseArgs(argv) {
-  const o = { only: null, scales: [1], mirror: false, packOnly: false, out: 'public/art', cache: 'art/cache', contact: null, selftestGlb: false };
+  const o = { only: null, scales: [1], mirror: false, packOnly: false, out: 'public/art', cache: 'art/cache', contact: null, selftestGlb: false, preview: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i], next = () => argv[++i];
     if (a === '--only') o.only = next().split(',').map((s) => s.trim()).filter(Boolean);
@@ -52,7 +57,8 @@ function parseArgs(argv) {
     else if (a === '--cache') o.cache = next();
     else if (a === '--contact') o.contact = next();
     else if (a === '--selftest-glb') o.selftestGlb = true;
-    else if (a === '--help' || a === '-h') { console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 16).join('\n')); process.exit(0); }
+    else if (a === '--preview') o.preview = next().split(',').map((s) => s.trim()).filter(Boolean);
+    else if (a === '--help' || a === '-h') { console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 20).join('\n')); process.exit(0); }
     else throw new Error(`argumento desconhecido: ${a}`);
   }
   if (!o.scales.every((s) => s === 1 || s === 2)) throw new Error('--scale aceita 1, 2 ou 1,2');
@@ -75,7 +81,11 @@ function sourceFiles(m) {
   const files = ['scripts/bake/page/camera.js', 'scripts/bake/page/materials.js', 'scripts/bake/page/bake.js'];
   const s = m.source;
   if (s.type === 'glb') files.push(s.path);
-  else if (s.rig === 'human') files.push('scripts/bake/page/rigs/human.js', s.poses ?? 'art/poses/human.json');
+  else if (RIG_FILES[s.rig]) {
+    // rigs de unidade (Etapa 4): o registro, os arquivos do rig (o cavalo e o cerco incluem o humano) e as poses
+    const p = posesOf(m);
+    files.push('scripts/bake/page/rigs/units.js', ...RIG_FILES[s.rig], ...[p.main, p.rider].filter(Boolean));
+  }
   else if (s.rig === 'building') {
     // buildings.js, os módulos de lote em page/ (buildings-*.js) e em page/rigs/ (buildings-*.js), em ordem estável
     files.push(...fs.readdirSync(PAGE).filter((f) => /^buildings(-[a-z0-9-]+)?\.js$/.test(f)).sort().map((f) => `scripts/bake/page/${f}`), 'scripts/bake/manifest.mjs', ...buildingModules());
@@ -149,7 +159,8 @@ async function bakeAsset(opts, m, scale, hash) {
   const { page } = await browser();
   const t0 = Date.now();
   const frames = expandFrames(m, { mirror: opts.mirror }).map((f) => ({ ...f, box: boxOf(m, f, scale) }));
-  const poses = m.source.type === 'param' && m.source.rig === 'human' ? JSON.parse(readRel(m.source.poses ?? 'art/poses/human.json')) : null;
+  const pf = posesOf(m);
+  const poses = { main: pf.main ? JSON.parse(readRel(pf.main)) : null, rider: pf.rider ? JSON.parse(readRel(pf.rider)) : null };
   // lotes: unidade = (animação, direção); edifício = estado (todas as variantes); prop = 6 quadros; ícone = sozinho
   const batches = [];
   if (m.kind === 'prop') for (let i = 0; i < frames.length; i += 6) batches.push(frames.slice(i, i + 6));
@@ -419,7 +430,7 @@ async function contactSheets(opts, manifests, hashes, all = manifests) {
     const e = loadCache(opts, m, 1, hashes.get(`${m.id}/1`));
     if (!e) continue;
     const groups = groupFrames(e);
-    const name = (m.kind === 'building' ? 'etapa3-' : 'etapa2-') + (m.contact ?? CONTACT_NAME[m.id] ?? m.id);
+    const name = `etapa${m.stage ?? (m.kind === 'building' ? 3 : 2)}-` + (m.contact ?? CONTACT_NAME[m.id] ?? m.id);
     const sheet = sheets.get(name) ?? { title: '', rows: [], cellW: 0, cellH: 0, zoom: 2 };
     sheets.set(name, sheet);
     const cell = (fr) => { const G = groups.get(fr.group); return { color: cellImg(e, fr, 'color', G), team: cellImg(e, fr, 'team', G), shadow: cellImg(e, fr, 'shadow', G), anchor: { x: fr.box.ax - G.x0, y: fr.box.ay - G.y0 }, w: G.w, h: G.h }; };
@@ -499,12 +510,13 @@ async function selftestGlb(opts) {
   const b64 = await page.evaluate(() => window.__bake.exportTestGlb());
   fs.mkdirSync(path.join(ROOT, 'art/src'), { recursive: true });
   fs.writeFileSync(path.join(ROOT, glbRel), Buffer.from(b64, 'base64'));
-  const m = { id: 'glbtest', kind: 'unit', docs: 'teste do caminho glb', source: { type: 'glb', path: glbRel, scale: 0.5, forward: '-z', anims: { idle: 'Wave' } },
-    size: { tiles: [2.4, 2.4] }, anchor: [0.5, 0.62], dirs: 8, anims: { idle: { frames: 4, fps: 10 } }, team: true, shadow: true };
+  const clip = { frames: 4, fps: 10 };
+  const m = { id: 'glbtest', kind: 'unit', docs: 'teste do caminho glb', source: { type: 'glb', path: glbRel, scale: 0.5, forward: '-z', anims: { idle: 'Wave', walk: 'Wave', attack: 'Wave', die: 'Wave' } },
+    size: { tiles: [2.4, 2.4] }, anchor: [0.5, 0.62], dirs: 8, anims: { idle: clip, walk: clip, attack: clip, die: clip }, team: true, shadow: true };
   const errs = validateManifest(m);
   if (errs.length) throw new Error(errs.join('\n'));
-  const frames = expandFrames(m).filter((f) => f.dir === 2 || f.dir === 3).map((f) => ({ ...f, box: boxOf(m, f, 1) }));
-  const res = await page.evaluate((job) => window.__bake.bakeBatch(job), { manifest: m, poses: null, scale: 1, stateKey: 'glbtest', frames });
+  const frames = expandFrames(m).filter((f) => f.anim === 'idle' && (f.dir === 2 || f.dir === 3)).map((f) => ({ ...f, box: boxOf(m, f, 1) }));
+  const res = await page.evaluate((job) => window.__bake.bakeBatch(job), { manifest: m, poses: { main: null, rider: null }, scale: 1, stateKey: 'glbtest', frames });
   let ok = true;
   const fp = [];
   for (const r of res) {
@@ -521,6 +533,32 @@ async function selftestGlb(opts) {
 
 // ---------------------------------------------------------------------------------------------------------------
 
+/**
+ * `--preview`: assa manifestos de fora de art/manifest (pastas ou arquivos) e grava as folhas de contato; não empacota
+ * nada (public/art fica intacto). Os ids não podem repetir os de art/manifest (o cache é por id).
+ */
+async function preview(opts, official) {
+  const list = [];
+  for (const p of opts.preview) {
+    const abs = path.resolve(ROOT, p);
+    if (fs.statSync(abs).isDirectory()) list.push(...loadManifests(abs));
+    else list.push({ file: abs, manifest: JSON.parse(fs.readFileSync(abs, 'utf8')) });
+  }
+  const errors = [...list.flatMap((l) => validateManifest(l.manifest).map((e) => `${path.relative(ROOT, l.file)}: ${e}`)), ...validateAll(list.map((l) => l.manifest))];
+  for (const l of list) if (official.some((o) => o.id === l.manifest.id)) errors.push(`${path.relative(ROOT, l.file)}: id ${l.manifest.id} já existe em art/manifest`);
+  if (errors.length) throw new Error(errors.join('\n'));
+  const manifests = list.map((l) => l.manifest).filter((m) => matchesOnly(m, opts.only));
+  const hashes = new Map();
+  for (const m of manifests) for (const s of new Set([...opts.scales, 1])) hashes.set(`${m.id}/${s}`, inputHash(m, s, opts.mirror));
+  console.log(`prévia: ${manifests.map((m) => m.id).join(', ')} · escala ${opts.scales.join(',')}× (fora dos atlas)`);
+  for (const scale of new Set([...opts.scales, 1])) for (const m of manifests) {
+    const hash = hashes.get(`${m.id}/${scale}`);
+    if (loadCache(opts, m, scale, hash)) { console.log(`  ${m.id} ${scale}×: cache ${hash}`); continue; }
+    await bakeAsset(opts, m, scale, hash);
+  }
+  await contactSheets({ ...opts, contact: opts.contact ?? 'docs/art' }, manifests, hashes, manifests);
+}
+
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   const t0 = Date.now();
@@ -529,12 +567,13 @@ async function main() {
   const errors = [...loaded.flatMap((l) => validateManifest(l.manifest).map((e) => `${path.relative(ROOT, l.file)}: ${e}`)), ...validateAll(manifests)];
   if (errors.length) { console.error(errors.join('\n')); process.exit(1); }
   const selected = manifests.filter((m) => matchesOnly(m, opts.only));
-  if (opts.only && !selected.length) throw new Error(`--only ${opts.only.join(',')} não casa com nenhum manifesto`);
+  if (opts.only && !selected.length && !opts.preview) throw new Error(`--only ${opts.only.join(',')} não casa com nenhum manifesto`);
   const hashes = new Map();
   for (const m of manifests) for (const s of new Set([...opts.scales, 1])) hashes.set(`${m.id}/${s}`, inputHash(m, s, opts.mirror));
 
   try {
     if (opts.selftestGlb) { await selftestGlb(opts); return; }
+    if (opts.preview) { await preview(opts, manifests); return; }
     console.log(`bake: ${selected.map((m) => m.id).join(', ')} · escala ${opts.scales.join(',')}× · ${opts.mirror ? '5 direções + 3 espelhadas' : '8 direções'}`);
     for (const scale of opts.scales) for (const m of selected) {
       const hash = hashes.get(`${m.id}/${scale}`);

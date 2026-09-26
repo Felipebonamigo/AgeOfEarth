@@ -1,0 +1,53 @@
+{
+  "id": "militia",
+  "kind": "unit",
+  "stage": 4,
+  "docs": "Kit do rig humano escolhido só por parâmetros (docs/ART.md, Apêndice E). Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/militia.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Walk\", \"attack\": \"Attack\", \"die\": \"Death\" }, \"teamMaterials\": [\"Tunic\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "human",
+    "poses": "art/poses/human.json",
+    "params": {
+      "helmet": "pilos",
+      "helmetMat": "felt",
+      "armor": "tunic",
+      "tunicTeam": true,
+      "weapon": "club"
+    }
+  },
+  "size": {
+    "tiles": [
+      3.2,
+      3.6
+    ]
+  },
+  "anchor": [
+    0.45,
+    0.58
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": {
+      "frames": 4,
+      "fps": 10,
+      "pose": "idle_club"
+    },
+    "walk": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "walk_club"
+    },
+    "attack": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "attack_club"
+    },
+    "die": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "die"
+    }
+  },
+  "team": true,
+  "shadow": true
+}

@@ -14,6 +14,10 @@ export const PALETTE = {
   soot: 0x1b1714, char: 0x3a2d23, earth: 0x8a7a62, ash: 0x6d675e, canvas: 0xd9ccaa,
   // cantaria de calcário das muralhas/torres (clara: a face sul fica na meia-sombra do sol de noroeste, §1.5)
   ashlar: 0xc9bc9c, ashlar2: 0xbcae8f, ashlarDark: 0x8e836d,
+  // unidades (Etapa 4): feltro do pílos/chapéu, crina de elmo escura, pelagens do cavalo (baio, alazão, tordilho,
+  // preto), crina/cauda, couro cru das coberturas do cerco
+  felt: 0x6b5238, crestDark: 0x2a221c, horseBay: 0x6e4326, horseChestnut: 0x8a4f2a, horseGrey: 0xa5a19a, horseBlack: 0x2f2925,
+  mane: 0x231c16, hide: 0x9c7b52, bronzeBlack: 0x4a3a28,
   teamNeutral: 0x8f9098,   // cor de time no passe de cor (neutra; o jogo desenha a máscara tingida por cima)
   teamMask: 0xffffff,      // cor de time no passe de máscara (branco iluminado → tint)
 };
@@ -44,6 +48,14 @@ export function createMaterials(THREE) {
   M.occluder = new THREE.MeshBasicMaterial({ colorWrite: false });         // só profundidade (esconde a máscara atrás do corpo)
   M.invisible = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }); // passe de sombra: modelo invisível
   M.shadowGround = new THREE.ShadowMaterial({ color: 0x000000, opacity: 1 });
+  // Etapa 4 (unidades): criados DEPOIS de todos os outros — a ordem de criação decide o id do material, que o three usa
+  // para ordenar o desenho; acrescentar no fim não muda a ordem relativa dos antigos (edifícios e props saem idênticos)
+  Object.assign(M, {
+    felt: std(PALETTE.felt, 0.95), crestDark: std(PALETTE.crestDark, 0.9),
+    horseBay: std(PALETTE.horseBay, 0.7), horseChestnut: std(PALETTE.horseChestnut, 0.7), horseGrey: std(PALETTE.horseGrey, 0.75),
+    horseBlack: std(PALETTE.horseBlack, 0.65), mane: std(PALETTE.mane, 0.9), hide: std(PALETTE.hide, 0.9),
+    bronzeBlack: std(PALETTE.bronzeBlack, 0.42, 0.85),
+  });
   return M;
 }
 

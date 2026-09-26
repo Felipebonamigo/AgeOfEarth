@@ -1,0 +1,66 @@
+{
+  "rig": "siege",
+  "version": 1,
+  "units": "graus por pivô [x, y, z]; wheel gira todas as rodas (x negativo = rolar para a frente); arm: petróbolo 0 = deitado para trás, −100 = contra o batente; helépole 180 = recolhido, ≈ −10 = para fora da janela; shutter x positivo abre para fora; escalares stone (≥ 0,5 = pedra carregada) e collapse (0–1, peças soltas na morte); t em 0..1",
+  "joints": ["root", "body", "wheel", "arm", "shutter", "winch"],
+  "scalars": ["stone", "collapse"],
+  "anims": {
+    "idle_petrobolos": {
+      "loop": true, "keys": [
+        {"t": 0, "arm": [6, 0, 0], "stone": 1}
+      ]
+    },
+    "roll_petrobolos": {
+      "loop": true, "keys": [
+        {"t": 0, "root": {"pos": [0, 0, 0], "rot": [0, 0, -0.8]}, "wheel": [0, 0, 0], "arm": [6, 0, 0], "stone": 1},
+        {"t": 0.5, "root": {"pos": [0, 0.01, 0], "rot": [0, 0, 0.8]}, "wheel": [-90, 0, 0], "arm": [5, 0, 0], "stone": 1},
+        {"t": 1, "root": {"pos": [0, 0, 0], "rot": [0, 0, -0.8]}, "wheel": [-180, 0, 0], "arm": [6, 0, 0], "stone": 1}
+      ]
+    },
+    "fire_petrobolos": {
+      "loop": false, "ease": "smooth", "keys": [
+        {"t": 0, "root": {"pos": [0, 0, 0.06], "rot": [-2.5, 0, 0]}, "arm": [-101, 0, 0], "winch": [0, 0, 0], "stone": 0},
+        {"t": 0.12, "root": {"pos": [0, 0, 0.03], "rot": [1, 0, 0]}, "arm": [-92, 0, 0], "winch": [0, 0, 0], "stone": 0},
+        {"t": 0.3, "root": {"pos": [0, 0, 0], "rot": [0, 0, 0]}, "arm": [-80, 0, 0], "winch": [-60, 0, 0], "stone": 0},
+        {"t": 0.85, "arm": [4, 0, 0], "winch": [-540, 0, 0], "stone": 0},
+        {"t": 0.9, "arm": [6, 0, 0], "winch": [-560, 0, 0], "stone": 1},
+        {"t": 1, "arm": [6, 0, 0], "winch": [-560, 0, 0], "stone": 1}
+      ]
+    },
+    "die_petrobolos": {
+      "loop": false, "ease": "smooth", "keys": [
+        {"t": 0, "root": {"pos": [0, 0, 0], "rot": [0, 0, 0]}, "arm": [6, 0, 0], "stone": 1, "collapse": 0},
+        {"t": 0.4, "root": {"pos": [0, -0.06, 0], "rot": [4, 0, 8]}, "arm": [-30, 0, 20], "stone": 0, "collapse": 0.4},
+        {"t": 1, "root": {"pos": [0.1, -0.18, 0], "rot": [6, 0, 14]}, "arm": [-6, 0, 50], "stone": 0, "collapse": 1}
+      ]
+    },
+    "idle_helepolis": {
+      "loop": true, "keys": [
+        {"t": 0, "arm": [180, 0, 0], "shutter": [0, 0, 0], "stone": 1}
+      ]
+    },
+    "roll_helepolis": {
+      "loop": true, "keys": [
+        {"t": 0, "root": {"pos": [0, 0, 0], "rot": [0.6, 0, -1.2]}, "wheel": [0, 0, 0], "arm": [180, 0, 0], "stone": 1},
+        {"t": 0.5, "root": {"pos": [0, 0.01, 0], "rot": [-0.4, 0, 1.2]}, "wheel": [-90, 0, 0], "arm": [180, 0, 0], "stone": 1},
+        {"t": 1, "root": {"pos": [0, 0, 0], "rot": [0.6, 0, -1.2]}, "wheel": [-180, 0, 0], "arm": [180, 0, 0], "stone": 1}
+      ]
+    },
+    "fire_helepolis": {
+      "loop": false, "ease": "smooth", "keys": [
+        {"t": 0, "root": {"pos": [0, 0, 0.03], "rot": [-1, 0, 0]}, "shutter": [80, 0, 0], "arm": [-12, 0, 0], "stone": 0},
+        {"t": 0.2, "root": {"pos": [0, 0, 0], "rot": [0.5, 0, 0]}, "shutter": [82, 0, 0], "arm": [-6, 0, 0], "stone": 0},
+        {"t": 0.5, "shutter": [70, 0, 0], "arm": [90, 0, 0], "stone": 0},
+        {"t": 0.75, "shutter": [25, 0, 0], "arm": [180, 0, 0], "stone": 1},
+        {"t": 1, "shutter": [0, 0, 0], "arm": [180, 0, 0], "stone": 1}
+      ]
+    },
+    "die_helepolis": {
+      "loop": false, "ease": "smooth", "keys": [
+        {"t": 0, "root": {"pos": [0, 0, 0], "rot": [0, 0, 0]}, "arm": [180, 0, 0], "stone": 1, "collapse": 0},
+        {"t": 0.35, "root": {"pos": [0, -0.05, 0], "rot": [-6, 0, 4]}, "arm": [140, 0, 0], "stone": 0, "collapse": 0.3},
+        {"t": 1, "root": {"pos": [0, -0.25, 0], "rot": [-14, 0, 9]}, "arm": [100, 0, 0], "stone": 0, "collapse": 1}
+      ]
+    }
+  }
+}
