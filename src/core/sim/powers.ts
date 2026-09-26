@@ -9,6 +9,7 @@ import { getRuntime } from './runtime';
 import { applyDamage, killUnit } from './combat';
 import { entityById, isEnemy } from './queries';
 import { t } from '../../i18n';
+import { recordPowerUse } from '../scenario/log';
 
 export interface PowerResult { ok: boolean; reason?: string }
 
@@ -115,7 +116,8 @@ export function usePower(state: GameState, player: Player, powerId: string, x?: 
     default: return { ok: false, reason: t('err.unknownPower') };
   }
   ps.used = true;
-  state.events.push({ tick: state.tick, type: 'powerUsed', player: player.id, x: px, y: py, text: t('ev.powerUsed', { player: player.name, power: def.name }) });
+  recordPowerUse(state, player.id, powerId);   // G11: { powerUsed } do cenário conta usos (reset/remove não zeram)
+  state.events.push({ tick: state.tick, type: 'powerUsed', player: player.id, x: px, y: py, data: powerId, text: t('ev.powerUsed', { player: player.name, power: def.name }) });
   return { ok: true };
 }
 

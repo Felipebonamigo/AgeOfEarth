@@ -2,7 +2,7 @@
 // e carregamento de volta. Terreno e decoração vão em base64 de bytes (sem depender de btoa/Buffer); nós como listas.
 // Também: forma canônica, hash de identificação, validação (erros/avisos), mapa em branco, migração e saveMap.
 // Tudo determinístico (só state.rng/makeNoise): o arquivo é a única fonte da verdade; blocked/nodeAt/ids são derivados.
-import { MAX_PLAYERS, TERRAIN, type GameMode, type NodeType } from '../constants';
+import { MAX_FIXED_RELICS, MAX_PLAYERS, TERRAIN, type GameMode, type NodeType } from '../constants';
 import { BUILDINGS, UNITS } from '../data';
 import { RNG, makeNoise } from '../rng';
 import type { GameMap, GameState } from '../types';
@@ -26,7 +26,7 @@ export interface FixedMapData {
   entities?: MapEntity[];                       // edifícios e unidades pré-colocados (edifícios antes das unidades, ordem y, x)
   startTeams?: number[];                        // time sugerido por início (ex.: [0, 0, 1, 1]) para atribuição por time
   koth?: [number, number];                      // colina do Rei da Colina; padrão: centro do mapa
-  relics?: boolean;                             // padrão true: placeRelics sorteia pela semente; false em cenários
+  relics?: boolean | [number, number][];        // padrão true: placeRelics sorteia pela semente; false em cenários; lista (G10) = posições fixas (tiles)
   scenario?: ScenarioFile;                      // cenário declarativo embutido (docs/EDITOR.md §2.3); preservado tal como está
 }
 export type MapEntity =
@@ -160,7 +160,8 @@ export function canonicalize(data: FixedMapData): FixedMapData {
   if (Array.isArray(data.startTeams) && data.startTeams.length > 0) out.startTeams = data.startTeams.slice();
   if (data.startKit === false) out.startKit = false;
   if (Array.isArray(data.koth)) out.koth = [data.koth[0], data.koth[1]];
-  if (data.relics === false) out.relics = false;
+  if (data.relics === false || (Array.isArray(data.relics) && data.relics.length === 0)) out.relics = false;   // lista vazia = nenhuma
+  else if (Array.isArray(data.relics)) out.relics = data.relics.filter(Array.isArray).map(([x, y]) => [x, y]);   // G10: na ordem do arquivo
   if (data.scenario && typeof data.scenario === 'object' && !Array.isArray(data.scenario)) out.scenario = data.scenario;   // tal como está (sem reordenar)
   out.nodes = (data.nodes ?? []).filter(Array.isArray).map(([t, x, y, a]) => [t, x, y, a] as FixedMapData['nodes'][number]).sort((a, b) => a[2] - b[2] || a[1] - b[1]);
   const ents = (Array.isArray(data.entities) ? data.entities : []).map(canonEntity).sort(entityOrder);
@@ -195,7 +196,8 @@ export function mapHash(input: FixedMapData): number {
   mix(ents.length);
   for (const e of ents) { mix(e.kind === 'building' ? 1 : 2); mixStr(e.type); mix(e.owner); mix(e.x); mix(e.y); mix(e.kind === 'building' && e.complete === false ? 0 : 1); mixStr(e.tag ?? ''); }
   if (data.koth) { mix(1); mix(data.koth[0]); mix(data.koth[1]); } else mix(0);
-  mix(data.relics === false ? 0 : 1);
+  if (Array.isArray(data.relics)) { mix(2); mix(data.relics.length); for (const [x, y] of data.relics) { mix(x); mix(y); } }   // G10: posições fixas
+  else mix(data.relics === false ? 0 : 1);
   if (data.scenario) { let js = ''; try { js = JSON.stringify(data.scenario); } catch { js = ''; } mix(1); mixStr(js); }   // só quando existe: hashes antigos não mudam
   return h >>> 0;
 }
@@ -214,6 +216,7 @@ export function migrateMap(data: unknown): FixedMapData {
   if (out.entities !== undefined && !Array.isArray(out.entities)) delete out.entities;
   if (out.startTeams !== undefined && !Array.isArray(out.startTeams)) delete out.startTeams;
   if (out.koth !== undefined && !(Array.isArray(out.koth) && out.koth.length >= 2)) delete out.koth;
+  if (out.relics !== undefined && typeof out.relics !== 'boolean' && !Array.isArray(out.relics)) delete out.relics;
   if (out.scenario !== undefined && (typeof out.scenario !== 'object' || out.scenario === null || Array.isArray(out.scenario))) delete out.scenario;
   if (typeof out.terrain !== 'string') out.terrain = '';
   if (typeof out.decor !== 'string') out.decor = '';
@@ -485,6 +488,26 @@ export function validateMap(input: FixedMapData, opts: ValidateOpts = {}): MapIs
     const hc = hill ? componentAt(map, hill.x, hill.y) : -1;
     if (hc < 0 || startComp.some((c) => c !== hc)) warn('kothUnreachable', kx, ky);
   }
+  // relíquias em posições fixas (G10): true/false ou lista de [x, y] inteiros sem repetir (como checkRelics do cenário),
+  // dentro do mapa, em terra livre (sem água, montanha, recurso ou edifício que bloqueia) e na região de algum início
+  // (ninguém recolhe uma relíquia num bolsão, numa ilha ou atrás de muralha sem portão). O formato é conferido no valor
+  // recebido: migrateMap apaga `relics` que não é boolean nem lista, mas createGame usaria o original (map.data de cenário).
+  const rawRelics = (input as { relics?: unknown }).relics;
+  if (rawRelics !== undefined && typeof rawRelics !== 'boolean' && !Array.isArray(rawRelics)) err('relicsFormat');
+  if (Array.isArray(data.relics)) {
+    if (data.relics.length > MAX_FIXED_RELICS) err('relicsCount', undefined, undefined, { count: data.relics.length, max: MAX_FIXED_RELICS });
+    const regions = new Set(startComp.filter((c) => c >= 0));
+    const seen = new Set<number>();
+    for (const r of data.relics as unknown[]) {
+      if (!Array.isArray(r) || r.length !== 2 || !Number.isInteger(r[0]) || !Number.isInteger(r[1])) { err('relicsFormat', ...(Array.isArray(r) && Number.isInteger(r[0]) && Number.isInteger(r[1]) ? [r[0] as number, r[1] as number] : [])); continue; }
+      const [x, y] = r as [number, number];
+      if (x < 0 || y < 0 || x >= w || y >= h) { err('relicOut', x, y); continue; }
+      if (seen.has(y * w + x)) { err('relicDup', x, y); continue; }
+      seen.add(y * w + x);
+      if (map.blocked[y * w + x]) err('relicBlocked', x, y);
+      else if (!regions.has(componentAt(map, x, y))) err('relicUnreachable', x, y);
+    }
+  }
   for (const p of pockets) warn('pocket', p.x, p.y, { tiles: p.size });
 
   // erros antes dos avisos, mantendo a ordem de detecção dentro de cada nível
@@ -539,7 +562,7 @@ export const RESIZE_ANCHORS: ResizeAnchor[] = ['nw', 'n', 'ne', 'w', 'c', 'e', '
  * O que o redimensionamento cortou ou deslocou (a interface avisa antes de aplicar). scenarioPoints: pontos { at } do
  * cenário embutido que caem fora do mapa novo; scenarioTags: tags de entidades cortadas que o cenário usa.
  */
-export interface ResizeReport { nodes: number; entities: number; startsMoved: number[]; kothReset: boolean; dx: number; dy: number; scenarioPoints: number; scenarioTags: string[] }
+export interface ResizeReport { nodes: number; entities: number; startsMoved: number[]; kothReset: boolean; dx: number; dy: number; scenarioPoints: number; scenarioTags: string[]; relics: number }
 
 /** Deslocamento (dx, dy) do conteúdo antigo dentro do mapa novo para a âncora dada. */
 export function resizeOffset(oldW: number, oldH: number, w: number, h: number, anchor: ResizeAnchor): { dx: number; dy: number } {
@@ -609,7 +632,7 @@ export function resizeMapData(input: FixedMapData, w: number, h: number, anchor:
     deriveDeepWater(tmp);
   }
   const inside = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h;
-  const report: ResizeReport = { nodes: 0, entities: 0, startsMoved: [], kothReset: false, dx, dy, scenarioPoints: 0, scenarioTags: [] };
+  const report: ResizeReport = { nodes: 0, entities: 0, startsMoved: [], kothReset: false, dx, dy, scenarioPoints: 0, scenarioTags: [], relics: 0 };
   const nodes: FixedMapData['nodes'] = [];
   for (const nd of src.nodes) {
     if (!Array.isArray(nd)) continue;
@@ -638,6 +661,11 @@ export function resizeMapData(input: FixedMapData, w: number, h: number, anchor:
   if (koth && !inside(koth[0], koth[1])) { koth = undefined; report.kothReset = true; }
   const out: FixedMapData = { ...src, w, h, terrain: bytesToBase64(terrain), decor: bytesToBase64(decor), nodes, starts, entities };
   if (koth) out.koth = koth; else delete out.koth;
+  if (Array.isArray(src.relics)) {   // G10: posições fixas deslocadas; as que saem do mapa são cortadas (lista vazia = nenhuma)
+    const kept = src.relics.filter(Array.isArray).map(([x, y]) => [x + dx, y + dy] as [number, number]);
+    out.relics = kept.filter(([x, y]) => inside(x, y));
+    report.relics = kept.length - out.relics.length;
+  }
   if (shifted) out.scenario = shifted.scenario;
   return { data: canonicalize(out), report };
 }

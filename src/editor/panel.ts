@@ -326,6 +326,14 @@ export class EditorPanel {
       case 'kothUnreachable': return { label: t('editor.fix.koth'), run: () => ed.connectKoth() };
       case 'wonderComplete': return has ? { label: t('editor.fix.inProgress'), run: () => ed.setInProgressAt(it.x!, it.y!) } : null;
       case 'noBase': case 'aiNoTc': return start >= 0 ? { label: t('editor.fix.tc', { n: start + 1 }), run: () => ed.placeTownCenter(start) } : null;
+      // G10: relíquia fixa num tile que não serve vai para a terra alcançável mais próxima (ou sai); repetida/malformada sai
+      case 'relicOut': case 'relicBlocked': case 'relicUnreachable': {
+        if (!has) return null;
+        const spot = ed.relicSpot(it.x!, it.y!);
+        return { label: spot ? t('editor.fix.relicMove', { x: spot.x, y: spot.y }) : t('editor.fix.relicRemove'), run: () => ed.fixRelicAt(it.x!, it.y!) };
+      }
+      case 'relicDup': return has ? { label: t('editor.fix.relicRemove'), run: () => ed.removeRelicAt(it.x!, it.y!, true) } : null;
+      case 'relicsFormat': case 'relicsCount': return { label: t('editor.fix.relicTidy'), run: () => ed.tidyRelics() };
       default: return null;
     }
   }
@@ -433,7 +441,7 @@ export class EditorPanel {
         <label><input type="checkbox" id="ep-kit" ${meta.startKit === false ? '' : 'checked'}> ${t('editor.propKit')}</label>
         <label>${t('editor.propTeams')} <input id="ep-teams" value="${esc((meta.startTeams ?? []).map((x) => x + 1).join(','))}"></label>
         <div>${t('editor.propKoth')}: <b id="ep-koth">${meta.koth ? `(${meta.koth[0]}, ${meta.koth[1]})` : t('editor.propKothCenter')}</b> <button class="btn" id="ep-koth-pick">${t('editor.propKothPick')}</button> <button class="btn" id="ep-koth-clear">${t('main.fixedMapClear')}</button></div>
-        <label><input type="checkbox" id="ep-relics" ${meta.relics === false ? '' : 'checked'}> ${t('editor.propRelics')}</label>
+        <div><label><input type="checkbox" id="ep-relics" ${meta.relics === false ? '' : 'checked'}> ${Array.isArray(meta.relics) ? t('editor.propRelicsFixed', { n: meta.relics.length }) : t('editor.propRelics')}</label> <button class="btn" id="ep-relic-add">${t('editor.propRelicAdd')}</button></div>
         <div><button class="btn" id="ep-vary">${t('editor.propVary')}</button></div>
         <fieldset class="ep-resize" style="border:1px solid #334;border-radius:6px;padding:6px 8px"><legend>${t('editor.resizeTitle')}</legend>
           <div class="row" style="gap:6px;align-items:center"><input type="number" id="ep-w" min="${MAP_LIMITS.minSide}" max="${MAP_LIMITS.maxSide}" value="${ed.map.w}" style="width:64px"> × <input type="number" id="ep-h" min="${MAP_LIMITS.minSide}" max="${MAP_LIMITS.maxSide}" value="${ed.map.h}" style="width:64px">
@@ -451,13 +459,20 @@ export class EditorPanel {
       if (teamsRaw.length && !(teamsRaw.length === nStarts && teamsRaw.every((x) => Number.isInteger(x) && x >= 0 && x < MAX_PLAYERS))) { alert(t('editor.propTeamsBad', { max: MAX_PLAYERS, n: nStarts })); return false; }
       const startTeams = teamsRaw.length ? teamsRaw : undefined;
       const val = (id: string) => q(id).value.trim() || undefined;
-      ed.setMeta({ name: val('#ep-name'), nameEn: val('#ep-nameen'), author: val('#ep-author'), description: val('#ep-desc'), startKit: q('#ep-kit').checked ? undefined : false, startTeams, koth, relics: q('#ep-relics').checked ? undefined : false });
+      ed.setMeta({ name: val('#ep-name'), nameEn: val('#ep-nameen'), author: val('#ep-author'), description: val('#ep-desc'), startKit: q('#ep-kit').checked ? undefined : false, startTeams, koth });
+      // G10: desmarcar tira as relíquias (e as posições fixas) como um passo de desfazer: Ctrl+Z traz a lista de volta
+      const relicsOn = q('#ep-relics').checked;
+      if (relicsOn !== (meta.relics !== false)) ed.setRelics(relicsOn ? undefined : false);
       return true;
     };
     q('#ep-koth-clear').addEventListener('click', () => { koth = undefined; q('#ep-koth').textContent = t('editor.propKothCenter'); });
     q('#ep-koth-pick').addEventListener('click', () => {
       if (apply() === false) return; this.hud.hideModal(); this.hud.toast(t('editor.propKothHint'), 'gold');
       this.setPick((x, y) => { ed.setMeta({ koth: [x, y] }); this.hud.toast(t('editor.propKothSet', { x, y }), 'good'); });
+    });
+    q('#ep-relic-add').addEventListener('click', () => {
+      if (apply() === false) return; this.hud.hideModal(); this.hud.toast(t('editor.propRelicHint'), 'gold');
+      this.setPick((x, y) => { const ok = ed.addRelic(x, y); this.hud.toast(ok ? t('editor.propRelicSet', { x, y }) : t('editor.propRelicNo'), ok ? 'good' : 'warn'); this.validateNow(); });
     });
     q('#ep-vary').addEventListener('click', () => { ed.varyDecor((Math.floor(Math.random() * 1e9)) >>> 0); this.hud.toast(t('editor.propVaried'), 'good'); });
     // Redimensionar: prévia do que será cortado (resizeMapData), confirmação e troca de instância (Ctrl+Z volta)
@@ -586,6 +601,7 @@ export class EditorPanel {
     if (r.scenarioPoints) parts.push(t('editor.resizeScenarioPoints', { n: r.scenarioPoints }));
     if (r.startsMoved.length) parts.push(t('editor.resizeStarts', { list: r.startsMoved.map((i) => i + 1).join(', ') }));
     if (r.kothReset) parts.push(t('editor.resizeKoth'));
+    if (r.relics) parts.push(t('editor.resizeRelics', { n: r.relics }));
     return parts.length ? parts.join(' · ') : t('editor.resizeNothing');
   }
 

@@ -56,7 +56,7 @@ export interface FixedMapData {
   entities?: MapEntity[];                        // padrão []: edifícios antes de unidades, cada grupo em ordem (y, x, tipo, dono)
   startTeams?: number[];                         // sugestão de time por início (ex.: [0,0,1,1]) para "atribuição por time" no lobby
   koth?: [number, number];                       // colina do Rei da Colina; padrão: centro do mapa (como createGame faz hoje)
-  relics?: boolean;                              // padrão true: placeRelics sorteia pela semente; false em cenários
+  relics?: boolean | [number, number][];         // padrão true: placeRelics sorteia pela semente; false em cenários; lista (G10) = posições fixas [x, y] (tiles, na ordem do arquivo; [] = nenhuma)
   scenario?: ScenarioFile;                       // cenário declarativo embutido (Etapa 5); ignorado até lá
 }
 export type MapEntity =
@@ -92,7 +92,7 @@ Derivados, nunca gravados: `blocked`, `nodeAt`, `buildingAt`, `gateTeam`, ids de
 
 **Regras de `validateMap`** (`opts = { players?: number; mode?: GameMode }`):
 
-- Erros (bloqueiam Testar/Iniciar/Import): `size` (fora de `MAP_LIMITS`), `terrainLen`/`decorLen` (base64 não decodifica em `w*h` bytes), `badTerrain` (byte > 5), `startsCount` (< 2, > `MAX_PLAYERS` ou < `players`), `startOut` (a < 8 tiles da borda), `startBlocked` (3×3 do CC sobre água/montanha/nó, só se `startKit !== false`), `nodeOut`/`nodeOnBlocked`/`nodeDup`/`unknownNode`, `unknownType` (tipo fora de `UNITS`/`BUILDINGS`), `badOwner` (`owner >= starts.length`), `entityOverlap` (footprint sobre nó, água, montanha ou outro edifício), `fileTooBig`, `regicideNoTc` (modo `regicide` e algum jogador sem `town_center` nem kit inicial).
+- Erros (bloqueiam Testar/Iniciar/Import): `size` (fora de `MAP_LIMITS`), `terrainLen`/`decorLen` (base64 não decodifica em `w*h` bytes), `badTerrain` (byte > 5), `startsCount` (< 2, > `MAX_PLAYERS` ou < `players`), `startOut` (a < 8 tiles da borda), `startBlocked` (3×3 do CC sobre água/montanha/nó, só se `startKit !== false`), `nodeOut`/`nodeOnBlocked`/`nodeDup`/`unknownNode`, `unknownType` (tipo fora de `UNITS`/`BUILDINGS`), `badOwner` (`owner >= starts.length`), `entityOverlap` (footprint sobre nó, água, montanha ou outro edifício), `fileTooBig`, `regicideNoTc` (modo `regicide` e algum jogador sem `town_center` nem kit inicial); com `relics` (G10): `relicsFormat` (`relics` que não é `true`/`false` nem lista, ou item que não é `[x, y]` com dois inteiros — conferido no valor recebido, porque o `map.data` de um cenário não passa por `migrateMap`), `relicOut` (fora do mapa), `relicDup` (duas no mesmo tile), `relicBlocked` (sobre água, montanha, nó, edifício que bloqueia ou o CC do kit), `relicUnreachable` (fora da região de todos os inícios: ilha, bolsão, atrás de muralha sem portão) e `relicsCount` (mais de `MAX_FIXED_RELICS` = 32).
 - Avisos (não bloqueiam; listados no painel com "ir até"): `startsDisconnected` (inícios em `componentAt` diferentes), `chokepoint` (`articulationPoints` a ≤ 10 tiles de um início), `pocket` (componente passável < 8 tiles), `nodeNoAccess` (`nodeAccessTiles === 0`), `lowStartFood`/`lowStartWood` (sem comida a ≤ 14 / madeira a ≤ 16 tiles do início — os raios que `createGame` usa em `nearestNode` para as ordens iniciais), `kothUnreachable` (colina fora do componente de algum início), `wonderComplete` (maravilha completa pré-colocada inicia a contagem de vitória no tick 0), `mainComponentSmall` (maior componente < 60 % dos tiles passáveis), `aiNoTc` (jogador IA sem Centro Cívico: `aiThink` fica sem base).
 
 **Tamanhos** (JSON, base64 = 4/3 dos bytes): pequeno 80×80 ≈ 8,5 + 8,5 + ~850 nós × 22 ≈ 36 KB; médio 112×112 ≈ 16,7 + 16,7 + ~1 700 × 22 ≈ 72 KB; grande 144×144 ≈ 27,6 + 27,6 + ~2 800 × 22 ≈ 118 KB. Cabe no WebSocket (`maxPayload` de 2 MiB no relay), no replay e na cota do `localStorage` (~5 MB) com margem; `aoe_save_v1` num mapa médio já tem ~300 KB.
@@ -129,7 +129,7 @@ type EntityRef = { tag: string; pick?: 'first' | 'alive' | 'nearest'; near?: Poi
                | { player: PlayerSel; type: string; pick?: 'first' | 'nearest'; near?: Point };   // first = menor id; nearest desempata por id
 type Point = { at: [number, number] } | { start: number; dx?: number; dy?: number }
            | { tc: PlayerSel; dx?: number; dy?: number } | { entity: EntityRef; dx?: number; dy?: number };
-type Value = number | { stat: 'age'|'pop'|'popCap'|'food'|'wood'|'gold'|'favor'|'knowledge'|'alive'; player: PlayerSel }
+type Value = number | { stat: 'age'|'pop'|'popCap'|'food'|'wood'|'gold'|'favor'|'knowledge'|'alive'|'relics'; player: PlayerSel }   // relics (G10): guardadas nos Templos do jogador
            | { stat: 'difficulty' }                                           // G3: 0 Fácil, 1 Normal, 2 Difícil
            | { var: string } | { add: [Value, number] }
            | { time: true };                                                  // G4: segundos de jogo agora (inteiro); com setVar marca um instante
@@ -143,7 +143,9 @@ type Condition =
   | { entity: EntityRef; exists?: boolean; complete?: boolean; progress?: Cmp; hp?: Cmp }   // G9: hp = fração hp/maxHp (0–1); sem exists, exige a entidade viva
   | ({ koth: { team: number } } & Cmp) | ({ wonderHeld: { player: PlayerSel } } & Cmp)   // G2: segundos na colina (time T) / com a Maravilha de pé
   | { kingAlive: PlayerSel } | { alive: PlayerSel }                             // G2: rei vivo; jogador não eliminado
-  | { difficulty: 'easy' | 'normal' | 'hard' | ('easy' | 'normal' | 'hard')[] };  // G3: config.campaignDifficulty (ausente = normal)
+  | { difficulty: 'easy' | 'normal' | 'hard' | ('easy' | 'normal' | 'hard')[] }   // G3: config.campaignDifficulty (ausente = normal)
+  | ({ powerUsed: { player: PlayerSel; id: string } } & Cmp)                    // G11: usos do poder desde o início; sem comparação = ao menos 1
+  | ({ kills: { player: PlayerSel; type?: string | string[]; by?: { tag: string } } } & Cmp);   // G13: abates com autor (tipo da vítima; by = grupo da tag)
 interface UnitFilter { player: PlayerSel; type?: string | string[]; tag?: string; excludeTag?: string; state?: UnitState;
   near?: { point: Point; radius: number };                                      // dx²+dy² < r², sem trigonometria
   reachable?: { buildingsOf: BuildingFilter } }                                 // rectReachable (objetivo da Horda)
@@ -156,7 +158,8 @@ type Action =
   | { do: 'spawn'; player: PlayerSel; units: string[]; at: Point; tag?: string; state?: 'pray'; prayAt?: EntityRef; scaled?: boolean; name?: Text }   // scaled (G3): escala como raid; name (G8)
   | { do: 'place'; player: PlayerSel; building: string; at: Point; exact?: boolean; complete?: boolean; progress?: number; tag?: string; name?: Text }
   | { do: 'give'; player: PlayerSel; resources: Partial<Record<ResourceType, number>> }
-  | { do: 'set'; player: PlayerSel; age?: number; resources?: Partial<Record<ResourceType, number>>; techs?: string[]; minorGods?: string[] }
+  | { do: 'set'; player: PlayerSel; age?: number; resources?: Partial<Record<ResourceType, number>>; techs?: string[]; minorGods?: string[];
+      powers?: { add?: string[]; remove?: string[]; reset?: string[] } }        // G11: remove → add → reset (ids de POWERS)
   | { do: 'removeAll'; player?: PlayerSel; team?: number }                       // removeBuildingNow/removeUnitNow
   | { do: 'setVar'; name: string; value: Value } | { do: 'addVar'; name: string; delta: number }
   | { do: 'storeEntity'; var: string; entity: EntityRef } | { do: 'advanceBuild'; entity: EntityRef; seconds: number }
@@ -167,18 +170,20 @@ type Action =
   | { do: 'hpFloor'; entity: EntityRef; value: number }                           // G9: piso de vida (fração 0–1); value 0 tira o piso
   | { do: 'damage' | 'heal'; entity: EntityRef; amount?: number; fraction?: number }   // G9: pontos OU fração de maxHp; dano sem autor, respeita o piso
   | { do: 'defeat'; player: PlayerSel }                                          // derrota roteirizada: alive=false, evento e tudo do jogador some
+  | { do: 'ability'; unit: EntityRef; target?: EntityRef | Point }               // G12: habilidade (Q) do herói pelo comando 'ability'; target: inimigo = atacar, aliado = ir, ponto = atacar-mover
   | { do: 'forEachPlayer'; team?: number; alive?: boolean; then: Action[] };    // dentro: '$p' = jogador, índice k para angle.perIndex
 
 interface ScenarioFile {
   format: 'aoe-scenario'; version: 1;
   id: string; title: Text; subtitle?: Text; icon?: string; intro: Text[]; outro?: Text[]; hints?: Text[];
-  map?: { gen: { mapSize: 'small' | 'medium' | 'large'; mapType?: MapType; seed: number } } | { data: FixedMapData };   // omitido quando embutido num mapa
+  map?: { gen: { mapSize: 'small' | 'medium' | 'large'; mapType?: MapType; seed: number }; relics?: boolean | [number, number][] }   // G10: relics só no mapa gerado
+       | { data: FixedMapData };                   // omitido quando embutido num mapa; no mapa fixo, as relíquias ficam em data.relics
   config: { seed?: number; players: { name: Text /* G8 */; god; isAI; difficulty; team?; puppet?; maxAge?; forbid? }[]; startingAge?: number; startingResources?: …; revealMap?: boolean; startKit?: boolean | boolean[]; mode?: GameMode;
             maxAge?: number; forbid?: { buildings?: string[]; units?: string[]; techs?: string[] } };   // G6: travas globais; por jogador, maxAge substitui e forbid soma
   vars?: Record<string, number>;
   setup?: Action[];                              // após as entidades do mapa; tags → vars['#tag'] = id
   objectives: { id: string; text: Text; optional?: boolean; hidden?: boolean; done?: Condition; failed?: Condition }[];
-  triggers: { id: string; when: Condition; then: Action[]; repeat?: boolean }[];
+  triggers: { id: string; when: Condition; then: Action[]; repeat?: boolean | { max: number } }[];   // G17: repeat conta os disparos em vars['@id']; max = teto
   victory: Condition; defeat?: Condition;        // a derrota implícita do runner (nenhum humano não-marionete de pé) continua; humanos em times diferentes: resultado por time (winnerTeam)
   hud?: ( { type: 'countdown'; seconds: number; while: Condition; label: Text; fromVar?: string }                     // G4: fromVar = relativo à marca
          | { type: 'progress'; entity: EntityRef; max: number; label: Text; while?: Condition; format?: HudFormat }       // obra de um edifício
@@ -192,6 +197,13 @@ type HudFormat = 'percent' | 'count' | 'time';   // "63%" (padrão), "12/30", "2
 - **G6 · remove, guarnição e travas.** `remove` apaga a entidade sem morte, abate, Sombras de Hades nem escombros (o embarque da m11); a fila de um edifício removido (unidades, tecnologias, avanço de Idade) é reembolsada, como na destruição. `order garrison` põe as unidades no edifício aliado alvo (as que cabem, `canGarrison`); num edifício de outro time ninguém recebe a ordem (a atual segue, como no comando do jogador); `ungarrison` tira do alvo ou, sem alvo, de onde estiverem. A ordem é decidida pelo tipo: `at` em ordem por alvo (ou `ungarrison`) e `target` em `move`/`attackMove` são erros de validação. `config.maxAge` (0–4, nunca abaixo de `startingAge`) e `config.forbid` valem para todos; em `config.players[i]`, `maxAge` substitui o global e `forbid` soma. São conferidos em `commands.ts` (`canAdvanceAge`, `canTrain`, `canResearch`) e em `buildingLimitOk` (`src/core/sim/restrictions.ts`): o comando é recusado com "Proibido nesta missão" / "Forbidden in this mission", o botão do HUD aparece desabilitado com esse motivo e a IA não tenta (nem junta fundo para uma Idade travada). `spawn`/`place` do roteiro não passam pela trava. Save ou replay de missão embutida gravado antes das travas (config sem nenhuma) recebe as da missão atual ao carregar (`migrateScenarioLocks`).
 - **G8 · nomes.** `spawn`/`place` com `name` gravam `{ pt, en? }` na entidade (`displayName`, salvo no save); o painel de seleção, a grade da seleção múltipla e o tooltip mostram o nome no idioma atual (o tipo vai na descrição). `config.players[i].name` aceita `{ pt, en }`: o estado guarda o texto do idioma ao criar a partida e `nameText` deixa o HUD trocar de idioma. O lint avisa nome sem `en`.
 - **G9 · vida de chefe.** `{ "entity": …, "hp": { "lte": 0.5 } }` compara a fração da vida (números entre 0 e 1, arredondada a 1e-9: com o chefe no piso `f`, `{ "lte": f }` vale). `hpFloor` impede a vida de descer abaixo de `value × maxHp` em qualquer dano (combate, atrito, Raio, Maldição, Petrificação, `damage`); abaixo do piso ele não cura; `kill`, `remove` e dispensar continuam matando. `damage`/`heal` usam `amount` ou `fraction` (um dos dois); o dano do roteiro não tem autor (sem abate creditado). Tudo em `EntityRef` vale para uma entidade (numa tag de grupo, a primeira; use `pick`).
+
+**G10–G13 e G17** — semântica (`docs/STORY.md` §6):
+- **G10 · relíquias.** `map.relics` (mapa gerado) ou `map.data.relics` (mapa fixo): `true`/ausente sorteia pela semente, `false` tira todas e uma lista `[[x, y], …]` põe uma relíquia no centro de cada tile, na ordem da lista (no máximo 32). No mapa fixo, `validateMap` exige formato `[x, y]` inteiro sem repetir (`relicsFormat`, `relicDup`) e terra livre na região de algum início (`relicOut`, `relicBlocked`, `relicUnreachable`, `relicsCount`), e só as relíquias do mapa valem: `map.gen.relics` de um cenário embutido num mapa fixo é ignorado; no gerado, `validateScenario` confere formato, limites do tamanho e repetidas, e o lint gera o mapa pela semente e avisa a posição que cai em água, montanha, recurso, no CC do kit ou fora da região dos inícios (no jogo ela vai para a terra alcançável mais próxima, até 6 tiles, ou é descartada). `map.relics` junto de `data` é erro (use `data.relics`). `{ "value": { "stat": "relics", "player": 0 }, "gte": 2 }` conta as relíquias guardadas agora nos Templos do jogador (`relicsOf`: um Templo derrubado solta a dele).
+- **G11 · poderes.** `{ "do": "set", "player": 0, "powers": { "remove": ["bolt"], "add": ["oracle"], "reset": ["curse"] } }` aplica, nesta ordem, remove (tira, inclusive o do deus maior), add (concede sem repetir; quem já tem fica como está) e reset (devolve o uso de quem já tem; não concede). A barra de poderes, o controle, a IA e o comando `power` leem a mesma lista (`player.powers`): tirar o poder que está sendo mirado cancela a mira. `{ "powerUsed": { "player": 0, "id": "bolt" } }` vale depois do 1º uso; com comparação (`"gte": 2`), compara os usos desde o início — reset e remove não zeram a contagem (`state.scenario.powerUses`, salvo no save; o evento `powerUsed` traz o id do poder).
+- **G12 · habilidade.** `{ "do": "ability", "unit": { "tag": "aquiles" }, "target": { "tag": "aldeia1" } }`: o herói usa a habilidade (Q) por `useAbility`, o mesmo caminho do comando `ability` do jogador — em recarga, guarnecido, morto ou sem habilidade nada acontece (a habilidade não tem custo). Vale para marionete (sem IA). Com `target` e a habilidade usada: entidade de outro time = atacar; do mesmo time = ir até ela; ponto (`at`, `start`, `entity`, ou `tc` com `dx`/`dy`) = atacar-mover. `{ "tc": P }` sem deslocamento é o Centro Cívico (entidade). O raio das habilidades de área usa o hash espacial do tick, como o comando.
+- **G13 · autoria de abate.** Toda unidade morta ou edifício derrubado por um inimigo (golpe, flecha, dano em área, petrificação, poder ou atrito) soma em `state.scenario.kills`: por jogador autor e tipo da vítima (`byPlayer`) e, quando há entidade autora (golpe, flecha, dano em área, petrificação), por entidade (`byEntity`, id). `{ "kills": { "player": 0, "type": "cronus", "by": { "tag": "perseu" } }, "gte": 1 }` = "Perseu deu o golpe final"; `by.tag` usa o grupo **atual** da tag (autores mortos continuam contando; reusar a tag num `spawn` troca o grupo). `kill`/`damage` do roteiro e dispensar não têm autor e não contam; alicerce (obra incompleta) derrubado também não conta, como em `stats.razed` ("derrube o Centro Cívico" não se cumpre com o alicerce de uma expansão). O registro só soma contadores: não mexe em `state.rng`, entidades ou eventos (a simulação é a mesma; os tempos de `scripts/missions.ts` não mudam). O lint trata `by.tag` como as demais tags futuras.
+- **G17 · contador de repeat.** Todo gatilho `repeat` (JSON ou TS) conta os disparos em `vars['@<id>']`, já somado quando o `then` roda (1 no 1º disparo: `{ "var": "@onda" }` dentro do `then` numera a onda). `"repeat": { "max": 3 }` para no teto; `{ "do": "setVar", "name": "@onda", "value": 0 }` rearma. Gatilho repeat continua fora de `fired`: o lint avisa `{ "fired": <gatilho repeat> }` (use `{ "var": "@id", "gte": 1 }`) e `@x` (condição, valor, `setVar`/`addVar`, HUD) sem gatilho repeat `x`. Um `hud.progress { "var": "@onda" }` dispensa `setVar`.
 
 Trecho da missão 1 reescrita (prova de cobertura; a versão TS continua canônica até o teste de paridade passar):
 
@@ -229,7 +241,7 @@ Mudanças (Etapa 1), na ordem do código:
 1. `const startOf = (i) => map.starts[config.startOrder?.[i] ?? i]` (validação: permutação válida, senão identidade).
 2. `const kit = (i) => Array.isArray(config.startKit) ? (config.startKit[i] ?? true) : (config.startKit ?? config.map?.startKit ?? true)`; sem kit não há CC, cidadãos nem batedor; em `regicide` o basileus nasce em `spiralSearch` a partir do início quando não há CC.
 3. Após os jogadores e antes de `placeRelics`: aplicar `config.map.entities` na ordem do arquivo — edifício: `canPlaceBuilding(state, p, type, tx, ty, true, true).ok` → `placeBuilding(state, owner, type, tx, ty, complete ?? true)`; unidade: `nearestFreeTile(map, x, y, 6)` → `spawnUnit(state, owner, type, t.x + 0.5, t.y + 0.5)`; `owner >= players.length` é ignorado; tags vão para `state.scenario?.vars['#tag']` quando há cenário. Depois `recomputePop` de todos e `stats.buildingsBuilt/unitsTrained = 0`, `events = []`.
-4. `placeRelics` só se `config.map?.relics !== false`; KotH usa `config.map?.koth ?? centro`.
+4. Relíquias por `config.map ? config.map.relics : config.relics` (G10; com mapa fixo valem só as dele — um cenário embutido montado como `{ ...gameConfigFor(sc), map }` não as troca nem apaga): lista → `placeRelicsAt` (posições fixas, sem `state.rng`; tile bloqueado ou fora da região dos inícios procura terra alcançável até `RELIC_SNAP_RADIUS` = 6 tiles, senão a relíquia é descartada — só acontece em mapa gerado, pois o fixo é validado); `false` → nenhuma; senão `placeRelics` sorteia. KotH usa `config.map?.koth ?? centro`. `config.relics` vem de `map.relics` de um cenário em mapa gerado; `mapHash` inclui as posições (mapas sem lista mantêm o hash); redimensionar desloca as posições e corta as que saem (`ResizeReport.relics`).
 5. Purga de mortos do `setup` passa a usar `removeBuildingNow`/`removeUnitNow` (hoje não zera `gateTeam` nem chama `invalidateComponents` — bug latente).
 6. Ordens iniciais de coleta continuam condicionadas a existir CC.
 
@@ -327,7 +339,7 @@ Todo gesto vira `EditOp` aplicado à sessão pausada; o editor acumula o retâng
 
 ### 4.4 Propriedades e validação
 
-**Propriedades** (modal `hud.showModal`): id (só leitura), nome PT/EN, autor, descrição, kit inicial, times sugeridos por início (`startTeams`, ex.: `1,1,2,2`), colina do KotH (🎯 escolher no mapa / voltar ao centro), relíquias sim/não, "Variar visual" (nova semente de `decor`) e **Tamanho do mapa**: largura × altura (48–160, ≤ 25 600 tiles) + âncora (9 posições); a prévia diz o que será cortado (recursos, edifícios/unidades), quais inícios serão trazidos para a margem de 8 tiles e se a colina volta ao centro; confirmar abre uma **instância nova** (`MapEditor.resized` → `resizeMapData`), e `Ctrl+Z` no começo da pilha dela volta à anterior com a pilha intacta (`Ctrl+Y` refaz).
+**Propriedades** (modal `hud.showModal`): id (só leitura), nome PT/EN, autor, descrição, kit inicial, times sugeridos por início (`startTeams`, ex.: `1,1,2,2`), colina do KotH (🎯 escolher no mapa / voltar ao centro), relíquias sim/não (desmarcar é um passo de `Ctrl+Z`, que devolve as posições fixas) e 🏺 Pôr relíquia no mapa (acrescenta uma posição fixa; a borracha tira a relíquia de um tile sem mais nada; as fixas aparecem como sobreposição, com anel vermelho sobre tile bloqueado), "Variar visual" (nova semente de `decor`) e **Tamanho do mapa**: largura × altura (48–160, ≤ 25 600 tiles) + âncora (9 posições); a prévia diz o que será cortado (recursos, edifícios/unidades), quais inícios serão trazidos para a margem de 8 tiles e se a colina volta ao centro; confirmar abre uma **instância nova** (`MapEditor.resized` → `resizeMapData`), e `Ctrl+Z` no começo da pilha dela volta à anterior com a pilha intacta (`Ctrl+Y` refaz).
 
 **Validar** roda `validateMap` (também automaticamente 300 ms após a última edição): erros em vermelho (bloqueiam Testar, Exportar e Salvar como embutido), avisos em amarelo. Cada item com posição tem **Ir até** (centra a câmera e pisca o tile) e, quando cabe, **Corrigir** — sempre um único passo de `Ctrl+Z`:
 
@@ -343,6 +355,9 @@ Todo gesto vira `EditOp` aplicado à sessão pausada; o editor acumula o retâng
 | `kothUnreachable` | Ligar a colina (corredor até a colina, como o gerador faz no Rei da Colina) |
 | `wonderComplete` | Marcar em obra |
 | `noBase` / `aiNoTc` | Centro Cívico no início N |
+| `relicOut` / `relicBlocked` / `relicUnreachable` | Mover relíquia para a terra livre alcançável mais próxima (a busca de `placeRelicsAt`, até 6 tiles, fora do CC do kit e de outra relíquia; fora do mapa começa da borda) ou, sem tile que sirva, Remover relíquia |
+| `relicDup` | Remover relíquia (a repetida) |
+| `relicsFormat` / `relicsCount` | Limpar lista de relíquias (tira os itens malformados e os acima de 32) |
 
 Sem correção automática (só Ir até, quando há posição): `startOverlap`, `entityOverlap`, `mainComponentSmall` e os erros estruturais (tamanho, base64, tipos desconhecidos — o editor nem os cria). Abaixo da lista, a **tabela de recursos por início** (comida/madeira/ouro a ≤ 16 tiles, `startResourceTable`; em vermelho o que estiver abaixo de 80 % do maior) mostra o equilíbrio à vista.
 

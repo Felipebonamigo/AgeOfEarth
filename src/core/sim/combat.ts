@@ -11,6 +11,7 @@ import { distanceTo, isEnemy } from './queries';
 import { recomputePop, spawnUnit, ejectGarrison } from './entities';
 import { refund, queueItemCost } from './economy';
 import { t } from '../../i18n';
+import { recordKill } from '../scenario/log';
 
 export const ATTACK_INTERVAL: Record<string, number> = { villager: 1.0, scout: 1.0, infantry: 1.0, archer: 1.5, skirmisher: 1.2, cavalry: 1.1, siege: 3.0, hero: 1.1, myth: 1.5, titan: 2.0, building: 2.0 };
 
@@ -125,7 +126,7 @@ export function applyDamage(state: GameState, target: Unit | Building, dmg: numb
   if (target.hp <= 0) {
     target.hp = 0;
     if (target.kind === 'unit') killUnit(state, target, attackerOwner, attacker);
-    else destroyBuilding(state, target, attackerOwner);
+    else destroyBuilding(state, target, attackerOwner, attacker);
   }
 }
 
@@ -181,6 +182,7 @@ export function killUnit(state: GameState, u: Unit, killerOwner: number, killer?
   if (killerOwner >= 0 && killerOwner !== u.owner) {
     const kp = state.players[killerOwner];
     kp.stats.kills++;
+    recordKill(state, u.type, killerOwner, killer);   // G13: autoria para o cenário (só registra)
     if (killer && killer.kind === 'unit') {
       const rankBefore = rankOf(killer.kills - 0);
       killer.kills++;
@@ -202,9 +204,10 @@ export function killUnit(state: GameState, u: Unit, killerOwner: number, killer?
   recomputePop(state, victim);
 }
 
-export function destroyBuilding(state: GameState, b: Building, killerOwner: number): void {
+export function destroyBuilding(state: GameState, b: Building, killerOwner: number, killer?: Unit | Building): void {
   if (b.dead) return;
   b.dead = true; b.hp = 0;
+  if (b.complete && killerOwner >= 0 && killerOwner !== b.owner) recordKill(state, b.type, killerOwner, killer);   // G13: autoria para o cenário (só registra); alicerce não conta, como stats.razed
   const def = BUILDINGS[b.type];
   const victim = state.players[b.owner];
   // Libera tiles

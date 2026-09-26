@@ -3,11 +3,13 @@
 // em entidades do mapa e EntityRef.pick, G7 lint (avisos) — e as correções do prólogo (m3: aliados no time 0; m1: derrota).
 // Ato III: G4 HUD e tempo relativo (progress { var }, countdown { fromVar }, Value { time }), G6 remove / order garrison /
 // maxAge / forbid (comandos, IA e HUD), G8 nomes por entidade e de facção, G9 vida de chefe (hp, hpFloor, damage, heal).
+// E G10 relíquias fixas (map.relics, Value { stat: relics }), G11 poderes por roteiro (set powers, powerUsed), G12
+// habilidade de herói (ability), G13 autoria de abate (kills) e G17 contador de repeat (repeat { max }, vars['@id']).
 import { describe, it, expect, afterEach } from 'vitest';
-import { TICK_RATE } from '../src/core/constants';
+import { MAX_FIXED_RELICS, RELIC_SNAP_RADIUS, TERRAIN, TICK_RATE } from '../src/core/constants';
 import { createGame, tick } from '../src/core/sim/game';
 import { buildingLimitOk, buildingsOf, placeBuilding, spawnUnit, unitsOf } from '../src/core/sim/entities';
-import { lintScenario, RESERVED_SCENARIO_IDS, scenarioErrors, validateScenario, type Action, type Condition, type EntityRef, type ScenarioFile, type Value } from '../src/core/scenario/schema';
+import { lintScenario, RESERVED_SCENARIO_IDS, scenarioErrors, validateScenario, type Action, type Cmp, type Condition, type EntityRef, type ScenarioFile, type Value } from '../src/core/scenario/schema';
 import { applyCommand, canAdvanceAge, canResearch, canTrain } from '../src/core/sim/commands';
 import { isForbidden, maxAgeOf } from '../src/core/sim/restrictions';
 import { applyDamage, killUnit } from '../src/core/sim/combat';
@@ -17,7 +19,7 @@ import { stateHash } from '../src/core/net/hash';
 import { entityDisplayName, playerDisplayName } from '../src/core/scenario/text';
 import { scenarioHudHtml } from '../src/ui/scenario-hud';
 import { setLocale } from '../src/i18n';
-import { AGES, MAJOR_GODS, MAX_AGE, UNITS } from '../src/core/data';
+import { ABILITIES, AGES, MAJOR_GODS, MAX_AGE, UNITS } from '../src/core/data';
 import { clearScenarioCache, compileScenario, gameConfigFor } from '../src/core/scenario/compile';
 import { CAMPAIGN, PROLOGUE, SCENARIOS, campaignMission, campaignMissions, isCampaignMission, missionConfig, nextCampaignMission } from '../src/core/scenario/campaign';
 import { CAMPAIGN_PLAN } from '../src/core/scenario/official';
@@ -25,7 +27,9 @@ import { military, removeAllOf, tagIds, townCenter } from '../src/core/scenario/
 import { isScenarioPuppet, migrateScenarioLocks } from '../src/core/scenario/runner';
 import { isEnemy } from '../src/core/sim/queries';
 import { generateMap } from '../src/core/map/mapgen';
-import { mapToData } from '../src/core/map/fixed';
+import { base64ToBytes, blankMap, bytesToBase64, canonicalize, mapHash, mapToData, resizeMapData, validateMap, type FixedMapData } from '../src/core/map/fixed';
+import { isPassable, spiralSearch } from '../src/core/map/grid';
+import { componentAt } from '../src/core/map/components';
 import { ACHIEVEMENTS } from '../src/game/achievements';
 import type { Forbid, GameConfig, GameState, Unit } from '../src/core/types';
 import type { TriggerCtx } from '../src/core/scenario/types';
@@ -747,5 +751,428 @@ describe('G9: vida de chefe', () => {
     expect(c.units.get(boss.id)!.hpFloor).toBe(0.4); expect(c.units.get(boss.id)!.displayName).toEqual({ pt: 'Chefe', en: 'Boss' });
     run(a, 5 * TICK_RATE); run(c, 5 * TICK_RATE);
     expect(stateHash(c)).toBe(stateHash(a));
+  }, 60_000);
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// G10 · G11 · G12 · G13 · G17: relíquias fixas, poderes por roteiro, habilidade de herói, autoria de abate, contador de repeat
+// ---------------------------------------------------------------------------------------------------------------
+
+describe('G10: relíquias em cenário', () => {
+  /** Mapa do mk() (pequeno, semente 12345, 2 jogadores): terra livre a ~12 tiles do início 0 e a árvore mais próxima dele. */
+  function spots(): { land: [number, number]; tree: [number, number] } {
+    const s = game(mk()); const m = s.map; const s0 = m.starts[0];
+    const home = spiralSearch(s0.x, s0.y + 3, 4, (a, b) => isPassable(m, a, b))!;
+    const region = componentAt(m, home.x, home.y);
+    const land = spiralSearch(s0.x + 12, s0.y + 6, 12, (a, b) => isPassable(m, a, b) && componentAt(m, a, b) === region)!;
+    let tree: { x: number; y: number } | null = null; let bd = Infinity;
+    for (const n of m.nodes.values()) { if (n.type !== 'tree') continue; const d = (n.x - s0.x) ** 2 + (n.y - s0.y) ** 2; if (d < bd) { bd = d; tree = n; } }
+    return { land: [land.x, land.y], tree: [tree!.x, tree!.y] };
+  }
+  it('map.relics (lista) no mapa gerado: posição fixa em terra livre; sobre um recurso vai para a terra mais próxima; false = nenhuma', () => {
+    const { land, tree } = spots();
+    const f = mk({ map: { gen: { mapSize: 'small', seed: 12345 }, relics: [land, tree] } });
+    expect(validateScenario(f)).toEqual([]);
+    expect(gameConfigFor(f).relics).toEqual([land, tree]);
+    const s = game(f);
+    expect(s.relics.length).toBe(2);
+    expect([s.relics[0].x, s.relics[0].y]).toEqual([land[0] + 0.5, land[1] + 0.5]);
+    const r1 = s.relics[1];
+    expect([r1.x, r1.y]).not.toEqual([tree[0] + 0.5, tree[1] + 0.5]);
+    expect(isPassable(s.map, Math.floor(r1.x), Math.floor(r1.y))).toBe(true);
+    expect((r1.x - tree[0] - 0.5) ** 2 + (r1.y - tree[1] - 0.5) ** 2).toBeLessThanOrEqual(RELIC_SNAP_RADIUS ** 2 * 2);
+    // o lint avisa a posição que não é terra livre no mapa gerado (e diz para onde ela vai)
+    const w = lintScenario(f);
+    expect(w.map((i) => i.path)).toEqual(['map.relics[1]']); expect(w[0].message).toContain(`[${Math.floor(r1.x)}, ${Math.floor(r1.y)}]`);
+    expect(game(mk({ map: { gen: { mapSize: 'small', seed: 12345 }, relics: false } })).relics.length).toBe(0);
+    expect(game(mk()).relics.length).toBeGreaterThan(2);   // padrão: sorteio pela semente (como antes)
+    // determinismo e save: mesmas posições em outra partida e depois de salvar/carregar
+    const s2 = game(f);
+    expect(s2.relics).toEqual(s.relics);
+    const s3 = deserialize(serialize(s));
+    expect(s3.relics).toEqual(s.relics); expect(s3.config.relics).toEqual([land, tree]);
+  });
+  it('Value { stat: relics }: relíquias guardadas nos Templos do jogador (o herói recolhe e guarda)', () => {
+    const { land } = spots();
+    const s = game(mk({ map: { gen: { mapSize: 'small', seed: 12345 }, relics: [land] } }));
+    act(s, [
+      { do: 'place', player: 0, building: 'temple', at: { tc: 0, dx: 6, dy: -4 }, tag: 'templo' },
+      { do: 'spawn', player: 0, units: ['heracles'], at: { at: [land[0] + 0.5, land[1] + 0.5] }, tag: 'heroi' },
+    ]);
+    const h = s.units.get(s.scenario!.vars['#heroi'])!, temple = s.buildings.get(s.scenario!.vars['#templo'])!;
+    h.x = h.px = land[0] + 0.5; h.y = h.py = land[1] + 0.5;
+    expect(cond(s, { value: { stat: 'relics', player: 0 }, eq: 0 })).toBe(true);
+    run(s, 2 * TICK_RATE);
+    expect(s.relics[0].carrier).toBe(h.id);
+    h.x = h.px = temple.x + temple.w / 2 + 0.5; h.y = h.py = temple.y; h.path = null; h.state = 'idle';
+    run(s, 2 * TICK_RATE);
+    expect(s.relics[0].templeId).toBe(temple.id);
+    expect(cond(s, { value: { stat: 'relics', player: 0 }, eq: 1 })).toBe(true);
+    expect(cond(s, { value: { stat: 'relics', player: 'local' }, gte: 1 })).toBe(true);
+    expect(cond(s, { value: { stat: 'relics', player: 1 }, eq: 0 })).toBe(true);
+  });
+  it('validação de map.relics no cenário: formato, limites do mapa gerado, repetidas; no mapa fixo, só em data.relics', () => {
+    const gen = (relics: unknown) => mk({ map: { gen: { mapSize: 'small', seed: 1 }, relics } as unknown as ScenarioFile['map'] });
+    expect(paths(gen([[-1, 3], [80, 5], [1.5, 2], [4, 4], [4, 4], [3]]))).toEqual(['map.relics[0]', 'map.relics[1]', 'map.relics[2]', 'map.relics[4]', 'map.relics[5]']);
+    expect(paths(gen('sim'))).toEqual(['map.relics']);
+    expect(paths(gen(Array.from({ length: MAX_FIXED_RELICS + 1 }, (_, i) => [i, 1])))).toEqual(['map.relics']);
+    expect(paths(gen(true))).toEqual([]); expect(paths(gen([[79, 79]]))).toEqual([]);
+    const data = mapToData(generateMap(64, 64, 42, 2, 'continental'), 'x');
+    expect(paths(mk({ map: { data, relics: [[1, 1]] } as unknown as ScenarioFile['map'] }))).toEqual(['map.relics']);
+    expect(paths(mk({ victory: { value: { stat: 'relics' }, gte: 1 } as unknown as Condition }))).toEqual(['victory.value.player']);
+  });
+  it('mapa fixo: validateMap (relicOut, relicBlocked, relicUnreachable, relicsCount), createGame, canonicalize, mapHash e redimensionar', () => {
+    const base = blankMap(64, 64, 2, 7);
+    const t = base64ToBytes(base.terrain, 64 * 64);
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) t[(30 + dy) * 64 + 30 + dx] = TERRAIN.MOUNTAIN;   // bolsão em (30, 30)
+    t[40 * 64 + 12] = TERRAIN.WATER;
+    const data: FixedMapData = { ...base, startKit: false, terrain: bytesToBase64(t), entities: [{ kind: 'building', type: 'tower', owner: 0, x: 20, y: 12 }] };
+    const codes = (relics: FixedMapData['relics']) => validateMap({ ...data, relics }).filter((i) => i.code.startsWith('relic')).map((i) => [i.code, i.x, i.y]);
+    expect(codes([[24, 24], [5, 58]])).toEqual([]);
+    expect(codes([[12, 40], [20, 12], [30, 30], [64, 3], [-1, 0]])).toEqual([['relicBlocked', 12, 40], ['relicBlocked', 20, 12], ['relicUnreachable', 30, 30], ['relicOut', 64, 3], ['relicOut', -1, 0]]);
+    expect(validateMap({ ...data, relics: Array.from({ length: MAX_FIXED_RELICS + 1 }, (_, i) => [i + 1, 50] as [number, number]) }).some((i) => i.code === 'relicsCount' && i.level === 'error')).toBe(true);
+    const f2 = mk({ config: { ...mk().config, startKit: false }, map: { data: { ...data, relics: [[30, 30]] } } });
+    expect(paths(f2)).toEqual(['map.data']);   // o cenário recusa o mapa com relíquia inalcançável
+    expect(paths({ ...f2, map: { data: { ...data, relics: [[24, 24]] } } })).toEqual([]);
+    // createGame: posições exatas, na ordem do arquivo
+    const players: GameConfig['players'] = [{ name: 'A', god: 'zeus', isAI: false, difficulty: 'normal' }, { name: 'B', god: 'hades', isAI: false, difficulty: 'normal' }];
+    const s = createGame({ seed: 3, mapSize: 'small', players, map: { ...data, relics: [[24, 24], [5, 58]] } });
+    expect(s.relics.map((r) => [r.x, r.y])).toEqual([[24.5, 24.5], [5.5, 58.5]]);
+    // canonicalize: lista na ordem do arquivo; vazia = nenhuma; o hash muda com a lista e não muda para quem não a usa
+    expect(canonicalize({ ...data, relics: [[5, 58], [24, 24]] }).relics).toEqual([[5, 58], [24, 24]]);
+    expect(canonicalize({ ...data, relics: [] }).relics).toBe(false);
+    const h = (relics?: FixedMapData['relics']) => mapHash({ ...data, relics });
+    expect(h([[24, 24]])).not.toBe(h(true)); expect(h([[24, 24]])).not.toBe(h([[24, 25]])); expect(h([[24, 24]])).toBe(h([[24, 24]]));
+    expect(h(undefined)).toBe(h(true)); expect(h([])).toBe(h(false));
+    // redimensionar desloca as relíquias e corta as que saem do mapa
+    const grow = resizeMapData({ ...data, relics: [[24, 24], [5, 58]] }, 64, 80, 's');   // cresce para o norte: tudo desce 16
+    expect(grow.data.relics).toEqual([[24, 40], [5, 74]]); expect(grow.report.relics).toBe(0);
+    const shrink = resizeMapData({ ...data, relics: [[24, 24], [5, 58]] }, 64, 56, 'n');   // encolhe pelo sul: [5, 58] sai
+    expect(shrink.data.relics).toEqual([[24, 24]]); expect(shrink.report.relics).toBe(1);
+    expect(resizeMapData({ ...data, relics: [[5, 58]] }, 64, 56, 'n').data.relics).toBe(false);
+  });
+  it('validateMap recusa relics malformado (texto, número, [x, y, extra], não inteiro) e repetido; no map.data do cenário vira erro', () => {
+    const data: FixedMapData = { ...blankMap(64, 64, 2, 7), startKit: false };
+    const codes = (relics: unknown) => validateMap({ ...data, relics } as unknown as FixedMapData).filter((i) => i.code.startsWith('relic')).map((i) => [i.code, i.x, i.y]);
+    expect(codes('abc')).toEqual([['relicsFormat', undefined, undefined]]);
+    expect(codes(5)).toEqual([['relicsFormat', undefined, undefined]]);
+    expect(codes([[20, 20, 999]])).toEqual([['relicsFormat', 20, 20]]);
+    expect(codes([[1.5, 2], [7]])).toEqual([['relicsFormat', undefined, undefined], ['relicsFormat', undefined, undefined]]);
+    expect(codes([[20, 20], [24, 24], [20, 20]])).toEqual([['relicDup', 20, 20]]);
+    expect(codes([[20, 20], [24, 24]])).toEqual([]); expect(codes(true)).toEqual([]); expect(codes(false)).toEqual([]);
+    // cenário com mapa fixo inline: antes sorteava 4 relíquias em silêncio ('abc' !== false)
+    const f = mk({ config: { ...mk().config, startKit: false }, map: { data: { ...data, relics: 'abc' } as unknown as FixedMapData } });
+    expect(paths(f)).toEqual(['map.data']);
+    expect(paths({ ...f, map: { data: { ...data, relics: [[20, 20], [20, 20]] } } })).toEqual(['map.data']);
+  });
+  it('mapa fixo: só as relíquias do mapa valem — config.relics (map.gen.relics de um cenário embutido) não as troca nem apaga', () => {
+    const data: FixedMapData = { ...blankMap(64, 64, 2, 7), startKit: false, relics: [[24, 24]] };
+    const players: GameConfig['players'] = [{ name: 'A', god: 'zeus', isAI: false, difficulty: 'normal' }, { name: 'B', god: 'hades', isAI: false, difficulty: 'normal' }];
+    const at = (s: GameState) => s.relics.map((r) => [r.x, r.y]);
+    expect(at(createGame({ seed: 3, mapSize: 'large', players, map: data, relics: [[40, 40], [10, 10]] }))).toEqual([[24.5, 24.5]]);
+    expect(at(createGame({ seed: 3, mapSize: 'large', players, map: data, relics: false }))).toEqual([[24.5, 24.5]]);
+    expect(createGame({ seed: 3, mapSize: 'large', players, map: { ...data, relics: false }, relics: true }).relics.length).toBe(0);
+    // como startScenarioFile / Testar do editor / lobby montam a partida: { ...gameConfigFor(cenário), map }
+    const sc = mk({ config: { ...mk().config, startKit: false }, map: { gen: { mapSize: 'large', seed: 1 }, relics: [[40, 40], [10, 10]] } });
+    expect(validateScenario(sc)).toEqual([]);
+    expect(at(createGame({ ...gameConfigFor(sc), map: data, scenarioData: sc }))).toEqual([[24.5, 24.5]]);
+    const off = mk({ config: { ...mk().config, startKit: false }, map: { gen: { mapSize: 'large', seed: 1 }, relics: false } });
+    expect(at(createGame({ ...gameConfigFor(off), map: data, scenarioData: off }))).toEqual([[24.5, 24.5]]);
+  });
+});
+
+describe('G11: poderes por roteiro', () => {
+  const powerIds = (s: GameState, p = 0) => s.players[p].powers.map((x) => `${x.id}${x.used ? '*' : ''}`);
+  const use = (s: GameState, power: string, p = 0) => applyCommand(s, { type: 'power', player: p, power }).ok;
+  it('set powers: remove tira (até o do deus maior), add concede sem repetir, reset devolve o uso; o comando segue a lista', () => {
+    const s = game(mk());
+    expect(powerIds(s)).toEqual(['bolt']);
+    act(s, [{ do: 'set', player: 0, powers: { remove: ['bolt'] } }]);
+    expect(powerIds(s)).toEqual([]);
+    const tgt = spawnUnit(s, 1, 'hoplite', townCenter(s, 0)!.x, townCenter(s, 0)!.y + 5);
+    expect(usePower(s, s.players[0], 'bolt', undefined, undefined, tgt.id).ok).toBe(false);   // sem o Raio: "poder indisponível"
+    act(s, [{ do: 'set', player: 0, powers: { add: ['bolt', 'oracle', 'oracle'] } }]);
+    expect(powerIds(s)).toEqual(['bolt', 'oracle']);
+    expect(use(s, 'oracle')).toBe(true); expect(use(s, 'oracle')).toBe(false);
+    expect(powerIds(s)).toEqual(['bolt', 'oracle*']);
+    act(s, [{ do: 'set', player: 0, powers: { reset: ['oracle', 'curse'] } }]);   // reset não concede quem não tem
+    expect(powerIds(s)).toEqual(['bolt', 'oracle']);
+    expect(use(s, 'oracle')).toBe(true);
+    act(s, [{ do: 'set', player: 0, powers: { remove: ['oracle'], add: ['oracle'] } }]);   // tirar e dar de novo também repõe
+    expect(powerIds(s)).toEqual(['bolt', 'oracle']);
+    act(s, [{ do: 'set', player: 1, powers: { add: ['ceasefire'] } }]);
+    expect(powerIds(s, 1)).toEqual([MAJOR_GODS.hades.power, 'ceasefire']);
+  });
+  it('powerUsed conta os usos desde o início (reset/remove não zeram); sem comparação, ao menos 1; o evento traz o id', () => {
+    const s = game(mk());
+    act(s, [{ do: 'set', player: 0, powers: { add: ['oracle'] } }]);
+    const used = (c: Partial<Cmp> = {}) => cond(s, { powerUsed: { player: 0, id: 'oracle' }, ...c });
+    expect(used()).toBe(false); expect(used({ eq: 0 })).toBe(true);
+    expect(use(s, 'oracle')).toBe(true);
+    expect(used()).toBe(true); expect(used({ gte: 2 })).toBe(false);
+    expect(s.events.filter((e) => e.type === 'powerUsed').map((e) => e.data)).toEqual(['oracle']);
+    act(s, [{ do: 'set', player: 0, powers: { reset: ['oracle'] } }]);
+    expect(used()).toBe(true);   // reset devolve o uso, mas o uso já aconteceu
+    expect(use(s, 'oracle')).toBe(true);
+    expect(used({ gte: 2 })).toBe(true); expect(used({ eq: 2 })).toBe(true);
+    act(s, [{ do: 'set', player: 0, powers: { remove: ['oracle'] } }]);
+    expect(used({ eq: 2 })).toBe(true);
+    expect(cond(s, { powerUsed: { player: 1, id: 'oracle' } })).toBe(false);
+    expect(cond(s, { powerUsed: { player: 'local', id: 'oracle' }, gte: 2 })).toBe(true);
+    // save: o registro viaja; save de antes de G11 (sem o campo) começa vazio
+    expect(deserialize(serialize(s)).scenario!.powerUses).toEqual({ '0:oracle': 2 });
+    const o = JSON.parse(serialize(s)); delete o.scenario.powerUses; delete o.scenario.kills;
+    const old = deserialize(JSON.stringify(o));
+    expect(old.scenario!.powerUses).toEqual({}); expect(old.scenario!.kills).toEqual({ byPlayer: {}, byEntity: {} });
+    const bad = JSON.parse(serialize(s)); bad.scenario.powerUses = { '0:oracle': 'x', '0:bolt': 1.5, '1:lure': 3 }; bad.scenario.kills = 7;
+    const b2 = deserialize(JSON.stringify(bad));
+    expect(b2.scenario!.powerUses).toEqual({ '1:lure': 3 }); expect(b2.scenario!.kills).toEqual({ byPlayer: {}, byEntity: {} });
+    // fora de cenário, usar poder não cria registro
+    const plain = createGame({ seed: 5, mapSize: 'small', players: [{ name: 'A', god: 'zeus', isAI: false, difficulty: 'normal' }, { name: 'B', god: 'hades', isAI: false, difficulty: 'normal' }] });
+    plain.players[0].powers.push({ id: 'oracle', used: false });
+    expect(applyCommand(plain, { type: 'power', player: 0, power: 'oracle' }).ok).toBe(true); expect(plain.scenario).toBeUndefined();
+  });
+  it('um gatilho repõe o Raio depois do 1º uso (o "2º Raio" da m11) e a IA usa o poder reposto', () => {
+    const s = game(mk({
+      config: { ...mk().config, players: P2([{}, { god: 'zeus' }]) },
+      triggers: [{ id: 'repoe', when: { powerUsed: { player: 1, id: 'bolt' } }, then: [{ do: 'set', player: 1, powers: { reset: ['bolt'] } }] }],
+    }));
+    const hero = (n: number) => spawnUnit(s, 0, n % 2 ? 'odysseus' : 'jason', townCenter(s, 1)!.x + 4 + n, townCenter(s, 1)!.y + 4);
+    hero(0);
+    let t = 0;
+    while (!cond(s, { powerUsed: { player: 1, id: 'bolt' } }) && t++ < 60 * TICK_RATE) tick(s);
+    expect(cond(s, { powerUsed: { player: 1, id: 'bolt' } })).toBe(true);
+    run(s, 2 * TICK_RATE);
+    expect(s.scenario!.fired).toContain('repoe'); expect(s.players[1].powers.find((p) => p.id === 'bolt')!.used).toBe(false);
+    hero(1);
+    t = 0;
+    while (!cond(s, { powerUsed: { player: 1, id: 'bolt' }, gte: 2 }) && t++ < 60 * TICK_RATE) tick(s);
+    expect(cond(s, { powerUsed: { player: 1, id: 'bolt' }, eq: 2 })).toBe(true);
+  }, 60_000);
+  it('validação de set powers e powerUsed', () => {
+    expect(paths(mk({ setup: [{ do: 'set', player: 0, powers: { add: ['bolt'], remove: ['raio'], reset: 'oracle', tirar: [] } as unknown as { add: string[] } }] })))
+      .toEqual(['setup[0].powers.remove[0]', 'setup[0].powers.reset', 'setup[0].powers.tirar']);
+    expect(paths(mk({ setup: [{ do: 'set', player: 0, powers: ['bolt'] as unknown as { add: string[] } }] }))).toEqual(['setup[0].powers']);
+    expect(paths(mk({ victory: { powerUsed: { player: 0, id: 'raio' } } }))).toEqual(['victory.powerUsed.id']);
+    expect(paths(mk({ victory: { powerUsed: { player: 9, id: 'bolt' }, gte: 1 } }))).toEqual(['victory.powerUsed.player']);
+    expect(paths(mk({ victory: { powerUsed: 'bolt' } as unknown as Condition }))).toEqual(['victory.powerUsed']);
+    expect(paths(mk({ victory: { any: [{ powerUsed: { player: 'local', id: 'bolt' } }, { powerUsed: { player: 0, id: 'oracle' }, gte: { var: 'n' } }] } }))).toEqual([]);
+  });
+});
+
+describe('G12: habilidade de herói por roteiro', () => {
+  const hero = (s: GameState, type: string, player = 0, tag = 'heroi') => {
+    act(s, [{ do: 'spawn', player, units: [type], at: { tc: player, dy: 5 }, tag }]);
+    return s.units.get(s.scenario!.vars['#' + tag])!;
+  };
+  it('ability: usa a habilidade pelo caminho do comando (efeito e recarga); na recarga, guarnecido ou sem habilidade, nada acontece', () => {
+    const s = game(mk());
+    const o = hero(s, 'odysseus');
+    const ally = spawnUnit(s, 0, 'hoplite', o.x + 1, o.y);
+    run(s, 1);   // o raio da Astúcia usa o hash espacial montado no início do tick (como o comando)
+    act(s, [{ do: 'ability', unit: { tag: 'heroi' } }]);
+    const cd = ABILITIES.cunning.cooldown * TICK_RATE;
+    expect(o.abilityReadyAt).toBe(s.tick + cd); expect(o.buffSpeed).toBe(ABILITIES.cunning.power); expect(ally.buffSpeed).toBe(ABILITIES.cunning.power);
+    expect(o.buffUntil).toBe(s.tick + ABILITIES.cunning.duration * TICK_RATE);
+    run(s, 5);
+    act(s, [{ do: 'ability', unit: { tag: 'heroi' } }]);   // em recarga: recusado como o comando
+    expect(o.abilityReadyAt).toBe(s.tick - 5 + cd);
+    o.abilityReadyAt = s.tick;   // recarga acabou
+    act(s, [{ do: 'ability', unit: { tag: 'heroi' } }]);
+    expect(o.abilityReadyAt).toBe(s.tick + cd);
+    // sem habilidade (hoplita), edifício, entidade ausente: nada
+    act(s, [{ do: 'ability', unit: { player: 0, type: 'hoplite' } }, { do: 'ability', unit: { tc: 0 } }, { do: 'ability', unit: { tag: 'nada' } }]);
+    expect(ally.abilityReadyAt).toBe(0);
+    // guarnecido: recusado
+    const h = hero(s, 'heracles', 0, 'hera');
+    act(s, [{ do: 'order', units: { tag: 'hera' }, order: { type: 'garrison', target: { tc: 0 } } }]);
+    run(s, 5 * TICK_RATE);
+    expect(h.inside).toBe(townCenter(s, 0)!.id);
+    act(s, [{ do: 'ability', unit: { tag: 'hera' } }]);
+    expect(h.chargeUntil).toBe(0); expect(h.abilityReadyAt).toBe(0);
+  });
+  it('marionete usa a habilidade (Fúria de Aquiles) e o alvo: inimigo = atacar, aliado = ir até ele, ponto = atacar-mover; só quando usa', () => {
+    const f = mk({ config: { ...mk().config, players: [...mk().config.players, { name: 'M', god: 'poseidon', isAI: false, difficulty: 'normal', team: 1, puppet: true }] } });
+    const s = game(f);
+    act(s, [{ do: 'spawn', player: 2, units: ['achilles'], at: { tc: 1, dy: 6 }, tag: 'aquiles' }]);
+    const a = s.units.get(s.scenario!.vars['#aquiles'])!;
+    act(s, [{ do: 'ability', unit: { tag: 'aquiles' }, target: { tc: 0 } }]);   // { tc } sem deslocamento = o Centro Cívico (inimigo)
+    expect(a.buffHaste).toBe(ABILITIES.fury.power); expect(a.buffUntil).toBeGreaterThan(s.tick);
+    expect(a.state).toBe('attack'); expect(a.targetId).toBe(townCenter(s, 0)!.id);
+    const pt = { tc: 0, dx: 3, dy: 3 } as const;
+    act(s, [{ do: 'ability', unit: { tag: 'aquiles' }, target: pt }]);   // em recarga: a ordem também não muda
+    expect(a.state).toBe('attack');
+    a.abilityReadyAt = s.tick;
+    act(s, [{ do: 'ability', unit: { tag: 'aquiles' }, target: pt }]);
+    const tc0 = townCenter(s, 0)!;
+    expect(a.state).toBe('attackMove'); expect([a.tx, a.ty]).toEqual([tc0.x + 3, tc0.y + 3]);
+    a.abilityReadyAt = s.tick;
+    act(s, [{ do: 'ability', unit: { tag: 'aquiles' }, target: { tc: 1 } }]);   // aliado (time 1): vai até ele
+    expect(a.state).toBe('move'); expect([a.tx, a.ty]).toEqual([townCenter(s, 1)!.x, townCenter(s, 1)!.y]);
+    expect(s.events.some((e) => e.type === 'ability' && e.player === 2)).toBe(true);
+  });
+  it('validação de ability', () => {
+    expect(paths(mk({ setup: [{ do: 'ability' } as unknown as Action] }))).toEqual(['setup[0].unit']);
+    expect(paths(mk({ setup: [{ do: 'ability', unit: { tag: 'h' }, target: { at: [1] } } as unknown as Action] }))).toEqual(['setup[0].target.at']);
+    expect(paths(mk({ setup: [{ do: 'ability', unit: { tag: 'h' }, target: { algo: 1 } } as unknown as Action] }))).toEqual(['setup[0].target']);
+    expect(paths(mk({ setup: [
+      { do: 'ability', unit: { tag: 'h' } }, { do: 'ability', unit: { player: 0, type: 'achilles' }, target: { tag: 'x' } },
+      { do: 'ability', unit: { tag: 'h' }, target: { tc: 1 } }, { do: 'ability', unit: { tag: 'h' }, target: { tc: 1, dy: 4 } },
+      { do: 'ability', unit: { tag: 'h' }, target: { entity: { tag: 'x' }, dx: 2 } }, { do: 'ability', unit: { tag: 'h' }, target: { start: 1 } },
+    ] }))).toEqual([]);
+  });
+});
+
+describe('G13: autoria de abate', () => {
+  function arena() {
+    const s = game(mk());
+    const tc1 = townCenter(s, 1)!;
+    act(s, [
+      { do: 'spawn', player: 0, units: ['perseus'], at: { tc: 1, dx: -8, dy: 8 }, tag: 'perseu' },
+      { do: 'spawn', player: 1, units: ['minotaur'], at: { tc: 1, dx: -7, dy: 8 }, tag: 'alvo' },
+    ]);
+    const p = s.units.get(s.scenario!.vars['#perseu'])!, m = s.units.get(s.scenario!.vars['#alvo'])!;
+    return { s, p, m, tc1 };
+  }
+  it('kills: abate em combate registra jogador, tipo da vítima e a entidade autora (by.tag), mesmo depois que ela morre', () => {
+    const { s, p, m } = arena();
+    m.hp = 1; m.stance = 'passive';
+    act(s, [{ do: 'order', units: { tag: 'perseu' }, order: { type: 'attack', target: { tag: 'alvo' } } }]);
+    for (let i = 0; i < 10 * TICK_RATE && !m.dead; i++) tick(s);
+    expect(m.dead).toBe(true);
+    expect(cond(s, { kills: { player: 0, type: 'minotaur', by: { tag: 'perseu' } }, gte: 1 })).toBe(true);
+    expect(cond(s, { kills: { player: 0 }, eq: 1 })).toBe(true);
+    expect(cond(s, { kills: { player: 0, type: 'hoplite' }, eq: 0 })).toBe(true);
+    expect(cond(s, { kills: { player: 1 }, eq: 0 })).toBe(true);
+    expect(s.scenario!.kills.byEntity[`0:${p.id}`]).toEqual({ minotaur: 1 });
+    act(s, [{ do: 'kill', entity: { tag: 'perseu' } }]);   // o autor morto continua no grupo da tag
+    expect(cond(s, { kills: { player: 0, by: { tag: 'perseu' } }, eq: 1 })).toBe(true);
+    expect(cond(s, { kills: { player: 0, by: { tag: 'nada' } }, eq: 0 })).toBe(true);
+  });
+  it('poderes contam para o jogador e não para a tag; kill/damage do roteiro e dispensar não contam; edifício derrubado conta', () => {
+    const { s, p, tc1 } = arena();
+    const h = spawnUnit(s, 1, 'hoplite', tc1.x - 6, tc1.y + 10);
+    expect(usePower(s, s.players[0], 'bolt', undefined, undefined, h.id).ok).toBe(true);
+    expect(h.dead).toBe(true);
+    expect(cond(s, { kills: { player: 0, type: 'hoplite' }, eq: 1 })).toBe(true);
+    expect(cond(s, { kills: { player: 0, type: 'hoplite', by: { tag: 'perseu' } }, eq: 0 })).toBe(true);
+    act(s, [{ do: 'kill', entity: { tag: 'alvo' } }]);
+    const v = spawnUnit(s, 1, 'villager', tc1.x - 5, tc1.y + 10);
+    act(s, [{ do: 'damage', entity: { player: 1, type: 'villager', pick: 'nearest', near: { at: [v.x, v.y] } }, amount: 1e6 }]);
+    const own = spawnUnit(s, 0, 'villager', tc1.x - 4, tc1.y + 12);
+    applyCommand(s, { type: 'delete', player: 0, ids: [own.id] });
+    expect(cond(s, { kills: { player: 0 }, eq: 1 })).toBe(true);
+    expect(cond(s, { kills: { player: 1 }, eq: 0 })).toBe(true);
+    // edifício: dano de Perseu que derruba uma Casa inimiga
+    act(s, [{ do: 'place', player: 1, building: 'house', at: { tc: 1, dx: -8, dy: 4 }, tag: 'casa' }]);
+    const casa = s.buildings.get(s.scenario!.vars['#casa'])!;
+    applyDamage(s, casa, 1e6, 0, p);
+    expect(casa.dead).toBe(true);
+    expect(cond(s, { kills: { player: 0, type: 'house', by: { tag: 'perseu' } }, eq: 1 })).toBe(true);
+    expect(cond(s, { kills: { player: 0, type: ['house', 'hoplite'] }, eq: 2 })).toBe(true);
+    // fora de cenário, nada é registrado
+    const plain = createGame({ seed: 5, mapSize: 'small', players: [{ name: 'A', god: 'zeus', isAI: false, difficulty: 'normal' }, { name: 'B', god: 'hades', isAI: false, difficulty: 'normal' }] });
+    const x = spawnUnit(plain, 1, 'hoplite', 20, 20);
+    applyDamage(plain, x, 1e6, 0);
+    expect(x.dead).toBe(true); expect(plain.scenario).toBeUndefined();
+  });
+  it('alicerce (obra incompleta) derrubado não conta como abate, como stats.razed; o edifício completo conta', () => {
+    const { s, p, tc1 } = arena();
+    const obra = placeBuilding(s, 1, 'town_center', tc1.tx - 12, tc1.ty + 12, false);
+    expect(obra.complete).toBe(false);
+    applyDamage(s, obra, 1e6, 0, p);
+    expect(obra.dead).toBe(true);
+    expect(s.players[0].stats.razed).toBe(0);
+    expect(cond(s, { kills: { player: 0, type: 'town_center' }, eq: 0 })).toBe(true);
+    expect(s.scenario!.kills.byEntity[`0:${p.id}`]).toBeUndefined();
+    const cc = placeBuilding(s, 1, 'town_center', tc1.tx - 12, tc1.ty + 12, true);
+    applyDamage(s, cc, 1e6, 0, p);
+    expect(cc.dead).toBe(true);
+    expect(s.players[0].stats.razed).toBe(1);
+    expect(cond(s, { kills: { player: 0, type: 'town_center', by: { tag: 'perseu' } }, eq: 1 })).toBe(true);
+  });
+  it('validação e lint de kills', () => {
+    expect(paths(mk({ victory: { kills: { player: 0 } } as unknown as Condition }))).toEqual(['victory']);
+    expect(paths(mk({ victory: { kills: { player: 0, type: ['cronus', 'x'], by: { tag: 'p', extra: 1 } }, gte: 1 } as unknown as Condition }))).toEqual(['victory.kills.type[1]', 'victory.kills.by']);
+    expect(paths(mk({ victory: { kills: { type: 'cronus' }, gte: 1 } as unknown as Condition }))).toEqual(['victory.kills.player']);
+    expect(paths(mk({ victory: { kills: 'x', gte: 1 } as unknown as Condition }))).toEqual(['victory.kills']);
+    expect(paths(mk({ victory: { all: [{ kills: { player: 0, type: 'cronus', by: { tag: 'perseu' } }, gte: 1 }, { kills: { player: 'local', type: 'town_center' }, gte: { var: 'n' } }] } }))).toEqual([]);
+    // tag futura: { by: { tag } } com eq 0 vale com o grupo ausente
+    const later: ScenarioFile['triggers'][number] = { id: 'chega', when: { time: { gte: 60 } }, then: [{ do: 'spawn', player: 0, units: ['perseus'], at: { tc: 0 }, tag: 'perseu' }] };
+    expect(warnPaths(mk({ triggers: [later], victory: { kills: { player: 0, by: { tag: 'perseu' } }, eq: 0 } }))).toEqual(['victory.kills.by.tag']);
+    expect(warnPaths(mk({ triggers: [later], victory: { kills: { player: 0, by: { tag: 'perseu' } }, gte: 1 } }))).toEqual([]);
+  });
+});
+
+describe('G17: contador de repeat', () => {
+  it("vars['@id'] conta os disparos (já vale no then); { max } para no teto; setVar '@id' 0 rearma; não-repeat não conta", () => {
+    const s = game(mk({
+      triggers: [
+        { id: 'onda', repeat: { max: 3 }, when: { every: { seconds: 2 } }, then: [{ do: 'addVar', name: 'soma', delta: 1 }, { do: 'setVar', name: 'visto', value: { var: '@onda' } }] },
+        { id: 'sempre', repeat: true, when: { every: { seconds: 5 } }, then: [] },
+        { id: 'uma', when: { time: { gte: 1 } }, then: [] },
+        { id: 'rearma', when: { time: { gte: 14 } }, then: [{ do: 'setVar', name: '@onda', value: 0 }] },
+      ],
+    }));
+    run(s, 12 * TICK_RATE);
+    const v = s.scenario!.vars;
+    expect(v['@onda']).toBe(3); expect(v.soma).toBe(3); expect(v.visto).toBe(3);
+    expect(v['@sempre']).toBe(2); expect('@uma' in v).toBe(false); expect(s.scenario!.fired).toEqual(['uma']);
+    expect(cond(s, { var: '@onda', eq: 3 })).toBe(true);
+    run(s, 10 * TICK_RATE);   // aos 14 s 'onda' (no teto) vem antes de 'rearma' na lista; rearmada, dispara aos 16, 18 e 20 e para de novo
+    expect(v['@onda']).toBe(3); expect(v.soma).toBe(6);
+    // gatilhos repeat em TS (m3: ritual a cada segundo) também contam
+    const m3 = createGame({ ...PROLOGUE[2].config, scenario: 'm3_portal' });
+    run(m3, 3 * TICK_RATE);
+    expect(m3.scenario!.vars['@ritual']).toBeGreaterThanOrEqual(2);
+    // save/load mantém o contador e o teto continua valendo
+    const s2 = deserialize(serialize(s));
+    run(s2, 10 * TICK_RATE);
+    expect(s2.scenario!.vars['@onda']).toBe(3); expect(s2.scenario!.vars.soma).toBe(6);
+  });
+  it('validação e lint de repeat: { max } inteiro ≥ 1; { fired } de gatilho repeat e @var sem repeat avisam', () => {
+    const tr = (repeat: unknown) => mk({ triggers: [{ id: 't', repeat, when: { time: { gte: 1 } }, then: [] } as unknown as ScenarioFile['triggers'][number]] });
+    expect(paths(tr({ max: 2 }))).toEqual([]); expect(paths(tr(true))).toEqual([]);
+    expect(paths(tr({ max: 0 }))).toEqual(['triggers[0].repeat']); expect(paths(tr({ max: 1.5 }))).toEqual(['triggers[0].repeat']);
+    expect(paths(tr({ max: 2, cada: 3 }))).toEqual(['triggers[0].repeat']); expect(paths(tr('sim'))).toEqual(['triggers[0].repeat']);
+    const onda: ScenarioFile['triggers'][number] = { id: 'onda', repeat: { max: 3 }, when: { every: { seconds: 60 } }, then: [] };
+    expect(warnPaths(mk({ triggers: [onda], victory: { fired: 'onda' } }))).toEqual(['victory.fired']);
+    expect(warnPaths(mk({ triggers: [onda], victory: { var: '@onda', gte: 3 } }))).toEqual([]);
+    expect(warnPaths(mk({ triggers: [onda], victory: { var: '@ondas', gte: 3 } }))).toEqual(['victory.var']);
+    expect(warnPaths(mk({ triggers: [onda, { id: 'x', when: { value: { add: [{ var: '@nada' }, 1] }, gte: 2 }, then: [{ do: 'setVar', name: '@outra', value: 1 }, { do: 'setVar', name: '@onda', value: 0 }] }] })))
+      .toEqual(['triggers[1].when.value.add[0].var', 'triggers[1].then[0].name']);
+    expect(warnPaths(mk({ triggers: [onda], hud: [{ type: 'progress', var: '@onda', max: 3, label: { pt: 'Ondas', en: 'Waves' }, format: 'count' }] }))).toEqual([]);
+  });
+});
+
+describe('G10–G13, G17: determinismo', () => {
+  it('relíquias fixas, poderes, habilidade, abates e repeat roteirizados dão o mesmo estado em duas partidas e depois de salvar/carregar', () => {
+    const f = mk({
+      map: { gen: { mapSize: 'small', seed: 12345 }, relics: [[20, 20], [60, 60], [40, 12]] },
+      setup: [
+        { do: 'spawn', player: 0, units: ['achilles'], at: { tc: 1, dx: -6, dy: 6 }, tag: 'aquiles' },
+        { do: 'spawn', player: 1, units: ['hoplite', 'hoplite', 'hoplite', 'toxotes'], at: { tc: 1, dx: -4, dy: 6 }, tag: 'guarda' },
+        { do: 'set', player: 0, powers: { add: ['oracle'] } },
+      ],
+      triggers: [
+        { id: 'furia', repeat: { max: 4 }, when: { every: { seconds: 3 } }, then: [{ do: 'ability', unit: { tag: 'aquiles' }, target: { tag: 'guarda', pick: 'alive' } }] },
+        { id: 'oraculo', when: { time: { gte: 4 } }, then: [{ do: 'setVar', name: 'ok', value: 1 }] },
+        { id: 'repoe', when: { powerUsed: { player: 0, id: 'oracle' } }, then: [{ do: 'set', player: 0, powers: { reset: ['oracle'] } }] },
+        { id: 'placar', repeat: true, when: { kills: { player: 0, by: { tag: 'aquiles' } }, gte: { add: [{ var: '@placar' }, 1] } }, then: [{ do: 'addVar', name: 'mortes', delta: 1 }] },
+      ],
+    });
+    const a = game(f), b = game(f);
+    for (const s of [a, b]) { run(s, 6 * TICK_RATE); applyCommand(s, { type: 'power', player: 0, power: 'oracle' }); run(s, 24 * TICK_RATE); }
+    expect(stateHash(a)).toBe(stateHash(b));
+    expect(a.scenario).toEqual(b.scenario); expect(a.relics).toEqual(b.relics);
+    expect(a.scenario!.vars['@furia']).toBe(4);
+    expect(a.scenario!.powerUses['0:oracle']).toBe(1); expect(a.scenario!.fired).toContain('repoe');
+    expect(a.scenario!.vars.mortes).toBeGreaterThan(0); expect(a.scenario!.vars.mortes).toBe(a.scenario!.vars['@placar']);
+    expect(a.relics.map((r) => [r.x, r.y])).toEqual(b.relics.map((r) => [r.x, r.y])); expect(a.relics.length).toBe(3);
+    expect(a.scenario!.vars.mortes).toBe(Object.values(a.scenario!.kills.byEntity[`0:${a.scenario!.vars['#aquiles']}`] ?? {}).reduce((x, y) => x + y, 0));
+    const c = deserialize(serialize(a));
+    expect(c.scenario).toEqual(a.scenario);
+    run(a, 8 * TICK_RATE); run(c, 8 * TICK_RATE);
+    expect(stateHash(c)).toBe(stateHash(a)); expect(c.scenario).toEqual(a.scenario);
   }, 60_000);
 });

@@ -22,6 +22,8 @@ export interface TriggerDef {
   when: (state: GameState, ctx: TriggerCtx) => boolean;
   then: (state: GameState, ctx: TriggerCtx) => void;
   repeat?: boolean;
+  /** G17: teto de disparos de um gatilho repeat (vars['@id'] conta os disparos; zerá-lo rearma o gatilho). */
+  maxFires?: number;
 }
 
 export interface ScenarioDef {
@@ -54,5 +56,19 @@ export interface ScenarioState {
   outcome: 'playing' | 'victory' | 'defeat';
   /** Time vencedor ao terminar (-1 = ninguém/em jogo). A tela de fim decide vitória/derrota pelo time do jogador local. */
   winnerTeam: number;
-  vars: Record<string, number>;          // valores guardados pelo cenário (ex.: id do Centro Cívico alvo)
+  vars: Record<string, number>;          // valores guardados pelo cenário (ex.: id do Centro Cívico alvo); '#tag' = ids das tags, '@id' = disparos do gatilho repeat (G17)
+  /** G11: usos de cada poder por jogador desde o início (`${jogador}:${poder}` → n); reset/remove do roteiro não zeram. */
+  powerUses: Record<string, number>;
+  /** G13: autoria dos abates (registro; não muda a simulação). */
+  kills: KillLog;
+}
+
+/**
+ * G13: abates com autor (jogador inimigo da vítima), gravados por killUnit/destroyBuilding (src/core/scenario/log.ts).
+ * byPlayer: `${jogador autor}:${tipo da vítima}` → n (inclui Raio, Maldição, atrito); byEntity: `${jogador autor}:${id da
+ * unidade ou edifício autor}` → { tipo da vítima: n } (só quando há entidade autora: golpe, flecha, dano em área).
+ */
+export interface KillLog {
+  byPlayer: Record<string, number>;
+  byEntity: Record<string, Record<string, number>>;
 }

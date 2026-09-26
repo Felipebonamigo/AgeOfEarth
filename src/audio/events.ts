@@ -256,7 +256,8 @@ export class AudioDirector {
       case 'powerUsed': {
         const p = w.state.players[ev.player];
         const prev = this.usedPowers[ev.player] ?? new Set<string>();
-        const fresh = p ? p.powers.filter((x) => x.used && !prev.has(x.id)).map((x) => x.id) : [];
+        // o evento traz o id do poder (G11: um poder reposto pelo roteiro pode ser usado de novo); saves antigos: pelo que ficou gasto
+        const fresh = ev.data ? [ev.data] : p ? p.powers.filter((x) => x.used && !prev.has(x.id)).map((x) => x.id) : [];
         this.usedPowers[ev.player] = new Set(p?.powers.filter((x) => x.used).map((x) => x.id) ?? []);
         if (mine) this.ui('divine', 0.7);
         if (at && (visible(ev.x!, ev.y!) || mine)) {

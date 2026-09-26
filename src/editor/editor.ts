@@ -3,7 +3,7 @@
 // vista (renderer + minimapa), implementa as ferramentas do §4.3 a partir de eventos de ponteiro/teclado já
 // traduzidos para tiles, e produz o arquivo canônico (toFile) e a validação (validate). A camada DOM (painel,
 // autosave, toasts) fica em src/editor/panel.ts e src/main.ts.
-import { MAX_PLAYERS, TERRAIN } from '../core/constants';
+import { MAX_FIXED_RELICS, MAX_PLAYERS, RELIC_SNAP_RADIUS, TERRAIN } from '../core/constants';
 import { BUILDINGS, MAJOR_GOD_LIST, UNITS } from '../core/data';
 import type { GameConfig, GameMap, GameState } from '../core/types';
 import { createGame } from '../core/sim/game';
@@ -11,7 +11,7 @@ import { canPlaceBuilding } from '../core/sim/entities';
 import { recomputeTerritory } from '../core/sim/territory';
 import { serialize } from '../core/serialize';
 import { RNG, makeNoise } from '../core/rng';
-import { idx, inBounds, isPassable } from '../core/map/grid';
+import { idx, inBounds, isPassable, spiralSearch } from '../core/map/grid';
 import { articulationPoints, componentAt, invalidateComponents } from '../core/map/components';
 import { nearestFreeTile } from '../core/map/pathfinding';
 import { ensureConnectivity, placeStartResources as genStartResources } from '../core/map/mapgen';
@@ -109,7 +109,7 @@ export class MapEditor {
     const src = migrateMap(file);
     this.view = view;
     this.now = opts.now ?? (() => (typeof performance !== 'undefined' ? performance.now() : Date.now()));
-    this.meta = { id: src.id, name: src.name, nameEn: src.nameEn, author: src.author, description: src.description, startKit: src.startKit, startTeams: src.startTeams?.slice(), koth: src.koth ? [src.koth[0], src.koth[1]] : undefined, relics: src.relics, scenario: src.scenario && typeof src.scenario === 'object' ? src.scenario : undefined };   // cenário embutido (Etapa 5) viaja com o mapa
+    this.meta = { id: src.id, name: src.name, nameEn: src.nameEn, author: src.author, description: src.description, startKit: src.startKit, startTeams: src.startTeams?.slice(), koth: src.koth ? [src.koth[0], src.koth[1]] : undefined, relics: Array.isArray(src.relics) ? (src.relics as unknown[]).filter(Array.isArray).map(([x, y]) => [x, y] as [number, number]) : src.relics, scenario: src.scenario && typeof src.scenario === 'object' ? src.scenario : undefined };   // cenário embutido (Etapa 5) viaja com o mapa
     for (const k of Object.keys(this.meta) as (keyof MapMeta)[]) if (this.meta[k] === undefined) delete this.meta[k];
     // A sessão nasce com MAX_PLAYERS jogadores fictícios (humanos, deuses em rodízio) para que qualquer início que o
     // autor acrescente já tenha um Player; createGame exige um início por jogador, então os inícios são preenchidos
@@ -142,6 +142,7 @@ export class MapEditor {
       } catch { /* entidade inválida no arquivo */ }
     }
     recomputeTerritory(state);
+    this.syncRelics();   // com as entidades no lugar (tile bloqueado = anel vermelho)
   }
 
   get state(): GameState { return this.session.state; }
@@ -158,7 +159,7 @@ export class MapEditor {
   apply(op: EditOp): EditOp {
     const state = this.state;
     const before = dirtyRectOf(op, state.map.w, state);
-    const inv = applyEditOp(state, op, this.tags);
+    const inv = applyEditOp(state, op, this.tags, this.meta);
     this.redoStack.length = 0;
     this.resizedTo = null;   // refazer o redimensionamento deixa de valer (como a pilha de refazer)
     if (this.stroke) this.stroke.push(inv); else this.undoStack.push(inv);
@@ -178,7 +179,7 @@ export class MapEditor {
     }
     const state = this.state;
     const before = dirtyRectOf(inv, state.map.w, state);
-    const redo = applyEditOp(state, inv, this.tags);
+    const redo = applyEditOp(state, inv, this.tags, this.meta);
     this.redoStack.push(redo);
     this.changed(before, dirtyRectOf(redo, state.map.w, state));
     return true;
@@ -194,7 +195,7 @@ export class MapEditor {
     }
     const state = this.state;
     const before = dirtyRectOf(op, state.map.w, state);
-    const inv = applyEditOp(state, op, this.tags);
+    const inv = applyEditOp(state, op, this.tags, this.meta);
     this.undoStack.push(inv);
     this.changed(before, dirtyRectOf(inv, state.map.w, state));
     return true;
@@ -224,6 +225,7 @@ export class MapEditor {
     this.minimapDirty = true;
     this.dirty = true;
     this.issues = null; this.resources = null;
+    this.syncRelics();
     const h = this.ui.hover;
     if (h) this.ui.ghostOk = this.canPlaceAt(h.x, h.y);
     this.onChange?.();
@@ -258,10 +260,22 @@ export class MapEditor {
     this.issues = null;
     this.resizedTo = null;
     this.syncKoth();
+    this.syncRelics();
     this.onChange?.();
   }
   /** Copia a colina dos metadados para a interface (o renderizador marca o ponto; null = centro do mapa). */
   private syncKoth(): void { const k = this.meta.koth; this.ui.koth = k ? { x: k[0], y: k[1] } : null; }
+  /** G10: copia as relíquias fixas dos metadados para a interface (o renderizador as desenha, com anel vermelho nas `bad`; sorteio/nenhuma = lista vazia). */
+  private syncRelics(): void {
+    const r = this.meta.relics, free = this.relicFree();
+    this.ui.relics = Array.isArray(r) ? r.filter((p) => Number.isInteger(p[0]) && Number.isInteger(p[1])).map(([x, y]) => ({ x, y, bad: !free(x, y) })) : [];
+  }
+  /** Tile livre para relíquia: dentro do mapa, sem água, montanha, nó ou edifício que bloqueia, fora do 3×3 do CC do kit inicial. */
+  private relicFree(): (a: number, b: number) => boolean {
+    const map = this.map, kit = this.meta.startKit !== false;
+    const inKit = (a: number, b: number) => kit && map.starts.some((s) => Math.abs(a - s.x) <= 1 && Math.abs(b - s.y) <= 1);
+    return (a, b) => inBounds(map, a, b) && map.blocked[idx(map, a, b)] === 0 && !inKit(a, b);
+  }
 
   /**
    * Redimensiona (Propriedades): cria uma instância nova a partir do arquivo redimensionado (resizeMapData) e liga as
@@ -489,7 +503,7 @@ export class MapEditor {
   /** Borracha: unidade > edifício > nó > início sob o tile. */
   eraseAt(tx: number, ty: number): boolean {
     const p = this.pickAt(tx, ty);
-    if (!p) return false;
+    if (!p) return this.removeRelicAt(tx, ty);   // G10: sem nada por cima, a borracha tira a relíquia fixa do tile
     const ok = this.removePick(p);
     if (ok && this.ui.selected && this.ui.selected.kind === p.kind && this.ui.selected.id === p.id) this.ui.selected = null;
     return ok;
@@ -766,6 +780,67 @@ export class MapEditor {
     if (ops.length === 0) return false;
     return this.tryApply({ kind: 'batch', ops });
   }
+
+  // ---------------------------------------------------------------------------------------------------------
+  // Relíquias fixas (G10): meta.relics em lista; cada mudança é um passo de desfazer (setRelics)
+  // ---------------------------------------------------------------------------------------------------------
+
+  private relicList(): [number, number][] { const r = this.meta.relics; return Array.isArray(r) ? r.map(([x, y]) => [x, y] as [number, number]) : []; }
+  /** Troca meta.relics (lista = posições fixas; false = nenhuma; undefined = sorteio) como um passo de desfazer. */
+  setRelics(relics: boolean | [number, number][] | undefined): boolean {
+    if (JSON.stringify(relics ?? null) === JSON.stringify(this.meta.relics ?? null)) return false;
+    return this.tryApply(relics === undefined ? { kind: 'setRelics' } : { kind: 'setRelics', relics });
+  }
+  /** Índice da relíquia fixa no tile (-1 se não há); last: a última da lista (a repetida, em relicDup). */
+  relicIndexAt(x: number, y: number, last = false): number {
+    const list = this.relicList(), hit = (p: [number, number]) => p[0] === x && p[1] === y;
+    if (!last) return list.findIndex(hit);
+    for (let i = list.length - 1; i >= 0; i--) if (hit(list[i])) return i;
+    return -1;
+  }
+  /** "Pôr relíquia": acrescenta uma posição fixa (a lista nasce do zero se o mapa sorteava ou não tinha relíquias). */
+  addRelic(x: number, y: number): boolean {
+    const list = this.relicList();
+    if (!inBounds(this.map, x, y) || list.length >= MAX_FIXED_RELICS || this.relicIndexAt(x, y) >= 0) return false;
+    list.push([x, y]);
+    return this.setRelics(list);
+  }
+  /** Tira a relíquia fixa do tile (a última da lista com last). A lista vazia fica "nenhuma relíquia" (canonicalize). */
+  removeRelicAt(x: number, y: number, last = false): boolean {
+    const i = this.relicIndexAt(x, y, last);
+    if (i < 0) return false;
+    const list = this.relicList();
+    list.splice(i, 1);
+    return this.setRelics(list);
+  }
+  /**
+   * Terra livre alcançável mais próxima de (x, y) para uma relíquia — a mesma busca de placeRelicsAt (até RELIC_SNAP_RADIUS):
+   * sem água, montanha, nó, edifício que bloqueia nem o CC do kit inicial, na região de algum início e sem outra relíquia.
+   * Posição fora do mapa começa da borda mais próxima. null = nenhum tile serve (a correção tira a relíquia).
+   */
+  relicSpot(x: number, y: number): { x: number; y: number } | null {
+    const map = this.map, free = this.relicFree();
+    const regions = new Set<number>();
+    for (const s of map.starts) { const t = spiralSearch(s.x, s.y, 3, free); if (t) regions.add(componentAt(map, t.x, t.y)); }
+    const taken = new Set(this.relicList().map(([a, b]) => b * map.w + a));
+    const cx = Math.min(map.w - 1, Math.max(0, Math.round(Number(x) || 0))), cy = Math.min(map.h - 1, Math.max(0, Math.round(Number(y) || 0)));
+    return spiralSearch(cx, cy, RELIC_SNAP_RADIUS, (a, b) => free(a, b) && !taken.has(b * map.w + a) && regions.has(componentAt(map, a, b)));
+  }
+  /** "Mover relíquia" (relicOut/relicBlocked/relicUnreachable): para relicSpot; sem tile que sirva, tira a relíquia. */
+  fixRelicAt(x: number, y: number): boolean {
+    const i = this.relicIndexAt(x, y);
+    if (i < 0) return false;
+    const list = this.relicList(), spot = this.relicSpot(x, y);
+    if (spot) list[i] = [spot.x, spot.y]; else list.splice(i, 1);
+    return this.setRelics(list);
+  }
+  /** relicsFormat/relicsCount: tira as posições que não são [x, y] inteiros e as que passam de MAX_FIXED_RELICS. */
+  tidyRelics(): boolean {
+    const r = this.meta.relics;
+    if (!Array.isArray(r)) return false;
+    return this.setRelics(r.filter((p) => Array.isArray(p) && Number.isInteger(p[0]) && Number.isInteger(p[1])).slice(0, MAX_FIXED_RELICS).map(([x, y]) => [x, y] as [number, number]));
+  }
+
   /** Roda fn numa cópia do mapa e converte a diferença (terreno, nós removidos/acrescentados) num batch desfazível. */
   private runMapFix(fn: (m: GameMap) => void): boolean {
     const map = this.map;

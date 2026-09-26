@@ -41,7 +41,7 @@ export function deserialize(json: string): GameState {
     units: new Map((o.units as Unit[]).map((u) => [u.id, scenarioExtras({ ...u, inside: u.inside ?? -1, resumeNodeId: u.resumeNodeId ?? -1, avoidIds: u.avoidIds ?? [], avoidUntil: u.avoidUntil ?? 0, blockedTicks: u.blockedTicks ?? 0, abilityReadyAt: u.abilityReadyAt ?? 0, buffUntil: u.buffUntil ?? 0, buffAttack: u.buffAttack ?? 1, buffSpeed: u.buffSpeed ?? 1, buffHaste: u.buffHaste ?? 1, buffWard: u.buffWard ?? false, chargeUntil: u.chargeUntil ?? 0 })])), buildings: new Map((o.buildings as Building[]).map((b) => [b.id, scenarioExtras({ ...b, garrison: b.garrison ?? [] })])),
     territory: Int8Array.from(o.territory as number[]), territoryDirty: true, territoryVersion: 0,
     events: o.events ?? [], effects: [], timed: o.timed ?? [], winner: o.winner, gameOver: o.gameOver, rng: new RNG(1),
-    ceasefireUntil: o.ceasefireUntil ?? 0, ceasefireBy: o.ceasefireBy ?? -1, fogVersion: 0, scenario: o.scenario ? { ...o.scenario, vars: o.scenario.vars ?? {}, winnerTeam: o.scenario.winnerTeam ?? legacyWinnerTeam(o) } : undefined, koth: o.koth ?? undefined, relics: o.relics ?? [],
+    ceasefireUntil: o.ceasefireUntil ?? 0, ceasefireBy: o.ceasefireBy ?? -1, fogVersion: 0, scenario: o.scenario ? { ...o.scenario, vars: o.scenario.vars ?? {}, winnerTeam: o.scenario.winnerTeam ?? legacyWinnerTeam(o), ...sanitizeScenarioLog(o.scenario) } : undefined, koth: o.koth ?? undefined, relics: o.relics ?? [],
     aiRound: typeof o.aiRound === 'number' ? o.aiRound : 0,   // saves de antes do rodízio por rodadas
   };
   state.rng.s = o.rng >>> 0;
@@ -72,6 +72,7 @@ function legacyWinnerTeam(o: { scenario?: { outcome?: string }; config: { player
   return i >= 0 ? (o.players[i]?.team ?? i) : -1;
 }
 import { migrateLegacyPuppets } from './scenario/helpers';
+import { sanitizeScenarioLog } from './scenario/log';   // G11/G13: usos de poderes e autoria dos abates (padrão vazio)
 import { migrateScenarioLocks } from './scenario/runner';
 import * as constants from './constants';
 import * as data from './data';

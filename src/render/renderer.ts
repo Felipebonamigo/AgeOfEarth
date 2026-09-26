@@ -858,6 +858,13 @@ export class Renderer {
     const kx = (kh.x + 0.5) * TILE, ky = (kh.y + 0.5) * TILE, ka = ed.koth ? 0.95 : 0.4;
     g.circle(kx, ky, 2.5 * TILE).stroke({ width: 1.5 * lw, color: 0xfde68a, alpha: ka });
     g.poly([kx, ky - 8 * mk, kx + 7 * mk, ky + 5 * mk, kx - 7 * mk, ky + 5 * mk]).fill({ color: 0xfde68a, alpha: ka * 0.8 }).stroke({ width: lw, color: 0x000000, alpha: ka * 0.6 });
+    // Relíquias fixas do arquivo (G10): como na partida (disco roxo com miolo dourado); fora do mapa, sobre tile bloqueado ou no CC do kit, anel vermelho
+    for (const r of ed.relics ?? []) {
+      const rx = (r.x + 0.5) * TILE, ry = (r.y + 0.5) * TILE, bad = r.bad;
+      g.circle(rx, ry, 7 * mk).fill({ color: 0x7c3aed, alpha: 0.9 }).stroke({ width: 2 * lw, color: bad ? 0xef4444 : 0xfde047 });
+      g.circle(rx, ry, 3 * mk).fill({ color: 0xfde047 });
+      if (bad) g.circle(rx, ry, 10 * mk).stroke({ width: 2 * lw, color: 0xef4444, alpha: 0.9 });
+    }
     // Cursor: pincel, linha, fantasmas
     const hv = ed.hover;
     if (hv) {
