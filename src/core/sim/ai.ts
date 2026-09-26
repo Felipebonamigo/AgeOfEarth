@@ -4,11 +4,11 @@ import { DIFFICULTIES, TICK_RATE, NODE_RESOURCE, RESOURCES, MARKET_TRADE_LOT, ty
 import { rectReachable, wouldSeal } from '../map/components';
 import { AGES, BUILDINGS, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS } from '../data';
 import type { Building, GameState, Player, ResourceNode, Unit } from '../types';
-import { idx, inBounds, isPassable, dist, spiralSearch } from '../map/grid';
+import { idx, inBounds, isPassable, dist, centerFrame, frameOffset } from '../map/grid';
 import { applyCommand, canAdvanceAge, canResearch, canTrain, academyTechCount } from './commands';
 import { canPlaceBuilding, countBuildings, buildingsOf, unitsOf } from './entities';
 import { getRuntime } from './runtime';
-import { isMilitary, isEnemy, nearestEnemyBuilding, nearestNode, nearestNodeWithRoom, nearestFreeFarm, countUnits, nodeHasRoom } from './queries';
+import { isMilitary, isEnemy, nearestEnemyBuilding, nearestNode, nearestNodeWithRoom, nearestFreeFarm, countUnits, nodeHasRoom, centerDist2 } from './queries';
 import { getBuildingStats, getUnitStats, techCost } from './modifiers';
 import { canAfford } from './economy';
 import { t } from '../../i18n';
@@ -46,7 +46,12 @@ export function aiThink(state: GameState, player: Player): void {
     if (carried) {
       if (h.state === 'move') continue;
       const temple = (snap.byType.get('temple') ?? []).find((b) => b.complete);
-      if (temple) applyCommand(state, { type: 'move', player: player.id, ids: [h.id], x: temple.x, y: temple.y + temple.h / 2 + 1 });
+      if (temple) {
+        // lado do Templo voltado ao herói (antes: sempre o sul, a volta inteira para quem vinha do norte)
+        const dx = h.x - temple.x, dy = h.y - temple.y;
+        const side = Math.abs(dx) > Math.abs(dy) ? { x: temple.x + (dx < 0 ? -1 : 1) * (temple.w / 2 + 1), y: temple.y } : { x: temple.x, y: temple.y + (dy < 0 ? -1 : 1) * (temple.h / 2 + 1) };
+        applyCommand(state, { type: 'move', player: player.id, ids: [h.id], x: side.x, y: side.y });
+      }
     } else if (h.state === 'idle' && !h.order) {
       const ground = state.relics.filter((r) => r.carrier === -1 && r.templeId === -1).sort((a, b) => dist(a.x, a.y, h.x, h.y) - dist(b.x, b.y, h.x, h.y))[0];
       if (ground && dist(ground.x, ground.y, h.x, h.y) < 45) applyCommand(state, { type: 'move', player: player.id, ids: [h.id], x: ground.x, y: ground.y });
@@ -161,7 +166,7 @@ function assignGatherer(state: GameState, player: Player, v: Unit, r: string, sn
     const node = nearestNodeWithRoom(state, v.x, v.y, 'food', 22) ?? nearestNodeWithRoom(state, anchor.x, anchor.y, 'food', 30);
     const farm = nearestFreeFarm(state, player.id, v.x, v.y, 30);
     const nodeFar = node ? distToDrop(node.x + 0.5, node.y + 0.5, drop) : Infinity;
-    if (node && nodeFar <= 11 && (!farm || dist(v.x, v.y, node.x, node.y) < dist(v.x, v.y, farm.x, farm.y) + 6)) { applyCommand(state, { type: 'gather', player: player.id, ids: [v.id], targetId: node.id }); return true; }
+    if (node && nodeFar <= 11 && (!farm || dist(v.x, v.y, node.x + 0.5, node.y + 0.5) < dist(v.x, v.y, farm.x, farm.y) + 6)) { applyCommand(state, { type: 'gather', player: player.id, ids: [v.id], targetId: node.id }); return true; }
     if (farm) { applyCommand(state, { type: 'gather', player: player.id, ids: [v.id], targetId: farm.id }); return true; }
     // constrói fazenda perto do ponto de entrega
     const farms = countBuildings(state, player.id, (b) => b.type === 'farm');
@@ -210,8 +215,9 @@ function neededDropoffs(state: GameState, player: Player, snap: Snapshot): { typ
       if (v.nodeId <= 0 || (v.state !== 'gather' && v.state !== 'return')) continue;
       const n = state.map.nodes.get(v.nodeId);
       if (!n || NODE_RESOURCE[n.type] !== res) continue;
-      const drop = nearestDropoffFor(state, player, res, n.x, n.y);
-      if (distToDrop(n.x, n.y, drop) > 7) pts.push({ x: n.x, y: n.y });
+      const nx = n.x + 0.5, ny = n.y + 0.5;   // centro do tile (o canto não é simétrico por espelho)
+      const drop = nearestDropoffFor(state, player, res, nx, ny);
+      if (distToDrop(nx, ny, drop) > 7) pts.push({ x: nx, y: ny });
     }
     if (pts.length >= 3) out.push({ type: dropType[res], x: pts.reduce((a, p) => a + p.x, 0) / pts.length, y: pts.reduce((a, p) => a + p.y, 0) / pts.length });
   }
@@ -247,8 +253,11 @@ function manageBuilding(state: GameState, player: Player, snap: Snapshot): void 
   const age = player.age;
   const tc = snap.tc;
   const enemyDir = enemyDirection(state, player, tc);
+  // casas: âncora num dos quatro "cantos" do CC escolhido pela personalidade, no referencial voltado ao centro do mapa (antes
+  // era absoluto: "sul do CC" ficava à frente para quem começa ao norte e atrás para quem começa ao sul)
+  const houseAnchor = frameOffset(centerFrame(state.map, tc.x, tc.y), tc.x, tc.y, player.ai!.personality % 2 ? 7 : -7, player.ai!.personality % 3 ? 5 : -5);
   const plan: { type: string; anchorX: number; anchorY: number; minR: number; maxR: number; cond: boolean }[] = [
-    { type: 'house', anchorX: tc.x + (player.ai!.personality % 2 ? 7 : -7), anchorY: tc.y + (player.ai!.personality % 3 ? 5 : -5), minR: 0, maxR: 14, cond: player.popCap - player.pop <= 6 && has('house') < 25 },
+    { type: 'house', anchorX: houseAnchor.x, anchorY: houseAnchor.y, minR: 0, maxR: 14, cond: player.popCap - player.pop <= 6 && has('house') < 25 },
     { type: 'temple', anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 12, cond: snap.villagers.length >= 8 && has('temple') === 0 },
     { type: 'barracks', anchorX: tc.x + enemyDir.x * 6, anchorY: tc.y + enemyDir.y * 6, minR: 1, maxR: 10, cond: snap.villagers.length >= 10 && has('barracks') === 0 },
     { type: 'academy', anchorX: tc.x, anchorY: tc.y, minR: 3, maxR: 16, cond: age >= 1 && has('academy') === 0 },
@@ -286,7 +295,7 @@ function manageBuilding(state: GameState, player: Player, snap: Snapshot): void 
       if (!spot) spot = findBuildSpot(state, player, p.type, tc.x, tc.y, 1, 18);
     }
     if (!spot) continue;
-    const v = pickBuilder(state, snap, spot.x, spot.y);
+    const v = pickBuilder(state, snap, spot.x + def.w / 2, spot.y + def.h / 2);   // centro da pegada, não o canto
     if (!v) return;
     const extra = def.buildTime > 60 ? snap.villagers.filter((u) => u !== v && (u.state === 'idle' || gatherResourceOf(state, u) === 'wood')).slice(0, 2) : [];
     const r = applyCommand(state, { type: 'build', player: player.id, ids: [v.id, ...extra.map((u) => u.id)], building: p.type, tx: spot.x, ty: spot.y });
@@ -300,7 +309,7 @@ function manageBuilding(state: GameState, player: Player, snap: Snapshot): void 
     const anchor = gold ? { x: gold.x, y: gold.y } : { x: tc.x + enemyDir.x * -14, y: tc.y + enemyDir.y * -14 };
     const spot = findBuildSpot(state, player, 'town_center', anchor.x, anchor.y, 3, 10, true);
     if (spot) {
-      const v = pickBuilder(state, snap, spot.x, spot.y);
+      const v = pickBuilder(state, snap, spot.x + BUILDINGS.town_center.w / 2, spot.y + BUILDINGS.town_center.h / 2);
       const others = snap.villagers.filter((u) => u !== v).slice(0, 2);
       if (v) applyCommand(state, { type: 'build', player: player.id, ids: [v.id, ...others.map((u) => u.id)], building: 'town_center', tx: spot.x, ty: spot.y });
     }
@@ -316,9 +325,12 @@ function nearestUnclaimedNode(state: GameState, player: Player, from: Building, 
     if (NODE_RESOURCE[n.type] !== res) continue;
     const owner = state.territory[idx(state.map, n.x, n.y)];
     if (owner !== -1 && owner !== player.id) continue;
-    const d = dist(n.x, n.y, from.x, from.y);
-    if (d < 10 || d > 26 || d >= bestD) continue;
-    bestD = d; best = { x: n.x, y: n.y };
+    // centro do nó (o canto deixava o ouro do norte 1 tile "mais perto" que o do sul); empate → mais longe do centro do mapa
+    const nx = n.x + 0.5, ny = n.y + 0.5;
+    const d = dist(nx, ny, from.x, from.y);
+    if (d < 10 || d > 26 || d > bestD) continue;
+    if (d === bestD && best && centerDist2(state.map, nx, ny) <= centerDist2(state.map, best.x, best.y)) continue;
+    bestD = d; best = { x: nx, y: ny };
   }
   return best;
 }
@@ -329,8 +341,9 @@ function enemyDirection(state: GameState, player: Player, tc: Building): { x: nu
     if (!isEnemy(state, player.id, b.owner) || b.dead || b.type !== 'town_center' || !state.players[b.owner].alive) continue;
     ex += b.x; ey += b.y; n++;
   }
-  if (n === 0) return { x: 0, y: 1 };
-  const dx = ex / n - tc.x, dy = ey / n - tc.y;
+  // sem CC inimigo à vista: rumo ao centro do mapa (antes: sempre o sul)
+  const dx = n === 0 ? state.map.w / 2 - tc.x : ex / n - tc.x, dy = n === 0 ? state.map.h / 2 - tc.y : ey / n - tc.y;
+  if (dx === 0 && dy === 0) return { x: 0, y: 1 };
   const d = Math.sqrt(dx * dx + dy * dy) || 1;
   return { x: dx / d, y: dy / d };
 }
@@ -348,15 +361,48 @@ function pickBuilder(state: GameState, snap: Snapshot, x: number, y: number): Un
   return best;
 }
 
-/** Procura um local válido para o edifício: espiral a partir do âncora, com margem de 1 tile livre em volta. */
+/**
+ * Ordem dos cantos candidatos de findBuildSpot, relativa a floor(âncora): depende só da pegada (w×h), do raio máximo e da
+ * parte fracionária do âncora, então fica em cache (antes cada chamada ordenava ~1500 candidatos: +11 % no tick). Os
+ * deslocamentos são calculados como (i + w/2) − frac, que em ponto flutuante é o mesmo número que (x + w/2) − âncora (a
+ * subtração é exata ou arredondada uma vez do mesmo valor real): a ordem é bit a bit a da ordenação direta. O cache não faz
+ * parte do estado: é função pura da chave, e qualquer conteúdo dele dá o mesmo resultado (determinismo preservado).
+ */
+interface SpotOrder { di: Int16Array; dj: Int16Array; s: Float64Array; ch: Float64Array }
+const spotOrderCache = new Map<string, SpotOrder>();
+const SPOT_ORDER_CACHE_MAX = 128;
+function spotOrder(w: number, h: number, maxR: number, rx: number, ry: number): SpotOrder {
+  const key = `${w},${h},${maxR},${rx},${ry}`;
+  const hit = spotOrderCache.get(key);
+  if (hit) return hit;
+  const i0 = Math.floor(rx - w / 2 - maxR) - 1, i1 = Math.ceil(rx - w / 2 + maxR) + 1;
+  const j0 = Math.floor(ry - h / 2 - maxR) - 1, j1 = Math.ceil(ry - h / 2 + maxR) + 1;
+  const list: { i: number; j: number; s: number; ch: number }[] = [];
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    const dx = (i + w / 2) - rx, dy = (j + h / 2) - ry;
+    const ch = Math.max(Math.abs(dx), Math.abs(dy));
+    if (ch > maxR + 0.5) continue;
+    list.push({ i, j, s: dx * dx + dy * dy, ch });
+  }
+  list.sort((p, q) => p.s - q.s || p.j - q.j || p.i - q.i);
+  const o: SpotOrder = { di: Int16Array.from(list, (e) => e.i), dj: Int16Array.from(list, (e) => e.j), s: Float64Array.from(list, (e) => e.s), ch: Float64Array.from(list, (e) => e.ch) };
+  if (spotOrderCache.size >= SPOT_ORDER_CACHE_MAX) spotOrderCache.delete(spotOrderCache.keys().next().value!);
+  spotOrderCache.set(key, o);
+  return o;
+}
+
+/**
+ * Procura um local válido para o edifício, com margem de 1 tile livre em volta. Candidatos: cantos cuja pegada tem o centro a
+ * distância de Chebyshev ∈ [minR, maxR + 0,5] do âncora, em ordem de distância euclidiana âncora → centro da pegada (empate:
+ * mais longe do centro do mapa, depois y e x). Antes era uma espiral pelo canto superior esquerdo que testava o norte
+ * primeiro: a pegada crescia para o sul e minR contava do canto, então templo/mercado/casas iam sempre ao sul do CC — à
+ * frente para quem começa ao norte, atrás para quem começa ao sul.
+ */
 export function findBuildSpot(state: GameState, player: Player, type: string, ax: number, ay: number, minR: number, maxR: number, ignoreLimits = false): { x: number; y: number } | null {
   const def = BUILDINGS[type];
-  const cx = Math.floor(ax), cy = Math.floor(ay);
   const map = state.map;
   const needsMargin = !!(def.trains || def.dropoff || def.worship || def.scholars || def.trade || def.wonder || def.titanGate);
   const ok = (x: number, y: number): boolean => {
-    const d = Math.max(Math.abs(x - cx), Math.abs(y - cy));
-    if (d < minR) return false;
     if (!canPlaceBuilding(state, player, type, x, y, ignoreLimits).ok) return false;
     // nunca fecha a passagem local (corredor de saída da base, gargalo do mapa)
     if (!def.passable && !def.wall && wouldSeal(map, x, y, def.w, def.h)) return false;
@@ -371,7 +417,26 @@ export function findBuildSpot(state: GameState, player: Player, type: string, ax
     }
     return true;
   };
-  return spiralSearch(cx, cy, maxR, ok);
+  const bx = Math.floor(ax), by = Math.floor(ay);
+  const o = spotOrder(def.w, def.h, maxR, ax - bx, ay - by);
+  const n = o.s.length;
+  const mcx = map.w / 2, mcy = map.h / 2;
+  const centerD = (t: number) => { const fx = bx + o.di[t] + def.w / 2, fy = by + o.dj[t] + def.h / 2; return (fx - mcx) * (fx - mcx) + (fy - mcy) * (fy - mcy); };
+  for (let k = 0; k < n;) {
+    let e = k + 1;
+    while (e < n && o.s[e] === o.s[k]) e++;
+    if (e === k + 1) {
+      if (o.ch[k] >= minR && ok(bx + o.di[k], by + o.dj[k])) return { x: bx + o.di[k], y: by + o.dj[k] };
+    } else {
+      // empate de distância ao âncora (espelhos em torno dele): o mais longe do centro do mapa, depois y e x
+      const run: number[] = [];
+      for (let t = k; t < e; t++) if (o.ch[t] >= minR) run.push(t);
+      if (run.length > 1) run.sort((p, q) => centerD(q) - centerD(p) || o.dj[p] - o.dj[q] || o.di[p] - o.di[q]);
+      for (const t of run) if (ok(bx + o.di[t], by + o.dj[t])) return { x: bx + o.di[t], y: by + o.dj[t] };
+    }
+    k = e;
+  }
+  return null;
 }
 
 // ---------------- Treinamento ----------------
@@ -585,7 +650,11 @@ function manageArmy(state: GameState, player: Player, snap: Snapshot): void {
     if (scared.length > 0 && army.length < threatCount + 2) {
       const shelter = snap.buildings.filter((b) => b.complete && BUILDINGS[b.type].garrison && b.garrison.length < (BUILDINGS[b.type].garrison ?? 0)).sort((a, b) => dist(a.x, a.y, t.x, t.y) - dist(b.x, b.y, t.x, t.y))[0];
       if (shelter) applyCommand(state, { type: 'garrison', player: player.id, ids: scared.map((u) => u.id), targetId: shelter.id });
-      else applyCommand(state, { type: 'move', player: player.id, ids: scared.map((u) => u.id), x: tc.x, y: tc.y + 3 });
+      else {
+        // sem abrigo: recuam para o lado do CC oposto à ameaça (antes: sempre 3 tiles ao sul, rumo ao inimigo para quem está ao norte)
+        const ex = tc.x - t.x, ey = tc.y - t.y, el = Math.sqrt(ex * ex + ey * ey) || 1;
+        applyCommand(state, { type: 'move', player: player.id, ids: scared.map((u) => u.id), x: tc.x + ex / el * 3, y: tc.y + ey / el * 3 });
+      }
     }
     if (!waveInProgress) return;
   }
@@ -647,11 +716,16 @@ function alliedAttackTarget(state: GameState, player: Player): Building | null {
 
 function chooseAttackTarget(state: GameState, player: Player, tc: Building, from: Unit): Building | null {
   // Prefere o inimigo mais fraco (menos militares) e, dentro dele, o edifício mais próximo — desde que haja caminho por terra
-  let weakest: Player | null = null, weakestArmy = Infinity;
+  let weakest: Player | null = null, weakestArmy = Infinity, weakestD = Infinity;
   for (const e of state.players) {
     if (!isEnemy(state, player.id, e.id) || !e.alive) continue;
     const n = countUnits(state, e.id, isMilitary);
-    if (n < weakestArmy) { weakestArmy = n; weakest = e; }
+    if (n > weakestArmy) continue;
+    // empate de força: o inimigo com o edifício mais perto do meu CC (antes: o de menor índice, o mesmo jogador como alvo
+    // dos dois lados de um mapa espelhado)
+    let d = Infinity;
+    for (const b of state.buildings.values()) if (b.owner === e.id && !b.dead) { const bd = (b.x - tc.x) * (b.x - tc.x) + (b.y - tc.y) * (b.y - tc.y); if (bd < d) d = bd; }
+    if (n < weakestArmy || d < weakestD) { weakestArmy = n; weakest = e; weakestD = d; }
   }
   if (!weakest) return null;
   const w = weakest;
@@ -684,10 +758,13 @@ function managePowers(state: GameState, player: Player, snap: Snapshot): void {
     if (near.length > clumpN) { clumpN = near.length; clumpX = near.reduce((s, u) => s + u.x, 0) / near.length; clumpY = near.reduce((s, u) => s + u.y, 0) / near.length; }
   }
   const use = (power: string, x?: number, y?: number, targetId?: number) => applyCommand(state, { type: 'power', player: player.id, power, x, y, targetId }).ok;
+  // pontos ao redor do CC no referencial voltado ao centro do mapa (antes: sudeste/sudoeste absolutos)
+  const frame = centerFrame(state.map, tc.x, tc.y);
+  const aroundTc = (a: number, b: number) => frameOffset(frame, tc.x, tc.y, a, b);
   for (const p of avail) {
     switch (p) {
-      case 'plenty': use(p, tc.x + 4, tc.y + 4); return;
-      case 'lure': if (player.age === 0 && state.tick > 60 * TICK_RATE) { use(p, tc.x - 4, tc.y + 3); return; } break;
+      case 'plenty': { const q = aroundTc(4, 4); use(p, q.x, q.y); return; }
+      case 'lure': if (player.age === 0 && state.tick > 60 * TICK_RATE) { const q = aroundTc(-4, 3); use(p, q.x, q.y); return; } break;
       case 'oracle': if (player.age >= 2) { use(p); return; } break;
       case 'sentinel': if (defending) { use(p, undefined, undefined, tc.id); return; } break;
       case 'bolt': {

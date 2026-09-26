@@ -2,7 +2,7 @@
 import { TERRAIN, POP_CAP_MAX } from '../constants';
 import { BUILDINGS, UNITS, AGES } from '../data';
 import type { Building, GameState, Player, Unit } from '../types';
-import { idx, inBounds, spiralSearch, isPassable } from '../map/grid';
+import { idx, inBounds, spiralSearch, spiralSearchFrame, towardFrame, centerFrame, frameTile, isPassable } from '../map/grid';
 import { getBuildingStats, getUnitStats } from './modifiers';
 import { t } from '../../i18n';
 import { invalidateComponents, componentAt, componentSize } from '../map/components';
@@ -51,7 +51,9 @@ function pushUnitsOut(state: GameState, b: Building) {
   for (const u of state.units.values()) {
     if (u.dead || UNITS[u.type].flying || u.inside !== -1) continue;
     if (u.x >= b.tx && u.x < b.tx + b.w && u.y >= b.ty && u.y < b.ty + b.h) {
-      const t = spiralSearch(Math.floor(u.x), Math.floor(u.y), 8, (x, y) => openTile(state, x, y)) ?? spiralSearch(Math.floor(u.x), Math.floor(u.y), 8, (x, y) => isPassable(state.map, x, y));
+      // sai pelo lado do edifício em que já está (antes: a espiral testava o norte primeiro)
+      const f = towardFrame(u.x - b.x, u.y - b.y);
+      const t = spiralSearchFrame(Math.floor(u.x), Math.floor(u.y), 8, (x, y) => openTile(state, x, y), f) ?? spiralSearchFrame(Math.floor(u.x), Math.floor(u.y), 8, (x, y) => isPassable(state.map, x, y), f);
       if (t) { u.x = t.x + 0.5; u.y = t.y + 0.5; u.px = u.x; u.py = u.y; u.path = null; }
     }
   }
@@ -146,17 +148,26 @@ export function canPlaceBuilding(state: GameState, player: Player, type: string,
 /** Tile livre mais próximo ao redor de um edifício para posicionar uma unidade nova. */
 export function findSpawnTile(state: GameState, b: Building, towardX?: number, towardY?: number): { x: number; y: number } {
   const map = state.map;
-  let bestX = b.tx, bestY = b.ty + b.h, bestD = Infinity;
+  let bestX = b.tx, bestY = b.ty + b.h, bestD = Infinity, bestC = Infinity;
   const ring = (r: number) => {
     for (let y = b.ty - r; y < b.ty + b.h + r; y++) for (let x = b.tx - r; x < b.tx + b.w + r; x++) {
       const onRing = x === b.tx - r || x === b.tx + b.w + r - 1 || y === b.ty - r || y === b.ty + b.h + r - 1;
       if (!onRing || !openTile(state, x, y)) continue;
-      const d = towardX !== undefined && towardY !== undefined ? (x - towardX) * (x - towardX) + (y - towardY) * (y - towardY) : (x - b.x) * (x - b.x) + (y - b.y) * (y - b.y);
-      if (d < bestD) { bestD = d; bestX = x; bestY = y; }
+      // distâncias pelo centro do tile (pelo canto, o lado sul/leste do edifício ficava sempre "mais perto"); empate → o lado
+      // mais perto do centro do mapa
+      const cx = x + 0.5, cy = y + 0.5;
+      const d = towardX !== undefined && towardY !== undefined ? (cx - towardX) * (cx - towardX) + (cy - towardY) * (cy - towardY) : (cx - b.x) * (cx - b.x) + (cy - b.y) * (cy - b.y);
+      const c = (cx - map.w / 2) * (cx - map.w / 2) + (cy - map.h / 2) * (cy - map.h / 2);
+      if (d < bestD || (d === bestD && c < bestC)) { bestD = d; bestC = c; bestX = x; bestY = y; }
     }
   };
   for (let r = 1; r <= 6 && bestD === Infinity; r++) ring(r);
-  if (bestD === Infinity) { const t = spiralSearch(b.tx, b.ty + b.h, 8, (x, y) => isPassable(map, x, y)); if (t) { bestX = t.x; bestY = t.y; } }
+  if (bestD === Infinity) {
+    // nenhum tile aberto em 6 anéis: qualquer passável, a partir do meio do edifício, na espiral voltada ao centro do mapa
+    const f = centerFrame(map, b.x, b.y);
+    const t = spiralSearchFrame(frameTile(b.x, f.sx), frameTile(b.y, f.sy), 8 + Math.max(b.w, b.h), (x, y) => isPassable(map, x, y), f);
+    if (t) { bestX = t.x; bestY = t.y; }
+  }
   return { x: bestX + 0.5, y: bestY + 0.5 };
 }
 

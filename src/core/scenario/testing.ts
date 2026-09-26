@@ -413,14 +413,54 @@ export function militaryCount(state: GameState, player: number): number { return
 /**
  * m2: contra-ataque por vantagem, como um jogador faria — avança contra o Centro Cívico original quando o exército tem
  * ≥ 30 militares e ≥ 2,5 × os da Legião (logo depois de uma onda dela quebrar nas nossas defesas); manda só quem está
- * ocioso ou longe do alvo (sem atropelar quem já está lutando).
+ * ocioso ou longe do alvo (sem atropelar quem já está lutando). Com o CC alvo a ≤ 25 % da vida, quem sobrou vai terminá-lo
+ * sem esperar a vantagem (no Difícil, depois da correção do viés de posição, o 1º assalto o deixava com 110 de vida e o
+ * exército refeito nunca voltava a ter 2,5 × o da Legião).
  */
 function m2Counter(state: GameState): Command | null {
   const ours = militaryCount(state, 0), theirs = militaryCount(state, 1);
-  if (ours < 30 || ours < 2.5 * theirs) return null;
   const id = state.scenario?.vars.targetTc; const b = id !== undefined ? state.buildings.get(id) : undefined; if (!b || b.dead) return null;
+  const finish = b.hp <= b.maxHp * 0.25 && ours >= 5;
+  if (!finish && (ours < 30 || ours < 2.5 * theirs)) return null;
   const ids = armyOf(state).filter((uid) => { const u = state.units.get(uid)!; const dx = u.x - b.x, dy = u.y - b.y; return u.state === 'idle' || (dx * dx + dy * dy > 25 * 25 && u.state !== 'attack'); });
   return ids.length ? { type: 'attackMove', player: 0, ids, x: b.x, y: b.y } : null;
+}
+
+/**
+ * Cidadãos do jogador 0 com um militar inimigo a ≤ r tiles vão para o abrigo com vaga mais perto (Centro Cívico, fortaleza,
+ * torre), como um jogador faria numa invasão; a IA do jogador os solta 20 s depois da última ameaça. Um comando por abrigo.
+ */
+export function shelterVillagers(state: GameState, r: number): Command[] {
+  const foes = [...state.units.values()].filter((u) => !u.dead && u.inside === -1 && isEnemy(state, 0, u.owner) && UNITS[u.type].tags.includes('military'));
+  if (!foes.length) return [];
+  const shelters = [...state.buildings.values()].filter((b) => b.owner === 0 && !b.dead && b.complete && (BUILDINGS[b.type].garrison ?? 0) > 0);
+  const room = new Map(shelters.map((b) => [b.id, (BUILDINGS[b.type].garrison ?? 0) - b.garrison.length]));
+  const by = new Map<number, number[]>();
+  for (const v of state.units.values()) {
+    if (v.owner !== 0 || v.dead || v.inside !== -1 || v.type !== 'villager' || v.order?.type === 'garrison') continue;
+    if (!foes.some((f) => (f.x - v.x) * (f.x - v.x) + (f.y - v.y) * (f.y - v.y) <= r * r)) continue;
+    let best: Building | null = null, bd = Infinity;
+    for (const b of shelters) { if ((room.get(b.id) ?? 0) <= 0) continue; const d = (b.x - v.x) * (b.x - v.x) + (b.y - v.y) * (b.y - v.y); if (d < bd) { bd = d; best = b; } }
+    if (!best) continue;
+    room.set(best.id, room.get(best.id)! - 1);
+    const list = by.get(best.id) ?? []; list.push(v.id); by.set(best.id, list);
+  }
+  return [...by].map(([targetId, ids]) => ({ type: 'garrison' as const, player: 0, ids, targetId }));
+}
+
+/**
+ * m2: quem já chegou perto do Centro Cívico alvo bate nele (o ataque-movimento se distrai com a Fortaleza e as casas) — mas só
+ * quando restam ≤ 4 militares da Legião a 15 tiles dele; com mais defensores (a Legião volta com Aquiles e os mirmidões), quem
+ * estava no CC volta ao ataque-movimento e luta com eles, como um jogador faria. Bater no CC com a Legião inteira em volta
+ * custava o contra-ataque: no Difícil, depois da correção do viés de posição (IA relativa ao centro do mapa, 09/2026), 64
+ * militares × 19 viravam derrota aos 19m58s.
+ */
+function m2Siege(state: GameState): Command | null {
+  const id = state.scenario?.vars.targetTc; const b = id !== undefined ? state.buildings.get(id) : undefined; if (!b || b.dead) return null;
+  const defenders = armyOf(state, 1).filter((uid) => { const u = state.units.get(uid)!; return (u.x - b.x) * (u.x - b.x) + (u.y - b.y) * (u.y - b.y) <= 15 * 15; }).length;
+  if (defenders <= 4) return focusTarget(state, b.id, 22);
+  const onTc = armyOf(state).filter((uid) => state.units.get(uid)!.targetId === b.id);
+  return onTc.length ? { type: 'attackMove', player: 0, ids: onTc, x: b.x, y: b.y } : null;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -434,9 +474,10 @@ const M4_COLONY = { tx: 47, ty: 83 }, M4_SECOND = { tx: 19, ty: 95 };
 /**
  * m4: militares para começar o assalto a uma corrente — o mesmo em todas as dificuldades (estado do jogo, não relógio: o tempo
  * medido é o ritmo real da economia e das lutas). Com 26–28 o Normal perdia a colônia; com 45 e 50 o Fácil vencia aos 16m13s
- * e 16m51s (abaixo da janela); 55 é quase 5× o exército do desembarque.
+ * e 16m51s (abaixo da janela); 55 é quase 5× o exército do desembarque. Com a IA relativa ao centro do mapa (09/2026) a
+ * economia da colônia ficou mais rápida e 55 dava o Fácil aos 16m03s: 60 (Fácil 17m56s, Normal 20m08s, Difícil 21m20s).
  */
-const M4_ASSAULT_ARMY = 55;
+const M4_ASSAULT_ARMY = 60;
 /** m4: as correntes na ordem do desfiladeiro. */
 const M4_CHAINS = ['corrente1', 'corrente2', 'corrente3'] as const;
 
@@ -668,11 +709,14 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
       { label: 'cidadãos', when: { time: { gte: 3 } }, every: 4, command: (s) => trainVillagers(s, 38) },
       { label: 'treino', when: { time: { gte: 5 } }, every: 5, command: (s) => trainArmy(s, 0, { mix: M2_MIX, reserve: { food: 150, wood: 100, gold: 60 } }) },
       { label: 'tempestade', when: { time: { gte: 1 } }, every: 1, command: (s) => dodgeStorms(s) },
+      // cidadãos com um militar inimigo a ≤ 6 tiles se abrigam (a IA do jogador só os guarnece com o exército fraco: com ele
+      // forte, seguiam coletando no meio da invasão — no Difícil, com a IA de 09/2026, a onda dos 7 min levava 10 cidadãos)
+      { label: 'refúgio', when: { time: { gte: 1 } }, every: 2, command: (s) => shelterVillagers(s, 6) },
       // resistidos os 12 minutos, reagrupa com os reforços de Esparta e, a partir dos 14 min, contra-ataca com vantagem
       { label: 'contra-ataque', when: { all: [{ objective: 'survive', is: 'done' }, { time: { gte: 840 } }] }, every: 5, command: (s) => m2Counter(s) },
       { label: 'poderes', when: { objective: 'survive', is: 'done' }, every: 3, command: (s) => battlePowers(s) },
-      // quem já chegou perto do Centro Cívico alvo bate nele (o ataque-movimento se distrai com a Fortaleza e as casas)
-      { label: 'cerco', when: { objective: 'survive', is: 'done' }, every: 5, command: (s) => focusTarget(s, s.scenario!.vars.targetTc, 22) },
+      // quem já chegou perto do Centro Cívico alvo bate nele depois que os defensores em volta caíram (m2Siege)
+      { label: 'cerco', when: { objective: 'survive', is: 'done' }, every: 5, command: (s) => m2Siege(s) },
     ],
   },
   m3_portal: {
@@ -708,7 +752,9 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
       // economia de quem começa sem nada: cidadãos além da meta da IA e filas militares cheias
       { label: 'cidadãos', when: { objective: 'colonia', is: 'done' }, every: 4, command: (s) => trainVillagers(s, 42) },
       { label: 'treino', when: { objective: 'colonia', is: 'done' }, every: 5, command: (s) => trainArmy(s, 0, { mix: M4_MIX, reserve: { food: 150, wood: 150, gold: 80 } }) },
-      { label: 'héracles', when: { time: { gte: 2 } }, every: 2, command: (s) => m4HeroCare(s) },
+      // a cada segundo (a cada 2 s, a IA do jogador — que libera as guarnições 20 s depois de cada ameaça — às vezes o soltava
+      // bem quando chegava uma vingança, e ele saía para lutar: derrota no Difícil aos 15m24s com a IA de 09/2026)
+      { label: 'héracles', when: { time: { gte: 2 } }, every: 1, command: (s) => m4HeroCare(s) },
       { label: 'torres', when: { objective: 'colonia', is: 'done' }, every: 20, command: (s) => m4ChokeTower(s) },
       { label: 'madeira', when: { objective: 'colonia', is: 'done' }, every: 15, command: (s) => m4Wood(s) },
       { label: 'poderes', when: { time: { gte: 2 } }, every: 3, command: (s) => battlePowers(s) },

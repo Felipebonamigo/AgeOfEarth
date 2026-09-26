@@ -158,7 +158,9 @@ export interface VisualEffect { type: string; x: number; y: number; tx?: number;
 export interface GameConfig {
   seed: number; mapSize: 'small' | 'medium' | 'large';
   scenario?: string;
-  players: { name: string; god: string; isAI: boolean; difficulty: Difficulty; team?: number; puppet?: boolean }[];   // puppet: facção roteirizada de cenário (sem IA, só gatilhos)
+  // puppet: facção roteirizada de cenário (sem IA, só gatilhos). personality: personalidade da IA (0–96: lado das casas,
+  // Maravilha, deuses menores); padrão (seed + 7·i) % 97 — scripts/maps/fairness.ts --mirror-ai usa a mesma em todos
+  players: { name: string; god: string; isAI: boolean; difficulty: Difficulty; team?: number; puppet?: boolean; personality?: number }[];
   revealMap?: boolean; startingAge?: number; startingResources?: Partial<Record<ResourceType, number>>;
   mode?: GameMode; mapType?: MapType;
   map?: FixedMapData;                                   // mapa fixo (editor/arquivo); se ausente, gera pelo seed

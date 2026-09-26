@@ -3,7 +3,7 @@
 import { MAX_SCHOLARS, SCHOLAR_COST, TICK_RATE, type Stance, type Formation } from '../constants';
 import { ACADEMY_LINES, AGES, BUILDINGS, MAX_AGE, MINOR_GODS, MAJOR_GODS, TECHS, UNITS } from '../data';
 import type { Building, Command, GameState, Player, Unit } from '../types';
-import { spiralSearch, canPass, inBounds } from '../map/grid';
+import { spiralSearchFrame, towardFrame, canPass, inBounds } from '../map/grid';
 import { canAfford, marketTrade, pay, refund, queueItemCost } from './economy';
 import { canPlaceBuilding, placeBuilding, recomputePop, unitsOf, countBuildings, ejectGarrison, canGarrison } from './entities';
 import { getUnitStats, techCost, getBuildingStats } from './modifiers';
@@ -94,6 +94,30 @@ export function formationOffsets(units: Unit[], cx: number, cy: number, tx: numb
   return out;
 }
 
+/**
+ * Ordem das unidades nas vagas da formação: por classe (corpo a corpo, à distância, cerco/civis); dentro dela os mais
+ * adiantados na direção do movimento vão às primeiras fileiras e, em cada fileira, a coluna segue a posição atual ao longo
+ * da perpendicular. Antes era por id ao longo de uma perpendicular girada (-dy, dx): um exército que ia para o sul e outro que
+ * ia para o norte trocavam os lados das vagas, as unidades cruzavam o caminho umas das outras e o resultado dependia da
+ * orientação absoluta (duelo espelhado 12×12: 56 % para o lado sul/oeste; com esta ordem, 50 %).
+ */
+function sortForFormation(units: Unit[], cx: number, cy: number, tx: number, ty: number, formation: Formation): void {
+  let dx = tx - cx, dy = ty - cy;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len < 1e-6) { dx = 0; dy = 1; } else { dx /= len; dy /= len; }
+  const px = -dy, py = dx;
+  const fwd = (u: Unit) => (u.x - cx) * dx + (u.y - cy) * dy;
+  const side = (u: Unit) => (u.x - cx) * px + (u.y - cy) * py;
+  units.sort((a, b) => formationRank(a) - formationRank(b) || fwd(b) - fwd(a) || a.id - b.id);
+  if (formation === 'wedge') return;
+  const n = units.length;
+  const width = formation === 'column' ? 2 : formation === 'box' ? Math.max(2, Math.ceil(Math.sqrt(n))) : Math.max(2, Math.ceil(Math.sqrt(n * 1.6)));
+  for (let s = 0; s < n; s += width) {
+    const row = units.slice(s, s + width).sort((a, b) => side(a) - side(b) || a.id - b.id);
+    for (let k = 0; k < row.length; k++) units[s + k] = row[k];
+  }
+}
+
 /** Offsets em espiral para espalhar um grupo ao redor do destino. */
 function groupOffsets(n: number): [number, number][] {
   const out: [number, number][] = [[0, 0]];
@@ -119,19 +143,23 @@ export function applyCommand(state: GameState, cmd: Command): CommandResult {
       if (units.length >= 4) {
         // formação: corpo a corpo na frente, arqueiros atrás, cerco/civis por último; dentro da fileira, os mais próximos ao centro
         const cx = units.reduce((s, u) => s + u.x, 0) / units.length, cy = units.reduce((s, u) => s + u.y, 0) / units.length;
-        units.sort((a, b) => formationRank(a) - formationRank(b) || a.id - b.id);
+        sortForFormation(units, cx, cy, cmd.x, cmd.y, cmd.formation ?? 'line');
         offs = formationOffsets(units, cx, cy, cmd.x, cmd.y, cmd.formation ?? 'line');
       } else {
         units.sort((a, b) => ((a.x - cmd.x) ** 2 + (a.y - cmd.y) ** 2) - ((b.x - cmd.x) ** 2 + (b.y - cmd.y) ** 2));
         offs = groupOffsets(units.length);
       }
       const taken = new Set<number>();
+      // destino bloqueado (ex.: o centro de um edifício atacado): a espiral começa pelo lado de onde o grupo vem (antes começava
+      // sempre pelo norte, e dois grupos espelhados paravam em lados diferentes do mesmo alvo)
+      const gx = units.reduce((s, u) => s + u.x, 0) / units.length, gy = units.reduce((s, u) => s + u.y, 0) / units.length;
+      const from = towardFrame(gx - cmd.x, gy - cmd.y);
       units.forEach((u, i) => {
         let x = cmd.x + offs[i][0], y = cmd.y + offs[i][1];
         const tx = Math.floor(x), ty = Math.floor(y);
         if (!inBounds(state.map, tx, ty) || !canPass(state.map, tx, ty, player.team)) {
           // destino bloqueado: procura o tile livre mais próximo do próprio offset, evitando repetir tiles
-          const t = spiralSearch(Math.max(0, Math.min(state.map.w - 1, tx)), Math.max(0, Math.min(state.map.h - 1, ty)), 8, (a, b) => canPass(state.map, a, b, player.team) && !taken.has(b * state.map.w + a));
+          const t = spiralSearchFrame(Math.max(0, Math.min(state.map.w - 1, tx)), Math.max(0, Math.min(state.map.h - 1, ty)), 8, (a, b) => canPass(state.map, a, b, player.team) && !taken.has(b * state.map.w + a), from);
           if (t) { x = t.x + 0.5; y = t.y + 0.5; taken.add(t.y * state.map.w + t.x); }
         }
         giveOrder(state, u, { type: cmd.type, x, y }, cmd.queue);

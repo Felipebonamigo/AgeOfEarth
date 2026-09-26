@@ -1,6 +1,6 @@
 // A* em grade com 8 direções, sem cortar cantos, heap binário e suavização por linha de visada.
 import type { GameMap } from '../types';
-import { idx, inBounds, lineClear, isPassable } from './grid';
+import { idx, inBounds, lineClear, isPassable, frameOffset, IDENTITY_FRAME, type Frame } from './grid';
 
 class MinHeap {
   keys: number[] = []; vals: number[] = [];
@@ -145,14 +145,18 @@ function smoothPath(map: GameMap, sx: number, sy: number, tiles: number[], team 
 /** Caminho em linha reta (unidades voadoras). */
 export function straightPath(x: number, y: number): number[] { return [x, y]; }
 
-/** Tile livre mais próximo de (x,y) (busca em espiral). */
-export function nearestFreeTile(map: GameMap, x: number, y: number, maxR = 12): { x: number; y: number } | null {
+/**
+ * Tile livre mais próximo de (x,y) (busca em anéis). O referencial f orienta a ordem dentro de cada anel (padrão: linhas do
+ * norte para o sul, oeste→leste); com towardFrame(dx, dy) o anel começa pelo lado (dx, dy) — o de quem chega.
+ */
+export function nearestFreeTile(map: GameMap, x: number, y: number, maxR = 12, f: Frame = IDENTITY_FRAME): { x: number; y: number } | null {
   const cx = Math.floor(x), cy = Math.floor(y);
   if (isPassable(map, cx, cy)) return { x: cx, y: cy };
   for (let r = 1; r <= maxR; r++) {
-    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-      if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
-      if (isPassable(map, cx + dx, cy + dy)) return { x: cx + dx, y: cy + dy };
+    for (let b = -r; b <= r; b++) for (let a = -r; a <= r; a++) {
+      if (Math.abs(a) !== r && Math.abs(b) !== r) continue;
+      const q = frameOffset(f, cx, cy, a, b);
+      if (isPassable(map, q.x, q.y)) return q;
     }
   }
   return null;

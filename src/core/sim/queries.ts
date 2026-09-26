@@ -29,11 +29,16 @@ export function nearestNode(state: GameState, x: number, y: number, want: Resour
       if (nodeAccessTiles(map, n) === 0) continue;   // ex.: árvore no meio do bosque
       if (pred && !pred(n)) continue;
       const d = (tx + 0.5 - x) * (tx + 0.5 - x) + (ty + 0.5 - y) * (ty + 0.5 - y);
-      if (d < bestD) { bestD = d; best = n; }
+      // empate exato de distância: o nó mais longe do centro do mapa (a ordem da varredura começava pelo norte e dava
+      // ao norte e ao sul escolhas não espelhadas num mapa simétrico)
+      if (d < bestD || (d === bestD && best && centerDist2(map, n.x + 0.5, n.y + 0.5) > centerDist2(map, best.x + 0.5, best.y + 0.5))) { bestD = d; best = n; }
     }
   }
   return best;
 }
+
+/** Distância² ao centro do mapa: desempate invariante a espelho e rotação (não favorece norte/sul nem leste/oeste). */
+export function centerDist2(map: GameMap, x: number, y: number): number { const dx = x - map.w / 2, dy = y - map.h / 2; return dx * dx + dy * dy; }
 
 /** Nº de coletores designados a um nó neste tick. */
 export function nodeGatherers(state: GameState, nodeId: number): number { return getRuntime(state).nodeGatherers.get(nodeId) ?? 0; }

@@ -63,6 +63,68 @@ export function spiralSearch(cx: number, cy: number, maxR: number, pred: (x: num
   return null;
 }
 
+/**
+ * Referencial de orientação para buscas e deslocamentos "relativos": um deslocamento local (a, b) vira (a, b) → troca x↔y
+ * se swap → multiplica por (sx, sy). O referencial identidade (1, 1, false) é a orientação absoluta antiga (espiral que
+ * testa o norte primeiro e anda de oeste para leste). Com o referencial de um ponto e o do seu espelho (ou rotação de 180°,
+ * ou transposição), as buscas visitam tiles espelhados na mesma ordem: num mapa simétrico os dois lados decidem igual.
+ */
+export interface Frame { sx: 1 | -1; sy: 1 | -1; swap: boolean }
+export const IDENTITY_FRAME: Frame = { sx: 1, sy: 1, swap: false };
+
+/**
+ * Referencial "voltado ao centro do mapa" de (x, y), a partir do vetor ponto→centro (só sinais e o eixo dominante; sem
+ * trigonometria): sx = +1 com o centro a leste, sy = +1 com o centro ao sul (o canto noroeste é o identidade) e swap quando
+ * o centro está mais longe em x do que em y (a "frente" é leste/oeste; b passa a medir x). Em cima de um eixo do centro,
+ * o sinal desse eixo segue o do outro (invariante à rotação de 180° e à transposição). Deslocamento local: b > 0 = rumo ao
+ * centro no eixo dominante; a = ao longo, a > 0 = rumo ao centro no outro eixo.
+ */
+export function centerFrame(map: { w: number; h: number }, x: number, y: number): Frame {
+  const dx = map.w / 2 - x, dy = map.h / 2 - y;
+  const sx: 1 | -1 = dx > 0 ? 1 : dx < 0 ? -1 : dy >= 0 ? 1 : -1;
+  const sy: 1 | -1 = dy > 0 ? 1 : dy < 0 ? -1 : dx >= 0 ? 1 : -1;
+  return { sx, sy, swap: Math.abs(dx) > Math.abs(dy) };
+}
+
+/** Referencial cujo primeiro anel da espiral começa pelo lado (dx, dy): "o lado de quem chega" (swap quando |dx| > |dy|). */
+export function towardFrame(dx: number, dy: number): Frame {
+  return { sx: dx > 0 ? -1 : 1, sy: dy > 0 ? -1 : 1, swap: Math.abs(dx) > Math.abs(dy) };
+}
+
+/** Coordenada mundial de um deslocamento local (a, b) a partir de (x, y) no referencial f. */
+export function frameOffset(f: Frame, x: number, y: number, a: number, b: number): { x: number; y: number } {
+  return f.swap ? { x: x + b * f.sx, y: y + a * f.sy } : { x: x + a * f.sx, y: y + b * f.sy };
+}
+
+/**
+ * Tile de uma coordenada contínua "espelhável": no eixo espelhado (sinal −1) um valor inteiro cai no tile de baixo, o
+ * espelho exato do tile de (W − v) (sem isso, v = 28 no norte vira o tile 28 e o espelho 85 no sul vira o tile 85, não 84).
+ */
+export function frameTile(v: number, s: 1 | -1): number { return Math.floor(s < 0 ? v - 1e-6 : v); }
+
+/** Espiral de spiralSearch no referencial f (o identidade é spiralSearch). */
+export function spiralSearchFrame(cx: number, cy: number, maxR: number, pred: (x: number, y: number) => boolean, f: Frame): { x: number; y: number } | null {
+  if (!f.swap && f.sx === 1 && f.sy === 1) return spiralSearch(cx, cy, maxR, pred);
+  // (a, b) local → x = cx + a·ax + b·bx, y = cy + a·ay + b·by
+  const ax = f.swap ? 0 : f.sx, ay = f.swap ? f.sy : 0, bx = f.swap ? f.sx : 0, by = f.swap ? 0 : f.sy;
+  if (pred(cx, cy)) return { x: cx, y: cy };
+  for (let r = 1; r <= maxR; r++) {
+    for (let i = -r; i <= r; i++) {
+      let x = cx + i * ax - r * bx, y = cy + i * ay - r * by;
+      if (pred(x, y)) return { x, y };
+      x = cx + i * ax + r * bx; y = cy + i * ay + r * by;
+      if (pred(x, y)) return { x, y };
+    }
+    for (let i = -r + 1; i <= r - 1; i++) {
+      let x = cx - r * ax + i * bx, y = cy - r * ay + i * by;
+      if (pred(x, y)) return { x, y };
+      x = cx + r * ax + i * bx; y = cy + r * ay + i * by;
+      if (pred(x, y)) return { x, y };
+    }
+  }
+  return null;
+}
+
 /** Verdadeiro se a linha entre dois pontos (em tiles) não cruza tiles bloqueados (Bresenham supercover). */
 export function lineClear(map: GameMap, x0: number, y0: number, x1: number, y1: number, team = -1): boolean {
   let ix = Math.floor(x0), iy = Math.floor(y0);
