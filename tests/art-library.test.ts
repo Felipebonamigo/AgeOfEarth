@@ -381,7 +381,9 @@ describe.skipIf(!hasArt)('artefatos do bake: toda chave pedida pelo renderizador
       const p = passOf('buildings', s, pass);
       for (const st of [0, 0.4, 0.8].map((f) => buildingStage(f, false)).concat(['complete'])) expect(p.frames.has(buildingFrameName('temple', st)), `${st} ${pass} ${s}x`).toBe(true);
     }
-    expect(manifest.assets.barracks).toBeUndefined();
+    // tipo sem manifesto em art/manifest continua sem arte no índice (procedural)
+    const withManifest = new Set(fs.readdirSync(path.join(ROOT, 'art', 'manifest')).map((f) => f.replace(/\.json$/, '')));
+    for (const id of Object.keys(BUILDINGS)) if (!withManifest.has(id)) expect(manifest.assets[id], id).toBeUndefined();
   });
 
   it('props: todo quadro que nodeFrameName/toco podem pedir existe em cor e sombra, nas duas escalas', () => {

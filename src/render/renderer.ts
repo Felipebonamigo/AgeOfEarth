@@ -21,7 +21,7 @@ import { BuildingView } from './views/BuildingView';
 import { SmokeLayer } from './particles';
 import {
   animDuration, buildingState, chooseAnim, deathAlpha, dirWithHysteresis, freshHit, isWalking, mulColor, type UnitAnim,
-  WALL_LINK_TYPES, wallMask, buildingVariant, ageTier, damageLevel, gateNear, smokeRate, smokeBudget, rubbleAlpha,
+  WALL_LINK_TYPES, wallMask, buildingVariant, ageTier, damageLevel, gateNear, smokeRate, smokeBudget, rubbleAlpha, GLOW_ANIM, glowVariant,
   ghostTint, placementMasks,
 } from './art/logic';
 
@@ -482,6 +482,8 @@ export class Renderer {
           variant = buildingVariant(art.variantBy, { mask: v.bld.mask, age: 0 });
         }
         v.bld.show(buildingState(frac, b.complete, hpFrac, open), variant);
+        // sobreposição animada do edifício pronto (portal dos titãs), no relógio de jogo, também danificado
+        if (art?.glow) v.bld.showGlow(b.complete ? this.art.building(b.type, GLOW_ANIM, glowVariant(this.animClock, art.glow.frames, art.glow.fps)) : null);
         v.bld.place(b.x * TILE, b.y * TILE);
         // fumaça de dano (partícula, não assada): só pronto e danificado, dentro do orçamento do preset
         const dmg = b.complete && !open ? damageLevel(hpFrac) : 0;

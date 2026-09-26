@@ -23,6 +23,7 @@
 // Sem Math.random: gerador com semente por estilo/estado/variante, então os quadros saem iguais em qualquer rodada.
 
 import { M2T, PITCH_DEG } from './camera.js';
+import { MILITARY_BUILDERS } from './buildings-military.js';
 
 /** Estados de todo edifício com arte (o portão tem também `open`). */
 export const BUILDING_STATES = ['build0', 'build1', 'build2', 'complete', 'damage1', 'damage2'];
@@ -872,6 +873,9 @@ BUILDERS.rubble = (k, p) => {
   }
   k.debris = null;
 };
+
+// lote militar (quartel, estábulo, oficina de cerco, fortaleza, portal dos titãs, maravilhas): buildings-military.js
+Object.assign(BUILDERS, MILITARY_BUILDERS);
 
 // =================================================================================================================
 

@@ -192,6 +192,17 @@ export function smokeRate(level: 0 | 1 | 2, area: number): number {
 }
 /** Parte do orçamento de partículas do preset (quality.ts) que a fumaça dos edifícios pode ocupar. */
 export function smokeBudget(particleBudget: number): number { return Math.floor(particleBudget * 0.35); }
+/**
+ * Sobreposição animada de um edifício pronto (manifesto: estado `glow` com vários quadros, ex.: o vórtice do portal dos
+ * titãs): nome do quadro `<id>/glow/<nn>` no instante `clock` (s de jogo), em loop a `fps`. O renderizador a desenha
+ * por cima do estado atual (pronto ou danificado) com blend aditivo.
+ */
+export const GLOW_ANIM = 'glow';
+/** Quadro da sobreposição ('00', '01', …) no instante `clock`: a "variante" de `building(id, GLOW_ANIM, …)`. */
+export function glowVariant(clock: number, frames: number, fps: number): string { return pad2(frameIndex(clock, frames, fps, true)); }
+export function glowFrameName(id: string, clock: number, frames: number, fps: number): string {
+  return buildingFrameName(id, GLOW_ANIM, glowVariant(clock, frames, fps));
+}
 /** Tint do fantasma de construção assado: verde (pode) ou vermelho (não pode), claro o bastante para ler o sprite. */
 export function ghostTint(ok: boolean): number { return ok ? 0x9cf0b0 : 0xff9c9c; }
 
