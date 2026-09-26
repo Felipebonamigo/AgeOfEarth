@@ -12,28 +12,32 @@
       "en": "Command the legions of the dead, archon. Free the Cyclopes and seal the rifts through which the Cult descends. Heracles already knows the way." }
   ],
   "outro": [
+    { "pt": "Hades olha as fendas fechadas e fala baixo: 'Meus sacerdotes eram dele. Minha guerra contra Argos era dele. Lícaon me usou como um manto. Isso, arconte, eu não perdoo.'",
+      "en": "Hades looks at the sealed rifts and speaks quietly: 'My priests were his. My war on Argos was his. Lycaon wore me like a cloak. That, archon, I do not forgive.'" },
     { "pt": "Os Ciclopes forjam de novo, desta vez para os três irmãos. Hades, pela primeira vez desde a partilha do mundo, sobe à superfície. O Culto recua para o Monte Ótris, a velha fortaleza dos Titãs, onde três Pilares guardam... alguma coisa.",
       "en": "The Cyclopes forge again, this time for all three brothers. Hades, for the first time since the world was divided, climbs to the surface. The Cult falls back to Mount Othrys, the old fortress of the Titans, where three Pillars guard... something." }
   ],
   "hints": [
-    { "pt": "Você joga como Hades: o Centro Cívico é o Palácio de Hades. Se ele cair, a descida termina. Cérbero se treina no Templo (tecla X) e custa Favor; cidadãos rezando o sustentam.",
-      "en": "You play as Hades: the Town Center is the Palace of Hades. If it falls, the descent is over. Cerberus is trained at the Temple (X key) and costs Favor; villagers at prayer sustain it." },
-    { "pt": "Heróis ferem criaturas míticas com dano triplo, míticas esmagam homens, homens em número derrubam heróis. Guarde Héracles e Perseu para os Centauros e Pégasos do Culto.",
-      "en": "Heroes deal triple damage to myth units, myth units crush men, men in numbers bring down heroes. Save Heracles and Perseus for the Cult's Centaurs and Pegasi." },
-    { "pt": "O Culto guarda o raio roubado de Zeus: uma vez, ele fulmina qualquer unidade sua. Não mande um herói sozinho à frente do exército.",
-      "en": "The Cult holds Zeus' stolen bolt: once, it strikes down any unit of yours. Don't send a hero alone ahead of the army." },
+    { "pt": "Você joga como Hades: o Centro Cívico inicial é o Palácio de Hades. Se ele cair, a descida termina. Cérbero se treina no Templo (tecla X) e custa Favor; cidadãos rezando o sustentam.",
+      "en": "You play as Hades: your starting Town Center is the Palace of Hades. If it falls, the descent is over. Cerberus is trained at the Temple (X key) and costs Favor; villagers at prayer sustain it." },
+    { "pt": "Heróis ferem criaturas míticas com dano triplo, míticas esmagam homens, homens em número derrubam heróis. Guarde Héracles e Perseu para as criaturas do Culto: os Centauros que sobem das fendas e as Hidras e Medusas do Templo dele.",
+      "en": "Heroes deal triple damage to myth units, myth units crush men, men in numbers bring down heroes. Save Heracles and Perseus for the Cult's creatures: the Centaurs climbing out of the rifts and the Hydras and Medusas from its Temple." },
+    { "pt": "O Culto guarda o raio roubado de Zeus: uma vez, ele fulmina o herói ou a criatura mais forte que chegar perto da cidade dele (a Fenda do Estige já está ao alcance). Mande um Cérbero na frente e segure os heróis longe até o raio cair.",
+      "en": "The Cult holds Zeus' stolen bolt: once, it strikes down the strongest hero or creature that comes near its city (the Rift of the Styx is already in range). Send a Cerberus ahead and keep your heroes back until the bolt falls." },
     { "pt": "Os guerreiros humanos de Hades que tombam em combate às vezes voltam como Sombras: não ocupam população e lutam até cair de novo.",
       "en": "Hades' human warriors who fall in battle sometimes return as Shades: they take no population and fight until they fall again." },
-    { "pt": "As jaulas são torres dos Carcereiros; as fendas, templos. Cada fenda fechada corta uma das ondas que sobem até o Palácio. A do sul, além do lago, é a mais longe do Culto.",
-      "en": "The cages are the Jailers' towers; the rifts, temples. Each sealed rift cuts off one of the waves climbing to the Palace. The southern one, beyond the lake, is farthest from the Cult." },
-    { "pt": "O Elmo das Trevas e duas relíquias do Tártaro estão perto das fendas. Um herói as recolhe ao passar e as guarda num Templo seu, onde rendem Favor.",
-      "en": "The Helm of Darkness and two relics of Tartarus lie near the rifts. A hero picks them up by walking over them and stores them in one of your Temples, where they yield Favor." }
+    { "pt": "As jaulas são torres dos Carcereiros: a de Brontes na borda do platô do Culto, a de Estéropes junto ao Centro Cívico dele e a de Arges na faixa norte, acima do platô. Para libertar os três Ciclopes, é preciso invadir a cidade do Culto.",
+      "en": "The cages are the Jailers' towers: Brontes' on the edge of the Cult's plateau, Steropes' next to its Town Center and Arges' on the northern strip above the plateau. Freeing all three Cyclopes means invading the Cult's city." },
+    { "pt": "As fendas são templos: a do Estige entre as duas cidades, a do Flegetonte no extremo nordeste e a do Aqueronte a sudeste, além do lago. Cada fenda fechada corta uma das ondas que sobem até o Palácio. O Oráculo (poder de Apolo) revela o mapa inteiro por 60 s.",
+      "en": "The rifts are temples: the Styx one between the two cities, the Phlegethon one in the far northeast and the Acheron one to the southeast, beyond the lake. Each sealed rift cuts off one of the waves climbing to the Palace. The Oracle (Apollo's power) reveals the whole map for 60 s." },
+    { "pt": "O Elmo das Trevas foi partido, e os pedaços viraram relíquias perto das fendas. Um herói as recolhe ao passar; guarde duas nos seus Templos para recompor o Elmo. Lá elas também rendem Favor.",
+      "en": "The Helm of Darkness was broken, and its pieces became relics near the rifts. A hero picks them up by walking over them; store two in your Temples to remake the Helm. There they also yield Favor." }
   ],
   "map": { "gen": { "mapSize": "medium", "mapType": "lakes", "seed": 9909 }, "relics": [[97, 66], [55, 44], [95, 13]] },
   "config": {
     "players": [
-      { "name": { "pt": "Legiões de Hades", "en": "Legions of Hades" }, "god": "hades", "isAI": false, "difficulty": "normal", "team": 0 },
-      { "name": { "pt": "Culto de Cronos", "en": "Cult of Cronus" }, "god": "zeus", "isAI": true, "difficulty": "normal", "team": 1 },
+      { "name": { "pt": "Legiões de Hades", "en": "Legions of Hades" }, "god": "hades", "isAI": false, "difficulty": "normal", "team": 0, "forbid": { "units": ["jason", "achilles"] } },
+      { "name": { "pt": "Culto de Cronos", "en": "Cult of Cronus" }, "god": "zeus", "isAI": true, "difficulty": "normal", "team": 1, "forbid": { "units": ["jason", "odysseus", "achilles", "heracles", "perseus"] } },
       { "name": { "pt": "Carcereiros de Cronos", "en": "Jailers of Cronus" }, "god": "zeus", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
     ],
     "startingAge": 2,
@@ -43,11 +47,13 @@
   },
   "setup": [
     { "do": "set", "player": 0, "minorGods": ["athena", "apollo"], "techs": ["civic1", "science1", "military1"] },
+    { "do": "storeEntity", "var": "#palacio", "entity": { "tc": 0 } },
     { "do": "place", "player": 0, "building": "temple", "at": { "tc": 0, "dx": 6 }, "complete": true },
     { "do": "place", "player": 0, "building": "temple", "at": { "tc": 0, "dx": -6 }, "complete": true },
     { "do": "place", "player": 0, "building": "academy", "at": { "tc": 0, "dy": 6 }, "complete": true },
     { "do": "spawn", "player": 0, "units": ["heracles"], "at": { "tc": 0, "dy": -4 }, "tag": "heracles" },
     { "do": "spawn", "player": 0, "units": ["minotaur", "minotaur", "minotaur", "shade", "shade", "shade", "shade", "shade", "shade"], "at": { "tc": 0, "dy": -6 } },
+    { "do": "set", "player": 1, "minorGods": ["hermes", "dionysus"] },
     { "do": "give", "player": 1, "resources": { "gold": 1000 } },
     { "do": "place", "player": 2, "building": "tower", "at": { "start": 1, "dx": -10, "dy": 6 }, "tag": "jaula1", "name": { "pt": "Jaula de Brontes", "en": "Cage of Brontes" } },
     { "do": "place", "player": 2, "building": "tower", "at": { "start": 1, "dx": 5, "dy": -5 }, "tag": "jaula2", "name": { "pt": "Jaula de Estéropes", "en": "Cage of Steropes" } },
@@ -57,15 +63,15 @@
     { "do": "place", "player": 2, "building": "temple", "at": { "start": 1, "dx": 12, "dy": -18 }, "tag": "fenda3", "name": { "pt": "Fenda do Flegetonte", "en": "Rift of the Phlegethon" } }
   ],
   "objectives": [
-    { "id": "jaulas", "text": { "pt": "Liberte os Ciclopes (3 jaulas)", "en": "Free the Cyclopes (3 cages)" },
+    { "id": "jaulas", "text": { "pt": "Liberte os Ciclopes: 3 jaulas (torres), duas no platô do Culto, a leste, e uma na faixa norte, acima dele", "en": "Free the Cyclopes: 3 cages (towers), two on the Cult's plateau to the east and one on the northern strip above it" },
       "done": { "all": [ { "entity": { "tag": "jaula1" }, "exists": false }, { "entity": { "tag": "jaula2" }, "exists": false }, { "entity": { "tag": "jaula3" }, "exists": false } ] } },
-    { "id": "fendas", "text": { "pt": "Feche as 3 Fendas do Tártaro", "en": "Seal the 3 Rifts of Tartarus" },
+    { "id": "fendas", "text": { "pt": "Feche as 3 Fendas do Tártaro (templos): entre as duas cidades, no extremo nordeste e a sudeste, além do lago", "en": "Seal the 3 Rifts of Tartarus (temples): between the two cities, in the far northeast and to the southeast, beyond the lake" },
       "done": { "all": [ { "entity": { "tag": "fenda1" }, "exists": false }, { "entity": { "tag": "fenda2" }, "exists": false }, { "entity": { "tag": "fenda3" }, "exists": false } ] } },
     { "id": "miticas", "optional": true, "text": { "pt": "Reúna 8 criaturas míticas", "en": "Gather 8 myth units" },
       "done": { "units": { "player": 0, "type": ["minotaur", "manticore", "cerberus", "cyclops", "nemean_lion", "medusa", "colossus", "hydra", "chimera", "centaur"] }, "gte": 8 } },
     { "id": "cerbero", "optional": true, "text": { "pt": "Treine um Cérbero no Templo", "en": "Train a Cerberus at the Temple" },
       "done": { "units": { "player": 0, "type": "cerberus" }, "gte": 1 } },
-    { "id": "elmo", "optional": true, "text": { "pt": "Recupere o Elmo das Trevas: guarde 2 relíquias nos seus Templos", "en": "Recover the Helm of Darkness: store 2 relics in your Temples" },
+    { "id": "elmo", "optional": true, "text": { "pt": "Recupere o Elmo das Trevas: guarde 2 relíquias (pedaços dele) nos seus Templos", "en": "Recover the Helm of Darkness: store 2 relics (its pieces) in your Temples" },
       "done": { "value": { "stat": "relics", "player": 0 }, "gte": 2 } },
     { "id": "sombras", "optional": true, "hidden": true, "text": { "pt": "Legião de Sombras: tenha 10 Sombras", "en": "Legion of Shades: have 10 Shades" },
       "done": { "units": { "player": 0, "type": "shade" }, "gte": 10 } }
@@ -99,23 +105,26 @@
         { "all": [ { "difficulty": "easy" }, { "every": { "seconds": 150, "after": 180 } } ] },
         { "all": [ { "difficulty": "normal" }, { "every": { "seconds": 120, "after": 180 } } ] },
         { "all": [ { "difficulty": "hard" }, { "every": { "seconds": 90, "after": 180 } } ] } ] } ] }, "then": [
-      { "do": "raid", "player": 2, "units": ["hoplite", "hoplite", "hypaspist", "toxotes", "toxotes"], "target": { "tc": 0 }, "angle": 3 } ] },
+      { "do": "spawn", "player": 2, "units": ["hoplite", "hoplite", "hypaspist", "toxotes", "toxotes"], "scaled": true, "at": { "entity": { "tag": "fenda1" } }, "tag": "onda1" },
+      { "do": "order", "units": { "tag": "onda1" }, "order": { "type": "attackMove", "at": { "tc": 0 } } } ] },
     { "id": "fenda2_onda", "repeat": true, "when": { "all": [ { "entity": { "tag": "fenda2" }, "exists": true }, { "any": [
         { "all": [ { "difficulty": "easy" }, { "every": { "seconds": 150, "after": 240 } } ] },
         { "all": [ { "difficulty": "normal" }, { "every": { "seconds": 120, "after": 240 } } ] },
         { "all": [ { "difficulty": "hard" }, { "every": { "seconds": 90, "after": 240 } } ] } ] } ] }, "then": [
-      { "do": "raid", "player": 2, "units": ["hippeus", "hippeus", "hetairoi", "cretan_archer"], "target": { "tc": 0 }, "angle": 1 } ] },
+      { "do": "spawn", "player": 2, "units": ["hippeus", "hippeus", "hetairoi", "cretan_archer"], "scaled": true, "at": { "entity": { "tag": "fenda2" } }, "tag": "onda2" },
+      { "do": "order", "units": { "tag": "onda2" }, "order": { "type": "attackMove", "at": { "tc": 0 } } } ] },
     { "id": "fenda3_onda", "repeat": true, "when": { "all": [ { "entity": { "tag": "fenda3" }, "exists": true }, { "any": [
         { "all": [ { "difficulty": "easy" }, { "every": { "seconds": 150, "after": 300 } } ] },
         { "all": [ { "difficulty": "normal" }, { "every": { "seconds": 120, "after": 300 } } ] },
         { "all": [ { "difficulty": "hard" }, { "every": { "seconds": 90, "after": 300 } } ] } ] } ] }, "then": [
-      { "do": "raid", "player": 2, "units": ["hypaspist", "hypaspist", "petrobolos", "centaur"], "target": { "tc": 0 }, "angle": 5 } ] },
+      { "do": "spawn", "player": 2, "units": ["centaur", "hypaspist", "hypaspist", "petrobolos"], "scaled": true, "at": { "entity": { "tag": "fenda3" } }, "tag": "onda3" },
+      { "do": "order", "units": { "tag": "onda3" }, "order": { "type": "attackMove", "at": { "tc": 0 } } } ] },
     { "id": "raio_roubado", "when": { "powerUsed": { "player": 1, "id": "bolt" } }, "then": [
       { "do": "say", "speaker": "Hades", "icon": "💀",
         "text": { "pt": "O raio do meu irmão, nas mãos do Culto. Ele só cai uma vez, arconte: agora podemos marchar.", "en": "My brother's bolt, in the Cult's hands. It only falls once, archon: now we can march." } } ] },
     { "id": "ondas_aviso", "when": { "any": [ { "var": "@fenda1_onda", "gte": 1 }, { "var": "@fenda2_onda", "gte": 1 }, { "var": "@fenda3_onda", "gte": 1 } ] }, "then": [
-      { "do": "say", "speaker": "Hades", "icon": "💀",
-        "text": { "pt": "Das fendas sobem os soldados do Culto, direto para o meu Palácio. Enquanto elas estiverem abertas, eles não param de subir.", "en": "The Cult's soldiers climb out of the rifts, straight for my Palace. While the rifts stay open, they will keep coming." } } ] },
+      { "do": "say", "speaker": { "pt": "Sombra batedora", "en": "Shade scout" }, "icon": "👻",
+        "text": { "pt": "Arconte, soldados do Culto sobem das fendas, a leste, direto para o Palácio. Enquanto elas estiverem abertas, eles não param de subir.", "en": "Archon, Cult soldiers are climbing out of the rifts to the east, straight for the Palace. While the rifts stay open, they will keep coming." } } ] },
     { "id": "jaula1_cai", "when": { "entity": { "tag": "jaula1" }, "exists": false }, "then": [
       { "do": "spawn", "player": 0, "units": ["cyclops", "cyclops"], "at": { "start": 1, "dx": -10, "dy": 6 } },
       { "do": "addVar", "name": "jaulas_abertas", "delta": 1 } ] },
@@ -143,13 +152,10 @@
     { "id": "sombras_legiao", "when": { "objective": "sombras", "is": "done" }, "then": [
       { "do": "give", "player": 0, "resources": { "favor": 150 } },
       { "do": "say", "speaker": "Hades", "icon": "💀",
-        "text": { "pt": "Dez sombras em marcha. Fazia séculos que o meu reino não tinha tanto movimento. Tome Favor, arconte.", "en": "Ten shades on the march. My kingdom hasn't seen this much traffic in centuries. Take some Favor, archon." } } ] },
-    { "id": "pacto", "when": { "all": [ { "objective": "jaulas", "is": "done" }, { "objective": "fendas", "is": "done" } ] }, "then": [
-      { "do": "say", "speaker": "Hades", "icon": "💀",
-        "text": { "pt": "Meus sacerdotes eram dele. Minha guerra contra Argos era dele. Lícaon me usou como um manto. Isso, arconte, eu não perdoo.", "en": "My priests were his. My war on Argos was his. Lycaon wore me like a cloak. That, archon, I do not forgive." } } ] }
+        "text": { "pt": "Dez sombras em marcha. Fazia séculos que o meu reino não tinha tanto movimento. Tome Favor, arconte.", "en": "Ten shades on the march. My kingdom hasn't seen this much traffic in centuries. Take some Favor, archon." } } ] }
   ],
   "victory": { "all": [ { "objective": "jaulas", "is": "done" }, { "objective": "fendas", "is": "done" } ] },
-  "defeat": { "all": [ { "time": { "gte": 5 } }, { "buildings": { "player": 0, "type": "town_center" }, "eq": 0 } ] },
+  "defeat": { "all": [ { "time": { "gte": 5 } }, { "entity": { "tag": "palacio" }, "exists": false } ] },
   "hud": [
     { "type": "progress", "var": "jaulas_abertas", "max": 3, "format": "count", "label": { "pt": "⛓️ Jaulas abertas", "en": "⛓️ Cages opened" }, "while": { "objective": "jaulas", "is": "pending" } },
     { "type": "progress", "var": "fendas_fechadas", "max": 3, "format": "count", "label": { "pt": "🌀 Fendas fechadas", "en": "🌀 Rifts sealed" }, "while": { "objective": "fendas", "is": "pending" } }
