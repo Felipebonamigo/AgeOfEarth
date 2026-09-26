@@ -254,8 +254,9 @@ export class HUD {
     this.ageBtn.classList.toggle('primary', adv.ok);
     const k = s.state.koth;
     const relics = relicsOf(s.state, p.id);
-    // em cenário (m10) a vitória nativa do Rei da Colina não roda: a barra mostra só quem segura a colina e há quanto tempo
-    this.modeEl.textContent = (s.spectator ? t('top.spectator') + ' ' : '') + (k ? (k.team === -1 ? t('top.kothNone') : s.state.scenario ? t('top.kothScenario', { who: teamNames(s.state, k.team), s: k.seconds }) : t('top.koth', { who: teamNames(s.state, k.team), s: k.seconds, total: KOTH_SECONDS })) : '') + (relics > 0 ? ' ' + t('top.relics', { n: relics }) : '');
+    // em cenário (m10) a vitória nativa do Rei da Colina não roda e a conta que vale é a do roteiro (barra do painel, G4): a barra
+    // do topo não mostra a posse do modo, que conta o time inteiro (na m10, Hades sozinho não conta)
+    this.modeEl.textContent = (s.spectator ? t('top.spectator') + ' ' : '') + (k && !s.state.scenario ? (k.team === -1 ? t('top.kothNone') : t('top.koth', { who: teamNames(s.state, k.team), s: k.seconds, total: KOTH_SECONDS })) : '') + (relics > 0 ? ' ' + t('top.relics', { n: relics }) : '');
     this.modeEl.dataset.tip = relics > 0 ? t('top.relicsTip') : '';
     const waiting = (s.scheduler as { waiting?: number }).waiting ?? 0;
     this.clockEl.textContent = fmtTime(s.state.time) + (s.paused ? ' ⏸' : s.speed !== 1 ? ` ${s.speed}×` : '') + (waiting > 10 ? ' ' + t('top.waiting') : '');

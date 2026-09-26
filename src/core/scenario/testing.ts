@@ -1463,6 +1463,13 @@ const M10_MIX: Record<string, number> = { hypaspist: 4, myrmidon: 3, cretan_arch
 const M10_LINE_CAP = 70;
 /** m10: máquinas de cerco que o roteiro mantém prontas (helépoles, depois petróbolos). */
 const M10_ENGINES = { helepolis: 4, petrobolos: 2 } as const;
+/**
+ * m10: com menos de 4 máquinas vivas, o jogador guarda o preço de uma helépole (250 de madeira e 200 de ouro) antes do exército de
+ * linha, como faria quem sabe que a pedra do Ótris (portões, muralhas e Pilares) só cede perto delas. Medido: sem o cofre, o ouro
+ * ficava abaixo de 100 com o treino contínuo e o Difícil passava até 10 min com 0–2 máquinas, os Pilares intactos (em jogo aos 50 min).
+ */
+const M10_SIEGE_SHORT: Condition = { units: { player: 0, type: ['helepolis', 'petrobolos'] }, lt: 4 };
+const M10_SIEGE_FUND = { wood: 250, gold: 200 } as const;
 
 /** m10: repõe as máquinas de cerco na Oficina (uma por chamada), antes do exército de linha, até M10_ENGINES. */
 function m10Engines(state: GameState): Command | null {
@@ -1806,11 +1813,15 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
     minutes: 50, expect: [21, 45.5],
     // o exército da IA do jogador nunca sai em ondas: no Rei da Colina ele se reúne no Altar do Tempo (e o segura); o cerco é do roteiro
     hold: { time: { gte: 0 } },
+    // o cofre das máquinas: a IA do jogador não gasta o preço de uma helépole enquanto faltarem máquinas (os passos o usam)
+    reserve: { when: M10_SIEGE_SHORT, resources: M10_SIEGE_FUND },
+    // a janela só mede a missão se o roteiro enfrentou as sortidas (com o altar tomado, elas descem contra ele)
+    atEnd: [{ label: 'ao menos uma sortida das Sentinelas (contra o acampamento ou o altar)', when: { any: [{ var: '@sortida', gte: 1 }, { var: '@sortida_altar', gte: 1 }] } }],
     steps: [
       { label: 'cidadãos', when: { time: { gte: 3 } }, every: 4, command: (s) => trainVillagers(s, 45) },
       { label: 'casas', when: { time: { gte: 3 } }, every: 5, command: (s) => m9House(s, 15) },
       { label: 'máquinas', when: { time: { gte: 5 } }, every: 5, command: (s) => m10Engines(s) },
-      { label: 'treino', when: { time: { gte: 5 } }, every: 5, command: (s) => (m10LineCount(s) < M10_LINE_CAP ? trainArmy(s, 0, { mix: M10_MIX, reserve: { food: 150, wood: 100, gold: 80 } }) : null) },
+      { label: 'treino', when: { time: { gte: 5 } }, every: 5, command: (s) => (m10LineCount(s) < M10_LINE_CAP ? trainArmy(s, 0, { mix: M10_MIX, reserve: m10SiegeCount(s) < 4 ? { food: 150, wood: 100 + M10_SIEGE_FUND.wood, gold: 80 + M10_SIEGE_FUND.gold } : { food: 150, wood: 100, gold: 80 } }) : null) },
       { label: 'mercado', when: { time: { gte: 60 } }, every: 3, command: (s) => m10Market(s) },
       { label: 'poderes', when: { time: { gte: 2 } }, every: 3, command: (s) => battlePowers(s) },
       { label: 'tempestade', when: { time: { gte: 1 } }, every: 1, command: (s) => dodgeStorms(s) },

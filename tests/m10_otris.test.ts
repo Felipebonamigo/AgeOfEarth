@@ -2,8 +2,9 @@
 // tem a identidade da ficha (a cidadela no platô com dois anéis de muralha — o Portão de Bronze no externo —, os três Pilares
 // no santuário, o Altar do Tempo no meio da planície, Argos a sudoeste e Hades a sudeste); o setup da ficha; a pedra do Ótris
 // que só cede perto das máquinas de cerco de Argos (G9 hpFloor); as colmeias dos Pilares (G9 hp); o altar que só conta com
-// Argos nele (G2 koth) e corta as sortidas; as sortidas por dificuldade (G3); o segredo de Lícaon (G13) e o HUD (G4). A passiva
-// curta roda em tests/missions.test.ts; o roteiro longo (vitória dentro da janela) só em scripts/missions.ts.
+// Argos nele (G2 koth) e desvia as sortidas para ele até as Sentinelas o retomarem; as sortidas escaladas pela dificuldade (G3);
+// o segredo de Lícaon (G13) e o HUD (G4). A passiva curta roda em tests/missions.test.ts; o roteiro longo (vitória dentro da
+// janela) só em scripts/missions.ts.
 import { describe, it, expect } from 'vitest';
 import { TICK_RATE, TERRAIN } from '../src/core/constants';
 import { createGame, tick } from '../src/core/sim/game';
@@ -40,7 +41,7 @@ const tagged = (s: GameState, tag: string) => [...s.units.values()].filter((u) =
 function calm(d: CampaignDifficulty = 'normal', keep: string[] = []): GameState {
   const f = JSON.parse(JSON.stringify(file)) as ScenarioFile;
   f.id = 'm10_teste';
-  f.triggers = f.triggers.filter((t) => keep.includes(t.id) || !['sortida', 'sortida_facil', 'sortida_dificil'].includes(t.id));
+  f.triggers = f.triggers.filter((t) => keep.includes(t.id) || !['sortida', 'sortida_altar'].includes(t.id));
   f.config.players = f.config.players.map((p, i) => (i === 1 || i === 2 ? { ...p, isAI: false, puppet: true } : p));
   return createGame(withCampaignDifficulty(gameConfigFor(f), d));
 }
@@ -124,8 +125,10 @@ describe('m10_otris', () => {
     expect([alive(s, 0, 'helepolis').length, alive(s, 0, 'petrobolos').length]).toEqual([2, 2]);
     expect(tagged(s, 'cerco').map((u) => u.type).sort()).toEqual(['helepolis', 'helepolis', 'petrobolos', 'petrobolos']);
     expect(s.players.map((p) => p.team)).toEqual([0, 0, 1, 1]);
-    // Hades trouxe as legiões dele (kit + 10)
-    expect(tagged(s, 'legiao')).toHaveLength(10);
+    // Hades trouxe as legiões dele e os Ciclopes que libertou na m9 (kit + 12); do lado de Cronos não há Ciclope (§1.1, Ato III)
+    expect(tagged(s, 'legiao')).toHaveLength(12);
+    expect(tagged(s, 'legiao').filter((u) => u.type === 'cyclops')).toHaveLength(2);
+    expect(JSON.stringify([file.setup, file.triggers]).match(/cyclops/g)).toHaveLength(2);
     // o Culto: as três pesquisas de defesa e o estoque da ficha; trancado na cidadela (o Portão de Bronze é lacrado), não sai
     for (const t of ['masonry', 'fortified_towns', 'ballista_towers']) expect(s.players[2].techs).toContain(t);
     expect(s.players[2].resources).toMatchObject({ food: 2000, wood: 2000, gold: 1500 });
@@ -187,12 +190,51 @@ describe('m10_otris', () => {
     for (let k = 0; k < 3; k++) post(s, 1, 'hypaspist', 71 + k, 55);
     run(s, 2);
     expect(lines(s).filter((t) => t.includes('traga as suas máquinas'))).toHaveLength(1);
+    // os Pilares: um soldado de Argos no santuário não basta; e uma máquina no pátio, por cima da crista, também não, enquanto o
+    // anel interno estiver de pé
+    const sold = post(s, 0, 'hoplite', 60, 19);
+    const yard = engine(s, 61, 30);
+    run(s, 2);
+    before = p1.hp;
+    scriptedDamage(s, p1, 500);
+    expect(p1.hp).toBe(before);
+    drop(s, yard);
+    inner.hpFloor = 0;
+    scriptedDamage(s, inner, inner.maxHp + 1);
+    run(s, 2);
+    expect(inner.dead).toBe(true);
+    scriptedDamage(s, p1, 500);
+    expect(p1.hp).toBe(before);
+    // rompido o anel interno, com a máquina no santuário, o Pilar cede
+    engine(s, 61, 19);
+    run(s, 2);
+    scriptedDamage(s, p1, 500);
+    expect(p1.hp).toBe(before - 500);
+    expect(sold.dead).toBe(false);
+  }, 60_000);
+
+  it('o anel externo rompido por um muro vizinho do Portão também cumpre "portao" (e Lícaon fala)', () => {
+    const s = calm();
+    run(s, 2);
+    engine(s, 71, 57);
+    run(s, 2);
+    const wall = [...s.buildings.values()].find((b) => !b.dead && b.type === 'wall' && b.ty === POINTS.outerRow && b.tx === 71)!;
+    expect(wall.hpFloor ?? 0).toBe(0);   // a máquina perto: o muro perdeu o piso de vida
+    scriptedDamage(s, wall, wall.maxHp + 1);
+    run(s, 2);
+    expect(wall.dead).toBe(true);
+    expect(bldByTag(s, 'portao_bronze')).toBeDefined();
+    expect(s.scenario!.objectives.portao).toBe('done');
+    expect(lines(s).some((t) => t.includes('Sob Cronos não havia velhice'))).toBe(true);
   }, 60_000);
 
   it('as colmeias (G9): com 3/4, 1/2 e 1/4 da vida, o Pilar solta um enxame de 8 e não cede enquanto ele viver', () => {
     const s = calm();
     run(s, 2);
     const p1 = bldByTag(s, 'pilar1')!;
+    const inner = bldByTag(s, 'portao_interno')!;   // os Pilares 1 e 2 só cedem com o anel interno rompido
+    inner.hpFloor = 0;
+    scriptedDamage(s, inner, inner.maxHp + 1);
     engine(s, 60, 29);
     run(s, 2);
     scriptedDamage(s, p1, p1.maxHp * 0.3);   // 70 %
@@ -220,14 +262,16 @@ describe('m10_otris', () => {
     expect(s.scenario!.fired.filter((f) => f.startsWith('colmeia2') || f.startsWith('colmeia3'))).toEqual([]);
   }, 60_000);
 
-  it('o altar (G2 koth): só conta com soldados de Argos nele; Hades sozinho não conta; 2 minutos seguidos cortam as sortidas', () => {
-    const s = calm('normal', ['sortida']);
+  it('o altar (G2 koth): só conta com soldados de Argos nele (Hades sozinho não conta, e o evento da colina diz isso); tomado, desvia as sortidas para ele até as Sentinelas o retomarem', () => {
+    const s = calm('normal', ['sortida', 'sortida_altar']);
     for (const u of tagged(s, 'guarda_altar')) killUnit(s, u, 1);
     run(s, 2);
-    for (let k = 0; k < 3; k++) post(s, 1, 'hypaspist', 71 + k, 80);
+    const allies = [0, 1, 2].map((k) => post(s, 1, 'hypaspist', 71 + k, 80));
     run(s, 20);
     expect(s.koth?.team).toBe(0);
     expect(s.scenario!.vars.altar_s).toBe(0);
+    // o evento nomeia quem está na colina (Hades), não o time inteiro ("Argos & Hades"), e sem a promessa dos 4 min do modo
+    expect(s.events.filter((e) => e.type === 'koth').map((e) => e.text)).toContain('⛰ Colina tomada: Hades.');
     const a = post(s, 0, 'hypaspist', 72, 79);
     run(s, 60);
     expect(s.scenario!.vars.altar_s).toBeGreaterThanOrEqual(58);
@@ -238,28 +282,46 @@ describe('m10_otris', () => {
     drop(s, foe);
     run(s, 125);
     expect(s.scenario!.objectives.altar).toBe('done');
-    expect(lines(s).some((t) => t.includes('As sortidas acabaram'))).toBe(true);
-    expect(a.dead).toBe(false);
-    const n = s.scenario!.vars['@sortida'] ?? 0;
-    run(s, 300);
-    expect(s.scenario!.vars['@sortida'] ?? 0).toBe(n);
-  }, 60_000);
+    expect(lines(s).some((t) => t.includes('Agora as sortidas descem contra ele'))).toBe(true);
+    expect(s.events.filter((e) => e.type === 'koth').map((e) => e.text)).toContain('⛰ Colina tomada: Argos & Hades.');
+    // com o altar tomado, a sortida dos 9 min desce da rampa contra ele, e não contra o acampamento
+    run(s, 541 - Math.floor(s.tick / TICK_RATE));
+    expect([s.scenario!.vars['@sortida'] ?? 0, s.scenario!.vars['@sortida_altar']]).toEqual([0, 1]);
+    expect(lines(s).some((t) => t.includes('descem a rampa para retomar o altar'))).toBe(true);
+    const down = [...s.units.values()].filter((u) => u.owner === 3 && !u.dead && Math.abs(u.x - 72) < 12 && u.y > 48 && u.y < 70);
+    expect(down).toHaveLength(4);   // a retomada é menor que a sortida contra o acampamento (4 no Normal)
+    // os defensores seguram (não caem: piso de vida); saem do altar e as Sentinelas o retomam: o objetivo volta a pendente, a conta
+    // zera, a barra volta ao painel e a próxima sortida (4 min 30 s depois) desce contra o acampamento
+    run(s, 25);
+    expect(s.scenario!.objectives.altar).toBe('done');
+    for (const u of [a, ...allies]) drop(s, u);
+    run(s, 10);
+    expect(s.koth?.team).toBe(1);
+    expect(s.scenario!.objectives.altar).toBe('pending');
+    expect(s.scenario!.vars.altar_s).toBe(0);
+    expect(lines(s).some((t) => t.includes('retomaram o Altar do Tempo'))).toBe(true);
+    expect(scenarioHudHtml(campaignMission('m10_otris')!, s)).toContain('⏳ Altar do Tempo');
+    run(s, 811 - Math.floor(s.tick / TICK_RATE));
+    expect([s.scenario!.vars['@sortida'], s.scenario!.vars['@sortida_altar']]).toEqual([1, 1]);
+    expect(lines(s).some((t) => t.includes('As Sentinelas do Ótris desceram a encosta'))).toBe(true);
+  }, 90_000);
 
-  it('as sortidas (G3): Fácil a cada 3 min desde os 6, Normal a cada 4,5 min desde os 9, Difícil a cada 5,5 min desde os 11; o tamanho escala (4/6/9)', () => {
-    const ids = ['sortida_facil', 'sortida', 'sortida_dificil'];
-    for (const [d, id, first, size] of [['easy', 'sortida_facil', 360, 4], ['normal', 'sortida', 540, 6], ['hard', 'sortida_dificil', 660, 9]] as const) {
-      const s = calm(d, ids);
-      run(s, first - 1);
-      expect(s.scenario!.vars['@' + id] ?? 0, d).toBe(0);
+  it('as sortidas (G3): a cada 4 min 30 s desde os 9 nas três dificuldades, contra o acampamento enquanto o altar não é de Argos; o tamanho escala (4/6/9)', () => {
+    for (const [d, size] of [['easy', 4], ['normal', 6], ['hard', 9]] as const) {
+      const s = calm(d, ['sortida', 'sortida_altar']);
+      run(s, 539);
+      expect(s.scenario!.vars['@sortida'] ?? 0, d).toBe(0);
       run(s, 2);
-      expect(s.scenario!.vars['@' + id], d).toBe(1);
-      for (const other of ids.filter((x) => x !== id)) expect(s.scenario!.vars['@' + other] ?? 0, `${d} ${other}`).toBe(0);
+      expect([s.scenario!.vars['@sortida'], s.scenario!.vars['@sortida_altar'] ?? 0], d).toEqual([1, 0]);
       const tc = [...s.buildings.values()].find((b) => b.owner === 0 && b.type === 'town_center')!;
       const near = [...s.units.values()].filter((u) => u.owner === 3 && !u.dead && Math.abs(u.x - tc.x) < 30 && Math.abs(u.y - tc.y) < 30);
       expect(near.length, d).toBe(size);
+      expect(near.some((u) => u.type === 'cyclops'), d).toBe(false);
       expect(lines(s).some((t) => t.includes('As Sentinelas do Ótris desceram a encosta'))).toBe(true);
+      run(s, 270);
+      expect(s.scenario!.vars['@sortida'], d).toBe(2);
     }
-  }, 120_000);
+  }, 180_000);
 
   it('o segredo de Lícaon (G13): só conta se Argos o matar antes do último Pilar; a coleira o devolve ao santuário', () => {
     const s = calm();
