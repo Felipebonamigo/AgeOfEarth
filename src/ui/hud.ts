@@ -183,8 +183,9 @@ export class HUD {
   unmountTop(e: HTMLElement) { if (e.parentElement === this.top) this.top.removeChild(e); }
   /** Selo "Modo de teste · Voltar ao editor" (cb = null esconde). */
   setTestMode(cb: (() => void) | null) { this.onBackToEditor = cb; this.testEl.classList.toggle('hidden', !cb); }
+  /** Aviso na coluna de mensagens. Texto puro (textContent): chat, nomes de jogadores e textos de cenário vêm de outros pares. */
   toast(text: string, kind: 'info' | 'warn' | 'good' | 'gold' = 'info', pos?: { x: number; y: number }) {
-    const t = el('div', `toast ${kind}`, text);
+    const t = el('div', `toast ${kind}`); t.textContent = text;
     if (pos) t.addEventListener('click', () => { this.renderer.cam.centerOn(pos.x, pos.y); });
     this.msgPanel.appendChild(t);
     while (this.msgPanel.children.length > 6) this.msgPanel.removeChild(this.msgPanel.firstChild!);
@@ -289,7 +290,7 @@ export class HUD {
     if (!d) { this.dlgPanel.classList.add('hidden'); return; }
     const [icon, speaker] = d.meta.split('|');
     const more = this.dlg.waiting > 0 ? ` · +${this.dlg.waiting}` : '';
-    this.dlgPanel.innerHTML = `<span class="ic">${icon}</span><div><b>${speaker}</b><div>${d.text}</div></div><small>${t('modal.close').toLowerCase()}${more}</small>`;
+    this.dlgPanel.innerHTML = `<span class="ic">${esc(icon)}</span><div><b>${esc(speaker)}</b><div>${esc(d.text)}</div></div><small>${t('modal.close').toLowerCase()}${more}</small>`;
     this.dlgPanel.classList.remove('hidden');
   }
 
@@ -303,8 +304,8 @@ export class HUD {
     const key = Object.entries(sc.objectives).map(([k, v]) => `${k}${v}${sc.hidden[k] ? 'h' : ''}`).join(',') + Math.floor(s.state.time / 5) + '|' + extra;
     if (!force && key === this.lastObjKey) return;
     this.lastObjKey = key;
-    const rows = def.objectives.filter((o) => !sc.hidden[o.id]).map((o) => { const st = sc.objectives[o.id]; return `<li class="${st}">${st === 'done' ? '✅' : st === 'failed' ? '❌' : '◻️'} ${o.text}${o.optional ? ` <small>${t('mission.optional')}</small>` : ''}</li>`; }).join('');
-    this.objPanel.innerHTML = `<h4>${def.icon} ${def.title}</h4><ul>${rows}</ul>${extra}`;
+    const rows = def.objectives.filter((o) => !sc.hidden[o.id]).map((o) => { const st = sc.objectives[o.id]; return `<li class="${st}">${st === 'done' ? '✅' : st === 'failed' ? '❌' : '◻️'} ${esc(o.text)}${o.optional ? ` <small>${t('mission.optional')}</small>` : ''}</li>`; }).join('');
+    this.objPanel.innerHTML = `<h4>${esc(def.icon)} ${esc(def.title)}</h4><ul>${rows}</ul>${extra}`;   // textos do cenário escapados: o JSON pode vir do anfitrião
     this.objPanel.classList.remove('hidden');
   }
 

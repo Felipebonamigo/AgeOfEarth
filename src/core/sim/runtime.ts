@@ -7,6 +7,9 @@ export interface Runtime {
   pathBudget: number;
   nodeGatherers: Map<number, number>;   // nó -> nº de coletores designados (reconstruído por tick)
   statsCache: Map<number, { version: number; units: Map<string, UnitStats>; buildings: Map<string, BuildingStats> }>;
+  /** Exceções engolidas ao aplicar comandos de fora no tick (rede de segurança; o esperado é 0 — ver tests/command-fuzz). */
+  commandErrors: number;
+  lastCommandError: string;
 }
 
 export interface UnitStats {
@@ -22,7 +25,7 @@ const runtimes = new WeakMap<GameState, Runtime>();
 export function getRuntime(state: GameState): Runtime {
   let r = runtimes.get(state);
   if (!r) {
-    r = { hash: new SpatialHash(state.map.w, state.map.h, 4), pathBudget: 0, nodeGatherers: new Map(), statsCache: new Map() };
+    r = { hash: new SpatialHash(state.map.w, state.map.h, 4), pathBudget: 0, nodeGatherers: new Map(), statsCache: new Map(), commandErrors: 0, lastCommandError: '' };
     runtimes.set(state, r);
   }
   return r;

@@ -9,13 +9,14 @@ import { canPlaceBuilding, placeBuilding, recomputePop, unitsOf, countBuildings,
 import { getUnitStats, techCost, getBuildingStats } from './modifiers';
 import { queueTotalFor } from './buildings';
 import { giveOrder, stopUnit } from './units';
-import { entityById, isAlly } from './queries';
+import { entityById, isAlly, isEnemy } from './queries';
 import { getRuntime } from './runtime';
 import { ABILITIES } from '../data';
 import { usePower } from './powers';
 import { killUnit, destroyBuilding } from './combat';
 import { t } from '../../i18n';
 import { forbiddenReason, maxAgeOf } from './restrictions';
+import { sanitizeCommand } from './validate';
 
 export interface CommandResult { ok: boolean; reason?: string }
 
@@ -46,6 +47,9 @@ export function useAbility(state: GameState, player: Player, unitId: number): Co
   if (!player.isAI) state.events.push({ tick: state.tick, type: 'ability', player: player.id, x: u.x, y: u.y, text: `${ab.icon} ${ab.name}` });
   return { ok: true };
 }
+
+/** Dono é um jogador da partida (entidades sempre têm; a checagem só protege isEnemy/isAlly de um índice fora da lista). */
+function validOwner(state: GameState, owner: number): boolean { return owner >= 0 && owner < state.players.length; }
 
 function ownedUnits(state: GameState, player: number, ids: number[]): Unit[] {
   const out: Unit[] = [];
@@ -133,9 +137,20 @@ function groupOffsets(n: number): [number, number][] {
   return out;
 }
 
-export function applyCommand(state: GameState, cmd: Command): CommandResult {
+/**
+ * Aplica um comando. Anti-trapaça básico (ROADMAP 4.5): a entrada passa por sanitizeCommand (forma, tipos, limites, ids de
+ * dados) e cada caso confere as regras de jogo — só as entidades do próprio jogador obedecem (ids alheios são ignorados, mesmo
+ * misturados na lista), alvos existem e são do lado certo (atacar só inimigos; coletar em nó ou na própria fazenda; rezar no
+ * próprio templo; reparar o próprio edifício; guarnecer em edifício aliado), filas, custos, Idade, poderes e tecnologias são
+ * checados antes de pagar. Comando inválido é um no-op determinístico ({ ok: false }) e nunca lança exceção.
+ */
+export function applyCommand(state: GameState, raw: Command): CommandResult {
+  const cmd = sanitizeCommand(state, raw);
+  if (!cmd) {
+    const p = (raw as { player?: unknown } | null)?.player;
+    return { ok: false, reason: typeof p === 'number' && state.players[p]?.alive ? t('err.invalidCommand') : t('err.invalidPlayer') };
+  }
   const player = state.players[cmd.player];
-  if (!player || !player.alive) return { ok: false, reason: t('err.invalidPlayer') };
   switch (cmd.type) {
     case 'move': case 'attackMove': {
       const units = ownedUnits(state, cmd.player, cmd.ids).filter((u) => !UNITS[u.type].immobile && u.inside === -1);
@@ -168,16 +183,24 @@ export function applyCommand(state: GameState, cmd: Command): CommandResult {
       return { ok: true };
     }
     case 'attack': {
+      // alvo: unidade ou edifício vivo de um INIMIGO, fora de edifícios (guarnecida não é alvo)
       const target = entityById(state, cmd.targetId);
-      if (!target || target.dead) return { ok: false };
+      if (!target || target.dead || (target.kind === 'unit' && target.inside !== -1) || !validOwner(state, target.owner) || !isEnemy(state, cmd.player, target.owner)) return { ok: false };
       for (const u of ownedUnits(state, cmd.player, cmd.ids)) giveOrder(state, u, { type: 'attack', targetId: cmd.targetId }, cmd.queue);
       return { ok: true };
     }
     case 'gather': {
+      // alvo: nó de recurso do mapa ou fazenda do próprio jogador (ids de nós e de entidades são disjuntos)
+      const farm = state.buildings.get(cmd.targetId);
+      const okFarm = !!farm && !farm.dead && farm.owner === cmd.player && !!BUILDINGS[farm.type].farm;
+      if (!okFarm && !state.map.nodes.has(cmd.targetId)) return { ok: false };
       for (const u of ownedUnits(state, cmd.player, cmd.ids)) if (UNITS[u.type].canGather) giveOrder(state, u, { type: 'gather', targetId: cmd.targetId }, cmd.queue);
       return { ok: true };
     }
     case 'pray': {
+      // alvo: templo (ou Portal dos Titãs) do próprio jogador
+      const b = ownedBuilding(state, cmd.player, cmd.targetId);
+      if (!b || !(BUILDINGS[b.type].worship || BUILDINGS[b.type].titanGate)) return { ok: false };
       for (const u of ownedUnits(state, cmd.player, cmd.ids)) if (UNITS[u.type].canGather) giveOrder(state, u, { type: 'pray', targetId: cmd.targetId }, cmd.queue);
       return { ok: true };
     }
@@ -268,7 +291,7 @@ export function applyCommand(state: GameState, cmd: Command): CommandResult {
     }
     case 'garrison': {
       const b = state.buildings.get(cmd.targetId);
-      if (!b || b.dead || state.players[b.owner].team !== player.team) return { ok: false };
+      if (!b || b.dead || !validOwner(state, b.owner) || !isAlly(state, cmd.player, b.owner)) return { ok: false };
       const units = ownedUnits(state, cmd.player, cmd.ids).filter((u) => canGarrison(u, b));
       if (units.length === 0) return { ok: false, reason: t('err.noGarrison') };
       for (const u of units) giveOrder(state, u, { type: 'garrison', targetId: b.id }, cmd.queue);

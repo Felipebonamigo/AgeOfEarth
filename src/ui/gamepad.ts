@@ -329,7 +329,7 @@ export class GamepadController {
     try { const list = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : []; for (const g of list) if (g && g.connected) { gp = g; break; } } catch { gp = null; }
     const id = gp ? gp.id : null;
     if (id !== this.padId) {
-      if (id) this.notify(t('pad.connected', { name: esc(padDisplayName(id)) }));
+      if (id) this.notify(t('pad.connected', { name: padDisplayName(id) }));
       else if (this.padId) this.notify(t('pad.disconnected'));
       this.padId = id;
     }
@@ -338,7 +338,7 @@ export class GamepadController {
   }
   private notify(text: string): void {
     if (this.session() && this.d.hud.hudVisible && !this.menuVisible()) { this.d.hud.toast(text, 'info'); return; }
-    this.bannerEl.innerHTML = text; this.bannerEl.classList.remove('hidden');
+    this.bannerEl.textContent = text; this.bannerEl.classList.remove('hidden');   // texto puro, como o toast (o nome do controle vem do navegador)
     clearTimeout(this.bannerTimer);
     this.bannerTimer = window.setTimeout(() => this.bannerEl.classList.add('hidden'), 3500);
   }

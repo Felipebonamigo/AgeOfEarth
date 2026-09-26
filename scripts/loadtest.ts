@@ -16,7 +16,9 @@
 //   --inject-desync M[:cmd]: autoteste do detector — no minuto M o bot 1 muta o próprio estado por fora de um Command
 //                     (ou, com :cmd, executa um comando que não mandou para a rede)
 //   --drop-bot N: quem cai (padrão: bot 2; 0 = o próprio anfitrião, o relay passa a vez ao próximo)
-// Cada processo filho é um bot (fork deste arquivo com --worker); o relay é um processo próprio numa porta livre.
+// Cada processo filho é um bot (fork deste arquivo com --worker); o relay é um processo próprio numa porta livre, sem limite de
+// taxa no modo acelerado (--no-rate-limit) e com os limites normais em --realtime. Com --relay externo e sem --realtime, o
+// relay precisa ter sido iniciado com --no-rate-limit.
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -318,11 +320,11 @@ async function runWorker(): Promise<void> {
     const state = createGame(config);
     const createMs = now() - t0;
     const humans = slots.map((_, i) => i);
-    const sched = new NetworkScheduler(spectator ? -1 : local, humans, delay, { sendCmds: (t, cmds) => cl.sendCmds(t, cmds), sendHash: (t, h) => cl.sendHash(t, h) });
+    const sched = new NetworkScheduler(spectator ? -1 : local, humans, delay, { sendCmds: (t, cmds) => cl.sendCmds(t, cmds), sendHash: (t, h, p) => cl.sendHash(t, h, p) });
     const g: Game = { state, sched, slots, local, spectator, config, delay, base: { kind: 'config' }, frames: [] };
     sched.onDesync = (tk) => ipc({ t: 'desync', tick: tk, detail: sched.lastDesync });
     cl.on('cmds', (m) => { const i = slots.indexOf(Number(m.slot)); if (i >= 0) sched.receive(i, Number(m.tick), (m.cmds as Command[]) ?? []); });
-    cl.on('hash', (m) => { const i = slots.indexOf(Number(m.slot)); if (i >= 0) sched.receiveHash(i, Number(m.tick), Number(m.hash)); });
+    cl.on('hash', (m) => { const i = slots.indexOf(Number(m.slot)); if (i >= 0) sched.receiveHash(i, Number(m.tick), Number(m.hash), m.parts); });
     let awaiting = -1;
     cl.on('left', (m) => {
       const i = slots.indexOf(Number(m.slot)); if (i < 0 || game !== g) return;
@@ -648,7 +650,9 @@ async function runOrchestrator(): Promise<void> {
   const relaySamples: { cpuS: number; rssMB: number; hwmMB: number; tick: number }[] = [];
   if (!relayUrl) {
     const port = await freePort();
-    relayProc = spawn(process.execPath, [path.join(ROOT, 'server/relay.mjs'), String(port)], { stdio: ['ignore', 'pipe', 'inherit'] });
+    // acelerado: os bots mandam centenas de ticks por segundo, acima do limite de taxa do relay (4.5); em tempo real o limite
+    // fica ligado — e o teste mostra que o jogo normal cabe nele
+    relayProc = spawn(process.execPath, [path.join(ROOT, 'server/relay.mjs'), String(port), ...(args.realtime ? [] : ['--no-rate-limit'])], { stdio: ['ignore', 'pipe', 'inherit'] });
     await new Promise<void>((resolve, reject) => {
       const to = setTimeout(() => reject(new Error('relay não subiu')), 10000);
       relayProc!.stdout!.on('data', (d) => { if (String(d).includes('ouvindo')) { clearTimeout(to); resolve(); } });

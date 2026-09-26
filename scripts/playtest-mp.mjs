@@ -2,6 +2,7 @@
 // e verificamos que os estados permanecem idênticos (hash) — prova do lockstep determinístico.
 import { chromium } from 'playwright';
 const url = process.argv[2] ?? 'http://localhost:4173/';
+const relay = process.argv[3] ?? 'ws://localhost:8787';   // relay em outra porta: node scripts/playtest-mp.mjs <url> <ws>
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const errors = [];
 const mk = async (name) => {
@@ -10,7 +11,7 @@ const mk = async (name) => {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`${name} ${m.text()}`); });
   await page.goto(url, { waitUntil: 'networkidle' });
   await page.click('[data-tab="multiplayer"]'); await page.waitForTimeout(200);
-  await page.fill('#mp-url', 'ws://localhost:8787'); await page.fill('#mp-room', 'TESTE'); await page.fill('#mp-name', name);
+  await page.fill('#mp-url', relay); await page.fill('#mp-room', 'TESTE'); await page.fill('#mp-name', name);
   await page.click('#mp-join'); await page.waitForTimeout(800);
   return page;
 };
@@ -39,6 +40,12 @@ await guest.keyboard.press('Enter'); await guest.waitForTimeout(150);
 console.log('campo de chat aberto no convidado:', await guest.evaluate(() => !document.getElementById('chat').classList.contains('hidden')));
 await guest.keyboard.type('gg em breve'); await guest.keyboard.press('Enter'); await host.waitForTimeout(600);
 console.log('chat na partida (anfitrião):', (await host.textContent('#messages'))?.includes('gg em breve') ? 'ok' : 'FALHOU');
+// o chat da partida é texto puro: HTML enviado por outro par aparece como texto e nunca executa (revisão 4.5)
+const xss = '<img src=x onerror="window.__xss=1">';
+await guest.keyboard.press('Enter'); await guest.waitForTimeout(150);
+await guest.keyboard.type(xss); await guest.keyboard.press('Enter'); await host.waitForTimeout(800);
+const xssHost = await host.evaluate(() => ({ text: document.getElementById('messages')?.textContent ?? '', imgs: document.querySelectorAll('#messages img').length, ran: window.__xss === 1 }));
+console.log('chat com HTML aparece como texto:', xssHost.text.includes('<img src=x onerror=') && xssHost.imgs === 0 && !xssHost.ran ? 'ok' : `FALHOU (${JSON.stringify(xssHost)})`);
 // ordens diferentes em cada cliente: cada um manda seus cidadãos para um ponto distinto
 const order = (p, dx) => p.evaluate((dx) => { const s = window.aoe.session; const ids = [...s.state.units.values()].filter((u) => u.owner === s.local && u.type === 'villager').map((u) => u.id); const tc = [...s.state.buildings.values()].find((b) => b.owner === s.local && b.type === 'town_center'); s.issue({ type: 'move', player: s.local, ids, x: tc.x + dx, y: tc.y + 6 }); }, dx);
 await order(host, -6); await order(guest, 6);

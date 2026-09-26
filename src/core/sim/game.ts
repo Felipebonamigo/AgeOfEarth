@@ -22,6 +22,7 @@ import { nearestFreeTile } from '../map/pathfinding';
 import { eliminateInScenario, getScenarioFor, initScenarioState, refreshPuppets, runScenario } from '../scenario/runner';
 import { updateKoth } from './modes';
 import { placeRelics, placeRelicsAt, updateRelics } from './relics';
+import { ownKey } from './validate';
 
 const PATH_BUDGET_PER_TICK = 48;
 const MAX_EVENTS = 200;
@@ -59,7 +60,8 @@ export function createGame(config: GameConfig): GameState {
     const resources = { food: 300, wood: 250, gold: 120, knowledge: 0, favor: 0 } as Record<ResourceType, number>;
     if (mode === 'deathmatch') for (const r of RESOURCES) resources[r] = DEATHMATCH_RESOURCES[r];   // Deathmatch: cofres cheios
     for (const r of RESOURCES) if (config.startingResources?.[r] !== undefined) resources[r] = config.startingResources[r]!;
-    const god = MAJOR_GODS[pc.god] ? pc.god : 'zeus';
+    // deus vindo do lobby (texto livre de outro par): só chave própria da tabela — `constructor`/`__proto__`/`toString` existem em qualquer objeto
+    const god = ownKey(MAJOR_GODS, pc.god) ? pc.god : 'zeus';
     const p: Player = {
       id: i, name: pc.name, color: PLAYER_COLORS[i % PLAYER_COLORS.length].num, isAI: pc.isAI, difficulty: pc.difficulty, team: pc.team ?? i,
       god, minorGods: [], age: config.startingAge ?? (mode === 'deathmatch' ? 1 : 0), resources, techs: [], powers: [{ id: MAJOR_GODS[god].power, used: false }],
@@ -205,7 +207,12 @@ export function tick(state: GameState, commands: Command[] = []): void {
     rt.hash.insert(u);
     if (u.nodeId > 0 && (u.state === 'gather' || u.state === 'return')) rt.nodeGatherers.set(u.nodeId, (rt.nodeGatherers.get(u.nodeId) ?? 0) + 1);
   }
-  for (const c of commands) applyCommand(state, c);
+  // Comandos de fora (jogadores, rede, replay): applyCommand valida tudo e não deveria lançar; se um bug fizer lançar, o
+  // comando é descartado aqui — igual em todos os clientes, que rodam o mesmo código sobre o mesmo estado — em vez de derrubar
+  // a partida. O contador fica no runtime (não serializado) para testes e diagnóstico.
+  if (Array.isArray(commands)) for (const c of commands) {
+    try { applyCommand(state, c); } catch (e) { rt.commandErrors++; rt.lastCommandError = String((e as Error)?.stack ?? e).slice(0, 500); }
+  }
   // Efeitos temporizados de poderes
   updateTimedEffects(state);
   // Unidades e edifícios: nos ticks ímpares a ordem é invertida. Quem é atualizado primeiro golpeia primeiro (o dano é

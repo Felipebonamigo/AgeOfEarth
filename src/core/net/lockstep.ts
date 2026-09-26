@@ -4,6 +4,8 @@
 import type { Command, GameState } from '../types';
 import { tick } from '../sim/game';
 import { stateHash } from './hash';
+import { diffHashParts, stateHashParts, summarizeState, validHashParts, type DesyncReport, type StateSummary } from './desync';
+import { netCommands } from '../sim/validate';
 
 export interface CommandScheduler {
   issue(cmd: Command): void;
@@ -42,7 +44,8 @@ export class ReplayScheduler implements CommandScheduler {
 
 export interface NetTransport {
   sendCmds(tick: number, cmds: Command[]): void;
-  sendHash(tick: number, hash: number): void;
+  /** parts: detalhamento do hash por categoria/jogador (desync.ts), para o relatório de dessincronização dos outros pares. */
+  sendHash(tick: number, hash: number, parts?: number[]): void;
 }
 
 export class NetworkScheduler implements CommandScheduler {
@@ -53,12 +56,18 @@ export class NetworkScheduler implements CommandScheduler {
   private outgoing: Command[] = [];
   private inbox = new Map<number, Map<number, Command[]>>();
   private lastSent = -1;
-  private hashes = new Map<number, Map<number, number>>();
-  private localHashes = new Map<number, number>();
+  private hashes = new Map<number, Map<number, { hash: number; parts?: number[] }>>();
+  /** Hash local de cada tick múltiplo de 100 ainda não conferido com todos, com o detalhamento e o resumo do estado nesse tick. */
+  private localHashes = new Map<number, { hash: number; parts: number[]; summary: StateSummary }>();
+  /** Último tick executado (mensagens para ticks já executados nunca serão usadas: descartadas). */
+  private executed = -1;
   onDesync: ((tick: number) => void) | null = null;
   desynced = false;
-  /** Detalhes da primeira dessincronização (para o relatório): tick, hash local e hashes dos outros pares. */
-  lastDesync: { tick: number; mine: number; theirs: [number, number][] } | null = null;
+  /**
+   * Relatório da primeira dessincronização: tick, hash local e dos outros pares, categorias divergentes por par (mundo,
+   * jogador, recursos, unidades, edifícios de cada jogador) e o resumo do estado local nesse tick (desync.ts).
+   */
+  lastDesync: DesyncReport | null = null;
   waiting = 0;   // ticks consecutivos aguardando (para a interface mostrar "aguardando jogadores")
   /** Jogador reconectado: seus comandos só são exigidos a partir do tick guardado (todos os pares usam o mesmo valor). */
   private rejoinAt = new Map<number, number>();
@@ -92,20 +101,44 @@ export class NetworkScheduler implements CommandScheduler {
     this.rejoinAt.set(this.local, resumeTick);
   }
 
+  /**
+   * Comandos de um par para o tick t. Anti-trapaça básico (4.5): tick inteiro ainda não executado; de outro par, só ticks em
+   * que ele é aguardado (a partir do atraso, par ainda na partida e depois do tick de retorno de quem reconectou) — num tick
+   * em que ninguém o espera, quem já o executou descartaria e quem não executou aplicaria (dessincronização); e só a PRIMEIRA
+   * mensagem de cada (par, tick) vale, pelo mesmo motivo. A lista passa por netCommands (validate.ts): em nome do próprio
+   * jogador, sem ids repetidos, com limites por tick — igual para o par local, que envia essa mesma lista. O resto da
+   * validação (forma, dono, alvo, custo…) é de applyCommand, igual em todos os clientes.
+   */
   receive(slot: number, t: number, cmds: Command[]): void {
+    if (!Number.isSafeInteger(t) || t < 0 || t <= this.executed) return;
+    if (slot !== this.local && (t < this.delay || !this.humans.has(slot) || t <= (this.rejoinAt.get(slot) ?? -1))) return;
     let m = this.inbox.get(t); if (!m) { m = new Map(); this.inbox.set(t, m); }
-    // Anti-trapaça básico: um par só pode emitir comandos em nome do próprio jogador
-    m.set(slot, slot === this.local ? cmds : cmds.filter((c) => c.player === slot));
+    if (slot === this.local) { m.set(slot, netCommands(slot, cmds)); return; }
+    if (m.has(slot)) return;
+    m.set(slot, netCommands(slot, cmds));
   }
-  receiveHash(slot: number, t: number, hash: number): void {
+  receiveHash(slot: number, t: number, hash: number, parts?: unknown): void {
+    if (!Number.isSafeInteger(t) || t < 0 || !Number.isInteger(hash) || hash < 0 || hash > 0xffffffff) return;
     let m = this.hashes.get(t); if (!m) { m = new Map(); this.hashes.set(t, m); }
-    m.set(slot, hash);
+    if (m.has(slot)) return;   // primeiro hash de cada par por tick
+    m.set(slot, validHashParts(parts) ? { hash, parts } : { hash });
     this.checkHash(t);
   }
   private checkHash(t: number) {
     const mine = this.localHashes.get(t); const others = this.hashes.get(t);
     if (mine === undefined || !others) return;
-    for (const [, h] of others) if (h !== mine && !this.desynced) { this.desynced = true; this.lastDesync = { tick: t, mine, theirs: [...others.entries()] }; this.onDesync?.(t); }
+    if (!this.desynced) {
+      const bad = [...others.entries()].filter(([, o]) => o.hash !== mine.hash);
+      if (bad.length > 0) {
+        this.desynced = true;
+        this.lastDesync = {
+          tick: t, local: this.local, mine: mine.hash, theirs: [...others.entries()].map(([p, o]) => [p, o.hash] as [number, number]),
+          diverged: bad.map(([p, o]) => ({ player: p, categories: diffHashParts(mine.parts, o.parts) })),
+          parts: mine.parts, summary: mine.summary,
+        };
+        this.onDesync?.(t);
+      }
+    }
     if (others.size >= this.humans.size - (this.local >= 0 ? 1 : 0)) { this.hashes.delete(t); this.localHashes.delete(t); }
   }
 
@@ -115,7 +148,7 @@ export class NetworkScheduler implements CommandScheduler {
     const target = T + this.delay;
     if (this.local >= 0 && this.lastSent < target) {
       for (let t = Math.max(this.lastSent + 1, 0); t <= target; t++) {
-        const cmds = t === target ? this.outgoing : [];
+        const cmds = netCommands(this.local, t === target ? this.outgoing : []);   // a lista enviada é a mesma que o par local aplica
         this.receive(this.local, t, cmds);
         this.transport.sendCmds(t, cmds);
       }
@@ -131,7 +164,16 @@ export class NetworkScheduler implements CommandScheduler {
     if (m) for (const p of [...m.keys()].sort((a, b) => a - b)) cmds.push(...(m.get(p) ?? []));
     this.inbox.delete(T);
     tick(state, cmds);
-    if (state.tick % 100 === 0) { const h = stateHash(state); this.localHashes.set(state.tick, h); if (this.local >= 0) this.transport.sendHash(state.tick, h); this.checkHash(state.tick); }
+    this.executed = T;
+    if (state.tick % 100 === 0) {
+      const h = stateHash(state), parts = stateHashParts(state);
+      this.localHashes.set(state.tick, { hash: h, parts, summary: summarizeState(state) });
+      // hashes que um par que caiu nunca vai mandar: não guarda mais que ~5 min de conferências pendentes
+      for (const k of this.localHashes.keys()) if (k < state.tick - 6000) this.localHashes.delete(k);
+      for (const k of this.hashes.keys()) if (k < state.tick - 6000) this.hashes.delete(k);
+      if (this.local >= 0) this.transport.sendHash(state.tick, h, parts);
+      this.checkHash(state.tick);
+    }
     return true;
   }
 }
