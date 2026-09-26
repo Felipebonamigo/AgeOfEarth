@@ -76,7 +76,7 @@ export type Action =
 /** Como o HUD escreve o valor de uma barra: porcentagem (padrão), contagem "12/30" ou tempo "2:15 / 6:00". */
 export type HudFormat = 'percent' | 'count' | 'time';
 export type ScenarioHud =
-  // fromVar (G4): contagem relativa, a partir do instante guardado na variável (setVar { time: true }); sem a marca, não aparece
+  // fromVar (G4): contagem relativa, a partir do instante guardado na variável (setVar { time: true }); sem a marca, não aparece (valor em `vars` vale como marca)
   | { type: 'countdown'; seconds: number; while: Condition; label: Text; fromVar?: string }
   | { type: 'progress'; entity: EntityRef; max: number; label: Text; while?: Condition; format?: HudFormat }       // obra de um edifício
   | { type: 'progress'; var: string; max: Value; label: Text; while?: Condition; format?: HudFormat };             // G4: variável do cenário
@@ -556,9 +556,12 @@ class Validator {
         else this.unitFilter(a.units, `${path}.units`, inLoop, depth);
         const o = a.order;
         if (!isObj(o)) { this.err(`${path}.order`, 'ordem inválida'); return; }
-        if (ORDER_POINT.includes(o.type as string)) this.point(o.at, `${path}.order.at`, inLoop);
-        else if (ORDER_TARGET.includes(o.type as string)) this.entity(o.target, `${path}.order.target`, inLoop);
-        else if (o.type === 'ungarrison') { if (o.target !== undefined) this.entity(o.target, `${path}.order.target`, inLoop); }   // G6: sem alvo, sai de onde estiver
+        // o campo que não é do tipo é recusado: o motor decide pelo tipo, e um 'at' a mais deixaria uma ordem inválida na unidade
+        if (ORDER_POINT.includes(o.type as string)) { this.point(o.at, `${path}.order.at`, inLoop); if (o.target !== undefined) this.err(`${path}.order.target`, `a ordem '${String(o.type)}' usa at, não target`); }
+        else if (ORDER_TARGET.includes(o.type as string) || o.type === 'ungarrison') {
+          if (o.type !== 'ungarrison' || o.target !== undefined) this.entity(o.target, `${path}.order.target`, inLoop);   // G6: ungarrison sem alvo sai de onde estiver
+          if (o.at !== undefined) this.err(`${path}.order.at`, `a ordem '${String(o.type)}' usa target, não at`);
+        }
         else this.err(`${path}.order.type`, `tipo de ordem desconhecido: '${String(o.type)}'`);
         return;
       }
@@ -603,7 +606,9 @@ class Validator {
  * 5) jogador sem IA fora do time do primeiro humano sem o campo `puppet`: numa partida local ninguém o controla. Marque
  *    `puppet: true` (facção roteirizada) ou `puppet: false` (adversário humano, cenário em rede);
  * 6) nome próprio (spawn/place `name`, G8) sem `en`;
- * 7) variável do HUD (G4: progress `var`, countdown `fromVar`) que nenhum setVar/addVar escreve e que não está em `vars`.
+ * 7) variável do HUD (G4): progress `var` que nenhum setVar/addVar escreve e que não está em `vars`; countdown `fromVar`
+ *    sem setVar cujo valor tenha { time: true } (addVar e `vars` não marcam instante) ou declarada em `vars` (o valor
+ *    inicial já vale como marca e a contagem apareceria desde o início).
  */
 function lint(f: Record<string, unknown>, warn: (path: string, message: string) => void): void {
   const setupTags = new Set<string>();
@@ -732,14 +737,23 @@ function lint(f: Record<string, unknown>, warn: (path: string, message: string) 
   eachAction(f.setup, 'setup', nameCheck);
   triggers.forEach((tr, i) => { if (isObj(tr)) eachAction(tr.then, `triggers[${i}].then`, nameCheck); });
 
-  // 7) variável do HUD (G4) que ninguém escreve: a barra fica em 0 / a contagem relativa nunca aparece
-  const written = new Set<string>(isObj(f.vars) ? Object.keys(f.vars) : []);
-  const collectVar = (a: Record<string, unknown>) => { if ((a.do === 'setVar' || a.do === 'addVar') && typeof a.name === 'string') written.add(a.name); };
+  // 7) variável do HUD (G4) que ninguém escreve: a barra fica em 0 / a contagem relativa nunca aparece (ou aparece cedo)
+  const declared = new Set<string>(isObj(f.vars) ? Object.keys(f.vars) : []);
+  const written = new Set<string>(declared);
+  const marked = new Set<string>();   // setVar com { time: true } no valor: só isso marca o instante do fromVar
+  const hasTime = (v: unknown): boolean => isObj(v) && (v.time === true || (Array.isArray(v.add) && hasTime(v.add[0])));
+  const collectVar = (a: Record<string, unknown>) => {
+    if ((a.do === 'setVar' || a.do === 'addVar') && typeof a.name === 'string') written.add(a.name);
+    if (a.do === 'setVar' && typeof a.name === 'string' && hasTime(a.value)) marked.add(a.name);
+  };
   eachAction(f.setup, 'setup', collectVar);
   for (const tr of triggers) if (isObj(tr)) eachAction(tr.then, '', collectVar);
   if (Array.isArray(f.hud)) f.hud.forEach((h, i) => {
     if (!isObj(h)) return;
-    if (h.type === 'countdown' && typeof h.fromVar === 'string' && !written.has(h.fromVar)) warn(`hud[${i}].fromVar`, `variável '${h.fromVar}' nunca é marcada (setVar com { "time": true }): a contagem não aparece`);
+    if (h.type === 'countdown' && typeof h.fromVar === 'string') {
+      if (declared.has(h.fromVar)) warn(`hud[${i}].fromVar`, `variável '${h.fromVar}' declarada em vars: o valor inicial já vale como marca e a contagem aparece desde o início (deixe-a fora de vars)`);
+      else if (!marked.has(h.fromVar)) warn(`hud[${i}].fromVar`, `variável '${h.fromVar}' nunca é marcada (setVar com { "time": true }): a contagem não aparece`);
+    }
     if (h.type === 'progress' && typeof h.var === 'string' && !written.has(h.var)) warn(`hud[${i}].var`, `variável '${h.var}' nunca é escrita (setVar/addVar ou vars): a barra fica em 0`);
   });
 }

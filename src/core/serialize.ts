@@ -35,7 +35,7 @@ export function deserialize(json: string): GameState {
   // O contador de ids de nós vem do save (quem carrega o instantâneo precisa gerar os mesmos ids que o criador); saves antigos: máximo + 1
   resetNodeSeq(Math.max(typeof o.nodeSeq === 'number' ? o.nodeSeq : 0, maxNode + 1, NODE_ID_BASE));
   const state: GameState = {
-    config: migrateLegacyPuppets(o.config), seed: o.seed, tick: o.tick, time: o.time, nextId: o.nextId,
+    config: migrateScenarioLocks(migrateLegacyPuppets(o.config)), seed: o.seed, tick: o.tick, time: o.time, nextId: o.nextId,
     map: { w, h, terrain, blocked, nodeAt, buildingAt, gateTeam, nodes, starts: o.map.starts, decor: Uint8Array.from(o.map.decor as number[]) },
     players: (o.players as (Player & { visibility: number[] })[]).map((p) => ({ ...p, team: p.team ?? p.id, visibility: Uint8Array.from(p.visibility), mods: { gather: { food: 1, wood: 1, gold: 1, knowledge: 1, favor: 1, hunt: 1, farm: 1 }, player: { territory: 0, cityLimit: 1, attrition: 0, attritionResist: 0, favorRate: 1, knowledgeRate: 1, researchCost: 1, buildSpeed: 1, trainSpeed: 1, popCap: 0, los: 0, tradeTax: 1, regen: 0 }, unitEffects: [], buildingEffects: [], version: 0 } })),
     units: new Map((o.units as Unit[]).map((u) => [u.id, scenarioExtras({ ...u, inside: u.inside ?? -1, resumeNodeId: u.resumeNodeId ?? -1, avoidIds: u.avoidIds ?? [], avoidUntil: u.avoidUntil ?? 0, blockedTicks: u.blockedTicks ?? 0, abilityReadyAt: u.abilityReadyAt ?? 0, buffUntil: u.buffUntil ?? 0, buffAttack: u.buffAttack ?? 1, buffSpeed: u.buffSpeed ?? 1, buffHaste: u.buffHaste ?? 1, buffWard: u.buffWard ?? false, chargeUntil: u.chargeUntil ?? 0 })])), buildings: new Map((o.buildings as Building[]).map((b) => [b.id, scenarioExtras({ ...b, garrison: b.garrison ?? [] })])),
@@ -71,6 +71,7 @@ function legacyWinnerTeam(o: { scenario?: { outcome?: string }; config: { player
   return i >= 0 ? (o.players[i]?.team ?? i) : -1;
 }
 import { migrateLegacyPuppets } from './scenario/helpers';
+import { migrateScenarioLocks } from './scenario/runner';
 import * as constants from './constants';
 import * as data from './data';
 import * as mods from './sim/modifiers';

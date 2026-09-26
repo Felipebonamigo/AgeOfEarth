@@ -8,6 +8,7 @@ import { rectReachable } from '../map/components';
 import { giveOrder } from '../sim/units';
 import { killUnit, destroyBuilding } from '../sim/combat';
 import { canGarrison, ejectGarrison, removeBuildingNow, removeUnitNow } from '../sim/entities';
+import { queueItemCost, refund } from '../sim/economy';
 import { getLocale } from '../../i18n';
 import type { ObjectiveDef, ObjectiveStatus, ScenarioDef, ScenarioHudDef, TriggerCtx, TriggerDef } from './types';
 import type { Action, BuildingFilter, Cmp, Condition, EntityRef, PlayerSel, Point, ScenarioFile, UnitFilter, Value } from './schema';
@@ -128,6 +129,14 @@ function wonderHeldSeconds(state: GameState, owner: number): number {
   return best;
 }
 
+/**
+ * G9: fração da vida (0-1) arredondada a 1e-9. O piso grava hp = maxHp·f, e (maxHp·f)/maxHp pode sair um ulp acima de f
+ * (ex.: 130.9/154 = 0.8500000000000001): sem o arredondamento, { hp: { lte: f } } nunca valeria com o chefe no piso.
+ */
+function hpFraction(e: Unit | Building): number {
+  return e.maxHp > 0 ? Math.round((e.hp / e.maxHp) * 1e9) / 1e9 : 0;
+}
+
 function typeMatch(type: string | string[] | undefined, t: string): boolean {
   return type === undefined || (Array.isArray(type) ? type.includes(t) : type === t);
 }
@@ -201,7 +210,7 @@ function evalCondition(env: Env, c: Condition): boolean {
       if (c.complete !== undefined && e.complete !== c.complete) return false;
       if (c.progress !== undefined && !cmp(env, c.progress, e.progress)) return false;
     } else if (c.complete !== undefined || c.progress !== undefined) return false;   // unidade não tem obra
-    if (c.hp !== undefined && !cmp(env, c.hp, e.maxHp > 0 ? e.hp / e.maxHp : 0)) return false;   // G9: fração da vida
+    if (c.hp !== undefined && !cmp(env, c.hp, hpFraction(e))) return false;   // G9: fração da vida
     return true;
   }
   if ('koth' in c) { const k = s.koth; return cmp(env, c, k && k.team === c.koth.team ? k.seconds : 0); }
@@ -228,6 +237,10 @@ function storeTag(state: GameState, tag: string, ids: number[]): void {
   // a tag reusada substitui o grupo: apaga os índices do grupo antigo além do novo tamanho (senão tagIds os contaria)
   for (let k = ids.length; vars[`#${tag}[${k}]`] !== undefined; k++) delete vars[`#${tag}[${k}]`];
 }
+
+type OrderSpec = Extract<Action, { do: 'order' }>['order'];
+/** Ordem por ponto (move/attackMove): decidida pelo tipo, não pela presença de 'at' (a validação recusa o campo trocado). */
+function isPointOrder(o: OrderSpec): o is Extract<OrderSpec, { at: Point }> { return o.type === 'move' || o.type === 'attackMove'; }
 
 function runActions(env: Env, ctx: TriggerCtx, list: Action[]): void {
   for (const a of list) runAction(env, ctx, a);
@@ -294,7 +307,7 @@ function runAction(env: Env, ctx: TriggerCtx, a: Action): void {
     case 'order': {
       const units = 'tag' in a.units && !('player' in a.units) ? tagIds(s, a.units.tag).map((id) => s.units.get(id)).filter((u): u is Unit => !!u && !u.dead) : unitsMatching(env, a.units as UnitFilter);
       const o = a.order;
-      if ('at' in o) { const pt = point(env, o.at); if (!pt) return; for (const u of units) giveOrder(s, u, { type: o.type, x: pt.x, y: pt.y }); }
+      if (isPointOrder(o)) { const pt = point(env, o.at); if (!pt) return; for (const u of units) giveOrder(s, u, { type: o.type, x: pt.x, y: pt.y }); }   // pelo tipo, não por 'at'
       else if (o.type === 'ungarrison') {   // G6: sai do alvo (ou, sem alvo, de qualquer edifício em que esteja)
         const from = o.target ? entity(env, o.target) : undefined;
         if (o.target && (!from || from.kind !== 'building')) return;
@@ -303,13 +316,24 @@ function runAction(env: Env, ctx: TriggerCtx, a: Action): void {
         for (const [bid, ids] of byBuilding) { const b = s.buildings.get(bid); if (b && !b.dead) ejectGarrison(s, b, ids); }
       } else {
         const e = entity(env, o.target); if (!e) return;
-        if (o.type === 'garrison') { if (e.kind !== 'building') return; for (const u of units) if (canGarrison(u, e)) giveOrder(s, u, { type: 'garrison', targetId: e.id }); }   // G6
+        if (o.type === 'garrison') {   // G6: só em edifício aliado (mesma regra do comando 'garrison'); os demais seguem a ordem atual
+          if (e.kind !== 'building') return;
+          const team = s.players[e.owner]?.team;
+          for (const u of units) if (s.players[u.owner]?.team === team && canGarrison(u, e)) giveOrder(s, u, { type: 'garrison', targetId: e.id });
+        }
         else for (const u of units) giveOrder(s, u, { type: o.type, targetId: e.id });
       }
       return;
     }
     case 'kill': { const e = entity(env, a.entity); if (!e) return; if (e.kind === 'unit') killUnit(s, e, -1); else destroyBuilding(s, e, -1); return; }
-    case 'remove': { const e = entity(env, a.entity); if (!e) return; if (e.kind === 'unit') removeUnitNow(s, e); else removeBuildingNow(s, e); return; }   // G6: sem morte nem abate
+    case 'remove': {   // G6: sem morte nem abate; a fila do edifício (unidades, tecnologias, avanço de Idade) é reembolsada como no destroyBuilding
+      const e = entity(env, a.entity); if (!e) return;
+      if (e.kind === 'unit') { removeUnitNow(s, e); return; }
+      const owner = s.players[e.owner];
+      if (owner) for (const q of e.queue) refund(owner, queueItemCost(s, owner, q));
+      removeBuildingNow(s, e);
+      return;
+    }
     case 'hpFloor': { const e = entity(env, a.entity); if (!e) return; if (a.value > 0) e.hpFloor = Math.min(1, a.value); else delete e.hpFloor; return; }   // G9
     case 'damage': case 'heal': {   // G9
       const e = entity(env, a.entity); if (!e) return;
@@ -395,7 +419,7 @@ export function scenarioConfig(file: ScenarioFile): ScenarioDef['config'] {
 }
 
 /** Cópia das listas (a config da partida não compartilha arrays com o arquivo em cache). */
-function copyForbid(f: Forbid): Forbid {
+export function copyForbid(f: Forbid): Forbid {
   const out: Forbid = {};
   if (f.buildings) out.buildings = [...f.buildings];
   if (f.units) out.units = [...f.units];
@@ -438,7 +462,7 @@ export function compileScenario(file: ScenarioFile): ScenarioDef {
   if (file.hud) def.hud = file.hud.map((h): ScenarioHudDef => {
     if (h.type === 'countdown') {
       const d: ScenarioHudDef = { type: 'countdown', seconds: h.seconds, while: (state) => evalCondition(envOf(state), h.while), label: tx(h.label) };
-      const from = h.fromVar;   // G4: contagem relativa ao instante marcado (setVar { time: true }); sem marca, não aparece
+      const from = h.fromVar;   // G4: contagem relativa ao instante marcado (setVar { time: true }); sem marca, não aparece (valor em `vars` vale como marca; o lint avisa)
       if (from) d.start = (state) => { const v = state.scenario?.vars[from]; return typeof v === 'number' ? v : null; };
       return d;
     }

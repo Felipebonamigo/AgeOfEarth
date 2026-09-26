@@ -65,6 +65,8 @@ export class HUD {
   private acc = 0; private mmAcc = 0;
   private lastSelKey = '';
   private lastCmdKey = '';
+  private padPage: number | null = null;   // página da grade marcada pelo controle (setPadGrid)
+  private lastCmdSel = '';   // seleção/modo do último redesenho da grade (mantém a rolagem)
   private gameOverShown = false;
   private muteBtn: HTMLElement | null = null;
   /** Último evento consumido (o cursor por índice se perde quando o núcleo descarta eventos antigos). */
@@ -86,7 +88,7 @@ export class HUD {
   }
 
   setSession(s: Session | null) {
-    this.session = s; this.lastEv = null; this.lastSelKey = ''; this.lastCmdKey = ''; this.lastObjKey = ''; this.gameOverShown = false;   // lastObjKey: outra partida do mesmo cenário precisa redesenhar (e reexibir) o painel de objetivos
+    this.session = s; this.lastEv = null; this.lastSelKey = ''; this.lastCmdKey = ''; this.lastCmdSel = ''; this.lastObjKey = ''; this.gameOverShown = false;   // lastObjKey: outra partida do mesmo cenário precisa redesenhar (e reexibir) o painel de objetivos
     this.dlg.clear(); this.renderDialogue();   // falas da partida anterior não passam para a próxima
     this.msgPanel.innerHTML = '';
     if (s) { s.onSelectionChanged = () => { this.refreshSelection(true); }; this.refreshGods(); this.refreshTop(); }
@@ -432,6 +434,11 @@ export class HUD {
     const key = `${[...s.selection].join(',')}|${s.ui.mode}|${s.ui.placeType}|${p.age}|${p.techs.length}|${p.minorGods.length}|${b?.garrison.length ?? 0}|${Object.values(p.resources).map((v) => Math.floor(v / 25)).join(',')}|${p.pop}/${p.popCap}|${b?.queue.length}|${b?.scholars}`;
     if (!force && key === this.lastCmdKey) return;
     this.lastCmdKey = key;
+    // a grade rola (styles.css): com a mesma seleção, o redesenho (recursos, fila…) mantém a rolagem; seleção nova volta ao topo
+    const sel = `${[...s.selection].join(',')}|${s.ui.mode}|${s.ui.placeType}`;
+    const top = sel === this.lastCmdSel ? this.cmdPanel.scrollTop : 0;
+    this.lastCmdSel = sel;
+    if (top > 0) queueMicrotask(() => { this.cmdPanel.scrollTop = top; });   // depois de repovoar (o corpo tem vários return)
     this.cmdPanel.innerHTML = '';
     const add = (icon: string, label: string, tip: string, hk: string | null, onClick: (() => void) | null, opts: { disabled?: boolean; active?: boolean; used?: boolean } = {}) => {
       const btn = el('button', `cmd ${opts.active ? 'active' : ''} ${opts.used ? 'used' : ''}`, `<span class="ic">${icon}</span><span class="lbl">${label}</span>${hk ? `<span class="hk">${hk}</span>` : ''}`) as HTMLButtonElement;
@@ -579,11 +586,15 @@ export class HUD {
   /** Marca a página `page` da grade com as letras dos botões do controle (null: tira as marcas). */
   setPadGrid(page: number | null, labels: string[]) {
     this.cmdPanel.classList.toggle('pad-grid', page !== null);
-    this.commandButtons().forEach((b, i) => {
+    const btns = this.commandButtons();
+    btns.forEach((b, i) => {
       const slot = page === null ? -1 : i - page * 4;
       const want = slot >= 0 && slot < labels.length ? labels[slot] : '';
       if ((b.dataset.pad ?? '') !== want) { if (want) b.dataset.pad = want; else delete b.dataset.pad; }
     });
+    // página nova: rola a grade até ela (as linhas de baixo ficam fora da área visível)
+    if (page !== null && page !== this.padPage) btns[page * 4]?.scrollIntoView?.({ block: 'nearest' });   // ?.: jsdom não tem scrollIntoView
+    this.padPage = page;
   }
   /** Dicas de botões no HUD (html pronto; null esconde). */
   setPadHints(html: string | null) {
