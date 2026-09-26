@@ -51,7 +51,15 @@ export interface ScriptedRunOpts extends MissionRunOpts {
   detach?: ScriptDetach;
   /** Poderes guardados para os passos: a IA do jogador 0 não os usa (ver MissionScript.keepPowers). */
   keepPowers?: string[];
+  /** Condições conferidas no fim (ver MissionScript.atEnd); as que não valem vão para MissionRunResult.endIssues. */
+  atEnd?: ScriptEndCheck[];
 }
+
+/**
+ * Condição conferida no fim do roteiro, com o rótulo que aparece na falha. Sem `seconds`, precisa valer no estado final; com
+ * `seconds`, precisa ter valido em ao menos N segundos da partida (amostrada uma vez por segundo; ex.: o chefe da m8 atacando).
+ */
+export interface ScriptEndCheck { label: string; when: Condition; seconds?: number }
 
 /**
  * Destacamento de um roteiro (ex.: Odisseu, os náufragos e a escolta da m5, que a IA do jogador levaria de volta ao ponto de
@@ -95,6 +103,8 @@ export interface MissionRunResult {
   hash: number;
   error?: string;
   checks: MissionChecks;
+  /** Rótulos das condições de `atEnd` que não valiam no estado final (só roteiros que as declaram). */
+  endIssues?: string[];
 }
 
 /** Config de partida da missão na dificuldade pedida (mesma regra da aba Campanha: missionConfig). */
@@ -112,7 +122,7 @@ export function missionRunConfig(src: MissionSource, difficulty: CampaignDifficu
 
 const TITANS = Object.keys(UNITS).filter((k) => UNITS[k].tags.includes('titan'));
 
-function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; reserve?: ScriptReserve | ScriptReserve[]; detach?: ScriptDetach; keepPowers?: string[] }, steps: ScriptStep[] | null): MissionRunResult {
+function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; reserve?: ScriptReserve | ScriptReserve[]; detach?: ScriptDetach; keepPowers?: string[]; atEnd?: ScriptEndCheck[] }, steps: ScriptStep[] | null): MissionRunResult {
   const difficulty = opts.difficulty ?? 'normal';
   const raids: RaidRecord[] = [];
   const checks: MissionChecks = { noException: true, noEarlyObjective: true, oneTitanEach: true, raidsSpawned: true, deterministic: true };
@@ -120,6 +130,8 @@ function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; 
   let state: GameState | null = null;
   const stepsFired: string[] = [];
   let error: string | undefined;
+  let endIssues: string[] | undefined;
+  const endChecks = steps ? (opts.atEnd ?? []).map((c) => ({ ...c, test: compileCondition(c.when), held: 0 })) : [];
   setRaidObserver((r) => raids.push(r));
   try {
     const run = missionRunConfig(src, difficulty); id = run.id;
@@ -170,8 +182,10 @@ function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; 
           for (const u of state.units.values()) if (!u.dead && TITANS.includes(u.type)) n.set(u.type, (n.get(u.type) ?? 0) + 1);
           for (const v of n.values()) if (v > 1) checks.oneTitanEach = false;
         }
+        for (const c of endChecks) if (c.seconds !== undefined && c.test(state)) c.held++;
       }
     }
+    if (endChecks.length) { const end = state; endIssues = endChecks.filter((c) => (c.seconds !== undefined ? c.held < c.seconds : !c.test(end))).map((c) => c.label); }
   } catch (e) {
     checks.noException = false; error = (e as Error)?.stack ?? String(e);
   } finally { setRaidObserver(null); }
@@ -188,10 +202,11 @@ function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; 
     hash: state ? stateHash(state) : 0,
     ...(error ? { error } : {}),
     checks,
+    ...(endIssues ? { endIssues } : {}),
   };
 }
 
-function withDeterminism(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; reserve?: ScriptReserve | ScriptReserve[]; detach?: ScriptDetach; keepPowers?: string[] }, steps: ScriptStep[] | null): MissionRunResult {
+function withDeterminism(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; reserve?: ScriptReserve | ScriptReserve[]; detach?: ScriptDetach; keepPowers?: string[]; atEnd?: ScriptEndCheck[] }, steps: ScriptStep[] | null): MissionRunResult {
   const a = runOnce(src, opts, steps);
   if (opts.deterministic === false || !a.checks.noException) return a;
   const b = runOnce(src, opts, steps);
@@ -381,6 +396,12 @@ export interface MissionScript {
    * passos, que os usam na hora que um jogador usaria (ex.: o Oráculo da m7 aos 150 s, e não no 2º segundo). Sem o campo, nada muda.
    */
   keepPowers?: string[];
+  /**
+   * Condições conferidas no fim do roteiro, além da janela (ScriptEndCheck: no estado final ou por N segundos da partida; ex.: na
+   * m8, Oceano atacando por ao menos 25 s — prova que o chefe lutou, coisa que a janela não discrimina, porque o relógio das
+   * marés já põe a vitória mais rápida perto dela). scriptVerdict falha com o rótulo de cada uma que não valer.
+   */
+  atEnd?: ScriptEndCheck[];
   /** Outros caminhos medidos da mesma missão (ex.: a escolta sem trégua da m5), cada um com a própria janela; scripts/missions.ts roda todos. */
   variants?: MissionVariant[];
 }
@@ -405,8 +426,11 @@ export function scriptVerdict(r: MissionRunResult, script: MissionScript | undef
   if (!script) return { ok: false, inWindow: false, reason: 'missão sem roteiro em MISSION_SCRIPTS' };
   const [lo, hi] = script.expect;
   const inWindow = r.outcome === 'victory' && r.atSeconds >= lo * 60 && r.atSeconds <= hi * 60;
-  if (inWindow) return { ok: true, inWindow };
-  const reason = r.outcome !== 'victory' ? `${fmtOutcome(r)}: sem vitória dentro de ${script.minutes} min` : `${fmtOutcome(r)}: vitória fora da janela ${fmtMinSec(Math.round(lo * 60))}–${fmtMinSec(Math.round(hi * 60))}`;
+  const missing = r.endIssues ?? [];
+  if (inWindow && !missing.length) return { ok: true, inWindow };
+  const reason = r.outcome !== 'victory' ? `${fmtOutcome(r)}: sem vitória dentro de ${script.minutes} min`
+    : !inWindow ? `${fmtOutcome(r)}: vitória fora da janela ${fmtMinSec(Math.round(lo * 60))}–${fmtMinSec(Math.round(hi * 60))}`
+    : `${fmtOutcome(r)}: no fim não vale ${missing.map((m) => `'${m}'`).join(', ')}`;
   const exception = script.exceptions?.[r.difficulty];
   return exception ? { ok: true, inWindow, exception, reason } : { ok: false, inWindow, reason };
 }
@@ -416,7 +440,7 @@ export function runMissionScript(id: string, difficulty: CampaignDifficulty, det
   const main = MISSION_SCRIPTS[id];
   const sc: MissionScript | undefined = variant === undefined ? main : main?.variants?.find((v) => v.label === variant);
   if (variant !== undefined && !sc) throw new Error(`variante desconhecida: ${id}/${variant}`);
-  return runScripted(id, { minutes: sc?.minutes ?? 30, difficulty, steps: sc?.steps ?? [], deterministic, playerAi: sc?.playerAi, hold: sc?.hold, earlyOk: sc?.earlyOk, reserve: sc?.reserve, detach: sc?.detach, keepPowers: sc?.keepPowers });
+  return runScripted(id, { minutes: sc?.minutes ?? 30, difficulty, steps: sc?.steps ?? [], deterministic, playerAi: sc?.playerAi, hold: sc?.hold, earlyOk: sc?.earlyOk, reserve: sc?.reserve, detach: sc?.detach, keepPowers: sc?.keepPowers, atEnd: sc?.atEnd });
 }
 
 /**
@@ -1125,12 +1149,12 @@ function m7Hunt(state: GameState): Command[] {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// m8 "A Maré de Oceano": defesa de Argos na crista da Áspis e o chefe-Titã em três marés (o Raio guardado para a última)
+// m8 "A Maré de Oceano": defesa de Argos na crista da Áspis e o chefe-Titã em três marés (o roteiro guarda o Raio para a última)
 // ---------------------------------------------------------------------------------------------------------------
 
-/** m8: composição do exército (pesos): os quatro heróis (dano triplo em míticas, e o Titã é uma), infantaria pesada na frente,
- * arqueiros cretenses atrás, Minotauros de Atena e petróbolos contra as ondas da Liga. */
-const M8_MIX: Record<string, number> = { jason: 1, odysseus: 1, heracles: 1, achilles: 1, hypaspist: 3, myrmidon: 3, cretan_archer: 3, minotaur: 2, hetairoi: 1, petrobolos: 1 };
+/** m8: composição do exército (pesos): os três heróis de Argos (dano triplo em míticas, e o Titã é uma; Aquiles morreu na m7 e
+ * está proibido), infantaria pesada na frente, arqueiros cretenses atrás, Minotauros de Atena e petróbolos contra as ondas. */
+const M8_MIX: Record<string, number> = { jason: 1, odysseus: 1, heracles: 1, hypaspist: 3, myrmidon: 3, cretan_archer: 3, minotaur: 2, hetairoi: 1, petrobolos: 1 };
 /** m8: a brecha da crista (as três casas abertas entre os muros das pontas) e o ponto de reunião do exército, dentro da muralha. */
 const M8_BREACH: [number, number][] = [[63, 38], [64, 38], [65, 38]];
 const M8_HOME = { x: 64, y: 32 };
@@ -1317,6 +1341,15 @@ function m8ArmyReserve(state: GameState, titans: boolean): Partial<Record<Resour
   if (!firstBuilding(state, 'titan_gate')) return { food: 750, wood: 750, gold: 700, favor: 200 };
   return base;
 }
+
+/**
+ * m8: o chefe lutou — Oceano em `attack` por ao menos 25 s na partida. A janela não discrimina um Titã que só marcha (o relógio
+ * das marés já põe a vitória mais rápida perto dos 22 min), e foi assim que uma coleira que o trocava para `move` desde a subida
+ * passou despercebida: com ela, 1–15 s de ataque nas três dificuldades; corrigida, 41–135 s nas três e na
+ * variante (o Raio o derruba em segundos na 3ª maré). Abates não servem de prova: com o dano em área, 8 s de ataque na brecha
+ * já davam 40.
+ */
+const M8_FOUGHT: ScriptEndCheck[] = [{ label: 'Oceano atacou por ao menos 25 s', when: { units: { player: 2, tag: 'oceano', state: 'attack' }, gte: 1 }, seconds: 25 }];
 
 /** m8: os passos do roteiro (titans: a variante dos Titãs acrescenta o caminho até Prometeu e guarda o custo dele). */
 function m8Steps(titans: boolean): ScriptStep[] {
@@ -1560,6 +1593,7 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
     hold: { time: { gte: 0 } },
     keepPowers: ['bolt'],
     detach: (s) => m8Detach(s, false),
+    atEnd: M8_FOUGHT,
     steps: m8Steps(false),
     variants: [{
       // a 3ª resposta da ficha: Idade dos Titãs e Prometeu pelo Portal (Fortaleza, 6 pesquisas da Academia, a Idade e o Portal,
@@ -1568,6 +1602,7 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
       hold: { time: { gte: 0 } },
       keepPowers: ['bolt'],
       detach: (s) => m8Detach(s, true),
+      atEnd: M8_FOUGHT,
       reserve: [
         { when: { not: { fired: 'prometeu' } }, resources: { favor: 500, knowledge: 1000 } },
         { when: { buildings: { player: 0, type: 'fortress' }, eq: 0 }, resources: { wood: 400, gold: 300 } },

@@ -59,6 +59,10 @@ describe('missões do registro: validação estática', () => {
     expect(scriptVerdict(res('defeat', 8 * 60, 'hard'), withEx)).toMatchObject({ ok: true, exception: 'motivo' });
     expect(scriptVerdict(res('defeat', 8 * 60, 'easy'), withEx).ok).toBe(false);
     for (const [id, sc] of Object.entries(MISSION_SCRIPTS)) for (const [d, why] of Object.entries(sc.exceptions ?? {})) expect(why.length, `${id} [${d}]: exceção sem motivo`).toBeGreaterThan(20);
+    // atEnd: vitória dentro da janela com uma condição de fim que não vale também falha, com o rótulo no motivo
+    const missing = { ...res('victory', 15 * 60), endIssues: ['o chefe lutou'] } as MissionRunResult;
+    expect(scriptVerdict(missing, script)).toMatchObject({ ok: false, inWindow: true });
+    expect(scriptVerdict(missing, script).reason).toContain('o chefe lutou');
   });
 });
 
@@ -123,6 +127,17 @@ describe('harness do jogador roteirizado', () => {
     expect(scoutTrail(false)).toBeGreaterThan(10);
     expect(scoutTrail(true)).toBeLessThan(0.5);
   }, 180_000);
+
+  it('atEnd: condição no estado final ou por N segundos da partida; os rótulos das que não valem vão para endIssues', () => {
+    const r = runScripted('m1_despertar', { minutes: 1, difficulty: 'normal', steps: [], deterministic: false, atEnd: [
+      { label: 'nunca', when: { time: { gte: 9999 } } },
+      { label: 'no fim', when: { time: { gte: 50 } } },
+      { label: '30 s', when: { time: { gte: 0 } }, seconds: 30 },
+      { label: '61 s', when: { time: { gte: 0 } }, seconds: 61 },
+    ] });
+    expect(r.endIssues).toEqual(['nunca', '61 s']);
+    expect(runScripted('m1_despertar', { minutes: 1, difficulty: 'normal', steps: [], deterministic: false }).endIssues).toBeUndefined();
+  }, 60_000);
 
   it('poderes guardados (keepPowers): a IA do jogador não gasta o poder guardado (os passos, sim); lista vazia não muda nada', () => {
     // m7: Argos começa na Heroica com o Oráculo, que a IA do jogador usa no 2º segundo

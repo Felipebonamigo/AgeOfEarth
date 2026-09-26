@@ -1,8 +1,9 @@
 // m8 "A Maré de Oceano" (docs/STORY.md §5.5): o mapa fixo "Golfo da Argólida" é reprodutível pelo script
 // scripts/maps/m8_oceano.ts e tem a identidade da ficha (Argos na colina atrás da crista com dois portões e a brecha, Micenas a
 // noroeste, a Liga a leste, Lerna no centro, a praia larga e o golfo ao sul); o setup da ficha, o Portal só para Argos (G6), as
-// três marés do chefe (G9: piso de vida por maré, recuo invulnerável, volta com a contagem do painel, G4), a cura do Difícil (G3),
-// o segredo de Lerna (G13: só a Hidra morta por Argos), Jasão e o HUD. A passiva curta roda em tests/missions.test.ts; o roteiro
+// três marés do chefe (G9: piso de vida por maré, recuo invulnerável, volta com a contagem do painel, G4) com o Titã lutando de
+// fato (a coleira só vale depois que ele chega), as ondas sempre do lado de fora da crista (mesmo com as passagens muradas), a
+// cura do Difícil (G3), o reforço de Micenas, o segredo de Lerna (G13: só a Hidra morta por Argos), Jasão e o HUD. A passiva curta roda em tests/missions.test.ts; o roteiro
 // longo (vitória dentro da janela, e a variante dos Titãs) só em scripts/missions.ts.
 import { describe, it, expect } from 'vitest';
 import { TICK_RATE, TERRAIN } from '../src/core/constants';
@@ -11,7 +12,8 @@ import { killUnit } from '../src/core/sim/combat';
 import { isForbidden } from '../src/core/sim/restrictions';
 import { componentAt, invalidateComponents } from '../src/core/map/components';
 import { mapHash, validateMap, type FixedMapData } from '../src/core/map/fixed';
-import { scriptedDamage } from '../src/core/scenario/helpers';
+import { placeExact, scriptedDamage } from '../src/core/scenario/helpers';
+import { killCount } from '../src/core/scenario/log';
 import { MISSION_SCRIPTS, missionRunConfig } from '../src/core/scenario/testing';
 import { campaignMission, withCampaignDifficulty } from '../src/core/scenario/campaign';
 import { gameConfigFor } from '../src/core/scenario/compile';
@@ -40,7 +42,7 @@ const frac = (u: Unit) => Math.round((u.hp / u.maxHp) * 1000) / 1000;
 function calm(d: CampaignDifficulty): GameState {
   const f = JSON.parse(JSON.stringify(file)) as ScenarioFile;
   f.id = 'm8_teste';
-  f.triggers = f.triggers.filter((t) => !['onda1', 'onda2', 'mare_escolta1', 'mare_escolta'].includes(t.id));
+  f.triggers = f.triggers.filter((t) => !['onda1', 'onda2', 'ondas_marcham', 'mare_escolta1', 'mare_escolta'].includes(t.id));
   f.config.players = f.config.players.map((p, i) => (i === 1 || i === 3 ? { ...p, isAI: false, puppet: true } : p));
   return createGame(withCampaignDifficulty(gameConfigFor(f), d));
 }
@@ -111,11 +113,13 @@ describe('m8_oceano', () => {
     for (const p of [0, 1, 3]) expect([...s.buildings.values()].some((b) => b.owner === p && b.type === 'town_center'), `${p}`).toBe(true);
   }, 60_000);
 
-  it('G6: só Argos pode erguer o Portal dos Titãs (nada de outro Prometeu nem de outro Oceano)', () => {
+  it('G6: só Argos pode erguer o Portal dos Titãs (nada de outro Prometeu nem de outro Oceano) e ninguém treina Aquiles', () => {
     const s = start('normal');
     expect(isForbidden(s, 0, 'buildings', 'titan_gate')).toBe(false);
     expect(isForbidden(s, 1, 'buildings', 'titan_gate')).toBe(true);
     expect(isForbidden(s, 3, 'buildings', 'titan_gate')).toBe(true);
+    // Aquiles morreu na m7: ninguém o treina (nem Argos, nem a Liga, nem Micenas)
+    for (const p of [0, 1, 3]) expect(isForbidden(s, p, 'units', 'achilles'), `${p}`).toBe(true);
     expect(lintScenario(file)).toEqual([]);
   });
 
@@ -151,7 +155,7 @@ describe('m8_oceano', () => {
     expect(frac(o)).toBe(0.33);
     run(s, 1);
     expect(s.scenario!.fired).toContain('recua2');
-    expect(lines(s).some((t) => t.includes('guarde o raio'))).toBe(true);
+    expect(lines(s).some((t) => t.includes('o mar não o segura mais'))).toBe(true);
     run(s, s.scenario!.vars.t_recuo + 360 - now(s));
     expect(s.scenario!.fired).toContain('ergue3');
     expect(o.hpFloor).toBeUndefined();
@@ -184,6 +188,71 @@ describe('m8_oceano', () => {
     }
   }, 120_000);
 
+  it('Oceano luta: sobe em ataque-movimento (a coleira só vale depois que ele chega), golpeia a crista na 1ª maré e, sem jogador, derruba o CC na 2ª', () => {
+    const s = calm('normal');
+    run(s, 601);
+    const o = oceanus(s)!;
+    // longe da crista, a coleira da 1ª maré não o puxa: segue em ataque-movimento rumo à brecha
+    expect([o.state, o.order?.type]).toEqual(['attackMove', 'attackMove']);
+    expect(s.scenario!.vars.perto).toBe(0);
+    let attacking = 0;
+    for (;;) {
+      run(s, 1);
+      if (s.scenario!.fired.includes('recua1')) break;
+      const t = o.targetId >= 0 ? (s.units.get(o.targetId) ?? s.buildings.get(o.targetId)) : undefined;
+      if (o.state === 'attack' && t?.owner === 0) attacking++;
+      expect(o.order?.type === 'move' && s.scenario!.vars.perto === 0, `${now(s)}: move antes de chegar`).toBe(false);
+    }
+    expect(attacking).toBeGreaterThan(5);
+    expect(killCount(s.scenario, 2, undefined, [o.id])).toBeGreaterThan(0);
+    // 2ª maré: logo depois de voltar, rumo ao Centro Cívico em ataque-movimento (não em move), e a Argos parada cai
+    run(s, s.scenario!.vars.t_recuo + 360 - now(s));
+    expect(s.scenario!.fired).toContain('ergue2');
+    run(s, 2);
+    expect(['attackMove', 'attack']).toContain(o.state);
+    expect(o.order?.type).toBe('attackMove');
+    run(s, 240);
+    expect(killCount(s.scenario, 2, ['town_center'], [o.id])).toBe(1);
+    expect(s.scenario!.outcome).toBe('defeat');
+  }, 120_000);
+
+  it('as ondas nascem na planície, do lado de fora da crista, mesmo com as três passagens muradas, e batem no muro', () => {
+    const s = start('normal');
+    // a brecha e as duas passagens laterais (atrás dos portões) fechadas com muro
+    for (const [x, y] of [[63, 38], [64, 38], [65, 38], [49, 37], [50, 37], [51, 37], [77, 37], [78, 37], [79, 37]]) expect(placeExact(s, 0, 'wall', x, y), `${x},${y}`).not.toBeNull();
+    const seen = new Set([...s.units.values()].filter((u) => u.owner === 2).map((u) => u.id));
+    const fresh = () => { const out = [...s.units.values()].filter((u) => u.owner === 2 && !seen.has(u.id)); for (const u of out) seen.add(u.id); return out; };
+    for (const t of [181, 391]) {
+      run(s, t - now(s));
+      const wave = fresh();
+      expect(wave.length, `${t}`).toBeGreaterThanOrEqual(5);
+      for (const u of wave) expect(u.y, `${t}: ${u.type}`).toBeGreaterThan(40);   // a crista ocupa as linhas 36–40
+      for (const u of wave) expect(u.order, `${t}: ${u.type}`).toMatchObject({ type: 'attackMove' });
+      // com o Centro Cívico inalcançável, vão à brecha e golpeiam a muralha (e quem estiver atrás dela, se ela cair); ninguém
+      // fica parado na planície
+      let hits = 0;
+      for (let k = 0; k < 20; k++) {
+        run(s, 1);
+        for (const u of wave) { const e = s.units.get(u.targetId) ?? s.buildings.get(u.targetId); if (!u.dead && u.state === 'attack' && e?.owner === 0) hits++; }
+      }
+      expect(hits, `${t}`).toBeGreaterThan(0);
+      expect(wave.filter((u) => !u.dead && u.state === 'idle' && u.y > 40).map((u) => u.type), `${t}`).toEqual([]);
+    }
+    expect(lines(s).some((t) => t.includes('sob a crista'))).toBe(true);
+  }, 60_000);
+
+  it('Micenas manda reforço aos 30 s (maior no Fácil) e Atreu avisa da Liga a leste', () => {
+    const count = (s: GameState) => [...s.units.values()].filter((u) => u.owner === 0 && !u.dead && ['hoplite', 'toxotes', 'hippeus'].includes(u.type)).length;
+    for (const [d, extra] of [['easy', 11], ['normal', 4], ['hard', 4]] as const) {
+      const s = start(d);
+      run(s, 29);
+      const before = count(s);
+      run(s, 2);
+      expect(count(s) - before, d).toBe(extra);
+      expect(lines(s).some((t) => t.includes('vale do Aracneu')), d).toBe(true);
+    }
+  }, 60_000);
+
   it('segredo de Lerna (G13): só vale a Hidra morta por Argos antes de Oceano subir, e rende 100 de Favor', () => {
     const s = start('normal');
     run(s, 61);
@@ -203,13 +272,20 @@ describe('m8_oceano', () => {
     expect(s.players[0].resources.favor - favor).toBeLessThan(100);
   }, 60_000);
 
-  it('Jasão: se cair, o objetivo falha e a Pítia lamenta', () => {
+  it('Jasão: se cair, o objetivo falha e a Pítia lamenta (antes da onda ou diante do mar)', () => {
     const s = start('normal');
     run(s, 61);
     killUnit(s, byTag(s, 'jasao')!, 1);
     run(s, 2);
     expect(s.scenario!.objectives.jasao).toBe('failed');
-    expect(lines(s).some((t) => t.includes('Jasão caiu'))).toBe(true);
+    expect(lines(s).some((t) => t.includes('Jasão caiu antes da onda'))).toBe(true);
+    const m = calm('normal');
+    run(m, 601);
+    killUnit(m, byTag(m, 'jasao')!, 2);
+    run(m, 2);
+    expect(m.scenario!.objectives.jasao).toBe('failed');
+    expect(lines(m).some((t) => t.includes('Jasão caiu diante do mar'))).toBe(true);
+    expect(lines(m).some((t) => t.includes('antes da onda'))).toBe(false);
   }, 60_000);
 
   it('HUD (G4): contagem até Oceano subir, a barra das marés e a contagem da volta (PT e EN)', () => {
