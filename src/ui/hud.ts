@@ -309,6 +309,8 @@ export class HUD {
   refreshGods() {
     const s = this.session; if (!s) return;
     const p = s.player;
+    // G11: o roteiro tirou (ou gastou) o poder que estava sendo mirado: sai do modo de mira
+    if (s.ui.mode === 'power' && s.ui.powerId && !p.powers.some((x) => x.id === s.ui.powerId && !x.used)) { this.cancelMode(); return; }
     const key = p.powers.map((x) => `${x.id}${x.used ? 1 : 0}`).join(',') + s.ui.powerId;
     if (this.godsPanel.dataset.key === key) return;
     this.godsPanel.dataset.key = key;

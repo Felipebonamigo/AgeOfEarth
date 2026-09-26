@@ -21,7 +21,7 @@ import { spiralSearch, isPassable } from '../map/grid';
 import { nearestFreeTile } from '../map/pathfinding';
 import { eliminateInScenario, getScenarioFor, initScenarioState, refreshPuppets, runScenario } from '../scenario/runner';
 import { updateKoth } from './modes';
-import { placeRelics, updateRelics } from './relics';
+import { placeRelics, placeRelicsAt, updateRelics } from './relics';
 
 const PATH_BUDGET_PER_TICK = 48;
 const MAX_EVENTS = 200;
@@ -116,7 +116,8 @@ export function createGame(config: GameConfig): GameState {
     for (const p of state.players) { recomputePop(state, p); p.stats.buildingsBuilt = 0; p.stats.unitsTrained = 0; }
     state.events = [];
   }
-  if (config.map?.relics !== false) placeRelics(state);
+  const relics = config.relics ?? config.map?.relics;   // G10: lista = posições fixas; false = nenhuma; padrão sorteio
+  if (Array.isArray(relics)) placeRelicsAt(state, relics); else if (relics !== false) placeRelics(state);
   if (mode === 'koth') {
     const raw = config.map?.koth;
     const hill = raw && Number.isInteger(raw[0]) && Number.isInteger(raw[1]) && raw[0] >= 0 && raw[1] >= 0 && raw[0] < size.w && raw[1] < size.h ? raw : null;   // colina inválida: centro

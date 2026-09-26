@@ -433,7 +433,7 @@ export class EditorPanel {
         <label><input type="checkbox" id="ep-kit" ${meta.startKit === false ? '' : 'checked'}> ${t('editor.propKit')}</label>
         <label>${t('editor.propTeams')} <input id="ep-teams" value="${esc((meta.startTeams ?? []).map((x) => x + 1).join(','))}"></label>
         <div>${t('editor.propKoth')}: <b id="ep-koth">${meta.koth ? `(${meta.koth[0]}, ${meta.koth[1]})` : t('editor.propKothCenter')}</b> <button class="btn" id="ep-koth-pick">${t('editor.propKothPick')}</button> <button class="btn" id="ep-koth-clear">${t('main.fixedMapClear')}</button></div>
-        <label><input type="checkbox" id="ep-relics" ${meta.relics === false ? '' : 'checked'}> ${t('editor.propRelics')}</label>
+        <label><input type="checkbox" id="ep-relics" ${meta.relics === false ? '' : 'checked'}> ${Array.isArray(meta.relics) ? t('editor.propRelicsFixed', { n: meta.relics.length }) : t('editor.propRelics')}</label>
         <div><button class="btn" id="ep-vary">${t('editor.propVary')}</button></div>
         <fieldset class="ep-resize" style="border:1px solid #334;border-radius:6px;padding:6px 8px"><legend>${t('editor.resizeTitle')}</legend>
           <div class="row" style="gap:6px;align-items:center"><input type="number" id="ep-w" min="${MAP_LIMITS.minSide}" max="${MAP_LIMITS.maxSide}" value="${ed.map.w}" style="width:64px"> × <input type="number" id="ep-h" min="${MAP_LIMITS.minSide}" max="${MAP_LIMITS.maxSide}" value="${ed.map.h}" style="width:64px">
@@ -451,7 +451,7 @@ export class EditorPanel {
       if (teamsRaw.length && !(teamsRaw.length === nStarts && teamsRaw.every((x) => Number.isInteger(x) && x >= 0 && x < MAX_PLAYERS))) { alert(t('editor.propTeamsBad', { max: MAX_PLAYERS, n: nStarts })); return false; }
       const startTeams = teamsRaw.length ? teamsRaw : undefined;
       const val = (id: string) => q(id).value.trim() || undefined;
-      ed.setMeta({ name: val('#ep-name'), nameEn: val('#ep-nameen'), author: val('#ep-author'), description: val('#ep-desc'), startKit: q('#ep-kit').checked ? undefined : false, startTeams, koth, relics: q('#ep-relics').checked ? undefined : false });
+      ed.setMeta({ name: val('#ep-name'), nameEn: val('#ep-nameen'), author: val('#ep-author'), description: val('#ep-desc'), startKit: q('#ep-kit').checked ? undefined : false, startTeams, koth, relics: q('#ep-relics').checked ? (Array.isArray(meta.relics) ? meta.relics : undefined) : false });   // G10: posições fixas do arquivo seguem
       return true;
     };
     q('#ep-koth-clear').addEventListener('click', () => { koth = undefined; q('#ep-koth').textContent = t('editor.propKothCenter'); });
@@ -586,6 +586,7 @@ export class EditorPanel {
     if (r.scenarioPoints) parts.push(t('editor.resizeScenarioPoints', { n: r.scenarioPoints }));
     if (r.startsMoved.length) parts.push(t('editor.resizeStarts', { list: r.startsMoved.map((i) => i + 1).join(', ') }));
     if (r.kothReset) parts.push(t('editor.resizeKoth'));
+    if (r.relics) parts.push(t('editor.resizeRelics', { n: r.relics }));
     return parts.length ? parts.join(' · ') : t('editor.resizeNothing');
   }
 

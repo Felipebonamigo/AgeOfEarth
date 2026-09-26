@@ -792,7 +792,7 @@ describe('editor: Etapa 4 (balde, conta-gotas, correções, recursos por início
     ed.apply({ kind: 'paint', tiles: rectTiles(10, 10, 30, 30).map(([x, y]) => y * 80 + x), terrain: TERRAIN.WATER });
     const file: FixedMapData = { ...ed.toFile(), starts: [[12, 40], [70, 40]], koth: [75, 75], nodes: [['gold', 2, 2, 900], ['tree', 40, 40, 150]], entities: [{ kind: 'building', type: 'tower', owner: 0, x: 70, y: 10 }, { kind: 'unit', type: 'hoplite', owner: 1, x: 5, y: 70 }] };
     const g = resizeMapData(file, 100, 96, 'c');
-    expect(g.report).toEqual({ nodes: 0, entities: 0, startsMoved: [], kothReset: false, dx: 10, dy: 8, scenarioPoints: 0, scenarioTags: [] });
+    expect(g.report).toEqual({ nodes: 0, entities: 0, startsMoved: [], kothReset: false, dx: 10, dy: 8, scenarioPoints: 0, scenarioTags: [], relics: 0 });
     expect([g.data.w, g.data.h]).toEqual([100, 96]);
     expect(g.data.starts).toEqual([[22, 48], [80, 48]]);
     expect(g.data.nodes).toEqual([['gold', 12, 10, 900], ['tree', 50, 48, 150]]);
@@ -804,12 +804,12 @@ describe('editor: Etapa 4 (balde, conta-gotas, correções, recursos por início
     expect(ge.map.terrain[tile(ge.map, 5, 5)]).toBe(TERRAIN.GRASS);    // tile novo
     // encolher ancorado no topo à esquerda: corta a torre e o hoplita, traz o início 2 para dentro, a colina volta ao centro
     const s = resizeMapData(file, 60, 60, 'nw');
-    expect(s.report).toEqual({ nodes: 0, entities: 2, startsMoved: [1], kothReset: true, dx: 0, dy: 0, scenarioPoints: 0, scenarioTags: [] });
+    expect(s.report).toEqual({ nodes: 0, entities: 2, startsMoved: [1], kothReset: true, dx: 0, dy: 0, scenarioPoints: 0, scenarioTags: [], relics: 0 });
     expect(s.data.starts).toEqual([[12, 40], [51, 40]]);
     expect(s.data.koth).toBeUndefined(); expect(s.data.entities).toBeUndefined();
     // ancorado embaixo à direita: o lago fica no canto e a borda nova não tem água profunda
     const se = resizeMapData(file, 60, 60, 'se');
-    expect(se.report).toEqual({ nodes: 1, entities: 2, startsMoved: [0], kothReset: false, dx: -20, dy: -20, scenarioPoints: 0, scenarioTags: [] });
+    expect(se.report).toEqual({ nodes: 1, entities: 2, startsMoved: [0], kothReset: false, dx: -20, dy: -20, scenarioPoints: 0, scenarioTags: [], relics: 0 });
     const sm = editorOf(se.data).map;
     for (let x = 0; x < 60; x++) { expect(sm.terrain[x]).not.toBe(TERRAIN.DEEP); expect(sm.terrain[x * 60]).not.toBe(TERRAIN.DEEP); }
     expect(sm.terrain[tile(sm, 0, 0)]).toBe(TERRAIN.WATER); expect(sm.terrain[tile(sm, 5, 5)]).toBe(TERRAIN.DEEP);

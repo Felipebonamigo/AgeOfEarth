@@ -6,6 +6,7 @@ import { HORDE, campaignMission } from './campaign';
 import { compileScenarioCached, copyForbid } from './compile';
 import { eliminatePlayers } from '../sim/victory';
 import { hasAnyEntity, isPuppetConfig, localHumanIndex } from './helpers';
+import { emptyKillLog } from './log';
 export { scenarioAlive } from './helpers';
 import { t } from '../../i18n';
 
@@ -51,7 +52,7 @@ export function migrateScenarioLocks(config: GameConfig): GameConfig {
 export function initScenarioState(def: ScenarioDef): ScenarioState {
   const objectives: Record<string, 'pending'> = {}; const hidden: Record<string, boolean> = {};
   for (const o of def.objectives) { objectives[o.id] = 'pending'; hidden[o.id] = !!o.hidden; }
-  return { id: def.id, objectives, hidden, fired: [], outcome: 'playing', winnerTeam: -1, vars: {} };
+  return { id: def.id, objectives, hidden, fired: [], outcome: 'playing', winnerTeam: -1, vars: {}, powerUses: {}, kills: emptyKillLog() };
 }
 
 export function runScenario(state: GameState): void {
@@ -72,8 +73,13 @@ export function runScenario(state: GameState): void {
   }
   for (const t of def.triggers) {
     if (!t.repeat && sc.fired.includes(t.id)) continue;
+    // G17: gatilho repeat conta os disparos em vars['@id'] (já somado quando o then roda: 1 no 1º disparo); com maxFires,
+    // para no teto — setVar '@id' 0 no roteiro o rearma
+    const counter = '@' + t.id;
+    if (t.repeat && t.maxFires !== undefined && (sc.vars[counter] ?? 0) >= t.maxFires) continue;
     if (!t.when(state, ctx)) continue;
     if (!t.repeat) sc.fired.push(t.id);
+    else sc.vars[counter] = (sc.vars[counter] ?? 0) + 1;
     t.then(state, ctx);
   }
   // Fim do cenário. A vitória/derrota do arquivo é do ponto de vista do time do primeiro humano (não marionete); com humanos

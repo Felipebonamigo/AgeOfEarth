@@ -2,17 +2,21 @@
 // mapeia num helper de helpers.ts; nada de eval. Textos são resolvidos por tx() aqui (título, intro, objetivos) ou ao
 // emitir (diálogos), por isso o cache é por (hash do JSON, idioma): trocar de idioma recompila.
 import { TICK_RATE, type ResourceType } from '../constants';
-import { BUILDINGS, MINOR_GODS, UNITS } from '../data';
+import { BUILDINGS, MINOR_GODS, POWERS, UNITS } from '../data';
 import type { Building, Forbid, GameConfig, GameState, Unit } from '../types';
 import { rectReachable } from '../map/components';
 import { giveOrder } from '../sim/units';
 import { killUnit, destroyBuilding } from '../sim/combat';
 import { canGarrison, ejectGarrison, removeBuildingNow, removeUnitNow } from '../sim/entities';
 import { queueItemCost, refund } from '../sim/economy';
+import { useAbility } from '../sim/commands';
+import { relicsOf } from '../sim/relics';
+import { isEnemy } from '../sim/queries';
 import { getLocale } from '../../i18n';
 import type { ObjectiveDef, ObjectiveStatus, ScenarioDef, ScenarioHudDef, TriggerCtx, TriggerDef } from './types';
 import type { Action, BuildingFilter, Cmp, Condition, EntityRef, PlayerSel, Point, ScenarioFile, UnitFilter, Value } from './schema';
-import { validateScenario } from './schema';
+import { isPointLike, validateScenario } from './schema';
+import { killCount, powerUseCount } from './log';
 import { localText, tx } from './text';
 import { advanceBuild, ceasefire, count, give, grantTech, healEntity, localHumanIndex, scenarioAlive, military, nearCount, notifyRaid, placeExact, placeNear, prayAt, raid, removeAllOf, scaledGroup, scriptedDamage, spawnGroup, tagIds, townCenter } from './helpers';
 import { defeatPlayer } from '../sim/victory';
@@ -97,6 +101,7 @@ function value(env: Env, v: Value): number {
     const p = env.state.players[player(env, v.player)]; if (!p) return 0;
     switch (v.stat) {
       case 'age': return p.age; case 'pop': return p.pop; case 'popCap': return p.popCap; case 'alive': return scenarioAlive(env.state, p.id) ? 1 : 0;
+      case 'relics': return relicsOf(env.state, p.id);   // G10: relíquias guardadas nos Templos do jogador
       case 'food': case 'wood': case 'gold': case 'favor': case 'knowledge': return p.resources[v.stat];
       default: return 0;
     }
@@ -218,8 +223,18 @@ function evalCondition(env: Env, c: Condition): boolean {
   if ('kingAlive' in c) { const p = player(env, c.kingAlive); return p >= 0 && kingAlive(s, p); }
   if ('alive' in c) { const p = player(env, c.alive); return p >= 0 && scenarioAlive(s, p); }   // marionete: tem entidade viva
   if ('difficulty' in c) { const d = s.config.campaignDifficulty ?? 'normal'; return Array.isArray(c.difficulty) ? c.difficulty.includes(d) : c.difficulty === d; }
+  if ('powerUsed' in c) {   // G11: usos desde o início; sem comparação, ao menos 1
+    const p = player(env, c.powerUsed.player); const n = p >= 0 ? powerUseCount(s.scenario, p, c.powerUsed.id) : 0;
+    return hasCmp(c) ? cmp(env, c, n) : n >= 1;
+  }
+  if ('kills' in c) {   // G13: abates com autor; by.tag = só os das entidades do grupo (vivas ou não)
+    const k = c.kills; const types = k.type === undefined ? undefined : Array.isArray(k.type) ? k.type : [k.type];
+    return cmp(env, c, killCount(s.scenario, player(env, k.player), types, k.by ? tagIds(s, k.by.tag) : undefined));
+  }
   return false;
 }
+
+function hasCmp(c: Cmp): boolean { return c.gte !== undefined || c.lte !== undefined || c.eq !== undefined || c.gt !== undefined || c.lt !== undefined; }
 
 /** Compila uma condição isolada (harness de testes, roteiros de jogador): avaliada com os segundos inteiros do runner. */
 export function compileCondition(c: Condition): (state: GameState) => boolean {
@@ -292,6 +307,12 @@ function runAction(env: Env, ctx: TriggerCtx, a: Action): void {
         const power = MINOR_GODS[g].power;
         if (power && !p.powers.some((x) => x.id === power)) p.powers.push({ id: power, used: false });
       }
+      if (a.powers) {   // G11: tira, concede (sem repetir) e devolve o uso, nesta ordem; a barra de poderes e a IA leem p.powers
+        const { add, remove, reset } = a.powers;
+        if (remove) p.powers = p.powers.filter((x) => !remove.includes(x.id));
+        if (add) for (const id of add) if (has(POWERS, id) && !p.powers.some((x) => x.id === id)) p.powers.push({ id, used: false });
+        if (reset) for (const x of p.powers) if (reset.includes(x.id)) x.used = false;
+      }
       return;
     }
     case 'removeAll': {
@@ -339,6 +360,15 @@ function runAction(env: Env, ctx: TriggerCtx, a: Action): void {
       const e = entity(env, a.entity); if (!e) return;
       const amount = a.amount ?? e.maxHp * (a.fraction ?? 0);
       if (a.do === 'damage') scriptedDamage(s, e, amount); else healEntity(e, amount);
+      return;
+    }
+    case 'ability': {   // G12: mesmo caminho do comando 'ability' do jogador (useAbility: recarga, guarnecida, herói sem habilidade)
+      const u = entity(env, a.unit); if (!u || u.kind !== 'unit') return;
+      const owner = s.players[u.owner]; if (!owner || !useAbility(s, owner, u.id).ok) return;
+      if (a.target === undefined) return;
+      if (isPointLike(a.target)) { const pt = point(env, a.target as Point); if (pt) giveOrder(s, u, { type: 'attackMove', x: pt.x, y: pt.y }); return; }
+      const t = entity(env, a.target as EntityRef); if (!t || t.id === u.id) return;
+      if (isEnemy(s, u.owner, t.owner)) giveOrder(s, u, { type: 'attack', targetId: t.id }); else giveOrder(s, u, { type: 'move', x: t.x, y: t.y });
       return;
     }
     case 'ceasefire': ceasefire(s, a.seconds); return;
@@ -406,6 +436,8 @@ export function scenarioConfig(file: ScenarioFile): ScenarioDef['config'] {
     }),
   };
   if (gen?.mapType) cfg.mapType = gen.mapType;
+  const relics = file.map && 'gen' in file.map ? file.map.relics : undefined;   // G10: no mapa fixo, ficam em data.relics
+  if (relics !== undefined) cfg.relics = Array.isArray(relics) ? relics.map(([x, y]) => [x, y] as [number, number]) : relics;
   if (data) cfg.map = data;
   if (c.startingAge !== undefined) cfg.startingAge = c.startingAge;
   if (c.startingResources) cfg.startingResources = { ...c.startingResources };
@@ -441,6 +473,7 @@ export function compileScenario(file: ScenarioFile): ScenarioDef {
     when: (state, ctx) => evalCondition(envOf(state, ctx), tr.when),
     then: (state, ctx) => runActions(envOf(state, ctx), ctx, tr.then),
     ...(tr.repeat ? { repeat: true } : {}),
+    ...(tr.repeat && typeof tr.repeat === 'object' ? { maxFires: tr.repeat.max } : {}),   // G17
   }));
   const def: ScenarioDef = {
     id: file.id, title: tx(file.title), subtitle: tx(file.subtitle), icon: file.icon ?? '📜',

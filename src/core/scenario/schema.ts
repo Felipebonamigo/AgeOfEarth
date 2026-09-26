@@ -1,10 +1,13 @@
 // Cenário declarativo em JSON (docs/EDITOR.md §2.3): gramática FECHADA e tipada, sem eval, sem expressões em string.
 // Cada operador mapeia 1:1 num helper (compile.ts → helpers.ts). Textos ({ pt, en } ou string) são resolvidos por tx()
 // no momento de emitir e nunca entram no estado nem no hash. validateScenario é pura e nunca lança: só devolve issues.
-import { DIFFICULTIES, GAME_MODES, MAP_SIZES, MAP_TYPES, MAX_PLAYERS, RESOURCES, type GameMode, type MapType, type ResourceType } from '../constants';
-import { BUILDINGS, MAJOR_GODS, MAX_AGE, MINOR_GODS, TECHS, UNITS } from '../data';
+import { DIFFICULTIES, GAME_MODES, MAP_SIZES, MAP_TYPES, MAX_FIXED_RELICS, MAX_PLAYERS, RELIC_SNAP_RADIUS, RESOURCES, type GameMode, type MapType, type ResourceType } from '../constants';
+import { BUILDINGS, MAJOR_GODS, MAX_AGE, MINOR_GODS, POWERS, TECHS, UNITS } from '../data';
 import type { Forbid, GameConfig, UnitState } from '../types';
 import { validateMap, type FixedMapData } from '../map/fixed';
+import { generateMap, getNodeSeq, resetNodeSeq } from '../map/mapgen';
+import { componentAt, invalidateComponents } from '../map/components';
+import { idx, inBounds, isPassable, spiralSearch } from '../map/grid';
 import { CAMPAIGN_PLAN } from './official';
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -22,9 +25,10 @@ export type EntityRef =
 export type Point =
   | { at: [number, number] } | { start: number; dx?: number; dy?: number }
   | { tc: PlayerSel; dx?: number; dy?: number } | { entity: EntityRef; dx?: number; dy?: number };
-export type StatName = 'age' | 'pop' | 'popCap' | 'food' | 'wood' | 'gold' | 'favor' | 'knowledge' | 'alive' | 'difficulty';
+export type StatName = 'age' | 'pop' | 'popCap' | 'food' | 'wood' | 'gold' | 'favor' | 'knowledge' | 'alive' | 'difficulty' | 'relics';
 /**
  * { stat: 'difficulty' } dispensa player: 0 = Fácil, 1 = Normal, 2 = Difícil (config.campaignDifficulty).
+ * { stat: 'relics', player } (G10) = relíquias guardadas nos Templos do jogador agora (relicsOf).
  * { time: true } (G4) = segundos de jogo agora (inteiro, como { time } nas condições): com setVar marca um instante, e
  * { time: { gte: { add: [ { var: 't0' }, 60 ] } } } vale 60 s depois dele.
  */
@@ -50,7 +54,15 @@ export type Condition =
   // G2: fim de partida em cenário (segundos segurados da colina pelo time T; segundos com a Maravilha de pé; rei vivo; jogador vivo)
   | ({ koth: { team: number } } & Cmp) | ({ wonderHeld: { player: PlayerSel } } & Cmp) | { kingAlive: PlayerSel } | { alive: PlayerSel }
   // G3: dificuldade da campanha (config.campaignDifficulty; ausente = normal)
-  | { difficulty: CampaignDifficulty | CampaignDifficulty[] };
+  | { difficulty: CampaignDifficulty | CampaignDifficulty[] }
+  // G11: usos do poder `id` pelo jogador desde o início (reset/remove não zeram); sem comparação, vale com ao menos 1
+  | ({ powerUsed: { player: PlayerSel; id: string } } & Cmp)
+  // G13: abates com autor do jogador (vítimas inimigas: unidades e edifícios); type = tipo da vítima; by.tag = só os feitos
+  // por entidades do grupo da tag (golpe, flecha, dano em área; poderes e atrito não têm entidade autora)
+  | ({ kills: KillsFilter } & Cmp);
+export interface KillsFilter { player: PlayerSel; type?: string | string[]; by?: { tag: string } }
+/** G11: poderes por roteiro — remove tira, add concede (sem repetir), reset devolve o uso a quem já o tem (nesta ordem). */
+export interface PowersEdit { add?: string[]; remove?: string[]; reset?: string[] }
 
 export type Action =
   | { do: 'say'; speaker: Text; text: Text; icon?: string }
@@ -60,7 +72,7 @@ export type Action =
   | { do: 'spawn'; player: PlayerSel; units: string[]; at: Point; tag?: string; state?: 'pray'; prayAt?: EntityRef; scaled?: boolean; name?: Text }
   | { do: 'place'; player: PlayerSel; building: string; at: Point; exact?: boolean; complete?: boolean; progress?: number; tag?: string; name?: Text }
   | { do: 'give'; player: PlayerSel; resources: Partial<Record<ResourceType, number>> }
-  | { do: 'set'; player: PlayerSel; age?: number; resources?: Partial<Record<ResourceType, number>>; techs?: string[]; minorGods?: string[] }
+  | { do: 'set'; player: PlayerSel; age?: number; resources?: Partial<Record<ResourceType, number>>; techs?: string[]; minorGods?: string[]; powers?: PowersEdit }
   | { do: 'removeAll'; player?: PlayerSel; team?: number }
   | { do: 'setVar'; name: string; value: Value } | { do: 'addVar'; name: string; delta: number }
   | { do: 'storeEntity'; var: string; entity: EntityRef } | { do: 'advanceBuild'; entity: EntityRef; seconds: number }
@@ -71,6 +83,9 @@ export type Action =
   | { do: 'hpFloor'; entity: EntityRef; value: number }                           // G9: a vida não desce abaixo de value × maxHp (0 a 1); value 0 tira o piso
   | { do: 'damage' | 'heal'; entity: EntityRef; amount?: number; fraction?: number }   // G9: amount (pontos) ou fraction (de maxHp); dano sem autor, respeita o piso
   | { do: 'defeat'; player: PlayerSel }                                        // derrota roteirizada: alive=false e tudo do jogador some
+  // G12: o herói usa a habilidade (Q) pelo caminho do comando 'ability' (recarga; fora da guarnição); se usar e houver target,
+  // ataca a entidade inimiga, vai até a aliada, ou ataca-move até o ponto (at/start/entity/dx/dy)
+  | { do: 'ability'; unit: EntityRef; target?: EntityRef | Point }
   | { do: 'forEachPlayer'; team?: number; alive?: boolean; then: Action[] };   // dentro: '$p' = jogador, índice k para angle.perIndex
 
 /** Como o HUD escreve o valor de uma barra: porcentagem (padrão), contagem "12/30" ou tempo "2:15 / 6:00". */
@@ -84,12 +99,15 @@ export type ScenarioHud =
 export interface ScenarioObjectiveDef { id: string; text: Text; optional?: boolean; hidden?: boolean; done?: Condition; failed?: Condition }
 /** Jogador no arquivo: como em GameConfig, mas name aceita { pt, en } (G8: nome da facção por idioma). */
 export type ScenarioPlayer = Omit<GameConfig['players'][number], 'name' | 'nameText'> & { name: Text };
-export interface ScenarioTriggerDef { id: string; when: Condition; then: Action[]; repeat?: boolean }
+/** repeat (G17): true, ou { max } (teto de disparos); todo gatilho repeat conta os disparos em vars['@id']. */
+export interface ScenarioTriggerDef { id: string; when: Condition; then: Action[]; repeat?: boolean | { max: number } }
+/** G10: relíquias da partida — true/ausente = sorteadas pela semente; false = nenhuma; lista = posições fixas (tiles [x, y]). */
+export type RelicsSpec = boolean | [number, number][];
 
 export interface ScenarioFile {
   format: 'aoe-scenario'; version: 1;
   id: string; title: Text; subtitle?: Text; icon?: string; intro: Text[]; outro?: Text[]; hints?: Text[];
-  map?: { gen: { mapSize: 'small' | 'medium' | 'large'; mapType?: MapType; seed: number } } | { data: FixedMapData };   // omitido quando embutido num mapa
+  map?: { gen: { mapSize: 'small' | 'medium' | 'large'; mapType?: MapType; seed: number }; relics?: RelicsSpec } | { data: FixedMapData };   // omitido quando embutido num mapa; no mapa fixo, as relíquias ficam em data.relics
   config: {
     seed?: number; players: ScenarioPlayer[]; startingAge?: number; startingResources?: Partial<Record<ResourceType, number>>;
     revealMap?: boolean; startKit?: boolean | boolean[]; mode?: GameMode; campaignDifficulty?: 'easy' | 'normal' | 'hard';
@@ -114,7 +132,7 @@ export interface ScenarioIssue { path: string; message: string; level?: 'error' 
 export interface ValidateScenarioOpts { allowReserved?: boolean; warnings?: boolean }
 /** Só os erros (issues sem level ou com level 'error'). */
 export function scenarioErrors(issues: ScenarioIssue[]): ScenarioIssue[] { return issues.filter((i) => i.level !== 'warn'); }
-/** Avisos do lint (G7): tag futura sem { fired }, objetivo oculto que nunca aparece, falas/nomes sem en, variável do HUD nunca escrita. */
+/** Avisos do lint (G7): tag futura sem { fired }, objetivo oculto que nunca aparece, falas/nomes sem en, variável do HUD nunca escrita, contador de repeat mal usado (G17) e relíquia fixa fora de terra alcançável no mapa gerado (G10). */
 export function lintScenario(file: unknown): ScenarioIssue[] { return validateScenario(file, { allowReserved: true, warnings: true }).filter((i) => i.level === 'warn'); }
 /** Tamanho máximo de uma fala (say) antes do aviso do lint. */
 export const MAX_LINE_CHARS = 200;
@@ -124,7 +142,7 @@ export const MAX_LINE_CHARS = 200;
 // ---------------------------------------------------------------------------------------------------------------
 
 const CMP_KEYS = ['gte', 'lte', 'eq', 'gt', 'lt'] as const;
-const STATS: readonly string[] = ['age', 'pop', 'popCap', 'food', 'wood', 'gold', 'favor', 'knowledge', 'alive', 'difficulty'];
+const STATS: readonly string[] = ['age', 'pop', 'popCap', 'food', 'wood', 'gold', 'favor', 'knowledge', 'alive', 'difficulty', 'relics'];
 const CAMPAIGN_DIFFS: readonly string[] = ['easy', 'normal', 'hard'];
 const UNIT_STATES: readonly string[] = ['idle', 'move', 'attackMove', 'attack', 'gather', 'return', 'build', 'pray', 'hold', 'garrison'];
 const OBJ_STATUS: readonly string[] = ['pending', 'done', 'failed'];
@@ -208,7 +226,9 @@ export function validateScenario(file: unknown, opts: ValidateScenarioOpts = {})
       if (typeof g.mapSize !== 'string' || !has(MAP_SIZES, g.mapSize)) err('map.gen.mapSize', "esperado 'small', 'medium' ou 'large'");
       if (g.mapType !== undefined && !MAP_TYPES.includes(g.mapType as MapType)) err('map.gen.mapType', `tipo de mapa desconhecido: '${String(g.mapType)}'`);
       if (!isInt(g.seed)) err('map.gen.seed', 'semente obrigatória (inteiro)');
+      if (f.map.relics !== undefined) checkRelics(f.map.relics, typeof g.mapSize === 'string' && has(MAP_SIZES, g.mapSize) ? MAP_SIZES[g.mapSize as keyof typeof MAP_SIZES] : undefined, 'map.relics', err);   // G10
     } else if (f.map.data !== undefined) {
+      if (f.map.relics !== undefined) err('map.relics', 'no mapa fixo, as relíquias ficam no próprio mapa: map.data.relics');
       if (!isObj(f.map.data)) err('map.data', 'esperado um mapa fixo (FixedMapData)');
       else {
         let mapIssues: ReturnType<typeof validateMap> = [];
@@ -253,7 +273,9 @@ export function validateScenario(file: unknown, opts: ValidateScenarioOpts = {})
         else trigIds.add(tr.id);
         if (!opts.allowReserved && tr.id.startsWith(RESERVED_TRIGGER_PREFIX)) err(`${path}.id`, `prefixo reservado '${RESERVED_TRIGGER_PREFIX}': '${tr.id}'`);
       }
-      if (tr.repeat !== undefined && typeof tr.repeat !== 'boolean') err(`${path}.repeat`, 'esperado true/false');
+      if (tr.repeat !== undefined && typeof tr.repeat !== 'boolean') {   // G17: { max } = teto de disparos
+        if (!isObj(tr.repeat) || !isInt(tr.repeat.max) || tr.repeat.max < 1 || Object.keys(tr.repeat).some((k) => k !== 'max')) err(`${path}.repeat`, 'esperado true/false ou { max } (inteiro ≥ 1)');
+      }
     });
   }
 
@@ -303,6 +325,9 @@ export function validateScenario(file: unknown, opts: ValidateScenarioOpts = {})
 
 function isText(v: unknown): v is Text { return typeof v === 'string' || (isObj(v) && typeof v.pt === 'string' && (v.en === undefined || typeof v.en === 'string')); }
 
+/** G12: alvo de `ability` é ponto quando tem at, start, entity, dx ou dy; senão é EntityRef ({ tc } sem deslocamento = o CC). */
+export function isPointLike(v: unknown): boolean { return isObj(v) && (has(v, 'at') || has(v, 'start') || has(v, 'entity') || has(v, 'dx') || has(v, 'dy')); }
+
 /** G6: Idade máxima (inteiro 0…MAX_AGE), nunca abaixo da Idade inicial da config. */
 function checkMaxAge(v: unknown, startingAge: unknown, path: string, err: (p: string, m: string) => void): void {
   if (!isInt(v) || v < 0 || v > MAX_AGE) { err(path, `esperado um inteiro entre 0 e ${MAX_AGE}`); return; }
@@ -319,6 +344,20 @@ function checkForbid(f: unknown, path: string, err: (p: string, m: string) => vo
     if (!Array.isArray(list)) { err(`${path}.${k}`, 'esperada uma lista de ids'); continue; }
     list.forEach((id, i) => { if (typeof id !== 'string' || !has(tb[0], id)) err(`${path}.${k}[${i}]`, `${tb[1]} desconhecido(a): '${String(id)}'`); });
   }
+}
+
+/** G10: map.relics de um mapa gerado — true/false ou lista de [x, y] inteiros dentro do mapa (sem repetir), até MAX_FIXED_RELICS. */
+function checkRelics(v: unknown, size: { w: number; h: number } | undefined, path: string, err: (p: string, m: string) => void): void {
+  if (typeof v === 'boolean') return;
+  if (!Array.isArray(v)) { err(path, 'esperado true/false ou uma lista de posições [x, y]'); return; }
+  if (v.length > MAX_FIXED_RELICS) err(path, `no máximo ${MAX_FIXED_RELICS} relíquias`);
+  const seen = new Set<string>();
+  v.forEach((p, i) => {
+    if (!Array.isArray(p) || p.length !== 2 || !isInt(p[0]) || !isInt(p[1])) { err(`${path}[${i}]`, 'esperado [x, y] (tiles inteiros)'); return; }
+    if (p[0] < 0 || p[1] < 0 || (size && (p[0] >= size.w || p[1] >= size.h))) { err(`${path}[${i}]`, `fora do mapa${size ? ` (${size.w}×${size.h})` : ''}`); return; }
+    const k = `${p[0]},${p[1]}`;
+    if (seen.has(k)) err(`${path}[${i}]`, `posição repetida: [${k}]`); else seen.add(k);
+  });
 }
 
 function checkResources(r: unknown, path: string, err: (p: string, m: string) => void): void {
@@ -348,6 +387,7 @@ class Validator {
 
   unitType(t: unknown, path: string): void { if (typeof t !== 'string' || !has(UNITS, t)) this.err(path, `unidade desconhecida: '${String(t)}'`); }
   buildingType(t: unknown, path: string): void { if (typeof t !== 'string' || !has(BUILDINGS, t)) this.err(path, `edifício desconhecido: '${String(t)}'`); }
+  power(t: unknown, path: string): void { if (typeof t !== 'string' || !has(POWERS, t)) this.err(path, `poder desconhecido: '${String(t)}'`); }
   typeList(t: unknown, path: string, kind: 'unit' | 'building'): void {
     const one = (x: unknown, p: string) => (kind === 'unit' ? this.unitType(x, p) : this.buildingType(x, p));
     if (Array.isArray(t)) t.forEach((x, i) => one(x, `${path}[${i}]`)); else one(t, path);
@@ -492,6 +532,27 @@ class Validator {
       if (!ok) this.err(`${path}.difficulty`, "esperado 'easy', 'normal', 'hard' ou uma lista deles");
       return;
     }
+    if (has(c, 'powerUsed')) {   // G11: comparação opcional (sem ela, ao menos 1 uso)
+      const u = c.powerUsed;
+      if (!isObj(u)) this.err(`${path}.powerUsed`, 'esperado { player, id }');
+      else { this.player(u.player, `${path}.powerUsed.player`, inLoop); this.power(u.id, `${path}.powerUsed.id`); }
+      this.cmp(c, path, inLoop, false);
+      return;
+    }
+    if (has(c, 'kills')) {   // G13
+      const k = c.kills;
+      if (!isObj(k)) this.err(`${path}.kills`, 'esperado { player, type?, by? }');
+      else {
+        this.player(k.player, `${path}.kills.player`, inLoop);
+        if (k.type !== undefined) {
+          const one = (x: unknown, p: string) => { if (typeof x !== 'string' || !(has(UNITS, x) || has(BUILDINGS, x))) this.err(p, `tipo desconhecido: '${String(x)}'`); };
+          if (Array.isArray(k.type)) k.type.forEach((x, i) => one(x, `${path}.kills.type[${i}]`)); else one(k.type, `${path}.kills.type`);
+        }
+        if (k.by !== undefined && (!isObj(k.by) || typeof k.by.tag !== 'string' || Object.keys(k.by).some((x) => x !== 'tag'))) this.err(`${path}.kills.by`, 'esperado { tag }');
+      }
+      this.cmp(c, path, inLoop, true);
+      return;
+    }
     this.err(path, `operador de condição desconhecido: ${Object.keys(c).join(', ') || '(vazio)'}`);
   }
 
@@ -540,6 +601,14 @@ class Validator {
         if (a.resources !== undefined) checkResources(a.resources, `${path}.resources`, this.err);
         if (a.techs !== undefined) { if (!Array.isArray(a.techs)) this.err(`${path}.techs`, 'esperada uma lista'); else a.techs.forEach((t, i) => { if (typeof t !== 'string' || !has(TECHS, t)) this.err(`${path}.techs[${i}]`, `tecnologia desconhecida: '${String(t)}'`); }); }
         if (a.minorGods !== undefined) { if (!Array.isArray(a.minorGods)) this.err(`${path}.minorGods`, 'esperada uma lista'); else a.minorGods.forEach((g, i) => { if (typeof g !== 'string' || !has(MINOR_GODS, g)) this.err(`${path}.minorGods[${i}]`, `deus menor desconhecido: '${String(g)}'`); }); }
+        if (a.powers !== undefined) {   // G11
+          if (!isObj(a.powers)) this.err(`${path}.powers`, 'esperado { add, remove, reset } (listas de ids de poderes)');
+          else for (const [k, list] of Object.entries(a.powers)) {
+            if (k !== 'add' && k !== 'remove' && k !== 'reset') { this.err(`${path}.powers.${k}`, `lista desconhecida: '${k}' (add, remove ou reset)`); continue; }
+            if (!Array.isArray(list)) { this.err(`${path}.powers.${k}`, 'esperada uma lista de ids de poderes'); continue; }
+            list.forEach((id, i) => this.power(id, `${path}.powers.${k}[${i}]`));
+          }
+        }
         return;
       case 'removeAll':
         if (a.player !== undefined) this.player(a.player, `${path}.player`, inLoop);
@@ -581,6 +650,10 @@ class Validator {
       }
       case 'ceasefire': if (!isNum(a.seconds)) this.err(`${path}.seconds`, 'esperado um número'); return;
       case 'defeat': this.player(a.player, `${path}.player`, inLoop); return;
+      case 'ability':   // G12: unit = o herói; target opcional (EntityRef, ou ponto com at/start/entity/dx/dy)
+        this.entity(a.unit, `${path}.unit`, inLoop);
+        if (a.target !== undefined) { if (isPointLike(a.target)) this.point(a.target, `${path}.target`, inLoop); else this.entity(a.target, `${path}.target`, inLoop); }
+        return;
       case 'forEachPlayer':
         if (a.team !== undefined && !isInt(a.team)) this.err(`${path}.team`, 'esperado um inteiro');
         if (a.alive !== undefined && typeof a.alive !== 'boolean') this.err(`${path}.alive`, 'esperado true/false');
@@ -608,7 +681,12 @@ class Validator {
  * 6) nome próprio (spawn/place `name`, G8) sem `en`;
  * 7) variável do HUD (G4): progress `var` que nenhum setVar/addVar escreve e que não está em `vars`; countdown `fromVar`
  *    sem setVar cujo valor tenha { time: true } (addVar e `vars` não marcam instante) ou declarada em `vars` (o valor
- *    inicial já vale como marca e a contagem apareceria desde o início).
+ *    inicial já vale como marca e a contagem apareceria desde o início);
+ * 8) G17: { fired: <gatilho repeat> } (repeat nunca entra em fired: use { var: '@id' }) e variável '@x' (condição, valor,
+ *    setVar/addVar, HUD) sem gatilho repeat 'x' — o contador nunca anda;
+ * 9) G10: relíquia fixa (map.relics) que, no mapa gerado pela semente, cai em água, montanha, recurso, no Centro Cívico do
+ *    kit ou fora da região dos inícios — o jogo a move para a terra alcançável mais próxima (ou a descarta).
+ * A tag futura (1) também vale para kills.by.tag (G13): { kills: { by: { tag } }, eq: 0 } vale com o grupo ausente.
  */
 function lint(f: Record<string, unknown>, warn: (path: string, message: string) => void): void {
   const setupTags = new Set<string>();
@@ -672,7 +750,8 @@ function lint(f: Record<string, unknown>, warn: (path: string, message: string) 
       if (isObj(c.units.near)) check(pointTag(c.units.near.point), risky, guards, `${path}.units.near.point`);
       return;
     }
-    if (isObj(c.buildings)) check(c.buildings.tag, zeroPasses(c) !== negated, guards, `${path}.buildings.tag`);
+    if (isObj(c.buildings)) { check(c.buildings.tag, zeroPasses(c) !== negated, guards, `${path}.buildings.tag`); return; }
+    if (isObj(c.kills) && isObj(c.kills.by)) check(c.kills.by.tag, zeroPasses(c) !== negated, guards, `${path}.kills.by.tag`);   // G13
   };
   const objectives = Array.isArray(f.objectives) ? f.objectives : [];
   objectives.forEach((o, i) => { if (!isObj(o)) return; walk(o.done, `objectives[${i}].done`, new Set(), false); walk(o.failed, `objectives[${i}].failed`, new Set(), false); });
@@ -740,6 +819,8 @@ function lint(f: Record<string, unknown>, warn: (path: string, message: string) 
   // 7) variável do HUD (G4) que ninguém escreve: a barra fica em 0 / a contagem relativa nunca aparece (ou aparece cedo)
   const declared = new Set<string>(isObj(f.vars) ? Object.keys(f.vars) : []);
   const written = new Set<string>(declared);
+  const repeatIds = new Set<string>();   // G17: todo gatilho repeat escreve vars['@id'] sozinho
+  for (const tr of triggers) if (isObj(tr) && typeof tr.id === 'string' && tr.repeat !== undefined && tr.repeat !== false) { repeatIds.add(tr.id); written.add('@' + tr.id); }
   const marked = new Set<string>();   // setVar com { time: true } no valor: só isso marca o instante do fromVar
   const hasTime = (v: unknown): boolean => isObj(v) && (v.time === true || (Array.isArray(v.add) && hasTime(v.add[0])));
   const collectVar = (a: Record<string, unknown>) => {
@@ -755,5 +836,54 @@ function lint(f: Record<string, unknown>, warn: (path: string, message: string) 
       else if (!marked.has(h.fromVar)) warn(`hud[${i}].fromVar`, `variável '${h.fromVar}' nunca é marcada (setVar com { "time": true }): a contagem não aparece`);
     }
     if (h.type === 'progress' && typeof h.var === 'string' && !written.has(h.var)) warn(`hud[${i}].var`, `variável '${h.var}' nunca é escrita (setVar/addVar ou vars): a barra fica em 0`);
+  });
+
+  // 8) G17: contador de repeat
+  const counterOk = (name: string) => !name.startsWith('@') || repeatIds.has(name.slice(1));
+  const deep = (v: unknown, path: string): void => {   // { fired } e { var: '@x' } em condições, valores, EntityRef e HUD
+    if (Array.isArray(v)) { v.forEach((x, i) => deep(x, `${path}[${i}]`)); return; }
+    if (!isObj(v)) return;
+    if (typeof v.fired === 'string' && repeatIds.has(v.fired)) warn(`${path}.fired`, `o gatilho '${v.fired}' é repeat e nunca entra em fired: use { "var": "@${v.fired}", "gte": 1 } (disparos do repeat)`);
+    for (const k of ['var', 'fromVar'] as const) if (typeof v[k] === 'string' && !counterOk(v[k] as string)) warn(`${path}.${k}`, `variável '${v[k]}' é contador de repeat, mas não há gatilho repeat '${(v[k] as string).slice(1)}': o valor fica 0`);
+    if ((v.do === 'setVar' || v.do === 'addVar') && typeof v.name === 'string' && !counterOk(v.name)) warn(`${path}.name`, `variável '${v.name}' usa o prefixo @ dos contadores de repeat, mas não há gatilho repeat '${v.name.slice(1)}'`);
+    for (const [k, x] of Object.entries(v)) if (typeof x === 'object' && x !== null) deep(x, `${path}.${k}`);
+  };
+  objectives.forEach((o, i) => { if (isObj(o)) { deep(o.done, `objectives[${i}].done`); deep(o.failed, `objectives[${i}].failed`); } });
+  triggers.forEach((tr, i) => { if (isObj(tr)) { deep(tr.when, `triggers[${i}].when`); deep(tr.then, `triggers[${i}].then`); } });
+  deep(f.setup, 'setup'); deep(f.victory, 'victory'); deep(f.defeat, 'defeat'); deep(f.hud, 'hud');
+
+  // 9) G10: relíquias fixas num mapa gerado (só dá para conferir gerando o mapa pela semente, como createGame)
+  lintGenRelics(f, warn);
+}
+
+/** Lint 9 (G10): gera o mapa do cenário (sem mexer no contador global de ids de nós) e confere cada posição de map.relics. */
+function lintGenRelics(f: Record<string, unknown>, warn: (path: string, message: string) => void): void {
+  const m = f.map;
+  if (!isObj(m) || !isObj(m.gen) || !Array.isArray(m.relics) || m.relics.length === 0) return;
+  const g = m.gen, c = isObj(f.config) ? f.config : {};
+  const players = Array.isArray(c.players) ? c.players.length : 0;
+  const seed = isInt(c.seed) ? c.seed : g.seed;
+  if (typeof g.mapSize !== 'string' || !has(MAP_SIZES, g.mapSize) || !isInt(seed) || players < 1) return;
+  const size = MAP_SIZES[g.mapSize as keyof typeof MAP_SIZES];
+  const mapType = MAP_TYPES.includes(g.mapType as MapType) ? (g.mapType as MapType) : 'continental';
+  const seq = getNodeSeq();
+  let map: ReturnType<typeof generateMap>;
+  try { map = generateMap(size.w, size.h, seed, players, mapType, c.mode === 'koth'); } finally { resetNodeSeq(seq); }
+  // Centro Cívico 3x3 do kit inicial em cada início (createGame o põe antes das relíquias)
+  const kit = (i: number) => (Array.isArray(c.startKit) ? c.startKit[i] !== false : c.startKit !== false);
+  map.starts.forEach((s, i) => {
+    if (i >= players || !kit(i)) return;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inBounds(map, s.x + dx, s.y + dy)) map.blocked[idx(map, s.x + dx, s.y + dy)] = 1;
+  });
+  invalidateComponents(map);
+  const regions = new Set<number>();
+  for (const s of map.starts) { const t = spiralSearch(s.x, s.y, 3, (a, b) => isPassable(map, a, b)); if (t) regions.add(componentAt(map, t.x, t.y)); }
+  const ok = (a: number, b: number) => isPassable(map, a, b) && regions.has(componentAt(map, a, b));
+  m.relics.forEach((p, i) => {
+    if (!Array.isArray(p) || !isInt(p[0]) || !isInt(p[1]) || !inBounds(map, p[0], p[1]) || ok(p[0], p[1])) return;   // formato/limites: erros da validação
+    const snap = spiralSearch(p[0], p[1], RELIC_SNAP_RADIUS, ok);
+    warn(`map.relics[${i}]`, snap
+      ? `no mapa gerado, [${p[0]}, ${p[1]}] não é terra livre na região dos inícios: a relíquia vai para [${snap.x}, ${snap.y}]`
+      : `no mapa gerado, [${p[0]}, ${p[1]}] não tem terra livre alcançável a até ${RELIC_SNAP_RADIUS} tiles: a relíquia é descartada`);
   });
 }
