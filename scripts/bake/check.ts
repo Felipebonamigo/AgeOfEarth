@@ -15,7 +15,7 @@ import { PX_PER_TILE, PITCH_DEG, PIPELINE_VERSION, DIRS, FPS } from './page/came
 export const BUDGET = {
   maxAtlasSide: 2048,
   maxPngMB: 150,            // pacote completo a 1× estimado em 75–150 MB (§3.5)
-  maxVramMB: 250,           // texturas residentes, pior caso (§6)
+  maxVramMB: 250,           // texturas residentes, pior caso (§6: a 1×), POR ESCALA — a partida carrega uma só (o 2× vale ×4: vramBudgetMB)
   maxSourceSize: { unit: 128, building: 256, prop: 224, icon: ICON_PX } as Record<AssetKind | 'icon', number>,
 };
 
@@ -41,7 +41,9 @@ export function poseErrors(root: string, m: ArtManifest): string[] {
   return e;
 }
 
-export interface CheckResult { errors: string[]; warnings: string[]; stats: { manifests: number; atlases: number; frames: number; pngBytes: number; vramBytes: number; hasArtifacts: boolean } }
+export interface CheckResult { errors: string[]; warnings: string[]; stats: { manifests: number; atlases: number; frames: number; pngBytes: number; vramBytes: number; vramByScale: Record<string, number>; hasArtifacts: boolean } }
+/** Teto de VRAM (MB) de uma escala se tudo dela for carregado: o de 1× vezes a área do pixel (2× = 4×). */
+export const vramBudgetMB = (scale: number): number => BUDGET.maxVramMB * scale * scale;
 
 export function runCheck(root: string): CheckResult {
   const errors: string[] = [], warnings: string[] = [];
@@ -54,7 +56,7 @@ export function runCheck(root: string): CheckResult {
 
   const outDir = path.join(root, 'public', 'art');
   const indexFile = path.join(outDir, 'manifest.json');
-  const stats = { manifests: manifests.length, atlases: 0, frames: 0, pngBytes: 0, vramBytes: 0, hasArtifacts: fs.existsSync(indexFile) };
+  const stats = { manifests: manifests.length, atlases: 0, frames: 0, pngBytes: 0, vramBytes: 0, vramByScale: {} as Record<string, number>, hasArtifacts: fs.existsSync(indexFile) };
   if (!stats.hasArtifacts) return { errors, warnings, stats };
 
   const index = JSON.parse(fs.readFileSync(indexFile, 'utf8')) as ArtIndex;
@@ -67,6 +69,7 @@ export function runCheck(root: string): CheckResult {
     const sheet = JSON.parse(fs.readFileSync(jf, 'utf8')) as Sheet;
     sheets.set(a.json, sheet);
     stats.atlases++; stats.pngBytes += buf.length; stats.vramBytes += png.width * png.height * 4;
+    stats.vramByScale[a.scale] = (stats.vramByScale[a.scale] ?? 0) + png.width * png.height * 4;
     if (crypto.createHash('sha256').update(buf).digest('hex') !== a.sha256) errors.push(`${a.image}: sha256 difere do índice (rode art:bake --pack-only)`);
     if (png.width !== sheet.meta.size.w || png.height !== sheet.meta.size.h) errors.push(`${a.image}: tamanho ${png.width}×${png.height} ≠ meta.size`);
     if (png.width > BUDGET.maxAtlasSide || png.height > BUDGET.maxAtlasSide) errors.push(`${a.image}: maior que ${BUDGET.maxAtlasSide}²`);
@@ -145,7 +148,7 @@ export function runCheck(root: string): CheckResult {
     }
   }
   if (stats.pngBytes > BUDGET.maxPngMB * 1048576) errors.push(`PNG somam ${(stats.pngBytes / 1048576).toFixed(1)} MB > ${BUDGET.maxPngMB} MB`);
-  if (stats.vramBytes > BUDGET.maxVramMB * 1048576) errors.push(`atlas somam ${(stats.vramBytes / 1048576).toFixed(1)} MB de VRAM > ${BUDGET.maxVramMB} MB`);
+  for (const [scale, bytes] of Object.entries(stats.vramByScale)) if (bytes > vramBudgetMB(Number(scale)) * 1048576) errors.push(`atlas ${scale}× somam ${(bytes / 1048576).toFixed(1)} MB de VRAM > ${vramBudgetMB(Number(scale))} MB`);
   if (index.totals.pngBytes !== stats.pngBytes) errors.push('totals.pngBytes do índice difere dos arquivos');
   return { errors, warnings, stats };
 }
@@ -159,6 +162,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   for (const w of r.warnings) console.warn('aviso:', w);
   for (const e of r.errors) console.error('ERRO:', e);
   const s = r.stats;
-  console.log(`art:check — ${s.manifests} manifestos` + (s.hasArtifacts ? `, ${s.atlases} atlas, ${s.frames} quadros, ${(s.pngBytes / 1048576).toFixed(2)} MB de PNG, ${(s.vramBytes / 1048576).toFixed(1)} MB de VRAM (orçamento ${BUDGET.maxPngMB} MB / ${BUDGET.maxVramMB} MB)` : ' (public/art ainda não gerado)') + (r.errors.length ? ` — ${r.errors.length} erro(s)` : ' — ok'));
+  console.log(`art:check — ${s.manifests} manifestos` + (s.hasArtifacts ? `, ${s.atlases} atlas, ${s.frames} quadros, ${(s.pngBytes / 1048576).toFixed(2)} MB de PNG, ${(s.vramBytes / 1048576).toFixed(1)} MB de VRAM (${Object.entries(s.vramByScale).map(([k, v]) => `${k}× ${(v / 1048576).toFixed(1)}/${vramBudgetMB(Number(k))}`).join(', ')} MB; PNG até ${BUDGET.maxPngMB} MB)` : ' (public/art ainda não gerado)') + (r.errors.length ? ` — ${r.errors.length} erro(s)` : ' — ok'));
   process.exit(r.errors.length ? 1 : 0);
 }

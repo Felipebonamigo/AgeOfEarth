@@ -1,0 +1,70 @@
+{
+  "id": "kataskopos",
+  "kind": "unit",
+  "stage": 4,
+  "docs": "Unidade montada: rig do cavalo com o cavaleiro no rig humano (docs/ART.md, Apêndice E). Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/kataskopos.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Trot\", \"run\": \"Gallop\", \"attack\": \"Attack\", \"die\": \"Death\" }, \"teamMaterials\": [\"Tunic\", \"Cape\", \"Headband\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "horse",
+    "poses": "art/poses/horse.json",
+    "riderPoses": "art/poses/human.json",
+    "params": {
+      "coat": "grey",
+      "build": "light",
+      "cloth": "fleece",
+      "rider": {
+        "helmet": "none",
+        "headband": true,
+        "armor": "tunic",
+        "tunicTeam": true,
+        "cape": "short",
+        "weapon": "sword"
+      }
+    }
+  },
+  "size": {
+    "tiles": [
+      4.0,
+      4.2
+    ]
+  },
+  "anchor": [
+    0.46,
+    0.62
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": {
+      "frames": 4,
+      "fps": 10,
+      "pose": "idle_horse",
+      "rider": "ride_idle"
+    },
+    "walk": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "trot",
+      "rider": "ride_trot"
+    },
+    "run": {
+      "frames": 8,
+      "fps": 12,
+      "pose": "gallop",
+      "rider": "ride_gallop"
+    },
+    "attack": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "attack_horse",
+      "rider": "ride_attack_sword"
+    },
+    "die": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "die_horse",
+      "rider": "ride_die"
+    }
+  },
+  "team": true,
+  "shadow": true
+}

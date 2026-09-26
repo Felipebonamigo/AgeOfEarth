@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, posesOf, FRAME_NAME_RE, GROUP_OF, BUILDING_STATES, UNIT_ANIMS, REQUIRED_UNIT_ANIMS, type ArtManifest } from '../scripts/bake/manifest.mjs';
 import { BUILDINGS, UNITS } from '../src/core/data';
-import { runCheck, poseErrors, BUDGET } from '../scripts/bake/check';
+import { runCheck, poseErrors, BUDGET, vramBudgetMB } from '../scripts/bake/check';
 import { UNIT_KITS, UNIT_POSE_KEYS, DEFAULT_POSES, type UnitRig } from '../scripts/bake/page/rigs/units.js';
 import { alphaBounds, packShelf, blit, sheetJson } from '../scripts/bake/page/atlas.js';
 import { DIRS, PAD, EXTRUDE } from '../scripts/bake/page/camera.js';
@@ -256,7 +256,7 @@ describe('artefatos gerados (public/art, se existirem)', () => {
     const r = runCheck(ROOT);
     expect(r.errors).toEqual([]);
     expect(r.stats.pngBytes).toBeLessThanOrEqual(BUDGET.maxPngMB * 1048576);
-    expect(r.stats.vramBytes).toBeLessThanOrEqual(BUDGET.maxVramMB * 1048576);
+    for (const [scale, bytes] of Object.entries(r.stats.vramByScale)) expect(bytes, `${scale}×`).toBeLessThanOrEqual(vramBudgetMB(Number(scale)) * 1048576);
   });
   it.runIf(hasArt)('todo manifesto está no índice e as animações declaradas estão no JSON do atlas', () => {
     const index = JSON.parse(fs.readFileSync(path.join(ROOT, 'public', 'art', 'manifest.json'), 'utf8'));
