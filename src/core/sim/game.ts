@@ -26,9 +26,20 @@ import { placeRelics, updateRelics } from './relics';
 const PATH_BUDGET_PER_TICK = 48;
 const MAX_EVENTS = 200;
 
-/** Jogador que abre a vez das IAs neste tick: gira a cada segundo (antes era sempre o 0 — com todas pensando no mesmo tick,
- * o jogador 0 pegava primeiro recursos, alvos e vagas). */
-export function firstThinker(tick: number, nPlayers: number): number { return nPlayers > 0 ? Math.floor(tick / TICK_RATE) % nPlayers : 0; }
+/**
+ * Ordem dos jogadores na vez das IAs da rodada `round` (state.aiRound): abre o jogador round % n e o sentido alterna a cada
+ * n rodadas (0, 1, …, n−1 e depois 0, n−1, …, 1). Assim, entre IAs que pensam juntas, cada uma abre a vez 1/n das rodadas e
+ * cada par se alterna exatamente (só girar daria ao jogador i a frente de i+1 em (n−1)/n das rodadas). Quem pensa antes
+ * pega primeiro recursos, alvos e vagas no mesmo tick; antes era sempre o jogador 0, e na 1ª correção o rodízio seguia os
+ * segundos — com a IA Fácil (a cada 2 s) o jogador 0 abria todas as vezes.
+ */
+export function aiThinkOrder(round: number, n: number): number[] {
+  const out: number[] = [];
+  if (n <= 0) return out;
+  const first = round % n, dir = Math.floor(round / n) % 2 === 0 ? 1 : -1;
+  for (let k = 0; k < n; k++) out.push((((first + dir * k) % n) + n) % n);
+  return out;
+}
 
 export function createGame(config: GameConfig): GameState {
   resetNodeSeq();
@@ -42,7 +53,7 @@ export function createGame(config: GameConfig): GameState {
     players: [], units: new Map(), buildings: new Map(), nextId: 1,
     territory: new Int8Array(size.w * size.h).fill(-1), territoryDirty: true, territoryVersion: 0,
     events: [], effects: [], timed: [], winner: -1, gameOver: false, rng: new RNG(config.seed + 7),
-    ceasefireUntil: 0, ceasefireBy: -1, fogVersion: 0, relics: [],
+    ceasefireUntil: 0, ceasefireBy: -1, fogVersion: 0, relics: [], aiRound: 0,
   };
   config.players.forEach((pc, i) => {
     const resources = { food: 300, wood: 250, gold: 120, knowledge: 0, favor: 0 } as Record<ResourceType, number>;
@@ -114,7 +125,10 @@ export function createGame(config: GameConfig): GameState {
         if (e.tag) addTag(e.tag, b.id);
       } else if (e.kind === 'unit') {
         if (typeof e.type !== 'string' || !Object.prototype.hasOwnProperty.call(UNITS, e.type)) continue;
-        const t = spiralSearch(e.x, e.y, 6, (a, b) => openTile(state, a, b)) ?? nearestFreeTile(map, e.x, e.y, 6);   // prefere região com ≥ 8 tiles (não nasce presa)
+        // prefere região com ≥ 8 tiles (não nasce presa); tile ocupado → espiral no referencial do tile voltado ao centro do mapa
+        // (antes: o norte primeiro, e a mesma entidade espelhada no arquivo nascia em tiles não espelhados)
+        const f = centerFrame(map, e.x + 0.5, e.y + 0.5);
+        const t = spiralSearchFrame(e.x, e.y, 6, (a, b) => openTile(state, a, b), f) ?? nearestFreeTile(map, e.x, e.y, 6, f);
         if (!t) continue;
         const u = spawnUnit(state, e.owner, e.type, t.x + 0.5, t.y + 0.5);
         if (e.tag) addTag(e.tag, u.id);
@@ -204,9 +218,14 @@ export function tick(state: GameState, commands: Command[] = []): void {
   else for (const b of state.buildings.values()) if (!b.dead) updateBuilding(state, rt, b, DT);
   // Economia e IA a cada segundo (defasadas para distribuir custo)
   if (state.tick % TICK_RATE === 0) { economySecond(state); if (state.koth) updateKoth(state); updateRelics(state); }
-  // IAs: a primeira a pensar gira a cada segundo (quem pensa antes pega primeiro recursos, alvos e vagas no mesmo tick)
-  const np = state.players.length, first = firstThinker(state.tick, np);
-  for (let k = 0; k < np; k++) { const p = state.players[(k + first) % np]; if (p.isAI && p.alive) aiThink(state, p); }
+  // IAs: com 2+ pensando neste tick, a ordem segue o rodízio por rodadas (aiThinkOrder) e a rodada avança; com uma só, a
+  // ordem não importa e a rodada fica (senão IAs de períodos diferentes desalinhariam o rodízio das que pensam juntas)
+  let ready = 0;
+  for (const p of state.players) if (p.isAI && p.alive && p.ai && state.tick >= p.ai.nextThink) ready++;
+  if (ready >= 2) {
+    for (const i of aiThinkOrder(state.aiRound, state.players.length)) { const p = state.players[i]; if (p.isAI && p.alive) aiThink(state, p); }
+    state.aiRound++;
+  } else for (const p of state.players) if (p.isAI && p.alive) aiThink(state, p);
   // Cenário: eliminação sem vencedor global (G2) e depois objetivos/gatilhos; fora dele, a vitória padrão. As marionetes
   // voltam a ser sincronizadas após os gatilhos: uma onda recém-invocada já pode ser atacada neste mesmo tick.
   if (state.scenario) { if (state.tick % TICK_RATE === TICK_RATE - 1) { eliminateInScenario(state); runScenario(state); refreshPuppets(state); } }

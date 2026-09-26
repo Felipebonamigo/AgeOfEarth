@@ -519,10 +519,9 @@ const M4_COLONY = { tx: 47, ty: 83 }, M4_SECOND = { tx: 19, ty: 95 };
 /**
  * m4: militares para começar o assalto a uma corrente — o mesmo em todas as dificuldades (estado do jogo, não relógio: o tempo
  * medido é o ritmo real da economia e das lutas). Com 26–28 o Normal perdia a colônia; com 45 e 50 o Fácil vencia aos 16m13s
- * e 16m51s (abaixo da janela); 55 é quase 5× o exército do desembarque. Com a IA relativa ao centro do mapa (09/2026) a
- * economia da colônia ficou mais rápida e 55 dava o Fácil aos 16m03s: 60 (Fácil 17m56s, Normal 20m08s, Difícil 21m20s).
+ * e 16m51s (abaixo da janela); 55 é quase 5× o exército do desembarque.
  */
-const M4_ASSAULT_ARMY = 60;
+const M4_ASSAULT_ARMY = 55;
 /** m4: as correntes na ordem do desfiladeiro. */
 const M4_CHAINS = ['corrente1', 'corrente2', 'corrente3'] as const;
 
@@ -736,8 +735,16 @@ const M5_ROUTE: [number, number][] = [[108, 97], [72, 81], [57, 74], [56, 62], [
 const M5_FOOT = { x: 32, y: 34 };
 /** m5: o posto na praia — Odisseu junto ao casco, os náufragos atrás dele e a escolta entre os dois e o nordeste (de onde vem a caça). */
 const M5_POST = { x: 113, y: 99 }, M5_SCREEN = { x: 116, y: 95 }, M5_HUDDLE = { x: 110, y: 100 };
-/** m5: o posto da guarda do Heraion (a leste do templo, na Via Sagrada) e quantos militares ficam nele. */
+/** m5: o posto da guarda do Heraion (a leste do templo, na Via Sagrada) e o mínimo de militares nele. */
 const M5_HERAION_POST = { x: 55, y: 60 }, M5_HERAION_GUARD = 10;
+/**
+ * m5: tamanho da guarda do Heraion — o mínimo ou 80 % do exército da Liga, o que for maior (quem joga olha o exército dela: o
+ * Heraion é o 1º alvo de cada onda). Com a IA relativa ao centro do mapa (26/09/2026), a Liga (canto nordeste) deixou de perder
+ * tempo com casas e kit mal orientados e, no Difícil, passa do limiar de onda da Idade Heroica (16 × 1,3 = 21 militares) antes
+ * de juntar para a Mítica: a 1ª onda chega aos ~7 min (~13 hipaspistas e 4 arqueiros), não aos ~10,5 min depois da Mítica; com a
+ * guarda fixa de 10 o Heraion caía aos 7m55s e Argos aos 11m35s.
+ */
+function m5HeraionGuardSize(state: GameState): number { return Math.max(M5_HERAION_GUARD, Math.ceil(0.8 * militaryCount(state, 1))); }
 /** m5: coluna a partir da qual (x maior) um militar de Argos está "em campo", na margem leste do Ínaco. */
 const M5_EAST_BANK = 67;
 
@@ -860,7 +867,7 @@ function m5Reinforce(state: GameState, size = 12): Command | null {
 }
 
 /**
- * Heraion: a guarda (M5_HERAION_GUARD militares de casa) fica no posto a leste do templo — quem se afasta volta —, e, sem inimigos
+ * Heraion: a guarda (m5HeraionGuardSize militares de casa) fica no posto a leste do templo — quem se afasta volta —, e, sem inimigos
  * por perto, 2 cidadãos o reparam quando está ferido (a Liga o ataca primeiro: é o edifício de Argos mais perto de Corinto).
  */
 function m5Heraion(state: GameState): Command[] {
@@ -869,8 +876,9 @@ function m5Heraion(state: GameState): Command[] {
   const guard = m5HeraionGuard(state);
   const back = guard.filter((u) => u.state === 'idle' && m5D2(u, M5_HERAION_POST) > 16).map((u) => u.id);
   if (back.length) out.push({ type: 'attackMove', player: 0, ids: back, x: M5_HERAION_POST.x, y: M5_HERAION_POST.y });
-  if (guard.length < M5_HERAION_GUARD) {
-    const ids = m5HomeArmy(state).filter((u) => u.state === 'idle').slice(0, M5_HERAION_GUARD - guard.length).map((u) => u.id);
+  const size = m5HeraionGuardSize(state);
+  if (guard.length < size) {
+    const ids = m5HomeArmy(state).filter((u) => u.state === 'idle').slice(0, size - guard.length).map((u) => u.id);
     if (ids.length) out.push({ type: 'move', player: 0, ids, x: M5_HERAION_POST.x, y: M5_HERAION_POST.y });
   }
   const b = state.buildings.get(state.scenario?.vars['#heraion'] ?? -1);
@@ -881,6 +889,25 @@ function m5Heraion(state: GameState): Command[] {
     if (ids.length) out.push({ type: 'repair', player: 0, ids, targetId: b.id });
   }
   return out;
+}
+
+/** m5: segundo a partir do qual o ouro do resgate (1500) fica guardado (a oferta vem aos 15/16/17 min). */
+const M5_SAVE_FROM = 480;
+/**
+ * m5: torres de vigia junto do Heraion (até M5_HERAION_TOWERS a ≤ 12 tiles dele, uma obra por vez, com o cidadão mais perto):
+ * quem joga sabe que o templo é o 1º alvo de cada onda da Liga. Local por findBuildSpot a 1–6 tiles do posto da guarda.
+ */
+const M5_HERAION_TOWERS = 3;
+function m5HeraionTower(state: GameState): Command | null {
+  const p = state.players[0]; const h = entityPos(state, '#heraion'); if (!h) return null;
+  const cost = getBuildingStats(state, p, 'tower').cost as Partial<Record<ResourceType, number>>;
+  if (p.resources.wood < (cost.wood ?? 0) + 30 || p.resources.gold < (cost.gold ?? 0) + 20) return null;
+  const towers = [...state.buildings.values()].filter((b) => b.owner === 0 && !b.dead && b.type === 'tower' && (b.x - h.x) * (b.x - h.x) + (b.y - h.y) * (b.y - h.y) <= 12 * 12);
+  if (towers.length >= M5_HERAION_TOWERS || towers.some((b) => !b.complete)) return null;
+  const spot = findBuildSpot(state, p, 'tower', M5_HERAION_POST.x, M5_HERAION_POST.y, 1, 6);
+  if (!spot) return null;
+  const v = villagersNear(state, spot.x, spot.y).find((u) => u.state !== 'build' && !tagIds(state, 'naufragos').includes(u.id));
+  return v ? { type: 'build', player: 0, ids: [v.id], building: 'tower', tx: spot.x, ty: spot.y } : null;
 }
 
 /**
@@ -984,6 +1011,8 @@ const M7_MIX: Record<string, number> = { hypaspist: 4, cretan_archer: 4, hoplite
  * limite ou abaixo da janela) e, sem Oficina, os assaltos do Difícil morriam na Fortaleza (flechas mal a arranham) até os 32–34 min.
  */
 const M7_ASSAULT_ARMY = 80, M7_ASSAULT_RATIO = 2;
+/** m7: distância às naus do ponto de reunião antes do assalto (rumo a Argos). */
+const M7_STAGE = 26;
 
 /** Aquiles vivo (tag 'aquiles'; Tétis o devolve às naus com a mesma tag enquanto o acampamento estiver de pé). */
 function m7Achilles(state: GameState): Unit | null { const id = state.scenario?.vars['#aquiles']; const u = id !== undefined ? state.units.get(id) : undefined; return u && !u.dead ? u : null; }
@@ -1013,6 +1042,20 @@ function m7Assault(state: GameState): Command[] {
   const out: Command[] = [];
   const d2 = (u: Unit) => (u.x - camp.x) * (u.x - camp.x) + (u.y - camp.y) * (u.y - camp.y);
   const army = armyOf(state).map((id) => state.units.get(id)!);
+  // reagrupar antes de avançar: sem ninguém lutando nas naus, o exército se junta a M7_STAGE tiles delas (no rumo de Argos) e só
+  // avança com ≥ 70 % no ponto — espalhado entre a vigia e a casa, ele chegava aos poucos e os mirmidões o desfaziam por partes
+  if (armyNear(state, camp.x, camp.y, 18) < 10) {
+    const tc = firstBuilding(state, 'town_center');
+    if (tc) {
+      const vx = tc.x - camp.x, vy = tc.y - camp.y, vl = Math.sqrt(vx * vx + vy * vy) || 1;
+      const st = { x: camp.x + vx / vl * M7_STAGE, y: camp.y + vy / vl * M7_STAGE };
+      const at = army.filter((u) => (u.x - st.x) * (u.x - st.x) + (u.y - st.y) * (u.y - st.y) <= 12 * 12);
+      if (at.length < 0.7 * army.length) {
+        const go = army.filter((u) => !at.includes(u) && u.state !== 'attack').map((u) => u.id);
+        return go.length ? [{ type: 'attackMove', player: 0, ids: go, x: st.x, y: st.y }] : [];
+      }
+    }
+  }
   const far = army.filter((u) => d2(u) > 18 * 18).map((u) => u.id);
   if (far.length) out.push({ type: 'attackMove', player: 0, ids: far, x: camp.x, y: camp.y });
   const breakers = army.filter((u) => d2(u) <= 18 * 18 && u.targetId !== campId && (!UNITS[u.type].tags.includes('ranged') || UNITS[u.type].tags.includes('siege'))).map((u) => u.id);
@@ -1133,7 +1176,12 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
     ],
   },
   m4_caucaso: {
-    minutes: 40, expect: [17.5, 39], earlyOk: ['colonia'],
+    minutes: 40,
+    // janela revista em 26/09/2026: a §4 (25–30 min ± 30 %) dava 17m30s, mas com a IA relativa ao centro do mapa a colônia cresce
+    // mais depressa (Fácil, aos 13 min: 15 casas × 11 e Mítica aos 13 min × 15) e o roteiro, com os mesmos 55 militares, vence o
+    // Fácil aos ~16 min (era 18m47s): a m4 ficou mais fácil no Fácil (docs/STORY.md §4 e §7.2). Não se freia o roteiro para caber
+    // na janela antiga (o 55 → 60 da 1ª correção fazia isso e foi desfeito)
+    expect: [15, 39], earlyOk: ['colonia'],
     // a IA do jogador nunca sai em ondas (o alvo "mais fraco" dela seria qualquer torre do mapa); quem ataca é o roteiro
     hold: { time: { gte: 0 } },
     steps: [
@@ -1184,8 +1232,11 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
     // a IA do jogador nunca sai em ondas (defende Argos da Liga); Odisseu, os náufragos, a escolta e a guarda do Heraion são do roteiro
     hold: { time: { gte: 0 } },
     detach: (s) => m5Detach(s),
-    // o ouro do resgate fica separado desde cedo (a IA não o gasta; vende a sobra de madeira e comida no Mercado)
-    reserve: { when: { all: [{ not: { fired: 'resgate_pago' } }, { objective: 'escolta', is: 'pending' }] }, resources: { gold: 1500 } },
+    // o ouro do resgate fica separado a partir dos 8 min (a IA não o gasta; vende a sobra de madeira e comida no Mercado). Antes
+    // ficava desde o 1º segundo; com a Liga sem as desvantagens de orientação (26/09/2026) a 1ª onda dela chega aos ~7 min no
+    // Difícil com 11 tecnologias contra 3 de Argos (sem ouro para pesquisar) e arrasava a cidade: quem joga só junta o resgate
+    // quando a oferta se aproxima (15/16/17 min) e antes disso investe no exército
+    reserve: { when: { all: [{ time: { gte: M5_SAVE_FROM } }, { not: { fired: 'resgate_pago' } }, { objective: 'escolta', is: 'pending' }] }, resources: { gold: 1500 } },
     steps: [
       // a escolta do mapa (6 hoplitas, 4 toxotas, 2 hipeus) desce a Via Sagrada até a praia pelo vau sul, sem se desviar para caçar
       { label: 'escolta', when: { all: [{ time: { gte: 15 } }, { objective: 'encontrar', is: 'pending' }] }, every: 4, command: (s) => m5Outbound(s) },
@@ -1194,9 +1245,10 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
       { label: 'odisseu', when: { time: { gte: 1 } }, every: 2, command: (s) => m5Care(s) },
       { label: 'reforço', when: { all: [{ objective: 'encontrar', is: 'done' }, { not: { fired: 'resgate_pago' } }] }, every: 15, command: (s) => m5Reinforce(s) },
       { label: 'heraion', when: { all: [{ time: { gte: 30 } }, { objective: 'escolta', is: 'pending' }] }, every: 5, command: (s) => m5Heraion(s) },
+      { label: 'torres', when: { all: [{ time: { gte: 120 } }, { objective: 'escolta', is: 'pending' }] }, every: 10, command: (s) => m5HeraionTower(s) },
       { label: 'mercado', when: { time: { gte: 20 } }, every: 10, command: (s) => m5Market(s) },
-      // filas militares cheias só com a sobra acima do resgate (até pagá-lo)
-      { label: 'treino', when: { time: { gte: 5 } }, every: 5, command: (s) => trainArmy(s, 0, { reserve: s.scenario?.fired.includes('resgate_pago') ? { food: 150, wood: 100, gold: 60 } : { food: 150, wood: 100, gold: 1560 } }) },
+      // filas militares cheias; dos 8 min até pagar o resgate, só com a sobra acima dele
+      { label: 'treino', when: { time: { gte: 5 } }, every: 5, command: (s) => trainArmy(s, 0, { reserve: s.scenario?.fired.includes('resgate_pago') || s.tick < M5_SAVE_FROM * TICK_RATE ? { food: 150, wood: 100, gold: 60 } : { food: 150, wood: 100, gold: 1560 } }) },
       { label: 'poderes', when: { time: { gte: 2 } }, every: 3, command: (s) => battlePowers(s) },
       { label: 'tempestade', when: { time: { gte: 1 } }, every: 1, command: (s) => dodgeStorms(s) },
       // trégua comprada: náufragos, Odisseu e escolta sobem a Via Sagrada (vau sul → Heraion → colina de Argos)

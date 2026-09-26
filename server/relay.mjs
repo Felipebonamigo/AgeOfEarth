@@ -9,6 +9,11 @@ const rooms = new Map(); // code -> { clients: Map<slot, {ws, name, god, team, r
 
 const send = (ws, msg) => { if (ws.readyState === 1) ws.send(JSON.stringify(msg)); };
 const broadcast = (room, msg, except = null) => { for (const c of room.clients.values()) if (c.ws !== except) send(c.ws, msg); for (const c of room.spectators.values()) if (c.ws !== except) send(c.ws, msg); };
+// Versão da simulação (SIM_VERSION em src/core/constants.ts) de quem entra: clientes de versões diferentes dessincronizariam na
+// 1ª troca de hash, então a sala fica com a versão de quem a criou e recusa as outras com uma mensagem clara. Cliente sem o
+// campo = anterior à v2 (conta como 1).
+const simOf = (msg) => (Number.isInteger(msg.sim) && msg.sim > 0 ? msg.sim : 1);
+const simMismatch = (r, sim) => ({ t: 'error', code: 'simVersion', room: r.sim, yours: sim, msg: `Versão do jogo diferente da sala: esta sala usa a simulação v${r.sim} e o seu jogo a v${sim}. Os dois precisam da mesma versão do jogo (atualize quem estiver na versão antiga).` });
 const lobbyState = (room) => ({ t: 'lobby', host: room.host, settings: room.settings, players: [...room.clients.entries()].map(([slot, c]) => ({ slot, name: c.name, god: c.god, team: c.team, ready: c.ready, ping: c.ping ?? -1 })), spectators: [...room.spectators.entries()].map(([slot, c]) => ({ slot, name: c.name })) });
 
 wss.on('connection', (ws) => {
@@ -18,7 +23,13 @@ wss.on('connection', (ws) => {
     if (msg.t === 'join') {
       const code = String(msg.room || 'sala').toUpperCase().slice(0, 12);
       let r = rooms.get(code);
-      if (!r) { r = { clients: new Map(), host: -1, settings: { mapSize: 'medium', ais: 0, difficulty: 'normal', seed: Math.floor(Math.random() * 1e9) }, started: false, nextSlot: 0, gone: new Map(), config: null, slots: [], delay: 4, spectators: new Map(), nextSpec: 100 }; rooms.set(code, r); }
+      const sim = simOf(msg);
+      if (!r) {
+        if (msg.spectate) return send(ws, { t: 'error', msg: 'Sala não encontrada.' });
+        r = { clients: new Map(), host: -1, settings: { mapSize: 'medium', ais: 0, difficulty: 'normal', seed: Math.floor(Math.random() * 1e9) }, started: false, nextSlot: 0, gone: new Map(), config: null, slots: [], delay: 4, spectators: new Map(), nextSpec: 100, sim };
+        rooms.set(code, r);
+      }
+      if (r.sim !== sim) return send(ws, simMismatch(r, sim));   // jogador, espectador ou reconexão: a mesma regra
       const name = String(msg.name || 'Jogador').slice(0, 18);
       if (msg.spectate) {   // espectador: sem vaga de jogador; recebe lobby/start/comandos/hashes e nunca é aguardado
         if (r.clients.size === 0) { rooms.delete(code); return send(ws, { t: 'error', msg: 'Sala não encontrada.' }); }
@@ -53,7 +64,7 @@ wss.on('connection', (ws) => {
     }
     if (msg.t === 'list') {   // salas públicas abertas (antes de entrar em alguma)
       const open = [...rooms.entries()].filter(([, r]) => r.settings.public !== false && r.clients.size > 0);   // abertas (entrar) e em andamento (assistir)
-      return send(ws, { t: 'rooms', rooms: open.map(([code, r]) => ({ code, players: r.clients.size, host: r.clients.get(r.host)?.name ?? '?', mode: r.settings.horde ? 'horde' : (r.settings.mode ?? 'conquest'), mapSize: r.settings.mapSize, fixedMap: r.settings.fixedMap?.name ?? null, started: r.started, spectators: r.spectators.size })) });
+      return send(ws, { t: 'rooms', rooms: open.map(([code, r]) => ({ code, players: r.clients.size, host: r.clients.get(r.host)?.name ?? '?', mode: r.settings.horde ? 'horde' : (r.settings.mode ?? 'conquest'), mapSize: r.settings.mapSize, fixedMap: r.settings.fixedMap?.name ?? null, started: r.started, spectators: r.spectators.size, sim: r.sim })) });
     }
     if (!room) return;
     switch (msg.t) {

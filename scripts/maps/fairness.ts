@@ -15,13 +15,30 @@
 //   --mirror-ai  a mesma personalidade de IA em todos (casas, Maravilha e deuses menores iguais: espelho exato); sem ela,
 //            a personalidade vem do índice — (semente + 7·i) % 97 — e jogadores vizinhos pegam deuses menores opostos
 //   --jobs   processos em paralelo (padrão 1); o resultado é o mesmo com qualquer N
+//   --transpose  joga o mapa transposto (x ↔ y: o Egeu norte × sul vira oeste × leste), para medir o outro eixo sem arquivo
 import fs from 'node:fs';
 import { spawn } from 'node:child_process';
 import { createGame, tick } from '../../src/core/sim/game';
 import { TICK_RATE } from '../../src/core/constants';
-import { migrateMap } from '../../src/core/map/fixed';
+import { migrateMap, base64ToBytes, bytesToBase64, type FixedMapData } from '../../src/core/map/fixed';
+import { BUILDINGS } from '../../src/core/data';
 
-const USAGE = 'Uso: npx tsx scripts/maps/fairness.ts <arquivo.map.json | id> [minutos=45] [sementes=1-16] [deuses=zeus] [--swap | --both | --order 2,3,0,1] [--mirror-ai] [--jobs N] [--json saida.json]';
+const USAGE = 'Uso: npx tsx scripts/maps/fairness.ts <arquivo.map.json | id> [minutos=45] [sementes=1-16] [deuses=zeus] [--swap | --both | --order 2,3,0,1] [--mirror-ai] [--transpose] [--jobs N] [--json saida.json]';
+
+/** Mapa transposto (x ↔ y): terreno, decoração, nós, inícios, entidades (edifícios quadrados) e colina. */
+function transposeMap(m: FixedMapData): FixedMapData {
+  const tr = (b64: string) => { const src = base64ToBytes(b64, m.w * m.h), out = new Uint8Array(m.w * m.h); for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) out[x * m.h + y] = src[y * m.w + x]; return bytesToBase64(out); };
+  const entities = m.entities?.map((e) => {
+    if (e.kind === 'building' && BUILDINGS[e.type] && BUILDINGS[e.type].w !== BUILDINGS[e.type].h) throw new Error(`--transpose: edifício não quadrado (${e.type})`);
+    return { ...e, x: e.y, y: e.x };
+  });
+  return {
+    ...m, w: m.h, h: m.w, terrain: tr(m.terrain), decor: tr(m.decor),
+    nodes: m.nodes.map(([t, x, y, a]) => [t, y, x, a] as [typeof t, number, number, number]).sort((a, b) => a[2] - b[2] || a[1] - b[1]),
+    starts: m.starts.map(([x, y]) => [y, x] as [number, number]),
+    ...(entities ? { entities } : {}), ...(m.koth ? { koth: [m.koth[1], m.koth[0]] as [number, number] } : {}),
+  };
+}
 const argv = process.argv.slice(2);
 const positional: string[] = [];
 const flags = new Map<string, string>();
@@ -36,7 +53,7 @@ for (let i = 0; i < argv.length; i++) {
 const [fileArg, minArg, seedArg, godArg] = positional;
 if (!fileArg) { console.error(USAGE); process.exit(1); }
 const file = fs.existsSync(fileArg) ? fileArg : `src/core/data/maps/${fileArg}.map.json`;   // id de um mapa embutido
-const map = migrateMap(JSON.parse(fs.readFileSync(file, 'utf8')));
+const map = ((m: FixedMapData) => (flags.has('transpose') ? transposeMap(m) : m))(migrateMap(JSON.parse(fs.readFileSync(file, 'utf8'))));
 const minutes = Number(minArg ?? 45);
 const seeds = (seedArg ?? '1-16').split(',').flatMap((part) => { const m = /^(\d+)-(\d+)$/.exec(part); if (!m) return [Number(part)]; const out: number[] = []; for (let k = Number(m[1]); k <= Number(m[2]); k++) out.push(k); return out; });
 const gods = (godArg ?? 'zeus').split(',');
@@ -158,5 +175,5 @@ function tally(label: string, win: (r: RunResult) => number, lead: (r: RunResult
 const posOk = tally('POSIÇÃO (lado do início)', (r) => r.winSide, (r) => r.ahead);
 const anySwap = results.some((r) => swapped(r.order));
 const idxOk = anySwap ? tally('ÍNDICE (lado dos jogadores na ordem padrão)', (r) => r.winIdxSide, (r) => r.aheadIdx) : true;
-console.log(`critério (${minutes} min, ${seeds.length} sementes${orders.length > 1 ? ' × 2 ordens' : ''}${flags.has('mirror-ai') ? ', mesma personalidade de IA' : ''}): ${posOk && idxOk ? 'DENTRO' : 'FORA'}`);
-if (flags.get('json')) fs.writeFileSync(flags.get('json')!, JSON.stringify({ map: file, minutes, seeds, gods, results }, null, 1));
+console.log(`critério (${minutes} min, ${seeds.length} sementes${orders.length > 1 ? ' × 2 ordens' : ''}${flags.has('mirror-ai') ? ', mesma personalidade de IA' : ''}${flags.has('transpose') ? ', mapa transposto' : ''}): ${posOk && idxOk ? 'DENTRO' : 'FORA'}`);
+if (flags.get('json')) fs.writeFileSync(flags.get('json')!, JSON.stringify({ map: file, transposed: flags.has('transpose'), minutes, seeds, gods, results }, null, 1));

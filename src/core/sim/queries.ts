@@ -3,7 +3,7 @@ import { NODE_RESOURCE, FARM_GATHERERS, NODE_CAPACITY, type NodeType, type Resou
 import { getRuntime } from './runtime';
 import { BUILDINGS, UNITS } from '../data';
 import type { Building, GameMap, GameState, ResourceNode, Unit } from '../types';
-import { distToRect, idx, inBounds } from '../map/grid';
+import { distToRect, idx, inBounds, centerFrame, frameCompare } from '../map/grid';
 
 /** Jogadores de times diferentes são inimigos. */
 export function isEnemy(state: GameState, a: number, b: number): boolean { return a !== b && state.players[a].team !== state.players[b].team; }
@@ -29,9 +29,14 @@ export function nearestNode(state: GameState, x: number, y: number, want: Resour
       if (nodeAccessTiles(map, n) === 0) continue;   // ex.: árvore no meio do bosque
       if (pred && !pred(n)) continue;
       const d = (tx + 0.5 - x) * (tx + 0.5 - x) + (ty + 0.5 - y) * (ty + 0.5 - y);
-      // empate exato de distância: o nó mais longe do centro do mapa (a ordem da varredura começava pelo norte e dava
-      // ao norte e ao sul escolhas não espelhadas num mapa simétrico)
-      if (d < bestD || (d === bestD && best && centerDist2(map, n.x + 0.5, n.y + 0.5) > centerDist2(map, best.x + 0.5, best.y + 0.5))) { bestD = d; best = n; }
+      // empate exato de distância: o nó mais longe do centro do mapa e, se ainda empatar, b e a no referencial do ponto
+      // voltado ao centro (a ordem da varredura começava pelo norte e dava ao norte e ao sul — ou aos dois lados de uma
+      // diagonal — escolhas não espelhadas num mapa simétrico)
+      if (d < bestD) { bestD = d; best = n; }
+      else if (d === bestD && best) {
+        const c = centerDist2(map, n.x + 0.5, n.y + 0.5), bc = centerDist2(map, best.x + 0.5, best.y + 0.5);
+        if (c > bc || (c === bc && frameCompare(centerFrame(map, x, y), n.x - best.x, n.y - best.y, 0, 0) < 0)) best = n;
+      }
     }
   }
   return best;

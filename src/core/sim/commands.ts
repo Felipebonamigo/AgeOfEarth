@@ -3,7 +3,7 @@
 import { MAX_SCHOLARS, SCHOLAR_COST, TICK_RATE, type Stance, type Formation } from '../constants';
 import { ACADEMY_LINES, AGES, BUILDINGS, MAX_AGE, MINOR_GODS, MAJOR_GODS, TECHS, UNITS } from '../data';
 import type { Building, Command, GameState, Player, Unit } from '../types';
-import { spiralSearchFrame, towardFrame, canPass, inBounds } from '../map/grid';
+import { spiralSearchFrame, towardFrame, centerFrame, canPass, inBounds } from '../map/grid';
 import { canAfford, marketTrade, pay, refund, queueItemCost } from './economy';
 import { canPlaceBuilding, placeBuilding, recomputePop, unitsOf, countBuildings, ejectGarrison, canGarrison } from './entities';
 import { getUnitStats, techCost, getBuildingStats } from './modifiers';
@@ -153,7 +153,7 @@ export function applyCommand(state: GameState, cmd: Command): CommandResult {
       // destino bloqueado (ex.: o centro de um edifício atacado): a espiral começa pelo lado de onde o grupo vem (antes começava
       // sempre pelo norte, e dois grupos espelhados paravam em lados diferentes do mesmo alvo)
       const gx = units.reduce((s, u) => s + u.x, 0) / units.length, gy = units.reduce((s, u) => s + u.y, 0) / units.length;
-      const from = towardFrame(gx - cmd.x, gy - cmd.y);
+      const from = towardFrame(gx - cmd.x, gy - cmd.y, centerFrame(state.map, cmd.x, cmd.y));   // alinhado: lado voltado ao centro do mapa
       units.forEach((u, i) => {
         let x = cmd.x + offs[i][0], y = cmd.y + offs[i][1];
         const tx = Math.floor(x), ty = Math.floor(y);

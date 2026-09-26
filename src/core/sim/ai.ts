@@ -4,7 +4,7 @@ import { DIFFICULTIES, TICK_RATE, NODE_RESOURCE, RESOURCES, MARKET_TRADE_LOT, ty
 import { rectReachable, wouldSeal } from '../map/components';
 import { AGES, BUILDINGS, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS } from '../data';
 import type { Building, GameState, Player, ResourceNode, Unit } from '../types';
-import { idx, inBounds, isPassable, dist, centerFrame, frameOffset } from '../map/grid';
+import { idx, inBounds, isPassable, dist, centerFrame, frameOffset, frameCompare, type Frame } from '../map/grid';
 import { applyCommand, canAdvanceAge, canResearch, canTrain, academyTechCount } from './commands';
 import { canPlaceBuilding, countBuildings, buildingsOf, unitsOf } from './entities';
 import { getRuntime } from './runtime';
@@ -325,11 +325,15 @@ function nearestUnclaimedNode(state: GameState, player: Player, from: Building, 
     if (NODE_RESOURCE[n.type] !== res) continue;
     const owner = state.territory[idx(state.map, n.x, n.y)];
     if (owner !== -1 && owner !== player.id) continue;
-    // centro do nó (o canto deixava o ouro do norte 1 tile "mais perto" que o do sul); empate → mais longe do centro do mapa
+    // centro do nó (o canto deixava o ouro do norte 1 tile "mais perto" que o do sul); empate → mais longe do centro do mapa,
+    // depois b e a no referencial do CC voltado ao centro (a ordem dos ids seguia o norte→sul do arquivo)
     const nx = n.x + 0.5, ny = n.y + 0.5;
     const d = dist(nx, ny, from.x, from.y);
     if (d < 10 || d > 26 || d > bestD) continue;
-    if (d === bestD && best && centerDist2(state.map, nx, ny) <= centerDist2(state.map, best.x, best.y)) continue;
+    if (d === bestD && best) {
+      const c = centerDist2(state.map, nx, ny), bc = centerDist2(state.map, best.x, best.y);
+      if (c < bc || (c === bc && frameCompare(centerFrame(state.map, from.x, from.y), nx - from.x, ny - from.y, best.x - from.x, best.y - from.y) >= 0)) continue;
+    }
     bestD = d; best = { x: nx, y: ny };
   }
   return best;
@@ -392,11 +396,32 @@ function spotOrder(w: number, h: number, maxR: number, rx: number, ry: number): 
 }
 
 /**
+ * Verdadeiro se uma pegada w×h não passável em (x, y) tiraria o último tile livre em volta de algum nó de recurso vizinho que
+ * hoje tem acesso (nodeAccessTiles > 0). Árvores do miolo de um bosque (já sem acesso) não contam.
+ */
+export function sealsNode(map: GameState['map'], x: number, y: number, w: number, h: number): boolean {
+  const inside = (xx: number, yy: number) => xx >= x && xx < x + w && yy >= y && yy < y + h;
+  for (let ny = y - 1; ny <= y + h; ny++) for (let nx = x - 1; nx <= x + w; nx++) {
+    if (inside(nx, ny) || !inBounds(map, nx, ny) || map.nodeAt[idx(map, nx, ny)] === -1) continue;
+    let before = 0, after = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const tx = nx + dx, ty = ny + dy;
+      if (!inBounds(map, tx, ty) || map.blocked[idx(map, tx, ty)] !== 0) continue;
+      before++;
+      if (!inside(tx, ty)) after++;
+    }
+    if (before > 0 && after === 0) return true;
+  }
+  return false;
+}
+
+/**
  * Procura um local válido para o edifício, com margem de 1 tile livre em volta. Candidatos: cantos cuja pegada tem o centro a
  * distância de Chebyshev ∈ [minR, maxR + 0,5] do âncora, em ordem de distância euclidiana âncora → centro da pegada (empate:
- * mais longe do centro do mapa, depois y e x). Antes era uma espiral pelo canto superior esquerdo que testava o norte
- * primeiro: a pegada crescia para o sul e minR contava do canto, então templo/mercado/casas iam sempre ao sul do CC — à
- * frente para quem começa ao norte, atrás para quem começa ao sul.
+ * mais longe do centro do mapa, depois b e a no centerFrame do âncora — frameCompare). Antes era uma espiral pelo canto
+ * superior esquerdo que testava o norte primeiro: a pegada crescia para o sul e minR contava do canto, então
+ * templo/mercado/casas iam sempre ao sul do CC — à frente para quem começa ao norte, atrás para quem começa ao sul.
  */
 export function findBuildSpot(state: GameState, player: Player, type: string, ax: number, ay: number, minR: number, maxR: number, ignoreLimits = false): { x: number; y: number } | null {
   const def = BUILDINGS[type];
@@ -406,6 +431,9 @@ export function findBuildSpot(state: GameState, player: Player, type: string, ax
     if (!canPlaceBuilding(state, player, type, x, y, ignoreLimits).ok) return false;
     // nunca fecha a passagem local (corredor de saída da base, gargalo do mapa)
     if (!def.passable && !def.wall && wouldSeal(map, x, y, def.w, def.h)) return false;
+    // nem o último acesso de um recurso (ex.: uma mina encostada no único veio de ouro da base: sem tile livre em volta, o nó
+    // some para nearestNode e os mineiros atravessavam o mapa atrás de outro)
+    if (!def.passable && sealsNode(map, x, y, def.w, def.h)) return false;
     if (!needsMargin) return true;
     // margem: nenhum edifício não passável nos tiles ao redor (mantém corredores para as unidades saírem)
     for (let yy = y - 1; yy <= y + def.h; yy++) for (let xx = x - 1; xx <= x + def.w; xx++) {
@@ -422,16 +450,19 @@ export function findBuildSpot(state: GameState, player: Player, type: string, ax
   const n = o.s.length;
   const mcx = map.w / 2, mcy = map.h / 2;
   const centerD = (t: number) => { const fx = bx + o.di[t] + def.w / 2, fy = by + o.dj[t] + def.h / 2; return (fx - mcx) * (fx - mcx) + (fy - mcy) * (fy - mcy); };
+  let frame: Frame | null = null;   // referencial do âncora, só se houver empate
   for (let k = 0; k < n;) {
     let e = k + 1;
     while (e < n && o.s[e] === o.s[k]) e++;
     if (e === k + 1) {
       if (o.ch[k] >= minR && ok(bx + o.di[k], by + o.dj[k])) return { x: bx + o.di[k], y: by + o.dj[k] };
     } else {
-      // empate de distância ao âncora (espelhos em torno dele): o mais longe do centro do mapa, depois y e x
+      // empate de distância ao âncora (espelhos em torno dele): o mais longe do centro do mapa, depois b e a no referencial do
+      // âncora voltado ao centro (em (y, x) absolutos, um início na diagonal do mapa — o Estreito — escolhia o norte onde o
+      // espelho pedia o leste: candidatos refletidos na diagonal empatam em distância ao âncora e ao centro)
       const run: number[] = [];
       for (let t = k; t < e; t++) if (o.ch[t] >= minR) run.push(t);
-      if (run.length > 1) run.sort((p, q) => centerD(q) - centerD(p) || o.dj[p] - o.dj[q] || o.di[p] - o.di[q]);
+      if (run.length > 1) { const f = frame ??= centerFrame(map, ax, ay); run.sort((p, q) => centerD(q) - centerD(p) || frameCompare(f, o.di[p], o.dj[p], o.di[q], o.dj[q])); }
       for (const t of run) if (ok(bx + o.di[t], by + o.dj[t])) return { x: bx + o.di[t], y: by + o.dj[t] };
     }
     k = e;

@@ -75,9 +75,14 @@ export const IDENTITY_FRAME: Frame = { sx: 1, sy: 1, swap: false };
 /**
  * Referencial "voltado ao centro do mapa" de (x, y), a partir do vetor ponto→centro (só sinais e o eixo dominante; sem
  * trigonometria): sx = +1 com o centro a leste, sy = +1 com o centro ao sul (o canto noroeste é o identidade) e swap quando
- * o centro está mais longe em x do que em y (a "frente" é leste/oeste; b passa a medir x). Em cima de um eixo do centro,
- * o sinal desse eixo segue o do outro (invariante à rotação de 180° e à transposição). Deslocamento local: b > 0 = rumo ao
- * centro no eixo dominante; a = ao longo, a > 0 = rumo ao centro no outro eixo.
+ * o centro está mais longe em x do que em y (a "frente" é leste/oeste; b passa a medir x). Deslocamento local: b > 0 = rumo
+ * ao centro no eixo dominante; a = ao longo, a > 0 = rumo ao centro no outro eixo.
+ * Invariâncias (o referencial do ponto transformado é o transformado do referencial): espelho em x ou em y e rotação de
+ * 180° valem em todo o mapa. Em cima de um eixo do centro (dx = 0 ou dy = 0) o sinal desse eixo segue o do outro, o que
+ * vale também para a transposição. Nas diagonais do centro (|dx| = |dy|, ex.: os inícios do Estreito) swap é sempre false:
+ * lá a transposição NÃO é respeitada (o ponto e o transposto recebem swap = false, e a e b trocam de papel entre eles); só
+ * o espelho e a rotação de 180° — um mapa cuja única simetria entre dois inícios diagonais fosse a transposição decidiria
+ * diferente dos dois lados.
  */
 export function centerFrame(map: { w: number; h: number }, x: number, y: number): Frame {
   const dx = map.w / 2 - x, dy = map.h / 2 - y;
@@ -86,10 +91,31 @@ export function centerFrame(map: { w: number; h: number }, x: number, y: number)
   return { sx, sy, swap: Math.abs(dx) > Math.abs(dy) };
 }
 
-/** Referencial cujo primeiro anel da espiral começa pelo lado (dx, dy): "o lado de quem chega" (swap quando |dx| > |dy|). */
-export function towardFrame(dx: number, dy: number): Frame {
-  return { sx: dx > 0 ? -1 : 1, sy: dy > 0 ? -1 : 1, swap: Math.abs(dx) > Math.abs(dy) };
+/**
+ * Referencial cujo primeiro anel da espiral começa pelo lado (dx, dy): "o lado de quem chega" (swap quando |dx| > |dy|).
+ * Com uma componente nula, o sinal dela vem de `tie` (padrão: identidade, o oeste/norte absoluto); passe o centerFrame do
+ * ponto para que também o caso alinhado seja espelhado.
+ */
+export function towardFrame(dx: number, dy: number, tie: Frame = IDENTITY_FRAME): Frame {
+  return { sx: dx > 0 ? -1 : dx < 0 ? 1 : tie.sx, sy: dy > 0 ? -1 : dy < 0 ? 1 : tie.sy, swap: Math.abs(dx) > Math.abs(dy) };
 }
+
+/**
+ * Desempate "b, depois a" (crescentes) entre os deslocamentos p = (pdx, pdy) e q = (qdx, qdy) no referencial f (os dois
+ * medidos a partir do mesmo ponto; qualquer origem comum serve): negativo quando p vem antes. Com o centerFrame do ponto de
+ * referência, candidatos espelhados comparam igual dos dois lados; (y, x) absolutos preferiam o norte/oeste nos dois.
+ */
+export function frameCompare(f: Frame, pdx: number, pdy: number, qdx: number, qdy: number): number {
+  const pb = f.swap ? pdx * f.sx : pdy * f.sy, qb = f.swap ? qdx * f.sx : qdy * f.sy;
+  if (pb !== qb) return pb - qb;
+  return f.swap ? (pdy - qdy) * f.sy : (pdx - qdx) * f.sx;
+}
+
+/**
+ * Arredondamento "espelhável" ao inteiro mais próximo: o meio (.5) sobe no eixo de sinal +1 e desce no de sinal −1, o
+ * espelho exato de W − v (Math.round levaria 22,5 a 23 e o espelho 57,5 a 58, não 57).
+ */
+export function frameRound(v: number, s: 1 | -1): number { return s > 0 ? Math.floor(v + 0.5) : Math.ceil(v - 0.5); }
 
 /** Coordenada mundial de um deslocamento local (a, b) a partir de (x, y) no referencial f. */
 export function frameOffset(f: Frame, x: number, y: number, a: number, b: number): { x: number; y: number } {

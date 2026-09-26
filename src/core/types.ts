@@ -191,6 +191,11 @@ export interface GameState {
   koth?: { x: number; y: number; team: number; seconds: number };
   /** Relíquias: no chão (carrier=-1, templeId=-1), carregada por um herói (carrier) ou guardada num Templo (templeId). */
   relics: { x: number; y: number; carrier: number; templeId: number }[];
+  /**
+   * Rodadas de IA com 2+ IAs pensando no mesmo tick (as únicas em que a ordem importa): define quem abre a vez e em que
+   * sentido (aiThinkOrder). Contar rodadas, e não segundos, faz o rodízio girar com qualquer período de pensamento.
+   */
+  aiRound: number;
 }
 import type { ScenarioState } from './scenario/types';
 import type { FixedMapData } from './map/fixed';
