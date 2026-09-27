@@ -1,0 +1,61 @@
+{
+  "id": "cerberus",
+  "kind": "unit",
+  "stage": 6,
+  "sizeClass": "myth",
+  "page": "own",
+  "docs": "Criatura no rig do quadrúpede grande (docs/ART.md, Apêndice G; lote feras): o Cérbero, cão de Hades maior que um cavalo, de pelagem carvão com as marcas castanhas nos focinhos e no peito, as TRÊS cabeças em leque aberto (olhos em brasa, bocas com presas), serpentes eriçadas ao longo do dorso e uma coleira de time com cravos em cada pescoço. Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/cerberus.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Walk\", \"attack\": \"Bite\", \"die\": \"Death\" }, \"teamMaterials\": [\"Collar\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "beast",
+    "poses": "art/poses/beast.json",
+    "params": {
+      "build": "hound",
+      "size": 1.4,
+      "coat": "hellhound",
+      "mane": "none",
+      "heads": 3,
+      "face": "hound",
+      "tail": "hound",
+      "team": "collar",
+      "eyes": "fire",
+      "mouth": "fangs",
+      "back": "serpents"
+    }
+  },
+  "size": {
+    "tiles": [
+      4.8,
+      4.4
+    ]
+  },
+  "anchor": [
+    0.46,
+    0.6
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": {
+      "frames": 4,
+      "fps": 10,
+      "pose": "idle_cerberus"
+    },
+    "walk": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "walk_cerberus"
+    },
+    "attack": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "attack_cerberus"
+    },
+    "die": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "die_beast"
+    }
+  },
+  "team": true,
+  "shadow": true
+}

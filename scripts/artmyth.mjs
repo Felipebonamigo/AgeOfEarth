@@ -10,11 +10,16 @@
 //     5) e uma que ganha uma cabeça no meio da cena (a vista troca de asset);
 //  4. voo: o Pégaso parado no ar e voando, com a sombra no chão (a vista desenha a sombra mais fraca: translúcida);
 //  5. desfile: as criaturas paradas ao lado do hoplita e do hetairo, diante do templo (zoom 1 e 2,2; o 2× no preset alto;
-//     e a mesma fila com a arte desligada: o "antes").
+//     e a mesma fila com a arte desligada: o "antes");
+//  6. feras (lote feras): a Quimera cuspindo fogo numa fila de hoplitas (a língua de fogo assada nos quadros 0–2 do ataque
+//     junto com o jato de chamas da Etapa 5), a Mantícora atirando a rajada de espinhos e mirando entre um disparo e
+//     outro, e uma matilha de Cérberos mordendo — a z 2,2.
 // Capturas em <out>/ (padrão docs/art/): <prefixo>-{roda-z10,batalha-z10,batalha-z22,queda-z22,hidra-z22,voo-z22,
-// desfile-z10,desfile-z22,desfile-z22-2x,procedural-z10}.png. Falha com erro de página, criatura procedural, tipo que não
-// anda nas 8 direções, direção incoerente, leão sem galope, Pégaso sem voo/sombra no chão, criatura sem ataque, golpes
-// virados, queda não assada, hidra com o asset errado para as cabeças ou que não troca ao ganhar uma cabeça.
+// desfile-z10,desfile-z22,desfile-z22-2x,procedural-z10,feras-sopro-z22,feras-espinhos-z22,feras-cerbero-z22}.png. Falha
+// com erro de página, criatura procedural, tipo que não anda nas 8 direções, direção incoerente, leão/mantícora sem
+// galope, Pégaso sem voo/sombra no chão, criatura sem ataque, golpes virados, queda não assada, hidra com o asset
+// errado para as cabeças ou que não troca ao ganhar uma cabeça, Quimera sem o sopro (golpe em área com o quadro de
+// fogo na vista), mantícora sem espinhos no ar ou sem mirar. `--only roda,batalha,hidra,voo,desfile,feras` escolhe as cenas.
 // Tudo medido no TEMPO DE JOGO (tick). Exige `npm run preview` (ou a URL). Uso: node scripts/artmyth.mjs [url] [--out docs/art] [--prefix etapa6]
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
@@ -26,10 +31,14 @@ const pos = args.filter((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].
 const url = pos[0] ?? 'http://localhost:4173/';
 const outDir = opt('--out', 'docs/art');
 const prefix = opt('--prefix', 'etapa6');
+const only = opt('--only', null)?.split(',') ?? null;
+const scene = (name) => !only || only.includes(name);
 mkdirSync(outDir, { recursive: true });
 const SEED = 42;
-const MYTH = ['minotaur', 'nemean_lion', 'pegasus', 'hydra'];
-const FIGHTERS = ['minotaur', 'nemean_lion', 'hydra'];
+const MYTH = ['minotaur', 'nemean_lion', 'pegasus', 'hydra', 'cerberus', 'chimera', 'manticore'];
+const FIGHTERS = ['minotaur', 'nemean_lion', 'hydra', 'cerberus', 'chimera', 'manticore'];
+/** Quem galopa solto (acima de RUN_SPEED): a roda espera ver `run` de cada um. */
+const RUNNERS = ['nemean_lion', 'manticore'];
 const HYDRA_IDS = ['hydra', 'hydra_heads2', 'hydra_heads3', 'hydra_heads4', 'hydra_heads5'];
 
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
@@ -154,11 +163,12 @@ const stopSampler = () => page.evaluate(() => { window.__sampleStop = true; retu
 const checkDirs = (st, label) => { const n = st.dirOk + st.dirBad; if (st.dirBad > 0.05 * n) errors.push(`${label}: direção incoerente em ${st.dirBad} de ${n} amostras andando`); };
 
 // ------------------------------------------------------------------------------------------------------------------
-// 1. roda: as 4 criaturas nas 8 direções
+// 1. roda: as criaturas nas 8 direções
+if (scene('roda')) {
 await newGame();
 const roda = await page.evaluate((MYTH) => {
   const s = window.aoe.session, me = s.local, sp = window.aoe.debugSpawn, ids = window.__ids;
-  const a = window.__area(28, 14);
+  const a = window.__area(28, 7 * Math.ceil(MYTH.length / 2));
   window.__rodas = MYTH.map((t, i) => {
     const c = { x: a.x + 4 + (i % 2) * 14 + 3.5, y: a.y + 3.5 + Math.floor(i / 2) * 7 };
     const u = window.__put(sp(me, t, c.x, c.y), c.x, c.y);
@@ -166,7 +176,7 @@ const roda = await page.evaluate((MYTH) => {
     return { c: { x: c.x - 0.5, y: c.y - 0.5 }, ids: ids([u]), r: 3 };
   });
   window.aoe.renderer.revealAll = true;
-  return { area: a, center: { x: a.x + 14, y: a.y + 7 } };
+  return { area: a, center: { x: a.x + 14, y: a.y + 3.5 * Math.ceil(MYTH.length / 2) } };
 }, MYTH);
 console.log('roda:', JSON.stringify(roda));
 await settle();
@@ -175,27 +185,30 @@ await startWalking(64);
 await look(roda.center, 1.0);
 await waitTicks(150);
 await shot('roda-z10', 0);
-await page.evaluate((M) => { window.__rodaTypes = M; }, MYTH);
-await waitUntil(() => { const st = window.__stats; return window.__rodaTypes.every((t) => (st.dirs[t] ?? []).length >= 8) && st.byType.nemean_lion?.run; }, 14 * 64);
+await page.evaluate(([M, R]) => { window.__rodaTypes = M; window.__runners = R; }, [MYTH, RUNNERS]);
+await waitUntil(() => { const st = window.__stats; return window.__rodaTypes.every((t) => (st.dirs[t] ?? []).length >= 8) && window.__runners.every((t) => st.byType[t]?.run); }, 14 * 64);
 const st1 = await stopSampler();
 await page.evaluate(() => { window.__walkStop = true; });
 console.log('roda — direções:', JSON.stringify(Object.fromEntries(Object.entries(st1.dirs).map(([t, d]) => [t, d.length]))), 'animações:', JSON.stringify(st1.byType), `dirOk=${st1.dirOk} dirBad=${st1.dirBad} sombra do voo ok=${st1.flyShadow.ok} ruim=${st1.flyShadow.bad}`);
 checkDirs(st1, 'roda');
 if (Object.keys(st1.procedural).length) errors.push(`roda procedural: ${JSON.stringify(st1.procedural)}`);
 for (const t of MYTH) { const d = st1.dirs[t] ?? []; if (d.length < 8) errors.push(`${t}: andou em ${d.length} das 8 direções (${d.sort().join(',')})`); }
-if (!st1.byType.nemean_lion?.run) errors.push('nemean_lion: nenhuma amostra galopando (run)');
+for (const t of RUNNERS) if (!st1.byType[t]?.run) errors.push(`${t}: nenhuma amostra galopando (run)`);
 if (!st1.byType.pegasus?.walk) errors.push('pegasus: nenhuma amostra voando (walk)');
 if (!st1.flyShadow.ok || st1.flyShadow.bad > 0.05 * (st1.flyShadow.ok + st1.flyShadow.bad)) errors.push(`pegasus: sombra do voo fora do pé ou forte demais (${JSON.stringify(st1.flyShadow)})`);
+}
 
 // ------------------------------------------------------------------------------------------------------------------
 // 2. batalha: criaturas × hoplitas e hetairos, o Pégaso por cima; no fim uma queda de cada
+if (scene('batalha')) {
 await newGame();
 const battle = await page.evaluate((FIGHTERS) => {
   const s = window.aoe.session, me = s.local, foe = (me + 1) % s.state.players.length, sp = window.aoe.debugSpawn, ids = window.__ids, tough = window.__tough;
-  const a = window.__area(22, 12), cx = a.x + 11, cy = a.y + 6;
-  const A = [], B = [];
-  FIGHTERS.forEach((t, i) => { for (const k of [0, 1]) A.push(tough(sp(me, t, cx - 3.5, cy - 3 + i * 2.2 + k * 1.1))); });
-  for (let i = 0; i < 8; i++) B.push(tough(sp(foe, i % 3 === 2 ? 'hetairoi' : 'hoplite', cx + 3.5 + (i % 2) * 0.9, cy - 3.5 + i)));
+  const H = Math.max(12, Math.ceil(FIGHTERS.length * 2.2) + 4), a = window.__area(22, H), cx = a.x + 11, cy = a.y + H / 2;
+  const A = [], B = [], y0 = cy - FIGHTERS.length * 1.1;
+  FIGHTERS.forEach((t, i) => { for (const k of [0, 1]) A.push(tough(sp(me, t, cx - 3.5, y0 + i * 2.2 + k * 1.1))); });
+  const nB = Math.max(8, FIGHTERS.length + 2);
+  for (let i = 0; i < nB; i++) B.push(tough(sp(foe, i % 3 === 2 ? 'hetairoi' : 'hoplite', cx + 3.5 + (i % 2) * 0.9, cy - nB / 2 + i)));
   const peg = tough(sp(me, 'pegasus', cx, cy - 1));
   // arqueiros inimigos atrás da linha: o corpo a corpo não alcança quem voa, e eles derrubam o Pégaso no fim
   const archers = [0, 1].map((k) => tough(sp(foe, 'toxotes', cx + 6, cy - 1 + k * 2)));
@@ -254,9 +267,11 @@ const falls = await fallsP;
 await page.evaluate(() => { window.__watchAll = null; });
 console.log('quedas assadas:', JSON.stringify(falls));
 for (const t of [...FIGHTERS, 'pegasus']) if (!falls[t]) errors.push(`${t}: a morte não saiu assada`);
+}
 
 // ------------------------------------------------------------------------------------------------------------------
 // 3. hidra: 1–5 cabeças lado a lado (o asset pela entidade) e uma que ganha cabeça no meio da cena
+if (scene('hidra')) {
 await newGame();
 const hyd = await page.evaluate(() => {
   const s = window.aoe.session, me = s.local, sp = window.aoe.debugSpawn;
@@ -283,9 +298,11 @@ await waitTicks(4);
 const grown = await page.evaluate(() => { const v = window.aoe.renderer.views.get(window.__hyd[1]); window.aoe.session.paused = true; return v?.unit ? v.unit.art.id : null; });
 console.log('hidra que ganhou cabeça:', grown);
 if (grown !== 'hydra_heads3') errors.push(`hidra que ganhou a 3ª cabeça ficou com ${grown}`);
+}
 
 // ------------------------------------------------------------------------------------------------------------------
 // 4. voo: o Pégaso parado no ar e voando sobre o campo
+if (scene('voo')) {
 await newGame();
 const voo = await page.evaluate(() => {
   const s = window.aoe.session, me = s.local, sp = window.aoe.debugSpawn;
@@ -307,16 +324,18 @@ const fly = await page.evaluate(() => window.__vooIds.map((id) => { const v = wi
 console.log('voo:', JSON.stringify(fly));
 if (!fly[0] || !fly[2] || !(fly[0].shadowAlpha < fly[2].shadowAlpha)) errors.push(`voo: a sombra do Pégaso não é mais fraca que a do hoplita (${JSON.stringify(fly)})`);
 if (!fly[0] || !(fly[0].bodyBottom < -6)) errors.push(`voo: o corpo do Pégaso não está no ar (${JSON.stringify(fly[0])})`);
+}
 
 // ------------------------------------------------------------------------------------------------------------------
 // 5. desfile: as criaturas paradas ao lado do hoplita e do hetairo, diante do templo
+if (scene('desfile')) {
 await newGame();
-const LINE = ['hoplite', 'minotaur', 'nemean_lion', 'hydra', 'pegasus', 'hetairoi'];
+const LINE = ['hoplite', 'minotaur', 'nemean_lion', 'hydra', 'pegasus', 'cerberus', 'chimera', 'manticore', 'hetairoi'];
 const parade = await page.evaluate((LINE) => {
   const s = window.aoe.session, st = s.state, me = s.local, sp = window.aoe.debugSpawn, ids = window.__ids;
-  const a = window.__area(20, 10);
-  const t = window.aoe.debugBuild(me, 'temple', a.x + 9, a.y + 1, 1);
-  const cx = a.x + 10, out = LINE.map((type, i) => window.__put(sp(me, type, cx, a.y + 7), cx + (i - (LINE.length - 1) / 2) * 2.7, a.y + 7));
+  const W = Math.max(20, Math.ceil(LINE.length * 2.7) + 4), a = window.__area(W, 10);
+  const t = window.aoe.debugBuild(me, 'temple', a.x + W / 2 - 1, a.y + 1, 1);
+  const cx = a.x + W / 2, out = LINE.map((type, i) => window.__put(sp(me, type, cx, a.y + 7), cx + (i - (LINE.length - 1) / 2) * 2.7, a.y + 7));
   for (const u of out) if (u?.type === 'hydra') u.heads = 3;
   s.issue({ type: 'stance', player: me, ids: ids(out), stance: 'passive' });
   window.aoe.renderer.revealAll = true;
@@ -347,6 +366,77 @@ const statusHigh = await page.evaluate(() => ({ ...window.aoe.renderer.art.statu
 console.log('arte (médio):', JSON.stringify(statusMedium));
 console.log('arte (alto):', JSON.stringify(statusHigh));
 for (const t of MYTH) { if (!statusMedium.ready1.split(',').includes(t)) errors.push(`${t}: páginas 1× não prontas`); if (!statusHigh.ready2.split(',').includes(t)) errors.push(`${t}: páginas 2× não prontas`); }
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+// 6. feras: o sopro da Quimera, a rajada da Mantícora e a matilha de Cérberos (lote feras)
+if (scene('feras')) {
+  await page.evaluate(() => { window.aoe.settings.quality = 'medium'; window.aoe.applyQuality(); });
+  /** Monta uma cena: `mine` do jogador contra `foes` do inimigo (vida alta), em ataque-mover; devolve o centro. */
+  const setup = (mine, foes, dist) => page.evaluate(([mine, foes, dist]) => {
+    const s = window.aoe.session, me = s.local, foe = (me + 1) % s.state.players.length, sp = window.aoe.debugSpawn, ids = window.__ids, tough = window.__tough;
+    const a = window.__area(20, 12), cx = a.x + 10, cy = a.y + 6;
+    const A = mine.map((t, i) => tough(window.__put(sp(me, t, cx - dist / 2, cy - (mine.length - 1) * 0.8 + i * 1.6), cx - dist / 2, cy - (mine.length - 1) * 0.8 + i * 1.6)));
+    const B = foes.map((t, i) => tough(window.__put(sp(foe, t, cx + dist / 2, cy - (foes.length - 1) * 0.55 + i * 1.1), cx + dist / 2 + (i % 2) * 0.6, cy - (foes.length - 1) * 0.55 + i * 1.1), 20000));
+    s.issue({ type: 'attackMove', player: me, ids: ids(A), x: cx + dist, y: cy });
+    s.scheduler.issue({ type: 'stance', player: foe, ids: ids(B), stance: 'passive' });
+    window.__feraA = ids(A);
+    window.aoe.renderer.revealAll = true;
+    return { center: { x: cx + 0.6, y: cy } };
+  }, [mine, foes, dist]);
+  /** Espera (tempo de jogo) até `cond` e captura no mesmo quadro; devolve o que `probe` leu. */
+  const catchMoment = async (cond, probe, name, maxTicks = 400) => {
+    await page.evaluate(([src, probeSrc]) => { window.__catch = null; const c = (0, eval)(`(${src})`), pr = (0, eval)(`(${probeSrc})`); window.__watchCatch = () => { if (!window.__catch && c()) { window.__catch = pr(); window.aoe.session.paused = true; } }; const loop = () => { window.__watchCatch?.(); if (!window.__catch) requestAnimationFrame(loop); }; loop(); }, [cond.toString(), probe.toString()]);
+    await page.evaluate(() => { window.aoe.session.paused = false; window.aoe.session.speed = 1; });
+    await waitUntil(() => !!window.__catch, maxTicks);
+    await page.evaluate(() => { window.aoe.session.paused = true; });
+    const got = await page.evaluate(() => window.__catch);
+    await shot(name, 600);
+    return got;
+  };
+  // 6a. Quimera: o sopro (golpe em área recente + a vista no ataque, quadros 0–2 = a língua de fogo assada)
+  await newGame();
+  const q = await setup(['chimera', 'chimera'], ['hoplite', 'hoplite', 'hoplite', 'hoplite', 'hoplite'], 3.2);
+  await settle();
+  await look(q.center, 2.2);
+  const breath = await catchMoment(
+    () => { const s = window.aoe.session, R = window.aoe.renderer; return window.__feraA.some((id) => { const v = R.views.get(id); return v?.unit && v.unit.anim === 'attack' && v.unit.shownFrame >= 1 && v.unit.shownFrame <= 2; }) && s.state.effects.some((e) => e.type === 'splash'); },
+    () => { const R = window.aoe.renderer; return { views: window.__feraA.map((id) => { const v = R.views.get(id); return v?.unit ? { art: v.unit.art.id, anim: v.unit.anim, frame: v.unit.shownFrame } : null; }), particles: R.fx.particles.count ?? null }; },
+    'feras-sopro-z22');
+  console.log('sopro da Quimera:', JSON.stringify(breath));
+  if (!breath) errors.push('chimera: nenhum sopro (ataque no quadro da língua de fogo com golpe em área) capturado');
+  else if (breath.views.some((v) => !v)) errors.push(`chimera procedural no sopro: ${JSON.stringify(breath.views)}`);
+  // 6b. Mantícora: a rajada de espinhos no ar e a mira entre os disparos
+  await newGame();
+  const mt = await setup(['manticore', 'manticore'], ['hoplite', 'hoplite', 'hoplite', 'hoplite'], 4.5);
+  await settle();
+  await startSampler(['manticore']);
+  await look(mt.center, 2.2);
+  const volley = await catchMoment(
+    () => window.aoe.session.state.effects.some((e) => e.type === 'projectile' && e.src === 'manticore' && e.ttl < e.total - 1),
+    () => ({ spikes: window.aoe.session.state.effects.filter((e) => e.type === 'projectile' && e.src === 'manticore').length }),
+    'feras-espinhos-z22');
+  await page.evaluate(() => { window.aoe.session.paused = false; });
+  await waitUntil(() => window.__stats.byType.manticore?.aim && window.__stats.byType.manticore?.attack, 300);
+  const stM = await stopSampler();
+  await page.evaluate(() => { window.aoe.session.paused = true; });
+  console.log('rajada da Mantícora:', JSON.stringify(volley), 'animações:', JSON.stringify(stM.byType.manticore ?? {}));
+  if (!volley?.spikes) errors.push('manticore: nenhum espinho no ar');
+  if (!stM.byType.manticore?.aim || !stM.byType.manticore?.attack) errors.push(`manticore: sem atirar/mirar (${JSON.stringify(stM.byType.manticore ?? {})})`);
+  if (Object.keys(stM.procedural).length) errors.push(`manticore procedural: ${JSON.stringify(stM.procedural)}`);
+  // 6c. Cérbero: a matilha mordendo
+  await newGame();
+  const cb = await setup(['cerberus', 'cerberus', 'cerberus'], ['hoplite', 'hoplite', 'hetairoi', 'hoplite', 'hoplite'], 3.2);
+  await settle();
+  await look(cb.center, 2.2);
+  const bite = await catchMoment(
+    () => { const R = window.aoe.renderer; return window.__feraA.filter((id) => R.views.get(id)?.unit?.anim === 'attack').length >= 2; },
+    () => { const R = window.aoe.renderer; return window.__feraA.map((id) => { const v = R.views.get(id); return v?.unit ? `${v.unit.art.id}:${v.unit.anim}` : 'procedural'; }); },
+    'feras-cerbero-z22');
+  console.log('matilha de Cérberos:', JSON.stringify(bite));
+  if (!bite) errors.push('cerberus: a matilha não atacou');
+  else if (bite.includes('procedural')) errors.push(`cerberus procedural: ${JSON.stringify(bite)}`);
+}
 console.log('errors:', errors.length ? errors.join('\n') : 'none');
 await browser.close();
 if (errors.length) process.exit(1);

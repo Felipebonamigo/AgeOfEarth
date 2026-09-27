@@ -1,0 +1,69 @@
+{
+  "id": "manticore",
+  "kind": "unit",
+  "stage": 6,
+  "sizeClass": "myth",
+  "page": "own",
+  "docs": "Criatura no rig do quadrúpede grande (docs/ART.md, Apêndice G; lote feras): a Mantícora — corpo de leão ruivo, rosto de homem barbado na juba, asas de morcego dobradas nos flancos e a cauda de escorpião armada sobre o dorso com o feixe de espinhos que ela dispara (o projétil `spike` da Etapa 5); peitoral e cilha de time. Ataque = o disparo (quadro 0: a cauda acabou de chicotear, os espinhos já voam) e `aim` entre um disparo e outro (a cauda armada, asas meio abertas). Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/manticore.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Walk\", \"run\": \"Run\", \"attack\": \"Shoot\", \"aim\": \"Aim\", \"die\": \"Death\" }, \"teamMaterials\": [\"Harness\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "beast",
+    "poses": "art/poses/beast.json",
+    "params": {
+      "build": "lion",
+      "size": 1.05,
+      "coat": "tawny",
+      "mane": "lion",
+      "face": "human",
+      "tail": "scorpion",
+      "wings": "bat",
+      "team": "harness",
+      "mouth": "fangs"
+    }
+  },
+  "size": {
+    "tiles": [
+      4.6,
+      4.4
+    ]
+  },
+  "anchor": [
+    0.46,
+    0.6
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": {
+      "frames": 4,
+      "fps": 10,
+      "pose": "idle_manticore"
+    },
+    "walk": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "walk_manticore"
+    },
+    "run": {
+      "frames": 8,
+      "fps": 12,
+      "pose": "run_manticore"
+    },
+    "attack": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "attack_manticore"
+    },
+    "aim": {
+      "frames": 4,
+      "fps": 8,
+      "pose": "aim_manticore"
+    },
+    "die": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "die_manticore"
+    }
+  },
+  "team": true,
+  "shadow": true
+}

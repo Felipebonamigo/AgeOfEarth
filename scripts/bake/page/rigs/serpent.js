@@ -13,9 +13,15 @@
 // Kit (`source.params`):
 //   form    'hydra' (corpo grosso de escamas, N pescoços com cabeças de serpente-dragão) · 'medusa'
 //   heads   1–5 (hidra; a variante de unidade `heads` do manifesto assa as cinco)
-//   scales  'bronze' (verde-bronze com faixas escuras, barriga creme) · 'green' · 'dark'
+//   scales  'bronze' (verde-bronze com faixas escuras, barriga creme) · 'green' · 'dark' · 'swamp' (hidra do lote feras:
+//           dorso oliva-escuro de pântano, flanco bronze, escudos do ventre cor de osso, faixas quase negras)
 //   team    'band' (faixa larga de time em volta do peito e colares de time nos pescoços) · 'sash' (Medusa: o talabarte)
 //   torso   kit do rig humano para a Medusa (armor, tunicTeam, weapon 'bow'…)
+// Hidra (lote feras, Etapa 6 — só no form 'hydra'; a Medusa não muda): corpo mais grosso de pele fosca (escama rugosa,
+// sem o brilho de brinquedo), crista de espinhos ao longo do dorso e dos pescoços, escudos claros no ventre, pescoços
+// longos e grossos (5 segmentos) abrindo em leque cada vez mais largo com as cabeças, e cabeças de serpente-dragão:
+// crânio alongado, arcadas, chifres para trás, olhos em brasa, mandíbula com fileiras de dentes e a boca vermelha por
+// dentro. Cada cabeça a mais abre o leque e sobe a silhueta (a hidra muda a zoom 1 com as cabeças).
 // Metros, frente em −z, barriga em y = 0; o grupo externo converte para tiles.
 
 import { M2T, dirYaw } from '../camera.js';
@@ -26,17 +32,19 @@ import { paint, mottle, mix, smooth, taperTube } from './organic.js';
 const HUMAN_UPPER = ['torso', 'head', 'shoulderL', 'elbowL', 'shoulderR', 'elbowR', 'weapon', 'bow'];
 export const JOINTS = ['root', ...HUMAN_UPPER];
 export const SCALARS = ['wave', 'amp', 'lift', 'coil', 'neck', 'sway', 'swayAmp', 'strike', 'jaw', 'roll', ...HUMAN_SCALARS];
-export const KIT = { form: ['hydra', 'medusa'], heads: [1, 2, 3, 4, 5], scales: ['bronze', 'green', 'dark'], team: ['band', 'sash'] };
+export const KIT = { form: ['hydra', 'medusa'], heads: [1, 2, 3, 4, 5], scales: ['bronze', 'green', 'dark', 'swamp'], team: ['band', 'sash'] };
 const DEG = Math.PI / 180;
 /** Formas: raio máximo, segmento, número de segmentos da cauda e do peito, segmentos por comprimento de onda. */
 const FORMS = {
-  hydra: { r: 0.44, seg: 0.3, tail: 9, front: 3, wave: 7, neckSeg: 0.36, neckN: 4 },
+  // (a passada é o deslizar: seg × wave — a hidra continua com 0,3 × 7; neckR/headR = raio do pescoço na base e da cabeça)
+  hydra: { r: 0.5, seg: 0.3, tail: 9, front: 3, wave: 7, neckSeg: 0.34, neckN: 5, neckR: 0.22, headR: 0.24 },
   medusa: { r: 0.2, seg: 0.2, tail: 11, front: 3, wave: 7, neckSeg: 0, neckN: 0 },
 };
 const SCALES = {
   bronze: { back: 0x5a6a3e, side: 0x86925a, belly: 0xd8c898, band: 0x364228 },
   green: { back: 0x3e5e38, side: 0x62824a, belly: 0xd0c894, band: 0x24381e },
   dark: { back: 0x34372c, side: 0x525542, belly: 0x9a9272, band: 0x1e2018 },
+  swamp: { back: 0x4e5a32, side: 0x84904e, belly: 0xd8c690, band: 0x28301c, spine: 0x4a3a28 },
 };
 
 export function buildSerpent(THREE, M, params = {}) {
@@ -44,6 +52,11 @@ export function buildSerpent(THREE, M, params = {}) {
   const F = FORMS[P.form] ?? FORMS.hydra, S = SCALES[P.scales] ?? SCALES.bronze;
   const mesh = (geo, mat, x = 0, y = 0, z = 0, parent) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
   const joint = (parent, x, y, z) => { const g = new THREE.Group(); g.position.set(x, y, z); parent.add(g); return g; };
+  const hydra = P.form === 'hydra';
+  // hidra: a escama fosca de réptil grande (clone LOCAL de scaleV, mais rugoso: o brilho úmido de 0,42 lia como borracha;
+  // materials.js intocado) e os olhos em brasa; a Medusa segue com os materiais do contrato
+  const skin = hydra ? (() => { const m = M.scaleV.clone(); m.roughness = 0.66; return m; })() : M.scaleV;
+  const eyeMat = hydra ? (() => { const m = M.eye.clone(); m.color.setHex(0xffc23a); m.emissive.setHex(0xffa020); m.emissiveIntensity = 1.1; return m; })() : M.eye;
   /** Escamas: dorso escuro com faixas transversais, flanco, barriga creme (y relativo ao eixo do segmento, raio r). */
   const scaleCol = (r, band) => (x, y, z) => {
     const t = (y + r) / (2 * r);
@@ -78,8 +91,8 @@ export function buildSerpent(THREE, M, params = {}) {
   const chest = joint(parent, 0, 0, -F.seg);
   // o CORPO é um tubo contínuo pelos pivôs (da ponta da cauda ao peito), refeito a cada pose (`rebuild`): sem as contas de
   // colar dos segmentos soltos; ponta da cauda afilada e o peito fechado por uma calota
-  const body = mesh(new THREE.BufferGeometry(), M.scaleV, 0, 0, 0, rollG);
-  const cap = mesh(new THREE.SphereGeometry(F.r * 0.86, 16, 12), M.scaleV, 0, 0, 0, chest); cap.scale.set(1, 0.95, 0.85);
+  const body = mesh(new THREE.BufferGeometry(), skin, 0, 0, 0, rollG);
+  const cap = mesh(new THREE.SphereGeometry(F.r * 0.86, 16, 12), skin, 0, 0, 0, chest); cap.scale.set(1, 0.95, 0.85);
   cap.updateMatrix(); paint(THREE, cap.geometry, scaleCol(F.r * 0.86, 0), cap.matrix);
   const teamParts = [];
   if (P.team === 'band' && P.form === 'hydra') {
@@ -97,43 +110,64 @@ export function buildSerpent(THREE, M, params = {}) {
     for (const dz of [-0.17, 0.17]) { const t = mesh(new THREE.TorusGeometry(F.r * 1.0, 0.018, 5, 24), M.leather, 0, 0, F.seg * 0.5 + dz, front[front.length - 1].j); t.scale.set(1, 0.92, 1); }
   }
 
-  // ---- hidra: N pescoços em leque, cada um com 4 segmentos e uma cabeça ----
+  // ---- hidra: N pescoços em leque, cada um com F.neckN segmentos e uma cabeça ----
   const necks = [];
-  if (P.form === 'hydra') {
+  if (hydra) {
     const n = Math.max(1, Math.min(5, P.heads | 0));
+    const spineCol = S.spine ?? S.band;
+    /** Espinho dorsal (cone curvado para trás, +z) de altura h no pivô `parent`, a `y` do eixo. */
+    const spineMat = M.hornDark.clone(); spineMat.color.setHex(spineCol);
+    const spine = (parent, y, h, z = 0) => { const c = mesh(new THREE.ConeGeometry(h * 0.34, h, 6), spineMat, 0, y + h * 0.3, z, parent); c.rotation.x = 0.5; return c; };
+    // crista ao longo do dorso: um espinho por segmento da cauda (menores para a ponta) e dois no peito
+    tail.forEach(({ j }, i) => { if (i < F.tail - 1) spine(j, F.r * (0.07 + 0.93 * Math.pow((F.tail - i) / F.tail, 0.55)) * 0.9, 0.3 * (1 - i / F.tail) + 0.07, F.seg * 0.5); });
+    front.forEach(({ j }, i) => { if (i) spine(j, F.r * 0.88, 0.28); });
     for (let k = 0; k < n; k++) {
       const off = n === 1 ? 0 : (k / (n - 1) - 0.5) * 2;   // −1 … 1
-      // leque mais aberto com mais cabeças (cinco pescoços ocupam ~100°: a hidra muda de silhueta com as cabeças)
-      const base = joint(chest, off * F.r * 0.72, F.r * 0.3 - Math.abs(off) * 0.08, 0.05);
-      base.rotation.y = -off * (0.3 + 0.12 * n);
+      // leque cada vez mais aberto com mais cabeças (cinco pescoços ocupam ~120°) e os de fora um pouco mais baixos: a
+      // silhueta da hidra muda a cada cabeça; a base dos pescoços em arco no alto do peito
+      const base = joint(chest, off * F.r * 0.66, F.r * 0.32 - off * off * 0.1, 0.04 - Math.abs(off) * 0.08);
+      base.rotation.y = -off * (0.26 + 0.12 * n);
       const segs = [];
       let p = base;
       for (let i = 0; i < F.neckN; i++) {
         const j = joint(p, 0, 0, i === 0 ? 0 : -F.neckSeg);
         segs.push(j);
         p = j;
+        // espinhos dorsais do pescoço (segmentos 1–3)
+        if (i >= 1 && i <= 3) spine(j, F.neckR * (1 - 0.1 * i), 0.16 - 0.02 * i, F.neckSeg * 0.4);
       }
-      // o pescoço também é um tubo pelos pivôs (refeito a cada pose), grosso na base e fino na cabeça
-      const tube = mesh(new THREE.BufferGeometry(), M.scaleV, 0, 0, 0, rollG);
+      // o pescoço é um tubo pelos pivôs (refeito a cada pose), grosso na base e fino na cabeça
+      const tube = mesh(new THREE.BufferGeometry(), skin, 0, 0, 0, rollG);
       if (P.team === 'band') {
-        const c = mesh(new THREE.TorusGeometry(F.r * 0.45, 0.05, 6, 18), M.team, 0, 0, -F.neckSeg * 0.35, segs[0]);
+        const c = mesh(new THREE.TorusGeometry(F.neckR * 1.02, 0.05, 6, 18), M.team, 0, 0, -F.neckSeg * 0.35, segs[0]);
         teamParts.push(c);
       }
-      // cabeça de serpente-dragão: crânio alongado, focinho, arcadas com chifrinhos, olhos âmbar, mandíbula com presas
+      // cabeça de serpente-dragão
       const head = joint(p, 0, 0, -F.neckSeg);
-      const hr = F.r * 0.46;
-      const sk = mesh(new THREE.SphereGeometry(hr, 14, 10), M.scaleV, 0, hr * 0.15, -hr * 0.6, head); sk.scale.set(1.0, 0.72, 1.55);
-      sk.updateMatrix(); paint(THREE, sk.geometry, scaleCol(hr, 0), sk.matrix);
+      const hr = F.headR;
+      const hc = scaleCol(hr, 0);
+      const part = (geo, fn, x, y, z, sc, parent = head, mat = skin) => { const m = mesh(geo, mat, x, y, z, parent); m.scale.set(sc[0], sc[1], sc[2]); m.updateMatrix(); paint(THREE, geo, fn, m.matrix); return m; };
+      part(new THREE.SphereGeometry(hr, 16, 12), hc, 0, hr * 0.18, -hr * 0.5, [0.95, 0.72, 1.35]);                    // crânio
+      part(new THREE.SphereGeometry(hr * 0.72, 14, 10), hc, 0, hr * 0.05, -hr * 1.45, [0.78, 0.55, 1.55]);           // focinho
       for (const s of [-1, 1]) {
-        mesh(new THREE.SphereGeometry(hr * 0.16, 8, 6), M.eye, s * hr * 0.55, hr * 0.4, -hr * 0.9, head);
-        const hornG = taperTube(THREE, [[0, 0, 0], [s * 0.02, 0.05, 0.06], [s * 0.03, 0.07, 0.14]], hr * 0.16, 0.004, { tubular: 6, radial: 6 });
-        mesh(hornG, M.hornDark, s * hr * 0.4, hr * 0.55, -hr * 0.5, head);
+        part(new THREE.SphereGeometry(hr * 0.26, 10, 8), () => S.back, s * hr * 0.44, hr * 0.5, -hr * 0.85, [1, 0.6, 1.6]);   // arcada
+        mesh(new THREE.SphereGeometry(hr * 0.13, 8, 6), eyeMat, s * hr * 0.5, hr * 0.36, -hr * 1.0, head);
+        const hornG = taperTube(THREE, [[0, 0, 0], [s * 0.03, 0.08, 0.1], [s * 0.07, 0.12, 0.24], [s * 0.1, 0.1, 0.36]], hr * 0.2, 0.006, { tubular: 10, radial: 7 });
+        mesh(hornG, M.hornDark, s * hr * 0.4, hr * 0.62, -hr * 0.2, head);
       }
-      const jaw = joint(head, 0, -hr * 0.3, -hr * 0.1);
-      const jg = new THREE.SphereGeometry(hr * 0.8, 12, 8);
-      const jm = mesh(jg, M.scaleV, 0, -hr * 0.1, -hr * 1.0, jaw); jm.scale.set(0.95, 0.35, 1.45);
-      jm.updateMatrix(); paint(THREE, jg, () => S.belly, jm.matrix);
-      for (const s of [-1, 1]) mesh(new THREE.ConeGeometry(hr * 0.09, hr * 0.4, 6), M.horn, s * hr * 0.45, hr * 0.12, -hr * 1.8, jaw);
+      // crista no alto do crânio
+      for (let i = 0; i < 3; i++) { const c = mesh(new THREE.ConeGeometry(hr * 0.1, hr * 0.42, 5), M.hornDark, 0, hr * (0.72 - i * 0.05), -hr * (0.55 - i * 0.35), head); c.rotation.x = 0.7; }
+      // mandíbula (abre com `jaw`): o queixo claro, a boca vermelho-escura por dentro e as fileiras de dentes
+      const jaw = joint(head, 0, -hr * 0.28, -hr * 0.2);
+      part(new THREE.SphereGeometry(hr * 0.8, 12, 8), (x, y, z) => mottle(S.belly, 0.08, x, y, z, 20, 3), 0, -hr * 0.1, -hr * 1.05, [0.85, 0.3, 1.6], jaw);
+      const maw = M.skin.clone(); maw.color.setHex(0x5a1a16); maw.roughness = 0.5;
+      mesh(new THREE.SphereGeometry(hr * 0.6, 10, 8), maw, 0, hr * 0.02, -hr * 1.1, jaw).scale.set(0.75, 0.25, 1.45);
+      mesh(new THREE.SphereGeometry(hr * 0.55, 10, 8), maw, 0, -hr * 0.2, -hr * 1.35, head).scale.set(0.72, 0.22, 1.5);
+      for (const s of [-1, 1]) for (let i = 0; i < 4; i++) {
+        const zz = -hr * (1.2 + i * 0.28), xx = s * hr * (0.5 - i * 0.07);
+        mesh(new THREE.ConeGeometry(hr * 0.055, hr * (i ? 0.2 : 0.34), 5), M.horn, xx, hr * 0.06, zz, jaw);
+        const up = mesh(new THREE.ConeGeometry(hr * 0.05, hr * (i ? 0.18 : 0.3), 5), M.horn, xx, -hr * 0.22, zz - hr * 0.1, head); up.rotation.x = Math.PI;
+      }
       necks.push({ base, segs, head, jaw, k, n, tube });
     }
   }
@@ -164,6 +198,8 @@ export function buildSerpent(THREE, M, params = {}) {
       const q = i * (radial + 1) + j2, t = (n.getY(q) + 1) / 2;
       let hex = t < 0.38 ? mix(S.belly, S.side, smooth(0.22, 0.38, t)) : mix(S.side, S.back, smooth(0.5, 0.9, t));
       if (t > 0.45 && bandEvery) hex = mix(hex, S.band, 0.5 * smooth(0.5, 0.8, t) * (((i + seed) % bandEvery) < bandEvery / 3 ? 1 : 0));
+      // hidra: os escudos transversais do ventre (anéis alternados mais claros/escuros embaixo)
+      if (hydra && t < 0.3) hex = mix(hex, 0x7a6c48, 0.35 * (i % 2));
       c.setHex(mottle(hex, 0.08, p.getX(q), p.getY(q), p.getZ(q), 14, 5));
       col[q * 3] = c.r; col[q * 3 + 1] = c.g; col[q * 3 + 2] = c.b;
     }
@@ -188,8 +224,8 @@ export function buildSerpent(THREE, M, params = {}) {
     body.geometry.dispose(); body.geometry = g;
     for (const nk of necks) {
       const np = [local(nk.base), ...nk.segs.slice(1).map(local), local(nk.head)];
-      const tb = np.length * 3, rr = F.r * 0.44;
-      const ng = taperTube(THREE, np, 0, 0, { tubular: tb, radial: 10, rFn: (u) => rr * (1 - 0.35 * u) });
+      const tb = np.length * 3, rr = F.neckR ?? F.r * 0.44;
+      const ng = taperTube(THREE, np, 0, 0, { tubular: tb, radial: 12, rFn: (u) => rr * (1 - 0.42 * u) });
       colorTube(ng, tb, 10, 4, nk.k);
       nk.tube.geometry.dispose(); nk.tube.geometry = ng;
     }
@@ -221,12 +257,14 @@ export function applySerpentPose(rig, pose) {
   const neck = (pose.neck ?? 0) * DEG, sw = pose.sway ?? 0, swA = (pose.swayAmp ?? 0) * DEG, strike = pose.strike ?? 0, jaw = pose.jaw ?? 0;
   for (const nk of rig.segments.necks) {
     const ph = 2 * Math.PI * (sw + nk.k / Math.max(1, nk.n) * 0.61);
-    nk.base.rotation.x = 0.9 - neck * 0.5 - strike * 0.7 + (nk.n > 1 ? Math.abs((nk.k / (nk.n - 1)) - 0.5) * 0.25 : 0);
+    // (os pescoços pares dão o bote um pouco depois dos ímpares: as cabeças não golpeiam todas no mesmo quadro)
+    const st = nk.n > 1 ? Math.max(0, Math.min(1, strike * 1.3 - (nk.k % 2) * 0.3)) : strike;
+    nk.base.rotation.x = 0.95 - neck * 0.5 - st * 0.7 + (nk.n > 1 ? Math.abs((nk.k / (nk.n - 1)) - 0.5) * 0.25 : 0);
     nk.segs.forEach((j, i) => {
       if (i === 0) return;
-      j.rotation.set(-(0.12 + 0.05 * i) - neck * 0.2 + strike * 0.3 * (i / nk.segs.length), swA * Math.sin(ph + i * 0.7) * (0.5 + 0.2 * i), 0);
+      j.rotation.set(-(0.1 + 0.045 * i) - neck * 0.16 + st * 0.26 * (i / nk.segs.length), swA * Math.sin(ph + i * 0.7) * (0.45 + 0.16 * i), 0);
     });
-    nk.head.rotation.set(-0.55 - neck * 0.3 + strike * 0.25, swA * 0.3 * Math.sin(ph + 2.5), 0);
+    nk.head.rotation.set(-0.5 - neck * 0.3 + st * 0.25, swA * 0.3 * Math.sin(ph + 2.5), 0);
     nk.jaw.rotation.x = jaw * 0.75;
   }
   if (rig.human) {
