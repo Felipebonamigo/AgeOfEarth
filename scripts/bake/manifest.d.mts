@@ -5,7 +5,7 @@ export type Pass = 'color' | 'team' | 'shadow';
 
 export interface AnimDef { frames: number; fps?: number; loop?: boolean; pose?: string; rider?: string; clip?: string; params?: Record<string, unknown> }
 export interface PropItem { kind: string; variants: (number | string)[]; tags?: string[]; size?: [number, number]; anchor?: [number, number] }
-export interface ParamSource { type: 'param'; rig: 'human' | 'horse' | 'siege' | 'building' | 'props'; poses?: string; riderPoses?: string; params?: Record<string, unknown>; items?: PropItem[] }
+export interface ParamSource { type: 'param'; rig: 'human' | 'horse' | 'siege' | 'beast' | 'giant' | 'serpent' | 'building' | 'props'; poses?: string; riderPoses?: string; params?: Record<string, unknown>; items?: PropItem[] }
 export interface GlbSource { type: 'glb'; path: string; scale: number; forward?: '-z' | '+z' | '+x' | '-x'; anims?: Record<string, string>; teamMaterials?: string[] }
 
 export interface ArtManifest {
@@ -31,6 +31,22 @@ export interface ArtManifest {
   stage?: number;
   team: boolean;
   shadow: boolean;
+  /** Etapa 6: classe de tamanho (teto do quadro no art:check: SIZE_CLASSES), padrão 'unit'. */
+  sizeClass?: 'unit' | 'myth' | 'titan';
+  /** Etapa 6: escalas assadas (padrão todas as do CLI; [1] = só 1×, ex.: titãs). */
+  scales?: (1 | 2)[];
+  /** Etapa 6: unidade voadora (assada no ar; sem passada medida: o quadro de voo anda pelo relógio). */
+  flying?: boolean;
+  /** Etapa 6: 'own' = o asset começa páginas próprias no atlas (carregamento por tipo sem mexer nas páginas das outras). */
+  page?: 'own';
+  /** Etapa 6: variantes da unidade pela entidade (hidra: cabeças 1–5), cada uma um asset `<id>_<by><valor>`. */
+  unitVariants?: { by: 'heads'; param: string; values: number[] };
+  /** Variante expandida: id base e valor (preenchidos por expandUnitVariants). */
+  variantOf?: string;
+  variantValue?: number;
+  /** Direções nas folhas de contato (padrão as 8); `variantContactDirs` = as das variantes. */
+  contactDirs?: number[];
+  variantContactDirs?: number[];
 }
 
 export interface ExpandedFrame {
@@ -47,6 +63,13 @@ export const BUILDING_STATES: string[];
 export const VARIANT_BY: string[];
 export const ICON_PX: number;
 export const RIGS: string[];
+export const SIZE_CLASSES: Record<'unit' | 'myth' | 'titan', number>;
+export const UNIT_VARIANT_BY: string[];
+export function unitVariantId(m: ArtManifest, value: number): string;
+export function expandUnitVariants(m: ArtManifest): ArtManifest[];
+export function loadAssets(dir: string): ArtManifest[];
+export function scalesOf(m: ArtManifest, wanted?: number[]): number[];
+export function sizeCeiling(m: ArtManifest): number;
 export const UNIT_RIG_POSES: Record<string, string>;
 export const UNIT_ANIMS: string[];
 export const REQUIRED_UNIT_ANIMS: string[];

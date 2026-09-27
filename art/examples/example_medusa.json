@@ -1,0 +1,59 @@
+{
+  "id": "example_medusa",
+  "kind": "unit",
+  "stage": 6,
+  "contact": "exemplo-medusa",
+  "sizeClass": "myth",
+  "docs": "Exemplo do rig da Etapa 6 (fora de art/manifest: `npm run art:bake -- --preview art/examples --only <id>` só gera a folha de contato). O lote da criatura copia para art/manifest/<id>.json com o id do jogo, ajusta o kit e as poses; para .glb, troque só `source` (docs/ART.md §3.4 e Apêndice G).",
+  "source": {
+    "type": "param",
+    "rig": "serpent",
+    "poses": "art/poses/serpent.json",
+    "params": {
+      "form": "medusa",
+      "scales": "green",
+      "team": "sash",
+      "torso": {
+        "armor": "linothorax",
+        "pteruges": "team",
+        "sash": "team",
+        "weapon": "bow"
+      }
+    }
+  },
+  "size": {
+    "tiles": [
+      3.6,
+      3.6
+    ]
+  },
+  "anchor": [
+    0.5,
+    0.6
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": {
+      "frames": 4,
+      "fps": 8,
+      "pose": "idle_hydra"
+    },
+    "walk": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "slither"
+    },
+    "attack": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "strike_hydra"
+    },
+    "die": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "die_hydra"
+    }
+  },
+  "team": true,
+  "shadow": true
+}

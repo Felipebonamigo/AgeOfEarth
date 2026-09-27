@@ -36,6 +36,9 @@ export interface FxHost {
   entityParent(kind: 'unit' | 'building', y: number, flying: boolean): Container;
   /** Direção da vista assada que sumiu neste quadro no ponto (x, y) em tiles (a queda herda), ou 2 (S). */
   deathDir(type: string, x: number, y: number): number;
+  /** Asset de arte da unidade assada que sumiu neste quadro em (x, y) (Etapa 6: a variante da hidra pelas cabeças); o tipo
+   *  se não houver. Opcional (dublês dos testes). */
+  deathArt?(type: string, x: number, y: number): string;
   /** Variante mostrada pelo edifício assado que sumiu neste quadro em (x, y) (o colapso usa a mesma), ou null. */
   goneVariant(type: string, x: number, y: number): string | null;
   /** O edifício assado/procedural que sumiu neste quadro em (x, y) mostrava o estado VIVO ao jogador local (dele, ou à

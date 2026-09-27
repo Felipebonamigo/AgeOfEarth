@@ -1,6 +1,6 @@
 // Tipos de scripts/bake/page/atlas.js (usado pelo bake.mjs e pelos testes).
 export interface Rect { x: number; y: number; w: number; h: number }
-export interface PackItem { key: string; group: string; w: number; h: number }
+export interface PackItem { key: string; group: string; w: number; h: number; fresh?: boolean; sub?: string }
 export interface PackedPage { w: number; h: number; items: (Rect & { key: string })[] }
 export interface SheetFrameIn { name: string; x: number; y: number; w: number; h: number; trim: { x: number; y: number }; sourceSize: { w: number; h: number }; anchor: { x: number; y: number } }
 

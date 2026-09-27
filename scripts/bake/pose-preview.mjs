@@ -43,7 +43,10 @@ try {
   page.on('pageerror', (e) => console.error('[página]', e.message));
   await page.goto(`http://127.0.0.1:${server.port}/index.html`);
   await page.waitForFunction(() => window.__ready === true || window.__error, null, { timeout: 120000 });
-  const res = await page.evaluate((job) => window.__bake.bakeBatch(job), { manifest: m, poses, scale, stateKey: `preview/${m.id}/${Date.now()}`, frames });
+  // em lotes de 6 quadros: a resposta de um lote grande (criaturas da Etapa 6 a escala 3+) passava do limite da mensagem
+  // do protocolo do navegador e a página caía
+  const res = [], key = `preview/${m.id}/${Date.now()}`;
+  for (let i = 0; i < frames.length; i += 6) res.push(...await page.evaluate((job) => window.__bake.bakeBatch(job), { manifest: m, poses, scale, stateKey: key, frames: frames.slice(i, i + 6) }));
   // recorte opcional em volta do pé (as imagens voltam da página como RGBA da caixa inteira)
   const cw = crop ? Math.round(crop[0] * PX_PER_TILE * scale) : w, ch = crop ? Math.round(crop[1] * PX_PER_TILE * scale) : h;
   const cx0 = crop ? box.ax - Math.round(cw / 2) : 0, cy0 = crop ? box.ay - Math.round(ch * 0.75) : 0;
@@ -56,12 +59,38 @@ try {
     }
     return dst.toString('base64');
   };
-  const img = (b64) => (b64 ? { b64: cut(b64), w: cw, h: ch, x: 0, y: 0 } : null);
-  const cellOf = (r) => ({ color: img(r.color), team: img(r.team), shadow: img(r.shadow), anchor: { x: box.ax - cx0, y: box.ay - cy0 } });
-  const rows = dirs.map((d) => ({ label: `dir ${d}`, cells: frames.map((f, i) => (f.dir === d ? { ...cellOf(res[i]), label: f.frame === 0 ? f.anim : '' } : null)).filter(Boolean) }));
-  const b64 = await page.evaluate((arg) => window.__bake.contactSheet(arg), { title: `${m.id} — ${anims.join(', ')} · escala ${scale} (${PX_PER_TILE * scale} px/tile)`, rows, cellW: cw, cellH: ch, zoom: 1, tint, labelW: 60 });
+  // composição em Node (Etapa 6: a grade de criaturas grandes passava do limite de mensagem do navegador): fundo de grama,
+  // sombra a 0,45, cor por cima, máscara de time tingida e a cruz da âncora; linhas = direções, colunas = quadros
+  const { PNG } = await import('pngjs');
+  const cols = Math.max(...dirs.map((d) => frames.filter((f) => f.dir === d).length));
+  const LW = 60, HEAD = 22, GAP = 4;
+  const W = LW + cols * (cw + GAP), H = HEAD + dirs.length * (ch + GAP);
+  const sheet = new PNG({ width: W, height: H });
+  for (let i = 0; i < W * H; i++) { sheet.data[i * 4] = 27; sheet.data[i * 4 + 1] = 27; sheet.data[i * 4 + 2] = 27; sheet.data[i * 4 + 3] = 255; }
+  const tr = ((tint >> 16) & 255) / 255, tg = ((tint >> 8) & 255) / 255, tb = (tint & 255) / 255;
+  dirs.forEach((d, r) => {
+    frames.map((f, i) => [f, res[i]]).filter(([f]) => f.dir === d).forEach(([, rr], c) => {
+      const x0 = LW + c * (cw + GAP), y0 = HEAD + r * (ch + GAP);
+      const layers = [[rr.shadow, 'shadow'], [rr.color, 'color'], [rr.team, 'team']];
+      const px = (x, y) => (y0 + y) * W + x0 + x;
+      for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) { const o = px(x, y) * 4; sheet.data[o] = 0x5f; sheet.data[o + 1] = 0x7a; sheet.data[o + 2] = 0x33; }
+      for (const [b64, kind] of layers) {
+        if (!b64) continue;
+        const src = Buffer.from(cut(b64), 'base64');
+        for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
+          const s4 = (y * cw + x) * 4, a = src[s4 + 3] / 255; if (!a) continue;
+          const o = px(x, y) * 4;
+          if (kind === 'shadow') { const k = 1 - 0.45 * a; for (let q = 0; q < 3; q++) sheet.data[o + q] *= k; continue; }
+          const t = kind === 'team' ? [tr, tg, tb] : [1, 1, 1];
+          for (let q = 0; q < 3; q++) sheet.data[o + q] = src[s4 + q] * t[q] * a + sheet.data[o + q] * (1 - a);
+        }
+      }
+      const ax = box.ax - cx0, ay = box.ay - cy0;
+      for (let k = -2; k <= 2; k++) for (const [x, y] of [[ax + k, ay], [ax, ay + k]]) if (x >= 0 && y >= 0 && x < cw && y < ch) { const o = px(x, y) * 4; sheet.data[o] = sheet.data[o + 1] = sheet.data[o + 2] = 235; }
+    });
+  });
   fs.mkdirSync(path.dirname(out), { recursive: true });
-  fs.writeFileSync(out, Buffer.from(b64, 'base64'));
+  fs.writeFileSync(out, PNG.sync.write(sheet));
   console.log(`prévia: ${path.relative(ROOT, out)} (${frames.length} quadros)`);
 } finally {
   await b.close(); await server.close();

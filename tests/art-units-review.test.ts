@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { PNG } from 'pngjs';
-import { loadManifests, posesOf } from '../scripts/bake/manifest.mjs';
+import { loadAssets, posesOf } from '../scripts/bake/manifest.mjs';
 import { measureUnit, MOVE_ANIMS } from '../scripts/bake/measure.mjs';
 import { unitFrameName } from '../src/render/art/logic';
 import type { SheetJson, ArtManifest } from '../src/render/art/types';
@@ -19,7 +19,8 @@ import type { SheetJson, ArtManifest } from '../src/render/art/types';
 const ROOT = path.resolve(__dirname, '..');
 const ART = path.join(ROOT, 'public', 'art');
 const readJson = (p: string) => JSON.parse(fs.readFileSync(path.join(ROOT, p), 'utf8'));
-const manifests = loadManifests(path.join(ROOT, 'art', 'manifest')).map((l) => l.manifest as unknown as Record<string, any>);
+// com as variantes de unidade expandidas (Etapa 6: hydra_heads2…5 são assets como os outros)
+const manifests = loadAssets(path.join(ROOT, 'art', 'manifest')) as unknown as Record<string, any>[];
 const units = manifests.filter((m) => m.kind === 'unit');
 const posesFor = (m: Record<string, any>) => { const pf = posesOf(m as never); return { main: pf.main ? readJson(pf.main) : null, rider: pf.rider ? readJson(pf.rider) : null }; };
 
@@ -67,7 +68,7 @@ describe.skipIf(!hasArt)('atlas e índice das unidades (revisão da Etapa 4)', (
       expect(a, m.id).toBeTruthy();
       const me = measureUnit(m, posesFor(m))!;
       for (const anim of MOVE_ANIMS) {
-        if (!m.anims[anim]) continue;
+        if (!m.anims[anim] || m.flying) continue;   // voadora (Etapa 6): sem passada, o voo anda pelo relógio
         const st = a.anims![anim].stride;
         expect(st, `${m.id} ${anim}: passada no índice`).toBeGreaterThan(0);
         expect(st, `${m.id} ${anim}`).toBeCloseTo(me.strides[anim], 3);
@@ -77,10 +78,16 @@ describe.skipIf(!hasArt)('atlas e índice das unidades (revisão da Etapa 4)', (
     }
   });
 
-  it('passadas plausíveis: a pé ≈ 0,7–0,9 tile por ciclo, trote ≈ 0,8–0,9, galope ≈ 1,6–1,9, roda = raio × 90°', () => {
+  it('passadas plausíveis: a pé ≈ 0,7–0,9 tile por ciclo, trote ≈ 0,8–0,9, galope ≈ 1,6–1,9, roda = raio × 90°; criaturas (Etapa 6) pelo porte', () => {
     for (const m of units) {
       const an = index.assets[m.id].anims!;
+      if (m.flying) { expect(an.walk.stride, `${m.id}: voadora sem passada`).toBeUndefined(); continue; }
       if (m.source.rig === 'siege') expect(an.walk.stride, m.id).toBeGreaterThan(0.2);
+      // Etapa 6: quadrúpede (andar ≈ 0,6–1,0 tile, galope 1,6–2,4 pelo porte), bípede grande (a do humano × altura/1,8),
+      // serpente (um comprimento de onda do corpo por ciclo)
+      else if (m.source.rig === 'beast') { expect(an.walk.stride, m.id).toBeGreaterThan(0.6); expect(an.walk.stride, m.id).toBeLessThan(1.1); if (an.run) { expect(an.run.stride, m.id).toBeGreaterThan(1.6); expect(an.run.stride, m.id).toBeLessThan(2.4); } }
+      else if (m.source.rig === 'giant') { const k = (m.source.params.height ?? 2.6) / 1.8; expect(an.walk.stride, m.id).toBeGreaterThan(0.65 * k); expect(an.walk.stride, m.id).toBeLessThan(0.95 * k); }
+      else if (m.source.rig === 'serpent') expect(an.walk.stride, m.id).toBeGreaterThan(0.5);
       else if (m.source.rig === 'horse') { expect(an.walk.stride, m.id).toBeGreaterThan(0.7); expect(an.walk.stride, m.id).toBeLessThan(1); expect(an.run.stride, m.id).toBeGreaterThan(1.5); expect(an.run.stride, m.id).toBeLessThan(2.1); }
       else { expect(an.walk.stride, m.id).toBeGreaterThan(0.65); expect(an.walk.stride, m.id).toBeLessThan(0.95); }
     }
@@ -110,6 +117,9 @@ describe.skipIf(!hasArt)('atlas e índice das unidades (revisão da Etapa 4)', (
     let checked = 0;
     for (const m of units) {
       if (m.source.rig === 'siege') continue;   // a roda gira no lugar (o contato não anda): conferida pela pose
+      // Etapa 6: a voadora não toca o chão (o voo anda pelo relógio) e a serpente não tem pés (o corpo segue o próprio
+      // rastro: passada = onda, tests/art-myth.test.ts)
+      if (m.flying || m.source.rig === 'serpent') continue;
       for (const anim of MOVE_ANIMS) {
         const info = index.assets[m.id].anims![anim]; if (!info) continue;
         const n = info.frames;

@@ -1,0 +1,62 @@
+{
+  "id": "example_cyclops",
+  "kind": "unit",
+  "stage": 6,
+  "contact": "exemplo-ciclope",
+  "sizeClass": "myth",
+  "docs": "Exemplo do rig da Etapa 6 (fora de art/manifest: `npm run art:bake -- --preview art/examples --only <id>` só gera a folha de contato). O lote da criatura copia para art/manifest/<id>.json com o id do jogo, ajusta o kit e as poses; para .glb, troque só `source` (docs/ART.md §3.4 e Apêndice G).",
+  "source": {
+    "type": "param",
+    "rig": "giant",
+    "poses": "art/poses/giant.json",
+    "params": {
+      "height": 4.5,
+      "bulk": 1.25,
+      "skin": "skin",
+      "head": "cyclops",
+      "feet": "bare",
+      "weapon": "maul",
+      "bracers": "team",
+      "human": {
+        "armor": "bare",
+        "tunicTeam": true,
+        "sash": "team"
+      }
+    }
+  },
+  "size": {
+    "tiles": [
+      6.4,
+      7.2
+    ]
+  },
+  "anchor": [
+    0.45,
+    0.54
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": {
+      "frames": 4,
+      "fps": 10,
+      "pose": "idle_minotaur"
+    },
+    "walk": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "walk_minotaur"
+    },
+    "attack": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "attack_minotaur"
+    },
+    "die": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "die_minotaur"
+    }
+  },
+  "team": true,
+  "shadow": true
+}

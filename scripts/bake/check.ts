@@ -8,7 +8,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
-import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, posesOf, FRAME_NAME_RE, GROUP_OF, BUILDING_STATES, ICON_PX, type ArtManifest, type AssetKind } from './manifest.mjs';
+import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, posesOf, expandUnitVariants, sizeCeiling, SIZE_CLASSES, FRAME_NAME_RE, GROUP_OF, BUILDING_STATES, ICON_PX, type ArtManifest, type AssetKind } from './manifest.mjs';
 import { PX_PER_TILE, PITCH_DEG, PIPELINE_VERSION, DIRS, FPS } from './page/camera.js';
 import { SHADOW_TEXEL } from './page/atlas.js';
 import { fxNames, FX_PROJECTILES, FX_DIRS, FX_FIRE_FRAMES } from './fx/catalog.mjs';
@@ -20,7 +20,8 @@ export const BUDGET = {
   // texturas residentes, pior caso (§6: ≤ 250 MB a 1×) — POR ESCALA: uma partida carrega uma escala só (1× ou 2×, pelo
   // preset) e o pacote 2× é o mesmo conteúdo com 4× os texels, então o teto do 2× é ×4 (vramBudgetMB)
   maxVramMB: 250,
-  maxSourceSize: { unit: 128, building: 256, prop: 224, icon: ICON_PX, fx: 64 } as Record<AssetKind | 'icon' | 'fx', number>,
+  // unidades: o teto da CLASSE de tamanho do manifesto (Etapa 6: `sizeClass` unit 128 · myth 192 · titan 288 px a 1×)
+  maxSourceSize: { unit: SIZE_CLASSES.unit, building: 256, prop: 224, icon: ICON_PX, fx: 64 } as Record<AssetKind | 'icon' | 'fx', number>,
   /** Atlas `fx` (Etapa 5: projéteis, partículas, fogo, decalques — scripts/bake/fx.mjs): VRAM pequena, por escala em
    *  texels de 1× (como os outros: o 2× pode ter 4×). */
   maxFxVramMB: 2,
@@ -57,8 +58,10 @@ export const vramBudgetMB = (scale: number): number => BUDGET.maxVramMB * scale 
 export function runCheck(root: string): CheckResult {
   const errors: string[] = [], warnings: string[] = [];
   const loaded = loadManifests(path.join(root, 'art', 'manifest'));
-  for (const l of loaded) for (const e of validateManifest(l.manifest)) errors.push(`${path.relative(root, l.file)}: ${e}`);
-  const manifests = loaded.map((l) => l.manifest);
+  // variantes de unidade (Etapa 6: hidra por cabeças) viram um asset cada, validado como os outros
+  for (const l of loaded) for (const m of expandUnitVariants(l.manifest)) for (const e of validateManifest(m)) errors.push(`${path.relative(root, l.file)}${m.variantOf ? ` (${m.id})` : ''}: ${e}`);
+  const manifests = loaded.flatMap((l) => expandUnitVariants(l.manifest));
+  const byId = new Map(manifests.map((m) => [m.id, m]));
   errors.push(...validateAll(manifests));
   for (const l of loaded) if (path.basename(l.file) !== `${l.manifest.id}.json`) errors.push(`${path.relative(root, l.file)}: o nome do arquivo deve ser <id>.json`);
   for (const m of manifests) errors.push(...poseErrors(root, m));
@@ -100,7 +103,7 @@ export function runCheck(root: string): CheckResult {
       if (!(f.anchor.x >= 0 && f.anchor.x <= 1 && f.anchor.y >= 0 && f.anchor.y <= 1)) errors.push(`${a.json}: ${name} âncora fora de [0,1]`);
       const s = f.spriteSourceSize;
       if (s.x < 0 || s.y < 0 || s.x + s.w > f.sourceSize.w || s.y + s.h > f.sourceSize.h || s.w !== w || s.h !== h) errors.push(`${a.json}: ${name} recorte fora do sourceSize`);
-      const max = BUDGET.maxSourceSize[kind] * a.scale * texel;
+      const max = (kind === 'unit' ? sizeCeiling(byId.get(name.split('/')[0]) as ArtManifest) : BUDGET.maxSourceSize[kind]) * a.scale * texel;
       if (f.sourceSize.w > max || f.sourceSize.h > max) errors.push(`${a.json}: ${name} sourceSize ${f.sourceSize.w}×${f.sourceSize.h} acima do orçamento ${max}`);
     }
     for (const [anim, list] of Object.entries(sheet.animations)) for (const n of list) if (!sheet.frames[n]) errors.push(`${a.json}: animação ${anim} referencia quadro ausente ${n}`);
@@ -120,7 +123,8 @@ export function runCheck(root: string): CheckResult {
       // revisão da Etapa 4: passada das animações de andar (o renderizador avança o quadro pela distância) e topo do corpo
       // por direção (barra de vida), medidos no rig pelo bake (measure.mjs)
       const an = (asset.anims ?? {}) as Record<string, { stride?: number }>;
-      for (const a of ['walk', 'run', 'carry']) if (m.anims?.[a] && !((an[a]?.stride ?? 0) > 0)) errors.push(`${m.id}: ${a} sem passada (stride) no índice — reempacote (art:bake --pack-only)`);
+      // (voadora — Etapa 6 — não tem apoio no chão: o voo anda pelo relógio, sem passada)
+      if (!m.flying) for (const a of ['walk', 'run', 'carry']) if (m.anims?.[a] && !((an[a]?.stride ?? 0) > 0)) errors.push(`${m.id}: ${a} sem passada (stride) no índice — reempacote (art:bake --pack-only)`);
       const tops = (asset as { tops?: number[] }).tops;
       if (!Array.isArray(tops) || tops.length !== 8 || !tops.every((v) => v > 0)) errors.push(`${m.id}: tops (topo do corpo nas 8 direções) ausente no índice`);
     }
@@ -129,6 +133,12 @@ export function runCheck(root: string): CheckResult {
       if (JSON.stringify(asset.variants ?? null) !== JSON.stringify(m.variants ?? null)) errors.push(`${m.id}: variants do índice ≠ manifesto`);
       if (!m.rubble) for (const st of BUILDING_STATES) if (!asset.anims || !(st in asset.anims)) errors.push(`${m.id}: estado ${st} ausente no índice`);
       if (!!m.icon !== !!asset.icon) errors.push(`${m.id}: ícone ${m.icon ? 'ausente' : 'sobrando'} no índice`);
+    }
+    // Etapa 6: escalas declaradas no manifesto (titãs só a 1×)
+    if (m.scales) for (const sc of Object.keys(asset.atlases)) if (!m.scales.includes(Number(sc) as 1 | 2)) errors.push(`${m.id}: escala ${sc}× no índice, mas o manifesto só assa ${m.scales.join(', ')}×`);
+    if (m.kind === 'unit' && (m.unitVariants || m.variantOf)) {
+      const base = m.variantOf ?? m.id, ids = (index.assets[base] as { unitVariants?: { ids: Record<string, string> } } | undefined)?.unitVariants?.ids;
+      if (!ids || !Object.values(ids).includes(m.id)) errors.push(`${m.id}: variante ausente de ${base}.unitVariants no índice`);
     }
     for (const [scale, byPass] of Object.entries(asset.atlases)) {
       // quadros de um passe com o sourceSize em px da escala (a sombra vem em texels da metade)

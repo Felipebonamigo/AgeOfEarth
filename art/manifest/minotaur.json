@@ -1,0 +1,45 @@
+{
+  "id": "minotaur",
+  "kind": "unit",
+  "stage": 6,
+  "sizeClass": "myth",
+  "page": "own",
+  "docs": "Criatura no rig do bípede grande (docs/ART.md, Apêndice G): o esqueleto humano a 2,6 m, corpulento, de pelo escuro, com a cabeça de touro, cascos, saiote e braçadeiras de time e o machado de dois gumes (labrys). Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/minotaur.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Walk\", \"attack\": \"Chop\", \"die\": \"Death\" }, \"teamMaterials\": [\"Kilt\", \"Bracers\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "giant",
+    "poses": "art/poses/giant.json",
+    "params": {
+      "height": 2.6,
+      "bulk": 1.22,
+      "skin": "fur",
+      "head": "bull",
+      "feet": "hoof",
+      "weapon": "labrys",
+      "bracers": "team",
+      "human": {
+        "armor": "bare",
+        "tunicTeam": true
+      }
+    }
+  },
+  "size": {
+    "tiles": [
+      3.6,
+      4.2
+    ]
+  },
+  "anchor": [
+    0.45,
+    0.6
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": { "frames": 4, "fps": 10, "pose": "idle_minotaur" },
+    "walk": { "frames": 8, "fps": 10, "pose": "walk_minotaur" },
+    "attack": { "frames": 6, "fps": 10, "pose": "attack_minotaur" },
+    "die": { "frames": 6, "fps": 10, "pose": "die_minotaur" }
+  },
+  "team": true,
+  "shadow": true
+}

@@ -1,0 +1,56 @@
+{
+  "id": "pegasus",
+  "kind": "unit",
+  "stage": 6,
+  "sizeClass": "myth",
+  "page": "own",
+  "flying": true,
+  "docs": "Voadora no rig do cavalo com as asas de penas (docs/ART.md, Apêndice G): o Pégaso branco no ar, com xairel de time; o voo é a pose (a raiz a 1,3 m do chão) e a sombra cai no chão deslocada para SE. Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/pegasus.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Hover\", \"walk\": \"Fly\", \"attack\": \"Rear\", \"die\": \"Fall\" }, \"teamMaterials\": [\"Cloth\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "horse",
+    "poses": "art/poses/horse.json",
+    "params": {
+      "coat": "white",
+      "build": "medium",
+      "cloth": true,
+      "wings": "feather",
+      "rider": null
+    }
+  },
+  "size": {
+    "tiles": [
+      5.0,
+      4.8
+    ]
+  },
+  "anchor": [
+    0.42,
+    0.6
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "fly_hover"
+    },
+    "walk": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "fly"
+    },
+    "attack": {
+      "frames": 4,
+      "fps": 10,
+      "pose": "fly_rear"
+    },
+    "die": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "fly_die"
+    }
+  },
+  "team": true,
+  "shadow": true
+}

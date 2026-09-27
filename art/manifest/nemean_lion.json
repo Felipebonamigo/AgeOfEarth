@@ -1,0 +1,61 @@
+{
+  "id": "nemean_lion",
+  "kind": "unit",
+  "stage": 6,
+  "sizeClass": "myth",
+  "page": "own",
+  "docs": "Criatura no rig do quadrúpede grande (docs/ART.md, Apêndice G): o Leão de Nemeia, dourado com reflexo (a pele impenetrável), juba escura e manta de time no dorso. Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/nemean_lion.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Walk\", \"run\": \"Run\", \"attack\": \"Pounce\", \"die\": \"Death\" }, \"teamMaterials\": [\"Cloth\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "beast",
+    "poses": "art/poses/beast.json",
+    "params": {
+      "build": "lion",
+      "size": 1.2,
+      "coat": "nemean",
+      "mane": "lion",
+      "tail": "tuft",
+      "team": "cloth"
+    }
+  },
+  "size": {
+    "tiles": [
+      4.4,
+      3.8
+    ]
+  },
+  "anchor": [
+    0.46,
+    0.6
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": {
+      "frames": 4,
+      "fps": 10,
+      "pose": "idle_beast"
+    },
+    "walk": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "walk_beast"
+    },
+    "run": {
+      "frames": 8,
+      "fps": 12,
+      "pose": "run_beast"
+    },
+    "attack": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "attack_beast"
+    },
+    "die": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "die_beast"
+    }
+  },
+  "team": true,
+  "shadow": true
+}

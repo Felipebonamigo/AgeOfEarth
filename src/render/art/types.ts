@@ -46,6 +46,15 @@ export interface ArtAssetEntry {
   items?: string[];
   /** Arquivos JSON de atlas por escala e passe. */
   atlases: Record<string, Partial<Record<ArtPass, string[]>>>;
+  /** Etapa 6 (criaturas e titãs): classe de tamanho do quadro ('myth', 'titan'; ausente = 'unit'). */
+  sizeClass?: 'unit' | 'myth' | 'titan';
+  /** Voadora (Pégaso): assada no ar, a sombra no chão deslocada; o voo anda pelo relógio (sem passada). */
+  flying?: boolean;
+  /** Variantes da unidade pela entidade (hidra: `by` = 'heads', `ids` = valor → id do asset); só no asset base. */
+  unitVariants?: { by: 'heads'; ids: Record<string, string> };
+  /** Variante expandida de outro asset (id base e valor). */
+  variantOf?: string;
+  variantValue?: number;
 }
 
 /** `texel`: densidade de texels em relação à escala (a sombra vem a ½ — `SHADOW_TEXEL` de scripts/bake/page/atlas.js). */

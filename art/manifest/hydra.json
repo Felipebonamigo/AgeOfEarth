@@ -1,0 +1,40 @@
+{
+  "id": "hydra",
+  "kind": "unit",
+  "stage": 6,
+  "sizeClass": "myth",
+  "page": "own",
+  "unitVariants": { "by": "heads", "param": "heads", "values": [1, 2, 3, 4, 5] },
+  "variantContactDirs": [1],
+  "docs": "Criatura no rig da serpente (docs/ART.md, Apêndice G): a hidra de escamas verde-bronze, o peito erguido com a faixa de time e N pescoços com colares de time; `unitVariants` assa uma variante por número de cabeças (hydra = 1, hydra_heads2…hydra_heads5) e o renderizador escolhe pela entidade (`heads`). Para usar modelos .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/hydra.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Slither\", \"attack\": \"Strike\", \"die\": \"Death\" }, \"teamMaterials\": [\"Band\"] } (um .glb por variante; docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "serpent",
+    "poses": "art/poses/serpent.json",
+    "params": {
+      "form": "hydra",
+      "heads": 1,
+      "scales": "bronze",
+      "team": "band"
+    }
+  },
+  "size": {
+    "tiles": [
+      5.0,
+      4.4
+    ]
+  },
+  "anchor": [
+    0.5,
+    0.58
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": { "frames": 4, "fps": 8, "pose": "idle_hydra" },
+    "walk": { "frames": 8, "fps": 10, "pose": "slither" },
+    "attack": { "frames": 6, "fps": 10, "pose": "strike_hydra" },
+    "die": { "frames": 6, "fps": 10, "pose": "die_hydra" }
+  },
+  "team": true,
+  "shadow": true
+}

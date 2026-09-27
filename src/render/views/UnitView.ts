@@ -39,6 +39,8 @@ export class UnitView {
   private curShadow: readonly Texture[] | null = null;
   private mirrored = false;
   private shadowAlpha = SHADOW_ALPHA;
+  /** Alfa do corpo (a sombra de Hades é translúcida); o cadáver apaga a partir dele. */
+  private baseAlpha = 1;
   /** Caixa do corpo no mundo (px), para o pick em dois estágios; atualizada quando muda o quadro ou a posição. */
   bx0 = 0; by0 = 0; bx1 = 0; by1 = 0;
   private px = NaN; private py = NaN;
@@ -48,8 +50,14 @@ export class UnitView {
   /** Topo da barra de vida (px acima do pé), suavizado ao virar (a cabeça do cavalo sobe o topo em N, por exemplo). */
   private bar = NaN;
 
-  constructor(readonly art: UnitArt, private lib: ArtLibrary, readonly type: string, readonly color: number, shadowLayer: Container, dir = 2) {
+  /**
+   * `look` (Etapa 6, logic.ts `unitLook`): alfa do corpo e fator da sombra — a voadora desenha a sombra no chão mais fraca
+   * (o corpo está no ar: a sombra, já deslocada para SE no bake, fica translúcida) e a sombra de Hades é translúcida.
+   */
+  constructor(readonly art: UnitArt, private lib: ArtLibrary, readonly type: string, readonly color: number, shadowLayer: Container, dir = 2, look: { alpha: number; shadow: number } = { alpha: 1, shadow: 1 }) {
     this.dir = dir;
+    this.shadowAlpha = SHADOW_ALPHA * look.shadow;
+    this.baseAlpha = look.alpha;
     const first = lib.frames(art, 'idle', dir)?.[0];
     this.body = new Sprite(first);
     this.body.anchor.set(art.anchor.x, art.anchor.y);
@@ -63,10 +71,11 @@ export class UnitView {
     if (art.shadow) {
       this.shadow = new Sprite(lib.shadowFrames(art, 'idle', dir)?.[0]);
       this.shadow.anchor.set(art.anchor.x, art.anchor.y);
-      this.shadow.alpha = SHADOW_ALPHA;
+      this.shadow.alpha = this.shadowAlpha;
       this.shadow.blendMode = 'multiply';   // igual às sombras procedurais: um lote só na camada
       shadowLayer.addChild(this.shadow);
     } else this.shadow = null;
+    if (this.baseAlpha !== 1) this.root.alpha = this.baseAlpha;
   }
 
   /** Posição do pé (px de mundo). */
@@ -161,7 +170,7 @@ export class UnitView {
     const m = textureAlpha(this.body.texture);
     return !m || maskHit(m, this.mirrored ? this.bx1 - x : x - this.bx0, y - this.by0);
   }
-  set alpha(a: number) { this.root.alpha = a; if (this.shadow) this.shadow.alpha = this.shadowAlpha * a; }
+  set alpha(a: number) { this.root.alpha = this.baseAlpha * a; if (this.shadow) this.shadow.alpha = this.shadowAlpha * a; }
   set visible(v: boolean) { this.root.visible = v; if (this.shadow) this.shadow.visible = v; }
   get visible(): boolean { return this.root.visible; }
 

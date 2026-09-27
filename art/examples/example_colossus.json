@@ -1,0 +1,63 @@
+{
+  "id": "example_colossus",
+  "kind": "unit",
+  "stage": 6,
+  "contact": "exemplo-colosso",
+  "sizeClass": "titan",
+  "docs": "Exemplo do rig da Etapa 6 (fora de art/manifest: `npm run art:bake -- --preview art/examples --only <id>` só gera a folha de contato). O lote da criatura copia para art/manifest/<id>.json com o id do jogo, ajusta o kit e as poses; para .glb, troque só `source` (docs/ART.md §3.4 e Apêndice G).",
+  "source": {
+    "type": "param",
+    "rig": "giant",
+    "poses": "art/poses/giant.json",
+    "params": {
+      "height": 8,
+      "bulk": 1.1,
+      "skin": "bronze",
+      "head": "human",
+      "feet": "sandal",
+      "weapon": "none",
+      "bracers": "team",
+      "human": {
+        "armor": "cuirass",
+        "helmet": "crown",
+        "pteruges": "team",
+        "cape": "short"
+      }
+    }
+  },
+  "size": {
+    "tiles": [
+      7.2,
+      8.6
+    ]
+  },
+  "anchor": [
+    0.45,
+    0.64
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": {
+      "frames": 4,
+      "fps": 10,
+      "pose": "idle_minotaur"
+    },
+    "walk": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "walk_minotaur"
+    },
+    "attack": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "attack_minotaur"
+    },
+    "die": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "die_minotaur"
+    }
+  },
+  "team": true,
+  "shadow": true
+}

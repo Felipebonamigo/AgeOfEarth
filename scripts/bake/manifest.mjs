@@ -15,7 +15,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { DIRS, FPS, MIRROR_BAKED, MIRROR_FROM } from './page/camera.js';
-import { UNIT_KITS, DEFAULT_POSES } from './page/rigs/units.js';
+import { UNIT_KITS, DEFAULT_POSES, NESTED_HUMAN } from './page/rigs/units.js';
 
 export const KINDS = ['unit', 'building', 'prop'];
 /** Grupo de atlas de cada tipo de asset (units-1x-0.png, buildings-1x-0.png, props-1x-0.png). */
@@ -29,8 +29,17 @@ export const BUILDING_STATES = ['build0', 'build1', 'build2', 'complete', 'damag
 export const VARIANT_BY = ['wallMask', 'gateAxis', 'ageTier', 'farmCrop'];
 /** Lado do ícone a 1× (px). */
 export const ICON_PX = 64;
-/** Rigs paramétricos conhecidos pela página de bake (scripts/bake/page/rigs/*.js, props.js, buildings.js). */
-export const RIGS = ['human', 'horse', 'siege', 'building', 'props'];
+/** Rigs paramétricos conhecidos pela página de bake (scripts/bake/page/rigs/*.js, props.js, buildings.js). Etapa 6:
+ *  `beast` (quadrúpede grande), `giant` (bípede grande sobre o rig humano) e `serpent` (corpo em segmentos). */
+export const RIGS = ['human', 'horse', 'siege', 'beast', 'giant', 'serpent', 'building', 'props'];
+/**
+ * Classes de tamanho das unidades (Etapa 6): teto do lado do quadro (sourceSize) a 1× que o `art:check` aceita — `unit`
+ * (humanos, cavalaria, cerco: 128 px), `myth` (criaturas grandes, voadoras com a sombra longe do corpo, hidra: 192 px) e
+ * `titan` (titãs e o colosso: 288 px). O manifesto escolhe em `sizeClass` (padrão `unit`).
+ */
+export const SIZE_CLASSES = { unit: 128, myth: 192, titan: 288 };
+/** Critérios de variante de UNIDADE (Etapa 6): `heads` = pelo número de cabeças da entidade (hidra, 1–5). */
+export const UNIT_VARIANT_BY = ['heads'];
 /** Rigs de unidade (registro em scripts/bake/page/rigs/units.js) e o arquivo de poses padrão de cada um. */
 export const UNIT_RIG_POSES = DEFAULT_POSES;
 /** Animações de unidade que o renderizador conhece (src/render/art/logic.ts `UnitAnim`): as 4 obrigatórias e as
@@ -93,7 +102,9 @@ export function validateManifest(m) {
     if (UNIT_KITS[s.rig]) {
       if (m.kind !== 'unit') e.push(`${where}: rig ${s.rig} é de unidade`);
       e.push(...kitErrors(where, UNIT_KITS[s.rig], s.params));
-      if (s.rig === 'horse' && s.params?.rider) e.push(...kitErrors(`${where} (cavaleiro)`, UNIT_KITS.human, s.params.rider));
+      // kits humanos aninhados: o cavaleiro, o corpo do bípede grande (Etapa 6) e o torso da Medusa
+      const nested = NESTED_HUMAN[s.rig];
+      if (nested && s.params?.[nested]) e.push(...kitErrors(`${where} (${nested === 'rider' ? 'cavaleiro' : nested})`, UNIT_KITS.human, s.params[nested]));
     }
   } else {
     if (typeof s.path !== 'string') e.push(`${where}: source.path ausente`);
@@ -103,6 +114,17 @@ export function validateManifest(m) {
   if (!Array.isArray(t) || t.length !== 2 || !t.every((v) => isNum(v) && v > 0 && v <= 12)) e.push(`${where}: size.tiles [w, h] inválido`);
   if (!Array.isArray(m.anchor) || m.anchor.length !== 2 || !m.anchor.every(inUnit)) e.push(`${where}: anchor fora de [0,1]`);
   if (m.kind === 'unit' && m.dirs !== 8) e.push(`${where}: unidades têm 8 direções`);
+  // Etapa 6: classe de tamanho, escalas assadas, voadora, página própria e variantes de unidade
+  if (m.sizeClass !== undefined && !Object.hasOwn(SIZE_CLASSES, m.sizeClass)) e.push(`${where}: sizeClass deve ser ${Object.keys(SIZE_CLASSES).join('|')}`);
+  if (m.scales !== undefined && !(Array.isArray(m.scales) && m.scales.length && m.scales.every((v) => v === 1 || v === 2) && new Set(m.scales).size === m.scales.length && m.scales.includes(1))) e.push(`${where}: scales deve ser [1] ou [1, 2] (a 1× é obrigatória)`);
+  if (m.flying !== undefined && (typeof m.flying !== 'boolean' || m.kind !== 'unit')) e.push(`${where}: flying (boolean) só em unidades`);
+  if (m.page !== undefined && m.page !== 'own') e.push(`${where}: page só aceita 'own'`);
+  for (const k of ['contactDirs', 'variantContactDirs']) if (m[k] !== undefined && !(Array.isArray(m[k]) && m[k].length && m[k].every((d) => Number.isInteger(d) && d >= 0 && d < 8))) e.push(`${where}: ${k} deve listar direções 0–7`);
+  if (m.unitVariants !== undefined) {
+    const v = m.unitVariants;
+    if (m.kind !== 'unit') e.push(`${where}: unitVariants só em unidades`);
+    else if (!v || !UNIT_VARIANT_BY.includes(v.by) || typeof v.param !== 'string' || !Array.isArray(v.values) || v.values.length < 2 || !v.values.every((x) => Number.isInteger(x) && x >= 1 && x <= 9) || new Set(v.values).size !== v.values.length) e.push(`${where}: unitVariants = { by: ${UNIT_VARIANT_BY.join('|')}, param, values: [inteiros 1–9, ≥ 2 distintos] }`);
+  }
   if (m.kind === 'unit' && m.anims) for (const a of REQUIRED_UNIT_ANIMS) if (!m.anims[a]) e.push(`${where}: animação ${a} ausente (unidades têm ${REQUIRED_UNIT_ANIMS.join(', ')})`);
   if (m.stage !== undefined && !(Number.isInteger(m.stage) && m.stage >= 2 && m.stage <= 8)) e.push(`${where}: stage (etapa da folha de contato) deve ser 2–8`);
   if (m.kind !== 'unit' && m.dirs !== undefined && m.dirs !== 1) e.push(`${where}: só unidades têm direções`);
@@ -156,6 +178,37 @@ export function validateAll(list) {
   }
   return e;
 }
+
+/** Id do asset de uma variante de unidade (`hydra` + heads 3 → `hydra_heads3`); o primeiro valor é o próprio id. */
+export function unitVariantId(m, value) {
+  const v = m.unitVariants;
+  return !v || value === v.values[0] ? m.id : `${m.id}_${v.by}${value}`;
+}
+
+/**
+ * Variantes de unidade (Etapa 6, hidra por cabeças): um manifesto com `unitVariants` vira um asset por valor — o
+ * primeiro é o próprio manifesto (id sem sufixo) e os outros são cópias com o id `<id>_<by><valor>`, o parâmetro do kit
+ * (`param`) no valor e `variantOf` = o id base (folha de contato `<contact>-<by>`, só as direções `contactDirs`). O
+ * renderizador escolhe a variante pela entidade (`unitVariants.ids` no índice). Sem o campo: [m].
+ */
+export function expandUnitVariants(m) {
+  const v = m?.unitVariants;
+  if (!v || m.kind !== 'unit' || !Array.isArray(v.values) || m.source?.type !== 'param') return [m];
+  const withParam = (x, value) => ({ ...x, source: { ...x.source, params: { ...(x.source.params ?? {}), [v.param]: value } } });
+  const out = [withParam(m, v.values[0])];
+  for (const value of v.values.slice(1)) {
+    const { unitVariants: _u, ...rest } = m;
+    void _u;
+    out.push({ ...withParam(rest, value), id: unitVariantId(m, value), variantOf: m.id, variantValue: value, contact: `${m.contact ?? m.id}-${v.by}`, contactDirs: m.variantContactDirs ?? [1, 2] });
+  }
+  return out;
+}
+/** Lê os manifestos de `dir` já com as variantes de unidade expandidas (bake, art:check, testes). */
+export function loadAssets(dir) { return loadManifests(dir).flatMap((l) => expandUnitVariants(l.manifest)); }
+/** Escalas assadas de um manifesto: as pedidas no CLI que ele aceita (`scales`; padrão, todas). */
+export function scalesOf(m, wanted = [1, 2]) { return wanted.filter((s) => !m.scales || m.scales.includes(s)); }
+/** Lado máximo do quadro (px a 1×) da classe de tamanho do manifesto. */
+export function sizeCeiling(m) { return SIZE_CLASSES[m?.sizeClass ?? 'unit'] ?? SIZE_CLASSES.unit; }
 
 /** Direções efetivamente assadas (com `mirror`, só S, SO, O, NO, N; as outras 3 são espelhadas no jogo). */
 export function bakedDirs(m, mirror = false) {

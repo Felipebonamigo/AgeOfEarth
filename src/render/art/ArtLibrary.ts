@@ -14,7 +14,7 @@ import type { TextureCache } from '../textures';
 import { UNITS } from '../../core/data';
 import { AtlasSource, type LoadKind, type PassFrames } from './AtlasSource';
 import { ProceduralSource } from './ProceduralSource';
-import { pickScale, unitAnimName, buildingFrameName, rubbleName, BUILDING_STATES, GLOW_ANIM, glowFrameName, warmUnitTypes, type VariantBy } from './logic';
+import { pickScale, unitAnimName, buildingFrameName, rubbleName, BUILDING_STATES, GLOW_ANIM, glowFrameName, warmUnitTypes, unitArtId, type VariantBy } from './logic';
 import type { ArtAnimInfo, ArtGroup, ArtPass, ArtScale } from './types';
 
 const GROUPS: readonly ArtGroup[] = ['units', 'buildings', 'props', 'icons', 'fx'];
@@ -36,6 +36,8 @@ export interface UnitArt {
   tops: readonly number[] | null;
   /** Direções espelhadas (--mirror) ou null. */
   mirrored: Record<string, number> | null;
+  /** Voadora (Etapa 6: Pégaso): assada no ar; a vista desenha a sombra mais fraca e fica acima das faixas do chão. */
+  flying: boolean;
   team: boolean;
   shadow: boolean;
   /** A animação existe para este tipo (criada uma vez: sem closure por quadro na escolha da animação). */
@@ -211,6 +213,13 @@ export class ArtLibrary {
   }
 
   // ---------------- Unidades ----------------
+  /**
+   * Asset de arte de uma unidade da partida (Etapa 6): o tipo, ou a variante pela entidade que o índice declara (hidra:
+   * uma por número de cabeças). Sem manifesto (ou desligada), o próprio tipo — `unit()` responde null e fica procedural.
+   */
+  unitId(type: string, heads = 1): string {
+    return this.enabled ? unitArtId(type, this.atlas.manifest?.assets[type], heads) : type;
+  }
   /** Arte de uma unidade (null = procedural). A primeira chamada de um tipo dispara o carregamento do grupo. */
   unit(id: string): UnitArt | null {
     if (!this.enabled) return null;
@@ -245,7 +254,7 @@ export class ArtLibrary {
     const team = a.team ? this.atlas.pass(a.group, scale, 'team') : null, shadow = a.shadow ? this.atlas.pass(a.group, scale, 'shadow') : null;
     const art: UnitArt = {
       id, scale, anchor: { ...size.anchor }, size: { w: size.sourceSize.w / res, h: size.sourceSize.h / res }, anims: a.anims,
-      top: top || size.anchor.y * size.sourceSize.h / res, tops, mirrored: color.mirrored,
+      top: top || size.anchor.y * size.sourceSize.h / res, tops, mirrored: color.mirrored, flying: !!a.flying,
       team: !!team, shadow: !!shadow,
       has: (anim: string) => !!anims[anim],
       passes: { color, team, shadow },

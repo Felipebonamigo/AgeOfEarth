@@ -3,7 +3,9 @@
 //
 //   passada (`anims.<walk|run|carry>.stride`, tiles por ciclo): quanto o chão anda sob a unidade num ciclo da animação —
 //     o pé (ou casco) de apoio recua em relação ao corpo; a soma do recuo dele quadro a quadro é o avanço do corpo. Nas
-//     máquinas de cerco é o raio da roda × o giro do ciclo. O renderizador avança o quadro pela DISTÂNCIA andada
+//     máquinas de cerco é o raio da roda × o giro do ciclo. Etapa 6: na serpente, o comprimento de onda do corpo × as
+//     ondas do ciclo (o corpo segue o próprio rastro, `unit.glide`); a voadora (`flying` no manifesto) não tem passada —
+//     o bater de asas anda pelo relógio. O renderizador avança o quadro pela DISTÂNCIA andada
 //     (quadros = distância / passada × quadros do ciclo): o pé não desliza em nenhuma velocidade (formação, lentidão,
 //     melhorias).
 //   topo do corpo por direção (`tops`, px a 1× acima do pé): o ponto mais alto da silhueta do parado sem as armas e itens
@@ -74,6 +76,7 @@ function strideOf(unit, anim, a, poses) {
     unit.group.rotation.y = 0;   // espaço do modelo: frente em −z
     unit.group.updateMatrixWorld(true);
   };
+  if (typeof unit.glide === 'function') return unit.glide(a, poses);
   if (unit.wheels?.length && unit.wheelRadius > 0) {
     // giro acumulado do ciclo (graus da pose; o último par fecha em t = 1, que é o quadro 0 do ciclo seguinte)
     const def = poses.main.anims[a.pose];
@@ -90,10 +93,30 @@ function strideOf(unit, anim, a, poses) {
     const A = samples[i], B = samples[(i + 1) % n];
     let back = -Infinity;
     for (let k = 0; k < feet.length; k++) if (Math.max(A[k].y, B[k].y) <= GROUND_EPS) back = Math.max(back, B[k].z - A[k].z);
-    if (back > -Infinity) planted.push(back);
+    // (Etapa 6) par sem nenhum apoio recuando — só uma pata no fim do balanço rente ao chão, na fase no ar do galope do
+    // leão — fica fora: não carrega o corpo. Nas unidades de antes nenhum par caía aqui (as passadas não mudaram)
+    if (back > 0) planted.push(back);
   }
   if (!planted.length) return 0;
   return (planted.reduce((x, y) => x + y, 0) / planted.length) * n;
+}
+
+/**
+ * Pés/patas quadro a quadro numa animação (Etapa 6: conferência do IK das criaturas nos testes): por quadro, para cada
+ * pé do rig, a altura do ponto mais baixo (`low`, tiles) e o z do centro (`z`, tiles; modelo virado para −z). null sem rig.
+ */
+export function footSamples(m, poses, anim) {
+  const s = m?.source, a = m?.anims?.[anim];
+  if (m?.kind !== 'unit' || s?.type !== 'param' || !UNIT_RIGS[s.rig] || !a) return null;
+  const unit = UNIT_RIGS[s.rig](THREE, materials(), s.params ?? {});
+  const out = [];
+  for (let i = 0; i < a.frames; i++) {
+    unit.pose({ anim, pose: a.pose, rider: a.rider, dir: 0, frame: i, frames: a.frames, loop: a.loop ?? true }, poses);
+    unit.group.rotation.y = 0;
+    unit.group.updateMatrixWorld(true);
+    out.push((unit.feet ?? []).map((f) => { const r = footSample(f); return { low: r.y, z: r.z }; }));
+  }
+  return out;
 }
 
 /**
@@ -108,7 +131,7 @@ export function measureUnit(m, poses) {
   const strides = {};
   for (const anim of MOVE_ANIMS) {
     const a = m.anims?.[anim];
-    if (!a || a.loop === false) continue;
+    if (!a || a.loop === false || m.flying) continue;
     strides[anim] = Math.round(strideOf(unit, anim, a, poses) * 1000) / 1000;
   }
   const idle = m.anims.idle;

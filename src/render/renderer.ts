@@ -24,7 +24,7 @@ import { deathView } from './fx/handlers/death';
 import { DayCycle } from './fx/light';
 import { bronzeTint } from './fx/handlers/bronze';
 import {
-  abilityUseTick, animDuration, buildingState, chooseAnim, corpseAlpha, CORPSE_TTL, MAX_CORPSES, dirWithHysteresis, freshHit, isWalking, isRunning, isMoveAnim, warmUnitTypes, mulColor, type UnitAnim, type AnimInput,
+  abilityUseTick, animDuration, buildingState, chooseAnim, corpseAlpha, CORPSE_TTL, MAX_CORPSES, dirWithHysteresis, freshHit, isWalking, isRunning, isMoveAnim, warmUnitTypes, unitLook, mulColor, type UnitAnim, type AnimInput,
   WALL_LINK_TYPES, wallMask, buildingVariant, ageTier, farmCrop, damageLevel, gateNear, smokeRate, rubbleAlpha, GLOW_ANIM, glowVariant,
   ghostTint, placementMasks, wallFlagAt, WALL_FLAG_PROBE,
 } from './art/logic';
@@ -56,6 +56,8 @@ export function buildingCorner(type: string, x: number, y: number): { tx: number
 /** Vista de uma entidade: corpo (gira com a unidade) e sombra separada na camada 'shadows' (não gira; cai para sudeste).
  *  Com arte assada, `unit`/`bld` guardam a vista assada (corpo, máscara de time e sombra do atlas) e o corpo não gira. */
 interface EntityView { root: Container; body: Sprite; shadow: Sprite | null; type: string; color: number; complete: boolean; angle: number; carry: Sprite | null; label?: Text; rank?: Graphics; rankShown?: number; unit: UnitView | null; bld: BuildingView | null;
+  /** Asset de arte da unidade assada (Etapa 6: a hidra troca de asset quando ganha uma cabeça). */
+  artId?: string;
   /** Acumulador da poeira dos pés (unidade) / das chamas (edifício muito danificado) — fx/FxSystem. */
   fxAcc: FxAcc;
   /** Edifício: mostrava o estado vivo ao jogador local no último quadro (dele ou à vista; não a última versão vista sob a
@@ -63,7 +65,7 @@ interface EntityView { root: Container; body: Sprite; shadow: Sprite | null; typ
   live?: boolean }
 
 /** Morte recente de uma unidade assada (o efeito 'death' do mesmo quadro herda a direção da vista que sumiu). */
-interface RecentDeath { type: string; x: number; y: number; dir: number }
+interface RecentDeath { type: string; x: number; y: number; dir: number; artId: string }
 /** Edifício que sumiu neste quadro (o colapso do mesmo quadro usa a variante que ele mostrava e sabe se ele estava à vista). */
 interface RecentGone { type: string; x: number; y: number; variant: string | null; live: boolean }
 /** Escombros assados de um edifício que caiu (ficam RUBBLE_SECONDS de jogo no chão, apagando no fim). `revealed`: a queda
@@ -187,6 +189,7 @@ export class Renderer {
       get shadows() { return self.layers.shadows; },
       entityParent: (kind, y, flying) => this.parentFor(kind, y, flying),
       deathDir: (type, x, y) => { for (const d of this.recentDeaths) if (d.type === type && Math.abs(d.x - x * TILE) < TILE && Math.abs(d.y - y * TILE) < TILE) return d.dir; return 2; },
+      deathArt: (type, x, y) => { for (const d of this.recentDeaths) if (d.type === type && Math.abs(d.x - x * TILE) < TILE && Math.abs(d.y - y * TILE) < TILE) return d.artId; return type; },
       goneVariant: (type, x, y) => this.recentGone.find((g) => g.type === type && Math.abs(g.x - x * TILE) < 1 && Math.abs(g.y - y * TILE) < 1)?.variant ?? null,
       goneSeen: (type, x, y) => this.recentGone.some((g) => g.live && g.type === type && Math.abs(g.x - x * TILE) < 1 && Math.abs(g.y - y * TILE) < 1),
       addRubble: (e, type, seen) => this.addRubble(e, type, seen),
@@ -399,12 +402,12 @@ export class Renderer {
     this.unitGenSeen = this.art.unitGen;
     if (!this.bakedMode) return;
     for (const [id, v] of this.views) {
-      if (v.bld || !state.units.has(id) || UNITS[v.type]?.flying) continue;
-      const art = this.art.unit(v.type);
+      if (v.bld || !state.units.has(id)) continue;
+      const art = this.art.unit(v.artId ?? v.type);
       if (art && (!v.unit || v.unit.art.scale !== art.scale)) { this.destroyView(v); this.views.delete(id); }
     }
     // quedas e cadáveres numa escala que deixou de ser a servida também saem (a queda em curso é refeita no próximo quadro)
-    const stale = (uv: UnitView) => { const art = this.art.unit(uv.type); return !!art && art.scale !== uv.art.scale; };
+    const stale = (uv: UnitView) => { const art = this.art.unit(uv.art.id); return !!art && art.scale !== uv.art.scale; };
     this.fx.recreate((_e, s) => { const uv = deathView(s); return !!uv && stale(uv); });
     this.corpses = this.corpses.filter((c) => { if (!stale(c.uv)) return true; c.uv.destroy(); return false; });
     // e a escala velha das unidades sai da memória quando nenhum tipo pedido é mais servido nela (trocar 1×/2× no meio
@@ -506,8 +509,9 @@ export class Renderer {
   private getView(e: Unit | Building, color: number): EntityView {
     let v = this.views.get(e.id);
     const complete = e.kind === 'building' ? e.complete : true;
-    // edifício assado troca de estágio sem refazer a vista; o procedural refaz ao completar (textura de obra → pronta)
-    if (v && (v.type !== e.type || v.color !== color || (v.complete !== complete && !v.bld))) { this.destroyView(v); this.views.delete(e.id); v = undefined; }
+    // edifício assado troca de estágio sem refazer a vista; o procedural refaz ao completar (textura de obra → pronta); a
+    // hidra assada troca de asset quando ganha uma cabeça (Etapa 6: uma variante por número de cabeças)
+    if (v && (v.type !== e.type || v.color !== color || (v.complete !== complete && !v.bld) || (v.unit && e.kind === 'unit' && v.artId !== this.art.unitId(e.type, e.heads)))) { this.destroyView(v); this.views.delete(e.id); v = undefined; }
     if (!v && this.bakedMode) v = this.makeBakedView(e, color);
     if (!v) {
       const root = new Container();
@@ -528,14 +532,16 @@ export class Renderer {
   /** Vista assada (hoplita, cidadão, templo…) se a ArtLibrary tiver o tipo servido; senão undefined (procedural). */
   private makeBakedView(e: Unit | Building, color: number): EntityView | undefined {
     if (e.kind === 'unit') {
-      if (UNITS[e.type]?.flying) return undefined;
-      const art = this.art.unit(e.type);
+      // Etapa 6: voadoras (Pégaso, assado no ar com a sombra no chão) e variantes pela entidade (hidra por cabeças)
+      const artId = this.art.unitId(e.type, e.heads);
+      const art = this.art.unit(artId);
       if (!art) return undefined;
-      const uv = new UnitView(art, this.art, e.type, color, this.layers.shadows, 2);
+      const flying = !!UNITS[e.type]?.flying;
+      const uv = new UnitView(art, this.art, e.type, color, this.layers.shadows, 2, unitLook(e.type, flying));
       uv.lastAttackTick = e.attackTick;   // um golpe antigo não dispara a animação de ataque ao criar a vista
       uv.lastAbilityTick = abilityTick(e);   // nem uma habilidade antiga
-      const v: EntityView = { root: uv.root, body: uv.body, shadow: uv.shadow, type: e.type, color, complete: true, angle: Math.PI / 2, carry: null, unit: uv, bld: null, fxAcc: { dust: Math.random() } };
-      this.parentFor('unit', e.y, false).addChild(uv.root);
+      const v: EntityView = { root: uv.root, body: uv.body, shadow: uv.shadow, type: e.type, color, complete: true, angle: Math.PI / 2, carry: null, unit: uv, bld: null, fxAcc: { dust: Math.random() }, artId };
+      this.parentFor('unit', e.y, flying).addChild(uv.root);
       this.views.set(e.id, v);
       return v;
     }
@@ -688,7 +694,7 @@ export class Renderer {
       const e = state.units.get(id) ?? state.buildings.get(id);
       if (!e) {
         // unidade assada que sumiu (morreu): o efeito 'death' deste quadro herda a direção dela
-        if (v.unit && v.root.visible) this.recentDeaths.push({ type: v.type, x: v.root.position.x, y: v.root.position.y, dir: v.unit.dir });
+        if (v.unit && v.root.visible) this.recentDeaths.push({ type: v.type, x: v.root.position.x, y: v.root.position.y, dir: v.unit.dir, artId: v.unit.art.id });
         if (v.bld && v.bld.visible) this.recentGone.push({ type: v.type, x: v.bld.x, y: v.bld.y, variant: v.bld.variant, live: !!v.live });
         else if (!v.unit && !v.bld && v.root.visible && v.live !== undefined) this.recentGone.push({ type: v.type, x: v.root.position.x, y: v.root.position.y, variant: null, live: v.live });
         this.destroyView(v); this.views.delete(id);

@@ -1,0 +1,58 @@
+{
+  "id": "example_cerberus",
+  "kind": "unit",
+  "stage": 6,
+  "contact": "exemplo-cerbero",
+  "sizeClass": "myth",
+  "docs": "Exemplo do rig da Etapa 6 (fora de art/manifest: `npm run art:bake -- --preview art/examples --only <id>` só gera a folha de contato). O lote da criatura copia para art/manifest/<id>.json com o id do jogo, ajusta o kit e as poses; para .glb, troque só `source` (docs/ART.md §3.4 e Apêndice G).",
+  "source": {
+    "type": "param",
+    "rig": "beast",
+    "poses": "art/poses/beast.json",
+    "params": {
+      "build": "hound",
+      "size": 1.2,
+      "coat": "black",
+      "mane": "ruff",
+      "heads": 3,
+      "face": "hound",
+      "tail": "hound",
+      "team": "collar"
+    }
+  },
+  "size": {
+    "tiles": [
+      4.4,
+      4.0
+    ]
+  },
+  "anchor": [
+    0.46,
+    0.6
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": {
+      "frames": 4,
+      "fps": 10,
+      "pose": "idle_beast"
+    },
+    "walk": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "walk_beast"
+    },
+    "attack": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "attack_beast"
+    },
+    "die": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "die_beast"
+    }
+  },
+  "team": true,
+  "shadow": true
+}

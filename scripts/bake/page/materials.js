@@ -21,6 +21,10 @@ export const PALETTE = {
   // heróis (Etapa 4): bronze polido como espelho (escudo de Perseu), pele e juba do leão de Nemeia (Héracles), velo de
   // ouro (Jasão)
   mirror: 0xdfe0dc, lion: 0xa8793c, lionMane: 0x4e321a, fleece: 0xc99a38,
+  // criaturas (Etapa 6): chifre/garra de marfim, casco claro, penas brancas do Pégaso (face de cima e de baixo), olho
+  // âmbar; pelagens, couros e escamas vêm da COR POR VÉRTICE dos rigs (dorso × barriga, manchas: rigs/organic.js) sobre
+  // os materiais-base `furV`/`hideV`/`scaleV` (brancos, multiplicados pela cor do vértice)
+  horn: 0xd8cbac, hornDark: 0x3a2f26, hoofPale: 0x8a7d6c, feather: 0xf1eee6, featherUnder: 0xd8d2c6, eyeAmber: 0xd99a2a,
   teamNeutral: 0x8f9098,   // cor de time no passe de cor (neutra; o jogo desenha a máscara tingida por cima)
   teamMask: 0xffffff,      // cor de time no passe de máscara (branco iluminado → tint)
 };
@@ -64,6 +68,15 @@ export function createMaterials(THREE) {
   Object.assign(M, {
     mirror: std(PALETTE.mirror, 0.12, 1.0), lion: std(PALETTE.lion, 0.95), lionMane: std(PALETTE.lionMane, 0.95),
     fleece: std(PALETTE.fleece, 0.6, 0.45),
+  });
+  // Etapa 6 (criaturas): também no fim. Pelagem (rugosa, sem brilho), couro/pele (um pouco de brilho) e escamas (brilho de
+  // pele úmida: rugosidade baixa) com a cor por vértice; penas dupla face (as barbas finas das asas)
+  Object.assign(M, {
+    furV: std(0xffffff, 0.93, 0, { vertexColors: true }), hideV: std(0xffffff, 0.72, 0, { vertexColors: true }),
+    scaleV: std(0xffffff, 0.42, 0.08, { vertexColors: true }),
+    horn: std(PALETTE.horn, 0.5), hornDark: std(PALETTE.hornDark, 0.55), hoofPale: std(PALETTE.hoofPale, 0.7),
+    feather: std(PALETTE.feather, 0.82, 0, { side: THREE.DoubleSide }), featherUnder: std(PALETTE.featherUnder, 0.88, 0, { side: THREE.DoubleSide }),
+    eye: std(PALETTE.eyeAmber, 0.25, 0, { emissive: PALETTE.eyeAmber, emissiveIntensity: 0.25 }),
   });
   return M;
 }

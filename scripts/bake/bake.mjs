@@ -23,7 +23,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
 import { startServer } from './server.mjs';
-import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, animSummary, matchesOnly, GROUP_OF, PASSES, bakedDirs, ATLAS_GROUPS, ICON_PX, atlasOf, posesOf } from './manifest.mjs';
+import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, animSummary, matchesOnly, GROUP_OF, PASSES, bakedDirs, ATLAS_GROUPS, ICON_PX, atlasOf, posesOf, expandUnitVariants, unitVariantId, scalesOf } from './manifest.mjs';
 import { RIG_FILES } from './page/rigs/units.js';
 import { alphaBounds, crop, packShelf, blit, sheetJson, halve, SHADOW_TEXEL } from './page/atlas.js';
 import { PX_PER_TILE, PIPELINE_VERSION, MIRROR_FROM, atlasMeta } from './page/camera.js';
@@ -293,6 +293,7 @@ function packAll(opts, manifests, hashes) {
       const entries = [];
       for (const m of manifests) {
         const key = `${m.id}/${scale}`;
+        if (!scalesOf(m, [scale]).length) continue;   // Etapa 6: o manifesto não assa esta escala (titãs só a 1×)
         if (!cacheOf.has(key)) {
           const e0 = loadCache(opts, m, scale, hashes.get(key));
           if (!e0) console.warn(`  aviso: ${m.id} ${scale}× sem cache válido — fica fora do atlas (assar com --only ${m.id})`);
@@ -305,6 +306,9 @@ function packAll(opts, manifests, hashes) {
         entries.push({ m, e: { ...e, frames }, groups: groupFrames({ frames }, { even: true }) });
       }
       if (!entries.length) continue;
+      // Etapa 6: assets com página própria (`page: 'own'`, as criaturas) depois dos outros, cada um começando numa página
+      // nova — as páginas das unidades de antes saem iguais e o carregamento por tipo sobe só as da criatura que apareceu
+      entries.sort((x, y) => (x.m.page === 'own' ? 1 : 0) - (y.m.page === 'own' ? 1 : 0));
       for (const pass of PASSES) {
         const items = [];
         const meta = new Map();
@@ -326,7 +330,8 @@ function packAll(opts, manifests, hashes) {
             const first = firstOf.get(dk);
             if (first) { aliases.get(first).push(fr.name); continue; }
             firstOf.set(dk, fr.name); aliases.set(fr.name, []);
-            items.push({ key: fr.name, group: m.id, w: img ? img.w : r.w, h: img ? img.h : r.h });   // um asset nunca se divide entre páginas
+            // um asset só se divide entre páginas se não couber inteiro numa (titãs a 2×): por animação × direção
+            items.push({ key: fr.name, group: m.id, w: img ? img.w : r.w, h: img ? img.h : r.h, fresh: m.page === 'own', sub: `${fr.anim ?? ''}/${fr.dir}` });
           }
         }
         if (!items.length) continue;
@@ -389,6 +394,13 @@ function packAll(opts, manifests, hashes) {
             a.tops = me.tops;
           }
           if (m.footprint) a.footprint = m.footprint;
+          // Etapa 6: classe de tamanho, voadora e variantes pela entidade (hidra: o renderizador escolhe o asset pelas cabeças)
+          if (m.kind === 'unit') {
+            if (m.sizeClass && m.sizeClass !== 'unit') a.sizeClass = m.sizeClass;
+            if (m.flying) a.flying = true;
+            if (m.unitVariants) a.unitVariants = { by: m.unitVariants.by, ids: Object.fromEntries(m.unitVariants.values.map((v) => [String(v), unitVariantId(m, v)])) };
+            if (m.variantOf) { a.variantOf = m.variantOf; a.variantValue = m.variantValue; }
+          }
         }
       }
     }
@@ -472,10 +484,10 @@ async function contactSheets(opts, manifests, hashes, all = manifests) {
       sheet.cellW = Math.max(sheet.cellW, G.w); sheet.cellH = Math.max(sheet.cellH, G.h);
       sheet.title = `${m.id} — ${Object.entries(m.anims).map(([a, d]) => `${a} ${d.frames}`).join(' · ')} × 8 direções (linhas: E, SE, S, SO, O, NO, N, NE) · 1× (32 px/tile) ampliado 2×`;
       const dirNames = ['E', 'SE', 'S', 'SO', 'O', 'NO', 'N', 'NE'];
-      for (const d of bakedDirs(m, opts.mirror)) {
+      for (const d of bakedDirs(m, opts.mirror).filter((d) => !m.contactDirs || m.contactDirs.includes(d))) {
         const cells = [];
         for (const anim of Object.keys(m.anims)) for (const fr of e.frames.filter((f) => f.anim === anim && f.dir === d)) cells.push({ ...cell(fr), label: fr.frame === 0 ? anim : '' });
-        sheet.rows.push({ label: `dir ${d} (${dirNames[d]})`, cells });
+        sheet.rows.push({ label: `${m.variantOf ? `${m.unitVariants?.by ?? 'var'} ${m.variantValue} · ` : ''}dir ${d} (${dirNames[d]})`, cells });
       }
     } else if (m.kind === 'building') {
       const G = groups.get(m.id);
@@ -579,11 +591,12 @@ async function preview(opts, official) {
   const errors = [...list.flatMap((l) => validateManifest(l.manifest).map((e) => `${path.relative(ROOT, l.file)}: ${e}`)), ...validateAll(list.map((l) => l.manifest))];
   for (const l of list) if (official.some((o) => o.id === l.manifest.id)) errors.push(`${path.relative(ROOT, l.file)}: id ${l.manifest.id} já existe em art/manifest`);
   if (errors.length) throw new Error(errors.join('\n'));
-  const manifests = list.map((l) => l.manifest).filter((m) => matchesOnly(m, opts.only));
+  const manifests = list.flatMap((l) => expandUnitVariants(l.manifest)).filter((m) => matchesOnly(m, opts.only));
   const hashes = new Map();
   for (const m of manifests) for (const s of new Set([...opts.scales, 1])) hashes.set(`${m.id}/${s}`, inputHash(m, s, opts.mirror));
   console.log(`prévia: ${manifests.map((m) => m.id).join(', ')} · escala ${opts.scales.join(',')}× (fora dos atlas)`);
   for (const scale of new Set([...opts.scales, 1])) for (const m of manifests) {
+    if (!scalesOf(m, [scale]).length) continue;
     const hash = hashes.get(`${m.id}/${scale}`);
     if (loadCache(opts, m, scale, hash)) { console.log(`  ${m.id} ${scale}×: cache ${hash}`); continue; }
     await bakeAsset(opts, m, scale, hash);
@@ -595,10 +608,12 @@ async function main() {
   const opts = parseArgs(process.argv.slice(2));
   const t0 = Date.now();
   const loaded = loadManifests(path.join(ROOT, 'art', 'manifest'));
-  const manifests = loaded.map((l) => l.manifest);
-  const errors = [...loaded.flatMap((l) => validateManifest(l.manifest).map((e) => `${path.relative(ROOT, l.file)}: ${e}`)), ...validateAll(manifests)];
+  // variantes de unidade (Etapa 6: hidra por cabeças) viram um asset cada
+  const manifests = loaded.flatMap((l) => expandUnitVariants(l.manifest));
+  const errors = [...loaded.flatMap((l) => expandUnitVariants(l.manifest).flatMap((m) => validateManifest(m).map((e) => `${path.relative(ROOT, l.file)}${m.variantOf ? ` (${m.id})` : ''}: ${e}`))), ...validateAll(manifests)];
   if (errors.length) { console.error(errors.join('\n')); process.exit(1); }
-  const selected = manifests.filter((m) => matchesOnly(m, opts.only));
+  // `--only hydra` pega também as variantes (hydra_heads2…)
+  const selected = manifests.filter((m) => matchesOnly(m, opts.only) || (m.variantOf && matchesOnly({ ...m, id: m.variantOf }, opts.only)));
   if (opts.only && !selected.length && !opts.preview) throw new Error(`--only ${opts.only.join(',')} não casa com nenhum manifesto`);
   const hashes = new Map();
   for (const m of manifests) for (const s of new Set([...opts.scales, 1])) hashes.set(`${m.id}/${s}`, inputHash(m, s, opts.mirror));
@@ -608,6 +623,7 @@ async function main() {
     if (opts.preview) { await preview(opts, manifests); return; }
     console.log(`bake: ${selected.map((m) => m.id).join(', ')} · escala ${opts.scales.join(',')}× · ${opts.mirror ? '5 direções + 3 espelhadas' : '8 direções'}`);
     for (const scale of opts.scales) for (const m of selected) {
+      if (!scalesOf(m, [scale]).length) continue;   // o manifesto não assa esta escala
       const hash = hashes.get(`${m.id}/${scale}`);
       if (loadCache(opts, m, scale, hash)) { console.log(`  ${m.id} ${scale}×: cache ${hash} (nada a assar)`); continue; }
       if (opts.packOnly) throw new Error(`${m.id} ${scale}× não está no cache (${hash}); rode sem --pack-only`);

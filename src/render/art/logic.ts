@@ -94,12 +94,32 @@ export interface WarmDef { age: number; building: string | null; tags: readonly 
 /**
  * Tipos de unidade cujos atlas vale pré-carregar (Etapa 4, carregamento por tipo): os que existem na partida, os
  * treináveis até a Idade `age` do jogador local e os humanos sem edifício da mesma Idade (milícia, rei). O resto é
- * carregado na primeira aparição (procedural até lá, sem travar a partida).
+ * carregado na primeira aparição (procedural até lá, sem travar a partida). Etapa 6: as MÍTICAS (e titãs) ficam fora do
+ * pré-carregamento — cada uma depende do deus e carrega só quando aparece (página própria no atlas: docs/ART.md,
+ * Apêndice G), para o cenário de desempenho continuar dentro da VRAM.
  */
 export function warmUnitTypes(defs: Readonly<Record<string, WarmDef>>, age: number, present: Iterable<string> = []): string[] {
   const out = new Set<string>(present);
-  for (const [id, d] of Object.entries(defs)) if (!d.flying && d.age <= age && (d.building !== null || d.tags.includes('human'))) out.add(id);
+  for (const [id, d] of Object.entries(defs)) if (!d.flying && !d.tags.includes('myth') && d.age <= age && (d.building !== null || d.tags.includes('human'))) out.add(id);
   return [...out].sort();
+}
+/**
+ * Asset de arte de uma unidade (Etapa 6): o próprio tipo, ou a variante que o índice declara para a entidade — a hidra
+ * tem um asset por número de cabeças (`unitVariants.ids`: '1' → 'hydra', '3' → 'hydra_heads3'…); fora da lista, o do
+ * valor mais próximo abaixo (ou o tipo).
+ */
+export function unitArtId(type: string, entry: { unitVariants?: { by: string; ids: Record<string, string> } } | undefined, heads: number): string {
+  const v = entry?.unitVariants;
+  if (!v || v.by !== 'heads') return type;
+  for (let h = Math.max(1, Math.floor(heads)); h >= 1; h--) { const id = v.ids[String(h)]; if (id) return id; }
+  return type;
+}
+/** Aparência da vista pela definição (Etapa 6): voadora com a sombra no chão mais fraca (translúcida: está longe do
+ *  chão) e a sombra de Hades translúcida, com a sombra quase apagada. */
+export interface UnitLook { alpha: number; shadow: number }
+export function unitLook(type: string, flying: boolean): UnitLook {
+  if (type === 'shade') return { alpha: 0.7, shadow: 0.4 };
+  return flying ? { alpha: 1, shadow: 0.6 } : { alpha: 1, shadow: 1 };
 }
 /**
  * A unidade anda de fato neste tick? O deslocamento `disp2` (tiles², desde o tick anterior) tem de passar de 30 % do

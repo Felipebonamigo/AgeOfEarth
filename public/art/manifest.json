@@ -319,6 +319,110 @@
    "sha256": "6df7774982047ada844acc6b474199e04eb52a697883e1640b6ff5c9bcf28083"
   },
   {
+   "json": "units-1x-2.json",
+   "image": "units-1x-2.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 1,
+   "page": 2,
+   "w": 2048,
+   "h": 352,
+   "frames": 192,
+   "bytes": 523927,
+   "sha256": "c70125ec55d67ca789b89b48bf1d733e2adbb247e2320e62c9b6ba600c0ee05d"
+  },
+  {
+   "json": "units-1x-3.json",
+   "image": "units-1x-3.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 1,
+   "page": 3,
+   "w": 2048,
+   "h": 448,
+   "frames": 192,
+   "bytes": 645883,
+   "sha256": "b114efc12258852b922a856b0b4c0382ecaef8c3c0a12c6da9c9d6673fb040dc"
+  },
+  {
+   "json": "units-1x-4.json",
+   "image": "units-1x-4.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 1,
+   "page": 4,
+   "w": 2048,
+   "h": 512,
+   "frames": 192,
+   "bytes": 718379,
+   "sha256": "8d8c9750e2b3a054be564603e93ff2745920100b37c79209cddaca13abe40c4a"
+  },
+  {
+   "json": "units-1x-5.json",
+   "image": "units-1x-5.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 1,
+   "page": 5,
+   "w": 2048,
+   "h": 512,
+   "frames": 192,
+   "bytes": 779882,
+   "sha256": "a46c25fb3b7519e1a6fb866f474eeb280a066c411a32104aea7bda25621747de"
+  },
+  {
+   "json": "units-1x-6.json",
+   "image": "units-1x-6.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 1,
+   "page": 6,
+   "w": 2048,
+   "h": 512,
+   "frames": 192,
+   "bytes": 834123,
+   "sha256": "cb90a2714348469b4fbe0e19b21662ded13866e14b0fb4064817b0a429d51d6e"
+  },
+  {
+   "json": "units-1x-7.json",
+   "image": "units-1x-7.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 1,
+   "page": 7,
+   "w": 2048,
+   "h": 192,
+   "frames": 192,
+   "bytes": 356529,
+   "sha256": "84883d08d6dcaf225e09de189e39baf34b86c0c1de6fecd378e76683048d77b0"
+  },
+  {
+   "json": "units-1x-8.json",
+   "image": "units-1x-8.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 1,
+   "page": 8,
+   "w": 2048,
+   "h": 384,
+   "frames": 256,
+   "bytes": 674451,
+   "sha256": "907c444968731f9a55b40463481b9407c574ec37b661e4960dc0fff569f4a24d"
+  },
+  {
+   "json": "units-1x-9.json",
+   "image": "units-1x-9.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 1,
+   "page": 9,
+   "w": 2048,
+   "h": 320,
+   "frames": 192,
+   "bytes": 572357,
+   "sha256": "725127dce505abaadf94be15935a138359cdcf711441dd4cffdfb1fd923bccd0"
+  },
+  {
    "json": "units-2x-0.json",
    "image": "units-2x-0.png",
    "group": "units",
@@ -343,6 +447,58 @@
    "frames": 424,
    "bytes": 3024850,
    "sha256": "6c1a45e13c24a1595e4c1776917195161e7c2e1a1adf44f1dc318954c418450b"
+  },
+  {
+   "json": "units-2x-10.json",
+   "image": "units-2x-10.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 2,
+   "page": 10,
+   "w": 2048,
+   "h": 1824,
+   "frames": 192,
+   "bytes": 2527806,
+   "sha256": "918b48f4675ffb903ab4c23f08bb779044168677f8e10497773b15dda49f8063"
+  },
+  {
+   "json": "units-2x-11.json",
+   "image": "units-2x-11.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 2,
+   "page": 11,
+   "w": 2048,
+   "h": 672,
+   "frames": 192,
+   "bytes": 1026316,
+   "sha256": "1cd84659bbbeb27a4f345c86c52df34f8a20ab6e2af435dae754a1d666c70f1f"
+  },
+  {
+   "json": "units-2x-12.json",
+   "image": "units-2x-12.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 2,
+   "page": 12,
+   "w": 2048,
+   "h": 1248,
+   "frames": 256,
+   "bytes": 1969232,
+   "sha256": "9219525cffbf929eebf770f1fc57ad6481e2714d87352427932c597b1d3df3ee"
+  },
+  {
+   "json": "units-2x-13.json",
+   "image": "units-2x-13.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 2,
+   "page": 13,
+   "w": 2048,
+   "h": 1088,
+   "frames": 192,
+   "bytes": 1658981,
+   "sha256": "63a15930350de0c6ef1b3dbf3dd12a85224a8ef38e7e79390bdcf4c55a047aeb"
   },
   {
    "json": "units-2x-2.json",
@@ -397,6 +553,58 @@
    "sha256": "ff125548266b5de49db25f0b6bf4f11501928831150b7dffbe565f50f8c2560e"
   },
   {
+   "json": "units-2x-6.json",
+   "image": "units-2x-6.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 2,
+   "page": 6,
+   "w": 2048,
+   "h": 1120,
+   "frames": 192,
+   "bytes": 1563401,
+   "sha256": "dce844204948d9bc56db53f4349d8c21c720d32b1f7b372ac5a7b245252f1473"
+  },
+  {
+   "json": "units-2x-7.json",
+   "image": "units-2x-7.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 2,
+   "page": 7,
+   "w": 2048,
+   "h": 1600,
+   "frames": 192,
+   "bytes": 1941359,
+   "sha256": "845c324639c060279223139d140dcf7ade2b53c928d14ce554fe99043441fd83"
+  },
+  {
+   "json": "units-2x-8.json",
+   "image": "units-2x-8.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 2,
+   "page": 8,
+   "w": 2048,
+   "h": 1632,
+   "frames": 192,
+   "bytes": 2161813,
+   "sha256": "d7e81e0f00270dde136df378ba7fb92254547c0b401ebcb2e3562f4e85cb5acc"
+  },
+  {
+   "json": "units-2x-9.json",
+   "image": "units-2x-9.png",
+   "group": "units",
+   "pass": "color",
+   "scale": 2,
+   "page": 9,
+   "w": 2048,
+   "h": 1760,
+   "frames": 192,
+   "bytes": 2349969,
+   "sha256": "6b6ed21342241295eebce9e7f10ab2cea6de7110b0aef64edd32db0743698cf2"
+  },
+  {
    "json": "units-shadow-1x-0.json",
    "image": "units-shadow-1x-0.png",
    "group": "units",
@@ -409,6 +617,118 @@
    "frames": 4256,
    "bytes": 1031552,
    "sha256": "3b87f9eabeaf34d9405e2d8e845a356d5790dec856790b08a3d337d97f2c8f80"
+  },
+  {
+   "json": "units-shadow-1x-1.json",
+   "image": "units-shadow-1x-1.png",
+   "group": "units",
+   "pass": "shadow",
+   "scale": 1,
+   "texel": 0.5,
+   "page": 1,
+   "w": 2048,
+   "h": 128,
+   "frames": 192,
+   "bytes": 96570,
+   "sha256": "d0dc186b35ab7c080290263a4b16d3b46d3718a655c49e87aa12573799cc50d2"
+  },
+  {
+   "json": "units-shadow-1x-2.json",
+   "image": "units-shadow-1x-2.png",
+   "group": "units",
+   "pass": "shadow",
+   "scale": 1,
+   "texel": 0.5,
+   "page": 2,
+   "w": 2048,
+   "h": 160,
+   "frames": 192,
+   "bytes": 118434,
+   "sha256": "79cbba856600ac0a5605e83a655db42b1f53625b5121269eedef7c4d1fdf6c64"
+  },
+  {
+   "json": "units-shadow-1x-3.json",
+   "image": "units-shadow-1x-3.png",
+   "group": "units",
+   "pass": "shadow",
+   "scale": 1,
+   "texel": 0.5,
+   "page": 3,
+   "w": 2048,
+   "h": 192,
+   "frames": 192,
+   "bytes": 132053,
+   "sha256": "70b890f40023979b7dc65c70e3d3a27c258221a3cc9695bcb642411c2ea3b87d"
+  },
+  {
+   "json": "units-shadow-1x-4.json",
+   "image": "units-shadow-1x-4.png",
+   "group": "units",
+   "pass": "shadow",
+   "scale": 1,
+   "texel": 0.5,
+   "page": 4,
+   "w": 2048,
+   "h": 160,
+   "frames": 192,
+   "bytes": 139815,
+   "sha256": "abf32df17f1a7b8b42a08bfdbacfff0cfe8d39f713e5584a59c9d922a1b339ac"
+  },
+  {
+   "json": "units-shadow-1x-5.json",
+   "image": "units-shadow-1x-5.png",
+   "group": "units",
+   "pass": "shadow",
+   "scale": 1,
+   "texel": 0.5,
+   "page": 5,
+   "w": 2048,
+   "h": 160,
+   "frames": 192,
+   "bytes": 145666,
+   "sha256": "98e0bff8d7e8b18c231e69d36af0ac53fe777fb4986e619607d4cafc9545f6b1"
+  },
+  {
+   "json": "units-shadow-1x-6.json",
+   "image": "units-shadow-1x-6.png",
+   "group": "units",
+   "pass": "shadow",
+   "scale": 1,
+   "texel": 0.5,
+   "page": 6,
+   "w": 2048,
+   "h": 96,
+   "frames": 192,
+   "bytes": 58919,
+   "sha256": "4036c29648a9020d38e82b14f61c65c37e7b458ad08e34c3a7a7698e2650f964"
+  },
+  {
+   "json": "units-shadow-1x-7.json",
+   "image": "units-shadow-1x-7.png",
+   "group": "units",
+   "pass": "shadow",
+   "scale": 1,
+   "texel": 0.5,
+   "page": 7,
+   "w": 2048,
+   "h": 128,
+   "frames": 256,
+   "bytes": 98907,
+   "sha256": "a348915cc62bca5a49f49e6cf2ccf00c8f563a4025917d915b59f10e3ad54f6b"
+  },
+  {
+   "json": "units-shadow-1x-8.json",
+   "image": "units-shadow-1x-8.png",
+   "group": "units",
+   "pass": "shadow",
+   "scale": 1,
+   "texel": 0.5,
+   "page": 8,
+   "w": 2048,
+   "h": 128,
+   "frames": 192,
+   "bytes": 94336,
+   "sha256": "7c145fcd1476d1f4e506cfa8ad4f6218a43894c115d294e248772f6876c58e91"
   },
   {
    "json": "units-shadow-2x-0.json",
@@ -439,6 +759,118 @@
    "sha256": "c511ef0497e11a08735733fb88a6a7340e9fb9a677d58e9c6ce13f7b4abaf0ef"
   },
   {
+   "json": "units-shadow-2x-2.json",
+   "image": "units-shadow-2x-2.png",
+   "group": "units",
+   "pass": "shadow",
+   "scale": 2,
+   "texel": 0.5,
+   "page": 2,
+   "w": 2048,
+   "h": 352,
+   "frames": 192,
+   "bytes": 278264,
+   "sha256": "7f20e49a4aeaebfabeb0c70eefa8b3f99af833f5787ad2c35b85db4448e69dbd"
+  },
+  {
+   "json": "units-shadow-2x-3.json",
+   "image": "units-shadow-2x-3.png",
+   "group": "units",
+   "pass": "shadow",
+   "scale": 2,
+   "texel": 0.5,
+   "page": 3,
+   "w": 2048,
+   "h": 480,
+   "frames": 192,
+   "bytes": 343209,
+   "sha256": "efc924caef61e53406855ce49e5ba85ce4b8b2bcbcfec62345082d2ea2f0941f"
+  },
+  {
+   "json": "units-shadow-2x-4.json",
+   "image": "units-shadow-2x-4.png",
+   "group": "units",
+   "pass": "shadow",
+   "scale": 2,
+   "texel": 0.5,
+   "page": 4,
+   "w": 2048,
+   "h": 512,
+   "frames": 192,
+   "bytes": 380494,
+   "sha256": "f45c659f8262c3f7402311857c8e4ba3e1630e625cf71d1551384023e692b14c"
+  },
+  {
+   "json": "units-shadow-2x-5.json",
+   "image": "units-shadow-2x-5.png",
+   "group": "units",
+   "pass": "shadow",
+   "scale": 2,
+   "texel": 0.5,
+   "page": 5,
+   "w": 2048,
+   "h": 512,
+   "frames": 192,
+   "bytes": 406247,
+   "sha256": "631fd3bcab0aa3abfbf0d9326a94ff041a9778ab1210811181bc3df6eba93dbc"
+  },
+  {
+   "json": "units-shadow-2x-6.json",
+   "image": "units-shadow-2x-6.png",
+   "group": "units",
+   "pass": "shadow",
+   "scale": 2,
+   "texel": 0.5,
+   "page": 6,
+   "w": 2048,
+   "h": 512,
+   "frames": 192,
+   "bytes": 425138,
+   "sha256": "8022ee8f3cfd97823ec3ae8a366ee4cf439f12479ce6f5d6e297816659044c35"
+  },
+  {
+   "json": "units-shadow-2x-7.json",
+   "image": "units-shadow-2x-7.png",
+   "group": "units",
+   "pass": "shadow",
+   "scale": 2,
+   "texel": 0.5,
+   "page": 7,
+   "w": 2048,
+   "h": 192,
+   "frames": 192,
+   "bytes": 158954,
+   "sha256": "6ad2bec57337d3b7401618af5c6ab136e6602162b3a94e788e3a3fe194f35eb8"
+  },
+  {
+   "json": "units-shadow-2x-8.json",
+   "image": "units-shadow-2x-8.png",
+   "group": "units",
+   "pass": "shadow",
+   "scale": 2,
+   "texel": 0.5,
+   "page": 8,
+   "w": 2048,
+   "h": 352,
+   "frames": 256,
+   "bytes": 266514,
+   "sha256": "f7bfe4e8777b78ceedbe4245459874e18c0dcffa5c0941cec56c083641623f57"
+  },
+  {
+   "json": "units-shadow-2x-9.json",
+   "image": "units-shadow-2x-9.png",
+   "group": "units",
+   "pass": "shadow",
+   "scale": 2,
+   "texel": 0.5,
+   "page": 9,
+   "w": 2048,
+   "h": 352,
+   "frames": 192,
+   "bytes": 266628,
+   "sha256": "139c4911c284950a24ffc8a6a6efbfb0100087773800950b999052c55d408924"
+  },
+  {
    "json": "units-team-1x-0.json",
    "image": "units-team-1x-0.png",
    "group": "units",
@@ -450,6 +882,110 @@
    "frames": 4256,
    "bytes": 1348981,
    "sha256": "cbdfaabf0a741640b574695a49e3ea5eea0c0df4a2403388847f9d93a0b00708"
+  },
+  {
+   "json": "units-team-1x-1.json",
+   "image": "units-team-1x-1.png",
+   "group": "units",
+   "pass": "team",
+   "scale": 1,
+   "page": 1,
+   "w": 2048,
+   "h": 96,
+   "frames": 192,
+   "bytes": 121409,
+   "sha256": "5a10e8a75cfe58e9de5fbab61495e0e05f9f55eeb0ca6c40fd2e51e8514b880b"
+  },
+  {
+   "json": "units-team-1x-2.json",
+   "image": "units-team-1x-2.png",
+   "group": "units",
+   "pass": "team",
+   "scale": 1,
+   "page": 2,
+   "w": 2048,
+   "h": 128,
+   "frames": 192,
+   "bytes": 154029,
+   "sha256": "48ea3b51d1f4130625f17727c293bf02ee4d75fe51b006ab90dfbb877088537b"
+  },
+  {
+   "json": "units-team-1x-3.json",
+   "image": "units-team-1x-3.png",
+   "group": "units",
+   "pass": "team",
+   "scale": 1,
+   "page": 3,
+   "w": 2048,
+   "h": 128,
+   "frames": 192,
+   "bytes": 166219,
+   "sha256": "9666176c8f12f936f0c2189ff8395c4dc21a965d6cd049bef74b4f1be24fe450"
+  },
+  {
+   "json": "units-team-1x-4.json",
+   "image": "units-team-1x-4.png",
+   "group": "units",
+   "pass": "team",
+   "scale": 1,
+   "page": 4,
+   "w": 2048,
+   "h": 128,
+   "frames": 192,
+   "bytes": 151760,
+   "sha256": "8f20f53f4697a8e947beb145b58448eb9c4cc97c1f7d45bda62f5b5de9bd653f"
+  },
+  {
+   "json": "units-team-1x-5.json",
+   "image": "units-team-1x-5.png",
+   "group": "units",
+   "pass": "team",
+   "scale": 1,
+   "page": 5,
+   "w": 2048,
+   "h": 128,
+   "frames": 192,
+   "bytes": 148394,
+   "sha256": "becf1e1341bfb8858f34b4e1e6310dd767565a54dd31826d2e4bf96531317dd7"
+  },
+  {
+   "json": "units-team-1x-6.json",
+   "image": "units-team-1x-6.png",
+   "group": "units",
+   "pass": "team",
+   "scale": 1,
+   "page": 6,
+   "w": 1984,
+   "h": 128,
+   "frames": 192,
+   "bytes": 78740,
+   "sha256": "401ea795160a3b884ab3b77e682bc90e7a81e914333556c3b809ade35a5c93aa"
+  },
+  {
+   "json": "units-team-1x-7.json",
+   "image": "units-team-1x-7.png",
+   "group": "units",
+   "pass": "team",
+   "scale": 1,
+   "page": 7,
+   "w": 2048,
+   "h": 64,
+   "frames": 256,
+   "bytes": 65890,
+   "sha256": "ba31b7a82640d2c177ff173a6baaf10ec427a24f12f088f4c5594897d736f4b1"
+  },
+  {
+   "json": "units-team-1x-8.json",
+   "image": "units-team-1x-8.png",
+   "group": "units",
+   "pass": "team",
+   "scale": 1,
+   "page": 8,
+   "w": 2048,
+   "h": 64,
+   "frames": 192,
+   "bytes": 62191,
+   "sha256": "1ddca7afb7c1dc5107d3f7e2ef97a1a651fb0ecc8c43c7491d00a340be31d3e6"
   },
   {
    "json": "units-team-2x-0.json",
@@ -476,13 +1012,117 @@
    "frames": 2024,
    "bytes": 1479293,
    "sha256": "5eb41c8318552b4262e418fe3a3acdc634f3c8562463c314ad201aa59c398e60"
+  },
+  {
+   "json": "units-team-2x-2.json",
+   "image": "units-team-2x-2.png",
+   "group": "units",
+   "pass": "team",
+   "scale": 2,
+   "page": 2,
+   "w": 2048,
+   "h": 288,
+   "frames": 192,
+   "bytes": 296787,
+   "sha256": "297ee029562b7530e3e3f6666a97342b0e3fe6e6ffad66504ed1b21530774be0"
+  },
+  {
+   "json": "units-team-2x-3.json",
+   "image": "units-team-2x-3.png",
+   "group": "units",
+   "pass": "team",
+   "scale": 2,
+   "page": 3,
+   "w": 2048,
+   "h": 384,
+   "frames": 192,
+   "bytes": 389235,
+   "sha256": "98edd438356aea8e9a1cc381c10a477c46c38172f488d56f88d78528c14957cd"
+  },
+  {
+   "json": "units-team-2x-4.json",
+   "image": "units-team-2x-4.png",
+   "group": "units",
+   "pass": "team",
+   "scale": 2,
+   "page": 4,
+   "w": 2048,
+   "h": 320,
+   "frames": 192,
+   "bytes": 412949,
+   "sha256": "29f4776a71d147e8df5890d0acef784af7f32745eb6ea7c48ca259b6239bb8e2"
+  },
+  {
+   "json": "units-team-2x-5.json",
+   "image": "units-team-2x-5.png",
+   "group": "units",
+   "pass": "team",
+   "scale": 2,
+   "page": 5,
+   "w": 2048,
+   "h": 320,
+   "frames": 192,
+   "bytes": 394135,
+   "sha256": "d0d51ecb6b8478d9863f7484c45cb394b27c4b71cac4abacea71a8018f377292"
+  },
+  {
+   "json": "units-team-2x-6.json",
+   "image": "units-team-2x-6.png",
+   "group": "units",
+   "pass": "team",
+   "scale": 2,
+   "page": 6,
+   "w": 2048,
+   "h": 320,
+   "frames": 192,
+   "bytes": 379146,
+   "sha256": "86bbfda6f62b9c31d8f466914e64faf531451376b70061d773b6d5f0aabef67a"
+  },
+  {
+   "json": "units-team-2x-7.json",
+   "image": "units-team-2x-7.png",
+   "group": "units",
+   "pass": "team",
+   "scale": 2,
+   "page": 7,
+   "w": 2048,
+   "h": 256,
+   "frames": 192,
+   "bytes": 193816,
+   "sha256": "7db915ab4c5f7d759511f0c039fc0c89167ef336c3d530941a9ea313fcf01bb2"
+  },
+  {
+   "json": "units-team-2x-8.json",
+   "image": "units-team-2x-8.png",
+   "group": "units",
+   "pass": "team",
+   "scale": 2,
+   "page": 8,
+   "w": 2048,
+   "h": 160,
+   "frames": 256,
+   "bytes": 161149,
+   "sha256": "343094a41aa628cf1520c3cd2aaa249869607e6fcd2e4a9734286ce474f566ef"
+  },
+  {
+   "json": "units-team-2x-9.json",
+   "image": "units-team-2x-9.png",
+   "group": "units",
+   "pass": "team",
+   "scale": 2,
+   "page": 9,
+   "w": 2048,
+   "h": 128,
+   "frames": 192,
+   "bytes": 158898,
+   "sha256": "a60eb4a4067062cb4f91c849526d1992cbb269dfe4d44c961ca18ef8a9832325"
   }
  ],
  "assets": {
   "academy": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "cd1ec2c79c92bb52",
+   "sourceHash": "d94b1f6df25b6eec",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -579,7 +1219,7 @@
   "achilles": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "7d40b5d434330697",
+   "sourceHash": "173d3b4b4ea1f0d5",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -673,7 +1313,7 @@
   "barracks": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "7bbf464e7479c0f2",
+   "sourceHash": "6d8b9ceaf7fcc78a",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -770,7 +1410,7 @@
   "basileus": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "f0a785daceb1c69d",
+   "sourceHash": "2a70742db79c079a",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -859,7 +1499,7 @@
   "cornucopia": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "c6d7c3e01252f40a",
+   "sourceHash": "04ea617ccb33fcc7",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -956,7 +1596,7 @@
   "cretan_archer": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "febd8fe6be68bca5",
+   "sourceHash": "233ff906b9b2a7b4",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -1050,7 +1690,7 @@
   "farm": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "c6d614083be0940a",
+   "sourceHash": "cf2fd595287d1d7b",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1153,7 +1793,7 @@
   "fortress": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "e7dc4f07f2da5cae",
+   "sourceHash": "cd184e473d534e03",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1250,7 +1890,7 @@
   "fx": {
    "kind": "fx",
    "group": "fx",
-   "sourceHash": "9c7beceecea92a1f",
+   "sourceHash": "c79b0d9dbf90413e",
    "dirs": 8,
    "mirror": false,
    "team": false,
@@ -1365,7 +2005,7 @@
   "gate": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "bcec468b31e3bff6",
+   "sourceHash": "9951c735f6888775",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1472,7 +2112,7 @@
   "granary": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "aaac6d00e0c87ef8",
+   "sourceHash": "370ecb281950cb8d",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -1569,7 +2209,7 @@
   "helepolis": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "7b1d9b973c830231",
+   "sourceHash": "95242224ed0f549a",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -1658,7 +2298,7 @@
   "heracles": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "eec19eeb48d6093a",
+   "sourceHash": "22172e55a194ff04",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -1752,7 +2392,7 @@
   "hetairoi": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "19a2abb546125c08",
+   "sourceHash": "002377ccd2fa47c9",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -1847,7 +2487,7 @@
   "hippeus": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "b9bc35be8fc1c01f",
+   "sourceHash": "327d77e71365268e",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -1942,7 +2582,7 @@
   "hoplite": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "f82e556955ee3f21",
+   "sourceHash": "2d53e9117caae1e2",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -2031,7 +2671,7 @@
   "house": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "66b1f215f3041292",
+   "sourceHash": "2a3e1e1efc977dc8",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2125,10 +2765,478 @@
     2
    ]
   },
+  "hydra": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "f708cf5ab283bb2d",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 192,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-2.json"
+     ],
+     "team": [
+      "units-team-1x-1.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-1.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-6.json"
+     ],
+     "team": [
+      "units-team-2x-2.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-2.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 96,
+      "h": 110
+     },
+     "anchor": {
+      "x": 0.4375,
+      "y": 0.56364
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 192,
+      "h": 218
+     },
+     "anchor": {
+      "x": 0.4375,
+      "y": 0.55963
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 8,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true,
+     "stride": 1.05
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   },
+   "tops": [
+    35.3,
+    30.3,
+    47.4,
+    41.7,
+    35.3,
+    52.3,
+    57.6,
+    52.3
+   ],
+   "sizeClass": "myth",
+   "unitVariants": {
+    "by": "heads",
+    "ids": {
+     "1": "hydra",
+     "2": "hydra_heads2",
+     "3": "hydra_heads3",
+     "4": "hydra_heads4",
+     "5": "hydra_heads5"
+    }
+   }
+  },
+  "hydra_heads2": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "773b538fd489d695",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 192,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-3.json"
+     ],
+     "team": [
+      "units-team-1x-2.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-2.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-7.json"
+     ],
+     "team": [
+      "units-team-2x-3.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-3.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 96,
+      "h": 112
+     },
+     "anchor": {
+      "x": 0.4375,
+      "y": 0.55357
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 192,
+      "h": 220
+     },
+     "anchor": {
+      "x": 0.4375,
+      "y": 0.55455
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 8,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true,
+     "stride": 1.05
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   },
+   "tops": [
+    44.9,
+    30.3,
+    47.4,
+    41.7,
+    45.6,
+    57.6,
+    55.6,
+    57.6
+   ],
+   "sizeClass": "myth",
+   "variantOf": "hydra",
+   "variantValue": 2
+  },
+  "hydra_heads3": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "74a5d4cf84e920bf",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 192,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-4.json"
+     ],
+     "team": [
+      "units-team-1x-3.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-3.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-8.json"
+     ],
+     "team": [
+      "units-team-2x-4.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-4.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 96,
+      "h": 112
+     },
+     "anchor": {
+      "x": 0.4375,
+      "y": 0.55357
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 192,
+      "h": 222
+     },
+     "anchor": {
+      "x": 0.4375,
+      "y": 0.55856
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 8,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true,
+     "stride": 1.05
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   },
+   "tops": [
+    45.2,
+    30.3,
+    47.4,
+    41.7,
+    45.8,
+    56.9,
+    57.5,
+    57.7
+   ],
+   "sizeClass": "myth",
+   "variantOf": "hydra",
+   "variantValue": 3
+  },
+  "hydra_heads4": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "5bb2cca2dce154ca",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 192,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-5.json"
+     ],
+     "team": [
+      "units-team-1x-4.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-4.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-9.json"
+     ],
+     "team": [
+      "units-team-2x-5.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-5.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 96,
+      "h": 110
+     },
+     "anchor": {
+      "x": 0.4375,
+      "y": 0.54545
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 192,
+      "h": 218
+     },
+     "anchor": {
+      "x": 0.4375,
+      "y": 0.55046
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 8,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true,
+     "stride": 1.05
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   },
+   "tops": [
+    45.6,
+    30.3,
+    47.4,
+    41.7,
+    45.9,
+    57.6,
+    57.2,
+    57.7
+   ],
+   "sizeClass": "myth",
+   "variantOf": "hydra",
+   "variantValue": 4
+  },
+  "hydra_heads5": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "96962475a9b04fd7",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 192,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-6.json"
+     ],
+     "team": [
+      "units-team-1x-5.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-5.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-10.json"
+     ],
+     "team": [
+      "units-team-2x-6.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-6.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 96,
+      "h": 110
+     },
+     "anchor": {
+      "x": 0.4375,
+      "y": 0.56364
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 192,
+      "h": 222
+     },
+     "anchor": {
+      "x": 0.4375,
+      "y": 0.55856
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 8,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true,
+     "stride": 1.05
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   },
+   "tops": [
+    45.9,
+    30.3,
+    47.4,
+    41.7,
+    45.8,
+    57.5,
+    57.6,
+    57.4
+   ],
+   "sizeClass": "myth",
+   "variantOf": "hydra",
+   "variantValue": 5
+  },
   "hypaspist": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "c705fe7722ee5363",
+   "sourceHash": "b1258a42ca8d78ea",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -2217,7 +3325,7 @@
   "jason": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "5e35ede9b9eb9098",
+   "sourceHash": "e73293a7fb41b1e8",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -2311,7 +3419,7 @@
   "kataskopos": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "21cfe23b11e46cc3",
+   "sourceHash": "c8e044aa02c8d3d7",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -2406,7 +3514,7 @@
   "lumber_camp": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "54ee363604d70dc2",
+   "sourceHash": "011d823653f299d6",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2503,7 +3611,7 @@
   "market": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "f812c686d7b5137a",
+   "sourceHash": "be40e0bc5b3f3997",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2600,7 +3708,7 @@
   "militia": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "344dad328d0feb9e",
+   "sourceHash": "b7f053ac1f2884a0",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -2689,7 +3797,7 @@
   "mine": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "f3f2b5f1bdf113f8",
+   "sourceHash": "7684a8b0010bdda6",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2783,10 +3891,100 @@
     2
    ]
   },
+  "minotaur": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "10933d6be39d516e",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 192,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-7.json"
+     ],
+     "team": [
+      "units-team-1x-6.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-6.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-11.json"
+     ],
+     "team": [
+      "units-team-2x-7.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-7.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 90,
+      "h": 110
+     },
+     "anchor": {
+      "x": 0.42222,
+      "y": 0.56364
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 180,
+      "h": 218
+     },
+     "anchor": {
+      "x": 0.41111,
+      "y": 0.55963
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true,
+     "stride": 1.045
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   },
+   "tops": [
+    50.5,
+    42.2,
+    43.4,
+    44.3,
+    50.6,
+    52.8,
+    48.6,
+    52.9
+   ],
+   "sizeClass": "myth"
+  },
   "myrmidon": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "8d5f3196d8768132",
+   "sourceHash": "b91508fa9fbaee6f",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -2872,10 +4070,106 @@
     34
    ]
   },
+  "nemean_lion": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "f600429846f1b4fa",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 256,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-8.json"
+     ],
+     "team": [
+      "units-team-1x-7.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-7.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-12.json"
+     ],
+     "team": [
+      "units-team-2x-8.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-8.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 90,
+      "h": 104
+     },
+     "anchor": {
+      "x": 0.42222,
+      "y": 0.55769
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 180,
+      "h": 212
+     },
+     "anchor": {
+      "x": 0.42222,
+      "y": 0.5566
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 4,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true,
+     "stride": 0.903
+    },
+    "run": {
+     "frames": 8,
+     "fps": 12,
+     "loop": true,
+     "stride": 1.986
+    },
+    "attack": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   },
+   "tops": [
+    34.9,
+    37.3,
+    42,
+    37.7,
+    34.8,
+    45.1,
+    50.8,
+    45.5
+   ],
+   "sizeClass": "myth"
+  },
   "odysseus": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "394a375ee7c510db",
+   "sourceHash": "7dc9960b351fa0c4",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -2971,10 +4265,100 @@
     27.4
    ]
   },
+  "pegasus": {
+   "kind": "unit",
+   "group": "units",
+   "sourceHash": "16efd043f28f101b",
+   "dirs": 8,
+   "mirror": false,
+   "team": true,
+   "shadow": true,
+   "frames": 192,
+   "atlases": {
+    "1": {
+     "color": [
+      "units-1x-9.json"
+     ],
+     "team": [
+      "units-team-1x-8.json"
+     ],
+     "shadow": [
+      "units-shadow-1x-8.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "units-2x-13.json"
+     ],
+     "team": [
+      "units-team-2x-9.json"
+     ],
+     "shadow": [
+      "units-shadow-2x-9.json"
+     ]
+    }
+   },
+   "sizes": {
+    "1": {
+     "sourceSize": {
+      "w": 108,
+      "h": 142
+     },
+     "anchor": {
+      "x": 0.37037,
+      "y": 0.60563
+     }
+    },
+    "2": {
+     "sourceSize": {
+      "w": 212,
+      "h": 284
+     },
+     "anchor": {
+      "x": 0.36792,
+      "y": 0.59859
+     }
+    }
+   },
+   "anims": {
+    "idle": {
+     "frames": 6,
+     "fps": 10,
+     "loop": true
+    },
+    "walk": {
+     "frames": 8,
+     "fps": 10,
+     "loop": true
+    },
+    "attack": {
+     "frames": 4,
+     "fps": 10,
+     "loop": false
+    },
+    "die": {
+     "frames": 6,
+     "fps": 10,
+     "loop": false
+    }
+   },
+   "tops": [
+    84.9,
+    76.8,
+    63.5,
+    76.8,
+    84.9,
+    76.7,
+    62.6,
+    76.8
+   ],
+   "sizeClass": "myth",
+   "flying": true
+  },
   "peltast": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "ee3403109d1ab903",
+   "sourceHash": "0f1d809e5bb28d3a",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -3068,7 +4452,7 @@
   "perseus": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "00d7feeb044a3aee",
+   "sourceHash": "b786e76d3411d461",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -3162,7 +4546,7 @@
   "petrobolos": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "28f035d41c4bb3f7",
+   "sourceHash": "e3e7546711df7fe9",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -3251,7 +4635,7 @@
   "props-nodes": {
    "kind": "prop",
    "group": "props",
-   "sourceHash": "9c0016fa2ec48c14",
+   "sourceHash": "cb8001703cb351c0",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -3302,7 +4686,7 @@
   "props-trees": {
    "kind": "prop",
    "group": "props",
-   "sourceHash": "c3f3c1344087e64d",
+   "sourceHash": "0cd85de3728cba8c",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -3362,7 +4746,7 @@
   "rubble": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "388da3c97c6dd337",
+   "sourceHash": "dfb8ef47f45649bb",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -3444,7 +4828,7 @@
   "siege_workshop": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "000e89de5b8b73f3",
+   "sourceHash": "8712049d8b369dc1",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -3541,7 +4925,7 @@
   "stable": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "8ea0241cbd83ebd3",
+   "sourceHash": "c31645b47acf3d40",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -3638,7 +5022,7 @@
   "temple": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "5653d6d1318369d0",
+   "sourceHash": "2de199fa9ae6a97a",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -3735,7 +5119,7 @@
   "titan_gate": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "f75b0079e4934dd1",
+   "sourceHash": "fbd91da15b7b9385",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -3837,7 +5221,7 @@
   "tower": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "e5c43717434e5c9a",
+   "sourceHash": "b222b2cc3efc1aa3",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -3953,7 +5337,7 @@
   "town_center": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "865f48d983c0f49f",
+   "sourceHash": "b2671afb96a7852c",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -4056,7 +5440,7 @@
   "toxotes": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "265fb1ee19c91630",
+   "sourceHash": "d7d8fb6deb76a2bf",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -4150,7 +5534,7 @@
   "villager": {
    "kind": "unit",
    "group": "units",
-   "sourceHash": "429c0da098ce32b5",
+   "sourceHash": "4a2d94ea4dbfff05",
    "dirs": 8,
    "mirror": false,
    "team": true,
@@ -4250,7 +5634,7 @@
   "wall": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "0f84ad1da32cd3c1",
+   "sourceHash": "d7619891ac3cfddf",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -4368,7 +5752,7 @@
   "wonder_artemis": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "bdc9214252b3513f",
+   "sourceHash": "b90e7446265ebf87",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -4465,7 +5849,7 @@
   "wonder_colossus": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "ca70423eab8f1ad1",
+   "sourceHash": "741836322f498d3e",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -4562,7 +5946,7 @@
   "wonder_zeus": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "c539ac07cc5d8f8a",
+   "sourceHash": "fa99274d836dc361",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -4658,8 +6042,8 @@
   }
  },
  "totals": {
-  "pngBytes": 40153457,
-  "vramBytes": 282415104,
-  "atlases": 34
+  "pngBytes": 67202760,
+  "vramBytes": 459591680,
+  "atlases": 82
  }
 }

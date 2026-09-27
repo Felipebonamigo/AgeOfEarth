@@ -20,6 +20,7 @@ import { SHADOW_ALPHA } from '../../palette';
 import { PRIO } from '../../particles';
 import { chips, dust, glow, haze } from '../emitters';
 import { gaitOf } from '../logic';
+import { unitLook } from '../../art/logic';
 import { acquireStone, crop, cropTexture, releaseStone, type StoneSet } from '../stone';
 import { FRESH, TILE, dustAt, seenEntity, seenNow } from './util';
 
@@ -50,13 +51,14 @@ function create(e: VisualEffect, fx: FxContext, age: number): S {
   // sob a névoa: nem queda, nem estátua, nem cadáver (a petrificação não traz o dono: é o da morte no mesmo ponto)
   const owner = e.owner ?? fx.state.effects.find((o) => o.type === 'death' && o.data === e.data && Math.abs(o.x - e.x) < 0.01 && Math.abs(o.y - e.y) < 0.01)?.owner;
   if (!seenEntity(fx, e.x, e.y, owner)) { s.dusted = true; return s; }
-  const art = fx.baked && type && UNITS[type] && !UNITS[type].flying ? fx.host.art.unit(type) : null;
+  // (Etapa 6: a voadora cai do céu com a própria queda assada; a hidra, na variante das cabeças que tinha)
+  const art = fx.baked && type && UNITS[type] ? fx.host.art.unit(fx.host.deathArt?.(type, e.x, e.y) ?? type) : null;
   const petrify = e.type === 'petrify';
   if (art) {
     // morte de quem foi petrificado: a estátua (efeito 'petrify' no mesmo ponto) substitui a queda
     if (!petrify && fx.state.effects.some((o) => o.type === 'petrify' && o.data === type && Math.abs(o.x - e.x) < 0.01 && Math.abs(o.y - e.y) < 0.01)) { s.dusted = true; return s; }
     const dir = fx.host.deathDir(type, e.x, e.y);
-    const uv = new UnitView(art, fx.host.art, type, colorOf(e), fx.host.shadows, dir);
+    const uv = new UnitView(art, fx.host.art, type, colorOf(e), fx.host.shadows, dir, unitLook(type, !!UNITS[type].flying));
     if (!petrify) uv.pose('die', dir, fx.clock - age, true);
     else { uv.pose('idle', dir, fx.clock); uv.tick(0, 0); }
     uv.place(e.x * TILE, e.y * TILE);

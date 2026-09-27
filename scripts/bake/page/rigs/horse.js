@@ -11,6 +11,9 @@
 //   peytral  true = peitoral de bronze na frente do peito (cavalaria pesada)
 //   chamfron true = testeira de bronze (prometopídio) sobre a face
 //   rider    kit do cavaleiro (os mesmos parâmetros do rig humano: helmet, armor, cape, shield, weapon…); null = sem cavaleiro
+//   wings    false (padrão) · 'feather' = o par de asas de penas de rigs/wings.js na cernelha (Pégaso, Etapa 6: pivôs `wing` e
+//            `wingTip` nas poses; o voo — o corpo no ar, a sombra no chão deslocada para SE — é só a pose da raiz)
+//   coat 'white' (Etapa 6): pelagem branca de crina clara e cascos pálidos (Pégaso)
 // Poses: `art/poses/horse.json` (pivôs do cavalo) + `art/poses/human.json` para o cavaleiro — cada animação do manifesto
 // tem `pose` (cavalo) e `rider` (cavaleiro), interpoladas no mesmo quadro. Metros, frente em −z, cascos em y = 0.
 // Convenções: perna pendendo em −y; rotação x positiva leva o casco para a FRENTE (−z). O joelho dianteiro dobra com x
@@ -18,10 +21,11 @@
 
 import { M2T, dirYaw } from '../camera.js';
 import { buildHuman, applyPose, poseAt, JOINTS as HUMAN_JOINTS, SCALARS as HUMAN_SCALARS } from './human.js';
+import { buildWings } from './wings.js';
 
-export const JOINTS = ['root', 'body', 'neck', 'head', 'tail', 'fl', 'flk', 'fr', 'frk', 'bl', 'blk', 'br', 'brk'];
+export const JOINTS = ['root', 'body', 'neck', 'head', 'tail', 'fl', 'flk', 'fr', 'frk', 'bl', 'blk', 'br', 'brk', 'wing', 'wingTip'];
 export const SCALARS = [];
-export const KIT = { coat: ['bay', 'chestnut', 'grey', 'black'], build: ['light', 'medium', 'heavy'], cloth: [true, false, 'long', 'fleece'], peytral: [true, false], chamfron: [true, false] };
+export const KIT = { coat: ['bay', 'chestnut', 'grey', 'black', 'white'], build: ['light', 'medium', 'heavy'], cloth: [true, false, 'long', 'fleece'], peytral: [true, false], chamfron: [true, false], wings: [false, 'feather'] };
 /** Porte do cavalo: `size` escala o cavalo inteiro (não o cavaleiro); `girth` engrossa corpo, pescoço e antebraços. */
 const BUILDS = { light: { size: 0.95, girth: 0.88 }, medium: { size: 1, girth: 1 }, heavy: { size: 1.06, girth: 1.1 } };
 const DEG = Math.PI / 180;
@@ -31,13 +35,14 @@ export const BODY_Y = 1.1;
 const SEAT = [0, 0.37, 0.04];
 
 export function buildHorse(THREE, M, params = {}) {
-  const P = { coat: 'bay', build: 'medium', cloth: true, peytral: false, chamfron: false, rider: {}, ...params };
+  const P = { coat: 'bay', build: 'medium', cloth: true, peytral: false, chamfron: false, rider: {}, wings: false, ...params };
   const B = BUILDS[P.build] ?? BUILDS.medium, g = B.girth;
   const mesh = (geo, mat, x = 0, y = 0, z = 0, parent) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
   const joint = (parent, x, y, z) => { const g = new THREE.Group(); g.position.set(x, y, z); parent.add(g); return g; };
-  const coat = { bay: M.horseBay, chestnut: M.horseChestnut, grey: M.horseGrey, black: M.horseBlack }[P.coat] ?? M.horseBay;
+  const coat = { bay: M.horseBay, chestnut: M.horseChestnut, grey: M.horseGrey, black: M.horseBlack, white: M.feather }[P.coat] ?? M.horseBay;
   const points = P.coat === 'bay' || P.coat === 'black' ? M.horseBlack : coat;   // canelas (baio tem as "pontas" pretas)
-  const hair = P.coat === 'grey' ? M.stoneLight : P.coat === 'chestnut' ? M.horseChestnut : M.mane;
+  const hair = P.coat === 'grey' ? M.stoneLight : P.coat === 'chestnut' ? M.horseChestnut : P.coat === 'white' ? M.featherUnder : M.mane;
+  const hoofMat = P.coat === 'white' ? M.hoofPale : M.hoof;
 
   const group = new THREE.Group();
   const rig = new THREE.Group(); rig.scale.setScalar(M2T); group.add(rig);
@@ -118,8 +123,11 @@ export function buildHorse(THREE, M, params = {}) {
     mesh(new THREE.SphereGeometry(0.058, 8, 6), coat, 0, 0, 0, knee);
     mesh(new THREE.CylinderGeometry(0.045, 0.04, LOW, 8), points, 0, -LOW / 2, 0, knee);
     mesh(new THREE.SphereGeometry(0.05, 8, 6), points, 0, -LOW, 0, knee);                                     // boleto
-    hooves.push(mesh(new THREE.CylinderGeometry(0.052, 0.064, 0.08, 10), M.hoof, 0, -LOW - 0.05, -0.01, knee)); // casco
+    hooves.push(mesh(new THREE.CylinderGeometry(0.052, 0.064, 0.08, 10), hoofMat, 0, -LOW - 0.05, -0.01, knee)); // casco
   }
+
+  // ---- asas (Pégaso, Etapa 6): o par de penas na cernelha, acima das espáduas ----
+  const wings = P.wings === 'feather' ? buildWings(THREE, M, J.body, { style: 'feather', at: [0.2 * g, 0.26 * g, -0.36], span: 2.0 }) : null;
 
   // ---- cavaleiro (rig humano em metros, sentado no dorso) ----
   let rider = null;
@@ -130,7 +138,7 @@ export function buildHorse(THREE, M, params = {}) {
     rider.group.position.set(SEAT[0], SEAT[1] + 0.3 * (g - 1) - 0.92 / B.size, SEAT[2]);
     J.body.add(rider.group);
   }
-  return { group, joints: J, rider, hooves };
+  return { group, joints: J, rider, hooves, wings };
 }
 
 /** Aplica a pose do cavalo (mesmo formato do humano; a raiz parte de BODY_Y). */
@@ -148,6 +156,7 @@ export function applyHorsePose(rig, pose) {
       g.rotation.set(base + r[0] * DEG, r[1] * DEG, r[2] * DEG);
     }
   }
+  rig.wings?.apply(pose);   // asas (Pégaso): `wing`/`wingTip`, as duas com o mesmo valor
 }
 
 /** Rig de unidade montada para o bake: `pose(fr, poses)` com `fr.pose` (cavalo, poses.main) e `fr.rider` (poses.rider). */

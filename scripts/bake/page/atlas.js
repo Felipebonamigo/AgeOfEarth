@@ -89,8 +89,11 @@ export function halve(rgba, w, h, ox, oy) {
 }
 
 /**
- * Empacota `items` (`{ key, group, w, h }`, na ordem desejada) em páginas. Cada grupo é ordenado por altura
- * decrescente (desempate pelo índice original) e colocado inteiro numa página; se não couber, abre-se outra.
+ * Empacota `items` (`{ key, group, w, h, fresh?, sub? }`, na ordem desejada) em páginas. Cada grupo é ordenado por
+ * altura decrescente (desempate pelo índice original) e colocado inteiro numa página; se não couber, abre-se outra.
+ * Etapa 6 (criaturas e titãs): um grupo com `fresh` começa numa página nova (as páginas das outras unidades não mudam e
+ * o carregamento por tipo sobe só as dele) e um grupo que não cabe nem numa página vazia é dividido pelos seus `sub`
+ * (animação × direção: cada JSON de página continua com as animações inteiras), cada `sub` inteiro numa página.
  * Devolve `{ pages: [{ w, h, items: [{ key, x, y, w, h }] }] }` (x/y já descontam a extrusão: são o canto do quadro).
  */
 export function packShelf(items, { maxSize = 2048, pad = PAD, extrude = EXTRUDE } = {}) {
@@ -122,14 +125,30 @@ export function packShelf(items, { maxSize = 2048, pad = PAD, extrude = EXTRUDE 
     }
     return { shelves, y, usedW, placed };
   };
+  const commit = (page, r) => { page.shelves = r.shelves; page.y = r.y; page.usedW = r.usedW; page.items.push(...r.placed); };
+  const sorted = (list) => [...list].sort((a, b) => b.h - a.h || a.i - b.i);
+  /** Coloca `list` inteira na última página ou numa nova (`fresh`: sempre numa nova, se a última já tem algo); null se não cabe numa vazia. */
+  const place = (list, fresh) => {
+    let page = pages[pages.length - 1];
+    let r = fresh && page.items.length ? null : tryPlace(page, list);
+    if (!r) { page = newPage(); r = tryPlace(page, list); if (!r) return false; pages.push(page); }
+    commit(page, r);
+    return true;
+  };
 
   for (const g of groups) {
-    const list = [...g].sort((a, b) => b.h - a.h || a.i - b.i);
-    let page = pages[pages.length - 1];
-    let r = tryPlace(page, list);
-    if (!r) { page = newPage(); pages.push(page); r = tryPlace(page, list); }
-    if (!r) throw new Error(`grupo ${g[0].group} não cabe num atlas ${maxSize}²`);
-    page.shelves = r.shelves; page.y = r.y; page.usedW = r.usedW; page.items.push(...r.placed);
+    const fresh = g.some((it) => it.fresh);
+    if (place(sorted(g), fresh)) continue;
+    // não cabe numa página vazia: divide pelos `sub` (na ordem em que aparecem), cada um inteiro numa página
+    if (!g.every((it) => it.sub)) throw new Error(`grupo ${g[0].group} não cabe num atlas ${maxSize}²`);
+    const subs = new Map();
+    for (const it of g) { if (!subs.has(it.sub)) subs.set(it.sub, []); subs.get(it.sub).push(it); }
+    if (subs.size < 2) throw new Error(`grupo ${g[0].group} não cabe num atlas ${maxSize}²`);
+    let first = true;
+    for (const list of subs.values()) {
+      if (!place(sorted(list), fresh && first)) throw new Error(`parte ${list[0].sub ?? list[0].key} do grupo ${g[0].group} não cabe num atlas ${maxSize}²`);
+      first = false;
+    }
   }
   return {
     pages: pages.filter((p) => p.items.length).map((p) => ({ w: Math.min(maxSize, alignUp(Math.max(1, p.usedW))), h: Math.min(maxSize, alignUp(Math.max(1, p.y))), items: p.items })),
