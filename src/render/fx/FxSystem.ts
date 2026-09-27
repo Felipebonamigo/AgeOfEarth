@@ -21,13 +21,19 @@ import type { FxContext, FxHandler, FxHost, FxWatcher, TimedHandler } from './ty
 import { DECAL_CAP, DUST_MIN_ZOOM, effectAge, footDustRate, gaitOf, dustColor } from './logic';
 import { embers, flame, smokePuffs } from './emitters';
 import { terrainAt } from './handlers/util';
+import type { Building, Unit } from '../../core/types';
+import type { UnitView } from '../views/UnitView';
+import type { BuildingView } from '../views/BuildingView';
+import { UnitFx, newUnitAcc, type UnitAcc } from './unitFx';
+import { AmbientFx } from './ambient';
+import { shoreDistance, SHORE_WET } from './rules';
 
 interface Inst { h: FxHandler<unknown>; s: unknown; t0: number }
 interface TInst { h: TimedHandler<unknown>; s: unknown }
 /** Visão da câmera em tiles (Camera.visibleTiles). */
 export interface FxView { x0: number; y0: number; x1: number; y1: number }
 /** Acumulador de emissão contínua guardado na vista da entidade (sem Map por unidade). */
-export interface FxAcc { dust: number }
+export interface FxAcc { dust: number; /** Efeitos por unidade do lote combate-ambiente (fx/unitFx.ts), criados sob demanda. */ u?: UnitAcc }
 
 export interface FxFrame {
   state: GameState; local: number; clock: number; dt: number; zoom: number; baked: boolean; quality: Quality;
@@ -51,6 +57,9 @@ export class FxSystem {
   private shakeReq = 0;
   private moving = 0; private movingPrev = 0;
   private host: FxHost | null = null;
+  /** Lote combate-ambiente: efeitos por unidade (halo, auras, cura, coleta, margem) e ambiente (vento, fumaça de trabalho). */
+  private unitFx = new UnitFx();
+  private ambient = new AmbientFx();
   private ctx: FxContext;
   private frame: FxFrame | null = null;
 
@@ -107,6 +116,7 @@ export class FxSystem {
     c.state = f.state; c.local = f.local; c.clock = f.clock; c.dt = f.dt; c.zoom = f.zoom; c.baked = f.baked; c.quality = f.quality;
     if (this.tex.refresh()) this.reset(true);
     this.movingPrev = this.moving; this.moving = 0;
+    this.unitFx.begin();
   }
 
   /**
@@ -119,6 +129,7 @@ export class FxSystem {
     this.moving++;
     const gait = gaitOf(type);
     const terrain = terrainAt(f.state, x, y);
+    if (shoreDistance(f.state.map, x, y) < SHORE_WET) return;   // na margem molhada: respingo (fx/unitFx.ts), não pó
     acc.dust += footDustRate(gait, speed, this.movingPrev, terrain) * f.dt;
     if (acc.dust < 1) return;
     const n = Math.floor(acc.dust); acc.dust -= n;
@@ -152,6 +163,18 @@ export class FxSystem {
       if (!flame(this.particles, this.tex, x, y, 0, 0.5 + Math.random() * 0.3, 0.7 + Math.random() * 0.45, PRIO.ambient, 'fire')) return;
       if (Math.random() < 0.3) embers(this.particles, this.tex, x, y - 6, 0, 1, PRIO.ambient, 'fire');
     }
+  }
+
+  /** Efeitos contínuos de uma unidade à vista na tela em (x, y) tiles (fx/unitFx.ts): halo dos heróis, auras das
+   *  habilidades, brilho de cura, lascas da coleta/obra, respingos na margem. Depois da vista (o quadro da coleta). */
+  unit(acc: FxAcc, u: Unit, x: number, y: number, uv: UnitView | null): void {
+    if (!this.frame) return;
+    this.unitFx.unit(this.ctx, acc.u ??= newUnitAcc(), u, x, y, uv);
+  }
+  /** Edifício pronto, à vista e sem dano (fx/ambient.ts): o fio de fumaça da lareira/forja enquanto produz. */
+  building(acc: FxAcc, b: Building, bv: BuildingView | null): void {
+    const f = this.frame; if (!f) return;
+    this.ambient.building(this.ctx, acc, b, bv, f.revealAll);
   }
 
   /** Efeitos do estado, poderes com duração, observadores, partículas e decalques. Devolve o tremor pedido (px). */
@@ -191,6 +214,8 @@ export class FxSystem {
     }
     for (const [t, inst] of this.timed) if (!tseen.has(t)) { inst.h.destroy?.(t, inst.s, ctx); this.timed.delete(t); }
     for (const w of this.watchers) w.update(ctx);
+    this.unitFx.end(ctx);
+    this.ambient.update(ctx, f.view, f.revealAll);
     this.particles.update(f.dt);
     const vis = st.players[f.local]?.visibility ?? null;
     this.decals.update(f.clock, vis, st.map.w, f.revealAll || !!st.config.revealMap);
@@ -217,6 +242,7 @@ export class FxSystem {
     for (const [t, inst] of this.timed) inst.h.destroy?.(t, inst.s, this.ctx);
     this.timed.clear();
     for (const w of this.watchers) w.reset?.();
+    this.unitFx.reset(); this.ambient.reset();
     this.particles.clear(sourceChanged);
     this.decals.clear(sourceChanged);
     this.sprites.removeChildren().forEach((c) => c.destroy({ children: true }));

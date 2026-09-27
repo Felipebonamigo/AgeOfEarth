@@ -315,6 +315,38 @@ Leitura:
 - **Falta a GPU real**: partículas aditivas e o `multiply` dos decalques custam fill rate que o swiftshader não mostra —
   medir com `?perf=1` no PC e no Deck (pendência do dono).
 
+## Desempenho do renderizador — Etapa 5, lote combate-ambiente (27/09/2026)
+
+Antes = a base da Etapa 5 (44ac4fb, porta 4274) e depois = o lote combate-ambiente (porta 4273: projéteis P1, splash,
+queda, estátua, desabamento, Q dos heróis, halo, coleta, margem, vento, fumaça de trabalho, cura), rodadas alternadas
+na mesma máquina, carregada por outro agente em paralelo (carga 6,5–8 em 4 CPUs: médias ruidosas, olhe as medianas).
+`rendercpu --battle 100 --modes a --views zoom1,battle,fight`, preset Baixo (800 partículas), arte assada;
+`docs/perf/2026-09-27-etapa5-combate-{antes,depois}{,-r2,-r3,-r4}-cpu.json`. As rodadas 1–3 do depois são de antes do
+corte de densidade das lascas de trabalho (render médio 1,03–1,04 ms na cidade, mediana 0,6–0,7, p95 2,9–4,6); a 4ª é a
+build final:
+
+| Cenário | render antes (4 rodadas) | render antes → depois (rodada 4) | Pixi antes → depois (rodada 4) | partículas (pico) antes → depois |
+|---|---|---|---|---|
+| zoom 1 (cidade) | 0,51–0,73 (med 0,5–0,6) | 0,51 → 0,56 (med 0,5 → 0,5) | 0,82 → 0,90 | 71–79 → 129 |
+| mapa inteiro com a batalha (`battle`) | 0,74–1,02 (med 0,6–0,7) | 0,74 → 0,79 (med 0,6 → 0,7) | 1,01 → 1,16 | 178–182 → 201 |
+| **batalha 100 × 100** (`fight`) | 0,76–1,11 (med 0,5–0,8) | **0,76 → 0,82** (med 0,6 → 0,6) | 1,22 → 1,17 | 144–162 → 186 (0 descartadas, 3 decalques) |
+
+**Perfil por parte** (build final, zoom 1 na cidade do rendercpu com `revealAll`, ms por quadro com o cronômetro em
+volta de cada chamada — números de teto): `fx.unit` 0,063 (halo, aura, cura, trabalho e margem de todas as unidades
+na tela), `fx.building` 0,042 (fumaça de trabalho), `footstep` 0,045, vento 0,004, limpeza dos halos 0,002 e
+`particles.update` 0,12 (mais partículas vivas: fumaça de todas as oficinas produzindo, lascas, brilho dos halos).
+
+Leitura:
+- **+0,05–0,07 ms de CPU nossa** na rodada pareada e ≈ +0,2 ms pelo perfil (teto), com o absoluto em 0,5–0,8 ms, bem
+  abaixo do orçamento de §6 do ART.md (≤ 3 ms). O Pixi fica dentro do ruído (±10 %).
+- **Partículas**: o pico sobe ~+50 na cidade (fumaça de trabalho, lascas, halos) e ~+25–40 nas batalhas (splash,
+  quedas, projéteis), longe das 800 do Baixo, sem descarte; vento, fumaça de trabalho, lascas, folhas e respingos da
+  margem são `ambient` e cedem primeiro no orçamento, e as lascas rareiam acima de 16 trabalhadores na tela.
+- **Sem textura nova**: a estátua de pedra é um canvas por quadro de unidade (cache de 16, 3 estágios de rachadura),
+  o resto usa o atlas `fx` da base; draw calls iguais.
+- **Falta a GPU real** (como na base): o fill rate do aditivo (halos, brilhos, fogo) só se mede com `?perf=1` no PC e
+  no Deck.
+
 ## Matriz de testes (6.8, por versão candidata)
 
 Automáticos primeiro (checklist abaixo); a matriz é o que só uma pessoa com o hardware consegue conferir. Cada célula

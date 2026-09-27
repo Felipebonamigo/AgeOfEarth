@@ -137,6 +137,9 @@ export class UnitView {
     return this.bar;
   }
 
+  /** Quadro mostrado agora na animação atual (−1 antes do primeiro `tick`): o golpe da coleta (fx/unitFx.ts). */
+  get shownFrame(): number { return this.frame; }
+
   /** Terminou a animação sem loop (ataque, habilidade ou morte)? */
   finished(time: number): boolean {
     const info = this.art.anims[this.anim];

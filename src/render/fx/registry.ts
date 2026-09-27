@@ -10,7 +10,8 @@ import { death, petrify } from './handlers/death';
 import { collapse } from './handlers/collapse';
 import { nodeGone } from './handlers/nodeGone';
 import { splash } from './handlers/splash';
-import { ability, bolt, bronze, curse, heal, pestilence, quake, titanRise } from './handlers/powers';
+import { bolt, bronze, curse, heal, pestilence, quake, titanRise } from './handlers/powers';
+import { ability } from './handlers/ability';
 import { ceasefireWatcher, earthquake, lightningStorm, oracleWatcher } from './handlers/timed';
 
 export const FX_HANDLERS: Record<EffectType, FxHandler<any>> = {

@@ -52,13 +52,13 @@ const stats = () => page.evaluate(() => window.aoe.renderer.fx.stats());
 const setQuality = (q, baked = true) => page.evaluate(([q, b]) => { const s = window.aoe.settings; s.quality = q; s.bakedArt = b; window.aoe.applyQuality(); return window.aoe.renderer.art.ready(); }, [q, baked]);
 
 /** Partida nova pausada, HUD oculto, com as funções de apoio da cena (área livre longe do Centro Cívico etc.). */
-async function newGame(types = []) {
-  await page.evaluate((seed) => {
+async function newGame(types = [], mapType = 'continental') {
+  await page.evaluate(([seed, mapType]) => {
     const players = [{ name: 'Jogador', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 }, { name: 'Leônidas (IA)', god: 'poseidon', isAI: true, difficulty: 'easy', team: 1 }];
-    window.aoe.startGame({ seed, mapSize: 'medium', players, revealMap: false, mode: 'conquest', mapType: 'continental' });
+    window.aoe.startGame({ seed, mapSize: 'medium', players, revealMap: false, mode: 'conquest', mapType });
     window.aoe.session.paused = true;
     const h = document.getElementById('hud'); if (h) h.style.visibility = 'hidden';
-  }, SEED);
+  }, [SEED, mapType]);
   await page.evaluate(() => {
     const s = window.aoe.session, map = s.state.map;
     window.__open = (x, y) => { if (x < 0 || y < 0 || x >= map.w || y >= map.h) return false; const i = y * map.w + x; return !map.blocked[i] && map.nodeAt[i] === -1 && map.buildingAt[i] === -1 && map.terrain[i] !== 1 && map.terrain[i] !== 2 && map.terrain[i] !== 5; };
@@ -265,6 +265,350 @@ if (want('cerco')) {
   need(S.fire > 0, 'cerco: sem fogo no quartel muito danificado');
   need(S.smoke > 0, 'cerco: sem fumaça nos edifícios danificados');
   need(S.decals > 0, 'cerco: sem decalques (impacto/escombros)');
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+// Lote combate-ambiente (docs/ART.md Apêndice F): cenas próprias, cada uma com a sua captura olhada com Read.
+//  queda — hoplitas, hipeus e um petróbolo frágeis caindo (a poeira pelo porte, o cerco em lascas) → -queda-z20.png;
+//  estatua — Medusas petrificando hoplitas e mantícoras atirando rajadas de espinhos: a estátua de pedra rachando e
+//    esfarelando → -estatua-z22.png, -estatua-esfarela-z22.png, -espinhos-z22.png;
+//  desabamento — um quartel e uma casa caindo (poeira pesada, pedaços, escombros) → -desabamento-z16.png;
+//  splash — a Quimera cuspindo fogo, os três titãs batendo e o Golpe Titânico de Héracles → -splash-fogo-z13.png,
+//    -splash-titas-z13.png, -golpe-titanico-z13.png;
+//  herois — a Q de cada um dos cinco heróis (onda até o raio, aliados alcançados), o halo e as auras →
+//    -q-<herói>.png, -halo-z22.png;
+//  ambiente — coleta (lascas e folhas no golpe do machado, ouro), árvore esgotada, obra, fumaça das forjas/lareira de
+//    quem produz, cura (regeneração), margem da água (respingos) e o vento num mapa de deserto → -coleta-z22.png,
+//    -arvore-cai-z22.png, -fumaca-trabalho-z13.png, -cura-z22.png, -margem-z22.png, -vento-deserto-z10.png.
+/** Instâncias vivas de efeitos de um tipo (o estado do handler de cada uma). */
+const liveFx = (type) => page.evaluate((type) => { const out = []; for (const [e, inst] of window.aoe.renderer.fx.live) if (e.type === type) { const s = inst.s ?? {}; out.push({ ttl: e.ttl, hero: s.hero, kind: s.kind, wave: s.wave, stone: s.statue ? !!s.statue.set : null }); } return out; }, type);
+const fxCounts = () => page.evaluate(() => ({ unit: { ...window.aoe.renderer.fx.unitFx.counts, halos: window.aoe.renderer.fx.unitFx.haloCount }, amb: { ...window.aoe.renderer.fx.ambient.counts, arid: window.aoe.renderer.fx.ambient.aridNow } }));
+const resetCounts = () => page.evaluate(() => { const f = window.aoe.renderer.fx; for (const o of [f.unitFx.counts, f.ambient.counts]) for (const k in o) o[k] = 0; });
+const waitEffect = (type, n = 1, timeout = 120000) => page.waitForFunction(([t, n]) => window.aoe.session.state.effects.filter((e) => e.type === t).length >= n, [type, n], { timeout, polling: 30 });
+
+if (want('queda')) {
+  const T = ['hoplite', 'hippeus', 'petrobolos'];
+  await newGame(T);
+  const q = await page.evaluate(() => {
+    const s = window.aoe.session, st = s.state, me = s.local, foe = (me + 1) % st.players.length;
+    const sp = window.aoe.debugSpawn, ids = window.__ids, tough = window.__tough;
+    const A = window.__area(24, 12);
+    const cx = A.x + 12, cy = A.y + 6;
+    // infantaria, cavalaria e cerco com 1 de vida, passivos: caem no primeiro golpe, cada porte com a sua poeira
+    const victims = [];
+    for (let i = 0; i < 4; i++) victims.push(sp(foe, 'hoplite', cx + 1.2, cy - 3 + i * 1.4));
+    for (let i = 0; i < 3; i++) victims.push(sp(foe, 'hippeus', cx + 2.6, cy - 2.4 + i * 1.8));
+    victims.push(sp(foe, 'petrobolos', cx + 1.6, cy + 3));
+    for (const v of victims) if (v) v.hp = 1;
+    const killers = [];
+    for (let i = 0; i < 8; i++) killers.push(tough(sp(me, 'hoplite', cx - 0.5, cy - 3.5 + i)));
+    s.scheduler.issue({ type: 'stance', player: foe, ids: ids(victims), stance: 'passive' });
+    s.issue({ type: 'attackMove', player: me, ids: ids(killers), x: cx + 4, y: cy });
+    return { c: { x: cx + 1.5, y: cy } };
+  });
+  await settle(T);
+  await look({ x: q.c.x + 0.6, y: q.c.y }, 2.0);
+  await run(1);
+  // a queda de um hipeu (o cavalo tomba ao comprido): a poeira sai quando o corpo bate no chão (≈ 0,45 s)
+  await page.waitForFunction(() => window.aoe.session.state.effects.some((e) => e.type === 'death' && e.data === 'hippeus'), null, { timeout: 120000, polling: 20 });
+  await run(0.25);
+  await page.waitForFunction(() => window.aoe.session.state.effects.some((e) => e.type === 'death' && e.data === 'hippeus' && e.total - e.ttl >= 12), null, { timeout: 120000, polling: 20 });
+  await pause();
+  const st = await checkFx('queda');
+  need(st.particles > 0, 'queda: sem partículas (poeira da queda)');
+  await shot('queda-z20');
+}
+
+if (want('estatua')) {
+  const T = ['hoplite', 'toxotes'];
+  await newGame(T);
+  const q = await page.evaluate(() => {
+    const s = window.aoe.session, st = s.state, me = s.local, foe = (me + 1) % st.players.length;
+    const sp = window.aoe.debugSpawn, ids = window.__ids, tough = window.__tough;
+    const A = window.__area(24, 12);
+    const cx = A.x + 12, cy = A.y + 6;
+    // hoplitas resistentes e passivos; Medusas (12 % de petrificar por golpe) e mantícoras (rajadas de espinhos) atirando
+    const targets = [];
+    for (let i = 0; i < 12; i++) targets.push(tough(sp(me, 'hoplite', cx + (i % 4) * 0.9, cy - 1.5 + Math.floor(i / 4) * 1.1), 3000));
+    s.issue({ type: 'stance', player: me, ids: ids(targets), stance: 'passive' });
+    const shooters = [];
+    for (let i = 0; i < 6; i++) shooters.push(tough(sp(foe, 'medusa', cx - 5, cy - 3 + i * 1.2)));
+    for (let i = 0; i < 3; i++) shooters.push(tough(sp(foe, 'manticore', cx + 8, cy - 2 + i * 1.6)));
+    for (const u of shooters) if (u) s.scheduler.issue({ type: 'attack', player: foe, ids: [u.id], targetId: targets[Math.floor(Math.random() * targets.length)].id });
+    return { c: { x: cx + 1.5, y: cy } };
+  });
+  await settle(T);
+  await look(q.c, 1.3);
+  await run(1);
+  // a estátua no meio da petrificação (rachando) e depois esfarelando
+  await waitEffect('petrify', 1, 240000);
+  const zoomOn = () => page.evaluate(() => { const e = window.aoe.session.state.effects.find((x) => x.type === 'petrify'); if (e) { const c = window.aoe.renderer.cam; c.zoom = 2.2; c.centerOn(e.x, e.y - 0.4); } });
+  await zoomOn(); await run(0.25);
+  await page.waitForFunction(() => window.aoe.session.state.effects.some((e) => e.type === 'petrify' && e.ttl <= 15), null, { timeout: 60000, polling: 20 });
+  await pause();
+  const statues = await liveFx('petrify');
+  await shot('estatua-z22');
+  need(statues.length > 0, 'estátua: nenhuma petrificação viva');
+  need(statues.some((x) => x.stone === true), 'estátua: o quadro não virou pedra (stone.ts)');
+  await run(0.25);
+  await page.waitForFunction(() => window.aoe.session.state.effects.some((e) => e.type === 'petrify' && e.ttl <= 7), null, { timeout: 60000, polling: 20 });
+  await pause(); await shot('estatua-esfarela-z22');
+  // rajada de espinhos da mantícora em voo
+  await look({ x: q.c.x + 3, y: q.c.y }, 2.2);
+  await run(1);
+  await page.waitForFunction(() => { for (const [e, inst] of window.aoe.renderer.fx.live) if (e.type === 'projectile' && inst.s.kind === 'spike' && inst.s.body?.visible) return true; return false; }, null, { timeout: 60000, polling: 20 }).catch(() => errors.push('espinhos: nenhuma rajada de mantícora em voo'));
+  await pause(); await shot('espinhos-z22');
+  await checkFx('estatua');
+}
+
+if (want('desabamento')) {
+  const T = ['hoplite'];
+  await newGame(T);
+  const d = await page.evaluate(() => {
+    const s = window.aoe.session, st = s.state, me = s.local, foe = (me + 1) % st.players.length;
+    const A = window.__area(20, 12);
+    const bar = window.__build(foe, 'barracks', A.x + 9, A.y + 5);
+    const house = window.__build(foe, 'house', A.x + 14, A.y + 6);
+    return { c: { x: A.x + 10.5, y: A.y + 6 }, bar: bar?.id ?? null, house: house?.id ?? null, me };
+  });
+  await settle(T);
+  await look(d.c, 1.6);
+  await run(0.25); await waitTicks(2);
+  if (d.bar) await page.evaluate((id) => window.aoe.debugDestroy(id), d.bar);
+  await waitTicks(3);
+  if (d.house) await page.evaluate((id) => window.aoe.debugDestroy(id), d.house);
+  await waitTicks(5); await pause();
+  await shot('desabamento-z16');
+  const st = await checkFx('desabamento');
+  need(st.decals >= 2, `desabamento: ${st.decals} decalque(s) (esperado mancha + escombros)`);
+}
+
+if (want('splash')) {
+  const T = ['hoplite', 'heracles'];
+  await newGame(T);
+  const q = await page.evaluate(() => {
+    const s = window.aoe.session, st = s.state, me = s.local, foe = (me + 1) % st.players.length;
+    const sp = window.aoe.debugSpawn, ids = window.__ids, tough = window.__tough;
+    const A = window.__area(40, 14, { mx: 34 });   // longe da borda: a câmera em Héracles não mostra o fim do mapa
+    const cx = A.x + 20, cy = A.y + 7;
+    const groups = [];
+    // Quimera (fogo) à esquerda, os três titãs no meio, Héracles à direita
+    const make = (type, x, y) => {
+      const foes = [];
+      for (let i = 0; i < 5; i++) foes.push(tough(sp(foe, 'hoplite', x + 1.6 + (i % 2) * 0.8, y - 1.6 + i * 0.8), 6000));
+      const a = tough(sp(me, type, x - 0.8, y), 20000);
+      s.scheduler.issue({ type: 'stance', player: foe, ids: ids(foes), stance: 'passive' });
+      if (a) s.issue({ type: 'attack', player: me, ids: [a.id], targetId: foes[2].id });
+      groups.push({ type, id: a?.id ?? null, x, y });
+    };
+    make('chimera', cx - 15, cy);
+    make('prometheus', cx - 6, cy); make('oceanus', cx + 1, cy); make('cronus', cx + 8, cy);
+    make('heracles', cx + 15, cy);
+    return { c: { x: cx, y: cy }, groups };
+  });
+  await settle(T);
+  const g = (t) => q.groups.find((x) => x.type === t);
+  // fogo da Quimera
+  await look({ x: g('chimera').x + 1, y: g('chimera').y }, 1.3);
+  await run(1);
+  await page.waitForFunction((id) => { const u = window.aoe.session.state.units.get(id); const st = window.aoe.session.state; return u && st.effects.some((e) => e.type === 'splash' && Math.abs(e.x - u.x) < 3); }, g('chimera').id, { timeout: 120000, polling: 20 }).catch(() => errors.push('splash: a Quimera não golpeou'));
+  await run(0.25); await waitTicks(4); await pause();
+  await shot('splash-fogo-z13');
+  // os três titãs (a onda de Oceano no meio, o fogo de Prometeu à esquerda e a pancada de Cronos à direita)
+  await look({ x: g('oceanus').x + 0.5, y: g('oceanus').y }, 1.3);
+  await run(1); await waitTicks(10);
+  await page.waitForFunction((id) => { const u = window.aoe.session.state.units.get(id); const st = window.aoe.session.state; return u && st.effects.some((e) => e.type === 'splash' && e.total - e.ttl <= 3 && Math.abs(e.x - u.x) < 3.5); }, g('oceanus').id, { timeout: 60000, polling: 20 }).catch(() => errors.push('splash: Oceano não golpeou'));
+  await run(0.25); await waitTicks(3); await pause();
+  await shot('splash-titas-z13');
+  // Golpe Titânico: Q de Héracles e o golpe seguinte
+  const her = g('heracles');
+  if (her.id) {
+    await look({ x: her.x + 0.8, y: her.y }, 1.3);
+    await page.evaluate((id) => { const s = window.aoe.session; const u = s.state.units.get(id); if (u) u.abilityReadyAt = 0; s.issue({ type: 'ability', player: s.local, unitId: id }); }, her.id);
+    await run(1);
+    await page.waitForFunction((id) => { const u = window.aoe.session.state.units.get(id); const st = window.aoe.session.state; return u && u.chargeUntil === 0 && st.effects.some((e) => e.type === 'splash' && Math.abs(e.x - u.x) < 3); }, her.id, { timeout: 60000, polling: 20 }).catch(() => errors.push('golpe titânico: Héracles não golpeou carregado'));
+    await run(0.25); await waitTicks(3); await pause();
+    await shot('golpe-titanico-z13');
+  }
+  await checkFx('splash');
+}
+
+if (want('herois')) {
+  const HEROES = ['jason', 'odysseus', 'heracles', 'achilles', 'perseus'];
+  const T = ['hoplite', ...HEROES];
+  await newGame(T);
+  const q = await page.evaluate((HEROES) => {
+    const s = window.aoe.session, st = s.state, me = s.local;
+    const sp = window.aoe.debugSpawn, ids = window.__ids;
+    // cada herói numa clareira própria de 13 × 11 tiles (≥ 97 % livre, sem bosque nem água), perto do Centro Cívico mas
+    // fora da cidade, com 6 hoplitas em volta; as clareiras não se sobrepõem (as ondas não se tocam)
+    const map = st.map, W = 13, H = 11;
+    const tc = [...st.buildings.values()].find((b) => b.owner === me && b.type === 'town_center');
+    const cands = [];
+    for (let y0 = 3; y0 + H <= map.h - 3; y0 += 2) for (let x0 = 3; x0 + W <= map.w - 3; x0 += 2) {
+      const d = Math.sqrt((x0 + W / 2 - tc.x) ** 2 + (y0 + H / 2 - tc.y) ** 2);
+      if (d < 14) continue;
+      let free = 0; for (let y = y0; y < y0 + H; y++) for (let x = x0; x < x0 + W; x++) if (window.__open(x, y)) free++;
+      if (free >= 0.97 * W * H) cands.push({ x: x0, y: y0, d });
+    }
+    cands.sort((a, b) => a.d - b.d);
+    const picked = [];
+    for (const c of cands) { if (picked.length >= HEROES.length) break; if (picked.every((p) => Math.abs(p.x - c.x) >= W + 2 || Math.abs(p.y - c.y) >= H + 2)) picked.push(c); }
+    const out = [];
+    HEROES.forEach((type, k) => {
+      const A = picked[k] ?? window.__area(W, H);
+      const x = A.x + W / 2, cy = A.y + H / 2;
+      const h = sp(me, type, x, cy);
+      const allies = [];
+      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; allies.push(sp(me, 'hoplite', x + Math.cos(a) * 3, cy + Math.sin(a) * 2.2)); }
+      s.issue({ type: 'stance', player: me, ids: ids([h, ...allies]), stance: 'passive' });
+      if (h) h.abilityReadyAt = 0;
+      out.push({ type, id: h?.id ?? null, x, y: cy });
+    });
+    return { heroes: out };
+  }, HEROES);
+  await settle(T); await resetCounts();
+  const AT = { jason: 10, odysseus: 11, heracles: 11, achilles: 8, perseus: 10 };
+  for (const h of q.heroes) {
+    if (!h.id) { errors.push(`q ${h.type}: herói não nasceu`); continue; }
+    await look({ x: h.x, y: h.y - 0.3 }, 1.3);
+    await page.evaluate((id) => { const s = window.aoe.session; s.issue({ type: 'ability', player: s.local, unitId: id }); }, h.id);
+    // câmera lenta (¼): a pausa cai no tick certo mesmo com a renderização por software
+    await run(0.25); await waitTicks(AT[h.type]); await pause();
+    await shot(`q-${h.type}`);
+    const inst = await liveFx('ability');
+    const mine = inst.find((x) => x.hero === h.id);
+    need(!!mine, `q ${h.type}: efeito sem handler vivo`);
+    need(mine?.kind === h.type, `q ${h.type}: herói identificado como ${mine?.kind}`);
+    need((mine?.wave ?? -1) >= 0, `q ${h.type}: a onda não saiu`);
+    await run(1); await waitTicks(20); await pause();
+  }
+  // halo de Héracles, ainda carregado (a luz dourada juntando na clava), com os hoplitas em volta, a zoom 2,2
+  const her = q.heroes.find((h) => h.type === 'heracles');
+  await look({ x: her.x, y: her.y - 0.3 }, 2.2);
+  await run(1); await waitTicks(8); await pause();
+  await shot('halo-z22');
+  const c = await fxCounts();
+  need(c.unit.halos >= 1, `halo: ${c.unit.halos} halo(s)`);
+  need(c.unit.aura > 0, 'auras: nenhuma aura de habilidade em curso');
+  await checkFx('herois');
+}
+
+if (want('ambiente')) {
+  const T = ['villager', 'hoplite', 'hippeus'];
+  await newGame(T);
+  const q = await page.evaluate(() => {
+    const s = window.aoe.session, st = s.state, map = st.map, me = s.local;
+    const sp = window.aoe.debugSpawn, ids = window.__ids, open = window.__open;
+    const P = st.players[me];
+    P.resources.food = P.resources.wood = P.resources.gold = P.resources.favor = 9000; P.age = 3; P.mods.player.popCap = 200; P.popCap = 200;
+    const tc = [...st.buildings.values()].find((b) => b.owner === me && b.type === 'town_center');
+    const nodes = [...map.nodes.values()];
+    const d2 = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
+    // bosque perto do CC com chão livre ao sul (os cidadãos cortam a borda)
+    const trees = nodes.filter((n) => n.type === 'tree' && d2(n, tc) < 30 * 30 && open(n.x, n.y + 1) && open(n.x, n.y + 2)).sort((a, b) => d2(a, tc) - d2(b, tc));
+    const edge = trees.slice(0, 4);
+    const cutters = [];
+    edge.forEach((t) => { const u = sp(me, 'villager', t.x + 0.5, t.y + 1.5); if (u) { cutters.push(u); s.issue({ type: 'gather', player: me, ids: [u.id], targetId: t.id }); } });
+    // uma árvore quase no fim: o cidadão a derruba (nodeGone)
+    if (edge[0]) edge[0].amount = 3;
+    const gold = nodes.filter((n) => n.type === 'gold').sort((a, b) => d2(a, tc) - d2(b, tc))[0];
+    const miners = [];
+    if (gold) for (let i = 0; i < 3; i++) { const u = sp(me, 'villager', gold.x + 0.5 + (i - 1), gold.y + 1.6); if (u) { miners.push(u); s.issue({ type: 'gather', player: me, ids: [u.id], targetId: gold.id }); } }
+    // produção: quartel, estábulo e oficina com fila, e o CC treinando (fumaça das forjas e a lareira do pátio)
+    const A = window.__area(20, 10, { minTc: 9 });
+    const bar = window.__build(me, 'barracks', A.x + 3, A.y + 4), stab = window.__build(me, 'stable', A.x + 9, A.y + 4), shop = window.__build(me, 'siege_workshop', A.x + 15, A.y + 4);
+    for (const b of [bar, stab, shop]) if (b) for (let i = 0; i < 4; i++) s.issue({ type: 'train', player: me, buildingId: b.id, unit: b === bar ? 'hoplite' : b === stab ? 'hippeus' : 'petrobolos' });
+    for (let i = 0; i < 4; i++) s.issue({ type: 'train', player: me, buildingId: tc.id, unit: 'villager' });
+    // cura: hoplitas feridos com regeneração forte (a Ambrosia dá 1/s; aqui 6/s para a captura)
+    P.mods.player.regen = 6;
+    const hurt = [];
+    for (let i = 0; i < 6; i++) { const u = sp(me, 'hoplite', A.x + 4 + i * 0.9, A.y + 9); if (u) { u.hp = u.maxHp * 0.3; u.lastDamageTick = -9999; hurt.push(u); } }
+    s.issue({ type: 'stance', player: me, ids: ids(hurt), stance: 'passive' });
+    // margem: um trecho de chão colado na água (o tile de água mais perto do CC com terra passável ao lado)
+    let shore = null, bestS = Infinity;
+    for (let y = 4; y < map.h - 4; y++) for (let x = 4; x < map.w - 4; x++) {
+      if (!open(x, y)) continue;
+      // água ao norte ou ao sul e 7 tiles de chão livre na linha: a tropa anda rente à água
+      const wd = [[0, 1], [0, -1]].find(([dx, dy]) => { const t = map.terrain[(y + dy) * map.w + x + dx]; return t === 1 || t === 5; });
+      if (!wd) continue;
+      let run = 0; for (let k = -3; k <= 3; k++) if (open(x + k, y)) run++;
+      if (run < 7) continue;
+      const d = d2({ x, y }, tc); if (d < bestS) { bestS = d; shore = { x, y, wy: wd[1] }; }
+    }
+    const walkers = [];
+    if (shore) {
+      // rente à linha d'água: o pé a menos de um raio do tile de água (o corpo encosta nela)
+      const ly = shore.y + 0.5 + shore.wy * 0.25;
+      for (let i = 0; i < 3; i++) walkers.push(sp(me, 'hoplite', shore.x - 3 + i * 0.6, ly));
+      for (let i = 0; i < 2; i++) walkers.push(sp(me, 'hippeus', shore.x - 3.4, ly));
+      for (const u of walkers) if (u) u.y = u.py = ly;
+      shore.ly = ly;
+      s.issue({ type: 'move', player: me, ids: ids(walkers), x: shore.x + 3.5, y: ly });
+    }
+    return { tree: edge[0] ? { x: edge[0].x + 0.5, y: edge[0].y + 1 } : null, treeId: edge[0]?.id ?? null, gold: gold ? { x: gold.x + 0.5, y: gold.y + 1 } : null, prod: { x: A.x + 10, y: A.y + 3 }, tc: { x: tc.x, y: tc.y }, hurt: { x: A.x + 6.5, y: A.y + 9 }, shore, walkers: ids(walkers) };
+  });
+  console.log('ambiente:', JSON.stringify(q));
+  await settle(T); await resetCounts();
+  // margem da água (primeiro: a tropa começa a andar rente à água logo na montagem)
+  if (q.shore) {
+    await look({ x: q.shore.x, y: q.shore.ly }, 2.2);
+    await run(0.35);
+    await page.waitForFunction(() => window.aoe.renderer.fx.unitFx.counts.shore >= 2, null, { timeout: 90000, polling: 10 }).catch(() => errors.push('margem: ninguém andou rente à água'));
+    await pause();
+    await shot('margem-z22');
+  } else errors.push('margem: nenhum trecho de margem achado');
+  // coleta: golpes do machado com lascas e folhas
+  if (q.tree) {
+    await look({ x: q.tree.x, y: q.tree.y - 0.3 }, 2.2);
+    await run(1); await waitTicks(50); await pause();
+    await shot('coleta-z22');
+    // a árvore quase no fim cai: folhas da copa, lascas e serragem no chão
+    await run(1);
+    await waitEffect('nodeGone', 1, 120000).catch(() => errors.push('coleta: a árvore não foi derrubada'));
+    await waitTicks(5); await pause();
+    await shot('arvore-cai-z22');
+  }
+  // fumaça de trabalho e cura
+  await look(q.prod, 1.3);
+  await run(1); await waitTicks(40); await pause();
+  await shot('fumaca-trabalho-z13');
+  await page.evaluate(() => { const s = window.aoe.session; for (const u of s.state.units.values()) if (u.owner === s.local && u.type === 'hoplite' && u.hp >= u.maxHp) u.hp = u.maxHp * 0.3; });
+  await look({ x: q.hurt.x, y: q.hurt.y - 0.3 }, 2.2);
+  // logo depois de um ganho de vida (a regeneração do núcleo é no segundo cheio: tick % 20 = 0)
+  await run(1); await waitTicks(20); await run(0.25);
+  await page.waitForFunction(() => window.aoe.session.state.tick % 20 === 5, null, { timeout: 60000, polling: 10 });
+  await pause();
+  await shot('cura-z22');
+  const c = await fxCounts();
+  console.log('ambiente fx:', JSON.stringify(c));
+  need(c.unit.strike > 0, 'coleta: nenhum golpe com lascas');
+  need(c.unit.leaf > 0, 'coleta: nenhuma folha caindo da copa');
+  need(c.amb.smoke > 0, 'fumaça de trabalho: nenhuma baforada');
+  need(c.unit.heal > 0, 'cura: nenhum brilho de cura');
+  if (q.shore) need(c.unit.shore > 0, 'margem: nenhum respingo');
+  await checkFx('ambiente');
+  // vento: mapa de deserto
+  await newGame(['hoplite'], 'desert');
+  const dz = await page.evaluate(() => {
+    const s = window.aoe.session, map = s.state.map;
+    const tc = [...s.state.buildings.values()].find((b) => b.owner === s.local && b.type === 'town_center');
+    let best = null, bs = -1;
+    for (let y = 14; y < map.h - 14; y += 3) for (let x = 22; x < map.w - 22; x += 3) {
+      let n = 0; for (let dy = -10; dy <= 10; dy += 2) for (let dx = -18; dx <= 18; dx += 3) { const t = map.terrain[(y + dy) * map.w + x + dx]; if (t === 3 || t === 4) n++; }
+      const sc = n - Math.sqrt((x - tc.x) ** 2 + (y - tc.y) ** 2) / 20;
+      if (sc > bs) { bs = sc; best = { x, y }; }
+    }
+    return best;
+  });
+  await settle(['hoplite']); await resetCounts();
+  await look(dz, 1.0);
+  await run(1); await waitTicks(80); await pause();
+  await shot('vento-deserto-z10');
+  const w = await fxCounts();
+  console.log('vento:', JSON.stringify(w.amb));
+  need(w.amb.wind > 0, `vento: nenhuma rajada de poeira no deserto (árido ${w.amb.arid})`);
+  await checkFx('vento');
 }
 
 // ------------------------------------------------------------------------------------------------------------------

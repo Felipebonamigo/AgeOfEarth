@@ -590,6 +590,7 @@ export class Renderer {
         // fumaça de dano (partícula, não assada): só pronto e danificado, dentro do orçamento do preset, e à vista
         const dmg = live && b.complete && !open ? damageLevel(hpFrac) : 0;
         if (dmg) this.emitSmoke(v.bld, b, dmg, v.fxAcc);
+        else if (live && b.complete && !open) this.fx.building(v.fxAcc, b, v.bld);   // lareira/forja de quem produz (fx/ambient.ts)
         v.bld.tint(tint, mulColor(color, tint));
         v.complete = b.complete;
         const by = this.buildingDrawY(b);
@@ -604,6 +605,7 @@ export class Renderer {
       v.root.visible = true;
       if (v.shadow) { const sh = buildingShadow(b.type)!; v.shadow.position.set(b.x * TILE + sh.dx, b.y * TILE + sh.dy); v.shadow.visible = true; }
       v.body.tint = tint;
+      if (b.complete) this.fx.building(v.fxAcc, b, null);
       seen.add(b.id);
     }
     // topologia das muralhas mudou: as vistas recalculam o bitmask no próximo quadro
@@ -652,6 +654,8 @@ export class Renderer {
         v.body.tint = bodyTint;
         v.body.alpha = u.type === 'shade' ? 0.7 : 1;
       }
+      // halo dos heróis, auras das habilidades, cura, coleta/obra e margem da água (fx/unitFx.ts), depois da vista
+      this.fx.unit(v.fxAcc, u, ix, iy, v.unit);
       if (this.bakedMode) { const parent = this.parentFor('unit', iy, flying); if (v.root.parent !== parent) parent.addChild(v.root); }
       // patente de veterano (estrelas acima da unidade; na assada, acima do topo do quadro)
       const rk = UNITS[u.type].tags.includes('military') && !UNITS[u.type].tags.includes('titan') ? rankOf(u.kills) : 0;

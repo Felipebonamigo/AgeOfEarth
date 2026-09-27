@@ -22,8 +22,8 @@ export function maskHit(m: AlphaMask, x: number, y: number): boolean {
 const masks = new WeakMap<Texture, AlphaMask | null>();
 const silhouettes = new WeakMap<Texture, Texture | null>();
 
-/** Recorte do quadro num canvas (pixels do atlas). */
-function readPixels(tex: Texture): { w: number; h: number; res: number; rgba: Uint8ClampedArray } | null {
+/** Recorte do quadro num canvas (pixels do atlas; também a estátua da petrificação, fx/stone.ts). */
+export function readPixels(tex: Texture): { w: number; h: number; res: number; rgba: Uint8ClampedArray } | null {
   if (typeof document === 'undefined') return null;
   const src = tex.source;
   const res = src?.resource as CanvasImageSource | null | undefined;

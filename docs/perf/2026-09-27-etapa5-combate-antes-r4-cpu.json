@@ -1,0 +1,90 @@
+{
+  "date": "2026-09-27",
+  "commit": "44ac4fb",
+  "label": "etapa5-combate-antes-r4",
+  "url": "http://localhost:4274/",
+  "quality": "low",
+  "frames": 150,
+  "note": "CPU por quadro (ms) em laço síncrono, resolução 0,25 (sem rasterização relevante); render = renderer.render, pixi = app.renderer.render.",
+  "scenario": {
+    "units": 260,
+    "buildings": 133,
+    "localAlive": false,
+    "warmMinutes": 20,
+    "battle": {
+      "x": 72,
+      "y": 72,
+      "a": 100,
+      "b": 100
+    }
+  },
+  "results": [
+    {
+      "baked": true,
+      "view": "zoom1",
+      "render": {
+        "avg": 0.511,
+        "med": 0.5,
+        "p95": 0.9
+      },
+      "pixi": {
+        "avg": 0.816,
+        "med": 0.7,
+        "p95": 1.2
+      },
+      "sprites": 880,
+      "fx": {
+        "peak": 79,
+        "budget": 800,
+        "dropped": 0,
+        "decals": 0,
+        "effects": 29
+      }
+    },
+    {
+      "baked": true,
+      "view": "battle",
+      "render": {
+        "avg": 0.741,
+        "med": 0.6,
+        "p95": 1
+      },
+      "pixi": {
+        "avg": 1.009,
+        "med": 0.9,
+        "p95": 1.6
+      },
+      "sprites": 832,
+      "fx": {
+        "peak": 180,
+        "budget": 800,
+        "dropped": 0,
+        "decals": 0,
+        "effects": 13
+      }
+    },
+    {
+      "baked": true,
+      "view": "fight",
+      "render": {
+        "avg": 0.759,
+        "med": 0.6,
+        "p95": 1.4
+      },
+      "pixi": {
+        "avg": 1.219,
+        "med": 1.1,
+        "p95": 2
+      },
+      "sprites": 1265,
+      "fx": {
+        "peak": 162,
+        "budget": 800,
+        "dropped": 0,
+        "decals": 0,
+        "effects": 7
+      }
+    }
+  ],
+  "errors": []
+}
