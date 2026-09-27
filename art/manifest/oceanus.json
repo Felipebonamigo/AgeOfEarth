@@ -1,0 +1,28 @@
+{
+  "id": "oceanus",
+  "kind": "unit",
+  "stage": 6,
+  "sizeClass": "titan",
+  "page": "own",
+  "scales": [1],
+  "docs": "Titã das águas primordiais (rig `titan`, docs/ART.md Apêndice G, lote titãs): tronco humano de 6,4 m sobre a cauda de serpente marinha (escamas, nadadeiras dorsal e caudal) — a iconografia dos mosaicos: garras de caranguejo na cabeça, barba e cabelo de algas —, pele verde-azulada molhada; cinto largo, talabarte e braçadeiras de time. Desliza (a passada é a onda da cauda); golpe de área: ergue-se e desaba os braços no chão; ascensão saindo da terra (`rise`). Só a 1× (VRAM). Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/oceanus.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Slither\", \"attack\": \"Slam\", \"die\": \"Death\", \"rise\": \"Rise\" }, \"teamMaterials\": [\"Belt\", \"Sash\", \"Bracers\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "titan",
+    "poses": "art/poses/titan.json",
+    "params": { "style": "oceanus", "height": 6.4, "bulk": 1.2 }
+  },
+  "size": { "tiles": [8.4, 8.8] },
+  "anchor": [0.5, 0.56],
+  "dirs": 8,
+  "mirror": true,
+  "anims": {
+    "idle": { "frames": 4, "fps": 5, "pose": "idle_oceanus" },
+    "walk": { "frames": 8, "fps": 10, "pose": "slither_oceanus" },
+    "attack": { "frames": 6, "fps": 10, "pose": "attack_oceanus" },
+    "die": { "frames": 6, "fps": 8, "pose": "die_oceanus" },
+    "rise": { "frames": 8, "fps": 5, "pose": "rise_oceanus", "dirs": [2] }
+  },
+  "team": true,
+  "shadow": true
+}

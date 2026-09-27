@@ -15,7 +15,7 @@ import { frameBox, frameIndex, isMirrored, strideAdvance, type Box, type UnitAni
 import { maskHit, textureAlpha } from '../art/alphaMask';
 
 /** Índice numérico das animações (chave sem string para a troca de pose). */
-const ANIM_INDEX: Record<UnitAnim, number> = { idle: 0, walk: 1, attack: 2, die: 3, carry: 4, gather: 5, aim: 6, run: 7, ability: 8 };
+const ANIM_INDEX: Record<UnitAnim, number> = { idle: 0, walk: 1, attack: 2, die: 3, carry: 4, gather: 5, aim: 6, run: 7, ability: 8, rise: 9 };
 /** Caixa de trabalho de updateBounds (reutilizada). */
 const BOX: Box = { x0: 0, y0: 0, x1: 0, y1: 0 };
 
@@ -101,7 +101,8 @@ export class UnitView {
     this.cur = lib.frames(art, anim, dir);
     this.curTeam = this.team ? lib.teamFrames(art, anim, dir) : null;
     this.curShadow = this.shadow ? lib.shadowFrames(art, anim, dir) : null;
-    const m = isMirrored(art.mirrored, dir);
+    // animação assada só em algumas direções (a ascensão dos titãs): a direção mais próxima, sem espelhar
+    const m = isMirrored(art.mirrored, dir) && !art.anims[anim]?.dirs;
     if (m !== this.mirrored) {
       this.mirrored = m;
       // scale.x = −1 gira em torno da âncora: o pé fica no lugar (a sombra não espelha: continua caindo para SE)

@@ -120,6 +120,27 @@ export function footSamples(m, poses, anim) {
 }
 
 /**
+ * Altura (tiles) do ponto mais alto do corpo num quadro (sem giro), fora os itens finos (`thin`: armas, correntes, fogo,
+ * cauda) — Etapa 6, lote titãs: a queda pesada termina deitada e a ascensão começa enterrada (tests/art-titans.test.ts).
+ */
+export function bodyHeight(m, poses, anim, frame) {
+  const s = m?.source, a = m?.anims?.[anim];
+  if (m?.kind !== 'unit' || s?.type !== 'param' || !UNIT_RIGS[s.rig] || !a) return null;
+  const unit = UNIT_RIGS[s.rig](THREE, materials(), s.params ?? {});
+  const thin = new Set(unit.thin ?? []);
+  unit.pose({ anim, pose: a.pose, rider: a.rider, dir: 0, frame, frames: a.frames, loop: a.loop ?? anim !== 'die' }, poses);
+  unit.group.rotation.y = 0;
+  unit.group.updateMatrixWorld(true);
+  let top = -Infinity;
+  unit.group.traverse((o) => {
+    if (!o.isMesh || !counts(o, thin)) return;
+    const pos = o.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) top = Math.max(top, tmp.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld).y);
+  });
+  return top;
+}
+
+/**
  * Medidas de um manifesto de unidade paramétrico: `{ strides: { anim: tiles }, tops: [8 px a 1×] }` ou null (glb, rig
  * sem registro). `poses` = { main, rider } já lidos (os mesmos que o bake manda à página).
  */

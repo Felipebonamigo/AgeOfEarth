@@ -30,8 +30,9 @@ export const VARIANT_BY = ['wallMask', 'gateAxis', 'ageTier', 'farmCrop'];
 /** Lado do ícone a 1× (px). */
 export const ICON_PX = 64;
 /** Rigs paramétricos conhecidos pela página de bake (scripts/bake/page/rigs/*.js, props.js, buildings.js). Etapa 6:
- *  `beast` (quadrúpede grande), `giant` (bípede grande sobre o rig humano) e `serpent` (corpo em segmentos). */
-export const RIGS = ['human', 'horse', 'siege', 'beast', 'giant', 'serpent', 'building', 'props'];
+ *  `beast` (quadrúpede grande), `giant` (bípede grande sobre o rig humano), `serpent` (corpo em segmentos) e `titan`
+ *  (lote titãs: corpo esculpido sobre os pivôs do humano, a cauda do Oceano). */
+export const RIGS = ['human', 'horse', 'siege', 'beast', 'giant', 'serpent', 'titan', 'building', 'props'];
 /**
  * Classes de tamanho das unidades (Etapa 6): teto do lado do quadro (sourceSize) a 1× que o `art:check` aceita — `unit`
  * (humanos, cavalaria, cerco: 128 px), `myth` (criaturas grandes, voadoras com a sombra longe do corpo, hidra: 192 px) e
@@ -44,11 +45,12 @@ export const UNIT_VARIANT_BY = ['heads'];
 export const UNIT_RIG_POSES = DEFAULT_POSES;
 /** Animações de unidade que o renderizador conhece (src/render/art/logic.ts `UnitAnim`): as 4 obrigatórias e as
  *  especiais — carry/gather (cidadão), aim (à distância no posto entre disparos), run (galope acima de RUN_SPEED) e
- *  ability (a habilidade Q do herói, uma vez, no tick em que é usada). */
-export const UNIT_ANIMS = ['idle', 'walk', 'attack', 'die', 'carry', 'gather', 'aim', 'run', 'ability'];
+ *  ability (a habilidade Q do herói, uma vez, no tick em que é usada). Etapa 6 (lote titãs): rise (a ascensão — sai do
+ *  chão ao nascer: o titã do Portal dos Titãs; uma vez, do tick em que a unidade surgiu). */
+export const UNIT_ANIMS = ['idle', 'walk', 'attack', 'die', 'carry', 'gather', 'aim', 'run', 'ability', 'rise'];
 export const REQUIRED_UNIT_ANIMS = ['idle', 'walk', 'attack', 'die'];
-/** Animações de unidade que tocam uma vez (sem loop), do quadro 0: golpe/disparo, morte e habilidade. */
-export const ONCE_UNIT_ANIMS = ['attack', 'die', 'ability'];
+/** Animações de unidade que tocam uma vez (sem loop), do quadro 0: golpe/disparo, morte, habilidade e ascensão. */
+export const ONCE_UNIT_ANIMS = ['attack', 'die', 'ability', 'rise'];
 
 /** Arquivo de poses de um manifesto de unidade paramétrico (o do rig, se o manifesto não trouxer) e o do cavaleiro. */
 export function posesOf(m) {
@@ -119,6 +121,7 @@ export function validateManifest(m) {
   if (m.scales !== undefined && !(Array.isArray(m.scales) && m.scales.length && m.scales.every((v) => v === 1 || v === 2) && new Set(m.scales).size === m.scales.length && m.scales.includes(1))) e.push(`${where}: scales deve ser [1] ou [1, 2] (a 1× é obrigatória)`);
   if (m.flying !== undefined && (typeof m.flying !== 'boolean' || m.kind !== 'unit')) e.push(`${where}: flying (boolean) só em unidades`);
   if (m.page !== undefined && m.page !== 'own') e.push(`${where}: page só aceita 'own'`);
+  if (m.mirror !== undefined && (typeof m.mirror !== 'boolean' || m.kind !== 'unit' || (m.mirror && m.page !== 'own'))) e.push(`${where}: mirror (boolean) só em unidades com página própria (page: 'own')`);
   for (const k of ['contactDirs', 'variantContactDirs']) if (m[k] !== undefined && !(Array.isArray(m[k]) && m[k].length && m[k].every((d) => Number.isInteger(d) && d >= 0 && d < 8))) e.push(`${where}: ${k} deve listar direções 0–7`);
   if (m.unitVariants !== undefined) {
     const v = m.unitVariants;
@@ -137,6 +140,9 @@ export function validateManifest(m) {
       if (m.kind === 'unit' && s?.type === 'param' && typeof a?.pose !== 'string') e.push(`${where}: ${name}.pose ausente`);
       if (m.kind === 'unit' && s?.type === 'param' && s.rig === 'horse' && s.params?.rider !== null && typeof a?.rider !== 'string') e.push(`${where}: ${name}.rider (pose do cavaleiro) ausente`);
       if (m.kind === 'unit' && !UNIT_ANIMS.includes(name)) e.push(`${where}: animação de unidade desconhecida ${name} (${UNIT_ANIMS.join(', ')})`);
+      // Etapa 6 (lote titãs): uma animação pode ser assada em menos direções (`dirs`: a ascensão do titã só de frente);
+      // as outras apontam para a mais próxima (animDirOf)
+      if (a?.dirs !== undefined && !(m.kind === 'unit' && Array.isArray(a.dirs) && a.dirs.length && a.dirs.every((d) => Number.isInteger(d) && d >= 0 && d < 8) && new Set(a.dirs).size === a.dirs.length)) e.push(`${where}: ${name}.dirs deve listar direções 0–7 distintas (só unidades)`);
     }
   } else if (s?.type === 'param' && Array.isArray(s.items)) {
     for (const it of s.items) {
@@ -210,10 +216,41 @@ export function scalesOf(m, wanted = [1, 2]) { return wanted.filter((s) => !m.sc
 /** Lado máximo do quadro (px a 1×) da classe de tamanho do manifesto. */
 export function sizeCeiling(m) { return SIZE_CLASSES[m?.sizeClass ?? 'unit'] ?? SIZE_CLASSES.unit; }
 
-/** Direções efetivamente assadas (com `mirror`, só S, SO, O, NO, N; as outras 3 são espelhadas no jogo). */
+/**
+ * Espelhamento efetivo de um asset: o do CLI (`--mirror`, todos) ou o do próprio manifesto (`mirror: true`, Etapa 6 — os
+ * titãs simétricos: E, SE e NE são O, SO e NO desenhados com scale.x = −1; a página leva `aoe.mirroredAssets`).
+ */
+export function mirrorOf(m, mirror = false) { return !!mirror || (m?.kind === 'unit' && m?.mirror === true); }
+/**
+ * Espelhamento do próprio manifesto (sem o `--mirror` global): espelha só a cor e o time — a sombra é assada nas 8
+ * direções, porque o sol é fixo (a sombra da direção de origem não bate com o corpo espelhado: a cauda de Oceano).
+ */
+export function ownMirror(m, mirror = false) { return !mirror && m?.kind === 'unit' && m?.mirror === true; }
+/**
+ * Direções efetivamente assadas (com `--mirror`, só S, SO, O, NO, N; as outras 3 são espelhadas no jogo). Com o
+ * espelhamento do manifesto, as 8 (a cor e o time de E, SE e NE ficam fora do atlas: `packedDirs`).
+ */
 export function bakedDirs(m, mirror = false) {
   if (m.kind !== 'unit') return [0];
-  return mirror ? [...MIRROR_BAKED] : Array.from({ length: m.dirs ?? DIRS }, (_, i) => i);
+  return mirrorOf(m, mirror) && !ownMirror(m, mirror) ? [...MIRROR_BAKED] : Array.from({ length: m.dirs ?? DIRS }, (_, i) => i);
+}
+/**
+ * Direções de um passe que entram no atlas: com o espelhamento do manifesto, cor e time só nas 5 de origem (as animações
+ * com `dirs` — nunca espelhadas — entram nas direções delas).
+ */
+export function packedDirs(m, pass, mirror = false) {
+  return ownMirror(m, mirror) && pass !== 'shadow' ? [...MIRROR_BAKED] : bakedDirs(m, mirror);
+}
+
+/**
+ * Direção assada que serve a direção `dir` numa animação com `dirs` (Etapa 6, lote titãs: a ascensão só de frente): a
+ * mais próxima na volta (empate: a de menor índice); sem `dirs`, a própria.
+ */
+export function animDirOf(a, dir) {
+  if (!a?.dirs?.length || a.dirs.includes(dir)) return dir;
+  let best = a.dirs[0], bd = 9;
+  for (const d of [...a.dirs].sort((x, y) => x - y)) { const k = Math.abs(d - dir), dd = Math.min(k, 8 - k); if (dd < bd) { bd = dd; best = d; } }
+  return best;
 }
 
 /** Grupo de atlas de um quadro expandido (ícones vão para `icons`). */
@@ -240,7 +277,7 @@ export function expandFrames(m, { mirror = false } = {}) {
       for (const v of m.variants) out.push({ name: `${m.id}/${anim}/${v}`, group: m.id, anim, variant: v, dir: 0, frame: 0, frames: 1, loop, params: a.params });
       continue;
     }
-    for (const dir of bakedDirs(m, mirror)) for (let i = 0; i < a.frames; i++) {
+    for (const dir of bakedDirs(m, mirror).filter((d) => !a.dirs || a.dirs.includes(d))) for (let i = 0; i < a.frames; i++) {
       const name = m.kind === 'unit' ? `${m.id}/${anim}/${dir}/${pad2(i)}` : a.frames > 1 ? `${m.id}/${anim}/${pad2(i)}` : `${m.id}/${anim}`;
       out.push({ name, group: m.id, anim, dir, frame: i, frames: a.frames, loop, pose: a.pose, ...(a.rider ? { rider: a.rider } : {}), params: a.params });
     }
@@ -255,13 +292,15 @@ export function expandFrames(m, { mirror = false } = {}) {
  * Animações que o JSON do atlas declara para o manifesto: `{ nome: [quadros] }`. Com `mirror`, as direções espelhadas
  * (E, SE, NE) apontam para os quadros da direção de origem (O, SO, NO) — o jogo desenha com `scale.x = -1`.
  */
-export function animationsOf(m, { mirror = false } = {}) {
+export function animationsOf(m, { mirror = false, pass = 'color' } = {}) {
   const out = {};
   if (m.kind === 'prop') return out;
+  // espelhamento do manifesto: a sombra não espelha (cada direção tem a sua)
+  const mir = mirrorOf(m, mirror) && !(pass === 'shadow' && ownMirror(m, mirror));
   for (const [anim, a] of Object.entries(m.anims ?? {})) {
     if (m.kind === 'unit') {
       for (let dir = 0; dir < (m.dirs ?? DIRS); dir++) {
-        const src = mirror && MIRROR_FROM[dir] !== undefined ? MIRROR_FROM[dir] : dir;
+        const src = a.dirs ? animDirOf(a, dir) : mir && MIRROR_FROM[dir] !== undefined ? MIRROR_FROM[dir] : dir;
         out[`${m.id}/${anim}/${dir}`] = Array.from({ length: a.frames }, (_, i) => `${m.id}/${anim}/${src}/${pad2(i)}`);
       }
     } else if (a.frames > 1) out[`${m.id}/${anim}`] = Array.from({ length: a.frames }, (_, i) => `${m.id}/${anim}/${pad2(i)}`);
@@ -274,6 +313,8 @@ export function animSummary(m) {
   const out = {};
   for (const [anim, a] of Object.entries(m.anims ?? {})) {
     out[anim] = { frames: a.frames, fps: a.fps ?? FPS, loop: a.loop ?? (m.kind === 'unit' ? !ONCE_UNIT_ANIMS.includes(anim) : true) };
+    // Etapa 6 (titãs): animação só em algumas direções — o jogo não espelha os quadros dela (a ascensão sempre de frente)
+    if (a.dirs) out[anim].dirs = [...a.dirs];
   }
   return out;
 }

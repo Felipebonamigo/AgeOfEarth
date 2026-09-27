@@ -15,7 +15,7 @@ export type LoadStatus = 'idle' | 'loading' | 'ready' | 'failed';
 export type LoadKind = 'group' | 'unit';
 
 /** Quadros e animações de um passe de um grupo (união das páginas já prontas; objeto estável: vistas guardam a referência). */
-export interface PassFrames { frames: Map<string, Texture>; anims: Map<string, Texture[]>; mirrored: Record<string, number> | null }
+export interface PassFrames { frames: Map<string, Texture>; anims: Map<string, Texture[]>; mirrored: Record<string, number> | null; /** Etapa 6: espelhamento por asset (páginas próprias com `aoe.mirroredAssets`: titãs simétricos). */ mirroredBy?: Map<string, Record<string, number>> }
 
 /** Uma página pedida (JSON + PNG de um passe). */
 interface SheetLoad { status: LoadStatus; pass: ArtPass }
@@ -190,10 +190,11 @@ export class AtlasSource {
           if (refused) throw new Error(`${a.json} recusado: ${refused}`);
           await this.upload(sheet.textureSource);
           if (this.groups.get(key) !== grp) return;   // descarregado no meio do caminho
-          const p = grp.passes[a.pass] ?? (grp.passes[a.pass] = { frames: new Map(), anims: new Map(), mirrored: null });
+          const p: PassFrames = grp.passes[a.pass] ?? (grp.passes[a.pass] = { frames: new Map(), anims: new Map(), mirrored: null });
           for (const [name, tex] of Object.entries(sheet.textures)) p.frames.set(name, tex as Texture);
           for (const [name, list] of Object.entries(sheet.animations)) p.anims.set(name, list as Texture[]);
           if (data.meta.aoe?.mirrored) p.mirrored = { ...(p.mirrored ?? {}), ...data.meta.aoe.mirrored };
+          for (const [id, mm] of Object.entries(data.meta.aoe?.mirroredAssets ?? {})) (p.mirroredBy ??= new Map()).set(id, mm);
           s.status = 'ready';
         } catch (e) {
           s.status = 'failed'; grp.error = (e as Error).message;

@@ -23,7 +23,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
 import { startServer } from './server.mjs';
-import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, animSummary, matchesOnly, GROUP_OF, PASSES, bakedDirs, ATLAS_GROUPS, ICON_PX, atlasOf, posesOf, expandUnitVariants, unitVariantId, scalesOf } from './manifest.mjs';
+import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, animSummary, matchesOnly, GROUP_OF, PASSES, bakedDirs, ATLAS_GROUPS, ICON_PX, atlasOf, posesOf, expandUnitVariants, unitVariantId, scalesOf, mirrorOf, ownMirror } from './manifest.mjs';
 import { RIG_FILES } from './page/rigs/units.js';
 import { alphaBounds, crop, packShelf, blit, sheetJson, halve, SHADOW_TEXEL } from './page/atlas.js';
 import { PX_PER_TILE, PIPELINE_VERSION, MIRROR_FROM, atlasMeta } from './page/camera.js';
@@ -100,7 +100,7 @@ const buildingModules = () => fs.readdirSync(path.join(PAGE, 'rigs')).filter((f)
 
 function inputHash(m, scale, mirror) {
   const h = crypto.createHash('sha256');
-  h.update(`pipeline:${PIPELINE_VERSION}\nscale:${scale}\nmirror:${mirror}\n`);
+  h.update(`pipeline:${PIPELINE_VERSION}\nscale:${scale}\nmirror:${mirrorOf(m, mirror)}${ownMirror(m, mirror) ? '/sombra8' : ''}\n`);
   h.update('three:' + JSON.parse(readRel('node_modules/three/package.json')).version + '\n');
   h.update('manifest:' + canon(m) + '\n');
   for (const f of sourceFiles(m)) { h.update(`file:${f}\n`); h.update(readRel(f)); }
@@ -170,7 +170,7 @@ async function bakeAsset(opts, m, scale, hash) {
   const dir = cacheDir(opts, m, scale, hash);
   const tmp = dir + '.tmp';
   fs.rmSync(tmp, { recursive: true, force: true });
-  const entry = { id: m.id, kind: m.kind, hash, scale, mirror: opts.mirror, pipeline: PIPELINE_VERSION, frames: [] };
+  const entry = { id: m.id, kind: m.kind, hash, scale, mirror: mirrorOf(m, opts.mirror), pipeline: PIPELINE_VERSION, frames: [] };
   const warnings = new Set();
   let idx = 0;
   for (const batch of batches) {
@@ -320,8 +320,11 @@ function packAll(opts, manifests, hashes) {
         for (const { m, e, groups } of entries) {
           if (pass === 'team' && !m.team) continue;
           if (pass === 'shadow' && !m.shadow) continue;
+          // espelhamento do manifesto (Etapa 6, titãs): a cor e o time de E, SE e NE ficam fora (o jogo espelha O, SO e NO),
+          // menos nas animações assadas só em algumas direções (`dirs`: nunca espelhadas)
+          const skip = ownMirror(m, opts.mirror) && pass !== 'shadow' ? (fr) => MIRROR_FROM[fr.dir] !== undefined && !m.anims?.[fr.anim]?.dirs : null;
           for (const [g, G] of groups) for (const fr of G.list) {
-            const r = fr.passes[pass]; if (!r) continue;
+            const r = fr.passes[pass]; if (!r || skip?.(fr)) continue;
             const file = path.join(e.dir, r.file);
             let trim = { x: r.x - G.x0, y: r.y - G.y0 }, img = null;
             if (texel !== 1) { const src = readPng(file); img = halve(src.data, src.w, src.h, trim.x, trim.y); trim = { x: img.x, y: img.y }; }
@@ -353,10 +356,16 @@ function packAll(opts, manifests, hashes) {
           for (const id of [...ids].sort()) {
             const m = manifests.find((x) => x.id === id);
             const present = new Set(frames.map((f) => f.name));
-            for (const [k, list] of Object.entries(animationsOf(m, { mirror: opts.mirror }))) if (list.every((n) => present.has(n))) animations[k] = list;
+            for (const [k, list] of Object.entries(animationsOf(m, { mirror: opts.mirror, pass }))) if (list.every((n) => present.has(n))) animations[k] = list;
           }
           const aoe = atlasMeta({ pass, scale, mirror: opts.mirror });
           if (opts.mirror) aoe.mirrored = MIRROR_FROM;
+          else {
+            // Etapa 6 (lote titãs): espelhamento por asset — a página (própria) diz quem ela espelha; o global fica intacto
+            // (só cor e time: a sombra desses assets tem as 8 direções e não espelha)
+            const mids = pass === 'shadow' ? [] : [...ids].filter((id) => mirrorOf(manifests.find((x) => x.id === id))).sort();
+            if (mids.length) aoe.mirroredAssets = Object.fromEntries(mids.map((id) => [id, MIRROR_FROM]));
+          }
           if (texel !== 1) aoe.texel = texel;
           const json = sheetJson({ image: `${base}.png`, size: { w: pg.w, h: pg.h }, scale: scale * texel, frames, animations, aoe });
           const png = writePng(path.join(outDir, `${base}.png`), pg.w, pg.h, data);
@@ -377,7 +386,7 @@ function packAll(opts, manifests, hashes) {
         const a = index.assets[m.id] ??= {};
         if (group === 'icons') { a.icon = true; continue; }
         const all = cacheOf.get(`${m.id}/${scale}`);
-        Object.assign(a, { kind: m.kind, group, sourceHash: e.hash, dirs: m.kind === 'unit' ? m.dirs : 1, mirror: opts.mirror, team: m.team, shadow: m.shadow, frames: all.frames.length });
+        Object.assign(a, { kind: m.kind, group, sourceHash: e.hash, dirs: m.kind === 'unit' ? m.dirs : 1, mirror: mirrorOf(m, opts.mirror), team: m.team, shadow: m.shadow, frames: all.frames.length });
         if (m.kind === 'building') {
           if (m.variants) { a.variants = m.variants; a.variantBy = m.variantBy; }
           if (m.rubble) a.rubble = true;
@@ -432,6 +441,27 @@ function cellImg(e, fr, pass, G) {
 }
 
 /**
+ * Célula espelhada como o jogo desenha uma direção espelhada (Etapa 6, `mirror` no asset): cor e time com `scale.x = −1`
+ * em torno da âncora (eixo arredondado a ½ px), cortados à largura da célula; a sombra fica como está (o sol é fixo).
+ */
+function flipCell(c, cw) {
+  const ax2 = Math.round(2 * c.anchor.x);
+  const flip = (img) => {
+    if (!img) return null;
+    const x0 = ax2 - img.x - img.w;
+    const from = Math.max(0, -x0), to = Math.min(img.w, cw - x0);
+    if (to <= from) return null;
+    const src = Buffer.from(img.b64, 'base64'), w = to - from, out = Buffer.alloc(w * img.h * 4);
+    for (let y = 0; y < img.h; y++) for (let x = from; x < to; x++) {
+      const s = (y * img.w + (img.w - 1 - x)) * 4;
+      src.copy(out, (y * w + x - from) * 4, s, s + 4);
+    }
+    return { ...img, b64: out.toString('base64'), w, x: x0 + from };
+  };
+  return { ...c, color: flip(c.color), team: flip(c.team), anchor: { x: ax2 / 2, y: c.anchor.y } };
+}
+
+/**
  * Célula dos escombros da pegada de um edifício (`rubble/<w>x<h>`), com a âncora no mesmo ponto da âncora do edifício na
  * célula (`anc`, px na caixa de união do edifício). null sem manifesto/cache de escombros.
  */
@@ -482,12 +512,36 @@ async function contactSheets(opts, manifests, hashes, all = manifests) {
       // linha = direção; colunas = todos os quadros de todas as animações, na ordem do manifesto
       const G = groups.get(m.id);
       sheet.cellW = Math.max(sheet.cellW, G.w); sheet.cellH = Math.max(sheet.cellH, G.h);
-      sheet.title = `${m.id} — ${Object.entries(m.anims).map(([a, d]) => `${a} ${d.frames}`).join(' · ')} × 8 direções (linhas: E, SE, S, SO, O, NO, N, NE) · 1× (32 px/tile) ampliado 2×`;
       const dirNames = ['E', 'SE', 'S', 'SO', 'O', 'NO', 'N', 'NE'];
-      for (const d of bakedDirs(m, opts.mirror).filter((d) => !m.contactDirs || m.contactDirs.includes(d))) {
+      const mirrored = mirrorOf(m, opts.mirror);
+      if (m.sizeClass === 'titan') sheet.zoom = 1;   // titãs: já têm ~260 px a 1× — a folha fica em tamanho de jogo
+      // Etapa 6 (titãs): animação só em algumas direções (`dirs`) e asset espelhado dizem isso no título
+      const only = (d) => (d.dirs ? ` só ${d.dirs.map((x) => dirNames[x]).join('/')}` : '');
+      sheet.title = `${m.id} — ${Object.entries(m.anims).map(([a, d]) => `${a} ${d.frames}${only(d)}`).join(' · ')} × 8 direções${mirrored ? ` (E, SE e NE: corpo e time de O, SO e NO espelhados em torno da âncora, como no jogo; a sombra ${ownMirror(m, opts.mirror) ? 'é a assada da própria direção' : 'é a da origem'})` : ''} (linhas: E, SE, S, SO, O, NO, N, NE) · 1× (32 px/tile)${sheet.zoom > 1 ? ` ampliado ${sheet.zoom}×` : ''}`;
+      const rowOf = new Map();
+      const want = (d) => !m.contactDirs || m.contactDirs.includes(d);
+      for (const d of bakedDirs(m, opts.mirror).filter(want)) {
         const cells = [];
         for (const anim of Object.keys(m.anims)) for (const fr of e.frames.filter((f) => f.anim === anim && f.dir === d)) cells.push({ ...cell(fr), label: fr.frame === 0 ? anim : '' });
-        sheet.rows.push({ label: `${m.variantOf ? `${m.unitVariants?.by ?? 'var'} ${m.variantValue} · ` : ''}dir ${d} (${dirNames[d]})`, cells });
+        rowOf.set(d, { label: `${m.variantOf ? `${m.unitVariants?.by ?? 'var'} ${m.variantValue} · ` : ''}dir ${d} (${dirNames[d]})`, cells });
+      }
+      if (mirrored) for (const [d, src] of Object.entries(MIRROR_FROM)) {
+        const base = rowOf.get(src), own = rowOf.get(+d);   // `own`: espelhamento do manifesto (a direção foi assada pela sombra)
+        if (!want(+d) || !base) continue;
+        const cells = base.cells.map((c, i) => (own ? { ...flipCell(c, G.w), shadow: own.cells[i]?.shadow ?? null } : flipCell(c, G.w)));
+        rowOf.set(+d, { label: `dir ${d} (${dirNames[d]}) = ${dirNames[src]} espelhada`, cells });
+      }
+      for (const d of [...rowOf.keys()].sort((a, b) => a - b)) sheet.rows.push(rowOf.get(d));
+      if (m.sizeClass === 'titan') {
+        // escala: o hoplita parado S com o pé na mesma âncora, ao lado do titã parado S
+        const hm = all.find((x) => x.id === 'hoplite'), he = hm && loadCache(opts, hm, 1, hashes.get('hoplite/1'));
+        const hf = he?.frames.find((f) => f.anim === 'idle' && f.dir === 2 && f.frame === 0);
+        const tf = e.frames.find((f) => f.anim === 'idle' && f.dir === 2 && f.frame === 0);
+        if (hf && tf) {
+          const t = cell(tf), HG = { x0: hf.box.ax - t.anchor.x, y0: hf.box.ay - t.anchor.y };
+          const hop = { color: cellImg(he, hf, 'color', HG), team: cellImg(he, hf, 'team', HG), shadow: cellImg(he, hf, 'shadow', HG), anchor: { ...t.anchor }, label: 'hoplita (1,8 m)' };
+          sheet.rows.push({ label: 'escala (parado S)', cells: [hop, { ...t, label: `${m.id} (${m.source?.params?.height ?? '?'} m)` }] });
+        }
       }
     } else if (m.kind === 'building') {
       const G = groups.get(m.id);

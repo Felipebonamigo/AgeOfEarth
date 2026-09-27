@@ -34,7 +34,7 @@ export interface UnitArt {
   /** Topo do corpo no parado POR DIREÇÃO (px de mundo acima do pé, sem armas finas; índice `tops`, medido no rig pelo
    *  bake) — régua da barra de vida (a cabeça do cavalo em N, as ameias da helépole nas diagonais); null = só `top`. */
   tops: readonly number[] | null;
-  /** Direções espelhadas (--mirror) ou null. */
+  /** Direções espelhadas (--mirror, ou só deste asset: `mirror` no manifesto — Etapa 6) ou null. */
   mirrored: Record<string, number> | null;
   /** Voadora (Etapa 6: Pégaso): assada no ar; a vista desenha a sombra mais fraca e fica acima das faixas do chão. */
   flying: boolean;
@@ -254,7 +254,7 @@ export class ArtLibrary {
     const team = a.team ? this.atlas.pass(a.group, scale, 'team') : null, shadow = a.shadow ? this.atlas.pass(a.group, scale, 'shadow') : null;
     const art: UnitArt = {
       id, scale, anchor: { ...size.anchor }, size: { w: size.sourceSize.w / res, h: size.sourceSize.h / res }, anims: a.anims,
-      top: top || size.anchor.y * size.sourceSize.h / res, tops, mirrored: color.mirrored, flying: !!a.flying,
+      top: top || size.anchor.y * size.sourceSize.h / res, tops, mirrored: color.mirroredBy?.get(id) ?? color.mirrored, flying: !!a.flying,
       team: !!team, shadow: !!shadow,
       has: (anim: string) => !!anims[anim],
       passes: { color, team, shadow },

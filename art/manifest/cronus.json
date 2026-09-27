@@ -1,0 +1,27 @@
+{
+  "id": "cronus",
+  "kind": "unit",
+  "stage": 6,
+  "sizeClass": "titan",
+  "page": "own",
+  "scales": [1],
+  "docs": "Rei dos Titãs (rig `titan`, docs/ART.md Apêndice G, lote titãs): 7,2 m de pele de pedra gasta pelo tempo (granito com rachaduras, líquen e musgo), cabelo e barba longos cor de cinza, olhos de âmbar, coroa de ouro velho e a foice de adamante (harpe) na direita; manto e tanga de time. Golpe de área: a ceifada até o chão; cai de costas; ascensão saindo da terra (`rise`). Só a 1× (VRAM). Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/cronus.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Walk\", \"attack\": \"Reap\", \"die\": \"Death\", \"rise\": \"Rise\" }, \"teamMaterials\": [\"Mantle\", \"Loincloth\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "titan",
+    "poses": "art/poses/titan.json",
+    "params": { "style": "cronus", "height": 7.2, "bulk": 1.16 }
+  },
+  "size": { "tiles": [9, 9] },
+  "anchor": [0.46, 0.58],
+  "dirs": 8,
+  "anims": {
+    "idle": { "frames": 4, "fps": 5, "pose": "idle_cronus" },
+    "walk": { "frames": 8, "fps": 10, "pose": "walk_cronus" },
+    "attack": { "frames": 6, "fps": 10, "pose": "attack_cronus" },
+    "die": { "frames": 6, "fps": 8, "pose": "die_cronus" },
+    "rise": { "frames": 8, "fps": 5, "pose": "rise_cronus", "dirs": [2] }
+  },
+  "team": true,
+  "shadow": true
+}

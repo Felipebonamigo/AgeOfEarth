@@ -11,8 +11,13 @@
 //  4. voo: o Pégaso parado no ar e voando, com a sombra no chão (a vista desenha a sombra mais fraca: translúcida);
 //  5. desfile: as criaturas paradas ao lado do hoplita e do hetairo, diante do templo (zoom 1 e 2,2; o 2× no preset alto;
 //     e a mesma fila com a arte desligada: o "antes").
+//  6. titãs (lote titãs): Prometeu sai do Portal dos Titãs pelo caminho do núcleo (o portal pronto liberta o titã do deus)
+//     e Oceano e Cronos nascem com o efeito `titanRise` — a ascensão (`rise`) toca desde o nascimento, uma vez; depois uma
+//     roda nas 8 direções, a batalha contra hoplitas (golpe de área virado para o alvo), a queda assada e o desfile ao lado
+//     do hoplita (zoom 1 e 2,2, a VRAM de textura antes/depois dos titãs e o "antes" procedural). Os titãs só têm 1×.
 // Capturas em <out>/ (padrão docs/art/): <prefixo>-{roda-z10,batalha-z10,batalha-z22,queda-z22,hidra-z22,voo-z22,
-// desfile-z10,desfile-z22,desfile-z22-2x,procedural-z10}.png. Falha com erro de página, criatura procedural, tipo que não
+// desfile-z10,desfile-z22,desfile-z22-2x,procedural-z10}.png e <prefixo>-titas-{ascensao-z10,ascensao-z22,roda-z10,
+// batalha-z10,queda-z10,desfile-z10,desfile-z22,procedural-z10}.png. Falha com erro de página, criatura procedural, tipo que não
 // anda nas 8 direções, direção incoerente, leão sem galope, Pégaso sem voo/sombra no chão, criatura sem ataque, golpes
 // virados, queda não assada, hidra com o asset errado para as cabeças ou que não troca ao ganhar uma cabeça.
 // Tudo medido no TEMPO DE JOGO (tick). Exige `npm run preview` (ou a URL). Uso: node scripts/artmyth.mjs [url] [--out docs/art] [--prefix etapa6]
@@ -347,6 +352,185 @@ const statusHigh = await page.evaluate(() => ({ ...window.aoe.renderer.art.statu
 console.log('arte (médio):', JSON.stringify(statusMedium));
 console.log('arte (alto):', JSON.stringify(statusHigh));
 for (const t of MYTH) { if (!statusMedium.ready1.split(',').includes(t)) errors.push(`${t}: páginas 1× não prontas`); if (!statusHigh.ready2.split(',').includes(t)) errors.push(`${t}: páginas 2× não prontas`); }
+
+// ------------------------------------------------------------------------------------------------------------------
+// 6. titãs (lote titãs): ascensão, roda, batalha, queda e desfile
+const TITANS = ['prometheus', 'oceanus', 'cronus'];
+await page.evaluate(() => { window.aoe.settings.quality = 'medium'; window.aoe.applyQuality(); });
+/** Páginas dos titãs (só 1×) prontas antes de medir: no jogo o Portal dos Titãs já as pede (warmTitans do renderizador). */
+const warmTitans = () => page.evaluate((t) => { window.aoe.renderer.art.prewarmUnits(t); return window.aoe.renderer.art.ready(); }, TITANS);
+// 6a. ascensão: o Portal de Prometeu (Zeus) pronto → o núcleo liberta o titã com o `titanRise`; Oceano e Cronos nascem
+// com o mesmo efeito no pé (como o núcleo faz), no mesmo tick. Antes, a VRAM de textura sem e com as páginas dos titãs
+// (preset Médio; as páginas ficam na sessão, então a medida é aqui, na primeira vez que elas sobem)
+await newGame();
+await settle();
+const texBefore = await page.evaluate(() => window.aoe.perf.snapshot().textureMB);
+await warmTitans();
+const texAfter = await page.evaluate(() => window.aoe.perf.snapshot().textureMB);
+console.log(`titãs — VRAM de textura (preset Médio, com mipmaps): ${texBefore} MB → ${texAfter} MB com as páginas dos 3 (+${(texAfter - texBefore).toFixed(1)} MB)`);
+const rise = await page.evaluate(() => {
+  const s = window.aoe.session, st = s.state, me = s.local, sp = window.aoe.debugSpawn;
+  const a = window.__area(34, 12, 18);
+  const gate = window.aoe.debugBuild(me, 'titan_gate', a.x + 2, a.y + 3, 1);
+  for (const [t, dx] of [['oceanus', 17], ['cronus', 27]]) {
+    const u = window.__put(sp(me, t, a.x + dx, a.y + 6), a.x + dx, a.y + 6);
+    if (u) { u.stance = 'passive'; st.effects.push({ type: 'titanRise', x: u.x, y: u.y, ttl: 60, total: 60 }); }
+  }
+  window.aoe.renderer.revealAll = true;
+  return { center: { x: a.x + 17, y: a.y + 6 }, cronus: { x: a.x + 27, y: a.y + 5 }, gate: !!gate, tick: st.tick };
+});
+console.log('titãs — ascensão:', JSON.stringify(rise));
+if (!rise.gate) errors.push('titãs: o Portal dos Titãs não foi colocado');
+await page.evaluate((TITANS) => {
+  // a animação de cada titã por tick desde o nascimento (a ascensão dura 8 quadros a 5 fps = 32 ticks)
+  const R = window.aoe.renderer, s = window.aoe.session, out = window.__rise = {};
+  window.__sampleStop = false;
+  let last = -1;
+  const f = () => {
+    if (window.__sampleStop) return;
+    requestAnimationFrame(f);
+    if (s.state.tick === last) return;
+    last = s.state.tick;
+    for (const u of s.state.units.values()) {
+      if (!TITANS.includes(u.type)) continue;
+      if (u.stance !== 'passive') u.stance = 'passive';   // (o titã do portal nasce agressivo: fica parado para a cena)
+      const v = R.views.get(u.id), o = out[u.type] ??= { born: u.spawnTick, seq: [], procedural: 0 };
+      if (!v) continue;   // (a vista nasce no quadro seguinte ao tick)
+      if (!v.unit) { o.procedural++; continue; }
+      o.seq.push([s.state.tick - u.spawnTick, v.unit.anim]);
+    }
+  };
+  f();
+  s.paused = false; s.speed = 1;
+}, TITANS);
+// (o relógio das animações é o do jogo: pausado no meio da ascensão, a captura sai no quadro certo)
+await look(rise.center, 1.0);
+await waitTicks(12);
+await page.evaluate(() => { window.aoe.session.paused = true; });
+await shot('titas-ascensao-z10', 600);
+await look(rise.cronus, 2.2);
+await shot('titas-ascensao-z22', 600);
+await look(rise.center, 1.0);   // os três à vista de novo (a vista fora da tela não é atualizada)
+await page.evaluate(() => { window.aoe.session.paused = false; });
+await waitTicks(54);
+const riseSt = await page.evaluate(() => { window.__sampleStop = true; window.aoe.session.paused = true; return window.__rise; });
+for (const t of TITANS) {
+  const o = riseSt[t];
+  if (!o) { errors.push(`${t}: não nasceu na cena da ascensão`); continue; }
+  const during = o.seq.filter(([d]) => d >= 0 && d < 30), after = o.seq.filter(([d]) => d >= 34);
+  const r = during.filter(([, a]) => a === 'rise').length;
+  console.log(`titãs — ${t}: nasceu no tick ${o.born}, ascensão em ${r}/${during.length} amostras dos 30 primeiros ticks, depois ${[...new Set(after.map(([, a]) => a))].join(',')}, procedural ${o.procedural}`);
+  if (o.procedural) errors.push(`${t}: procedural em ${o.procedural} amostras (páginas não prontas)`);
+  if (!during.length || r < 0.9 * during.length) errors.push(`${t}: a ascensão não tocou desde o nascimento (${r}/${during.length})`);
+  if (!after.length || after.some(([, a]) => a === 'rise')) errors.push(`${t}: a ascensão não terminou (ou repetiu) depois de 1,6 s`);
+}
+
+// 6b. roda: os 3 titãs nas 8 direções (Oceano desliza), já em pé (sem ascensão)
+await newGame();
+await settle();
+await warmTitans();
+const rodaT = await page.evaluate((TITANS) => {
+  const s = window.aoe.session, me = s.local, sp = window.aoe.debugSpawn, ids = window.__ids;
+  const a = window.__area(36, 12, 18);
+  window.__rodas = TITANS.map((t, i) => {
+    const c = { x: a.x + 6 + i * 12, y: a.y + 6 };
+    const u = window.__put(sp(me, t, c.x, c.y), c.x, c.y);
+    if (u) { u.spawnTick = 0; s.issue({ type: 'stance', player: me, ids: [u.id], stance: 'passive' }); }
+    return { c: { x: c.x - 0.5, y: c.y - 0.5 }, ids: ids([u]), r: 4 };
+  });
+  window.aoe.renderer.revealAll = true;
+  return { center: { x: a.x + 18, y: a.y + 6 } };
+}, TITANS);
+await startSampler(TITANS);
+await startWalking(80);
+await look(rodaT.center, 1.0);
+await waitTicks(120);
+await shot('titas-roda-z10', 0);
+await page.evaluate((T) => { window.__rodaTypes = T; }, TITANS);
+await waitUntil(() => { const st = window.__stats; return window.__rodaTypes.every((t) => (st.dirs[t] ?? []).length >= 8); }, 18 * 80);
+const st6 = await stopSampler();
+await page.evaluate(() => { window.__walkStop = true; });
+console.log('titãs — roda:', JSON.stringify(Object.fromEntries(Object.entries(st6.dirs).map(([t, d]) => [t, d.length]))), 'animações:', JSON.stringify(st6.byType), `dirOk=${st6.dirOk} dirBad=${st6.dirBad}`);
+checkDirs(st6, 'titãs — roda');
+if (Object.keys(st6.procedural).length) errors.push(`titãs — roda procedural: ${JSON.stringify(st6.procedural)}`);
+for (const t of TITANS) { const d = st6.dirs[t] ?? []; if (d.length < 8) errors.push(`${t}: andou em ${d.length} das 8 direções (${d.sort().join(',')})`); }
+
+// 6c. batalha: os titãs contra hoplitas (golpe de área virado para o alvo) e, no fim, a queda assada de cada um
+await newGame();
+await settle();
+await warmTitans();
+const battleT = await page.evaluate((TITANS) => {
+  const s = window.aoe.session, me = s.local, foe = (me + 1) % s.state.players.length, sp = window.aoe.debugSpawn, ids = window.__ids, tough = window.__tough;
+  const a = window.__area(30, 14, 18), cx = a.x + 15, cy = a.y + 7;
+  const A = TITANS.map((t, i) => { const u = tough(sp(me, t, cx - 5, cy - 4 + i * 4), 20000); if (u) u.spawnTick = 0; return u; });
+  const B = [];
+  for (let i = 0; i < 12; i++) B.push(tough(sp(foe, 'hoplite', cx + 3 + (i % 3) * 0.9, cy - 5 + i * 0.9), 3000));
+  s.issue({ type: 'attackMove', player: me, ids: ids(A), x: cx + 8, y: cy });
+  s.scheduler.issue({ type: 'attackMove', player: foe, ids: ids(B), x: cx - 8, y: cy });
+  window.__armyA = ids(A); window.__armyB = ids(B);
+  window.aoe.renderer.revealAll = true;
+  return { center: { x: cx, y: cy } };
+}, TITANS);
+await page.evaluate(() => { window.aoe.session.paused = false; window.aoe.session.speed = 1; });
+await startSampler([...TITANS, 'hoplite']);
+await waitTicks(70);
+await look(battleT.center, 1.0);
+await shot('titas-batalha-z10', 300);
+await page.evaluate((T) => { window.__fighters = T; }, TITANS);
+await waitUntil(() => window.__fighters.every((t) => window.__stats.byType[t]?.attack), 400);
+const st7 = await stopSampler();
+console.log('titãs — batalha:', JSON.stringify(st7.byType), `golpes ok=${st7.hitOk} fora=${st7.hitOff}`);
+if (Object.keys(st7.procedural).length) errors.push(`titãs — batalha procedural: ${JSON.stringify(st7.procedural)}`);
+for (const t of TITANS) if (!st7.byType[t]?.attack) errors.push(`${t}: nenhuma amostra atacando (${JSON.stringify(st7.byType[t] ?? {})})`);
+{ const n = st7.hitOk + st7.hitOff; if (!n) errors.push('titãs — batalha: nenhum golpe com alvo'); else if (st7.hitOff > 0.1 * n) errors.push(`titãs — batalha: ${st7.hitOff} de ${n} golpes a 90°+ do alvo (${JSON.stringify(st7.hitSamples)})`); }
+await page.evaluate(() => {
+  const s = window.aoe.session, hunters = window.__armyB.map((id) => s.state.units.get(id)).filter(Boolean);
+  window.__armyA.forEach((id, k) => {
+    const u = s.state.units.get(id);
+    if (!u) return;
+    u.hp = 1;
+    const by = hunters[k % Math.max(1, hunters.length)];
+    if (by) s.scheduler.issue({ type: 'attack', player: by.owner, ids: [by.id], targetId: u.id });
+  });
+});
+await page.evaluate((A) => { window.__watchAll = (o) => A.every((t) => o[t]); }, TITANS);
+await look(battleT.center, 1.0);
+const fallsTP = watchFrames(TITANS, 300, ((R) => { const out = []; for (const uv of R.fx.dyingViews()) if (uv.anim === 'die') out.push([uv.type]); return out; }).toString());
+await page.waitForTimeout(1200);
+await shot('titas-queda-z10', 0);
+const fallsT = await fallsTP;
+await page.evaluate(() => { window.__watchAll = null; });
+console.log('titãs — quedas assadas:', JSON.stringify(fallsT));
+for (const t of TITANS) if (!fallsT[t]) errors.push(`${t}: a morte não saiu assada`);
+
+// 6d. desfile: o hoplita e os 3 titãs parados
+await newGame();
+await settle();
+const LINE_T = ['hoplite', 'prometheus', 'cronus', 'oceanus'];
+const paradeT = await page.evaluate((LINE_T) => {
+  const s = window.aoe.session, me = s.local, sp = window.aoe.debugSpawn, ids = window.__ids;
+  const a = window.__area(24, 10, 18), cx = a.x + 12;
+  const out = LINE_T.map((type, i) => { const x = cx + (i - 1.5) * 5.5, u = window.__put(sp(me, type, x, a.y + 7), x, a.y + 7); if (u) u.spawnTick = 0; return u; });
+  s.issue({ type: 'stance', player: me, ids: ids(out), stance: 'passive' });
+  window.aoe.renderer.revealAll = true;
+  return { center: { x: cx, y: a.y + 5 }, n: ids(out).length };
+}, LINE_T);
+await warmTitans();
+await page.evaluate(() => { window.aoe.session.paused = false; });
+await waitTicks(10);
+await page.evaluate(() => { window.aoe.session.paused = true; });
+await look(paradeT.center, 1.0);
+await shot('titas-desfile-z10');
+await look({ x: paradeT.center.x - 5.5, y: paradeT.center.y }, 2.2);
+await shot('titas-desfile-z22');
+const procT = await procedural(LINE_T);
+if (Object.keys(procT).length) errors.push(`titãs — desfile procedural: ${JSON.stringify(procT)}`);
+const readyT = await page.evaluate(() => window.aoe.renderer.art.unitsReady(1));
+for (const t of TITANS) if (!readyT.includes(t)) errors.push(`${t}: páginas 1× não prontas`);
+await page.evaluate(() => { window.aoe.settings.bakedArt = false; window.aoe.applyQuality(); });
+await look(paradeT.center, 1.0);
+await shot('titas-procedural-z10');
+await page.evaluate(() => { window.aoe.settings.bakedArt = true; window.aoe.applyQuality(); });
 console.log('errors:', errors.length ? errors.join('\n') : 'none');
 await browser.close();
 if (errors.length) process.exit(1);

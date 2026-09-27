@@ -15,7 +15,7 @@ import {
 import { BUILDINGS, UNITS } from '../src/core/data';
 import { DT } from '../src/core/constants';
 import { PNG } from 'pngjs';
-import { loadManifests } from '../scripts/bake/manifest.mjs';
+import { loadManifests, animationsOf } from '../scripts/bake/manifest.mjs';
 import { maskHit, ALPHA_HIT } from '../src/render/art/alphaMask';
 import { PARTICLE_BUDGET } from '../src/render/quality';
 import type { ArtManifest, SheetJson } from '../src/render/art/types';
@@ -413,8 +413,10 @@ describe.skipIf(!hasArt)('artefatos do bake: toda chave pedida pelo renderizador
       expect(a?.kind, m.id).toBe('unit');
       expect(a.team && a.shadow, m.id).toBe(true);
       expect(Object.keys(a.anims!).sort(), m.id).toEqual(Object.keys(m.anims!).sort());
-      expect(Object.keys(a.atlases).sort(), m.id).toEqual(['1', '2']);
-      for (const s of scales) {
+      // (Etapa 6: os titãs só a 1× — `scales`)
+      const own = scales.filter((x) => (m.scales ?? [1, 2]).includes(x as 1 | 2));
+      expect(Object.keys(a.atlases).sort(), m.id).toEqual(own.map(String));
+      for (const s of own) {
         for (const pass of ['color', 'team', 'shadow']) {
           const p = passOf(a.group, s, pass);
           for (const [anim, info] of Object.entries(a.anims!)) for (let d = 0; d < 8; d++) {
@@ -422,7 +424,9 @@ describe.skipIf(!hasArt)('artefatos do bake: toda chave pedida pelo renderizador
             // a máscara de time pode faltar num quadro em que a parte de time fica toda atrás do corpo (art:check avisa)
             if (pass === 'team' && !list) continue;
             expect(list, `${m.id}/${anim}/${d} ${pass} ${s}x`).toHaveLength(info.frames);
-            for (let i = 0; i < info.frames; i++) expect(p.frames.has(unitFrameName(m.id, anim, d, i)), `${unitFrameName(m.id, anim, d, i)} ${pass} ${s}x`).toBe(true);
+            // (Etapa 6: animação em menos direções — a ascensão do titã — ou asset espelhado: os quadros que o manifesto aponta)
+            const names = animationsOf(m)[unitAnimName(m.id, anim, d)];
+            for (let i = 0; i < info.frames; i++) expect(p.frames.has(names[i]), `${names[i]} ${pass} ${s}x`).toBe(true);
           }
         }
         // o tipo inteiro numa página por passe (o carregamento por tipo pede só essas)

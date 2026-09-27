@@ -3,7 +3,7 @@
 import { Application, Container, Graphics, Sprite, Texture, Text, TextStyle } from 'pixi.js';
 import { effectiveResolution, resolveQuality, type Quality } from './quality';
 import { TILE, TICK_RATE, DT, PLAYER_COLORS, KOTH_RADIUS, rankOf } from '../core/constants';
-import { ABILITIES, BUILDINGS, UNITS } from '../core/data';
+import { ABILITIES, BUILDINGS, MAJOR_GODS, UNITS } from '../core/data';
 import type { Building, GameState, Unit, VisualEffect } from '../core/types';
 import { Camera } from './camera';
 import { TextureCache, darken } from './textures';
@@ -24,7 +24,7 @@ import { deathView } from './fx/handlers/death';
 import { DayCycle } from './fx/light';
 import { bronzeTint } from './fx/handlers/bronze';
 import {
-  abilityUseTick, animDuration, buildingState, chooseAnim, corpseAlpha, CORPSE_TTL, MAX_CORPSES, dirWithHysteresis, freshHit, isWalking, isRunning, isMoveAnim, warmUnitTypes, unitLook, mulColor, type UnitAnim, type AnimInput,
+  abilityUseTick, animDuration, buildingState, chooseAnim, riseElapsed, corpseAlpha, CORPSE_TTL, MAX_CORPSES, dirWithHysteresis, freshHit, isWalking, isRunning, isMoveAnim, warmUnitTypes, unitLook, mulColor, type UnitAnim, type AnimInput,
   WALL_LINK_TYPES, wallMask, buildingVariant, ageTier, farmCrop, damageLevel, gateNear, smokeRate, rubbleAlpha, GLOW_ANIM, glowVariant,
   ghostTint, placementMasks, wallFlagAt, WALL_FLAG_PROBE,
 } from './art/logic';
@@ -113,6 +113,8 @@ export class Renderer {
   private unitGenSeen = -1;
   /** Idade do jogador local cujos tipos de unidade já foram pré-carregados (-1 = pedir no próximo quadro). */
   private warmAge = -1;
+  /** Contador de quadros da conferência dos portais dos titãs (warmTitans). */
+  private titanWarmFrame = -1;
   /** Cadáveres assados (docs/ART.md §1.9): a vista da queda continua no chão depois do efeito 'death', no último quadro
    *  de `die`, até CORPSE_TTL s da morte (relógio de jogo); no máximo MAX_CORPSES (sai o mais velho). */
   private corpses: { uv: UnitView; born: number }[] = [];
@@ -141,7 +143,7 @@ export class Renderer {
   private tmpVec = { x: 0, y: 0 };
   /** Ponto do alvo de quem está no posto (engagedTarget). */
   private tgtPt = { x: 0, y: 0 };
-  private animIn: AnimInput = { moving: false, attacking: false, carrying: false, working: false, engaged: false, running: false, ability: false };
+  private animIn: AnimInput = { moving: false, attacking: false, carrying: false, working: false, engaged: false, running: false, ability: false, rising: false };
   /** Relógio (s) das animações assadas: tempo de JOGO, (tick + alpha)/TICK_RATE, nunca voltando para trás. Congela na
    *  pausa e na espera do lockstep (ninguém anda no lugar) e acelera em 2×/3× junto com o movimento e os efeitos (a queda
    *  cabe no efeito 'death' em qualquer velocidade). O relógio real (`time`) segue para água, balanço procedural e tremor. */
@@ -387,12 +389,25 @@ export class Renderer {
    * unidade que ele pode treinar até ali e dos que já estão no mapa (sem esperar: sobem para a GPU uma por quadro).
    */
   private warmUnits(state: GameState, local: number): void {
+    this.warmTitans(state);
     const age = state.players[local]?.age ?? 0;
     if (age === this.warmAge) return;
     this.warmAge = age;
     const present = new Set<string>();
     for (const u of state.units.values()) present.add(u.type);
     this.art.prewarmUnits(warmUnitTypes(UNITS, age, present));
+  }
+  /**
+   * Titãs (Etapa 6, lote titãs): as páginas do titã do deus de quem ergue um Portal dos Titãs sobem já na obra — ele
+   * nasce do portal saindo do chão (`rise`), e a primeira vista não pode sair procedural. Confere a cada 30 quadros.
+   */
+  private warmTitans(state: GameState): void {
+    if ((this.titanWarmFrame = (this.titanWarmFrame + 1) % 30) !== 0) return;
+    for (const b of state.buildings.values()) {
+      if (!BUILDINGS[b.type]?.titanGate) continue;
+      const titan = MAJOR_GODS[state.players[b.owner]?.god ?? '']?.titan;
+      if (titan) this.art.prewarmUnits([titan]);
+    }
   }
   /**
    * Chegaram as páginas de algum tipo de unidade: as vistas procedurais dos tipos que agora têm arte (e as assadas numa
@@ -811,7 +826,12 @@ export class Renderer {
       abFresh = freshHit(used, uv.lastAbilityTick, state.tick, Math.ceil(animDuration(abi.frames, abi.fps) * TICK_RATE));
       uv.lastAbilityTick = used;
     }
+    // ascensão (Etapa 6, lote titãs): quem tem `rise` no atlas (o titã do Portal dos Titãs) sai do chão ao nascer, por
+    // cima de tudo, contada do tick em que surgiu (a vista que aparece no meio pega do quadro certo)
+    const rs = art.anims.rise;
+    const risen = rs ? riseElapsed(u.spawnTick, state.tick, Math.ceil(animDuration(rs.frames, rs.fps) * TICK_RATE), TICK_RATE) : -1;
     const ai = this.animIn;
+    ai.rising = risen >= 0;
     ai.ability = abFresh || (uv.anim === 'ability' && !uv.finished(clock));
     ai.moving = walking; ai.attacking = attacking; ai.carrying = u.carry === 'food' && u.carryAmt >= 1;
     ai.working = posted && (u.state === 'gather' || u.state === 'build');
@@ -821,7 +841,9 @@ export class Renderer {
     // na Trégua ninguém golpeia: quem está no posto relaxa a guarda (armas baixadas, a pose parada) até ela acabar
     ai.engaged = posted && u.state === 'attack' && state.tick >= state.ceasefireUntil;
     const anim: UnitAnim = chooseAnim(ai, art.has);
-    uv.pose(anim, dir, clock, (hit && anim === 'attack') || (abFresh && anim === 'ability'));
+    const riseStart = anim === 'rise' && uv.anim !== 'rise';
+    uv.pose(anim, dir, clock, (hit && anim === 'attack') || (abFresh && anim === 'ability') || riseStart);
+    if (riseStart) uv.animStart = clock - risen;
     uv.place(ix * TILE, iy * TILE);   // antes do tick: o andar avança o quadro pela distância andada neste quadro
     uv.tick(clock, (u.id % 13) * 0.077);
     uv.tint(bodyTint, mulColor(color, bodyTint));

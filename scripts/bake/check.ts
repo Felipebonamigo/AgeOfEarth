@@ -178,6 +178,14 @@ export function runCheck(root: string): CheckResult {
           if (!got) { errors.push(`${m.id} ${scale}×: animação ${k} ausente no JSON`); continue; }
           if (got.join() !== list.join()) errors.push(`${m.id} ${scale}×: animação ${k} com quadros diferentes do manifesto`);
         }
+        // Etapa 6 (lote titãs): espelhamento do manifesto — só a cor e o time espelham; a sombra tem as 8 direções assadas
+        if (m.mirror === true && m.shadow && !(index.aoe as { mirror?: boolean } | undefined)?.mirror) {
+          for (const [k, list] of Object.entries(animationsOf(m, { pass: 'shadow' }))) {
+            if ((shadow.anims[k] ?? []).join() !== list.join()) errors.push(`${m.id} ${scale}×: sombra ${k} com quadros diferentes do manifesto (8 direções assadas)`);
+            const miss = list.filter((n) => !shadow.frames.has(n));
+            if (miss.length) errors.push(`${m.id} ${scale}×: ${miss.length} quadros de sombra ausentes (ex.: ${miss.slice(0, 3).join(', ')})`);
+          }
+        }
         for (const [a, d] of Object.entries(m.anims ?? {})) {
           for (let dir = 0; dir < (m.dirs ?? DIRS); dir++) if (!color.anims[`${m.id}/${a}/${dir}`]) errors.push(`${m.id}: ${a} sem a direção ${dir}`);
           if ((d.fps ?? FPS) <= 0) errors.push(`${m.id}: fps inválido em ${a}`);

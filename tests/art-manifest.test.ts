@@ -210,7 +210,7 @@ describe('unidades (Etapa 4): kits, rigs de cavalo e cerco, poses por arma', () 
     expect([rider.anims!.walk.pose, rider.anims!.run?.pose]).toEqual(['trot', 'gallop']);
     const styles = examples.filter((m) => m.source.type === 'param' && m.source.rig === 'siege').map((m) => params(m).style).sort();
     expect(styles).toEqual(['helepolis', 'petrobolos']);
-    expect(Object.keys(UNIT_KITS).sort()).toEqual(['beast', 'giant', 'horse', 'human', 'serpent', 'siege']);   // Etapa 6: quadrúpede, bípede grande, serpente
+    expect(Object.keys(UNIT_KITS).sort()).toEqual(['beast', 'giant', 'horse', 'human', 'serpent', 'siege', 'titan']);   // Etapa 6: quadrúpede, bípede grande, serpente, titã
   });
 });
 
