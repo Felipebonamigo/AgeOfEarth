@@ -1,0 +1,49 @@
+{
+  "id": "cyclops",
+  "kind": "unit",
+  "stage": 6,
+  "sizeClass": "myth",
+  "page": "own",
+  "docs": "Criatura no rig bípede (docs/ART.md, Apêndice G, lote bípedes-espíritos): o esqueleto humano a 3,6 m com o corpo esculpido de brutamontes (barril, barriga, pescoço grosso, mãos enormes), pele queimada de sol com pelos, a cabeça de um olho só sob a arcada única, juba e barba desgrenhadas, tanga de couro de cabra, talabarte e braçadeiras de time e a clava de tronco de oliveira. Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/cyclops.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Walk\", \"attack\": \"Smash\", \"die\": \"Death\" }, \"teamMaterials\": [\"Sash\", \"Bracers\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "biped",
+    "poses": "art/poses/biped.json",
+    "params": {
+      "height": 3.6,
+      "bulk": 1.12,
+      "build": "brute",
+      "finish": "flesh",
+      "tone": "ruddy",
+      "head": "cyclops",
+      "hair": "wild",
+      "beard": "full",
+      "weapon": "trunk",
+      "garment": "hide",
+      "sash": "team",
+      "bracers": "team",
+      "human": {
+        "armor": "bare"
+      }
+    }
+  },
+  "size": {
+    "tiles": [
+      6.4,
+      6.6
+    ]
+  },
+  "anchor": [
+    0.42,
+    0.6
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": { "frames": 4, "fps": 8, "pose": "idle_cyclops" },
+    "walk": { "frames": 8, "fps": 10, "pose": "walk_cyclops" },
+    "attack": { "frames": 6, "fps": 10, "pose": "attack_cyclops" },
+    "die": { "frames": 6, "fps": 10, "pose": "die_cyclops" }
+  },
+  "team": true,
+  "shadow": true
+}

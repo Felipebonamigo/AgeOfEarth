@@ -63,6 +63,10 @@ export interface BuildingArt {
   glow: ArtAnimInfo | null;
 }
 
+/** Etapa 6: segundos de jogo fora de uso antes de as páginas próprias de uma criatura saírem (> cadáver de 8 s, estátua,
+ *  maldição). */
+export const RELEASE_GRACE_S = 20;
+
 export class ArtLibrary {
   readonly procedural: ProceduralSource;
   readonly atlas: AtlasSource;
@@ -199,6 +203,32 @@ export class ArtLibrary {
       const stillServed = GROUPS.some((g) => g !== 'units' && (this.served(g) === s || this.scaleFor(g) === s)) || this.unitsServedAt(s);
       if (!stillServed) { this.atlas.unloadScale(s); this.units.clear(); }
     }
+  }
+  /** Última vez (s do relógio de jogo) em que cada asset de unidade pedido estava em uso. */
+  private lastUse = new Map<string, number>();
+  /**
+   * Etapa 6 (lote bípedes-espíritos): as páginas PRÓPRIAS (criaturas, `page: 'own'`: `AtlasSource.ownsPages`) de um asset
+   * que ficou `graceS` segundos fora de uso saem da VRAM — o ciclope que morreu, a variante da hidra que ficou para trás;
+   * voltam a carregar se ele reaparecer. `inUse`: os assets (ids de arte) das unidades vivas no estado e das vistas; o
+   * renderizador chama de tempos em tempos com o relógio de JOGO (s). As páginas compartilhadas (as unidades humanas) ficam
+   * como estão (o `collect` cuida da escala). Devolve os ids liberados.
+   */
+  releaseUnused(inUse: Iterable<string>, now: number, graceS = RELEASE_GRACE_S): string[] {
+    for (const id of inUse) this.lastUse.set(id, now);
+    const out: string[] = [];
+    if (!this.atlas.manifest) return out;
+    for (const id of [...this.requested]) {
+      const last = this.lastUse.get(id);
+      // (relógio que voltou = partida nova: conta de novo a partir de agora)
+      if (last === undefined || now < last) { this.lastUse.set(id, now); continue; }
+      if (now - last < graceS || !this.atlas.ownsPages(id)) continue;
+      let any = false;
+      for (const sc of [1, 2] as ArtScale[]) if (this.atlas.unloadAsset(id, sc)) any = true;
+      if (!any) continue;
+      this.requested.delete(id); this.warm.delete(id); this.units.delete(id); this.lastUse.delete(id);
+      out.push(id);
+    }
+    return out;
   }
   /** Algum tipo de unidade pedido é servido (ou desejado) na escala `s`? */
   private unitsServedAt(s: ArtScale): boolean {

@@ -1,0 +1,52 @@
+{
+  "id": "sentinel",
+  "kind": "unit",
+  "stage": 6,
+  "sizeClass": "myth",
+  "page": "own",
+  "docs": "Estátua guardiã do poder Sentinelas (Hades) no rig bípede (docs/ART.md, Apêndice G, lote bípedes-espíritos): um arqueiro de mármore de 2,2 m em contrapposto sobre o pedestal, com cachos arcaicos, clâmide e pano drapeado com as barras pintadas de time, talabarte e a faixa da dedicatória no pedestal pintados de time; imóvel (parado e andar = o mesmo quadro; a passada do andar é só nominal, `glide`), atira com o arco e desmorona em pedaços na morte. Surge do chão com a coluna de poeira do surgimento divino (Etapa 5). Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/sentinel.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Idle\", \"attack\": \"Shoot\", \"aim\": \"Aim\", \"die\": \"Crumble\" }, \"teamMaterials\": [\"Paint\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "biped",
+    "poses": "art/poses/biped.json",
+    "params": {
+      "height": 2.2,
+      "bulk": 1.0,
+      "build": "heroic",
+      "finish": "marble",
+      "head": "male",
+      "hair": "curls",
+      "beard": "none",
+      "garment": "perizoma",
+      "cloak": "chlamys",
+      "sash": "team",
+      "plinth": true,
+      "glide": 1.0,
+      "human": {
+        "armor": "bare",
+        "weapon": "bow",
+        "quiver": true
+      }
+    }
+  },
+  "size": {
+    "tiles": [
+      4.2,
+      4.4
+    ]
+  },
+  "anchor": [
+    0.44,
+    0.62
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": { "frames": 1, "fps": 10, "pose": "idle_sentinel" },
+    "walk": { "frames": 1, "fps": 10, "pose": "idle_sentinel" },
+    "attack": { "frames": 6, "fps": 10, "pose": "attack_sentinel" },
+    "aim": { "frames": 1, "fps": 10, "pose": "aim_sentinel" },
+    "die": { "frames": 6, "fps": 10, "pose": "die_sentinel" }
+  },
+  "team": true,
+  "shadow": true
+}

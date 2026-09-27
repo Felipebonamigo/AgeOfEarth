@@ -31,7 +31,7 @@ export const VARIANT_BY = ['wallMask', 'gateAxis', 'ageTier', 'farmCrop'];
 export const ICON_PX = 64;
 /** Rigs paramétricos conhecidos pela página de bake (scripts/bake/page/rigs/*.js, props.js, buildings.js). Etapa 6:
  *  `beast` (quadrúpede grande), `giant` (bípede grande sobre o rig humano) e `serpent` (corpo em segmentos). */
-export const RIGS = ['human', 'horse', 'siege', 'beast', 'giant', 'serpent', 'building', 'props'];
+export const RIGS = ['human', 'horse', 'siege', 'beast', 'giant', 'serpent', 'biped', 'building', 'props'];
 /**
  * Classes de tamanho das unidades (Etapa 6): teto do lado do quadro (sourceSize) a 1× que o `art:check` aceita — `unit`
  * (humanos, cavalaria, cerco: 128 px), `myth` (criaturas grandes, voadoras com a sombra longe do corpo, hidra: 192 px) e

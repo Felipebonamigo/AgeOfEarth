@@ -1,0 +1,44 @@
+{
+  "id": "medusa",
+  "kind": "unit",
+  "stage": 6,
+  "sizeClass": "myth",
+  "page": "own",
+  "docs": "Górgona no rig da serpente com `form: 'medusa'` (docs/ART.md, Apêndice G, lote bípedes-espíritos): cauda de escamas verdes enrolada de lado, o tronco feminino em pé com o corpo esculpido de pele verde-acinzentada (rigs/medusa.js), cabeleira de serpentes, olhos amarelos que brilham (o olhar que petrifica: a estátua da vítima é o efeito da Etapa 5), peplo e pano da cintura na cor do time, braçadeiras e cinto de ouro, arco e aljava; desliza, atira, mira e tomba de lado. Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/medusa.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Slither\", \"attack\": \"Shoot\", \"aim\": \"Aim\", \"die\": \"Death\" }, \"teamMaterials\": [\"Peplos\", \"Waistcloth\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "serpent",
+    "poses": "art/poses/medusa.json",
+    "params": {
+      "form": "medusa",
+      "scales": "green",
+      "team": "sash",
+      "torso": {
+        "armor": "bare",
+        "weapon": "bow",
+        "quiver": true,
+        "sash": "team"
+      }
+    }
+  },
+  "size": {
+    "tiles": [
+      4.6,
+      4.6
+    ]
+  },
+  "anchor": [
+    0.5,
+    0.6
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": { "frames": 4, "fps": 6, "pose": "idle_medusa" },
+    "walk": { "frames": 8, "fps": 10, "pose": "slither_medusa" },
+    "attack": { "frames": 6, "fps": 10, "pose": "attack_medusa" },
+    "aim": { "frames": 4, "fps": 6, "pose": "aim_medusa" },
+    "die": { "frames": 6, "fps": 10, "pose": "die_medusa" }
+  },
+  "team": true,
+  "shadow": true
+}

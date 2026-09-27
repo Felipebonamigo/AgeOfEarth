@@ -1,0 +1,127 @@
+{
+ "rig": "biped",
+ "version": 1,
+ "units": "Pivôs e escalares do rig HUMANO (rigs/biped.js veste o esqueleto dele com o corpo esculpido de rigs/anatomy.js: as poses humanas servem, escaladas com a altura). Graus por pivô [x, y, z]: membro pendendo — x positivo leva para a frente; tronco/cabeça — x positivo inclina para TRÁS; z positivo leva para +x (direita). weapon: a arma própria (tronco do ciclope, malho do colosso) ou a do kit humano no punho direito, eixo +y do antebraço. Escalares: draw/hold (arco, humano), crumble (0–1: a estátua desmorona; no espectro, o elmo cai no chão) e fade (0–1: o espectro se desfaz). root: { pos: [m, antes da escala], rot: [graus] }; t em 0..1; loop = o último quadro não repete o primeiro",
+ "joints": ["root","torso","head","shoulderL","elbowL","shoulderR","elbowR","hipL","kneeL","hipR","kneeR","spear","weapon","axe","shield","basket","bow","bundle","offhand"],
+ "scalars": ["draw","hold","crumble","fade"],
+ "anims": {
+  "idle_cyclops": {
+   "loop": true, "ease": "smooth", "keys": [
+    {"t":0,"root":{"pos":[0,-0.035,0]},"torso":[-16,0,0],"head":[24,0,0],"shoulderL":[-4,0,-24],"elbowL":[28,0,0],"shoulderR":[24,0,16],"elbowR":[10,0,0],"weapon":[-156,0,14],"hipL":[9,0,-9],"kneeL":[-16,0,0],"hipR":[-3,0,9],"kneeR":[-12,0,0]},
+    {"t":0.5,"root":{"pos":[0,-0.05,0]},"torso":[-19,0,0],"head":[26,-8,0],"shoulderL":[-2,0,-25],"elbowL":[32,0,0],"shoulderR":[24,0,16],"elbowR":[14,0,0],"weapon":[-157,0,14],"hipL":[9,0,-9],"kneeL":[-19,0,0],"hipR":[-3,0,9],"kneeR":[-15,0,0]}
+   ]
+  },
+  "walk_cyclops": {
+   "loop": true, "keys": [
+    {"t":0,"shoulderR":[20,0,20],"elbowR":[108,0,0],"weapon":[-134,0,14],"root":{"pos":[0,-0.06,0],"rot":[0,0,-3]},"torso":[-17,7,3],"head":[17,-7,-3],"shoulderL":[-30,0,-20],"elbowL":[30,0,0],"hipL":[26,0,-4],"kneeL":[-10,0,0],"hipR":[-22,0,4],"kneeR":[-16,0,0]},
+    {"t":0.25,"shoulderR":[20,0,20],"elbowR":[108,0,0],"weapon":[-134,0,14],"root":{"pos":[0,0,0],"rot":[0,0,0]},"torso":[-16,0,0],"head":[16,0,0],"shoulderL":[0,0,-20],"elbowL":[30,0,0],"hipL":[3,0,-4],"kneeL":[-14,0,0],"hipR":[4,0,4],"kneeR":[-62,0,0]},
+    {"t":0.5,"shoulderR":[20,0,20],"elbowR":[108,0,0],"weapon":[-134,0,14],"root":{"pos":[0,-0.06,0],"rot":[0,0,3]},"torso":[-17,-7,-3],"head":[17,7,3],"shoulderL":[30,0,-20],"elbowL":[34,0,0],"hipL":[-22,0,-4],"kneeL":[-16,0,0],"hipR":[26,0,4],"kneeR":[-10,0,0]},
+    {"t":0.75,"shoulderR":[20,0,20],"elbowR":[108,0,0],"weapon":[-134,0,14],"root":{"pos":[0,0,0],"rot":[0,0,0]},"torso":[-16,0,0],"head":[16,0,0],"shoulderL":[0,0,-20],"elbowL":[30,0,0],"hipL":[4,0,-4],"kneeL":[-62,0,0],"hipR":[3,0,4],"kneeR":[-14,0,0]}
+   ]
+  },
+  "attack_cyclops": {
+   "loop": false, "ease": "smooth", "keys": [
+    {"t":0,"root":{"pos":[0,-0.02,0.06]},"torso":[-4,-22,0],"head":[8,18,0],"shoulderL":[30,0,-34],"elbowL":[30,0,0],"shoulderR":[172,0,16],"elbowR":[58,0,0],"weapon":[-96,0,0],"hipL":[18,0,-6],"kneeL":[-14,0,0],"hipR":[-14,0,6],"kneeR":[-10,0,0]},
+    {"t":0.2,"root":{"pos":[0,-0.14,-0.14]},"torso":[-36,16,0],"head":[22,-12,0],"shoulderL":[-10,0,-30],"elbowL":[20,0,0],"shoulderR":[66,0,6],"elbowR":[6,0,0],"weapon":[-186,0,0],"hipL":[36,0,-6],"kneeL":[-30,0,0],"hipR":[-24,0,6],"kneeR":[-8,0,0]},
+    {"t":0.42,"root":{"pos":[0,-0.13,-0.13]},"torso":[-33,14,0],"head":[20,-10,0],"shoulderL":[-6,0,-28],"elbowL":[22,0,0],"shoulderR":[60,0,6],"elbowR":[10,0,0],"weapon":[-184,0,0],"hipL":[36,0,-6],"kneeL":[-30,0,0],"hipR":[-24,0,6],"kneeR":[-8,0,0]},
+    {"t":0.72,"root":{"pos":[0,-0.07,-0.06]},"torso":[-24,6,0],"head":[22,-4,0],"shoulderL":[-6,0,-26],"elbowL":[26,0,0],"shoulderR":[40,0,10],"elbowR":[10,0,0],"weapon":[-164,0,7],"hipL":[22,0,-8],"kneeL":[-20,0,0],"hipR":[-12,0,8],"kneeR":[-10,0,0]},
+    {"t":1,"root":{"pos":[0,-0.035,0]},"torso":[-16,0,0],"head":[24,0,0],"shoulderL":[-4,0,-24],"elbowL":[28,0,0],"shoulderR":[24,0,16],"elbowR":[10,0,0],"weapon":[-156,0,14],"hipL":[9,0,-9],"kneeL":[-16,0,0],"hipR":[-3,0,9],"kneeR":[-12,0,0]}
+   ]
+  },
+  "die_cyclops": {
+   "loop": false, "ease": "smooth", "keys": [
+    {"t":0,"root":{"pos":[0,-0.035,0]},"torso":[-10,0,0],"head":[-6,0,0],"shoulderL":[-4,0,-24],"elbowL":[28,0,0],"shoulderR":[20,0,20],"elbowR":[108,0,0],"weapon":[-134,0,14],"hipL":[9,0,-9],"kneeL":[-16,0,0],"hipR":[-3,0,9],"kneeR":[-12,0,0]},
+    {"t":0.35,"root":{"pos":[0,-0.3,-0.08],"rot":[-18,0,6]},"torso":[-22,0,0],"head":[10,0,0],"shoulderL":[30,0,-30],"elbowL":[30,0,0],"shoulderR":[50,0,24],"elbowR":[60,0,0],"weapon":[-140,0,20],"hipL":[46,0,-8],"kneeL":[-70,0,0],"hipR":[38,0,8],"kneeR":[-62,0,0]},
+    {"t":0.7,"root":{"pos":[0,-0.6,-0.34],"rot":[-60,0,10]},"torso":[-12,0,0],"head":[22,10,0],"shoulderL":[120,0,-30],"elbowL":[30,0,0],"shoulderR":[110,0,30],"elbowR":[30,0,0],"weapon":[-120,0,30],"hipL":[20,0,-8],"kneeL":[-40,0,0],"hipR":[16,0,8],"kneeR":[-30,0,0]},
+    {"t":1,"root":{"pos":[0,-0.74,-0.46],"rot":[-82,0,10]},"torso":[-4,0,0],"head":[26,30,0],"shoulderL":[150,0,-40],"elbowL":[10,0,0],"shoulderR":[140,0,40],"elbowR":[10,0,0],"weapon":[-100,0,40],"hipL":[4,0,-8],"kneeL":[-8,0,0],"hipR":[2,0,8],"kneeR":[-6,0,0]}
+   ]
+  },
+  "idle_colossus": {
+   "loop": true, "ease": "smooth", "keys": [
+    {"t":0,"root":{"pos":[0,-0.012,0]},"torso":[-3,-4,0],"head":[6,4,0],"shoulderL":[4,0,-12],"elbowL":[14,0,0],"shoulderR":[12,0,14],"elbowR":[60,0,0],"weapon":[-252,0,0],"hipL":[3,0,-5],"kneeL":[-5,0,0],"hipR":[-2,0,5],"kneeR":[-4,0,0]},
+    {"t":0.5,"root":{"pos":[0,-0.02,0]},"torso":[-4,-4,0],"head":[7,-4,0],"shoulderL":[4,0,-12],"elbowL":[14,0,0],"shoulderR":[12,0,14],"elbowR":[60,0,0],"weapon":[-252,0,0],"hipL":[3,0,-5],"kneeL":[-5,0,0],"hipR":[-2,0,5],"kneeR":[-4,0,0]}
+   ]
+  },
+  "walk_colossus": {
+   "loop": true, "keys": [
+    {"t":0,"shoulderR":[18,0,18],"elbowR":[112,0,0],"weapon":[-138,0,10],"root":{"pos":[0,-0.05,0],"rot":[0,0,-4]},"torso":[-5,4,4],"head":[5,-4,-4],"shoulderL":[-20,0,-12],"elbowL":[16,0,0],"hipL":[22,0,-3],"kneeL":[-6,0,0],"hipR":[-18,0,3],"kneeR":[-10,0,0]},
+    {"t":0.25,"shoulderR":[18,0,18],"elbowR":[112,0,0],"weapon":[-138,0,10],"root":{"pos":[0,0,0],"rot":[0,0,0]},"torso":[-4,0,0],"head":[4,0,0],"shoulderL":[0,0,-12],"elbowL":[16,0,0],"hipL":[2,0,-3],"kneeL":[-8,0,0],"hipR":[3,0,3],"kneeR":[-48,0,0]},
+    {"t":0.5,"shoulderR":[18,0,18],"elbowR":[112,0,0],"weapon":[-138,0,10],"root":{"pos":[0,-0.05,0],"rot":[0,0,4]},"torso":[-5,-4,-4],"head":[5,4,4],"shoulderL":[20,0,-12],"elbowL":[18,0,0],"hipL":[-18,0,-3],"kneeL":[-10,0,0],"hipR":[22,0,3],"kneeR":[-6,0,0]},
+    {"t":0.75,"shoulderR":[18,0,18],"elbowR":[112,0,0],"weapon":[-138,0,10],"root":{"pos":[0,0,0],"rot":[0,0,0]},"torso":[-4,0,0],"head":[4,0,0],"shoulderL":[0,0,-12],"elbowL":[16,0,0],"hipL":[3,0,-3],"kneeL":[-48,0,0],"hipR":[2,0,3],"kneeR":[-8,0,0]}
+   ]
+  },
+  "attack_colossus": {
+   "loop": false, "ease": "smooth", "keys": [
+    {"t":0,"root":{"pos":[0,0,0.05]},"torso":[6,-16,0],"head":[2,14,0],"shoulderL":[24,0,-26],"elbowL":[30,0,0],"shoulderR":[175,0,12],"elbowR":[48,0,0],"weapon":[-100,0,0],"hipL":[14,0,-5],"kneeL":[-8,0,0],"hipR":[-10,0,5],"kneeR":[-6,0,0]},
+    {"t":0.2,"root":{"pos":[0,-0.1,-0.12]},"torso":[-28,14,0],"head":[16,-10,0],"shoulderL":[-6,0,-24],"elbowL":[18,0,0],"shoulderR":[72,0,4],"elbowR":[4,0,0],"weapon":[-184,0,0],"hipL":[30,0,-5],"kneeL":[-24,0,0],"hipR":[-20,0,5],"kneeR":[-6,0,0]},
+    {"t":0.45,"root":{"pos":[0,-0.1,-0.12]},"torso":[-26,12,0],"head":[14,-8,0],"shoulderL":[-4,0,-22],"elbowL":[20,0,0],"shoulderR":[66,0,4],"elbowR":[8,0,0],"weapon":[-182,0,0],"hipL":[30,0,-5],"kneeL":[-24,0,0],"hipR":[-20,0,5],"kneeR":[-6,0,0]},
+    {"t":0.75,"root":{"pos":[0,-0.05,-0.05]},"torso":[-12,2,0],"head":[9,2,0],"shoulderL":[2,0,-16],"elbowL":[16,0,0],"shoulderR":[48,0,10],"elbowR":[32,0,0],"weapon":[-236,0,0],"hipL":[10,0,-5],"kneeL":[-12,0,0],"hipR":[-8,0,5],"kneeR":[-6,0,0]},
+    {"t":1,"root":{"pos":[0,-0.012,0]},"torso":[-3,-4,0],"head":[6,4,0],"shoulderL":[4,0,-12],"elbowL":[14,0,0],"shoulderR":[12,0,14],"elbowR":[60,0,0],"weapon":[-252,0,0],"hipL":[3,0,-5],"kneeL":[-5,0,0],"hipR":[-2,0,5],"kneeR":[-4,0,0]}
+   ]
+  },
+  "die_colossus": {
+   "loop": false, "ease": "smooth", "keys": [
+    {"t":0,"root":{"pos":[0,-0.012,0]},"torso":[4,0,0],"head":[-6,0,0],"shoulderL":[4,0,-12],"elbowL":[14,0,0],"shoulderR":[18,0,18],"elbowR":[112,0,0],"weapon":[-138,0,10],"hipL":[3,0,-5],"kneeL":[-5,0,0],"hipR":[-2,0,5],"kneeR":[-4,0,0]},
+    {"t":0.3,"root":{"pos":[0,0,0.05],"rot":[10,0,3]},"torso":[6,0,0],"head":[-10,0,0],"shoulderL":[30,0,-30],"elbowL":[14,0,0],"shoulderR":[18,0,18],"elbowR":[112,0,0],"weapon":[-138,0,10],"hipL":[3,0,-5],"kneeL":[-5,0,0],"hipR":[-2,0,5],"kneeR":[-4,0,0]},
+    {"t":0.62,"root":{"pos":[0,-0.34,0.36],"rot":[48,0,5]},"torso":[4,0,0],"head":[-10,0,0],"shoulderL":[50,0,-40],"elbowL":[20,0,0],"shoulderR":[40,0,60],"elbowR":[40,0,0],"weapon":[-150,0,0],"hipL":[-6,0,-5],"kneeL":[-5,0,0],"hipR":[-10,0,5],"kneeR":[-4,0,0]},
+    {"t":0.85,"root":{"pos":[0,-0.74,0.74],"rot":[86,0,6]},"torso":[0,0,0],"head":[-8,0,0],"shoulderL":[60,0,-50],"elbowL":[10,0,0],"shoulderR":[20,0,84],"elbowR":[10,0,0],"weapon":[-176,0,0],"hipL":[-10,0,-5],"kneeL":[-5,0,0],"hipR":[-14,0,5],"kneeR":[-4,0,0]},
+    {"t":1,"root":{"pos":[0,-0.8,0.78],"rot":[90,0,6]},"torso":[-2,0,0],"head":[-12,10,0],"shoulderL":[70,0,-54],"elbowL":[6,0,0],"shoulderR":[16,0,88],"elbowR":[6,0,0],"weapon":[-178,0,0],"hipL":[-8,0,-6],"kneeL":[-4,0,0],"hipR":[-12,0,6],"kneeR":[-6,0,0]}
+   ]
+  },
+  "idle_sentinel": {
+   "loop": true, "keys": [
+    {"t":0,"root":{"pos":[0,-0.008,0],"rot":[0,0,2]},"torso":[0,6,-3],"head":[4,-14,2],"shoulderL":[12,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[2,0,9],"elbowR":[12,0,0],"draw":0,"hipL":[6,0,-6],"kneeL":[-14,0,0],"hipR":[-2,0,3],"kneeR":[-1,0,0]}
+   ]
+  },
+  "attack_sentinel": {
+   "loop": false, "ease": "smooth", "keys": [
+    {"t":0,"hipL":[14,0,-4],"kneeL":[-8,0,0],"hipR":[-10,0,4],"kneeR":[-4,0,0],"torso":[0,-30,0],"head":[0,30,0],"shoulderL":[90,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[10,-55,95],"elbowR":[110,0,0],"draw":0},
+    {"t":0.25,"hipL":[14,0,-4],"kneeL":[-8,0,0],"hipR":[-10,0,4],"kneeR":[-4,0,0],"torso":[0,-30,0],"head":[0,30,0],"shoulderL":[76,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[148,0,30],"elbowR":[128,0,0],"draw":0},
+    {"t":0.5,"hipL":[14,0,-4],"kneeL":[-8,0,0],"hipR":[-10,0,4],"kneeR":[-4,0,0],"torso":[0,-30,0],"head":[0,30,0],"shoulderL":[72,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[70,0,10],"elbowR":[70,0,0],"draw":0.1},
+    {"t":0.8,"hipL":[14,0,-4],"kneeL":[-8,0,0],"hipR":[-10,0,4],"kneeR":[-4,0,0],"torso":[0,-30,0],"head":[0,30,0],"shoulderL":[90,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[20,-20,80],"elbowR":[140,0,0],"draw":0.55},
+    {"t":1,"hipL":[14,0,-4],"kneeL":[-8,0,0],"hipR":[-10,0,4],"kneeR":[-4,0,0],"torso":[0,-30,0],"head":[0,30,0],"shoulderL":[90,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[10,-35,92],"elbowR":[150,0,0],"draw":1}
+   ]
+  },
+  "aim_sentinel": {
+   "loop": true, "keys": [
+    {"t":0,"hipL":[14,0,-4],"kneeL":[-8,0,0],"hipR":[-10,0,4],"kneeR":[-4,0,0],"torso":[0,-30,0],"head":[0,30,0],"shoulderL":[90,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[10,-35,92],"elbowR":[150,0,0],"draw":1}
+   ]
+  },
+  "die_sentinel": {
+   "loop": false, "keys": [
+    {"t":0,"root":{"pos":[0,-0.008,0],"rot":[0,0,2]},"torso":[0,6,-3],"head":[4,-14,2],"shoulderL":[12,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[2,0,9],"elbowR":[12,0,0],"draw":0,"hipL":[6,0,-6],"kneeL":[-14,0,0],"hipR":[-2,0,3],"kneeR":[-1,0,0],"crumble":0},
+    {"t":0.18,"root":{"pos":[0,-0.008,0],"rot":[0,0,2]},"torso":[-4,8,-6],"head":[10,-16,6],"shoulderL":[12,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[2,0,9],"elbowR":[12,0,0],"draw":0,"hipL":[6,0,-6],"kneeL":[-14,0,0],"hipR":[-2,0,3],"kneeR":[-1,0,0],"crumble":0.04},
+    {"t":1,"root":{"pos":[0,-0.008,0],"rot":[0,0,2]},"torso":[-10,10,-8],"head":[16,-20,8],"shoulderL":[12,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[2,0,9],"elbowR":[12,0,0],"draw":0,"hipL":[6,0,-6],"kneeL":[-14,0,0],"hipR":[-2,0,3],"kneeR":[-1,0,0],"crumble":1}
+   ]
+  },
+  "idle_shade": {
+   "loop": true, "ease": "smooth", "keys": [
+    {"t":0,"root":{"pos":[0,0.16,0]},"torso":[-8,0,0],"head":[2,0,0],"shoulderL":[34,0,-16],"elbowL":[78,0,0],"shield":[-10,0,0],"shoulderR":[18,0,18],"elbowR":[38,0,0],"weapon":[-128,0,0],"hipL":[18,0,-4],"kneeL":[-36,0,0],"hipR":[8,0,4],"kneeR":[-44,0,0]},
+    {"t":0.5,"root":{"pos":[0,0.2,0]},"torso":[-10,0,2],"head":[6,-6,0],"shoulderL":[34,0,-16],"elbowL":[78,0,0],"shield":[-10,0,0],"shoulderR":[20,0,20],"elbowR":[38,0,0],"weapon":[-128,0,0],"hipL":[20,0,-4],"kneeL":[-40,0,0],"hipR":[8,0,4],"kneeR":[-44,0,0]}
+   ]
+  },
+  "walk_shade": {
+   "loop": true, "ease": "smooth", "keys": [
+    {"t":0,"shoulderL":[34,0,-16],"elbowL":[78,0,0],"shield":[-10,0,0],"shoulderR":[18,0,18],"elbowR":[38,0,0],"weapon":[-128,0,0],"root":{"pos":[0,0.16,0],"rot":[0,0,-2]},"torso":[-20,0,0],"head":[12,0,0],"hipL":[-14,0,-4],"kneeL":[-40,0,0],"hipR":[-24,0,4],"kneeR":[-30,0,0]},
+    {"t":0.5,"shoulderL":[34,0,-16],"elbowL":[78,0,0],"shield":[-10,0,0],"shoulderR":[18,0,18],"elbowR":[38,0,0],"weapon":[-128,0,0],"root":{"pos":[0,0.22,0],"rot":[0,0,2]},"torso":[-22,0,0],"head":[14,0,0],"hipL":[-24,0,-4],"kneeL":[-30,0,0],"hipR":[-14,0,4],"kneeR":[-40,0,0]}
+   ]
+  },
+  "attack_shade": {
+   "loop": false, "ease": "smooth", "keys": [
+    {"t":0,"root":{"pos":[0,0.16,0.03]},"hipL":[18,0,-4],"kneeL":[-36,0,0],"hipR":[8,0,4],"kneeR":[-44,0,0],"torso":[-4,-14,0],"shoulderL":[34,0,-16],"elbowL":[78,0,0],"shield":[-10,0,0],"shoulderR":[152,0,40],"elbowR":[50,0,0],"weapon":[-160,0,0]},
+    {"t":0.2,"root":{"pos":[0,0.14,-0.08]},"hipL":[18,0,-4],"kneeL":[-36,0,0],"hipR":[8,0,4],"kneeR":[-44,0,0],"torso":[-14,14,0],"shoulderL":[34,0,-16],"elbowL":[78,0,0],"shield":[-10,0,0],"shoulderR":[75,0,-10],"elbowR":[10,0,0],"weapon":[-210,0,0]},
+    {"t":0.42,"root":{"pos":[0,0.14,-0.08]},"hipL":[18,0,-4],"kneeL":[-36,0,0],"hipR":[8,0,4],"kneeR":[-44,0,0],"torso":[-12,16,0],"shoulderL":[34,0,-16],"elbowL":[78,0,0],"shield":[-10,0,0],"shoulderR":[40,0,-18],"elbowR":[20,0,0],"weapon":[-232,0,0]},
+    {"t":0.72,"root":{"pos":[0,0.15,-0.03]},"hipL":[18,0,-4],"kneeL":[-36,0,0],"hipR":[8,0,4],"kneeR":[-44,0,0],"torso":[-10,8,0],"shoulderL":[34,0,-16],"elbowL":[78,0,0],"shield":[-10,0,0],"shoulderR":[25,0,4],"elbowR":[30,0,0],"weapon":[-170,0,0]},
+    {"t":1,"root":{"pos":[0,0.16,0]},"torso":[-8,0,0],"head":[2,0,0],"shoulderL":[34,0,-16],"elbowL":[78,0,0],"shield":[-10,0,0],"shoulderR":[18,0,18],"elbowR":[38,0,0],"weapon":[-128,0,0],"hipL":[18,0,-4],"kneeL":[-36,0,0],"hipR":[8,0,4],"kneeR":[-44,0,0]}
+   ]
+  },
+  "die_shade": {
+   "loop": false, "ease": "smooth", "keys": [
+    {"t":0,"root":{"pos":[0,0.16,0]},"torso":[-8,0,0],"head":[2,0,0],"shoulderL":[34,0,-16],"elbowL":[78,0,0],"shield":[-10,0,0],"shoulderR":[18,0,18],"elbowR":[38,0,0],"weapon":[-128,0,0],"hipL":[18,0,-4],"kneeL":[-36,0,0],"hipR":[8,0,4],"kneeR":[-44,0,0],"fade":0,"crumble":0},
+    {"t":0.3,"root":{"pos":[0,0.1,0],"rot":[0,0,6]},"torso":[-24,0,6],"head":[-20,0,0],"shoulderL":[50,0,-40],"elbowL":[78,0,0],"shield":[-10,0,0],"shoulderR":[50,0,40],"elbowR":[38,0,0],"weapon":[-128,0,0],"hipL":[18,0,-4],"kneeL":[-36,0,0],"hipR":[8,0,4],"kneeR":[-44,0,0],"fade":0.15,"crumble":0.1},
+    {"t":0.7,"root":{"pos":[0,-0.25,0.05],"rot":[-14,0,10]},"torso":[-40,0,10],"head":[-30,0,0],"shoulderL":[70,0,-50],"elbowL":[78,0,0],"shield":[-10,0,0],"shoulderR":[70,0,50],"elbowR":[38,0,0],"weapon":[-128,0,0],"hipL":[60,0,-6],"kneeL":[-90,0,0],"hipR":[50,0,6],"kneeR":[-90,0,0],"fade":0.6,"crumble":0.6},
+    {"t":1,"root":{"pos":[0,-0.45,0.08],"rot":[-20,0,12]},"torso":[-50,0,12],"head":[-34,0,0],"shoulderL":[80,0,-60],"elbowL":[78,0,0],"shield":[-10,0,0],"shoulderR":[80,0,60],"elbowR":[38,0,0],"weapon":[-128,0,0],"hipL":[80,0,-6],"kneeL":[-110,0,0],"hipR":[70,0,6],"kneeR":[-110,0,0],"fade":0.9,"crumble":1}
+   ]
+  }
+ }
+}

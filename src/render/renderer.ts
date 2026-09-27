@@ -111,6 +111,8 @@ export class Renderer {
   private artGen = -1;
   /** `unitGen` da ArtLibrary já refletido (chegaram as páginas de um tipo de unidade → troca só as vistas dele). */
   private unitGenSeen = -1;
+  /** Etapa 6: relógio de jogo (s) da última checagem das páginas próprias de criaturas fora de uso (`releaseUnusedArt`). */
+  private releaseAt = 0;
   /** Idade do jogador local cujos tipos de unidade já foram pré-carregados (-1 = pedir no próximo quadro). */
   private warmAge = -1;
   /** Cadáveres assados (docs/ART.md §1.9): a vista da queda continua no chão depois do efeito 'death', no último quadro
@@ -393,6 +395,20 @@ export class Renderer {
     const present = new Set<string>();
     for (const u of state.units.values()) present.add(u.type);
     this.art.prewarmUnits(warmUnitTypes(UNITS, age, present));
+  }
+  /**
+   * Etapa 6 (lote bípedes-espíritos): as páginas PRÓPRIAS das criaturas que saíram de cena (a última morreu há 20 s de
+   * jogo: `RELEASE_GRACE_S`, o mesmo relógio do cadáver) saem da VRAM — antes ficavam até o fim da partida. Em uso: os
+   * assets das unidades vivas no estado (mesmo fora da tela: rolar a câmera não recarrega), das vistas, das quedas e dos
+   * cadáveres.
+   */
+  private releaseUnusedArt(state: GameState, clock: number): void {
+    const used = new Set<string>();
+    for (const u of state.units.values()) used.add(this.art.unitId(u.type, u.heads));
+    for (const v of this.views.values()) if (v.unit) used.add(v.unit.art.id);
+    for (const uv of this.fx.dyingViews()) used.add(uv.art.id);
+    for (const c of this.corpses) used.add(c.uv.art.id);
+    this.art.releaseUnused(used, clock);
   }
   /**
    * Chegaram as páginas de algum tipo de unidade: as vistas procedurais dos tipos que agora têm arte (e as assadas numa
@@ -1214,6 +1230,7 @@ export class Renderer {
     if (this.art.generation !== this.artGen) this.rebuildArt();
     this.warmUnits(state, ui.localPlayer);
     if (this.art.unitGen !== this.unitGenSeen) this.refreshUnitViews(state);
+    { const t = state.tick / TICK_RATE; if (t - this.releaseAt >= 2 || t < this.releaseAt) { this.releaseAt = t; this.releaseUnusedArt(state, t); } }
     this.cam.resize(this.app.screen.width, this.app.screen.height);
     const sx = this.cam.shake > 0 ? (Math.random() - 0.5) * this.cam.shake : 0, sy = this.cam.shake > 0 ? (Math.random() - 0.5) * this.cam.shake : 0;
     if (this.cam.shake > 0) this.cam.shake = Math.max(0, this.cam.shake - dtReal * 12);

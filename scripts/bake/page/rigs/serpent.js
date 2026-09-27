@@ -19,8 +19,9 @@
 // Metros, frente em −z, barriga em y = 0; o grupo externo converte para tiles.
 
 import { M2T, dirYaw } from '../camera.js';
-import { buildHuman, applyPose, poseAt, JOINTS as HUMAN_JOINTS, SCALARS as HUMAN_SCALARS } from './human.js';
+import { applyPose, poseAt, JOINTS as HUMAN_JOINTS, SCALARS as HUMAN_SCALARS } from './human.js';
 import { paint, mottle, mix, smooth, taperTube } from './organic.js';
+import { medusaTorso } from './medusa.js';
 
 /** Pivôs do humano que a Medusa usa (as pernas não existem). */
 const HUMAN_UPPER = ['torso', 'head', 'shoulderL', 'elbowL', 'shoulderR', 'elbowR', 'weapon', 'bow'];
@@ -31,7 +32,7 @@ const DEG = Math.PI / 180;
 /** Formas: raio máximo, segmento, número de segmentos da cauda e do peito, segmentos por comprimento de onda. */
 const FORMS = {
   hydra: { r: 0.44, seg: 0.3, tail: 9, front: 3, wave: 7, neckSeg: 0.36, neckN: 4 },
-  medusa: { r: 0.2, seg: 0.2, tail: 11, front: 3, wave: 7, neckSeg: 0, neckN: 0 },
+  medusa: { r: 0.3, seg: 0.27, tail: 10, front: 4, wave: 7, neckSeg: 0, neckN: 0 },
 };
 const SCALES = {
   bronze: { back: 0x5a6a3e, side: 0x86925a, belly: 0xd8c898, band: 0x364228 },
@@ -138,22 +139,9 @@ export function buildSerpent(THREE, M, params = {}) {
     }
   }
 
-  // ---- Medusa: torso humano sobre o peito (pernas escondidas), cabelo de serpentes ----
+  // ---- Medusa: o tronco da górgona com o corpo esculpido (rigs/medusa.js: lote bípedes-espíritos da Etapa 6) ----
   let human = null;
-  if (P.form === 'medusa') {
-    human = buildHuman(THREE, M, { hair: false, ...(P.torso ?? {}) }, { meters: true });
-    for (const n of ['hipL', 'hipR']) human.joints[n].visible = false;
-    // o quadril humano (0,92 m) cai no peito da serpente
-    human.group.position.set(0, -0.92 + F.r * 0.2, 0);
-    chest.add(human.group);
-    // cabelo de serpentes: tubinhos curvos saindo da cabeça, com a cabeça de cada uma
-    for (let i = 0; i < 9; i++) {
-      const a = (i / 9) * Math.PI * 2, s = Math.sin(a), c = Math.cos(a);
-      const tg = taperTube(THREE, [[c * 0.06, 0.2, s * 0.06], [c * 0.14, 0.25 + 0.03 * (i % 3), s * 0.14], [c * 0.2, 0.18, s * 0.2], [c * 0.22, 0.08, s * 0.22]], 0.022, 0.012, { tubular: 8, radial: 6 });
-      paint(THREE, tg, (x, y, z) => mottle(0x3e5a30, 0.15, x, y, z, 30, i));
-      mesh(tg, M.scaleV, 0, 0, 0, human.joints.head);
-    }
-  }
+  if (P.form === 'medusa') human = medusaTorso(THREE, M, chest, P, F);
   const segments = { tail, front, necks };
   const v = new THREE.Vector3();
   const local = (o) => rollG.worldToLocal(o.getWorldPosition(v.set(0, 0, 0)).clone());
@@ -235,8 +223,10 @@ export function applySerpentPose(rig, pose) {
     for (const s of HUMAN_SCALARS) if (pose[s] !== undefined) hp[s] = pose[s];
     applyPose(rig.human, { ...hp, root: { pos: [0, 0, 0] } });
     rig.human.post(hp);
+    rig.human.skin?.();
   }
   rig.rebuild();
+  rig.human?.upright?.(rig.rollG);
 }
 
 /**

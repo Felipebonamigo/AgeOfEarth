@@ -16,6 +16,8 @@
 // anda nas 8 direções, direção incoerente, leão sem galope, Pégaso sem voo/sombra no chão, criatura sem ataque, golpes
 // virados, queda não assada, hidra com o asset errado para as cabeças ou que não troca ao ganhar uma cabeça.
 // Tudo medido no TEMPO DE JOGO (tick). Exige `npm run preview` (ou a URL). Uso: node scripts/artmyth.mjs [url] [--out docs/art] [--prefix etapa6]
+// [--lote bipedes] (o lote bípedes-espíritos — ciclope, colosso, Medusa, centauro, sentinela e Sombra — tem as cenas dele logo
+// abaixo das funções de apoio; `--lote bipedes` roda só essas)
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -152,6 +154,173 @@ async function startSampler(types) {
 }
 const stopSampler = () => page.evaluate(() => { window.__sampleStop = true; return window.__stats; });
 const checkDirs = (st, label) => { const n = st.dirOk + st.dirBad; if (st.dirBad > 0.05 * n) errors.push(`${label}: direção incoerente em ${st.dirBad} de ${n} amostras andando`); };
+
+// ------------------------------------------------------------------------------------------------------------------
+// Lote bípedes-espíritos (Etapa 6, docs/ART.md Apêndice G): ciclope, colosso, Medusa, centauro, Sombra e sentinela, em 4
+// cenas próprias (`--lote bipedes` roda só estas; sem a opção, estas e as do lote 1) → <prefixo>-bipedes-{roda-z10,
+// batalha-z10,batalha-z22,queda-z22,sentinelas-z22,desfile-z10,desfile-z22,desfile-z22-2x,procedural-z10}.png. Falha com
+// criatura procedural, quem anda fora das 8 direções ou com a direção incoerente, centauro sem galope, criatura sem ataque
+// (e sem mira nas de arco), golpes virados, queda não assada, Sombra sem translucidez ou sentinela que não surge do poder.
+const lote = opt('--lote', 'todos');
+if (lote === 'todos' || lote === 'bipedes') {
+  const WALKERS = ['cyclops', 'colossus', 'medusa', 'centaur', 'shade'];
+  const LOT2 = [...WALKERS, 'sentinel'];
+  const BOWS = ['medusa', 'centaur', 'sentinel'];
+  const warm2 = [...LOT2, 'hoplite', 'hetairoi'];
+  const settle2 = async () => { await settle(); await page.evaluate((t) => { window.aoe.renderer.art.prewarmUnits(t); return window.aoe.renderer.art.ready(); }, warm2); };
+  // 1. roda: as 5 que andam nas 8 direções (o centauro solto galopa)
+  await newGame();
+  const roda2 = await page.evaluate((W) => {
+    const s = window.aoe.session, me = s.local, sp = window.aoe.debugSpawn, ids = window.__ids;
+    const a = window.__area(30, 22);
+    window.__rodas = W.map((t, i) => {
+      const c = { x: a.x + 5 + (i % 2) * 15 + 3.5, y: a.y + 4 + Math.floor(i / 2) * 7.5 };
+      const u = window.__put(sp(me, t, c.x, c.y), c.x, c.y);
+      if (u) s.issue({ type: 'stance', player: me, ids: [u.id], stance: 'passive' });
+      return { c: { x: c.x - 0.5, y: c.y - 0.5 }, ids: ids([u]), r: 3 };
+    });
+    window.aoe.renderer.revealAll = true;
+    return { area: a, center: { x: a.x + 15, y: a.y + 11 } };
+  }, WALKERS);
+  console.log('bípedes — roda:', JSON.stringify(roda2));
+  await settle2();
+  await startSampler(WALKERS);
+  await startWalking(80);
+  await look(roda2.center, 1.0);
+  await waitTicks(150);
+  await shot('bipedes-roda-z10', 0);
+  await page.evaluate((W) => { window.__rodaTypes = W; }, WALKERS);
+  await waitUntil(() => { const st = window.__stats; return window.__rodaTypes.every((t) => (st.dirs[t] ?? []).length >= 8) && st.byType.centaur?.run; }, 16 * 80);
+  const sr = await stopSampler();
+  await page.evaluate(() => { window.__walkStop = true; });
+  console.log('bípedes — roda: direções', JSON.stringify(Object.fromEntries(Object.entries(sr.dirs).map(([t, d]) => [t, d.length]))), 'animações', JSON.stringify(sr.byType), `dirOk=${sr.dirOk} dirBad=${sr.dirBad}`);
+  checkDirs(sr, 'bípedes — roda');
+  if (Object.keys(sr.procedural).length) errors.push(`bípedes — roda procedural: ${JSON.stringify(sr.procedural)}`);
+  for (const t of WALKERS) { const d = sr.dirs[t] ?? []; if (d.length < 8) errors.push(`${t}: andou em ${d.length} das 8 direções (${d.sort().join(',')})`); }
+  if (!sr.byType.centaur?.run) errors.push('centaur: nenhuma amostra galopando (run)');
+
+  // 2. batalha: o lote contra hoplitas e hetairos; a sentinela plantada na frente; no fim uma queda de cada
+  await newGame();
+  const bat2 = await page.evaluate((LOT2) => {
+    const s = window.aoe.session, me = s.local, foe = (me + 1) % s.state.players.length, sp = window.aoe.debugSpawn, ids = window.__ids, tough = window.__tough;
+    const a = window.__area(26, 16), cx = a.x + 13, cy = a.y + 8;
+    const A = [];
+    LOT2.forEach((t, i) => { const u = tough(sp(me, t, cx - 4.5 + (t === 'sentinel' ? 2.5 : 0), cy - 5 + i * 2)); if (u) { A.push(u); if (t === 'sentinel') window.__put(u, u.x, u.y); } });
+    const B = [];
+    for (let i = 0; i < 10; i++) B.push(tough(sp(foe, i % 3 === 2 ? 'hetairoi' : 'hoplite', cx + 3 + (i % 2) * 0.9, cy - 5 + i)));
+    s.issue({ type: 'attackMove', player: me, ids: ids(A.filter((u) => u.type !== 'sentinel')), x: cx + 6, y: cy });
+    s.scheduler.issue({ type: 'attackMove', player: foe, ids: ids(B), x: cx - 6, y: cy });
+    window.__armyA = ids(A); window.__armyB = ids(B);
+    window.aoe.renderer.revealAll = true;
+    return { center: { x: cx, y: cy }, a: A.length, b: B.length };
+  }, LOT2);
+  console.log('bípedes — batalha:', JSON.stringify(bat2));
+  await settle2();
+  await page.evaluate(() => { window.aoe.session.paused = false; window.aoe.session.speed = 1; });
+  await startSampler([...LOT2, 'hoplite', 'hetairoi']);
+  await waitTicks(70);
+  await look(bat2.center, 1.0); await shot('bipedes-batalha-z10', 300);
+  await waitTicks(30);
+  await look(bat2.center, 2.2); await shot('bipedes-batalha-z22', 300);
+  await page.evaluate((L) => { window.__fighters2 = L; }, LOT2);
+  await waitUntil(() => window.__fighters2.every((t) => window.__stats.byType[t]?.attack), 420);
+  const sb = await stopSampler();
+  console.log('bípedes — batalha: animações', JSON.stringify(sb.byType), `golpes ok=${sb.hitOk} fora=${sb.hitOff}`);
+  if (Object.keys(sb.procedural).length) errors.push(`bípedes — batalha procedural: ${JSON.stringify(sb.procedural)}`);
+  for (const t of LOT2) if (!sb.byType[t]?.attack) errors.push(`${t}: nenhuma amostra atacando (${JSON.stringify(sb.byType[t] ?? {})})`);
+  for (const t of BOWS) if (!sb.byType[t]?.aim) errors.push(`${t}: nenhuma amostra mirando (aim) entre disparos (${JSON.stringify(sb.byType[t] ?? {})})`);
+  { const n = sb.hitOk + sb.hitOff; if (!n) errors.push('bípedes — batalha: nenhum golpe com alvo'); else if (sb.hitOff > 0.1 * n) errors.push(`bípedes — batalha: ${sb.hitOff} de ${n} golpes a 90°+ do alvo (${JSON.stringify(sb.hitSamples)})`); }
+  // a Sombra translúcida (corpo a 70 %, sombra no chão a 40 %: unitLook)
+  const shadeLook = await page.evaluate(() => { for (const [id, v] of window.aoe.renderer.views) { const u = window.aoe.session.state.units.get(id); if (u?.type === 'shade' && v.unit) return { root: +v.unit.root.alpha.toFixed(2), shadow: +v.unit.shadow.alpha.toFixed(3) }; } return null; });
+  console.log('bípedes — Sombra:', JSON.stringify(shadeLook));
+  if (!shadeLook || !(shadeLook.root < 0.9)) errors.push(`shade: corpo não translúcido (${JSON.stringify(shadeLook)})`);
+  // quedas: vida 1 e um inimigo atacando cada criatura do lote
+  await page.evaluate(() => {
+    const s = window.aoe.session, seen = new Set(), hunters = window.__armyB.map((id) => s.state.units.get(id)).filter(Boolean);
+    let h = 0;
+    for (const id of window.__armyA) {
+      const u = s.state.units.get(id); if (!u || seen.has(u.type)) continue;
+      seen.add(u.type); u.hp = 1;
+      const by = hunters[h++ % hunters.length];
+      if (by) s.scheduler.issue({ type: 'attack', player: by.owner, ids: [by.id], targetId: u.id });
+    }
+  });
+  await page.evaluate((A) => { window.__watchAll = (o) => A.every((t) => o[t]); }, LOT2);
+  await look(bat2.center, 2.2);
+  const watch2 = (types, ticks, src) => page.evaluate(([types, ticks, src]) => new Promise((done) => {
+    const s = window.aoe.session, R = window.aoe.renderer, end = s.state.tick + ticks, out = {}, f = (0, eval)(`(${src})`);
+    const step = () => { for (const [t] of f(R, types)) out[t] = (out[t] ?? 0) + 1; if (s.state.tick >= end || window.__watchAll?.(out)) done(out); else requestAnimationFrame(step); };
+    step();
+  }), [types, ticks, src]);
+  const falls2P = watch2(LOT2, 420, ((R) => { const out = []; for (const uv of R.fx.dyingViews()) if (uv.anim === 'die') out.push([uv.type]); return out; }).toString());
+  await page.waitForTimeout(1500);
+  await shot('bipedes-queda-z22', 0);
+  const falls2 = await falls2P;
+  await page.evaluate(() => { window.__watchAll = null; });
+  console.log('bípedes — quedas assadas:', JSON.stringify(falls2));
+  for (const t of LOT2) if (!falls2[t]) errors.push(`${t}: a morte não saiu assada`);
+
+  // 3. Sentinelas: o poder de Hades faz as estátuas surgirem do chão em volta de um templo (coluna de poeira da Etapa 5)
+  await newGame();
+  const sen2 = await page.evaluate(() => {
+    const s = window.aoe.session, me = s.local, st = s.state;
+    const a = window.__area(14, 12);
+    const t = window.aoe.debugBuild(me, 'temple', a.x + 5, a.y + 4, 1);
+    if (!st.players[me].powers.some((p) => p.id === 'sentinel')) st.players[me].powers.push({ id: 'sentinel', used: false });
+    window.aoe.renderer.revealAll = true;
+    return { center: { x: a.x + 6.5, y: a.y + 5.5 }, temple: t?.id ?? null };
+  });
+  await settle2();
+  await look(sen2.center, 2.2);
+  await page.evaluate((id) => { const s = window.aoe.session; s.issue({ type: 'power', player: s.local, power: 'sentinel', targetId: id }); s.paused = false; }, sen2.temple);
+  await waitTicks(8);
+  await page.evaluate(() => window.aoe.renderer.art.ready());
+  await shot('bipedes-sentinelas-z22', 200);
+  const sens = await page.evaluate(() => { let n = 0, baked = 0; for (const [id, v] of window.aoe.renderer.views) { const u = window.aoe.session.state.units.get(id); if (u?.type === 'sentinel') { n++; if (v.unit) baked++; } } return { n, baked }; });
+  console.log('bípedes — Sentinelas:', JSON.stringify(sens));
+  if (sens.n < 4 || sens.baked < sens.n) errors.push(`sentinel: o poder deu ${sens.n} estátuas, ${sens.baked} assadas`);
+
+  // 4. desfile: o lote parado ao lado do hoplita e do hetairo, diante do templo
+  await newGame();
+  const LINE2 = ['hoplite', 'cyclops', 'colossus', 'medusa', 'centaur', 'sentinel', 'shade', 'hetairoi'];
+  const par2 = await page.evaluate((LINE) => {
+    const s = window.aoe.session, me = s.local, sp = window.aoe.debugSpawn, ids = window.__ids;
+    const a = window.__area(26, 11);
+    window.aoe.debugBuild(me, 'temple', a.x + 12, a.y + 1, 1);
+    const cx = a.x + 13, out = LINE.map((type, i) => window.__put(sp(me, type, cx, a.y + 8), cx + (i - (LINE.length - 1) / 2) * 3, a.y + 8));
+    s.issue({ type: 'stance', player: me, ids: ids(out), stance: 'passive' });
+    window.aoe.renderer.revealAll = true;
+    return { center: { x: cx, y: a.y + 6.4 }, n: ids(out).length };
+  }, LINE2);
+  console.log('bípedes — desfile:', JSON.stringify(par2));
+  await settle2();
+  await page.evaluate(() => { window.aoe.session.paused = false; });
+  await waitTicks(10);
+  await page.evaluate(() => { window.aoe.session.paused = true; });
+  await look(par2.center, 1.0); await shot('bipedes-desfile-z10');
+  await look(par2.center, 2.2); await shot('bipedes-desfile-z22');
+  const pd2 = await procedural(LINE2);
+  if (Object.keys(pd2).length) errors.push(`bípedes — desfile procedural: ${JSON.stringify(pd2)}`);
+  await page.evaluate(() => { window.aoe.settings.bakedArt = false; window.aoe.applyQuality(); });
+  await look(par2.center, 1.0); await shot('bipedes-procedural-z10');
+  await page.evaluate(() => { window.aoe.settings.bakedArt = true; window.aoe.settings.quality = 'high'; window.aoe.applyQuality(); });
+  await page.evaluate((t) => { window.aoe.renderer.art.prewarmUnits(t); return window.aoe.renderer.art.ready(); }, warm2);
+  await page.evaluate(() => { window.aoe.session.paused = false; });
+  await waitTicks(2);
+  await page.evaluate(() => window.aoe.renderer.art.ready());
+  await page.evaluate(() => { window.aoe.session.paused = true; });
+  await look(par2.center, 2.2); await shot('bipedes-desfile-z22-2x', 2000);
+  const pd3 = await procedural(LINE2);
+  if (Object.keys(pd3).length) errors.push(`bípedes — desfile procedural no 2×: ${JSON.stringify(pd3)}`);
+  const st2 = await page.evaluate(() => ({ ready1: window.aoe.renderer.art.unitsReady(1).join(','), ready2: window.aoe.renderer.art.unitsReady(2).join(',') }));
+  for (const t of LOT2) if (!st2.ready2.split(',').includes(t)) errors.push(`${t}: páginas 2× não prontas`);
+  await page.evaluate(() => { window.aoe.settings.quality = 'medium'; window.aoe.applyQuality(); });
+  if (lote === 'bipedes') {
+    console.log('errors:', errors.length ? errors.join('\n') : 'none');
+    await browser.close();
+    process.exit(errors.length ? 1 : 0);
+  }
+}
 
 // ------------------------------------------------------------------------------------------------------------------
 // 1. roda: as 4 criaturas nas 8 direções

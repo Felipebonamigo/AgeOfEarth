@@ -48,3 +48,18 @@ export const RIG_FILES = {
   giant: ['scripts/bake/page/rigs/giant.js', 'scripts/bake/page/rigs/human.js', 'scripts/bake/page/rigs/organic.js'],
   serpent: ['scripts/bake/page/rigs/serpent.js', 'scripts/bake/page/rigs/human.js', 'scripts/bake/page/rigs/organic.js'],
 };
+
+// Lote bípedes-espíritos (Etapa 6, docs/ART.md Apêndice G): o rig `biped` — o esqueleto humano com o CORPO ESCULPIDO de
+// rigs/anatomy.js e um acabamento (carne, bronze com pátina, mármore pintado, espectro): ciclope, colosso, sentinela e a
+// Sombra (poses art/poses/biped.json, pivôs do humano). O corpo esculpido também veste o centauro (cavalo com
+// `centaur: true`, rigs/centaur.js) e a Medusa (serpente, `form: 'medusa'`, rigs/medusa.js): os arquivos entram no hash
+// dos dois rigs.
+import { bipedUnit, KIT as BIPED_KIT, JOINTS as BIPED_JOINTS, SCALARS as BIPED_SCALARS } from './biped.js';
+Object.assign(UNIT_RIGS, { biped: bipedUnit });
+Object.assign(DEFAULT_POSES, { biped: 'art/poses/biped.json' });
+Object.assign(UNIT_KITS, { biped: BIPED_KIT });
+Object.assign(NESTED_HUMAN, { biped: 'human' });
+Object.assign(UNIT_POSE_KEYS, { biped: { joints: BIPED_JOINTS, scalars: BIPED_SCALARS } });
+Object.assign(RIG_FILES, { biped: ['scripts/bake/page/rigs/biped.js', 'scripts/bake/page/rigs/anatomy.js', 'scripts/bake/page/rigs/human.js', 'scripts/bake/page/rigs/organic.js'] });
+RIG_FILES.horse.push('scripts/bake/page/rigs/centaur.js', 'scripts/bake/page/rigs/anatomy.js', 'scripts/bake/page/rigs/organic.js');
+RIG_FILES.serpent.push('scripts/bake/page/rigs/medusa.js', 'scripts/bake/page/rigs/anatomy.js');

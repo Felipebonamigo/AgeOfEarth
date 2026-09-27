@@ -88,6 +88,9 @@ describe.skipIf(!hasArt)('atlas e índice das unidades (revisão da Etapa 4)', (
       else if (m.source.rig === 'beast') { expect(an.walk.stride, m.id).toBeGreaterThan(0.6); expect(an.walk.stride, m.id).toBeLessThan(1.1); if (an.run) { expect(an.run.stride, m.id).toBeGreaterThan(1.6); expect(an.run.stride, m.id).toBeLessThan(2.4); } }
       else if (m.source.rig === 'giant') { const k = (m.source.params.height ?? 2.6) / 1.8; expect(an.walk.stride, m.id).toBeGreaterThan(0.65 * k); expect(an.walk.stride, m.id).toBeLessThan(0.95 * k); }
       else if (m.source.rig === 'serpent') expect(an.walk.stride, m.id).toBeGreaterThan(0.5);
+      // lote bípedes-espíritos: quem pisa, pela altura (o colosso a passos curtos e pesados: 0,6×); quem não pisa (`glide`:
+      // a Sombra flutua, a sentinela não anda) tem a passada nominal do rig, glide × ½ tile/m × altura/1,8
+      else if (m.source.rig === 'biped') { const k = (m.source.params.height ?? 1.8) / 1.8, g = m.source.params.glide; if (g) expect(an.walk.stride, m.id).toBeCloseTo(g * 0.5 * k, 2); else { expect(an.walk.stride, m.id).toBeGreaterThan(0.6 * k); expect(an.walk.stride, m.id).toBeLessThan(0.95 * k); } }
       else if (m.source.rig === 'horse') { expect(an.walk.stride, m.id).toBeGreaterThan(0.7); expect(an.walk.stride, m.id).toBeLessThan(1); expect(an.run.stride, m.id).toBeGreaterThan(1.5); expect(an.run.stride, m.id).toBeLessThan(2.1); }
       else { expect(an.walk.stride, m.id).toBeGreaterThan(0.65); expect(an.walk.stride, m.id).toBeLessThan(0.95); }
     }
@@ -120,6 +123,8 @@ describe.skipIf(!hasArt)('atlas e índice das unidades (revisão da Etapa 4)', (
       // Etapa 6: a voadora não toca o chão (o voo anda pelo relógio) e a serpente não tem pés (o corpo segue o próprio
       // rastro: passada = onda, tests/art-myth.test.ts)
       if (m.flying || m.source.rig === 'serpent') continue;
+      // (lote bípedes-espíritos: nem quem desliza sem pisar — `glide`: a Sombra, a sentinela imóvel)
+      if (m.source.params?.glide) continue;
       for (const anim of MOVE_ANIMS) {
         const info = index.assets[m.id].anims![anim]; if (!info) continue;
         const n = info.frames;
