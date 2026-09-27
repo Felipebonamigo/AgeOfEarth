@@ -3,7 +3,7 @@
 import { Application, Container, Graphics, Sprite, Texture, Text, TextStyle } from 'pixi.js';
 import { effectiveResolution, resolveQuality, type Quality } from './quality';
 import { TILE, TICK_RATE, DT, PLAYER_COLORS, KOTH_RADIUS, rankOf } from '../core/constants';
-import { ABILITIES, BUILDINGS, UNITS } from '../core/data';
+import { ABILITIES, BUILDINGS, MAJOR_GODS, UNITS } from '../core/data';
 import type { Building, GameState, Unit, VisualEffect } from '../core/types';
 import { Camera } from './camera';
 import { TextureCache, darken } from './textures';
@@ -24,7 +24,7 @@ import { deathView } from './fx/handlers/death';
 import { DayCycle } from './fx/light';
 import { bronzeTint } from './fx/handlers/bronze';
 import {
-  abilityUseTick, animDuration, buildingState, chooseAnim, corpseAlpha, CORPSE_TTL, MAX_CORPSES, dirWithHysteresis, freshHit, isWalking, isRunning, isMoveAnim, warmUnitTypes, unitLook, mulColor, type UnitAnim, type AnimInput,
+  abilityUseTick, animDuration, buildingState, chooseAnim, riseElapsed, corpseAlpha, CORPSE_TTL, MAX_CORPSES, dirWithHysteresis, freshHit, isWalking, isRunning, isMoveAnim, warmUnitTypes, unitLook, mulColor, type UnitAnim, type AnimInput,
   WALL_LINK_TYPES, wallMask, buildingVariant, ageTier, farmCrop, damageLevel, gateNear, smokeRate, rubbleAlpha, GLOW_ANIM, glowVariant,
   ghostTint, placementMasks, wallFlagAt, WALL_FLAG_PROBE,
 } from './art/logic';
@@ -111,8 +111,14 @@ export class Renderer {
   private artGen = -1;
   /** `unitGen` da ArtLibrary já refletido (chegaram as páginas de um tipo de unidade → troca só as vistas dele). */
   private unitGenSeen = -1;
+  /** Etapa 6: relógio de jogo (s) da última checagem das páginas próprias de criaturas fora de uso (`releaseUnusedArt`). */
+  private releaseAt = 0;
   /** Idade do jogador local cujos tipos de unidade já foram pré-carregados (-1 = pedir no próximo quadro). */
   private warmAge = -1;
+  /** Contador de quadros da conferência dos portais dos titãs (warmTitans). */
+  private titanWarmFrame = -1;
+  /** Titãs que algum Portal dos Titãs mantém quentes (warmTitans): ficam fora da liberação por tipo (releaseUnusedArt). */
+  private titansWanted = new Set<string>();
   /** Cadáveres assados (docs/ART.md §1.9): a vista da queda continua no chão depois do efeito 'death', no último quadro
    *  de `die`, até CORPSE_TTL s da morte (relógio de jogo); no máximo MAX_CORPSES (sai o mais velho). */
   private corpses: { uv: UnitView; born: number }[] = [];
@@ -141,7 +147,7 @@ export class Renderer {
   private tmpVec = { x: 0, y: 0 };
   /** Ponto do alvo de quem está no posto (engagedTarget). */
   private tgtPt = { x: 0, y: 0 };
-  private animIn: AnimInput = { moving: false, attacking: false, carrying: false, working: false, engaged: false, running: false, ability: false };
+  private animIn: AnimInput = { moving: false, attacking: false, carrying: false, working: false, engaged: false, running: false, ability: false, rising: false };
   /** Relógio (s) das animações assadas: tempo de JOGO, (tick + alpha)/TICK_RATE, nunca voltando para trás. Congela na
    *  pausa e na espera do lockstep (ninguém anda no lugar) e acelera em 2×/3× junto com o movimento e os efeitos (a queda
    *  cabe no efeito 'death' em qualquer velocidade). O relógio real (`time`) segue para água, balanço procedural e tremor. */
@@ -387,12 +393,43 @@ export class Renderer {
    * unidade que ele pode treinar até ali e dos que já estão no mapa (sem esperar: sobem para a GPU uma por quadro).
    */
   private warmUnits(state: GameState, local: number): void {
+    this.warmTitans(state);
     const age = state.players[local]?.age ?? 0;
     if (age === this.warmAge) return;
     this.warmAge = age;
     const present = new Set<string>();
     for (const u of state.units.values()) present.add(u.type);
     this.art.prewarmUnits(warmUnitTypes(UNITS, age, present));
+  }
+  /**
+   * Etapa 6 (lote bípedes-espíritos): as páginas PRÓPRIAS das criaturas que saíram de cena (a última morreu há 20 s de
+   * jogo: `RELEASE_GRACE_S`, o mesmo relógio do cadáver) saem da VRAM — antes ficavam até o fim da partida. Em uso: os
+   * assets das unidades vivas no estado (mesmo fora da tela: rolar a câmera não recarrega), das vistas, das quedas e dos
+   * cadáveres.
+   */
+  private releaseUnusedArt(state: GameState, clock: number): void {
+    const used = new Set<string>();
+    for (const u of state.units.values()) used.add(this.art.unitId(u.type, u.heads));
+    for (const v of this.views.values()) if (v.unit) used.add(v.unit.art.id);
+    for (const uv of this.fx.dyingViews()) used.add(uv.art.id);
+    for (const c of this.corpses) used.add(c.uv.art.id);
+    // (integração da Etapa 6: o titã que um Portal dos Titãs mantém quente — `warmTitans` — também está em uso; sem isso
+    // as páginas dele saíam a cada 20 s e o portal as pedia de novo no quadro seguinte)
+    for (const t of this.titansWanted) used.add(this.art.unitId(t));
+    this.art.releaseUnused(used, clock);
+  }
+  /**
+   * Titãs (Etapa 6, lote titãs): as páginas do titã do deus de quem ergue um Portal dos Titãs sobem já na obra — ele
+   * nasce do portal saindo do chão (`rise`), e a primeira vista não pode sair procedural. Confere a cada 30 quadros.
+   */
+  private warmTitans(state: GameState): void {
+    if ((this.titanWarmFrame = (this.titanWarmFrame + 1) % 30) !== 0) return;
+    this.titansWanted.clear();
+    for (const b of state.buildings.values()) {
+      if (!BUILDINGS[b.type]?.titanGate) continue;
+      const titan = MAJOR_GODS[state.players[b.owner]?.god ?? '']?.titan;
+      if (titan) { this.titansWanted.add(titan); this.art.prewarmUnits([titan]); }
+    }
   }
   /**
    * Chegaram as páginas de algum tipo de unidade: as vistas procedurais dos tipos que agora têm arte (e as assadas numa
@@ -811,7 +848,12 @@ export class Renderer {
       abFresh = freshHit(used, uv.lastAbilityTick, state.tick, Math.ceil(animDuration(abi.frames, abi.fps) * TICK_RATE));
       uv.lastAbilityTick = used;
     }
+    // ascensão (Etapa 6, lote titãs): quem tem `rise` no atlas (o titã do Portal dos Titãs) sai do chão ao nascer, por
+    // cima de tudo, contada do tick em que surgiu (a vista que aparece no meio pega do quadro certo)
+    const rs = art.anims.rise;
+    const risen = rs ? riseElapsed(u.spawnTick, state.tick, Math.ceil(animDuration(rs.frames, rs.fps) * TICK_RATE), TICK_RATE) : -1;
     const ai = this.animIn;
+    ai.rising = risen >= 0;
     ai.ability = abFresh || (uv.anim === 'ability' && !uv.finished(clock));
     ai.moving = walking; ai.attacking = attacking; ai.carrying = u.carry === 'food' && u.carryAmt >= 1;
     ai.working = posted && (u.state === 'gather' || u.state === 'build');
@@ -821,7 +863,9 @@ export class Renderer {
     // na Trégua ninguém golpeia: quem está no posto relaxa a guarda (armas baixadas, a pose parada) até ela acabar
     ai.engaged = posted && u.state === 'attack' && state.tick >= state.ceasefireUntil;
     const anim: UnitAnim = chooseAnim(ai, art.has);
-    uv.pose(anim, dir, clock, (hit && anim === 'attack') || (abFresh && anim === 'ability'));
+    const riseStart = anim === 'rise' && uv.anim !== 'rise';
+    uv.pose(anim, dir, clock, (hit && anim === 'attack') || (abFresh && anim === 'ability') || riseStart);
+    if (riseStart) uv.animStart = clock - risen;
     uv.place(ix * TILE, iy * TILE);   // antes do tick: o andar avança o quadro pela distância andada neste quadro
     uv.tick(clock, (u.id % 13) * 0.077);
     uv.tint(bodyTint, mulColor(color, bodyTint));
@@ -1214,6 +1258,7 @@ export class Renderer {
     if (this.art.generation !== this.artGen) this.rebuildArt();
     this.warmUnits(state, ui.localPlayer);
     if (this.art.unitGen !== this.unitGenSeen) this.refreshUnitViews(state);
+    { const t = state.tick / TICK_RATE; if (t - this.releaseAt >= 2 || t < this.releaseAt) { this.releaseAt = t; this.releaseUnusedArt(state, t); } }
     this.cam.resize(this.app.screen.width, this.app.screen.height);
     const sx = this.cam.shake > 0 ? (Math.random() - 0.5) * this.cam.shake : 0, sy = this.cam.shake > 0 ? (Math.random() - 0.5) * this.cam.shake : 0;
     if (this.cam.shake > 0) this.cam.shake = Math.max(0, this.cam.shake - dtReal * 12);

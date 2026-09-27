@@ -1,0 +1,51 @@
+{
+ "rig": "human",
+ "version": 1,
+ "units": "Tronco humano do CENTAURO (rigs/centaur.js, rig do cavalo com centaur: true): pivôs do rig humano, sem as pernas (o quadril é a cintura presa à cernelha — root sempre na origem). Cada animação do manifesto tem `pose` (cavalo, art/poses/horse.json) e `rider` (estas). Graus por pivô [x, y, z]: membro pendendo — x positivo leva para a frente; tronco/cabeça — x positivo inclina para TRÁS; escalar draw (corda do arco). t em 0..1; loop = o último quadro não repete o primeiro",
+ "joints": ["root","torso","head","shoulderL","elbowL","shoulderR","elbowR","hipL","kneeL","hipR","kneeR","spear","weapon","axe","shield","basket","bow","bundle","offhand"],
+ "scalars": ["draw","hold"],
+ "anims": {
+  "idle_centaur": {
+   "loop": true, "ease": "smooth", "keys": [
+    {"t":0,"torso":[4,0,0],"head":[-2,0,0],"shoulderL":[14,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[6,0,12],"elbowR":[14,0,0],"draw":0},
+    {"t":0.5,"torso":[5,0,0],"head":[2,-10,0],"shoulderL":[16,0,-11],"elbowL":[28,0,0],"bow":[30,0,-10],"shoulderR":[6,0,12],"elbowR":[14,0,0],"draw":0}
+   ]
+  },
+  "walk_centaur": {
+   "loop": true, "keys": [
+    {"t":0,"torso":[3,0,2],"head":[0,0,-2],"shoulderL":[14,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[16,0,12],"elbowR":[14,0,0],"draw":0},
+    {"t":0.25,"torso":[6,0,0],"head":[-3,0,0],"shoulderL":[14,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[4,0,12],"elbowR":[14,0,0],"draw":0},
+    {"t":0.5,"torso":[3,0,-2],"head":[0,0,2],"shoulderL":[14,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[-10,0,12],"elbowR":[14,0,0],"draw":0},
+    {"t":0.75,"torso":[6,0,0],"head":[-3,0,0],"shoulderL":[14,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[4,0,12],"elbowR":[14,0,0],"draw":0}
+   ]
+  },
+  "run_centaur": {
+   "loop": true, "keys": [
+    {"t":0,"torso":[-14,0,0],"head":[14,0,0],"shoulderL":[40,0,-12],"elbowL":[30,0,0],"bow":[10,0,-10],"shoulderR":[20,0,22],"elbowR":[40,0,0],"draw":0},
+    {"t":0.5,"torso":[-8,0,0],"head":[8,0,0],"shoulderL":[34,0,-12],"elbowL":[34,0,0],"bow":[10,0,-10],"shoulderR":[14,0,22],"elbowR":[46,0,0],"draw":0}
+   ]
+  },
+  "attack_centaur": {
+   "loop": false, "ease": "smooth", "keys": [
+    {"t":0,"torso":[0,-30,0],"head":[0,30,0],"shoulderL":[90,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[10,-55,95],"elbowR":[110,0,0],"draw":0},
+    {"t":0.25,"torso":[0,-30,0],"head":[0,30,0],"shoulderL":[75,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[150,0,30],"elbowR":[130,0,0],"draw":0},
+    {"t":0.5,"torso":[0,-30,0],"head":[0,30,0],"shoulderL":[70,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[70,0,10],"elbowR":[70,0,0],"draw":0.1},
+    {"t":0.8,"torso":[0,-30,0],"head":[0,30,0],"shoulderL":[90,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[20,-20,80],"elbowR":[140,0,0],"draw":0.55},
+    {"t":1,"torso":[0,-30,0],"head":[0,30,0],"shoulderL":[90,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[10,-35,92],"elbowR":[150,0,0],"draw":1}
+   ]
+  },
+  "aim_centaur": {
+   "loop": true, "ease": "smooth", "keys": [
+    {"t":0,"torso":[0,-30,0],"head":[0,30,0],"shoulderL":[90,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[10,-35,92],"elbowR":[150,0,0],"draw":1},
+    {"t":0.5,"torso":[1,-30,0],"head":[0,30,0],"shoulderL":[91,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[10,-35,92],"elbowR":[150,0,0],"draw":1}
+   ]
+  },
+  "die_centaur": {
+   "loop": false, "ease": "smooth", "keys": [
+    {"t":0,"torso":[-6,0,0],"head":[-10,0,0],"shoulderL":[14,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[6,0,12],"elbowR":[14,0,0],"draw":0},
+    {"t":0.5,"torso":[20,0,18],"head":[-20,0,0],"shoulderL":[40,0,-50],"elbowL":[30,0,0],"bow":[30,0,-10],"shoulderR":[40,0,50],"elbowR":[30,0,0],"draw":0},
+    {"t":1,"torso":[34,0,28],"head":[-30,20,0],"shoulderL":[30,0,-80],"elbowL":[10,0,0],"bow":[40,0,-10],"shoulderR":[30,0,80],"elbowR":[10,0,0],"draw":0}
+   ]
+  }
+ }
+}

@@ -1,0 +1,52 @@
+{
+  "id": "shade",
+  "kind": "unit",
+  "stage": 6,
+  "sizeClass": "unit",
+  "page": "own",
+  "docs": "Sombra de Hades no rig bípede (docs/ART.md, Apêndice G, lote bípedes-espíritos): o espectro de um hoplita caído — corpo descarnado de fumaça escura azulada com brilho frio próprio, elmo coríntio com crina de time, escudo com o centro de time, kopis, manto esfarrapado que some embaixo e a capa rasgada de time; flutua (passada pelo deslizar, `glide`), olhos de gelo e se desfaz na morte (`fade`). Quadros enxutos (parado 2, andar 6, queda 4): a Sombra nasce das mortes humanas do jogador de Hades e cabe no orçamento de VRAM do cenário de desempenho. O renderizador a desenha a 70 % com a sombra no chão a 40 % (unitLook). Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/shade.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Hover\", \"walk\": \"Drift\", \"attack\": \"Slash\", \"die\": \"Dissolve\" }, \"teamMaterials\": [\"Cloak\", \"Crest\", \"ShieldCenter\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "biped",
+    "poses": "art/poses/biped.json",
+    "params": {
+      "height": 1.9,
+      "bulk": 1.0,
+      "build": "gaunt",
+      "finish": "spectral",
+      "head": "male",
+      "hair": "none",
+      "garment": "shroud",
+      "cloak": "tattered",
+      "eyes": "frost",
+      "glide": 4.0,
+      "helm": "corinthian",
+      "crest": "team",
+      "human": {
+        "armor": "bare",
+        "helmet": "none",
+        "shield": "hoplon",
+        "weapon": "sword"
+      }
+    }
+  },
+  "size": {
+    "tiles": [
+      3.2,
+      3.6
+    ]
+  },
+  "anchor": [
+    0.45,
+    0.6
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": { "frames": 2, "fps": 4, "pose": "idle_shade" },
+    "walk": { "frames": 6, "fps": 10, "pose": "walk_shade" },
+    "attack": { "frames": 6, "fps": 10, "pose": "attack_shade" },
+    "die": { "frames": 4, "fps": 8, "pose": "die_shade" }
+  },
+  "team": true,
+  "shadow": true
+}

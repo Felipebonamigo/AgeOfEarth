@@ -37,10 +37,11 @@ export function dirWithHysteresis(angle: number, prev: number, margin = 0.12): n
 /**
  * Animações de unidade: as 4 de todo manifesto (parado, andar, atacar, morrer) e as especiais — carregar e coletar
  * (cidadão), `aim` (à distância no posto entre um disparo e outro: arco puxado, dardo armado, braço do cerco carregado),
- * `run` (galope da cavalaria acima de RUN_SPEED; sem ela, `walk` — o trote — cobre qualquer velocidade) e `ability` (a
- * habilidade Q do herói, uma vez, a partir do tick em que foi usada).
+ * `run` (galope da cavalaria acima de RUN_SPEED; sem ela, `walk` — o trote — cobre qualquer velocidade), `ability` (a
+ * habilidade Q do herói, uma vez, a partir do tick em que foi usada) e `rise` (Etapa 6, lote titãs: a ascensão — o titã
+ * sai do chão ao nascer do Portal dos Titãs; uma vez, contada do tick em que a unidade surgiu).
  */
-export type UnitAnim = 'idle' | 'walk' | 'attack' | 'die' | 'carry' | 'gather' | 'aim' | 'run' | 'ability';
+export type UnitAnim = 'idle' | 'walk' | 'attack' | 'die' | 'carry' | 'gather' | 'aim' | 'run' | 'ability' | 'rise';
 
 export interface AnimInput {
   /** A unidade se deslocou desde o tick anterior. */
@@ -57,13 +58,16 @@ export interface AnimInput {
   running?: boolean;
   /** Usando a habilidade (herói): foi usada há menos que a duração da animação `ability`. */
   ability?: boolean;
+  /** Saindo do chão (titã): surgiu há menos que a duração da animação `rise` (riseElapsed). */
+  rising?: boolean;
 }
 /**
- * Animação a tocar: habilidade em curso > ataque em curso > andar (carregar, galopar) > mirar (no posto, entre
- * disparos) > coletar > parado; cai para a mais próxima que existir (sem `run` → `walk`, sem `aim` → parado, sem
- * `ability` → o resto).
+ * Animação a tocar: ascensão em curso > habilidade em curso > ataque em curso > andar (carregar, galopar) > mirar (no
+ * posto, entre disparos) > coletar > parado; cai para a mais próxima que existir (sem `run` → `walk`, sem `aim` →
+ * parado, sem `ability`/`rise` → o resto).
  */
 export function chooseAnim(i: AnimInput, has: (a: UnitAnim) => boolean): UnitAnim {
+  if (i.rising && has('rise')) return 'rise';
   if (i.ability && has('ability')) return 'ability';
   if (i.attacking && has('attack')) return 'attack';
   if (i.moving) return i.carrying && has('carry') ? 'carry' : i.running && has('run') ? 'run' : 'walk';
@@ -85,6 +89,15 @@ export function isRunning(disp2: number, dt: number, wasRunning: boolean): boole
  */
 export function abilityUseTick(abilityReadyAt: number, cooldownTicks: number): number {
   return abilityReadyAt > 0 && cooldownTicks > 0 ? abilityReadyAt - cooldownTicks : -1;
+}
+/**
+ * Segundos de ascensão já passados (Etapa 6, lote titãs), ou -1 se a unidade não está saindo do chão: surgiu no tick
+ * `spawnTick` (> 0: quem já está no mapa no começo — cenários — não sobe) há menos que `durTicks`. O renderizador toca a
+ * animação `rise` contada do nascimento — a vista que aparece no meio (névoa, páginas chegando) pega do quadro certo.
+ */
+export function riseElapsed(spawnTick: number, tick: number, durTicks: number, tickRate: number): number {
+  const d = tick - spawnTick;
+  return spawnTick > 0 && durTicks > 0 && d >= 0 && d < durTicks ? d / tickRate : -1;
 }
 /** Andando (walk/carry/run): o que a histerese de `isWalking` considera "já estava andando". */
 export function isMoveAnim(a: UnitAnim): boolean { return a === 'walk' || a === 'carry' || a === 'run'; }

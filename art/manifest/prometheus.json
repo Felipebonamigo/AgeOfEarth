@@ -1,0 +1,28 @@
+{
+  "id": "prometheus",
+  "kind": "unit",
+  "stage": 6,
+  "sizeClass": "titan",
+  "page": "own",
+  "scales": [1],
+  "docs": "Titã do fogo (rig `titan`, docs/ART.md Apêndice G, lote titãs): 6,8 m de corpo esculpido em bronze queimado, fuligem e rachaduras em brasa nas mãos e antebraços, fogo nas duas mãos (com a luz no corpo), grilhões quebrados com as correntes do Cáucaso, cabelo e barba ruivo-escuros; tanga e talabarte de time. Golpe de área: os dois punhos em chamas no chão; ascensão saindo da terra (`rise`). Só a 1× (VRAM). Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/prometheus.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Walk\", \"attack\": \"Slam\", \"die\": \"Death\", \"rise\": \"Rise\" }, \"teamMaterials\": [\"Loincloth\", \"Sash\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "titan",
+    "poses": "art/poses/titan.json",
+    "params": { "style": "prometheus", "height": 6.8, "bulk": 1.22 }
+  },
+  "size": { "tiles": [8.4, 9.4] },
+  "anchor": [0.5, 0.58],
+  "dirs": 8,
+  "mirror": true,
+  "anims": {
+    "idle": { "frames": 4, "fps": 5, "pose": "idle_prometheus" },
+    "walk": { "frames": 8, "fps": 10, "pose": "walk_prometheus" },
+    "attack": { "frames": 6, "fps": 10, "pose": "attack_prometheus" },
+    "die": { "frames": 6, "fps": 8, "pose": "die_prometheus" },
+    "rise": { "frames": 8, "fps": 5, "pose": "rise_prometheus", "dirs": [2] }
+  },
+  "team": true,
+  "shadow": true
+}

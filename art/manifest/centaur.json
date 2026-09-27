@@ -1,0 +1,47 @@
+{
+  "id": "centaur",
+  "kind": "unit",
+  "stage": 6,
+  "sizeClass": "myth",
+  "page": "own",
+  "docs": "Centauro arqueiro no rig do cavalo com `centaur: true` (docs/ART.md, Apêndice G, lote bípedes-espíritos): o corpo de cavalo alazão sem pescoço nem cabeça e, na cernelha, o tronco humano com o corpo esculpido (rigs/centaur.js), barba e cabelo desgrenhados, arco composto e aljava, talabarte de time, o pano de time drapeado na cintura sobre a emenda e a cilha com a faixa de time no barril; trota, galopa (acima de RUN_SPEED), atira com o cavalo parado e mira entre disparos. Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/centaur.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Trot\", \"run\": \"Gallop\", \"attack\": \"Shoot\", \"aim\": \"Aim\", \"die\": \"Death\" }, \"teamMaterials\": [\"Waistcloth\", \"Sash\", \"Girth\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "horse",
+    "poses": "art/poses/horse.json",
+    "riderPoses": "art/poses/centaur.json",
+    "params": {
+      "coat": "chestnut",
+      "build": "medium",
+      "cloth": false,
+      "centaur": true,
+      "rider": {
+        "armor": "bare",
+        "weapon": "bow",
+        "quiver": true,
+        "sash": "team"
+      }
+    }
+  },
+  "size": {
+    "tiles": [
+      4.4,
+      4.6
+    ]
+  },
+  "anchor": [
+    0.46,
+    0.62
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": { "frames": 4, "fps": 10, "pose": "idle_horse", "rider": "idle_centaur" },
+    "walk": { "frames": 8, "fps": 10, "pose": "trot", "rider": "walk_centaur" },
+    "run": { "frames": 8, "fps": 12, "pose": "gallop", "rider": "run_centaur" },
+    "attack": { "frames": 6, "fps": 10, "pose": "idle_horse", "rider": "attack_centaur" },
+    "aim": { "frames": 4, "fps": 8, "pose": "idle_horse", "rider": "aim_centaur" },
+    "die": { "frames": 6, "fps": 10, "pose": "die_horse", "rider": "die_centaur" }
+  },
+  "team": true,
+  "shadow": true
+}

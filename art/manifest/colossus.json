@@ -1,0 +1,50 @@
+{
+  "id": "colossus",
+  "kind": "unit",
+  "stage": 6,
+  "sizeClass": "titan",
+  "page": "own",
+  "docs": "Estátua de bronze animada por Hefesto no rig bípede (docs/ART.md, Apêndice G, lote bípedes-espíritos): o esqueleto humano a 5 m com o corpo esculpido atlético (como os bronzes de Riace), acabamento de bronze polido com pátina verde nas dobras e escorridos, elmo coríntio com crina de time, barba de cachos, olhos de brasa, saiote de pano de time com cinturão e o malho de ferreiro; passos curtos e pesados. Quadros enxutos (parado 2, queda 5): a 2× o colosso cabe inteiro numa página de 2048² (o empacotador não o divide). Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/colossus.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Walk\", \"attack\": \"Hammer\", \"die\": \"Topple\" }, \"teamMaterials\": [\"Kilt\", \"Crest\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "biped",
+    "poses": "art/poses/biped.json",
+    "params": {
+      "height": 5.0,
+      "bulk": 1.06,
+      "build": "heroic",
+      "finish": "bronze",
+      "head": "male",
+      "hair": "none",
+      "beard": "full",
+      "weapon": "hammer",
+      "garment": "kilt",
+      "eyes": "ember",
+      "helm": "corinthian",
+      "crest": "team",
+      "human": {
+        "armor": "bare",
+        "helmet": "none"
+      }
+    }
+  },
+  "size": {
+    "tiles": [
+      9.2,
+      9.4
+    ]
+  },
+  "anchor": [
+    0.4,
+    0.6
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": { "frames": 2, "fps": 2, "pose": "idle_colossus" },
+    "walk": { "frames": 8, "fps": 8, "pose": "walk_colossus" },
+    "attack": { "frames": 6, "fps": 8, "pose": "attack_colossus" },
+    "die": { "frames": 5, "fps": 7, "pose": "die_colossus" }
+  },
+  "team": true,
+  "shadow": true
+}

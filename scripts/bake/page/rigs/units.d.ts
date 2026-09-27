@@ -1,5 +1,5 @@
 // Tipos de scripts/bake/page/rigs/units.js usados pelo lado TypeScript (testes, check.ts).
-export type UnitRig = 'human' | 'horse' | 'siege' | 'beast' | 'giant' | 'serpent';
+export type UnitRig = 'human' | 'horse' | 'siege' | 'beast' | 'giant' | 'serpent' | 'biped' | 'titan';
 export const UNIT_RIGS: Record<UnitRig, unknown>;
 export const DEFAULT_POSES: Record<UnitRig, string>;
 export const UNIT_KITS: Record<UnitRig, Record<string, (string | number | boolean)[]>>;

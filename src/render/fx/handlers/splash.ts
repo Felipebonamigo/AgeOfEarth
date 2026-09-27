@@ -24,9 +24,10 @@ export const splash: FxHandler<null> = {
     switch (splashStyle(src?.type)) {
       case 'fire': {
         if (src && src.type === 'chimera') {
-          // o sopro: da boca (à frente e acima do pé da Quimera) até o alvo
+          // o sopro: da boca até o alvo — a goela da Quimera assada (lote feras da Etapa 6, attack_chimera quadro 0: a
+          // cabeça erguida) fica ≈ 0,72 tile à frente do centro do corpo e ≈ 1,75 m acima do chão (22 px de tela)
           const dx = e.x - src.x, dy = e.y - src.y, l = Math.sqrt(dx * dx + dy * dy) || 1;
-          fireJet(fx.particles, fx.tex, (src.x + dx / l * 0.45) * TILE, (src.y + dy / l * 0.45) * TILE, 16, x, y, 14);
+          fireJet(fx.particles, fx.tex, (src.x + dx / l * 0.72) * TILE, (src.y + dy / l * 0.72) * TILE, 22, x, y, 14);
         }
         fireGround(fx.particles, fx.tex, x, y, R * 0.75, Math.round(5 + r * 3.5), PRIO.combat, 1.25);
         glow(fx.particles, fx.tex, x, y, 6, R * 0.8, 0xff9a40, 0.55, PRIO.combat, 0.85);

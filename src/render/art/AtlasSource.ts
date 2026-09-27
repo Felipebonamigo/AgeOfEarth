@@ -15,10 +15,10 @@ export type LoadStatus = 'idle' | 'loading' | 'ready' | 'failed';
 export type LoadKind = 'group' | 'unit';
 
 /** Quadros e animações de um passe de um grupo (união das páginas já prontas; objeto estável: vistas guardam a referência). */
-export interface PassFrames { frames: Map<string, Texture>; anims: Map<string, Texture[]>; mirrored: Record<string, number> | null }
+export interface PassFrames { frames: Map<string, Texture>; anims: Map<string, Texture[]>; mirrored: Record<string, number> | null; /** Etapa 6: espelhamento por asset (páginas próprias com `aoe.mirroredAssets`: titãs simétricos). */ mirroredBy?: Map<string, Record<string, number>> }
 
-/** Uma página pedida (JSON + PNG de um passe). */
-interface SheetLoad { status: LoadStatus; pass: ArtPass }
+/** Uma página pedida (JSON + PNG de um passe); `sheet`/`url` depois de pronta (para descarregar só ela: `unloadAsset`). */
+interface SheetLoad { status: LoadStatus; pass: ArtPass; sheet?: Spritesheet; url?: string }
 
 interface GroupLoad {
   passes: Partial<Record<ArtPass, PassFrames>>;
@@ -190,10 +190,12 @@ export class AtlasSource {
           if (refused) throw new Error(`${a.json} recusado: ${refused}`);
           await this.upload(sheet.textureSource);
           if (this.groups.get(key) !== grp) return;   // descarregado no meio do caminho
-          const p = grp.passes[a.pass] ?? (grp.passes[a.pass] = { frames: new Map(), anims: new Map(), mirrored: null });
+          const p: PassFrames = grp.passes[a.pass] ?? (grp.passes[a.pass] = { frames: new Map(), anims: new Map(), mirrored: null });
           for (const [name, tex] of Object.entries(sheet.textures)) p.frames.set(name, tex as Texture);
           for (const [name, list] of Object.entries(sheet.animations)) p.anims.set(name, list as Texture[]);
           if (data.meta.aoe?.mirrored) p.mirrored = { ...(p.mirrored ?? {}), ...data.meta.aoe.mirrored };
+          s.sheet = sheet; s.url = this.url(a.json);
+          for (const [id, mm] of Object.entries(data.meta.aoe?.mirroredAssets ?? {})) (p.mirroredBy ??= new Map()).set(id, mm);
           s.status = 'ready';
         } catch (e) {
           s.status = 'failed'; grp.error = (e as Error).message;
@@ -233,6 +235,50 @@ export class AtlasSource {
   /** Quadros de um passe: a união das páginas já prontas do grupo nessa escala (null se nenhuma). */
   pass(group: ArtGroup, scale: ArtScale, pass: ArtPass): PassFrames | null {
     return this.groups.get(`${group}@${scale}`)?.passes[pass] ?? null;
+  }
+
+  /** Páginas de cada asset são só dele? (cache: o manifesto não muda depois de carregado) */
+  private own = new Map<string, boolean>();
+  /**
+   * Etapa 6 (lote bípedes-espíritos): as páginas do asset são SÓ dele, em todas as escalas e passes — o `page: 'own'`
+   * do bake (uma criatura por página). Só essas podem sair por tipo (`unloadAsset`): as compartilhadas servem a outros.
+   */
+  ownsPages(id: string): boolean {
+    const m = this.manifest;
+    if (!m) return false;
+    const hit = this.own.get(id);
+    if (hit !== undefined) return hit;
+    const filesOf = (a: ArtManifest['assets'][string] | undefined): string[] => Object.values(a?.atlases ?? {}).flatMap((by) => Object.values(by ?? {}).flat() as string[]);
+    const mine = new Set(filesOf(m.assets[id]));
+    let ok = mine.size > 0;
+    for (const [other, a] of Object.entries(m.assets)) { if (!ok) break; if (other !== id && filesOf(a).some((f) => mine.has(f))) ok = false; }
+    this.own.set(id, ok);
+    return ok;
+  }
+  /**
+   * Descarrega as páginas PRÓPRIAS de um asset numa escala (as outras vistas não as usam: quem chama garante que o tipo
+   * saiu de cena). false se o asset não tem páginas próprias, nada estava pedido ou alguma página ainda carrega (tenta de
+   * novo depois). As páginas voltam a ser pedidas se o tipo reaparecer (`ensureAsset`).
+   */
+  unloadAsset(id: string, scale: ArtScale): boolean {
+    const a = this.manifest?.assets[id];
+    if (!a || !this.ownsPages(id)) return false;
+    const g = this.groups.get(`${a.group}@${scale}`);
+    if (!g) return false;
+    const files = this.assetFiles(id, scale).filter((f) => g.sheets.has(f));
+    if (!files.length || files.some((f) => g.sheets.get(f)!.status === 'loading')) return false;
+    for (const f of files) {
+      const s = g.sheets.get(f)!;
+      const p = g.passes[s.pass];
+      if (p && s.sheet) {
+        for (const n of Object.keys(s.sheet.textures)) p.frames.delete(n);
+        for (const n of Object.keys(s.sheet.animations)) p.anims.delete(n);
+      }
+      if (s.sheet && g.manual.includes(s.sheet)) { g.manual = g.manual.filter((x) => x !== s.sheet); s.sheet.destroy(true); }
+      else if (s.url) { const u = s.url; g.urls = g.urls.filter((x) => x !== u); void Assets.unload(u).catch(() => undefined); }
+      g.sheets.delete(f);
+    }
+    return true;
   }
 
   /** Descarrega os grupos de uma escala (texturas compartilhadas: só depois que nenhuma vista as usa). */

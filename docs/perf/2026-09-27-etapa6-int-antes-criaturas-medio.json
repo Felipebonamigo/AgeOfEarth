@@ -1,0 +1,169 @@
+{
+  "date": "2026-09-27",
+  "commit": "083c590",
+  "label": "etapa6-int-antes-criaturas-medio",
+  "url": "http://localhost:4261/",
+  "note": "Chromium headless + swiftshader (software): ms/fps pessimistas, sem GPU; comparar antes/depois. Ver docs/ART.md §6.",
+  "scenario": {
+    "seed": 42,
+    "tick": 24014,
+    "minutes": 20,
+    "units": 263,
+    "buildings": 134,
+    "map": "144×144",
+    "quality": "medium",
+    "bakedArt": true,
+    "art": {
+      "enabled": "true",
+      "wanted": "1x",
+      "manifest": "ready",
+      "generation": "1",
+      "unitGen": "4",
+      "units": "1x:ready 2x:idle servida:1",
+      "buildings": "1x:ready 2x:idle servida:1",
+      "props": "1x:ready 2x:idle servida:1",
+      "icons": "1x:ready 2x:idle servida:1",
+      "fx": "1x:ready 2x:idle servida:1"
+    },
+    "resolution": 1,
+    "viewport": "1600×900",
+    "warmMinutes": 20,
+    "spawned": 79,
+    "measureMs": 8000,
+    "reveal": true,
+    "creatures": [
+      "colossus",
+      "cyclops",
+      "chimera",
+      "cerberus",
+      "hydra:3",
+      "medusa",
+      "manticore",
+      "minotaur",
+      "cronus"
+    ]
+  },
+  "results": {
+    "zoom1": {
+      "name": "zoom1",
+      "title": "zoom 1 (cidade do jogador)",
+      "fps": 1.5,
+      "render": {
+        "avg": 1.57,
+        "p95": 2.3,
+        "max": 2.3,
+        "n": 12
+      },
+      "drawCalls": 12,
+      "drawCallsMax": 13,
+      "textureMB": 96.5,
+      "textures": 46,
+      "sprites": 881,
+      "chunks": 12,
+      "resolution": 1,
+      "canvas": "1600×900",
+      "fx": {
+        "particles": 117,
+        "budget": 2000,
+        "peak": 163,
+        "dropped": 0,
+        "decals": 4,
+        "decalCap": 256,
+        "effects": 5,
+        "unknown": 0,
+        "source": "baked"
+      }
+    },
+    "zoomOut": {
+      "name": "zoomOut",
+      "title": "zoom mínimo (mapa inteiro)",
+      "fps": 2.5,
+      "render": {
+        "avg": 2.18,
+        "p95": 4.8,
+        "max": 4.8,
+        "n": 20
+      },
+      "drawCalls": 13,
+      "drawCallsMax": 16,
+      "textureMB": 96.6,
+      "textures": 48,
+      "sprites": 5219,
+      "chunks": 81,
+      "resolution": 1,
+      "canvas": "1600×900",
+      "fx": {
+        "particles": 101,
+        "budget": 2000,
+        "peak": 163,
+        "dropped": 0,
+        "decals": 6,
+        "decalCap": 256,
+        "effects": 2,
+        "unknown": 0,
+        "source": "baked"
+      }
+    },
+    "battle": {
+      "name": "battle",
+      "title": "zoom 1,5 (maior aglomerado)",
+      "fps": 1.3,
+      "render": {
+        "avg": 1.71,
+        "p95": 3,
+        "max": 3,
+        "n": 11
+      },
+      "drawCalls": 13,
+      "drawCallsMax": 16,
+      "textureMB": 96.6,
+      "textures": 48,
+      "sprites": 808,
+      "chunks": 8,
+      "resolution": 1,
+      "canvas": "1600×900",
+      "fx": {
+        "particles": 207,
+        "budget": 2000,
+        "peak": 221,
+        "dropped": 0,
+        "decals": 8,
+        "decalCap": 256,
+        "effects": 5,
+        "unknown": 0,
+        "source": "baked"
+      }
+    },
+    "scroll": {
+      "name": "scroll",
+      "title": "rolagem contínua (chunks novos)",
+      "fps": 1.4,
+      "render": {
+        "avg": 1.36,
+        "p95": 2.8,
+        "max": 2.8,
+        "n": 12
+      },
+      "drawCalls": 11,
+      "drawCallsMax": 15,
+      "textureMB": 96.6,
+      "textures": 48,
+      "sprites": 1279,
+      "chunks": 12,
+      "resolution": 1,
+      "canvas": "1600×900",
+      "fx": {
+        "particles": 106,
+        "budget": 2000,
+        "peak": 221,
+        "dropped": 0,
+        "decals": 8,
+        "decalCap": 256,
+        "effects": 3,
+        "unknown": 0,
+        "source": "baked"
+      }
+    }
+  },
+  "errors": []
+}

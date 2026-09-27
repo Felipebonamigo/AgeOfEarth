@@ -1,0 +1,53 @@
+{
+ "rig": "serpent",
+ "version": 1,
+ "units": "MEDUSA no rig da serpente (rigs/serpent.js com form medusa; o tronco em rigs/medusa.js): a raiz e os escalares do corpo como em art/poses/serpent.json (wave, amp, lift, coil, roll…) e os pivôs do humano para o tronco (torso, head, braços, bow; draw = corda do arco). O tronco fica em pé sobre o peito erguido (o `lift` não o inclina). Chave em cada quadro das animações em loop (a fase volta de 1 para 0).",
+ "joints": ["root","torso","head","shoulderL","elbowL","shoulderR","elbowR","weapon","bow"],
+ "scalars": ["wave","amp","lift","coil","neck","sway","swayAmp","strike","jaw","roll","draw","hold"],
+ "anims": {
+  "idle_medusa": {
+   "loop": true, "keys": [
+    {"t":0,"root":{"pos":[0,0,0]},"wave":0,"amp":7,"lift":17,"coil":0.62,"torso":[3,0,0],"head":[-2,6,0],"shoulderL":[14,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[6,0,12],"elbowR":[14,0,0],"draw":0},
+    {"t":0.25,"root":{"pos":[0,0,0]},"wave":0.25,"amp":7,"lift":17,"coil":0.62,"torso":[3,0,0],"head":[-2,-8,0],"shoulderL":[15,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[6,0,12],"elbowR":[14,0,0],"draw":0},
+    {"t":0.5,"root":{"pos":[0,0,0]},"wave":0.5,"amp":7,"lift":17,"coil":0.62,"torso":[3,0,0],"head":[-2,6,0],"shoulderL":[14,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[6,0,12],"elbowR":[14,0,0],"draw":0},
+    {"t":0.75,"root":{"pos":[0,0,0]},"wave":0.75,"amp":7,"lift":17,"coil":0.62,"torso":[3,0,0],"head":[-2,-8,0],"shoulderL":[15,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[6,0,12],"elbowR":[14,0,0],"draw":0}
+   ]
+  },
+  "slither_medusa": {
+   "loop": true, "keys": [
+    {"t":0,"root":{"pos":[0,0,0]},"wave":0,"amp":22,"lift":15,"coil":0,"torso":[0,0,0],"head":[-2,0,0],"shoulderL":[14,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[6,0,12],"elbowR":[14,0,0],"draw":0},
+    {"t":0.125,"root":{"pos":[0,0,0]},"wave":0.125,"amp":22,"lift":15,"coil":0,"torso":[0,4.243,0],"head":[-2,0,0],"shoulderL":[14,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[11.657,0,12],"elbowR":[14,0,0],"draw":0},
+    {"t":0.25,"root":{"pos":[0,0,0]},"wave":0.25,"amp":22,"lift":15,"coil":0,"torso":[0,6,0],"head":[-2,0,0],"shoulderL":[14,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[14,0,12],"elbowR":[14,0,0],"draw":0},
+    {"t":0.375,"root":{"pos":[0,0,0]},"wave":0.375,"amp":22,"lift":15,"coil":0,"torso":[0,4.243,0],"head":[-2,0,0],"shoulderL":[14,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[11.657,0,12],"elbowR":[14,0,0],"draw":0},
+    {"t":0.5,"root":{"pos":[0,0,0]},"wave":0.5,"amp":22,"lift":15,"coil":0,"torso":[0,0,0],"head":[-2,0,0],"shoulderL":[14,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[6,0,12],"elbowR":[14,0,0],"draw":0},
+    {"t":0.625,"root":{"pos":[0,0,0]},"wave":0.625,"amp":22,"lift":15,"coil":0,"torso":[0,-4.243,0],"head":[-2,0,0],"shoulderL":[14,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[0.343,0,12],"elbowR":[14,0,0],"draw":0},
+    {"t":0.75,"root":{"pos":[0,0,0]},"wave":0.75,"amp":22,"lift":15,"coil":0,"torso":[0,-6,0],"head":[-2,0,0],"shoulderL":[14,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[-2,0,12],"elbowR":[14,0,0],"draw":0},
+    {"t":0.875,"root":{"pos":[0,0,0]},"wave":0.875,"amp":22,"lift":15,"coil":0,"torso":[0,-4.243,0],"head":[-2,0,0],"shoulderL":[14,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[0.343,0,12],"elbowR":[14,0,0],"draw":0}
+   ]
+  },
+  "attack_medusa": {
+   "loop": false, "ease": "smooth", "keys": [
+    {"t":0,"root":{"pos":[0,0,0]},"wave":0,"amp":7,"lift":18,"coil":0.55,"torso":[0,-30,0],"head":[0,30,0],"shoulderL":[90,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[10,-55,95],"elbowR":[110,0,0],"draw":0},
+    {"t":0.25,"root":{"pos":[0,0,0]},"wave":0.05,"amp":7,"lift":18,"coil":0.55,"torso":[0,-30,0],"head":[0,30,0],"shoulderL":[75,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[150,0,30],"elbowR":[130,0,0],"draw":0},
+    {"t":0.5,"root":{"pos":[0,0,0]},"wave":0.1,"amp":7,"lift":18,"coil":0.55,"torso":[0,-30,0],"head":[0,30,0],"shoulderL":[70,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[70,0,10],"elbowR":[70,0,0],"draw":0.1},
+    {"t":0.8,"root":{"pos":[0,0,0]},"wave":0.16,"amp":7,"lift":18,"coil":0.55,"torso":[0,-30,0],"head":[0,30,0],"shoulderL":[90,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[20,-20,80],"elbowR":[140,0,0],"draw":0.55},
+    {"t":1,"root":{"pos":[0,0,0]},"wave":0.2,"amp":7,"lift":18,"coil":0.55,"torso":[0,-30,0],"head":[0,30,0],"shoulderL":[90,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[10,-35,92],"elbowR":[150,0,0],"draw":1}
+   ]
+  },
+  "aim_medusa": {
+   "loop": true, "keys": [
+    {"t":0,"root":{"pos":[0,0,0]},"wave":0,"amp":6,"lift":18,"coil":0.55,"torso":[0,-30,0],"head":[0,30,0],"shoulderL":[90,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[10,-35,92],"elbowR":[150,0,0],"draw":1},
+    {"t":0.25,"root":{"pos":[0,0,0]},"wave":0.25,"amp":6,"lift":18,"coil":0.55,"torso":[0,-30,0],"head":[0,30,0],"shoulderL":[90,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[10,-35,92],"elbowR":[150,0,0],"draw":1},
+    {"t":0.5,"root":{"pos":[0,0,0]},"wave":0.5,"amp":6,"lift":18,"coil":0.55,"torso":[0,-30,0],"head":[0,30,0],"shoulderL":[90,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[10,-35,92],"elbowR":[150,0,0],"draw":1},
+    {"t":0.75,"root":{"pos":[0,0,0]},"wave":0.75,"amp":6,"lift":18,"coil":0.55,"torso":[0,-30,0],"head":[0,30,0],"shoulderL":[90,0,-30],"elbowL":[0,0,0],"bow":[0,0,0],"shoulderR":[10,-35,92],"elbowR":[150,0,0],"draw":1}
+   ]
+  },
+  "die_medusa": {
+   "loop": false, "ease": "smooth", "keys": [
+    {"t":0,"root":{"pos":[0,0,0]},"wave":0,"amp":7,"lift":17,"coil":0.62,"roll":0,"torso":[-6,0,0],"head":[-10,0,0],"shoulderL":[14,0,-10],"elbowL":[26,0,0],"bow":[30,0,-10],"shoulderR":[6,0,12],"elbowR":[14,0,0],"draw":0},
+    {"t":0.4,"root":{"pos":[0,0,0]},"wave":0.1,"amp":16,"lift":9,"coil":0.72,"roll":22,"torso":[14,0,14],"head":[-22,0,0],"shoulderL":[40,0,-50],"elbowL":[30,0,0],"bow":[30,0,-10],"shoulderR":[40,0,50],"elbowR":[30,0,0],"draw":0},
+    {"t":1,"root":{"pos":[0.1,-0.1,0]},"wave":0.2,"amp":10,"lift":-4,"coil":0.85,"roll":66,"torso":[30,0,20],"head":[-30,20,0],"shoulderL":[30,0,-80],"elbowL":[10,0,0],"bow":[40,0,-10],"shoulderR":[30,0,80],"elbowR":[10,0,0],"draw":0}
+   ]
+  }
+ }
+}

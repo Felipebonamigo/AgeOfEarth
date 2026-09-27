@@ -61,6 +61,12 @@ describe.skipIf(!hasArt)('atlas e índice das unidades (revisão da Etapa 4)', (
     }
     return out;
   };
+  /** Nome do quadro que o jogo desenha (pela animação do atlas: as direções espelhadas/aliasadas dos titãs — Etapa 6 —
+   *  apontam para o quadro de outra direção); sem a animação no atlas, o nome direto. */
+  const animFrame = (scale: number, pass: string, id: string, anim: string, d: number, i: number) => {
+    for (const a of index.atlases) if (a.group === 'units' && a.scale === scale && a.pass === pass) { const n = sheets.get(a.json)!.animations?.[`${id}/${anim}/${d}`]?.[i]; if (n) return n; }
+    return unitFrameName(id, anim, d, i);
+  };
 
   it('passada e topo no índice = medidos no rig (o índice está em dia com poses e kits)', () => {
     for (const m of units) {
@@ -88,6 +94,11 @@ describe.skipIf(!hasArt)('atlas e índice das unidades (revisão da Etapa 4)', (
       else if (m.source.rig === 'beast') { expect(an.walk.stride, m.id).toBeGreaterThan(0.6); expect(an.walk.stride, m.id).toBeLessThan(1.1); if (an.run) { expect(an.run.stride, m.id).toBeGreaterThan(1.6); expect(an.run.stride, m.id).toBeLessThan(2.4); } }
       else if (m.source.rig === 'giant') { const k = (m.source.params.height ?? 2.6) / 1.8; expect(an.walk.stride, m.id).toBeGreaterThan(0.65 * k); expect(an.walk.stride, m.id).toBeLessThan(0.95 * k); }
       else if (m.source.rig === 'serpent') expect(an.walk.stride, m.id).toBeGreaterThan(0.5);
+      // lote bípedes-espíritos: quem pisa, pela altura (o colosso a passos curtos e pesados: 0,6×); quem não pisa (`glide`:
+      // a Sombra flutua, a sentinela não anda) tem a passada nominal do rig, glide × ½ tile/m × altura/1,8
+      else if (m.source.rig === 'biped') { const k = (m.source.params.height ?? 1.8) / 1.8, g = m.source.params.glide; if (g) expect(an.walk.stride, m.id).toBeCloseTo(g * 0.5 * k, 2); else { expect(an.walk.stride, m.id).toBeGreaterThan(0.6 * k); expect(an.walk.stride, m.id).toBeLessThan(0.95 * k); } }
+      // titã (lote titãs): a do humano × altura/1,8; Oceano desliza (a onda da cauda) um pouco mais curto
+      else if (m.source.rig === 'titan') { const k = m.source.params.height / 1.8; expect(an.walk.stride, m.id).toBeGreaterThan((m.source.params.style === 'oceanus' ? 0.5 : 0.65) * k); expect(an.walk.stride, m.id).toBeLessThan(0.95 * k); }
       else if (m.source.rig === 'horse') { expect(an.walk.stride, m.id).toBeGreaterThan(0.7); expect(an.walk.stride, m.id).toBeLessThan(1); expect(an.run.stride, m.id).toBeGreaterThan(1.5); expect(an.run.stride, m.id).toBeLessThan(2.1); }
       else { expect(an.walk.stride, m.id).toBeGreaterThan(0.65); expect(an.walk.stride, m.id).toBeLessThan(0.95); }
     }
@@ -120,6 +131,9 @@ describe.skipIf(!hasArt)('atlas e índice das unidades (revisão da Etapa 4)', (
       // Etapa 6: a voadora não toca o chão (o voo anda pelo relógio) e a serpente não tem pés (o corpo segue o próprio
       // rastro: passada = onda, tests/art-myth.test.ts)
       if (m.flying || m.source.rig === 'serpent') continue;
+      // (lote bípedes-espíritos: nem quem desliza sem pisar — `glide`: a Sombra, a sentinela imóvel)
+      if (m.source.params?.glide) continue;
+      if (!(m.scales ?? [1, 2]).includes(2)) continue;   // titãs só a 1× (os pés no chão conferidos no rig: tests/art-titans.test.ts)
       for (const anim of MOVE_ANIMS) {
         const info = index.assets[m.id].anims![anim]; if (!info) continue;
         const n = info.frames;
@@ -140,7 +154,7 @@ describe.skipIf(!hasArt)('atlas e índice das unidades (revisão da Etapa 4)', (
     for (const m of units) {
       if (!m.team) continue;
       for (let d = 0; d < 8; d++) for (const anim of ['idle', 'walk']) for (let i = 0; i < m.anims[anim].frames; i++) {
-        const n = opaquePts(1, 'team', unitFrameName(m.id, anim, d, i)).length;
+        const n = opaquePts(1, 'team', animFrame(1, 'team', m.id, anim, d, i)).length;
         expect(n, `${m.id} ${anim} dir ${d} quadro ${i}: ${n} px de time`).toBeGreaterThanOrEqual(30);
       }
     }
@@ -161,11 +175,12 @@ describe.skipIf(!hasArt)('atlas e índice das unidades (revisão da Etapa 4)', (
   it('barra de vida: acima do topo do corpo (tops) só passam itens de mão — ≤ 6 px opacos por linha a 1× no parado (a cabeça da clava de Héracles; a cabeça do cavalo e as ameias da helépole ficam abaixo)', () => {
     for (const m of units) {
       const tops = index.assets[m.id].tops!;
+      const lim = m.sizeClass === 'titan' ? 18 : 6;   // titãs: os itens de mão na escala deles (o fogo de Prometeu)
       for (let d = 0; d < 8; d++) for (let i = 0; i < m.anims.idle.frames; i++) {
         const rows = new Map<number, number>();
-        for (const p of opaquePts(1, 'color', unitFrameName(m.id, 'idle', d, i))) if (-p.y > tops[d] + 1) rows.set(p.y, (rows.get(p.y) ?? 0) + 1);
+        for (const p of opaquePts(1, 'color', animFrame(1, 'color', m.id, 'idle', d, i))) if (-p.y > tops[d] + 1) rows.set(p.y, (rows.get(p.y) ?? 0) + 1);
         const widest = Math.max(0, ...rows.values());
-        expect(widest, `${m.id} idle dir ${d} quadro ${i}: ${widest} px numa linha acima do topo ${tops[d]}`).toBeLessThanOrEqual(6);
+        expect(widest, `${m.id} idle dir ${d} quadro ${i}: ${widest} px numa linha acima do topo ${tops[d]}`).toBeLessThanOrEqual(lim);
       }
     }
   });

@@ -10,6 +10,9 @@
 //      [--reveal]  mapa revelado só no renderizador durante a medição: aos 20 min o jogador local (parado) já perdeu a
 //                  cidade para as 3 IAs e, sem isto, os cenários "cidade" e "aglomerado" medem quase só terreno e nós
 //      --baked off: mede com a arte assada desligada (visual procedural); padrão: a opção salva (ligada)
+//      [--creatures tipo,tipo,…]  Etapa 6: põe um de cada tipo (míticas/titãs; `hydra:3` = hidra de 3 cabeças) em campo, em
+//                  volta do Centro Cívico do cenário "zoom 1", com vida alta, e espera as páginas deles subirem antes de
+//                  medir — a VRAM residente de uma partida com criaturas à vista (as míticas só carregam quando aparecem)
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -28,6 +31,7 @@ const baked = opt('--baked', 'on') !== 'off';
 const reveal = args.includes('--reveal');
 const SEED = 42, MEASURE_MS = Number(opt('--measure', 4000));
 const preset = opt('--quality', 'medium');
+const creatures = (opt('--creatures', '') ?? '').split(',').map((t) => t.trim()).filter(Boolean);
 let commit = ''; try { commit = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch { /* fora do git */ }
 
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
@@ -61,6 +65,33 @@ const spawned = await page.evaluate((min) => {
 await page.evaluate((reveal) => { window.aoe.applyQuality?.(); if (reveal) window.aoe.renderer.revealAll = true; window.aoe.session.paused = false; window.aoe.session.speed = 1; }, reveal);
 // arte assada: espera os atlas (carregados sem travar no início da partida) para medir o estado estável
 await page.evaluate(() => window.aoe.renderer.art?.ready());
+// Etapa 6: criaturas em campo (um de cada tipo pedido) à vista no cenário "zoom 1"; as páginas delas sobem na primeira
+// vista (uma por quadro): centra a câmera nelas e espera o carregamento antes de medir
+let placed = [];
+if (creatures.length) {
+  placed = await page.evaluate((list) => {
+    const s = window.aoe.session, st = s.state, r = window.aoe.renderer;
+    const tcs = [...st.buildings.values()].filter((b) => b.type === 'town_center');
+    const tc = tcs.find((b) => b.owner === s.local) ?? tcs[0];
+    const out = [];
+    list.forEach((spec, i) => {
+      const [type, heads] = spec.split(':');
+      const a = (i / list.length) * 6.283, rr = 6 + (i % 2) * 2.5;
+      const u = window.aoe.debugSpawn(s.local, type, tc.x + Math.cos(a) * rr, tc.y + Math.sin(a) * rr);
+      if (!u) return;
+      u.hp = u.maxHp = 100000;
+      if (heads) u.heads = Number(heads);
+      out.push(`${type}${heads ? ':' + heads : ''}`);
+    });
+    r.cam.zoom = 1; r.cam.centerOn(tc.x, tc.y);
+    return out;
+  }, creatures);
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => window.aoe.renderer.art?.ready());
+  await page.waitForTimeout(500);
+  await page.evaluate(() => window.aoe.renderer.art?.ready());
+  console.log('criaturas em campo:', placed.join(', '));
+}
 const info = await page.evaluate(() => { const s = window.aoe.session; return { seed: s.state.seed, tick: s.state.tick, minutes: Math.round(s.state.time / 60), units: s.state.units.size, buildings: s.state.buildings.size, map: `${s.state.map.w}×${s.state.map.h}`, quality: window.aoe.renderer.quality.preset, bakedArt: window.aoe.renderer.quality.bakedArt ?? null, art: window.aoe.renderer.art?.status() ?? null, resolution: window.aoe.renderer.app.renderer.resolution, viewport: `${window.innerWidth}×${window.innerHeight}` }; });
 console.log('partida:', JSON.stringify(info), `(+${spawned} hoplitas)`);
 
@@ -86,7 +117,7 @@ await browser.close();
 
 mkdirSync(outDir, { recursive: true });
 const file = join(outDir, `${date}${label ? '-' + label : ''}.json`);
-writeFileSync(file, JSON.stringify({ date, commit, label, url, note: 'Chromium headless + swiftshader (software): ms/fps pessimistas, sem GPU; comparar antes/depois. Ver docs/ART.md §6.', scenario: { ...info, warmMinutes: warm, spawned, measureMs: MEASURE_MS, reveal }, results, errors }, null, 2) + '\n');
+writeFileSync(file, JSON.stringify({ date, commit, label, url, note: 'Chromium headless + swiftshader (software): ms/fps pessimistas, sem GPU; comparar antes/depois. Ver docs/ART.md §6.', scenario: { ...info, warmMinutes: warm, spawned, measureMs: MEASURE_MS, reveal, creatures: placed }, results, errors }, null, 2) + '\n');
 console.log('gravado em', file);
 console.log('\n| Cenário | fps | render média (ms) | p95 | máx | draw calls | tex MB | sprites | chunks |\n|---|---|---|---|---|---|---|---|---|');
 for (const r of Object.values(results)) console.log(`| ${r.title} | ${r.fps} | ${r.render.avg} | ${r.render.p95} | ${r.render.max} | ${r.drawCalls} | ${r.textureMB} | ${r.sprites} | ${r.chunks} |`);

@@ -3,9 +3,9 @@
 export type AssetKind = 'unit' | 'building' | 'prop';
 export type Pass = 'color' | 'team' | 'shadow';
 
-export interface AnimDef { frames: number; fps?: number; loop?: boolean; pose?: string; rider?: string; clip?: string; params?: Record<string, unknown> }
+export interface AnimDef { frames: number; fps?: number; loop?: boolean; pose?: string; rider?: string; clip?: string; params?: Record<string, unknown>; /** Etapa 6: direções assadas desta animação (as outras usam a mais próxima: animDirOf). */ dirs?: number[] }
 export interface PropItem { kind: string; variants: (number | string)[]; tags?: string[]; size?: [number, number]; anchor?: [number, number] }
-export interface ParamSource { type: 'param'; rig: 'human' | 'horse' | 'siege' | 'beast' | 'giant' | 'serpent' | 'building' | 'props'; poses?: string; riderPoses?: string; params?: Record<string, unknown>; items?: PropItem[] }
+export interface ParamSource { type: 'param'; rig: 'human' | 'horse' | 'siege' | 'beast' | 'giant' | 'serpent' | 'titan' | 'building' | 'props'; poses?: string; riderPoses?: string; params?: Record<string, unknown>; items?: PropItem[] }
 export interface GlbSource { type: 'glb'; path: string; scale: number; forward?: '-z' | '+z' | '+x' | '-x'; anims?: Record<string, string>; teamMaterials?: string[] }
 
 export interface ArtManifest {
@@ -39,6 +39,8 @@ export interface ArtManifest {
   flying?: boolean;
   /** Etapa 6: 'own' = o asset começa páginas próprias no atlas (carregamento por tipo sem mexer nas páginas das outras). */
   page?: 'own';
+  /** Etapa 6 (lote titãs): espelhamento só deste asset (5 direções assadas; E/SE/NE = O/SO/NO com scale.x = −1). */
+  mirror?: boolean;
   /** Etapa 6: variantes da unidade pela entidade (hidra: cabeças 1–5), cada uma um asset `<id>_<by><valor>`. */
   unitVariants?: { by: 'heads'; param: string; values: number[] };
   /** Variante expandida: id base e valor (preenchidos por expandUnitVariants). */
@@ -75,6 +77,10 @@ export const UNIT_ANIMS: string[];
 export const REQUIRED_UNIT_ANIMS: string[];
 export const ONCE_UNIT_ANIMS: string[];
 export function posesOf(m: ArtManifest): { main: string | null; rider: string | null };
+export function animDirOf(a: AnimDef | undefined, dir: number): number;
+export function mirrorOf(m: ArtManifest, mirror?: boolean): boolean;
+export function ownMirror(m: ArtManifest, mirror?: boolean): boolean;
+export function packedDirs(m: ArtManifest, pass: 'color' | 'team' | 'shadow', mirror?: boolean): number[];
 export const FRAME_NAME_RE: Record<AssetKind | 'icon', RegExp>;
 export function atlasOf(m: ArtManifest, f: ExpandedFrame): string;
 export function buildingFrame(id: string, state: string, variant?: string | null): string;
@@ -83,6 +89,6 @@ export function validateManifest(m: unknown): string[];
 export function validateAll(list: ArtManifest[]): string[];
 export function bakedDirs(m: ArtManifest, mirror?: boolean): number[];
 export function expandFrames(m: ArtManifest, opts?: { mirror?: boolean }): ExpandedFrame[];
-export function animationsOf(m: ArtManifest, opts?: { mirror?: boolean }): Record<string, string[]>;
-export function animSummary(m: ArtManifest): Record<string, { frames: number; fps: number; loop: boolean }>;
+export function animationsOf(m: ArtManifest, opts?: { mirror?: boolean; pass?: 'color' | 'team' | 'shadow' }): Record<string, string[]>;
+export function animSummary(m: ArtManifest): Record<string, { frames: number; fps: number; loop: boolean; dirs?: number[] }>;
 export function matchesOnly(m: ArtManifest, only: string[] | null): boolean;

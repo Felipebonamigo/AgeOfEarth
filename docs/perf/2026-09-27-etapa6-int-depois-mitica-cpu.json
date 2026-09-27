@@ -1,0 +1,84 @@
+{
+  "date": "2026-09-27",
+  "commit": "083c590",
+  "label": "etapa6-int-depois-mitica",
+  "url": "http://localhost:4260/",
+  "quality": "medium",
+  "frames": 150,
+  "note": "CPU por quadro (ms) em laço síncrono, resolução 0,25 (sem rasterização relevante); render = renderer.render, pixi = app.renderer.render.",
+  "scenario": {
+    "units": 260,
+    "buildings": 133,
+    "localAlive": false,
+    "warmMinutes": 20,
+    "battle": {
+      "x": 72,
+      "y": 72,
+      "a": 42,
+      "b": 42,
+      "types": [
+        "minotaur",
+        "cyclops",
+        "hydra",
+        "chimera",
+        "centaur",
+        "cerberus",
+        "medusa",
+        "colossus",
+        "manticore",
+        "nemean_lion",
+        "shade",
+        "hoplite",
+        "toxotes",
+        "hetairoi"
+      ]
+    }
+  },
+  "results": [
+    {
+      "baked": true,
+      "view": "zoom1",
+      "render": {
+        "avg": 0.739,
+        "med": 0.6,
+        "p95": 1.5
+      },
+      "pixi": {
+        "avg": 1.024,
+        "med": 0.9,
+        "p95": 1.7
+      },
+      "sprites": 877,
+      "fx": {
+        "peak": 132,
+        "budget": 2000,
+        "dropped": 0,
+        "decals": 7,
+        "effects": 15
+      }
+    },
+    {
+      "baked": true,
+      "view": "fight",
+      "render": {
+        "avg": 0.914,
+        "med": 0.8,
+        "p95": 1.4
+      },
+      "pixi": {
+        "avg": 1.245,
+        "med": 1.1,
+        "p95": 1.8
+      },
+      "sprites": 1094,
+      "fx": {
+        "peak": 342,
+        "budget": 2000,
+        "dropped": 0,
+        "decals": 16,
+        "effects": 7
+      }
+    }
+  ],
+  "errors": []
+}

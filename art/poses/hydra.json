@@ -1,0 +1,44 @@
+{
+ "rig": "serpent",
+ "version": 1,
+ "units": "Poses da HIDRA (lote feras, Etapa 6) no rig da serpente (rigs/serpent.js), separadas de serpent.json (Medusa e titãs): a raiz (root: { pos: [m], rot: [graus] }) e os ESCALARES do corpo — wave = fase da onda da cauda (0–1; no andar vai de 0 a 1 no ciclo: uma onda = a passada, `glide`), amp = amplitude da onda (graus), lift = o peito erguido (graus por segmento), coil = enrolar a cauda (0–1), neck = pescoços para a frente (graus), sway = fase do balanço dos pescoços (0–1, cada pescoço defasado), swayAmp = amplitude do balanço (graus), strike = bote (0–1; os pescoços pares um pouco depois dos ímpares), jaw = bocas abertas (0–1), roll = tombo de lado (graus). Parada: o peito erguido como uma naja, a cauda enrolada no chão e os pescoços ondulando com as bocas entreabertas; bote: as cabeças recuam, avançam e mordem (o golpe chega no 2º quadro).",
+ "joints": ["root","torso","head","shoulderL","elbowL","shoulderR","elbowR","weapon","bow"],
+ "scalars": ["wave","amp","lift","coil","neck","sway","swayAmp","strike","jaw","roll","draw","hold"],
+ "anims": {
+  "idle_hydra": {
+   "loop": true, "keys": [
+    {"t":0,"root":{"pos":[0,0,0]},"wave":0,"amp":7,"lift":17,"coil":0.45,"neck":8,"sway":0,"swayAmp":16,"jaw":0.15},
+    {"t":0.25,"root":{"pos":[0,0,0]},"wave":0.25,"amp":7,"lift":17.5,"coil":0.45,"neck":9,"sway":0.25,"swayAmp":16,"jaw":0.35},
+    {"t":0.5,"root":{"pos":[0,0,0]},"wave":0.5,"amp":7,"lift":17,"coil":0.45,"neck":8,"sway":0.5,"swayAmp":16,"jaw":0.2},
+    {"t":0.75,"root":{"pos":[0,0,0]},"wave":0.75,"amp":7,"lift":16.5,"coil":0.45,"neck":7,"sway":0.75,"swayAmp":16,"jaw":0.1}
+   ]
+  },
+  "slither": {
+   "loop": true, "keys": [
+    {"t":0,"root":{"pos":[0,0,0]},"wave":0,"amp":24,"lift":13,"coil":0,"neck":4,"sway":0,"swayAmp":10,"jaw":0.12},
+    {"t":0.125,"root":{"pos":[0,0,0]},"wave":0.125,"amp":24,"lift":13,"coil":0,"neck":4,"sway":0.125,"swayAmp":10,"jaw":0.12},
+    {"t":0.25,"root":{"pos":[0,0,0]},"wave":0.25,"amp":24,"lift":13,"coil":0,"neck":4,"sway":0.25,"swayAmp":10,"jaw":0.12},
+    {"t":0.375,"root":{"pos":[0,0,0]},"wave":0.375,"amp":24,"lift":13,"coil":0,"neck":4,"sway":0.375,"swayAmp":10,"jaw":0.12},
+    {"t":0.5,"root":{"pos":[0,0,0]},"wave":0.5,"amp":24,"lift":13,"coil":0,"neck":4,"sway":0.5,"swayAmp":10,"jaw":0.12},
+    {"t":0.625,"root":{"pos":[0,0,0]},"wave":0.625,"amp":24,"lift":13,"coil":0,"neck":4,"sway":0.625,"swayAmp":10,"jaw":0.12},
+    {"t":0.75,"root":{"pos":[0,0,0]},"wave":0.75,"amp":24,"lift":13,"coil":0,"neck":4,"sway":0.75,"swayAmp":10,"jaw":0.12},
+    {"t":0.875,"root":{"pos":[0,0,0]},"wave":0.875,"amp":24,"lift":13,"coil":0,"neck":4,"sway":0.875,"swayAmp":10,"jaw":0.12}
+   ]
+  },
+  "strike_hydra": {
+   "loop": false, "ease": "smooth", "keys": [
+    {"t":0,"root":{"pos":[0,0,0]},"wave":0,"amp":7,"lift":19,"coil":0.4,"neck":24,"sway":0,"swayAmp":8,"strike":0.05,"jaw":0.5},
+    {"t":0.2,"root":{"pos":[0,0,0]},"wave":0.05,"amp":7,"lift":13,"coil":0.4,"neck":-6,"sway":0.05,"swayAmp":5,"strike":1,"jaw":1},
+    {"t":0.45,"root":{"pos":[0,0,0]},"wave":0.1,"amp":7,"lift":13,"coil":0.4,"neck":-4,"sway":0.1,"swayAmp":5,"strike":0.9,"jaw":0.15},
+    {"t":1,"root":{"pos":[0,0,0]},"wave":0.2,"amp":7,"lift":17,"coil":0.45,"neck":8,"sway":0.2,"swayAmp":14,"strike":0,"jaw":0.15}
+   ]
+  },
+  "die_hydra": {
+   "loop": false, "ease": "smooth", "keys": [
+    {"t":0,"root":{"pos":[0,0,0]},"wave":0,"amp":7,"lift":16,"coil":0.4,"neck":14,"sway":0,"swayAmp":22,"strike":0.2,"jaw":0.9,"roll":0},
+    {"t":0.4,"root":{"pos":[0,0,0]},"wave":0.1,"amp":14,"lift":6,"coil":0.5,"neck":-30,"sway":0.2,"swayAmp":28,"strike":0.6,"jaw":0.6,"roll":18},
+    {"t":1,"root":{"pos":[0.1,-0.14,0]},"wave":0.2,"amp":10,"lift":-6,"coil":0.65,"neck":-70,"sway":0.3,"swayAmp":32,"strike":0.9,"jaw":0.5,"roll":62}
+   ]
+  }
+ }
+}

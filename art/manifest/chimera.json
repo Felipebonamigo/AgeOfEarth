@@ -1,0 +1,58 @@
+{
+  "id": "chimera",
+  "kind": "unit",
+  "stage": 6,
+  "sizeClass": "myth",
+  "page": "own",
+  "docs": "Criatura no rig do quadrúpede grande (docs/ART.md, Apêndice G; lote feras): a Quimera — corpo e cabeça de leão (juba escura, a goela em brasa), a cabeça de cabra de chifres anelados saindo do meio do dorso e a cauda de serpente arqueada terminando numa víbora; manta de time na garupa e coleira de time. O ataque é o SOPRO DE FOGO: o quadro 0 já é o sopro (o jato da Etapa 5 sai da boca no tick do golpe). Para usar um modelo .glb, troque só `source` por { \"type\": \"glb\", \"path\": \"art/src/chimera.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"idle\": \"Idle\", \"walk\": \"Walk\", \"attack\": \"Breath\", \"die\": \"Death\" }, \"teamMaterials\": [\"Cloth\", \"Collar\"] } (docs/ART.md §3.4).",
+  "source": {
+    "type": "param",
+    "rig": "beast",
+    "poses": "art/poses/beast.json",
+    "params": {
+      "build": "heavy",
+      "size": 1.5,
+      "coat": "chimera",
+      "mane": "lion",
+      "goat": true,
+      "tail": "serpent",
+      "team": "croup",
+      "mouth": "fire"
+    }
+  },
+  "size": {
+    "tiles": [
+      5.2,
+      5.0
+    ]
+  },
+  "anchor": [
+    0.46,
+    0.6
+  ],
+  "dirs": 8,
+  "anims": {
+    "idle": {
+      "frames": 4,
+      "fps": 10,
+      "pose": "idle_chimera"
+    },
+    "walk": {
+      "frames": 8,
+      "fps": 10,
+      "pose": "walk_chimera"
+    },
+    "attack": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "attack_chimera"
+    },
+    "die": {
+      "frames": 6,
+      "fps": 10,
+      "pose": "die_chimera"
+    }
+  },
+  "team": true,
+  "shadow": true
+}

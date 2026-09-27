@@ -14,6 +14,8 @@
 //   wings    false (padrão) · 'feather' = o par de asas de penas de rigs/wings.js na cernelha (Pégaso, Etapa 6: pivôs `wing` e
 //            `wingTip` nas poses; o voo — o corpo no ar, a sombra no chão deslocada para SE — é só a pose da raiz)
 //   coat 'white' (Etapa 6): pelagem branca de crina clara e cascos pálidos (Pégaso)
+//   centaur  true (Etapa 6, lote bípedes-espíritos): sem pescoço nem cabeça de cavalo; o kit de `rider` vira o TRONCO
+//            HUMANO na cernelha, com o corpo esculpido (rigs/centaur.js) — as poses dele seguem em `rider` de cada animação
 // Poses: `art/poses/horse.json` (pivôs do cavalo) + `art/poses/human.json` para o cavaleiro — cada animação do manifesto
 // tem `pose` (cavalo) e `rider` (cavaleiro), interpoladas no mesmo quadro. Metros, frente em −z, cascos em y = 0.
 // Convenções: perna pendendo em −y; rotação x positiva leva o casco para a FRENTE (−z). O joelho dianteiro dobra com x
@@ -22,10 +24,11 @@
 import { M2T, dirYaw } from '../camera.js';
 import { buildHuman, applyPose, poseAt, JOINTS as HUMAN_JOINTS, SCALARS as HUMAN_SCALARS } from './human.js';
 import { buildWings } from './wings.js';
+import { centaurTorso } from './centaur.js';
 
 export const JOINTS = ['root', 'body', 'neck', 'head', 'tail', 'fl', 'flk', 'fr', 'frk', 'bl', 'blk', 'br', 'brk', 'wing', 'wingTip'];
 export const SCALARS = [];
-export const KIT = { coat: ['bay', 'chestnut', 'grey', 'black', 'white'], build: ['light', 'medium', 'heavy'], cloth: [true, false, 'long', 'fleece'], peytral: [true, false], chamfron: [true, false], wings: [false, 'feather'] };
+export const KIT = { coat: ['bay', 'chestnut', 'grey', 'black', 'white'], build: ['light', 'medium', 'heavy'], cloth: [true, false, 'long', 'fleece'], peytral: [true, false], chamfron: [true, false], wings: [false, 'feather'], centaur: [false, true] };
 /** Porte do cavalo: `size` escala o cavalo inteiro (não o cavaleiro); `girth` engrossa corpo, pescoço e antebraços. */
 const BUILDS = { light: { size: 0.95, girth: 0.88 }, medium: { size: 1, girth: 1 }, heavy: { size: 1.06, girth: 1.1 } };
 const DEG = Math.PI / 180;
@@ -131,7 +134,11 @@ export function buildHorse(THREE, M, params = {}) {
 
   // ---- cavaleiro (rig humano em metros, sentado no dorso) ----
   let rider = null;
-  if (P.rider) {
+  if (P.centaur) {
+    // centauro: o tronco humano no lugar do pescoço e da cabeça do cavalo (rigs/centaur.js)
+    J.neck.visible = false;
+    rider = centaurTorso(THREE, M, J, P, { size: B.size, girth: g });
+  } else if (P.rider) {
     rider = buildHuman(THREE, M, P.rider, { meters: true });
     // o assento acompanha o dorso (porte e grossura); o cavaleiro volta ao tamanho real (1 / porte)
     rider.group.scale.setScalar(1 / B.size);
@@ -176,6 +183,7 @@ export function horseUnit(THREE, M, params) {
         const p = poseAt(rd, fr.frame, fr.frames, HUMAN_JOINTS, HUMAN_SCALARS);
         applyPose(rig.rider, p);
         rig.rider.post(p);
+        rig.rider.skin?.();   // centauro: o tronco esculpido segue a dobra da cintura
       }
       rig.group.rotation.y = dirYaw(fr.dir);
     },

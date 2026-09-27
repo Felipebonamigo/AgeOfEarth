@@ -1,0 +1,141 @@
+{
+  "date": "2026-09-27",
+  "commit": "083c590",
+  "label": "etapa6-int-depois",
+  "url": "http://localhost:4260/",
+  "quality": "medium",
+  "frames": 150,
+  "note": "CPU por quadro (ms) em laço síncrono, resolução 0,25 (sem rasterização relevante); render = renderer.render, pixi = app.renderer.render.",
+  "scenario": {
+    "units": 260,
+    "buildings": 133,
+    "localAlive": false,
+    "warmMinutes": 20,
+    "battle": {
+      "x": 72,
+      "y": 72,
+      "a": 100,
+      "b": 100,
+      "types": [
+        "hoplite",
+        "toxotes",
+        "peltast",
+        "hippeus",
+        "hypaspist"
+      ]
+    }
+  },
+  "results": [
+    {
+      "baked": true,
+      "view": "zoom1",
+      "render": {
+        "avg": 0.671,
+        "med": 0.6,
+        "p95": 1.1
+      },
+      "pixi": {
+        "avg": 1.071,
+        "med": 1,
+        "p95": 1.5
+      },
+      "sprites": 877,
+      "fx": {
+        "peak": 144,
+        "budget": 2000,
+        "dropped": 0,
+        "decals": 1,
+        "effects": 29
+      }
+    },
+    {
+      "baked": true,
+      "view": "zoomOut",
+      "render": {
+        "avg": 1.647,
+        "med": 1.3,
+        "p95": 2.6
+      },
+      "pixi": {
+        "avg": 4.01,
+        "med": 3.6,
+        "p95": 6
+      },
+      "sprites": 5816,
+      "fx": {
+        "peak": 202,
+        "budget": 2000,
+        "dropped": 0,
+        "decals": 1,
+        "effects": 13
+      }
+    },
+    {
+      "baked": true,
+      "view": "battle",
+      "render": {
+        "avg": 0.629,
+        "med": 0.6,
+        "p95": 0.9
+      },
+      "pixi": {
+        "avg": 1.109,
+        "med": 1.1,
+        "p95": 1.4
+      },
+      "sprites": 808,
+      "fx": {
+        "peak": 205,
+        "budget": 2000,
+        "dropped": 0,
+        "decals": 3,
+        "effects": 7
+      }
+    },
+    {
+      "baked": true,
+      "view": "scroll",
+      "render": {
+        "avg": 0.519,
+        "med": 0.5,
+        "p95": 1
+      },
+      "pixi": {
+        "avg": 1.011,
+        "med": 0.9,
+        "p95": 1.6
+      },
+      "sprites": 653,
+      "fx": {
+        "peak": 117,
+        "budget": 2000,
+        "dropped": 0,
+        "decals": 5,
+        "effects": 9
+      }
+    },
+    {
+      "baked": true,
+      "view": "fight",
+      "render": {
+        "avg": 0.827,
+        "med": 0.7,
+        "p95": 1.5
+      },
+      "pixi": {
+        "avg": 1.423,
+        "med": 1.2,
+        "p95": 2.7
+      },
+      "sprites": 1115,
+      "fx": {
+        "peak": 194,
+        "budget": 2000,
+        "dropped": 0,
+        "decals": 5,
+        "effects": 16
+      }
+    }
+  ],
+  "errors": []
+}

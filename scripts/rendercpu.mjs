@@ -12,7 +12,7 @@
 // `--powers` (lote poderes-luz): mais um cenário `powers` — no meio da mesma batalha, Tempestade de Raios e Terremoto nos
 // inimigos e Pele de Bronze nos nossos, todos ativos durante a medida (sombra da nuvem, chuva, raios, rachaduras, poeira,
 // reflexos do bronze).
-// Uso: node scripts/rendercpu.mjs [url] [--frames 150] [--modes papa] [--quality low] [--label texto] [--minutes 20] [--battle 100] [--powers] [--views zoom1,fight]
+// Uso: node scripts/rendercpu.mjs [url] [--frames 150] [--modes papa] [--quality low] [--label texto] [--minutes 20] [--battle 100] [--types a,b,…] [--powers] [--views zoom1,fight]
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -28,6 +28,10 @@ const quality = opt('--quality', 'low');
 const warm = Number(opt('--minutes', 20));
 const label = opt('--label', 'cpu');
 const battle = Number(opt('--battle', 0));
+// Etapa 6: `--types a,b,…` troca a composição da batalha (padrão: hoplita, toxota, peltasta, hipeu, hipaspista) — com
+// criaturas (minotaur, cyclops, hydra, chimera, centaur, cronus…) mede a CPU das vistas assadas das míticas contra o
+// procedural de antes (a `main` desenha as mesmas unidades pelo ProceduralSource)
+const battleTypes = (opt('--types', '') ?? '').split(',').map((t) => t.trim()).filter(Boolean);
 const powers = args.includes('--powers') && battle > 0;
 const VIEWS = opt('--views', battle ? `zoom1,zoomOut,battle,scroll,fight${powers ? ',powers' : ''}` : 'zoom1,zoomOut,battle,scroll').split(',');
 const date = new Date().toISOString().slice(0, 10);
@@ -59,9 +63,9 @@ const info = await page.evaluate((min) => {
 }, 260);
 console.log('estado:', JSON.stringify(info));
 // batalha N × N no meio do mapa (as duas IAs mais próximas do centro não importam: ids próprios, ataque-mover)
-const fightAt = battle ? await page.evaluate((N) => {
+const fightAt = battle ? await page.evaluate(([N, custom]) => {
   const s = window.aoe.session, st = s.state, me = s.local, foe = st.players.find((p) => p.id !== me && p.alive)?.id ?? 1;
-  const cx = Math.floor(st.map.w / 2), cy = Math.floor(st.map.h / 2), types = ['hoplite', 'toxotes', 'peltast', 'hippeus', 'hypaspist'];
+  const cx = Math.floor(st.map.w / 2), cy = Math.floor(st.map.h / 2), types = custom.length ? custom : ['hoplite', 'toxotes', 'peltast', 'hippeus', 'hypaspist'];
   const a = [], b = [];
   for (let i = 0; i < N; i++) {
     const t = types[i % types.length], row = Math.floor(i / 10), col = i % 10;
@@ -71,8 +75,8 @@ const fightAt = battle ? await page.evaluate((N) => {
   s.scheduler.issue({ type: 'attackMove', player: me, ids: a, x: cx + 12, y: cy });
   s.scheduler.issue({ type: 'attackMove', player: foe, ids: b, x: cx - 12, y: cy });
   for (let i = 0; i < 60; i++) s.scheduler.step(st);   // 3 s: as linhas se encontram
-  return { x: cx, y: cy, a: a.length, b: b.length };
-}, battle) : null;
+  return { x: cx, y: cy, a: a.length, b: b.length, types };
+}, [battle, battleTypes]) : null;
 if (fightAt) console.log('batalha:', JSON.stringify(fightAt));
 
 const run = (view) => page.evaluate(([view, N]) => {
@@ -116,6 +120,8 @@ const results = [];
 for (const baked of modes) {
   await page.evaluate((b) => { window.aoe.settings.bakedArt = b; window.aoe.applyQuality(); }, baked);
   await page.evaluate(() => window.aoe.renderer.art?.ready());
+  // (criaturas da batalha: as páginas próprias sobem na primeira vista, fora do laço síncrono — pedidas antes de medir)
+  if (baked && battleTypes.length) { await page.evaluate((t) => { window.aoe.renderer.art?.prewarmUnits?.(t); return window.aoe.renderer.art?.ready(); }, battleTypes); await page.waitForTimeout(800); await page.evaluate(() => window.aoe.renderer.art?.ready()); }
   await page.waitForTimeout(300);
   for (const v of VIEWS) {
     const r = await run(v);

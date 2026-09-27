@@ -15,7 +15,7 @@ export type ArtScale = 1 | 2;
 
 /** `stride` (animações de andar: walk/run/carry): tiles que o corpo avança num ciclo, medidos no rig pelo bake
  *  (scripts/bake/measure.mjs) — o renderizador avança o quadro pela distância andada e o pé não desliza. */
-export interface ArtAnimInfo { frames: number; fps: number; loop: boolean; stride?: number }
+export interface ArtAnimInfo { frames: number; fps: number; loop: boolean; stride?: number; /** Etapa 6: assada só nestas direções (a ascensão dos titãs, de frente) — nunca espelhada. */ dirs?: number[] }
 export interface ArtSize { sourceSize: { w: number; h: number }; anchor: { x: number; y: number } }
 
 /** Um asset do manifesto: unidade, edifício ou conjunto de props. */
@@ -70,7 +70,7 @@ export interface ArtManifest {
 }
 
 /** Bloco meta.aoe de um JSON de atlas. */
-export interface SheetAoeMeta { version: number; pass: ArtPass; pxPerTile: number; pitchDeg: number; texel?: number; dirs?: number; fps?: number; mirror?: boolean; mirrored?: Record<string, number> }
+export interface SheetAoeMeta { version: number; pass: ArtPass; pxPerTile: number; pitchDeg: number; texel?: number; dirs?: number; fps?: number; mirror?: boolean; mirrored?: Record<string, number>; /** Etapa 6 (lote titãs): espelhamento só destes assets (id → direção espelhada → direção assada). */ mirroredAssets?: Record<string, Record<string, number>> }
 
 /** Quadro do JSON de atlas (formato Spritesheet do Pixi + âncora). */
 export interface SheetFrame {
