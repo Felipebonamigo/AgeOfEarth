@@ -38,8 +38,12 @@ export interface FxHost {
   deathDir(type: string, x: number, y: number): number;
   /** Variante mostrada pelo edifício assado que sumiu neste quadro em (x, y) (o colapso usa a mesma), ou null. */
   goneVariant(type: string, x: number, y: number): string | null;
-  /** Escombros assados de uma queda (ficam no chão RUBBLE_SECONDS). */
-  addRubble(e: VisualEffect, type: string): void;
+  /** O edifício assado/procedural que sumiu neste quadro em (x, y) mostrava o estado VIVO ao jogador local (dele, ou à
+   *  vista) — o desabamento dele se vê mesmo se a névoa do tick da queda já tiver apagado a visão que ele dava. */
+  goneSeen(type: string, x: number, y: number): boolean;
+  /** Escombros assados de uma queda (ficam no chão RUBBLE_SECONDS). `seen` = queda vista; senão só aparecem quando o
+   *  jogador vir o tile (como os decalques). */
+  addRubble(e: VisualEffect, type: string, seen: boolean): void;
   /** Uma queda assada terminou: o corpo fica no chão (cadáver, docs/ART.md §1.9). */
   addCorpse(uv: UnitView): void;
 }
@@ -73,8 +77,10 @@ export interface FxContext {
   shake(amount: number): void;
   /** Põe um decalque (respeita a névoa e o teto do preset). */
   /** `size` = diâmetro no mundo (px; padrão: o tamanho do quadro a 1×), `life` em s de jogo, `aspect` = altura/largura
-   *  (achata o decalque antes de girar: a rachadura alongada ao longo de um raio do terremoto). */
-  decal(name: string, x: number, y: number, opts?: { rot?: number; size?: number; alpha?: number; life?: number; tint?: number; aspect?: number }): void;
+   *  (achata o decalque antes de girar: a rachadura alongada ao longo de um raio do terremoto). Um decalque vivo da mesma
+   *  família a menos de DECAL_MERGE tiles é renovado em vez de empilhar (`stack` = empilha mesmo assim); a queimadura
+   *  tem alfa até BURN_ALPHA_MAX. */
+  decal(name: string, x: number, y: number, opts?: { rot?: number; size?: number; alpha?: number; life?: number; tint?: number; aspect?: number; stack?: boolean }): void;
 }
 
 /**

@@ -137,3 +137,8 @@ export const PRIO_CAP = [0.45, 0.85, 1] as const;
 export const GROUP_CAP: Record<string, number> = { smoke: 0.35, dust: 0.2, fire: 0.12 };
 /** Teto de decalques por preset (índice = Quality.particles). */
 export const DECAL_CAP = [48, 128, 256] as const;
+/** Raio (tiles) em que um decalque novo RENOVA o vivo da mesma família em vez de empilhar (golpes repetidos no mesmo
+ *  lugar: multiply sobre multiply escureceria o chão até o preto). */
+export const DECAL_MERGE = 0.7;
+/** Alfa máximo da queimadura: com o quadro do atlas, o centro fica em ~0,5 do chão (terra chamuscada, não tinta). */
+export const BURN_ALPHA_MAX = 0.7;

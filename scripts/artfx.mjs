@@ -129,7 +129,7 @@ async function startSampler() {
           if (inst.s.body.y < gy - 1 && inst.s.shadow.y > inst.s.body.y && inst.s.shadow.x >= inst.s.body.x - 0.5) S.arcOk++; else S.arcBad++;
         }
       }
-      S.add = Math.max(S.add, ps.add.particleChildren.length);
+      S.add = Math.max(S.add, ps.addCount);
       S.dust = Math.max(S.dust, ps.groupCount('dust'));
       S.fire = Math.max(S.fire, ps.groupCount('fire'));
       S.smoke = Math.max(S.smoke, ps.groupCount('smoke'));
@@ -670,8 +670,8 @@ async function startPowerSampler() {
       requestAnimationFrame(loop);
       const fx = R.fx, ps = fx.particles;
       S.power = Math.max(S.power, ps.countOf(2));
-      S.add = Math.max(S.add, ps.add.particleChildren.length);
-      S.normal = Math.max(S.normal, ps.normal.particleChildren.length);
+      S.add = Math.max(S.add, ps.addCount);
+      S.normal = Math.max(S.normal, ps.normalCount);
       S.glow = Math.max(S.glow, fx.glow.children.length);
       S.sprites = Math.max(S.sprites, fx.sprites.children.filter((c) => c.visible && c.alpha > 0.05).length);
       S.flash = Math.max(S.flash, fx.screen.flashAlpha);

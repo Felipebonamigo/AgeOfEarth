@@ -158,7 +158,7 @@ function drawFallback(g: CanvasRenderingContext2D, fam: string, k: number, w: nu
       const gr = g.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, 'rgba(255,230,160,1)'); gr.addColorStop(0.45, 'rgba(255,130,30,0.9)'); gr.addColorStop(1, 'rgba(140,20,0,0)');
       g.fillStyle = gr; g.beginPath(); g.moveTo(cx - w * 0.4, h * 0.92); g.quadraticCurveTo(cx - w * 0.45, h * 0.4, cx + sway, h * 0.05); g.quadraticCurveTo(cx + w * 0.45, h * 0.4, cx + w * 0.4, h * 0.92); g.fill(); break;
     }
-    case 'decal/burn': radial(w / 2, [[0, 'rgba(26,20,16,0.9)'], [0.6, 'rgba(60,46,34,0.6)'], [1, 'rgba(80,64,48,0)']]); break;
+    case 'decal/burn': radial(w / 2, [[0, 'rgba(77,64,51,0.92)'], [0.6, 'rgba(120,102,82,0.6)'], [1, 'rgba(140,120,96,0)']]); break;
     case 'decal/crack': {
       g.strokeStyle = 'rgba(40,33,24,0.9)'; g.lineWidth = 1.2;
       for (let b = 0; b < 4; b++) { let x = cx, y = cy, a = b * 1.57 + k; g.beginPath(); g.moveTo(x, y); for (let s = 0; s < 9; s++) { a += Math.sin(b * 3 + s * 1.7 + k) * 0.4; x += Math.cos(a) * 3; y += Math.sin(a) * 3; g.lineTo(x, y); } g.stroke(); }

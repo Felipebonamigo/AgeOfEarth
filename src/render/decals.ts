@@ -20,8 +20,11 @@ export interface DecalSpec {
   life: number; fade?: number;
   blend: DecalBlend;
   tint?: number;
+  /** Família (ex.: 'decal/burn') e raio (px de mundo): um decalque vivo da mesma família a menos de `merge` do centro é
+   *  RENOVADO (vida, maior tamanho e alfa) em vez de empilhar outro — multiply sobre multiply escurece até o preto. */
+  key?: string; merge?: number;
 }
-interface Decal { p: Particle; blend: 0 | 1; born: number; life: number; fade: number; a: number; tx: number; ty: number; revealed: boolean }
+interface Decal { p: Particle; blend: 0 | 1; born: number; life: number; fade: number; a: number; tx: number; ty: number; revealed: boolean; key: string }
 
 export class DecalLayer {
   readonly root = new Container();
@@ -46,16 +49,37 @@ export class DecalLayer {
   /** Põe um decalque (nasce no instante `clock`, s de jogo). `seen` = o tile está visível agora ao jogador local. */
   add(s: DecalSpec, clock: number, seen: boolean): void {
     if (this.cap <= 0) return;
+    if (s.key && s.merge && this.renew(s, clock, seen, s.merge)) return;
     while (this.list.length >= this.cap) this.remove(0);
     const p = this.free.pop() ?? new Particle({ texture: s.tex });
     p.texture = s.tex; p.anchorX = 0.5; p.anchorY = 0.5;
     p.x = s.x; p.y = s.y; p.rotation = s.rot ?? 0;
     p.scaleX = s.scale ?? 1; p.scaleY = s.scaleY ?? s.scale ?? 1;
     p.tint = s.tint ?? 0xffffff;
-    const d: Decal = { p, blend: s.blend === 'multiply' ? 0 : 1, born: clock, life: Math.max(0.1, s.life), fade: s.fade ?? 0.25, a: s.alpha ?? 1, tx: Math.floor(s.x / TILE), ty: Math.floor(s.y / TILE), revealed: seen };
+    const d: Decal = { p, blend: s.blend === 'multiply' ? 0 : 1, born: clock, life: Math.max(0.1, s.life), fade: s.fade ?? 0.25, a: s.alpha ?? 1, tx: Math.floor(s.x / TILE), ty: Math.floor(s.y / TILE), revealed: seen, key: s.key ?? '' };
     p.alpha = seen ? d.a : 0;
     this.list.push(d);
     this.dirty = true;
+  }
+  /** Renova o decalque vivo mais próximo da família `s.key` a menos de `r` px (true) ou nada (false). */
+  private renew(s: DecalSpec, clock: number, seen: boolean, r: number): boolean {
+    let best: Decal | null = null, bd = r * r;
+    for (const d of this.list) {
+      if (d.key !== s.key) continue;
+      const age = clock - d.born;
+      if (!(age >= 0 && age < d.life)) continue;
+      const dx = d.p.x - s.x, dy = d.p.y - s.y, q = dx * dx + dy * dy;
+      if (q < bd) { bd = q; best = d; }
+    }
+    if (!best) return false;
+    const end = Math.max(best.born + best.life, clock + Math.max(0.1, s.life));
+    best.born = clock; best.life = end - clock;
+    best.a = Math.max(best.a, s.alpha ?? 1);
+    best.revealed ||= seen;
+    // o maior dos dois (mantendo o achatamento do que já estava no chão)
+    const sx = s.scale ?? 1;
+    if (sx > best.p.scaleX) { best.p.scaleY *= sx / best.p.scaleX; best.p.scaleX = sx; this.dirty = true; }
+    return true;
   }
   private remove(i: number): void {
     const d = this.list[i];

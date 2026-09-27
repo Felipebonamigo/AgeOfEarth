@@ -135,10 +135,10 @@ export const projectile: FxHandler<S> = {
         fx.decal('decal/impact', e.tx, e.ty, { rot: Math.random() * 6.28, size: 24 + Math.random() * 10, alpha: 0.85, life: 25 });
         break;
       case 'fireball':
-        for (let i = 0; i < 3; i++) flame(fx.particles, fx.tex, x + (Math.random() - 0.5) * 12, y + (Math.random() - 0.5) * 6, 0, 0.6, 0.9 + Math.random() * 0.5);
+        for (let i = 0; i < 3; i++) flame(fx.particles, fx.tex, x + (Math.random() - 0.5) * 12, y + (Math.random() - 0.5) * 6, 0, 0.6, 0.9 + Math.random() * 0.5, PRIO.combat, undefined, true);
         embers(fx.particles, fx.tex, x, y, 4, 8);
         glow(fx.particles, fx.tex, x, y, 6, 22, 0xffa040, 0.45);
-        fx.decal('decal/burn', e.tx, e.ty, { rot: Math.random() * 6.28, size: 30, alpha: 0.8, life: 30 });
+        fx.decal('decal/burn', e.tx, e.ty, { rot: Math.random() * 6.28, size: 30, alpha: 0.6, life: 12 });
         break;
       case 'bolt':
         glow(fx.particles, fx.tex, x, y, 8, 16, 0xa8d8ff, 0.3);

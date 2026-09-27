@@ -9,7 +9,12 @@
 // poderes > combate > ambiente — cada prioridade tem um teto (PRIO_CAP, fração do total) e, cheia, uma prioridade maior
 // toma o lugar da partícula mais velha de uma menor; famílias com teto próprio (GROUP_CAP: fumaça dos edifícios,
 // poeira, fogo) não passam dele. Math.random é permitido aqui: nada disto entra na simulação.
-import { Particle, ParticleContainer, type Texture } from 'pixi.js';
+// Partículas RENTES AO CHÃO (`ground`: chão em chamas, poeira, onda de poeira, poça de luz do raio) não vão para os dois
+// containers globais (acima de tudo): vão para um lote por LINHA DE TILES dentro das faixas ordenadas por y das entidades
+// (`groundParent`, zIndex = meio da linha) — a árvore, o edifício ou a unidade na frente cobrem o fogo e a poeira de trás,
+// e quem está atrás fica atrás. O orçamento é o mesmo.
+import { Container, Particle, ParticleContainer, type Texture } from 'pixi.js';
+import { TILE } from '../core/constants';
 import { GROUP_CAP, PRIO_CAP, lerpColor } from './fx/logic';
 
 /** Cor (0xRRGGBB) e alfa direto no `color` do Particle do Pixi (o que o lote lê), sem os setters `tint`/`alpha`: o de
@@ -55,16 +60,24 @@ export interface EmitSpec {
   align?: boolean;
   /** Âncora da textura (padrão: a do quadro, ou o centro). */
   anchorX?: number; anchorY?: number;
+  /** Rente ao chão: ordenada por y com as entidades (lote da linha de tiles de `y`), não por cima de tudo. */
+  ground?: boolean;
 }
 
 interface Live {
   p: Particle; blend: 0 | 1; prio: Prio; group: string | null; dead: boolean;
+  /** Linha de tiles do lote rente ao chão (−1 = containers globais). */
+  band: number;
   x: number; y: number; z: number; vx: number; vy: number; vz: number;
   g: number; bounce: number; drag: number; dragY: number; wind: number;
   age: number; life: number; s0: number; s1: number; a0: number; a1: number; fin: number;
   c0: number; c1: number; rot: number; spin: number; align: boolean;
   frames: readonly Texture[]; fps: number;
 }
+
+/** Lote rente ao chão de uma linha de tiles: normal + aditivo num Container com zIndex = meio da linha. */
+interface Band { root: Container; normal: ParticleContainer; add: ParticleContainer; n: Particle[]; a: Particle[]; serial: number }
+const DYN = { position: true, vertex: true, rotation: true, uvs: true, color: true };
 
 /** Vento global (px/s): leste com um pouco de sul, como a fumaça da Etapa 3 derivava. */
 export const WIND = { x: 7, y: 1.5 } as const;
@@ -84,16 +97,27 @@ export class ParticleSystem {
   dropped = 0;
   /** Maior número de vivas visto desde o último `resetStats`. */
   peak = 0;
+  /** Container ordenado por y (zIndex em tiles) onde vive o lote rente ao chão da posição y (tiles); null = sem faixas
+   *  (as partículas `ground` vão para os containers globais). */
+  groundParent: ((y: number) => Container | null) | null = null;
+  private bands = new Map<number, Band>();
+  /** Lotes vazios guardados para reúso (sem recriar os buffers da GPU a cada fogo que apaga). */
+  private bandPool: Band[] = [];
+  private serial = 0;
 
   constructor() {
-    const dyn = { position: true, vertex: true, rotation: true, uvs: true, color: true };
-    this.normal = new ParticleContainer({ dynamicProperties: dyn });
-    this.add = new ParticleContainer({ dynamicProperties: dyn });
+    this.normal = new ParticleContainer({ dynamicProperties: DYN });
+    this.add = new ParticleContainer({ dynamicProperties: DYN });
     this.add.blendMode = 'add';
     this.normal.eventMode = 'none'; this.add.eventMode = 'none';
   }
   /** Partículas vivas (todas as prioridades). */
   get count(): number { return this.counts[0] + this.counts[1] + this.counts[2]; }
+  /** Lotes rentes ao chão em uso (diagnóstico e testes). */
+  get bandCount(): number { return this.bands.size; }
+  /** Partículas desenhadas em mistura normal / aditiva, somando as dos lotes rentes ao chão (diagnóstico: artfx). */
+  get normalCount(): number { let n = this.normal.particleChildren.length; for (const b of this.bands.values()) n += b.n.length; return n; }
+  get addCount(): number { let n = this.add.particleChildren.length; for (const b of this.bands.values()) n += b.a.length; return n; }
   countOf(prio: Prio): number { return this.counts[prio]; }
   groupCount(group: string): number { return this.groups.get(group) ?? 0; }
   resetStats(): void { this.dropped = 0; this.peak = this.count; }
@@ -126,7 +150,7 @@ export class ParticleSystem {
     p.anchorX = s.anchorX ?? tex.defaultAnchor?.x ?? 0.5;
     p.anchorY = s.anchorY ?? tex.defaultAnchor?.y ?? 0.5;
     const l: Live = {
-      p, blend: s.blend === 'add' ? 1 : 0, prio: s.prio, group, dead: false,
+      p, blend: s.blend === 'add' ? 1 : 0, prio: s.prio, group, dead: false, band: s.ground && this.groundParent ? Math.floor(s.y / TILE) : -1,
       x: s.x, y: s.y, z: s.z ?? 0, vx: s.vx ?? 0, vy: s.vy ?? 0, vz: s.vz ?? 0,
       g: s.gravity ?? 0, bounce: s.bounce ?? -1, drag: s.drag ?? 0, dragY: s.dragY ?? 0, wind: s.wind ?? 0,
       age: 0, life: Math.max(0.01, s.life), s0: s.scale0, s1: s.scale1 ?? s.scale0, a0: s.alpha0, a1: s.alpha1 ?? 0, fin: s.fadeIn ?? 0,
@@ -185,7 +209,7 @@ export class ParticleSystem {
 
   /** Tira as mortas das listas e reescreve os filhos dos dois containers (uma vez por quadro, se algo mudou). */
   private compact(): void {
-    this.dirty = false;
+    this.dirty = false; this.serial++;
     const normal: Particle[] = [], add: Particle[] = [];
     for (let k = 0; k < 3; k++) {
       const list = this.live[k];
@@ -197,9 +221,53 @@ export class ParticleSystem {
       list.length = w;
     }
     // ordem de desenho: mais velhas atrás (ambiente, combate, poderes; dentro de cada uma, pela idade)
-    for (const list of this.live) for (const l of list) (l.blend ? add : normal).push(l.p);
+    for (const b of this.bands.values()) { b.n.length = 0; b.a.length = 0; }
+    for (const list of this.live) for (const l of list) {
+      const b = l.band >= 0 ? this.band(l.band) : null;
+      if (b) (l.blend ? b.a : b.n).push(l.p); else (l.blend ? add : normal).push(l.p);
+    }
     this.normal.particleChildren = normal; this.normal.update();
     this.add.particleChildren = add; this.add.update();
+    for (const [k, b] of this.bands) {
+      if (b.n.length + b.a.length === 0) { this.dropBand(k, b); continue; }
+      b.normal.particleChildren = b.n; b.normal.update();
+      b.add.particleChildren = b.a; b.add.update();
+      // lote vazio fica fora da lista de desenho (senão parte à toa o lote de sprites da faixa)
+      const vn = b.n.length > 0, va = b.a.length > 0;
+      if (b.normal.visible !== vn) b.normal.visible = vn;
+      if (b.add.visible !== va) b.add.visible = va;
+    }
+  }
+  /** Lote da linha `k` (criado sob demanda; refeito se a faixa que o guardava mudou ou foi destruída). */
+  private band(k: number): Band | null {
+    let b = this.bands.get(k);
+    if (b && b.serial === this.serial) return b;   // já conferido neste compact
+    const parent = this.groundParent?.(k + 0.5) ?? null;
+    if (!parent) return null;
+    if (b && (b.root.destroyed || b.normal.destroyed)) { this.bands.delete(k); b = undefined; }
+    if (!b) {
+      while (!b && this.bandPool.length) { const q = this.bandPool.pop()!; if (!q.root.destroyed && !q.normal.destroyed) b = q; }
+      if (!b) {
+        const root = new Container(), normal = new ParticleContainer({ dynamicProperties: DYN }), add = new ParticleContainer({ dynamicProperties: DYN });
+        add.blendMode = 'add'; root.eventMode = 'none'; normal.eventMode = 'none'; add.eventMode = 'none';
+        root.addChild(normal, add);
+        b = { root, normal, add, n: [], a: [], serial: 0 };
+      }
+      b.root.zIndex = k + 0.5;
+      this.bands.set(k, b);
+    }
+    if (b.root.parent !== parent) parent.addChild(b.root);
+    b.serial = this.serial;
+    return b;
+  }
+  /** Lote vazio: sai da faixa e volta ao estoque (`destroy` = libera de vez: troca de fonte das texturas). */
+  private dropBand(k: number, b: Band, destroy = false): void {
+    this.bands.delete(k);
+    if (b.root.destroyed || b.normal.destroyed) return;
+    b.n.length = 0; b.a.length = 0;
+    b.normal.particleChildren = []; b.normal.update(); b.add.particleChildren = []; b.add.update();
+    b.root.removeFromParent();
+    if (destroy || this.bandPool.length >= 64) b.root.destroy({ children: true }); else this.bandPool.push(b);
   }
 
   /** Remove todas (troca de partida, troca da arte). `sourceChanged`: a próxima textura vem de outra fonte (atlas
@@ -209,7 +277,12 @@ export class ParticleSystem {
     this.counts = [0, 0, 0]; this.groups.clear();
     this.normal.particleChildren = []; this.normal.update();
     this.add.particleChildren = []; this.add.update();
-    if (sourceChanged) { this.normal.texture = null as unknown as Texture; this.add.texture = null as unknown as Texture; this.free.length = 0; }
+    for (const [k, b] of this.bands) this.dropBand(k, b, sourceChanged);
+    if (sourceChanged) {
+      for (const b of this.bandPool) if (!b.root.destroyed) b.root.destroy({ children: true });
+      this.bandPool.length = 0;
+      this.normal.texture = null as unknown as Texture; this.add.texture = null as unknown as Texture; this.free.length = 0;
+    }
     this.dirty = false;
   }
 }

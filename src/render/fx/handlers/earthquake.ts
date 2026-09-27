@@ -25,8 +25,9 @@ export const quake: FxHandler<S> = {
     const r = Number(e.data) || 7;
     const s: S = { r, acc: { acc: 0 }, rays: [], pts: [], wave: 1.25, cast: age <= FRESH };
     if (!s.cast) return s;
-    // o tremor da câmera só para quem está olhando para a área (um terremoto do outro lado do mapa não sacode a tela)
-    if (fx.onScreen(e.x, e.y, r + 6)) fx.shake(11);
+    // o tremor da câmera só para quem está olhando para a área e a VÊ (um terremoto do outro lado do mapa ou sob a névoa
+    // não sacode a tela)
+    if (fx.onScreen(e.x, e.y, r + 6) && fx.visibleAt(e.x, e.y)) fx.shake(11);
     fx.decal('decal/crack', e.x, e.y, { rot: R() * 6.28, size: 3.8 * TILE, alpha: 0.95, life: 45 });
     fx.decal('decal/impact', e.x, e.y, { rot: R() * 6.28, size: 1.6 * TILE, alpha: 0.7, life: 45 });
     const nr = fx.quality.particles === 0 ? 4 : 5 + Math.floor(R() * 3);
@@ -40,8 +41,8 @@ export const quake: FxHandler<S> = {
     return s;
   },
   update(e, s, fx, _t, p) {
-    const on = fx.onScreen(e.x, e.y, s.r);
-    if (fx.onScreen(e.x, e.y, s.r + 6)) fx.shake(4.5 * (1 - p));
+    const on = fx.onScreen(e.x, e.y, s.r), seen = fx.visibleAt(e.x, e.y);
+    if (seen && fx.onScreen(e.x, e.y, s.r + 6)) fx.shake(4.5 * (1 - p));
     if (!s.cast || fx.dt <= 0) return;
     // rachaduras se abrindo do centro para fora (decalques mesmo fora da tela)
     const speed = s.r / 1.5;
@@ -51,8 +52,8 @@ export const quake: FxHandler<S> = {
       while (ray.d >= ray.next && ray.next <= s.r) {
         // uma fenda alongada AO LONGO do raio (o decalque de rachadura achatado e girado), emendando com a anterior
         const x = e.x + Math.cos(ray.a) * (ray.next - 0.6), y = e.y + Math.sin(ray.a) * (ray.next - 0.6);
-        fx.decal('decal/crack', x, y, { rot: ray.a + (R() - 0.5) * 0.25, size: (2.1 + R() * 0.5) * TILE, aspect: 0.42, alpha: 0.95, life: 40 });
-        if (R() < 0.35) fx.decal('decal/crack', x, y, { rot: R() * 6.28, size: (1 + R() * 0.4) * TILE, alpha: 0.7, life: 40 });
+        fx.decal('decal/crack', x, y, { rot: ray.a + (R() - 0.5) * 0.25, size: (2.1 + R() * 0.5) * TILE, aspect: 0.42, alpha: 0.95, life: 40, stack: true });
+        if (R() < 0.35) fx.decal('decal/crack', x, y, { rot: R() * 6.28, size: (1 + R() * 0.4) * TILE, alpha: 0.7, life: 40, stack: true });
         if (s.pts.length < 80) s.pts.push(x, y);
         if (on && fx.visibleAt(x, y)) {
           dust(fx.particles, fx.tex, x * TILE, y * TILE, { n: 4, tint: dustAt(fx, x, y), spread: 10, speed: 22, scale: 0.85, grow: 2.8, alpha: 0.66, life: 1.8, prio: PRIO.power, rise: 22 });
@@ -65,7 +66,7 @@ export const quake: FxHandler<S> = {
     if (!on) return;
     // ondas de poeira rasteira: a ÁREA do tremor
     s.wave -= fx.dt;
-    if (s.wave <= 0 && p < 0.8) {
+    if (s.wave <= 0 && p < 0.8 && seen) {
       s.wave = 1.25;
       ring(fx.particles, fx.tex, e.x * TILE, e.y * TILE, s.r * TILE * 0.3, s.r * TILE * 1.05, 0x8f7d5e, 1.1, 'normal', PRIO.power, 0.5);
     }

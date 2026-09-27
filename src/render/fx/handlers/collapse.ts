@@ -2,8 +2,8 @@
 // edifício mostrava — FxHost.goneVariant) afunda e apaga na faixa do y dele, os escombros assados ficam no chão
 // (FxHost.addRubble) e sobe a fumaça da Etapa 3. Por cima disso, o lote combate-ambiente dá o PESO da queda:
 //  - no instante: tremor pelo porte, a nuvem de poeira grossa que rola pelo chão para fora da pegada (onda rasteira) e
-//    sobe em rolos (névoa de poeira), o estouro de pedras/lascas (madeira nos de madeira, com tábuas maiores) e dois
-//    decalques — a mancha de pó escurecendo o chão e os escombros espalhados em volta;
+//    sobe em rolos (névoa de poeira), o estouro de pedras/lascas (madeira nos de madeira, com tábuas maiores) e os
+//    decalques — a mancha de pó escurecendo o chão e pedrinhas espalhadas pela borda —, que somem com os escombros;
 //  - enquanto afunda (primeiros 60 %): pedaços caindo da borda de cima do quadro que desce (lascas com gravidade e quique
 //    na pegada) e baforadas de pó da base.
 // Sem arte do tipo: o sprite procedural cinza encolhendo (o de sempre) com a mesma poeira.
@@ -14,11 +14,16 @@ import { PRIO } from '../../particles';
 import { chips, dust, haze, smokePuffs } from '../emitters';
 import { dustWave } from '../recipes';
 import { hitMaterial } from '../logic';
-import { FRESH, TILE, seenNow } from './util';
+import { RUBBLE_SECONDS } from '../../art/logic';
+import { FRESH, TILE } from './util';
 
-interface S { c: Container; baked: boolean; top: number; acc: number; wood: boolean }
+interface S { c: Container; baked: boolean; top: number; acc: number; wood: boolean; seen: boolean }
 /** Cor da poeira de desabamento (reboco, pedra moída e terra). */
 const RUBBLE_DUST = 0xa89a82;
+/** Tinta das pedrinhas espalhadas (o calcário claro do quadro `decal/debris` puxado para a cor dos escombros assados). */
+const RUBBLE_BITS = 0xa39684;
+/** Escala máxima do quadro `decal/debris` (acima disso as pedrinhas viram "bolas"): a área grande leva vários decalques. */
+const DEBRIS_MAX_SCALE = 1.3;
 
 export const collapse: FxHandler<S> = {
   create(e, fx, age) {
@@ -27,11 +32,15 @@ export const collapse: FxHandler<S> = {
     const type = typeof e.data === 'string' ? e.data : '';
     const d = BUILDINGS[type];
     let baked = false, top = d ? d.h * TILE * 0.6 : 20;
+    // sob a névoa (docs/ART.md Apêndice F: nada fora da vista): sem o quadro afundando, sem fumaça nem poeira; os
+    // escombros e os decalques só aparecem quando o jogador vir o lugar. Visto = tile visível agora ou a vista do edifício
+    // mostrava o estado vivo no quadro anterior (o dele mesmo: a névoa do tick da queda já pode ter apagado a visão dele).
+    const seen = fx.visibleAt(e.x, e.y) || fx.host.goneSeen(type, e.x, e.y);
     if (fx.baked && d) {
       const art = fx.host.art.buildingArt(type);
       const variant = fx.host.goneVariant(type, e.x, e.y) ?? (art?.variants ? art.variants[0] : null);
-      const f = fx.host.art.building(type, 'damage2', variant) ?? fx.host.art.building(type, 'complete', variant);
-      fx.host.addRubble(e, type);
+      const f = seen ? fx.host.art.building(type, 'damage2', variant) ?? fx.host.art.building(type, 'complete', variant) : null;
+      fx.host.addRubble(e, type, seen);
       if (f) {
         // o quadro que cai vai para a faixa do edifício, na ordem por y dele (o que estava na frente continua na frente)
         const s = new Sprite(f.color); s.anchor.set(f.anchor.x, f.anchor.y); s.tint = 0x8a847c; c.addChild(s);
@@ -42,18 +51,18 @@ export const collapse: FxHandler<S> = {
         baked = true;
       }
     }
-    if (!baked) {
+    if (!baked && seen) {
       if (d) { const s = new Sprite(fx.host.tex.building(type, 0x888888, true)); s.anchor.set(0.5); s.tint = 0x777777; c.addChild(s); }
       fx.layer.addChild(c);
     }
     const wood = hitMaterial(type) === 'wood';
     if (d && age <= FRESH) {
       const x0 = (e.x - d.w / 2) * TILE, x1 = (e.x + d.w / 2) * TILE, y0 = (e.y - d.h / 2) * TILE, y1 = (e.y + d.h / 3) * TILE;
-      if (fx.baked) smokePuffs(fx.particles, fx.tex, 4 + d.w * d.h * 2, x0, x1, y0, y1, false, PRIO.combat, undefined);
-      if (seenNow(fx, e.x, e.y, d.w)) {
+      if (fx.baked && seen) smokePuffs(fx.particles, fx.tex, 4 + d.w * d.h * 2, x0, x1, y0, y1, false, PRIO.combat, undefined);
+      if (seen && fx.onScreen(e.x, e.y, d.w)) {
         const R = Math.max(d.w, d.h) * TILE * 0.5, x = e.x * TILE, y = e.y * TILE, big = Math.sqrt(d.w * d.h);
         fx.shake(Math.min(7, 1.5 + big * 1.4));
-        dust(fx.particles, fx.tex, x, y, { n: 8 + d.w * d.h * 2, tint: RUBBLE_DUST, spread: R, speed: 34 + R * 0.4, scale: 0.7, grow: 2.6, alpha: 0.5, life: 2.2, rise: 6 });
+        dust(fx.particles, fx.tex, x, y, { n: 8 + d.w * d.h * 2, tint: RUBBLE_DUST, spread: R, speed: 34 + R * 0.4, scale: 0.7, grow: 2.6, alpha: 0.5, life: 2.2, rise: 6, ground: true });
         // a nuvem rola pelo chão para fora da pegada e sobe em rolos
         dustWave(fx.particles, fx.tex, x, y, R * 0.8, R * 2, 10 + Math.round(big * 5), RUBBLE_DUST, { scale: 0.75, alpha: 0.5, life: 1.5 });
         haze(fx.particles, fx.tex, x, y - R * 0.2, 3 + Math.round(big * 2), R * 0.8, 0xb0a48e, { alpha: 0.42, life: 3.4, scale: 1 + big * 0.35, prio: PRIO.combat, rise: 12 });
@@ -61,10 +70,17 @@ export const collapse: FxHandler<S> = {
         if (wood) for (let i = 0; i < 2 + d.w; i++) fx.particles.emit({ frames: [fx.tex.pick('chip_wood')], blend: 'normal', prio: PRIO.combat, x: x + (Math.random() - 0.5) * R, y: y + (Math.random() - 0.5) * R * 0.6, z: top * 0.4,
           vx: (Math.random() - 0.5) * 60, vy: (Math.random() - 0.5) * 24, vz: 40 + Math.random() * 50, gravity: 300, bounce: 0.25, life: 1.8 + Math.random() * 0.6, scale0: 1.8 + Math.random() * 0.8, alpha0: 1, alpha1: 0, rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 10 });
       }
-      fx.decal('decal/impact', e.x, e.y, { rot: Math.random() * 6.28, size: (Math.max(d.w, d.h) + 1.6) * TILE * 1.15, alpha: 0.45, life: 45 });
-      fx.decal('decal/debris', e.x, e.y, { rot: Math.random() * 6.28, size: (Math.max(d.w, d.h) + 1.2) * TILE * 1.1, alpha: 1, life: 45 });
+      // a mancha de pó e as pedrinhas saem junto com os escombros assados (RUBBLE_SECONDS): nada de um anel de pedras em
+      // volta de um chão vazio. As pedrinhas: vários decalques pequenos (≤ 1,3× o quadro) espalhados pela borda da pegada.
+      const side = Math.max(d.w, d.h);
+      fx.decal('decal/impact', e.x, e.y, { rot: Math.random() * 6.28, size: (side + 1.2) * TILE, alpha: 0.4, life: RUBBLE_SECONDS });
+      const n = 3 + side, size = Math.min(DEBRIS_MAX_SCALE * 64, (0.9 + 0.25 * side) * TILE), rr = side * 0.5;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + Math.random() * 0.6, k = rr * (0.75 + Math.random() * 0.35);
+        fx.decal('decal/debris', e.x + Math.cos(a) * k, e.y + Math.sin(a) * k * 0.85, { rot: Math.random() * 6.28, size, alpha: 0.95, life: RUBBLE_SECONDS, tint: RUBBLE_BITS, stack: true });
+      }
     }
-    return { c, baked, top, acc: 0, wood };
+    return { c, baked, top, acc: 0, wood, seen };
   },
   update(e, s, fx, _t, p) {
     s.c.alpha = 1 - p;
@@ -73,14 +89,14 @@ export const collapse: FxHandler<S> = {
     else s.c.scale.set(1 - p * 0.2);
     // pedaços caindo da borda de cima enquanto afunda, e pó saindo da base
     const d = BUILDINGS[typeof e.data === 'string' ? e.data : ''];
-    if (!d || p > 0.6 || fx.dt <= 0 || !seenNow(fx, e.x, e.y, d.w)) return;
+    if (!d || !s.seen || p > 0.6 || fx.dt <= 0 || !fx.onScreen(e.x, e.y, d.w)) return;
     s.acc += fx.dt * (8 + d.w * 5);
     const n = Math.floor(s.acc); s.acc -= n;
     const z = s.top * (1 - p * 0.55) * 0.85;
     for (let i = 0; i < n; i++) {
       const x = (e.x + (Math.random() - 0.5) * d.w * 0.8) * TILE, y = (e.y + (Math.random() - 0.5) * d.h * 0.7) * TILE;
       chips(fx.particles, fx.tex, x, y, z, 1, s.wood && Math.random() < 0.6 ? 'wood' : 'stone', PRIO.combat, 0.6);
-      if (Math.random() < 0.35) dust(fx.particles, fx.tex, x, (e.y + d.h * 0.45) * TILE, { n: 1, tint: RUBBLE_DUST, spread: 4, speed: 10, scale: 0.55, grow: 2.4, alpha: 0.4, life: 1.4, rise: 8 });
+      if (Math.random() < 0.35) dust(fx.particles, fx.tex, x, (e.y + d.h * 0.45) * TILE, { n: 1, tint: RUBBLE_DUST, spread: 4, speed: 10, scale: 0.55, grow: 2.4, alpha: 0.4, life: 1.4, rise: 8, ground: true });
     }
   },
   destroy(_e, s) { s.c.destroy({ children: true }); },

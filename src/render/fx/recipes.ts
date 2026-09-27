@@ -24,13 +24,13 @@ export function waterSplash(ps: ParticleSystem, tex: FxTextures, x: number, y: n
   }
 }
 
-/** Chão em chamas numa área de raio `radius` px: `n` línguas de fogo em flipbook (aditivas, tamanho × `size`), brasas e,
- *  por cima, fumaça escura subindo — o fogo da Quimera e de Prometeu. */
+/** Chão em chamas numa área de raio `radius` px: `n` línguas de fogo em flipbook (aditivas, tamanho × `size`; rentes ao
+ *  chão, ordenadas por y com as entidades), brasas e, por cima, fumaça escura subindo — o fogo da Quimera e de Prometeu. */
 export function fireGround(ps: ParticleSystem, tex: FxTextures, x: number, y: number, radius: number, n: number, prio: Prio = PRIO.combat, size = 1): void {
   for (let i = 0; i < n; i++) {
     const a = R() * Math.PI * 2, d = Math.sqrt(R()) * radius;
     const fx = x + Math.cos(a) * d, fy = y + Math.sin(a) * d * 0.7;
-    if (!flame(ps, tex, fx, fy, 0, size * rr(0.45, 0.75) * (1 - 0.35 * d / Math.max(1, radius)), rr(0.7, 1.3), prio)) break;
+    if (!flame(ps, tex, fx, fy, 0, size * rr(0.45, 0.75) * (1 - 0.35 * d / Math.max(1, radius)), rr(0.7, 1.3), prio, undefined, true)) break;
   }
   embers(ps, tex, x, y, 4, Math.ceil(n * 1.2), prio);
   for (let i = 0; i < Math.ceil(n / 2); i++) {
@@ -59,7 +59,7 @@ export function dustWave(ps: ParticleSystem, tex: FxTextures, x: number, y: numb
     const a = (i / n) * Math.PI * 2 + rr(-0.15, 0.15), sp = (r1 - r0) / life * rr(1.2, 1.6), s = (o.scale ?? 0.5) * rr(0.8, 1.2);
     if (!ps.emit({ frames: [tex.pick('dust')], blend: 'normal', prio: o.prio ?? PRIO.combat, x: x + Math.cos(a) * r0, y: y + Math.sin(a) * r0 * 0.7, z: rr(0, 2),
       vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.7, vz: rr(3, 8), drag: 1.6, wind: 0.3,
-      life: life * rr(0.85, 1.2), scale0: s, scale1: s * 2.6, alpha0: o.alpha ?? 0.5, alpha1: 0, fadeIn: 0.08, tint, rot: R() * 6.28, spin: rr(-0.5, 0.5) })) return;
+      life: life * rr(0.85, 1.2), scale0: s, scale1: s * 2.6, alpha0: o.alpha ?? 0.5, alpha1: 0, fadeIn: 0.08, tint, rot: R() * 6.28, spin: rr(-0.5, 0.5), ground: true })) return;
   }
 }
 

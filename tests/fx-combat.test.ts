@@ -4,7 +4,8 @@
 import { describe, it, expect } from 'vitest';
 import { Container, Texture } from 'pixi.js';
 import { TERRAIN, TICK_RATE } from '../src/core/constants';
-import { ABILITIES, UNITS } from '../src/core/data';
+import { ABILITIES, BUILDINGS, UNITS } from '../src/core/data';
+import { RUBBLE_SECONDS } from '../src/render/art/logic';
 import type { GameState, Unit, VisualEffect } from '../src/core/types';
 import { spawnUnit, placeBuilding } from '../src/core/sim/entities';
 import { FxSystem, type FxAcc } from '../src/render/fx/FxSystem';
@@ -23,7 +24,7 @@ function fakeHost(): FxHost {
   return {
     art: { unit: () => null, buildingArt: () => null, building: () => null } as unknown as FxHost['art'],
     tex: tex as unknown as FxHost['tex'], shadows,
-    entityParent: () => parent, deathDir: () => 2, goneVariant: () => null, addRubble: () => undefined, addCorpse: () => undefined,
+    entityParent: () => parent, deathDir: () => 2, goneVariant: () => null, goneSeen: () => false, addRubble: () => undefined, addCorpse: () => undefined,
   };
 }
 /** FxSystem em Node com o mapa inteiro "na tela" e revelado; `step` avança um quadro de `dt` s no relógio de jogo. */
@@ -257,10 +258,18 @@ describe('handlers do lote em Node', () => {
     const r = rig(st);
     st.effects.push(fresh(st, { type: 'collapse', x: p.x, y: p.y, total: 30, data: 'barracks' }));
     r.step();
-    expect(r.fx.decals.count).toBe(2);   // mancha de pó + escombros
+    // mancha de pó + pedrinhas espalhadas pela borda em vários decalques pequenos (nada de um quadro esticado 2,3×)
+    const side = Math.max(BUILDINGS.barracks.w, BUILDINGS.barracks.h);
+    expect(r.fx.decals.count).toBe(1 + 3 + side);
     const n0 = r.fx.particles.count;
     for (let f = 0; f < 10; f++) r.step(1 / 30);
     expect(r.fx.particles.count).toBeGreaterThan(n0 * 0.5);   // pedaços caindo enquanto afunda
+    // os restos saem junto com os escombros assados (RUBBLE_SECONDS), não 33 s depois deles
+    st.effects.length = 0;
+    r.step(RUBBLE_SECONDS - 0.5);
+    expect(r.fx.decals.count).toBe(1 + 3 + side);
+    r.step(0.6);
+    expect(r.fx.decals.count).toBe(0);
     const st2 = quickGame(); const p2 = spot(st2);
     const r2 = rig(st2);
     st2.effects.push(fresh(st2, { type: 'nodeGone', x: p2.x, y: p2.y, total: 6, data: 'tree' }));

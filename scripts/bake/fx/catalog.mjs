@@ -250,9 +250,10 @@ function leaf(seed, s) {
 }
 
 /** Fogo em flipbook: quadro `f` de 8, ruído periódico na vertical (rola para cima e emenda no 1º quadro): línguas que
- *  se separam no alto, base mais quente (amarela) e bordas vermelho-escuras. */
+ *  se separam no alto, base mais quente (amarela) e bordas vermelho-escuras. A base apaga numa rampa nos últimos 14 % do
+ *  quadro (a chama não é cortada reta pela borda de baixo: nada de "vela" de base chata). */
 function fireFn(f, s) {
-  const W = 24 * s, H = 40 * s, base = H * 0.92;
+  const W = 24 * s, H = 40 * s, base = H * 0.92, foot = H * 0.86;
   const phase = (f / FX_FIRE_FRAMES) * 4;
   return (x, y) => {
     const u = (x - W / 2) / (W / 2), v = (base - y) / base;
@@ -267,7 +268,9 @@ function fireFn(f, s) {
     const I = shape * (0.3 + 1.1 * n) * (0.7 + 0.6 * t) - v * 0.62 + (v < 0 ? v * 3 : 0);
     if (I < 0.03) return null;
     const heat = I * (1.05 - v * 0.45);
-    return [...fireRamp(heat), smoothstep(0.03, 0.3, I)];
+    const a = smoothstep(0.03, 0.3, I) * smoothstep(H, foot, y);
+    if (a <= 0.004) return null;
+    return [...fireRamp(heat), a];
   };
 }
 
@@ -286,8 +289,10 @@ function burnFn(seed, s) {
     if (m <= 0.01) return null;
     const soot = fbm(u * 9, v * 9, seed + 3, 3);
     const k = clamp01(1 - r * 1.25 + (soot - 0.5) * 0.5);
-    const c = [mix(0.33, 0.1, k), mix(0.27, 0.085, k), mix(0.2, 0.07, k)];
-    return [c[0], c[1], c[2], m * mix(0.55, 0.92, k)];
+    // terra chamuscada, não tinta: no centro o fator do multiply fica em ~0,35 com o quadro inteiro (≈ 0,5 do chão com o
+    // alfa do jogo, BURN_ALPHA_MAX) — marrom de fuligem, borda macia clareando
+    const c = [mix(0.56, 0.3, k), mix(0.48, 0.25, k), mix(0.38, 0.2, k)];
+    return [c[0], c[1], c[2], m * mix(0.5, 0.92, k)];
   };
 }
 /** Rachaduras: galhos de passeio aleatório a partir do centro (3–5 principais, com ramos), afinando para a ponta. */

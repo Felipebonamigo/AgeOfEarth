@@ -24,7 +24,7 @@ function fakeHost(): FxHost {
   return {
     art: { unit: () => null, buildingArt: () => null, building: () => null } as unknown as FxHost['art'],
     tex: tex as unknown as FxHost['tex'], shadows,
-    entityParent: () => parent, deathDir: () => 2, goneVariant: () => null, addRubble: () => undefined, addCorpse: () => undefined,
+    entityParent: () => parent, deathDir: () => 2, goneVariant: () => null, goneSeen: () => false, addRubble: () => undefined, addCorpse: () => undefined,
   };
 }
 /** FxSystem em Node sobre `st` (tudo à vista), com um passo de quadro. */
@@ -80,6 +80,28 @@ describe('raio', () => {
     expect(fx.screen.flashAlpha).toBe(0);
     st.effects.length = 0; frame();
     expect(glowKids(fx)).toBe(0);
+  });
+});
+
+describe('queimaduras (revisão da Etapa 5: nada de poça preta)', () => {
+  it('Tempestade: só o raio que acerta alguém queima o chão (curto); a Quimera no mesmo lugar renova, não empilha; alfa ≤ 0,7', () => {
+    const st = quickGame();
+    const { fx, frame } = system(st);
+    const u = spawnUnit(st, 1, 'hoplite', 30.5, 30.5);
+    // erro (ponto sorteado longe de todos) e acerto (no ponto da unidade), raios da Tempestade (ttl 16)
+    st.effects.push({ type: 'bolt', x: 12.3, y: 40.7, ttl: 16, total: 16 }, { type: 'bolt', x: u.x, y: u.y, ttl: 16, total: 16 });
+    frame();
+    const keys = (fx.decals as unknown as { list: { key: string; a: number; life: number }[] }).list;
+    expect(keys.filter((k) => k.key === 'decal/burn').length).toBe(1);
+    expect(keys.filter((k) => k.key === 'decal/impact').length).toBe(2);
+    expect(Math.max(...keys.map((k) => k.life))).toBeLessThanOrEqual(12);
+    st.effects.length = 0; frame();
+    const n0 = fx.decals.count;
+    // o Raio de Zeus no mesmo ponto: renova a queimadura que já está lá
+    st.effects.push({ type: 'bolt', x: u.x, y: u.y, ttl: 24, total: 24 }); frame();
+    expect(keys.filter((k) => k.key === 'decal/burn').length).toBe(1);
+    expect(fx.decals.count).toBe(n0);
+    for (const k of keys) if (k.key === 'decal/burn') expect(k.a).toBeLessThanOrEqual(0.7);
   });
 });
 

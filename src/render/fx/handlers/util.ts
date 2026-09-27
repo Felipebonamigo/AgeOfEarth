@@ -18,3 +18,7 @@ export function terrainAt(state: GameState, x: number, y: number): number {
 export const dustAt = (fx: FxContext, x: number, y: number): number => dustColor(terrainAt(fx.state, x, y));
 /** O efeito em (x, y) tiles está à vista (tile visível e na tela). */
 export const seenNow = (fx: FxContext, x: number, y: number, margin = 2): boolean => fx.onScreen(x, y, margin) && fx.visibleAt(x, y);
+/** O jogador local VÊ o que acontece com uma entidade de `owner` em (x, y) tiles: o tile está visível, ou ela é dele (a
+ *  névoa recalculada no tick da morte/queda pode já ter apagado a visão que ela mesma dava). Morte, estátua e desabamento
+ *  sob a névoa não mostram nada (docs/ART.md Apêndice F: "nada fora da vista"); os decalques têm a névoa própria. */
+export const seenEntity = (fx: FxContext, x: number, y: number, owner: number | undefined): boolean => owner === fx.local || fx.visibleAt(x, y);

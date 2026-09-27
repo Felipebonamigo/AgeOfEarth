@@ -85,7 +85,7 @@ function fakeHost(): FxHost {
   return {
     art: { unit: () => null, buildingArt: () => null, building: () => null } as unknown as FxHost['art'],
     tex: tex as unknown as FxHost['tex'], shadows,
-    entityParent: () => parent, deathDir: () => 2, goneVariant: () => null, addRubble: () => undefined, addCorpse: () => undefined,
+    entityParent: () => parent, deathDir: () => 2, goneVariant: () => null, goneSeen: () => false, addRubble: () => undefined, addCorpse: () => undefined,
   };
 }
 
@@ -169,5 +169,64 @@ describe('FxSystem em Node (sem DOM: atlas de reserva vazio → textura branca)'
     fx.beginFrame({ state: st, local: 0, clock: 0, dt: 1 / 30, zoom: 1, baked: false, quality: resolveQuality('medium'), view: { x0: 0, y0: 0, x1: 99, y1: 99 }, revealAll: false });
     fx.update();
     expect(fx.particles.count).toBe(0);
+  });
+
+  it('sob a névoa (explorado, fora de vista): morte, estátua, desabamento, poderes e titã não mostram nada nem tremem a tela', () => {
+    // IA 1 × IA 2 numa clareira explorada (vis = 1) com a câmera em cima e revealAll = false; depois o mesmo à vista
+    const run = (vis: 1 | 2) => {
+      const st = quickGame();
+      const fx = new FxSystem(() => null);
+      const parent = new Container();
+      let corpses = 0; const rubble: boolean[] = [];
+      fx.setHost({ ...fakeHost(), entityParent: () => parent, addCorpse: () => { corpses++; }, addRubble: (_e, _t, seen) => { rubble.push(seen); } });
+      fx.setQuality(resolveQuality('high'));
+      const cx = Math.floor(st.map.w / 2) + 0.5, cy = Math.floor(st.map.h / 2) + 0.5;
+      st.players[0].visibility.fill(vis);
+      const mk = (type: string, extra: Partial<VisualEffect> = {}): VisualEffect => ({ type, x: cx, y: cy, ttl: 20, total: 20, ...extra });
+      st.effects.push(
+        mk('death', { data: 'hoplite', owner: 2, ttl: 24, total: 24 }), mk('death', { data: 'cyclops', owner: 2, x: cx + 2, ttl: 24, total: 24 }),
+        mk('petrify', { data: 'villager', x: cx - 2, ttl: 30, total: 30 }), mk('death', { data: 'villager', owner: 2, x: cx - 2, ttl: 24, total: 24 }),
+        mk('collapse', { data: 'barracks', y: cy + 3, ttl: 30, total: 30 }), mk('splash', { data: 2, x: cx + 1 }),
+        mk('quake', { data: 7, ttl: 100, total: 100 }), mk('titanRise', { x: cx + 4, ttl: 60, total: 60 }), mk('bolt', { ttl: 24, total: 24, y: cy - 3 }),
+      );
+      st.timed.push({ type: 'lightning_storm', owner: 1, until: st.tick + 160, x: cx, y: cy, data: 6 }, { type: 'earthquake', owner: 1, until: st.tick + 100, x: cx, y: cy, data: 7 });
+      const view = { x0: cx - 20, y0: cy - 12, x1: cx + 20, y1: cy + 12 };
+      let shake = 0, peak = 0;
+      for (let f = 0; f < 50; f++) {
+        fx.beginFrame({ state: st, local: 0, clock: f / 30, dt: 1 / 30, zoom: 1, baked: false, quality: resolveQuality('high'), view, revealAll: false });
+        shake = Math.max(shake, fx.update());
+        peak = Math.max(peak, fx.particles.count);
+        if (f === 20) for (const e of st.effects) if (e.type === 'death' || e.type === 'petrify' || e.type === 'collapse') e.ttl = 0;
+        if (f === 20) st.effects.splice(0, st.effects.length, ...st.effects.filter((e) => e.ttl > 0));
+      }
+      const views = (fx.root.children[0] as Container).children.length + parent.children.length;
+      return { shake, peak, corpses, rubble, views, decals: fx.decals.count };
+    };
+    const fog = run(1);
+    expect(fog.peak).toBe(0);
+    expect(fog.shake).toBe(0);
+    expect(fog.corpses).toBe(0);
+    expect(fog.views).toBe(0);                      // nem queda, nem estátua, nem o edifício afundando
+    expect(fog.rubble).toEqual([]);                  // sem arte assada não há escombros; ver o caso assado em fx-combat
+    expect(fog.decals).toBeGreaterThan(0);           // os decalques nascem escondidos e aparecem quando o tile for visto
+    const seen = run(2);
+    expect(seen.peak).toBeGreaterThan(0);
+    expect(seen.shake).toBeGreaterThan(0);
+    expect(seen.views).toBeGreaterThan(0);
+  });
+
+  it('dono vê a própria unidade/edifício cair mesmo se a névoa do tick já apagou a visão dela', () => {
+    const st = quickGame();
+    const fx = new FxSystem(() => null);
+    const parent = new Container();
+    fx.setHost({ ...fakeHost(), entityParent: () => parent, goneSeen: (type) => type === 'house' });
+    fx.setQuality(resolveQuality('high'));
+    st.players[0].visibility.fill(1);
+    const cx = Math.floor(st.map.w / 2) + 0.5, cy = Math.floor(st.map.h / 2) + 0.5;
+    st.effects.push({ type: 'death', x: cx, y: cy, owner: 0, ttl: 24, total: 24, data: 'hoplite' }, { type: 'collapse', x: cx + 3, y: cy, ttl: 30, total: 30, data: 'house' });
+    fx.beginFrame({ state: st, local: 0, clock: 0, dt: 1 / 30, zoom: 1, baked: false, quality: resolveQuality('high'), view: { x0: 0, y0: 0, x1: st.map.w, y1: st.map.h }, revealAll: false });
+    fx.update();
+    expect((fx.root.children[0] as Container).children.length).toBe(2);   // a queda procedural e a casa afundando
+    expect(fx.particles.count).toBeGreaterThan(0);
   });
 });

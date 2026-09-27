@@ -18,7 +18,7 @@ import { DecalLayer } from '../decals';
 import { FxTextures, FX_FAMILIES } from './FxTextures';
 import { handlerFor, makeWatchers, timedHandlerFor } from './registry';
 import type { FxContext, FxHandler, FxHost, FxWatcher, TimedHandler } from './types';
-import { DECAL_CAP, DUST_MIN_ZOOM, effectAge, footDustRate, gaitOf, dustColor } from './logic';
+import { BURN_ALPHA_MAX, DECAL_CAP, DECAL_MERGE, DUST_MIN_ZOOM, effectAge, footDustRate, gaitOf, dustColor } from './logic';
 import { embers, flame, smokePuffs } from './emitters';
 import { terrainAt } from './handlers/util';
 import type { Building, Unit } from '../../core/types';
@@ -85,7 +85,11 @@ export class FxSystem {
       decal: (name, x, y, o = {}) => this.addDecal(name, x, y, o),
     };
   }
-  setHost(h: FxHost): void { this.host = h; }
+  setHost(h: FxHost): void {
+    this.host = h;
+    // partículas rentes ao chão (fogo no chão, poeira, poça de luz): na faixa ordenada por y das entidades
+    this.particles.groundParent = (y) => h.entityParent('unit', y, false);
+  }
   /** Orçamento do preset: partículas (PARTICLE_BUDGET) e decalques (DECAL_CAP). */
   setQuality(q: Quality): void {
     this.particles.budget = PARTICLE_BUDGET[q.particles] ?? 800;
@@ -104,14 +108,17 @@ export class FxSystem {
     const v = this.frame?.view; if (!v) return false;
     return x >= v.x0 - margin && x <= v.x1 + margin && y >= v.y0 - margin && y <= v.y1 + margin;
   }
-  private addDecal(name: string, x: number, y: number, o: { rot?: number; size?: number; alpha?: number; life?: number; tint?: number; aspect?: number }): void {
+  private addDecal(name: string, x: number, y: number, o: { rot?: number; size?: number; alpha?: number; life?: number; tint?: number; aspect?: number; stack?: boolean }): void {
     const f = this.frame; if (!f) return;
     // nome de família ('decal/burn') → uma variante aleatória; nome de quadro ('decal/burn/1') → ele mesmo
     const tex = FX_FAMILIES[name] ? this.tex.pick(name) : this.tex.frame(name);
     const w = tex.orig?.width || 64;
-    const blend = name.startsWith('decal/debris') ? 'normal' : 'multiply';
+    const key = FX_FAMILIES[name] ? name : name.replace(/\/\d+$/, '');
+    const blend = key === 'decal/debris' ? 'normal' : 'multiply';
     const scale = (o.size ?? w) / w;
-    this.decals.add({ tex, x: x * TILE, y: y * TILE, rot: o.rot, scale, scaleY: scale * (o.aspect ?? 1), alpha: o.alpha, life: o.life ?? 30, blend, tint: o.tint }, f.clock, this.visibleAt(x, y));
+    const alpha = key === 'decal/burn' ? Math.min(o.alpha ?? 1, BURN_ALPHA_MAX) : o.alpha;
+    // sem empilhar: um golpe no mesmo lugar renova a marca que já está lá (salvo `stack`: composições como as fendas do terremoto)
+    this.decals.add({ tex, x: x * TILE, y: y * TILE, rot: o.rot, scale, scaleY: scale * (o.aspect ?? 1), alpha, life: o.life ?? 30, blend, tint: o.tint, key, merge: o.stack ? 0 : DECAL_MERGE * TILE }, f.clock, this.visibleAt(x, y));
   }
 
   // ---------------- quadro ----------------

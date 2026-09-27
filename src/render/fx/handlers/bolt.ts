@@ -6,8 +6,8 @@
 // real: o líder desce em ~0,06 s, o retorno acende o canal inteiro, 3–5 re-descargas cintilam até ~0,45 s e o canal
 // apaga (os galhos antes). No chão: clarão branco-azulado e a poça de luz em volta (luz aditiva: o raio EMITE luz), onda
 // de luz, faíscas, brasas, chamas curtas, poeira e lascas, fumaça escura subindo, QUEIMADURA e marca de impacto no chão
-// (decalques), tremor e, no Raio de Zeus, um clarão breve na tela inteira (fraco na Tempestade: os raios caem a cada
-// 0,5 s).
+// (decalques; na Tempestade só o raio que acerta alguém queima, pequeno e por 10 s), tremor e, no Raio de Zeus, um clarão
+// breve na tela inteira (fraco na Tempestade: os raios caem a cada 0,5 s).
 //
 // Tempestade (`lightning_storm`, TimedEffect de 8 s, raio `data`): a SOMBRA da nuvem escurecendo a área (disco macio
 // que acende em 0,8 s e apaga nos últimos 0,8), nuvens baixas rolando com o vento, CHUVA em riscos inclinados caindo
@@ -15,7 +15,7 @@
 // em si são os efeitos `bolt` do núcleo.
 import { Sprite, type Texture } from 'pixi.js';
 import { TICK_RATE } from '../../../core/constants';
-import type { TimedEffect } from '../../../core/types';
+import type { GameState, TimedEffect } from '../../../core/types';
 import type { FxContext, FxHandler, TimedHandler } from '../types';
 import { PRIO } from '../../particles';
 import { chips, dust, embers, flame, glow, haze, ring, sparks } from '../emitters';
@@ -104,13 +104,22 @@ export function boltAlpha(t: number, pattern: readonly number[], lead = 0.06): n
   return Math.max(0, pattern[pattern.length - 1] * (1 - (t - end) / 0.45));
 }
 
+/** O raio da Tempestade acertou alguém: o núcleo o põe no ponto da unidade atingida (que pode ter andado um passo até o
+ *  quadro, ou morrido — a morte fica no mesmo ponto); o que erra cai num ponto sorteado da área. */
+export function boltStruck(st: GameState, x: number, y: number): boolean {
+  for (const u of st.units.values()) if (Math.abs(u.x - x) < 0.35 && Math.abs(u.y - y) < 0.35) return true;
+  return st.effects.some((o) => o.type === 'death' && Math.abs(o.x - x) < 0.05 && Math.abs(o.y - y) < 0.05);
+}
+
 export const bolt: FxHandler<BoltS | null> = {
   create(e, fx, age) {
     const zeus = e.total >= 24;
-    // a queimadura fica mesmo fora da tela (o decalque só aparece quando o jogador vir o tile — decals.ts)
+    // as marcas ficam mesmo fora da tela (o decalque só aparece quando o jogador vir o tile — decals.ts). A Tempestade
+    // solta ~16 raios: só o que ACERTA alguém queima o chão (pequeno e curto); o que erra deixa só a marca de impacto
     if (age <= FRESH) {
-      fx.decal('decal/burn', e.x, e.y, { rot: R() * 6.28, size: (zeus ? 1.7 : 1.2) * TILE, alpha: 0.95, life: 45 });
-      fx.decal('decal/impact', e.x, e.y, { rot: R() * 6.28, size: (zeus ? 0.9 : 0.7) * TILE, alpha: 0.8, life: 45 });
+      const struck = zeus || boltStruck(fx.state, e.x, e.y);
+      if (struck) fx.decal('decal/burn', e.x, e.y, { rot: R() * 6.28, size: (zeus ? 1.6 : 1) * TILE, alpha: zeus ? 0.7 : 0.6, life: zeus ? 30 : 10 });
+      fx.decal('decal/impact', e.x, e.y, { rot: R() * 6.28, size: (zeus ? 0.9 : 0.6) * TILE, alpha: zeus ? 0.75 : 0.55, life: zeus ? 30 : 10 });
     }
     if (!seenNow(fx, e.x, e.y, 4)) return null;
     const x = e.x * TILE, y = e.y * TILE;
@@ -143,12 +152,12 @@ export const bolt: FxHandler<BoltS | null> = {
       const tint = dustAt(fx, e.x, e.y);
       glow(fx.particles, fx.tex, x, y, 6, zeus ? 34 : 24, 0xffffff, 0.3, PRIO.power, 1);
       glow(fx.particles, fx.tex, x, y, 3, zeus ? 96 : 64, 0xdce8ff, 0.5, PRIO.power, 1);
-      glow(fx.particles, fx.tex, x, y, 0, zeus ? 190 : 125, 0x8fb2ff, 0.85, PRIO.power, zeus ? 0.55 : 0.36);
+      glow(fx.particles, fx.tex, x, y, 0, zeus ? 190 : 125, 0x8fb2ff, 0.85, PRIO.power, zeus ? 0.55 : 0.36, true);   // a poça de luz no chão
       ring(fx.particles, fx.tex, x, y, 6, zeus ? 56 : 40, 0xd4e4ff, 0.42, 'add', PRIO.power, 0.75);
       ring(fx.particles, fx.tex, x, y, 8, zeus ? 50 : 36, tint, 0.8, 'normal', PRIO.power, 0.45);
       sparks(fx.particles, fx.tex, x, y, 2, zeus ? 18 : 10, PRIO.power);
       embers(fx.particles, fx.tex, x, y, 4, zeus ? 12 : 6, PRIO.power);
-      for (let i = 0; i < (zeus ? 3 : 2); i++) flame(fx.particles, fx.tex, x + (R() - 0.5) * 12, y + (R() - 0.5) * 6, 0, 0.5 + R() * 0.2, 0.7 + R() * 0.6, PRIO.power);
+      for (let i = 0; i < (zeus ? 3 : 2); i++) flame(fx.particles, fx.tex, x + (R() - 0.5) * 12, y + (R() - 0.5) * 6, 0, 0.5 + R() * 0.2, 0.7 + R() * 0.6, PRIO.power, undefined, true);
       dust(fx.particles, fx.tex, x, y, { n: zeus ? 10 : 6, tint, spread: 6, speed: 40, scale: 0.5, grow: 2.4, alpha: 0.5, life: 1.1, prio: PRIO.power, rise: 12 });
       chips(fx.particles, fx.tex, x, y, 4, zeus ? 6 : 3, 'stone', PRIO.power, 1.1);
       haze(fx.particles, fx.tex, x, y - 4, zeus ? 4 : 2, 6, 0x3b3733, { alpha: 0.5, life: 2.2, scale: 0.75, rise: 24, prio: PRIO.power });

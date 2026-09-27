@@ -28,8 +28,11 @@ export function smokePuffs(ps: ParticleSystem, tex: FxTextures, n: number, x0: n
   return out;
 }
 
-/** Poeira no chão: `n` baforadas em volta de (x, y) com raio `spread` px, espalhando a `speed` px/s para fora. */
-export function dust(ps: ParticleSystem, tex: FxTextures, x: number, y: number, o: { n: number; tint: number; spread?: number; speed?: number; scale?: number; grow?: number; alpha?: number; life?: number; prio?: Prio; group?: string; rise?: number; vx?: number; vy?: number }): void {
+/** Poeira no chão: `n` baforadas em volta de (x, y) com raio `spread` px, espalhando a `speed` px/s para fora.
+ *  `ground`: a nuvem grande que rola pelo chão (desabamento) vai ordenada por y com as entidades — a árvore ou o edifício
+ *  na frente cobrem a poeira de trás; as baforadas pequenas (passos, golpes, quedas, trabalho) ficam na camada `fx`
+ *  (cada linha de tiles com partícula rente ao chão custa um lote, e elas são muitas e baixas). */
+export function dust(ps: ParticleSystem, tex: FxTextures, x: number, y: number, o: { n: number; tint: number; spread?: number; speed?: number; scale?: number; grow?: number; alpha?: number; life?: number; prio?: Prio; group?: string; rise?: number; vx?: number; vy?: number; ground?: boolean }): void {
   for (let i = 0; i < o.n; i++) {
     const a = R() * Math.PI * 2, d = R() * (o.spread ?? 3), sp = (o.speed ?? 10) * rr(0.5, 1.2);
     const s = (o.scale ?? 0.4) * rr(0.8, 1.2);
@@ -37,7 +40,7 @@ export function dust(ps: ParticleSystem, tex: FxTextures, x: number, y: number, 
       frames: [tex.pick('dust')], blend: 'normal', prio: o.prio ?? PRIO.combat, group: o.group,
       x: x + Math.cos(a) * d, y: y + Math.sin(a) * d * 0.7, z: rr(0, 2),
       vx: Math.cos(a) * sp + (o.vx ?? 0), vy: Math.sin(a) * sp * 0.6 + (o.vy ?? 0), vz: o.rise ?? rr(4, 10), drag: 2.2, wind: 0.4,
-      life: (o.life ?? 0.9) * rr(0.75, 1.25), scale0: s, scale1: s * (o.grow ?? 2.2), alpha0: o.alpha ?? 0.45, fadeIn: 0.12, tint: o.tint, rot: R() * 6.28, spin: rr(-0.6, 0.6),
+      life: (o.life ?? 0.9) * rr(0.75, 1.25), scale0: s, scale1: s * (o.grow ?? 2.2), alpha0: o.alpha ?? 0.45, fadeIn: 0.12, tint: o.tint, rot: R() * 6.28, spin: rr(-0.6, 0.6), ground: o.ground,
     })) return;
   }
 }
@@ -79,16 +82,18 @@ export function embers(ps: ParticleSystem, tex: FxTextures, x: number, y: number
   }
 }
 
-/** Uma chama do flipbook `fire` (aditiva), com fumaça escura por cima opcional. `scale` 1 ≈ 24×40 px a zoom 1. */
-export function flame(ps: ParticleSystem, tex: FxTextures, x: number, y: number, z: number, scale: number, life: number, prio: Prio = PRIO.combat, group?: string): boolean {
+/** Uma chama do flipbook `fire` (aditiva), com fumaça escura por cima opcional. `scale` 1 ≈ 24×40 px a zoom 1.
+ *  `ground`: chama que nasce do chão (ordenada por y com as entidades), não a do telhado ou do ar. */
+export function flame(ps: ParticleSystem, tex: FxTextures, x: number, y: number, z: number, scale: number, life: number, prio: Prio = PRIO.combat, group?: string, ground = false): boolean {
   return ps.emit({ frames: tex.family('fire'), fps: rr(11, 14), blend: 'add', prio, group, x, y, z, vz: rr(2, 6), life,
-    scale0: scale * rr(0.75, 0.9), scale1: scale * rr(1, 1.15), alpha0: 1, alpha1: 0, fadeIn: 0.15 });
+    scale0: scale * rr(0.75, 0.9), scale1: scale * rr(1, 1.15), alpha0: 1, alpha1: 0, fadeIn: 0.15, ground });
 }
 
-/** Clarão de luz (textura `glow`, aditiva): cresce e apaga. `r` = raio em px. */
-export function glow(ps: ParticleSystem, tex: FxTextures, x: number, y: number, z: number, r: number, tint: number, life: number, prio: Prio = PRIO.combat, alpha = 1): boolean {
+/** Clarão de luz (textura `glow`, aditiva): cresce e apaga. `r` = raio em px. `ground`: a poça de luz no chão (ordenada
+ *  por y com as entidades), não o clarão no ar. */
+export function glow(ps: ParticleSystem, tex: FxTextures, x: number, y: number, z: number, r: number, tint: number, life: number, prio: Prio = PRIO.combat, alpha = 1, ground = false): boolean {
   const s = r / 16;
-  return ps.emit({ frames: [tex.frame('glow')], blend: 'add', prio, x, y, z, life, scale0: s * 0.7, scale1: s * 1.15, alpha0: alpha, alpha1: 0, fadeIn: 0.08, tint });
+  return ps.emit({ frames: [tex.frame('glow')], blend: 'add', prio, x, y, z, life, scale0: s * 0.7, scale1: s * 1.15, alpha0: alpha, alpha1: 0, fadeIn: 0.08, tint, ground });
 }
 
 /** Onda/anel no chão (textura `ring`, aro a 84 % do raio): de `r0` a `r1` px de raio. Aditiva (luz divina) ou normal

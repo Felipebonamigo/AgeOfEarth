@@ -94,18 +94,20 @@ export function p95(samples: readonly number[]): number {
 export class AutoQuality {
   level: QualityLevel;
   decided = false;
+  /** Preset fixo escolhido pelo jogador (não 'auto'): nunca mede nem rebaixa, nem depois de `reset()`. */
+  fixed = false;
   private samples: number[] = [];
   private intervals: number[] = [];
   private wallMs = 0;
   constructor(level: QualityLevel = 'medium', readonly frames = AUTO_SAMPLE_FRAMES, readonly limitMs = AUTO_P95_MS, readonly frameLimitMs = AUTO_FRAME_P95_MS) { this.level = level; }
-  /** Recomeça a medição (nova partida) mantendo o nível atual. */
-  reset(): void { this.samples = []; this.intervals = []; this.wallMs = 0; this.decided = false; }
+  /** Recomeça a medição (nova partida) mantendo o nível atual; um preset fixo continua decidido. */
+  reset(): void { this.samples = []; this.intervals = []; this.wallMs = 0; this.decided = this.fixed; }
   /**
    * `ms` = custo JS de renderer.render; `intervalMs` = tempo desde o quadro anterior (opcional). Decide após `frames`
    * quadros ou, com quadros lentos, após AUTO_MAX_WALL_MS de parede com pelo menos AUTO_MIN_FRAMES amostras.
    */
   sample(ms: number, intervalMs?: number): QualityLevel | null {
-    if (this.decided) return null;
+    if (this.decided || this.fixed) return null;
     this.samples.push(ms);
     if (intervalMs !== undefined && intervalMs > 0 && intervalMs < 5000) { this.intervals.push(intervalMs); this.wallMs += intervalMs; }
     const early = this.wallMs >= AUTO_MAX_WALL_MS && this.samples.length >= AUTO_MIN_FRAMES;

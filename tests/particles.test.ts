@@ -3,12 +3,14 @@
 // (pausa congela), física (gravidade com quique, arrasto, vento), alfa/escala/cor no tempo, flipbook e a receita da
 // fumaça dos edifícios igual à do SmokeLayer da Etapa 3.
 import { describe, it, expect } from 'vitest';
-import { Particle as PixiParticle, Texture, type Particle } from 'pixi.js';
+import { Container, Particle as PixiParticle, Texture, type Particle } from 'pixi.js';
 import { ParticleSystem, PRIO, WIND, setColor, type EmitSpec } from '../src/render/particles';
 import { PARTICLE_BUDGET } from '../src/render/quality';
 import { GROUP_CAP, PRIO_CAP } from '../src/render/fx/logic';
 import { smokePuffs } from '../src/render/fx/emitters';
 import type { FxTextures } from '../src/render/fx/FxTextures';
+import { DecalLayer } from '../src/render/decals';
+import { TILE } from '../src/core/constants';
 
 const T = [Texture.WHITE];
 const spec = (o: Partial<EmitSpec> = {}): EmitSpec => ({ frames: T, blend: 'normal', prio: PRIO.ambient, x: 0, y: 0, life: 10, scale0: 1, alpha0: 1, alpha1: 1, ...o });
@@ -125,6 +127,28 @@ describe('relógio de jogo e física', () => {
     ps.update(0.1);
     expect(nth(ps).texture).toBe(Texture.EMPTY);   // quadro 1 em 0,15 s
   });
+  it('rente ao chão: um lote por linha de tiles na faixa ordenada por y (zIndex = meio da linha), que sai quando esvazia', () => {
+    const ps = new ParticleSystem();
+    // sem faixas (Node, editor sem hospedeiro): vão para os lotes globais
+    ps.emit(spec({ ground: true, y: 3 * TILE + 5 })); ps.update(0.01);
+    expect(ps.normal.particleChildren.length).toBe(1); expect(ps.bandCount).toBe(0);
+    ps.clear();
+    const rows = new Map<number, Container>();
+    ps.groundParent = (y) => { const r = Math.floor(y / 16); if (!rows.has(r)) rows.set(r, new Container()); return rows.get(r)!; };
+    ps.emit(spec({ ground: true, y: 3 * TILE + 5, life: 1 })); ps.emit(spec({ ground: true, blend: 'add', y: 3 * TILE + 20, life: 1 }));
+    ps.emit(spec({ ground: true, y: 7 * TILE + 1, life: 2 })); ps.emit(spec({ y: 7 * TILE + 1, life: 2 }));
+    ps.update(0.01);
+    expect(ps.bandCount).toBe(2);
+    expect(ps.normal.particleChildren.length).toBe(1);   // só a que não é rente ao chão
+    const row = rows.get(0)!;
+    expect(row.children.map((c) => c.zIndex).sort()).toEqual([3.5, 7.5]);
+    const band3 = row.children.find((c) => c.zIndex === 3.5)! as Container;
+    expect(band3.children.length).toBe(2);   // normal + aditivo
+    advance(ps, 1.2);   // a linha 3 apagou: o lote sai da faixa
+    expect(ps.bandCount).toBe(1); expect(row.children.map((c) => c.zIndex)).toEqual([7.5]);
+    ps.clear(true);
+    expect(ps.bandCount).toBe(0); expect(row.children.length).toBe(0);
+  });
   it('clear esvazia os dois lotes', () => {
     const ps = new ParticleSystem();
     ps.emit(spec()); ps.emit(spec({ blend: 'add' }));
@@ -161,5 +185,27 @@ describe('cor direta no lote (integração da Etapa 5)', () => {
       expect(p.tint).toBe(ref.tint);
       expect(p.alpha).toBe(ref.alpha);
     }
+  });
+});
+
+describe('decalques sem empilhar (revisão da Etapa 5)', () => {
+  it('a mesma família a menos do raio renova a marca que já está no chão (vida, tamanho e alfa maiores) em vez de empilhar', () => {
+    const d = new DecalLayer();
+    const burn = (x: number, y: number, clock: number, o: { scale?: number; alpha?: number; life?: number } = {}) =>
+      d.add({ tex: Texture.WHITE, x, y, blend: 'multiply', key: 'decal/burn', merge: 0.7 * TILE, life: o.life ?? 10, scale: o.scale ?? 1, alpha: o.alpha ?? 0.6 }, clock, true);
+    for (let i = 0; i < 12; i++) burn(100 + (i % 3) * 5, 100, i * 0.5);   // a Quimera batendo no mesmo lugar
+    expect(d.count).toBe(1);
+    burn(100, 100, 6, { scale: 2, alpha: 0.7, life: 10 });
+    expect(d.count).toBe(1);
+    d.update(15.9, null, 1, true);   // renovada em 6 s com vida 10: ainda viva aos 15,9 s
+    expect(d.count).toBe(1);
+    expect(d.multiply.particleChildren[0].scaleX).toBe(2);
+    d.update(16.1, null, 1, true);
+    expect(d.count).toBe(0);
+    // longe (≥ 0,7 tile), outra família ou `merge` 0: marcas separadas
+    burn(100, 100, 20); burn(100 + TILE, 100, 20);
+    d.add({ tex: Texture.WHITE, x: 100, y: 100, blend: 'multiply', key: 'decal/impact', merge: 0.7 * TILE, life: 10 }, 20, true);
+    d.add({ tex: Texture.WHITE, x: 100, y: 100, blend: 'multiply', key: 'decal/burn', merge: 0, life: 10 }, 20, true);
+    expect(d.count).toBe(4);
   });
 });

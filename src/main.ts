@@ -78,7 +78,8 @@ async function boot() {
   const softwareGpu = isSoftwareRenderer(renderer.gpuName());
   const applyQuality = () => {
     auto = new AutoQuality(settings.quality === 'auto' && softwareGpu ? 'low' : levelOf(settings.quality));
-    if (settings.quality !== 'auto') auto.decided = true;
+    // preset fixo: não mede nem rebaixa (nem ao começar outra partida — AutoQuality.reset mantém `fixed`)
+    if (settings.quality !== 'auto') auto.fixed = auto.decided = true;
     renderer.setQuality(resolveQuality(settings.quality, { level: auto.level, showFps: settings.showFps, teamOutline: settings.teamOutline, bakedArt: settings.bakedArt, dayCycle: settings.dayCycle }));
     perf.setVisible(perfParam || settings.showFps);
   };

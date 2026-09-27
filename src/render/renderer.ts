@@ -57,14 +57,18 @@ export function buildingCorner(type: string, x: number, y: number): { tx: number
  *  Com arte assada, `unit`/`bld` guardam a vista assada (corpo, máscara de time e sombra do atlas) e o corpo não gira. */
 interface EntityView { root: Container; body: Sprite; shadow: Sprite | null; type: string; color: number; complete: boolean; angle: number; carry: Sprite | null; label?: Text; rank?: Graphics; rankShown?: number; unit: UnitView | null; bld: BuildingView | null;
   /** Acumulador da poeira dos pés (unidade) / das chamas (edifício muito danificado) — fx/FxSystem. */
-  fxAcc: FxAcc }
+  fxAcc: FxAcc;
+  /** Edifício: mostrava o estado vivo ao jogador local no último quadro (dele ou à vista; não a última versão vista sob a
+   *  névoa) — o desabamento dele se vê (FxHost.goneSeen). */
+  live?: boolean }
 
 /** Morte recente de uma unidade assada (o efeito 'death' do mesmo quadro herda a direção da vista que sumiu). */
 interface RecentDeath { type: string; x: number; y: number; dir: number }
-/** Edifício assado que sumiu neste quadro (o colapso do mesmo quadro usa a variante que ele mostrava). */
-interface RecentGone { type: string; x: number; y: number; variant: string | null }
-/** Escombros assados de um edifício que caiu (ficam RUBBLE_SECONDS de jogo no chão, apagando no fim). */
-interface RubbleView { body: Sprite; shadow: Sprite | null; t0: number; tx: number; ty: number }
+/** Edifício que sumiu neste quadro (o colapso do mesmo quadro usa a variante que ele mostrava e sabe se ele estava à vista). */
+interface RecentGone { type: string; x: number; y: number; variant: string | null; live: boolean }
+/** Escombros assados de um edifício que caiu (ficam RUBBLE_SECONDS de jogo no chão, apagando no fim). `revealed`: a queda
+ *  foi vista ou o tile foi visto depois dela (antes disso ficam escondidos, como os decalques). */
+interface RubbleView { body: Sprite; shadow: Sprite | null; t0: number; tx: number; ty: number; revealed: boolean }
 
 export interface RenderUI {
   localPlayer: number;
@@ -184,7 +188,8 @@ export class Renderer {
       entityParent: (kind, y, flying) => this.parentFor(kind, y, flying),
       deathDir: (type, x, y) => { for (const d of this.recentDeaths) if (d.type === type && Math.abs(d.x - x * TILE) < TILE && Math.abs(d.y - y * TILE) < TILE) return d.dir; return 2; },
       goneVariant: (type, x, y) => this.recentGone.find((g) => g.type === type && Math.abs(g.x - x * TILE) < 1 && Math.abs(g.y - y * TILE) < 1)?.variant ?? null,
-      addRubble: (e, type) => this.addRubble(e, type),
+      goneSeen: (type, x, y) => this.recentGone.some((g) => g.live && g.type === type && Math.abs(g.x - x * TILE) < 1 && Math.abs(g.y - y * TILE) < 1),
+      addRubble: (e, type, seen) => this.addRubble(e, type, seen),
       addCorpse: (uv) => { this.corpses.push({ uv, born: uv.animStart }); if (this.corpses.length > MAX_CORPSES) this.corpses.shift()!.uv.destroy(); },
     });
     this.layers.ghost.sortableChildren = true;
@@ -568,6 +573,7 @@ export class Renderer {
         // fumaça e brilho não mudam (senão o portão abrindo, o dano ou a muralha nova vazariam o que a névoa esconde).
         const art = this.art.buildingArt(b.type);
         const live = this.liveToLocal(state, ui.localPlayer, b) || v.bld.state === '';
+        v.live = live;
         let open = false, hpFrac = 1;
         if (live) {
           const frac = b.complete ? 1 : b.progress / Math.max(1e-6, getBuildingStats(state, state.players[b.owner], b.type).buildTime);
@@ -605,6 +611,7 @@ export class Renderer {
       v.root.position.set(b.x * TILE, b.y * TILE);
       v.root.zIndex = this.buildingDrawY(b);
       v.root.visible = true;
+      v.live = this.liveToLocal(state, ui.localPlayer, b);
       if (v.shadow) { const sh = buildingShadow(b.type)!; v.shadow.position.set(b.x * TILE + sh.dx, b.y * TILE + sh.dy); v.shadow.visible = true; }
       v.body.tint = tint;
       if (b.complete) this.fx.building(v.fxAcc, b, null);
@@ -682,7 +689,8 @@ export class Renderer {
       if (!e) {
         // unidade assada que sumiu (morreu): o efeito 'death' deste quadro herda a direção dela
         if (v.unit && v.root.visible) this.recentDeaths.push({ type: v.type, x: v.root.position.x, y: v.root.position.y, dir: v.unit.dir });
-        if (v.bld && v.bld.visible) this.recentGone.push({ type: v.type, x: v.bld.x, y: v.bld.y, variant: v.bld.variant });
+        if (v.bld && v.bld.visible) this.recentGone.push({ type: v.type, x: v.bld.x, y: v.bld.y, variant: v.bld.variant, live: !!v.live });
+        else if (!v.unit && !v.bld && v.root.visible && v.live !== undefined) this.recentGone.push({ type: v.type, x: v.root.position.x, y: v.root.position.y, variant: null, live: v.live });
         this.destroyView(v); this.views.delete(id);
       } else if (v.unit) v.unit.visible = false;
       else if (v.bld) v.bld.visible = false;
@@ -966,7 +974,7 @@ export class Renderer {
    * Escombros de uma queda (modo assado): o monte `rubble/<w>x<h>` no lugar do edifício, com sombra, deitado na faixa
    * da borda de cima da pegada (quem passa por cima fica na frente); some depois de RUBBLE_SECONDS de jogo, apagando.
    */
-  private addRubble(e: VisualEffect, type: string): void {
+  private addRubble(e: VisualEffect, type: string, seen: boolean): void {
     const def = BUILDINGS[type]; if (!def) return;
     const f = this.art.rubble(def.w, def.h); if (!f) return;
     const body = new Sprite(f.color); body.anchor.set(f.anchor.x, f.anchor.y); body.position.set(e.x * TILE, e.y * TILE);
@@ -975,7 +983,8 @@ export class Renderer {
     this.parentFor('building', zy, false).addChild(body);
     let shadow: Sprite | null = null;
     if (f.shadow) { shadow = new Sprite(f.shadow); shadow.anchor.set(f.anchor.x, f.anchor.y); shadow.position.set(e.x * TILE, e.y * TILE); shadow.alpha = SHADOW_ALPHA; shadow.blendMode = 'multiply'; this.layers.shadows.addChild(shadow); }
-    this.rubbleViews.push({ body, shadow, t0: this.animClock - (e.total - e.ttl) / TICK_RATE, tx: Math.floor(e.x), ty: Math.floor(e.y) });
+    body.visible = seen; if (shadow) shadow.visible = seen;
+    this.rubbleViews.push({ body, shadow, t0: this.animClock - (e.total - e.ttl) / TICK_RATE, tx: Math.floor(e.x), ty: Math.floor(e.y), revealed: seen });
   }
   private updateRubble(state: GameState, local: number): void {
     if (this.rubbleViews.length === 0) return;
@@ -986,7 +995,9 @@ export class Renderer {
       const i = r.ty * map.w + r.tx;
       // acabou, ou um edifício novo ocupou o lugar
       if (a <= 0 || (i >= 0 && i < map.buildingAt.length && map.buildingAt[i] !== -1)) { r.body.destroy(); r.shadow?.destroy(); continue; }
-      const seen = this.revealAll || state.config.revealMap || !vis || (vis[i] ?? 0) >= 1;
+      // queda fora da vista: os escombros só aparecem depois que o jogador vir o tile (nunca revelam o que a névoa esconde)
+      if (!r.revealed) r.revealed = this.revealAll || !!state.config.revealMap || !vis || vis[i] === 2;
+      const seen = r.revealed;
       r.body.alpha = a; r.body.visible = seen;
       if (r.shadow) { r.shadow.alpha = SHADOW_ALPHA * a; r.shadow.visible = seen; }
       this.rubbleViews[w++] = r;

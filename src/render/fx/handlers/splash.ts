@@ -2,7 +2,7 @@
 // não diz quem bateu; o atacante é a unidade com dano em área cujo golpe caiu no tick do efeito (rules.ts splashSource),
 // e a aparência segue ele (splashStyle):
 //  - fogo (Quimera, Prometeu): o jato de chamas da boca da Quimera até o alvo, o CHÃO EM CHAMAS no raio (fogo em
-//    flipbook, brasas, fumaça escura subindo), clarão alaranjado e o decalque de QUEIMADURA do tamanho da área;
+//    flipbook, brasas, fumaça escura subindo), clarão alaranjado e uma QUEIMADURA curta (10 s) no ponto;
 //  - água (Oceano): a onda que desaba — respingos altos no raio, névoa clara, aro de espuma — e o chão escurecido molhado;
 //  - pancada (Cronos) e Golpe Titânico (Héracles): onda de poeira rasteira até o raio, pedras voando, tremor e rachadura
 //    no chão; o de Héracles com o clarão dourado da força divina;
@@ -30,7 +30,8 @@ export const splash: FxHandler<null> = {
         }
         fireGround(fx.particles, fx.tex, x, y, R * 0.75, Math.round(5 + r * 3.5), PRIO.combat, 1.25);
         glow(fx.particles, fx.tex, x, y, 6, R * 0.8, 0xff9a40, 0.55, PRIO.combat, 0.85);
-        fx.decal('decal/burn', e.x, e.y, { rot, size: R * 1.7, alpha: 0.85, life: 30 });
+        // golpe frequente (a Quimera sopra a cada ataque): marca menor e curta; no mesmo lugar renova em vez de empilhar
+        fx.decal('decal/burn', e.x, e.y, { rot, size: R * 1.2, alpha: 0.65, life: 10 });
         break;
       }
       case 'water': {

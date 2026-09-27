@@ -170,8 +170,8 @@
    "w": 672,
    "h": 256,
    "frames": 91,
-   "bytes": 68423,
-   "sha256": "7a5c58d1aee794214fd993f7fce10077dbd51b72e9613ac44444fc027f8d3674"
+   "bytes": 68748,
+   "sha256": "0bb98f67ab05a296a154e802b217b04bcc997f3c0a1ffaccd2025de9bfc134aa"
   },
   {
    "json": "fx-2x-0.json",
@@ -183,8 +183,8 @@
    "w": 1088,
    "h": 480,
    "frames": 91,
-   "bytes": 195232,
-   "sha256": "7416a4153e110577abcb8cc4e76e7141d51bde1ec1330c80f452495f670fc235"
+   "bytes": 195600,
+   "sha256": "05018ff794afe14611073fc0bd68a3e8316ce7930b22f23d6c96b355457801b3"
   },
   {
    "json": "icons-1x-0.json",
@@ -1250,7 +1250,7 @@
   "fx": {
    "kind": "fx",
    "group": "fx",
-   "sourceHash": "a85c0403dca1ff41",
+   "sourceHash": "9c7beceecea92a1f",
    "dirs": 8,
    "mirror": false,
    "team": false,
@@ -4658,7 +4658,7 @@
   }
  },
  "totals": {
-  "pngBytes": 40152764,
+  "pngBytes": 40153457,
   "vramBytes": 282415104,
   "atlases": 34
  }

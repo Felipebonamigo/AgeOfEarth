@@ -52,6 +52,21 @@ describe('qualidade (docs/ART.md §3.9)', () => {
     expect(d.level).toBe('low');
     expect(lowerLevel('high')).toBe('medium'); expect(lowerLevel('low')).toBe('low');
   });
+  it('preset fixo nunca é rebaixado, nem depois do reset() de uma nova partida', () => {
+    for (const lv of ['high', 'medium'] as const) {
+      const a = new AutoQuality(lv);
+      a.fixed = a.decided = true;   // main.ts applyQuality com settings.quality !== 'auto'
+      for (let round = 0; round < 3; round++) {
+        a.reset();
+        expect(a.decided).toBe(true);
+        for (let i = 0; i < 300; i++) expect(a.sample(80, 660)).toBeNull();
+        expect(a.level).toBe(lv);
+      }
+    }
+    // o automático continua medindo depois do reset
+    const b = new AutoQuality('medium'); b.decided = true; b.reset();
+    expect(b.decided).toBe(false);
+  });
   it('loadSettings: padrões novos e save antigo sem os campos', () => {
     expect(DEFAULT_SETTINGS.quality).toBe('auto'); expect(DEFAULT_SETTINGS.showFps).toBe(false); expect(DEFAULT_SETTINGS.teamOutline).toBe(false);
     const store: Record<string, string> = { aoe_settings_v1: JSON.stringify({ volume: 0.3, muted: true, edgeScroll: false, showRanges: true, locale: 'en', uiScale: 1.3, fullscreen: false, renderScale: 0.75 }) };
