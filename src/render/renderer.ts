@@ -22,6 +22,7 @@ import { BuildingView } from './views/BuildingView';
 import { FxSystem, type FxAcc } from './fx/FxSystem';
 import { deathView } from './fx/handlers/death';
 import { DayCycle } from './fx/light';
+import { bronzeTint } from './fx/handlers/bronze';
 import {
   abilityUseTick, animDuration, buildingState, chooseAnim, corpseAlpha, CORPSE_TTL, MAX_CORPSES, dirWithHysteresis, freshHit, isWalking, isRunning, isMoveAnim, warmUnitTypes, mulColor, type UnitAnim, type AnimInput,
   WALL_LINK_TYPES, wallMask, buildingVariant, ageTier, farmCrop, damageLevel, gateNear, smokeRate, rubbleAlpha, GLOW_ANIM, glowVariant,
@@ -168,7 +169,8 @@ export class Renderer {
     this.art.atlas.gpuUpload = true;   // página servida só depois de subir para a GPU (uploadNextAtlas, uma por quadro)
     this.art.configure(this.quality.bakedArt, this.quality.atlasScale);
     this.props = new PropLayer(this.tex, this.art);
-    this.app.stage.addChild(this.world, this.overlay);
+    // camada de TELA dos efeitos (vinhetas da Trégua e do Oráculo, clarão do raio) entre o mundo e o overlay da interface
+    this.app.stage.addChild(this.world, this.fx.screen.root, this.overlay);
     this.world.addChild(this.layers.terrain, this.layers.decals, this.layers.shadows, this.layers.props, this.edgeFrame, this.layers.ground, this.layers.buildings, this.layers.units, this.layers.fx, this.layers.hp, this.layers.ghost, this.layers.editor, this.layers.fog);
     // efeitos: partículas/sprites na camada fx, decalques na camada decals (acima do terreno, abaixo das sombras)
     this.layers.fx.addChild(this.fx.root);
@@ -619,7 +621,8 @@ export class Renderer {
       const flying = !!UNITS[u.type].flying;
       v.root.zIndex = iy + (flying ? 1000 : 0);
       v.root.visible = true;
-      const bodyTint = state.tick - u.lastDamageTick < 3 ? 0xff8080 : (state.tick < state.players[u.owner].bronzeUntil ? 0xffd28a : 0xffffff);
+      // Pele de Bronze: bronze polido com um reflexo passando (fx/handlers/bronze.ts); os brilhos especulares são partículas
+      const bodyTint = state.tick - u.lastDamageTick < 3 ? 0xff8080 : (state.tick < state.players[u.owner].bronzeUntil ? bronzeTint(this.animClock, u.id) : 0xffffff);
       // poeira dos pés, cascos e rodas (Etapa 5): só quem está à vista e na tela (o laço já cortou o resto), pela
       // velocidade do tick; a densidade cai com o número de unidades andando na tela (fx/logic.ts footDustRate)
       const mdx = u.x - u.px, mdy = u.y - u.py, md2 = mdx * mdx + mdy * mdy;
@@ -797,7 +800,8 @@ export class Renderer {
     // cavalaria: galope (`run`) na velocidade dela; em formação com a infantaria anda mais devagar e trota (`walk`).
     // À distância no posto, entre um disparo e outro: `aim` (arco puxado, dardo armado; o cerco fica carregado)
     ai.running = walking && art.has('run') && isRunning(disp2, DT, uv.anim === 'run');
-    ai.engaged = posted && u.state === 'attack';
+    // na Trégua ninguém golpeia: quem está no posto relaxa a guarda (armas baixadas, a pose parada) até ela acabar
+    ai.engaged = posted && u.state === 'attack' && state.tick >= state.ceasefireUntil;
     const anim: UnitAnim = chooseAnim(ai, art.has);
     uv.pose(anim, dir, clock, (hit && anim === 'attack') || (abFresh && anim === 'ability'));
     uv.place(ix * TILE, iy * TILE);   // antes do tick: o andar avança o quadro pela distância andada neste quadro
@@ -1201,7 +1205,7 @@ export class Renderer {
     this.animDt = Math.max(0, Math.min(0.25, this.animClock - prevClock));
     if (this.bakedMode) this.updateEdgeFrame(state.map.w, state.map.h);
     // efeitos: o quadro começa antes das vistas (a poeira dos pés e a fumaça dos edifícios saem durante updateEntities)
-    this.fx.beginFrame({ state, local: ui.localPlayer, clock: this.animClock, dt: this.animDt, zoom: this.cam.zoom, baked: this.bakedMode, quality: this.quality, view: this.cam.visibleTiles(), revealAll: this.revealAll });
+    this.fx.beginFrame({ state, local: ui.localPlayer, clock: this.animClock, dt: this.animDt, zoom: this.cam.zoom, baked: this.bakedMode, quality: this.quality, view: this.cam.visibleTiles(), revealAll: this.revealAll, screenW: this.app.screen.width, screenH: this.app.screen.height });
     this.updateTerrain(state, ui.localPlayer);
     this.updateEntities(state, alpha, ui);
     this.updateGround(state, alpha, ui);

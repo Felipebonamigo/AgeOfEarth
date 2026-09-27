@@ -1,5 +1,7 @@
 // Opções e atalhos: painel de opções no menu principal, tela de atalhos, ajuda (também no menu principal),
-// escala da interface (zoom do HUD), qualidade de renderização (resolução do canvas) e persistência.
+// escala da interface (zoom do HUD), qualidade de renderização (resolução do canvas), o ciclo de luz opcional (Etapa 5:
+// desligado por padrão, filtro de cor no mundo quando ligado, rótulo em PT e EN) e persistência. Sai com 1 se alguma
+// verificação marcada FALHOU no bloco do ciclo de luz.
 import { chromium } from 'playwright';
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
@@ -61,8 +63,42 @@ console.log('diagnóstico:', diag.version === 1 && diag.session && typeof diag.s
 await page.click('#top button:has-text("Menu")'); await page.waitForTimeout(200);
 console.log('botão de diagnóstico no menu:', await page.isVisible('#modal #m-diag'));
 await page.keyboard.press('Escape'); await page.waitForTimeout(200);
+
+// Ciclo de luz (Etapa 5, pergunta 10): desligado por padrão (meio-dia fixo, sem filtro); ligado pelo menu da partida
+// põe o ColorMatrixFilter na camada do mundo e persiste; desligado tira o filtro; rótulo em PT e EN
+const fails = [];
+const check = (ok, msg) => { console.log(msg + ':', ok ? 'ok' : 'FALHOU'); if (!ok) fails.push(msg); };
+const lightState = () => page.evaluate(() => {
+  const R = window.aoe.renderer, w = R.app.stage.children[0];
+  // o nome da classe sai minificado na build: o ColorMatrixFilter se reconhece pela matriz 4×5
+  return { setting: window.aoe.settings.dayCycle, enabled: R.dayCycle.enabled, filters: (w.filters ?? []).map((f) => (Array.isArray(f.matrix) && f.matrix.length === 20 ? 'ColorMatrix' : 'outro')), saved: JSON.parse(localStorage.getItem('aoe_settings_v1') ?? '{}').dayCycle ?? false };
+});
+let ls = await lightState();
+check(!ls.setting && !ls.enabled && ls.filters.length === 0, `ciclo de luz desligado por padrão (sem filtro) ${JSON.stringify(ls)}`);
+await page.click('#top button:has-text("Menu")'); await page.waitForTimeout(300);
+await page.evaluate(() => { const d = document.querySelector('#modal details'); if (d) d.open = true; });
+const lblPt = (await page.textContent('#modal label:has(#o-daycycle)'))?.trim() ?? '';
+check(/Ciclo de luz/.test(lblPt), `opção no menu da partida em PT ("${lblPt}")`);
+check(!(await page.isChecked('#modal #o-daycycle')), 'caixa desmarcada por padrão');
+await page.check('#modal #o-daycycle'); await page.waitForTimeout(300);
+ls = await lightState();
+check(ls.setting && ls.enabled && ls.saved && ls.filters.some((n) => /ColorMatrix/.test(n)), `ligado: filtro de cor no mundo e salvo ${JSON.stringify(ls)}`);
+// a cor muda com o relógio de jogo: no entardecer a matriz não é a identidade
+const m = await page.evaluate(() => { const d = window.aoe.renderer.dayCycle; d.offset = (0.8 - 0.18) * 14 * 60; d.last = -1; window.aoe.renderer.render(window.aoe.session.state, 0.5, window.aoe.input.renderUI(), 1 / 60); const f = window.aoe.renderer.app.stage.children[0].filters.find((x) => x.matrix); const mm = Array.from(f.matrix); d.offset = 0; d.last = -1; return mm; });
+check(Math.abs(m[0] - 1) > 0.02 && m[0] > m[12], `entardecer quente (R ${m[0].toFixed(2)} > B ${m[12].toFixed(2)})`);
+await page.uncheck('#modal #o-daycycle'); await page.waitForTimeout(300);
+ls = await lightState();
+check(!ls.setting && !ls.enabled && !ls.saved && ls.filters.length === 0, `desligado de novo: sem filtro e salvo ${JSON.stringify(ls)}`);
+await page.selectOption('#modal #o-lang', 'en'); await page.waitForTimeout(300);
+await page.evaluate(() => { const d = document.querySelector('#modal details'); if (d) d.open = true; });
+const lblEn = (await page.textContent('#modal label:has(#o-daycycle)'))?.trim() ?? '';
+check(/Day-light cycle/.test(lblEn), `opção em EN ("${lblEn}")`);
+await page.selectOption('#modal #o-lang', 'pt'); await page.waitForTimeout(300);
+await page.keyboard.press('Escape'); await page.waitForTimeout(200);
+
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(300);
 console.log('após recarregar, zoom do menu:', await page.evaluate(() => document.getElementById('menu').style.zoom));
 await page.screenshot({ path: '/tmp/options.png' });
 console.log('errors:', errors.length ? errors.join('\n') : 'none');
 await browser.close();
+if (fails.length) { console.log('falhas:', fails.join(' | ')); process.exit(1); }

@@ -21,6 +21,7 @@ import type { FxContext, FxHandler, FxHost, FxWatcher, TimedHandler } from './ty
 import { DECAL_CAP, DUST_MIN_ZOOM, effectAge, footDustRate, gaitOf, dustColor } from './logic';
 import { embers, flame, smokePuffs } from './emitters';
 import { terrainAt } from './handlers/util';
+import { ScreenFx } from './screen';
 
 interface Inst { h: FxHandler<unknown>; s: unknown; t0: number }
 interface TInst { h: TimedHandler<unknown>; s: unknown }
@@ -32,12 +33,16 @@ export interface FxAcc { dust: number }
 export interface FxFrame {
   state: GameState; local: number; clock: number; dt: number; zoom: number; baked: boolean; quality: Quality;
   view: FxView; revealAll: boolean;
+  /** Tamanho da tela (px) para a camada de tela (clarão, vinhetas); sem ele a camada fica sem área. */
+  screenW?: number; screenH?: number;
 }
 
 export class FxSystem {
   readonly particles = new ParticleSystem();
   readonly decals = new DecalLayer();
   readonly tex: FxTextures;
+  /** Camada de TELA (clarão, vinhetas e o olho do Oráculo): o renderizador a põe na stage, acima do mundo. */
+  readonly screen = new ScreenFx();
   /** Raiz na camada `fx`: sprites dos efeitos (projéteis, quedas procedurais) → partículas normais → aditivas → brilho. */
   readonly root = new Container();
   private sprites = new Container();
@@ -62,7 +67,7 @@ export class FxSystem {
     const self = this;
     this.ctx = {
       state: null as unknown as GameState, local: 0, clock: 0, dt: 0, zoom: 1, baked: false, quality: null as unknown as Quality,
-      particles: this.particles, decals: this.decals, tex: this.tex, layer: this.sprites, glowLayer: this.glow,
+      particles: this.particles, decals: this.decals, tex: this.tex, layer: this.sprites, glowLayer: this.glow, screen: this.screen,
       get host(): FxHost { return self.host!; },
       visibleAt: (x, y) => this.visibleAt(x, y),
       onScreen: (x, y, m = 2) => this.onScreen(x, y, m),
@@ -89,13 +94,14 @@ export class FxSystem {
     const v = this.frame?.view; if (!v) return false;
     return x >= v.x0 - margin && x <= v.x1 + margin && y >= v.y0 - margin && y <= v.y1 + margin;
   }
-  private addDecal(name: string, x: number, y: number, o: { rot?: number; size?: number; alpha?: number; life?: number; tint?: number }): void {
+  private addDecal(name: string, x: number, y: number, o: { rot?: number; size?: number; alpha?: number; life?: number; tint?: number; aspect?: number }): void {
     const f = this.frame; if (!f) return;
     // nome de família ('decal/burn') → uma variante aleatória; nome de quadro ('decal/burn/1') → ele mesmo
     const tex = FX_FAMILIES[name] ? this.tex.pick(name) : this.tex.frame(name);
     const w = tex.orig?.width || 64;
     const blend = name.startsWith('decal/debris') ? 'normal' : 'multiply';
-    this.decals.add({ tex, x: x * TILE, y: y * TILE, rot: o.rot, scale: (o.size ?? w) / w, alpha: o.alpha, life: o.life ?? 30, blend, tint: o.tint }, f.clock, this.visibleAt(x, y));
+    const scale = (o.size ?? w) / w;
+    this.decals.add({ tex, x: x * TILE, y: y * TILE, rot: o.rot, scale, scaleY: scale * (o.aspect ?? 1), alpha: o.alpha, life: o.life ?? 30, blend, tint: o.tint }, f.clock, this.visibleAt(x, y));
   }
 
   // ---------------- quadro ----------------
@@ -191,6 +197,7 @@ export class FxSystem {
     }
     for (const [t, inst] of this.timed) if (!tseen.has(t)) { inst.h.destroy?.(t, inst.s, ctx); this.timed.delete(t); }
     for (const w of this.watchers) w.update(ctx);
+    this.screen.update(f.dt, f.screenW ?? 0, f.screenH ?? 0);
     this.particles.update(f.dt);
     const vis = st.players[f.local]?.visibility ?? null;
     this.decals.update(f.clock, vis, st.map.w, f.revealAll || !!st.config.revealMap);
@@ -221,6 +228,7 @@ export class FxSystem {
     this.decals.clear(sourceChanged);
     this.sprites.removeChildren().forEach((c) => c.destroy({ children: true }));
     this.glow.removeChildren().forEach((c) => c.destroy({ children: true }));
+    this.screen.reset();
   }
   /** Editor: o chão mudou no retângulo de tiles (decalques dali saem). */
   clearRect(x0: number, y0: number, x1: number, y1: number): void { this.decals.clearRect(x0, y0, x1, y1); }

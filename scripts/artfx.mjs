@@ -7,9 +7,12 @@
 //  2. marcha: coluna de hoplitas, hipeus galopando e cerco rodando — poeira dos pés, cascos e rodas → -marcha-z13.png;
 //  3. cerco: quartel muito danificado (fogo em flipbook + fumaça), casa danificada (fumaça), pedras caindo e uma casa
 //     desabando (poeira, escombros no chão) → -cerco-z13.png;
-//  4. poderes (1ª versão da base; o lote de poderes refina): cada um dos 12 poderes e a Q de um herói, o surgimento de
-//     um titã (titanRise), a partir de uma cena montada → -poder-<id>.png;
-//  5. luz: o ciclo de luz ligado (opção), no amanhecer e no entardecer → -luz-{amanhecer,entardecer}.png;
+//  4. poderes (lote poderes-luz): cada um dos 12 poderes numa partida própria, a zoom 1, no meio do efeito
+//     → -poder-<id>.png (e a duração dos que duram: -poder-{pestilence,bronze,ceasefire}-duracao.png), a Q de um herói
+//     e o titã saindo do portal (titanRise); confere o canal do raio, o clarão, as colunas de luz, a sombra da
+//     tempestade, as rachaduras, o chão manchado, as vinhetas e o olho, e que ninguém mira na trégua;
+//  5. luz: o ciclo de luz ligado (opção), no amanhecer, no entardecer e no crepúsculo → -luz-{amanhecer,entardecer,
+//     crepusculo}.png, e o custo do filtro (mediana de 3 rodadas, teto 0,5 ms);
 //  6. orçamento: batalha grande (60 × 60, metade à distância) no preset alto — o pico de partículas não passa de 2 000
 //     e nenhum efeito do núcleo fica sem handler.
 // Falha se houver erro de página, efeito sem handler (`fx.unknown`), partículas acima do orçamento, se a arte `fx`
@@ -268,104 +271,243 @@ if (want('cerco')) {
 }
 
 // ------------------------------------------------------------------------------------------------------------------
-// 4. poderes (1ª versão) e a Q de um herói, o titã saindo do portal
-if (want('poderes')) {
-  const T = ['hoplite', 'toxotes', 'heracles', 'villager'];
-  await newGame(T);
-  const P = await page.evaluate(() => {
+// 4. poderes (lote poderes-luz): CADA poder numa partida própria (nada do poder anterior na captura), a zoom 1, no meio
+//    do efeito — o lançamento (a área, o alvo) e, para os que duram, também a duração (-duracao). Conferido por quadro
+//    (amostrador): partículas de poder, sprites de luz (canal do raio, colunas), clarão e vinhetas na tela, o olho do
+//    Oráculo, a sombra da tempestade, decalques (rachaduras, queimadura, chão manchado) e que o amaldiçoado não cai.
+const ALL_POWERS = ['bolt', 'lure', 'sentinel', 'restoration', 'ceasefire', 'pestilence', 'oracle', 'bronze', 'curse', 'lightning_storm', 'plenty', 'earthquake'];
+const PT = ['hoplite', 'toxotes', 'villager', 'heracles'];
+/** Cena dos poderes: numa clareira, um pelotão inimigo (resistente) à direita e o nosso (ferido) à esquerda, quartel e
+ *  estábulo inimigos, uma casa nossa e Héracles; `fight` = os dois lutando (senão, parados e passivos). */
+async function powerScene({ fight = false } = {}) {
+  await newGame(PT);
+  const P = await page.evaluate(([fight, powers]) => {
     const s = window.aoe.session, st = s.state, me = s.local, foe = (me + 1) % st.players.length;
     const sp = window.aoe.debugSpawn, ids = window.__ids, tough = window.__tough;
     const A = window.__area(30, 16);
-    const cx = A.x + 15, cy = A.y + 8;
-    st.players[me].powers = ['bolt', 'lure', 'sentinel', 'restoration', 'ceasefire', 'pestilence', 'oracle', 'bronze', 'curse', 'lightning_storm', 'plenty', 'earthquake'].map((id) => ({ id, used: false }));
+    const cx = A.x + 15, cy = A.y + 7;
+    st.players[me].powers = powers.map((id) => ({ id, used: false }));
     st.players[me].age = 3;
     const foes = [], friends = [];
-    for (let i = 0; i < 10; i++) foes.push(tough(sp(foe, i % 3 ? 'hoplite' : 'toxotes', cx + 4 + (i % 4) * 0.9, cy - 2 + Math.floor(i / 4) * 1.1), 400));
-    for (let i = 0; i < 8; i++) { const u = sp(me, 'hoplite', cx - 5 + (i % 4) * 0.9, cy - 1 + Math.floor(i / 4) * 1.1); if (u) { u.hp = u.maxHp * 0.3; friends.push(u); } }
-    const hero = sp(me, 'heracles', cx - 2, cy + 3);
-    const bar = window.__build(foe, 'barracks', cx + 6, cy + 3);
-    const tower = window.__build(foe, 'tower', cx + 10, cy - 3);
-    const mine = window.__build(me, 'house', cx - 9, cy + 3);
-    s.issue({ type: 'stance', player: me, ids: ids([...friends, hero]), stance: 'passive' });
-    s.scheduler.issue({ type: 'stance', player: foe, ids: ids(foes), stance: 'passive' });
-    return { c: { x: cx, y: cy }, foe: foes.map((u) => u?.id), friends: ids(friends), hero: hero?.id ?? null, bar: bar?.id ?? null, tower: tower?.id ?? null, house: mine?.id ?? null, tc: (() => { const b = [...st.buildings.values()].find((b) => b.owner === me && b.type === 'town_center'); return b ? { x: b.x, y: b.y } : null; })() };
+    for (let i = 0; i < 12; i++) foes.push(tough(sp(foe, i % 3 ? 'hoplite' : 'toxotes', cx + 3 + (i % 4) * 0.9, cy - 2 + Math.floor(i / 4) * 1.1), fight ? 2500 : 400));
+    for (let i = 0; i < 12; i++) { const u = sp(me, i % 3 ? 'hoplite' : 'toxotes', cx - 6 + (i % 4) * 0.9, cy - 2 + Math.floor(i / 4) * 1.1); if (u) { if (fight) tough(u, 2500); else u.hp = u.maxHp * 0.3; friends.push(u); } }
+    const hero = sp(me, 'heracles', cx - 3, cy + 3.5);
+    const bar = window.__build(foe, 'barracks', cx + 6, cy + 5);
+    const stable = window.__build(foe, 'stable', cx + 11, cy + 1);
+    const house = window.__build(me, 'house', cx - 10, cy + 5);
+    if (fight) {
+      s.issue({ type: 'attackMove', player: me, ids: ids(friends), x: cx + 6, y: cy });
+      s.scheduler.issue({ type: 'attackMove', player: foe, ids: ids(foes), x: cx - 6, y: cy });
+    } else {
+      s.issue({ type: 'stance', player: me, ids: ids([...friends, hero]), stance: 'passive' });
+      s.scheduler.issue({ type: 'stance', player: foe, ids: ids(foes), stance: 'passive' });
+    }
+    const tc = [...st.buildings.values()].find((b) => b.owner === me && b.type === 'town_center');
+    const at = (b) => (b ? { id: b.id, x: b.x, y: b.y } : null);
+    return { c: { x: cx, y: cy }, foe: ids(foes), friends: ids(friends), hero: hero?.id ?? null, bar: at(bar), stable: at(stable), house: at(house), tc: at(tc) };
+  }, [fight, ALL_POWERS]);
+  await settle(PT);
+  return P;
+}
+const use = (power, extra) => page.evaluate(([power, extra]) => { const s = window.aoe.session; s.issue({ type: 'power', player: s.local, power, ...extra }); }, [power, extra]);
+const unitAt = (id) => page.evaluate((id) => { const u = window.aoe.session.state.units.get(id); return u ? { x: u.x, y: u.y, id } : null; }, id);
+/** Amostrador dos poderes (por quadro): picos de partículas de poder, aditivas e normais, sprites de luz (camada de
+ *  brilho) e do chão (sombra da tempestade), clarão e vinhetas da tela, o olho, decalques. */
+async function startPowerSampler() {
+  await page.evaluate(() => {
+    const S = window.__pw = { power: 0, add: 0, normal: 0, glow: 0, sprites: 0, flash: 0, vigCease: 0, vigOracle: 0, embCease: 0, embOracle: 0, screenKids: 0, decals: 0 };
+    window.__pwStop = false;
+    const loop = () => {
+      const R = window.aoe.renderer; if (!R || window.__pwStop) return;
+      requestAnimationFrame(loop);
+      const fx = R.fx, ps = fx.particles;
+      S.power = Math.max(S.power, ps.countOf(2));
+      S.add = Math.max(S.add, ps.add.particleChildren.length);
+      S.normal = Math.max(S.normal, ps.normal.particleChildren.length);
+      S.glow = Math.max(S.glow, fx.glow.children.length);
+      S.sprites = Math.max(S.sprites, fx.sprites.children.filter((c) => c.visible && c.alpha > 0.05).length);
+      S.flash = Math.max(S.flash, fx.screen.flashAlpha);
+      S.vigCease = Math.max(S.vigCease, fx.screen.vignetteAlpha('ceasefire'));
+      S.vigOracle = Math.max(S.vigOracle, fx.screen.vignetteAlpha('oracle'));
+      S.embCease = Math.max(S.embCease, fx.screen.emblemAlpha('ceasefire'));
+      S.embOracle = Math.max(S.embOracle, fx.screen.emblemAlpha('oracle'));
+      S.screenKids = Math.max(S.screenKids, fx.screen.root.children.filter((c) => c.visible && c.alpha > 0.02).length);
+      S.decals = Math.max(S.decals, fx.decals.count);
+    };
+    loop();
   });
-  await settle(T);
-  const use = (power, extra) => page.evaluate(([power, extra]) => { const s = window.aoe.session; s.issue({ type: 'power', player: s.local, power, ...extra }); }, [power, extra]);
-  const foeAt = (i) => page.evaluate((id) => { const u = window.aoe.session.state.units.get(id); return u ? { x: u.x, y: u.y, id } : null; }, P.foe[i]);
-  const powerShot = async (id, extra, ticks, at = P.c, zoom = 1.0) => {
-    await look(at, zoom);
-    await use(id, extra);
-    await run(1); await waitTicks(ticks); await pause();
-    await shot(`poder-${id}`);
-    const st = await checkFx(`poder ${id}`);
-    const used = await page.evaluate((id) => window.aoe.session.state.players[window.aoe.session.local].powers.find((p) => p.id === id)?.used, id);
-    need(used, `poder ${id}: não foi usado (comando recusado)`);
-    return st;
-  };
-  const f0 = await foeAt(0);
-  await powerShot('bolt', { targetId: f0?.id }, 3, f0 ?? P.c);
-  await powerShot('restoration', { x: P.c.x - 4, y: P.c.y }, 8, { x: P.c.x - 3, y: P.c.y });
-  const f1 = await foeAt(1);
-  await powerShot('curse', { x: f1?.x ?? P.c.x + 5, y: f1?.y ?? P.c.y }, 4, f1 ?? P.c);
-  await powerShot('pestilence', { x: P.c.x + 7, y: P.c.y + 4 }, 16, { x: P.c.x + 7, y: P.c.y + 3 });
-  await powerShot('earthquake', { x: P.c.x + 7, y: P.c.y + 1 }, 24, { x: P.c.x + 7, y: P.c.y + 1 });
-  await powerShot('lightning_storm', { x: P.c.x + 6, y: P.c.y }, 36, { x: P.c.x + 6, y: P.c.y });
-  await powerShot('lure', { x: P.c.x - 7, y: P.c.y - 4 }, 4, { x: P.c.x - 7, y: P.c.y - 4 });
-  if (P.house) await powerShot('sentinel', { targetId: P.house }, 4, { x: P.c.x - 8, y: P.c.y + 4 });
-  // a cornucópia só nasce no território do jogador: perto do Centro Cívico
-  if (P.tc) await powerShot('plenty', { x: P.tc.x + 5, y: P.tc.y + 4 }, 4, { x: P.tc.x + 5, y: P.tc.y + 4 });
-  await powerShot('bronze', {}, 4, { x: P.c.x - 3, y: P.c.y });
-  await powerShot('ceasefire', {}, 40, { x: P.c.x + 1, y: P.c.y });
-  if (P.tc) await powerShot('oracle', {}, 4, P.tc, 0.8);
-  // Q de Héracles (Golpe Titânico: onda dourada no raio da habilidade)
+}
+const stopPowerSampler = () => page.evaluate(() => { window.__pwStop = true; return window.__pw; });
+/** Lança `id` com a câmera em `at` (zoom 1), roda `ticks` de jogo, pausa e captura; devolve o amostrado. */
+async function powerShot(id, extra, ticks, at, { zoom = 1, name = `poder-${id}` } = {}) {
+  await look(at, zoom);
+  await startPowerSampler();
+  await use(id, extra);
+  await run(1); await waitTicks(ticks); await pause();
+  await shot(name);
+  const S = await stopPowerSampler();
+  const st = await checkFx(`poder ${id}`);
+  const used = await page.evaluate((id) => window.aoe.session.state.players[window.aoe.session.local].powers.find((p) => p.id === id)?.used, id);
+  need(used, `poder ${id}: não foi usado (comando recusado)`);
+  console.log(`poder ${id}:`, JSON.stringify(S), `partículas ${st.particles}/${st.budget}`);
+  return S;
+}
+/** Mais `ticks` de jogo e uma captura da DURAÇÃO do poder; devolve o amostrado nesse trecho. */
+async function durationShot(id, ticks, at) {
+  if (at) await look(at, 1);
+  await startPowerSampler();
+  await run(1); await waitTicks(ticks); await pause();
+  await shot(`poder-${id}-duracao`);
+  const S = await stopPowerSampler();
+  await checkFx(`poder ${id} (duração)`);
+  console.log(`poder ${id} (duração):`, JSON.stringify(S));
+  return S;
+}
+
+if (want('poderes')) {
+  // Raio de Zeus num hoplita inimigo: o canal com galhos, o clarão, a queimadura
+  let P = await powerScene();
+  const f0 = await unitAt(P.foe[5]);
+  let S = await powerShot('bolt', { targetId: f0?.id }, 2, f0 ?? P.c);
+  need(S.glow >= 60, `bolt: canal do raio com ${S.glow} sprites de luz (esperado ≥ 60: 3 camadas × segmentos + galhos)`);
+  need(S.flash >= 0.15, `bolt: sem clarão na tela (${S.flash})`);
+  need(S.decals >= 2, `bolt: sem queimadura no chão (${S.decals} decalques)`);
+  // Restauração no nosso pelotão ferido: anéis, poça de luz e uma coluna de luz por unidade curada
+  P = await powerScene();
+  S = await powerShot('restoration', { x: P.c.x - 4.6, y: P.c.y - 0.9 }, 9, { x: P.c.x - 3, y: P.c.y });
+  need(S.glow >= 10, `restoration: ${S.glow} colunas de luz (esperado uma por unidade curada, ≥ 10)`);
+  need(S.power >= 40, `restoration: ${S.power} partículas de poder`);
+  // Maldição no pelotão inimigo: a área e a transformação em javali (sem queda nem cadáver)
+  P = await powerScene();
+  const corpses0 = await page.evaluate(() => window.aoe.renderer.corpses.length);
+  S = await powerShot('curse', { x: P.c.x + 4.4, y: P.c.y - 0.9 }, 6, { x: P.c.x + 4, y: P.c.y });
+  need(S.power >= 40, `curse: ${S.power} partículas de poder`);
+  await run(1); await waitTicks(40); await pause();
+  const cur = await page.evaluate(() => ({ corpses: window.aoe.renderer.corpses.length, boars: [...window.aoe.session.state.map.nodes.values()].filter((n) => n.type === 'boar').length }));
+  need(cur.boars > 0, 'curse: nenhum javali');
+  need(cur.corpses === corpses0, `curse: ${cur.corpses - corpses0} cadáver(es) de amaldiçoados (a transformação não deixa corpo)`);
+  // Pestilência no quartel e no estábulo inimigos: a frente de miasma e, depois, a névoa e as moscas enquanto dura
+  P = await powerScene();
+  const pc = { x: (P.bar?.x ?? P.c.x + 7) + 1, y: (P.bar?.y ?? P.c.y + 5) - 2 };
+  S = await powerShot('pestilence', pc, 22, pc);
+  need(S.power >= 60, `pestilence: ${S.power} partículas de poder (frente de miasma)`);
+  need(S.decals >= 2, `pestilence: sem chão manchado sob os edifícios (${S.decals} decalques)`);
+  S = await durationShot('pestilence', 140, pc);
+  need(S.power >= 20, `pestilence (duração): ${S.power} partículas (miasma e moscas sobre os edifícios parados)`);
+  // Terremoto nos edifícios inimigos: rachaduras se abrindo, poeira, ondas
+  P = await powerScene();
+  const qc = { x: (P.bar?.x ?? P.c.x + 7) + 1.5, y: (P.bar?.y ?? P.c.y + 5) - 2.5 };
+  S = await powerShot('earthquake', qc, 30, qc);
+  need(S.decals >= 12, `earthquake: ${S.decals} decalques (rachaduras se abrindo: esperado ≥ 12)`);
+  need(S.power >= 60, `earthquake: ${S.power} partículas de poder`);
+  // Tempestade de Raios no pelotão inimigo: a sombra da nuvem, a chuva e os raios
+  P = await powerScene();
+  const sc = { x: P.c.x + 4.5, y: P.c.y };
+  S = await powerShot('lightning_storm', sc, 40, sc);
+  need(S.sprites >= 1, 'lightning_storm: sem a sombra da nuvem');
+  need(S.normal >= 30, `lightning_storm: ${S.normal} partículas normais (chuva e nuvens)`);
+  need(S.glow >= 30, `lightning_storm: sem raio (${S.glow} sprites de luz)`);
+  // Isca de Poseidon, Sentinelas e Abundância: cada surgimento com a sua arte
+  P = await powerScene();
+  S = await powerShot('lure', { x: P.c.x - 8, y: P.c.y - 4 }, 4, { x: P.c.x - 7, y: P.c.y - 3 });
+  need(S.glow >= 1 && S.normal >= 10, `lure: coluna de luz ${S.glow} / gotas e anéis ${S.normal}`);
+  if (P.house) {
+    S = await powerShot('sentinel', { targetId: P.house.id }, 6, { x: P.house.x, y: P.house.y - 1 });
+    need(S.normal >= 30, `sentinel: ${S.normal} partículas normais (poeira e pedras)`);
+  } else errors.push('sentinel: casa não construída');
+  if (P.tc) {
+    S = await powerShot('plenty', { x: P.tc.x + 5, y: P.tc.y + 4 }, 6, { x: P.tc.x + 5, y: P.tc.y + 3 });
+    need(S.glow >= 1 && S.power >= 30, `plenty: coluna ${S.glow} / partículas ${S.power}`);
+  } else errors.push('plenty: sem Centro Cívico');
+  // Pele de Bronze no nosso pelotão: o brilho subindo e, depois, os reflexos metálicos enquanto dura
+  P = await powerScene();
+  S = await powerShot('bronze', {}, 6, { x: P.c.x - 4, y: P.c.y });
+  need(S.add >= 20, `bronze: ${S.add} partículas aditivas no lançamento`);
+  S = await durationShot('bronze', 60, null);
+  need(S.add >= 6, `bronze (duração): ${S.add} reflexos (aditivos) nas unidades`);
+  // Trégua no meio de uma luta: a onda na tela, a vinheta, os halos — e ninguém mira
+  P = await powerScene({ fight: true });
+  await look({ x: P.c.x, y: P.c.y }, 1); await run(1); await waitTicks(50); await pause();
+  S = await powerShot('ceasefire', {}, 14, { x: P.c.x, y: P.c.y });
+  need(S.vigCease >= 0.15, `ceasefire: vinheta ${S.vigCease}`);
+  need(S.embCease >= 0.4, `ceasefire: emblema da pomba ${S.embCease}`);
+  need(S.screenKids >= 2, 'ceasefire: sem a onda/vinheta/emblema na tela');
+  await run(1); await waitTicks(20); await pause();
+  const aiming = await page.evaluate(() => { let n = 0; for (const v of window.aoe.renderer.views.values()) if (v.unit && v.unit.visible && v.unit.anim === 'aim') n++; return n; });
+  need(aiming === 0, `ceasefire: ${aiming} arqueiro(s) ainda mirando na trégua (armas baixadas)`);
+  S = await durationShot('ceasefire', 100, null);
+  need(S.vigCease >= 0.15 && S.embCease >= 0.9, `ceasefire (duração): vinheta ${S.vigCease}, emblema ${S.embCease}`);
+  // Oráculo: a névoa de verdade (sem o revelar do renderizador), o olho e a vinheta dourados
+  P = await powerScene();
+  await page.evaluate(() => { window.aoe.renderer.revealAll = false; });
+  if (P.tc) {
+    await look(P.tc, 1); await run(1); await waitTicks(6); await pause();
+    S = await powerShot('oracle', {}, 8, P.tc);
+    need(S.vigOracle >= 0.12, `oracle: vinheta dourada ${S.vigOracle}`);
+    need(S.screenKids >= 3, `oracle: sem o olho na tela (${S.screenKids} sprites de tela: olho, vinheta, emblema)`);
+    need(S.embOracle >= 0.3, `oracle: emblema do olho ${S.embOracle}`);
+  } else errors.push('oracle: sem Centro Cívico');
+  // Q de Héracles (Golpe Titânico: onda dourada no raio da habilidade) — arte do lote de combate
+  P = await powerScene();
   if (P.hero) {
-    await look({ x: P.c.x - 2, y: P.c.y + 3 }, 1.3);
+    await look({ x: P.c.x - 3, y: P.c.y + 3 }, 1.3);
     await page.evaluate((id) => { const s = window.aoe.session; s.issue({ type: 'ability', player: s.local, unitId: id }); }, P.hero);
     await run(1); await waitTicks(4); await pause();
     await shot('poder-habilidade');
   }
   // titã saindo do portal (o efeito titanRise do núcleo, ao completar o Portal dos Titãs)
+  await newGame(PT);
   const gate = await page.evaluate(() => {
-    const s = window.aoe.session, st = s.state, me = s.local;
+    const s = window.aoe.session, me = s.local;
     const A = window.__area(8, 8, { minTc: 20 });
     const g = A ? window.__build(me, 'titan_gate', A.x + 1, A.y + 1) : null;   // pronto: o titã sai no próximo tick
     return g ? { id: g.id, x: g.x, y: g.y } : null;
   });
   if (gate) {
-    await look({ x: gate.x, y: gate.y + 1 }, 1.0);
+    await settle(PT);
+    await look({ x: gate.x, y: gate.y }, 1.0);
+    await startPowerSampler();
     await run(1);
     await page.waitForFunction(() => window.aoe.session.state.effects.some((e) => e.type === 'titanRise') || window.aoe.session.state.tick > 1e9, null, { timeout: 120000, polling: 50 }).catch(() => errors.push('titanRise: o portal não completou'));
     await waitTicks(10); await pause();
     await shot('poder-titanRise');
-  }
+    S = await stopPowerSampler();
+    console.log('titanRise:', JSON.stringify(S));
+    need(S.glow >= 2 && S.power >= 60, `titanRise: coluna ${S.glow} / partículas ${S.power}`);
+  } else errors.push('titanRise: portal não construído');
   await checkFx('poderes');
 }
 
 // ------------------------------------------------------------------------------------------------------------------
-// 5. ciclo de luz (opção desligada por padrão): amanhecer e entardecer na cena de combate
+// 5. ciclo de luz (opção desligada por padrão): amanhecer, entardecer e crepúsculo na cena de combate
 if (want('luz')) {
   const c = await combatScene();
   await page.evaluate(() => { window.aoe.settings.dayCycle = true; window.aoe.applyQuality(); });
   await run(1); await look(c.c, 1.0); await waitTicks(40); await pause();
-  for (const [name, frac] of [['amanhecer', 0.03], ['entardecer', 0.8]]) {
+  for (const [name, frac] of [['amanhecer', 0.03], ['entardecer', 0.8], ['crepusculo', 0.9]]) {
     await page.evaluate((frac) => { const R = window.aoe.renderer, d = R.dayCycle, t = R.animClock; d.offset = (frac - 0.18) * 14 * 60 - t; d.last = -1; }, frac);
     await run(1); await waitTicks(2); await pause();
     await shot(`luz-${name}`);
   }
-  // custo de CPU do filtro (ms por renderer.render, laço síncrono): ligado × desligado
+  // custo de CPU do filtro (ms por renderer.render + render do Pixi, laço síncrono): ligado × desligado em 12 blocos
+  // curtos alternados (liga-desliga, desliga-liga), sem trocar o preset (só o filtro); o 1º quartil de cada lado (a
+  // máquina é dividida com outros processos: o quartil de baixo é o custo sem interferência)
   const cost = await page.evaluate(() => {
-    const s = window.aoe.session, R = window.aoe.renderer, ui = window.aoe.input.renderUI();
+    const s = window.aoe.session, R = window.aoe.renderer, ui = window.aoe.input.renderUI(), d = R.dayCycle, world = R.app.stage.children[0];
     R.setRenderScale(0.25);
-    const t = () => { const a = performance.now(); for (let i = 0; i < 60; i++) { R.render(s.state, 0.5, ui, 1 / 60); R.app.renderer.render({ container: R.app.stage }); } return (performance.now() - a) / 60; };
-    t();
-    const on = t();
-    window.aoe.settings.dayCycle = false; window.aoe.applyQuality();
-    const off = t();
+    const t = (n = 30) => { const a = performance.now(); for (let i = 0; i < n; i++) { R.render(s.state, 0.5, ui, 1 / 60); R.app.renderer.render({ container: R.app.stage }); } return (performance.now() - a) / n; };
+    const set = (on) => { d.set(world, on); t(4); };
+    const on = [], off = [];
+    set(true); t();
+    for (let k = 0; k < 12; k++) {
+      if (k % 2 === 0) { set(true); on.push(t()); set(false); off.push(t()); } else { set(false); off.push(t()); set(true); on.push(t()); }
+    }
+    d.set(world, window.aoe.settings.dayCycle);
     R.setRenderScale(1);
-    return { on: +on.toFixed(2), off: +off.toFixed(2), delta: +(on - off).toFixed(2) };
+    const q1 = (l) => l.slice().sort((p, q) => p - q)[Math.floor(l.length / 4)];
+    return { on: +q1(on).toFixed(3), off: +q1(off).toFixed(3), delta: +(q1(on) - q1(off)).toFixed(3), onAll: on.map((v) => +v.toFixed(2)), offAll: off.map((v) => +v.toFixed(2)) };
   });
-  console.log('ciclo de luz (ms/quadro: render + Pixi, resolução 0,25):', JSON.stringify(cost));
+  console.log('ciclo de luz (ms/quadro: render + Pixi, resolução 0,25, 1º quartil de 12 blocos alternados):', JSON.stringify(cost));
   need(cost.delta <= 0.5, `ciclo de luz: +${cost.delta} ms por quadro (teto 0,5)`);
   await page.evaluate(() => { window.aoe.renderer.dayCycle.offset = 0; });
 }

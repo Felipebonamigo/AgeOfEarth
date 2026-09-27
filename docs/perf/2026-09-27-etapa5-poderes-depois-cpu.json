@@ -1,0 +1,68 @@
+{
+  "date": "2026-09-27",
+  "commit": "44ac4fb",
+  "label": "etapa5-poderes-depois",
+  "url": "http://localhost:4373/",
+  "quality": "low",
+  "frames": 150,
+  "note": "CPU por quadro (ms) em laço síncrono, resolução 0,25 (sem rasterização relevante); render = renderer.render, pixi = app.renderer.render.",
+  "scenario": {
+    "units": 260,
+    "buildings": 133,
+    "localAlive": false,
+    "warmMinutes": 20,
+    "battle": {
+      "x": 72,
+      "y": 72,
+      "a": 100,
+      "b": 100
+    }
+  },
+  "results": [
+    {
+      "baked": true,
+      "view": "fight",
+      "render": {
+        "avg": 1.809,
+        "med": 1.1,
+        "p95": 4.8
+      },
+      "pixi": {
+        "avg": 3.043,
+        "med": 1.7,
+        "p95": 8
+      },
+      "sprites": 1378,
+      "fx": {
+        "peak": 369,
+        "budget": 800,
+        "dropped": 3,
+        "decals": 0,
+        "effects": 29
+      }
+    },
+    {
+      "baked": true,
+      "view": "powers",
+      "render": {
+        "avg": 1.508,
+        "med": 1,
+        "p95": 3.7
+      },
+      "pixi": {
+        "avg": 2.423,
+        "med": 1.5,
+        "p95": 6.1
+      },
+      "sprites": 1372,
+      "fx": {
+        "peak": 737,
+        "budget": 800,
+        "dropped": 183,
+        "decals": 47,
+        "effects": 16
+      }
+    }
+  ],
+  "errors": []
+}

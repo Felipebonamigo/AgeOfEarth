@@ -1,0 +1,68 @@
+{
+  "date": "2026-09-27",
+  "commit": "44ac4fb",
+  "label": "etapa5-poderes-antes-r2",
+  "url": "http://localhost:4374/",
+  "quality": "low",
+  "frames": 150,
+  "note": "CPU por quadro (ms) em laço síncrono, resolução 0,25 (sem rasterização relevante); render = renderer.render, pixi = app.renderer.render.",
+  "scenario": {
+    "units": 260,
+    "buildings": 133,
+    "localAlive": false,
+    "warmMinutes": 20,
+    "battle": {
+      "x": 72,
+      "y": 72,
+      "a": 100,
+      "b": 100
+    }
+  },
+  "results": [
+    {
+      "baked": true,
+      "view": "fight",
+      "render": {
+        "avg": 0.855,
+        "med": 0.8,
+        "p95": 1.2
+      },
+      "pixi": {
+        "avg": 1.338,
+        "med": 1.2,
+        "p95": 1.8
+      },
+      "sprites": 1402,
+      "fx": {
+        "peak": 253,
+        "budget": 800,
+        "dropped": 0,
+        "decals": 0,
+        "effects": 29
+      }
+    },
+    {
+      "baked": true,
+      "view": "powers",
+      "render": {
+        "avg": 0.861,
+        "med": 0.7,
+        "p95": 1.4
+      },
+      "pixi": {
+        "avg": 1.249,
+        "med": 1.2,
+        "p95": 1.7
+      },
+      "sprites": 1338,
+      "fx": {
+        "peak": 375,
+        "budget": 800,
+        "dropped": 7,
+        "decals": 13,
+        "effects": 16
+      }
+    }
+  ],
+  "errors": []
+}

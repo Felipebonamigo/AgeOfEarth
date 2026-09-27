@@ -14,6 +14,7 @@ import type { FxTextures } from './FxTextures';
 import type { ArtLibrary } from '../art/ArtLibrary';
 import type { TextureCache } from '../textures';
 import type { UnitView } from '../views/UnitView';
+import type { ScreenFx } from './screen';
 
 /** Os 16 tipos de VisualEffect que o núcleo emite (e o marcador de ordem da interface, 'spawn' com data 'order'). */
 export const EFFECT_TYPES = ['projectile', 'hit', 'splash', 'death', 'petrify', 'collapse', 'nodeGone', 'spawn', 'heal', 'ability', 'curse', 'pestilence', 'quake', 'titanRise', 'bolt', 'bronze'] as const;
@@ -61,6 +62,8 @@ export interface FxContext {
   layer: Container;
   /** Sprites aditivos (brilho, raio, anéis de luz) — dentro de `layer`, acima das partículas. */
   glowLayer: Container;
+  /** Camada de TELA (fora do mundo: sem câmera, tremor, ciclo de luz nem névoa): clarão e vinhetas dos poderes globais. */
+  screen: ScreenFx;
   host: FxHost;
   /** O jogador local vê o tile de (x, y) (tiles) agora (ou tudo revelado). */
   visibleAt(x: number, y: number): boolean;
@@ -69,8 +72,9 @@ export interface FxContext {
   /** Tremor da câmera (px de tela; o maior pedido vence e decai sozinho). */
   shake(amount: number): void;
   /** Põe um decalque (respeita a névoa e o teto do preset). */
-  /** `size` = diâmetro no mundo (px; padrão: o tamanho do quadro a 1×), `life` em s de jogo. */
-  decal(name: string, x: number, y: number, opts?: { rot?: number; size?: number; alpha?: number; life?: number; tint?: number }): void;
+  /** `size` = diâmetro no mundo (px; padrão: o tamanho do quadro a 1×), `life` em s de jogo, `aspect` = altura/largura
+   *  (achata o decalque antes de girar: a rachadura alongada ao longo de um raio do terremoto). */
+  decal(name: string, x: number, y: number, opts?: { rot?: number; size?: number; alpha?: number; life?: number; tint?: number; aspect?: number }): void;
 }
 
 /**
