@@ -26,24 +26,30 @@ import type { UnitView } from '../views/UnitView';
 import type { BuildingView } from '../views/BuildingView';
 import { UnitFx, newUnitAcc, type UnitAcc } from './unitFx';
 import { AmbientFx } from './ambient';
-import { shoreDistance, SHORE_WET } from './rules';
+import { coastal, shoreDistance, SHORE_WET, type CoastCache } from './rules';
+import { ScreenFx } from './screen';
+import { deathView } from './handlers/death';
 
 interface Inst { h: FxHandler<unknown>; s: unknown; t0: number }
 interface TInst { h: TimedHandler<unknown>; s: unknown }
 /** Visão da câmera em tiles (Camera.visibleTiles). */
 export interface FxView { x0: number; y0: number; x1: number; y1: number }
 /** Acumulador de emissão contínua guardado na vista da entidade (sem Map por unidade). */
-export interface FxAcc { dust: number; /** Efeitos por unidade do lote combate-ambiente (fx/unitFx.ts), criados sob demanda. */ u?: UnitAcc }
+export interface FxAcc extends CoastCache { dust: number; /** Efeitos por unidade do lote combate-ambiente (fx/unitFx.ts), criados sob demanda. */ u?: UnitAcc }
 
 export interface FxFrame {
   state: GameState; local: number; clock: number; dt: number; zoom: number; baked: boolean; quality: Quality;
   view: FxView; revealAll: boolean;
+  /** Tamanho da tela (px) para a camada de tela (clarão, vinhetas); sem ele a camada fica sem área. */
+  screenW?: number; screenH?: number;
 }
 
 export class FxSystem {
   readonly particles = new ParticleSystem();
   readonly decals = new DecalLayer();
   readonly tex: FxTextures;
+  /** Camada de TELA (clarão, vinhetas e o olho do Oráculo): o renderizador a põe na stage, acima do mundo. */
+  readonly screen = new ScreenFx();
   /** Raiz na camada `fx`: sprites dos efeitos (projéteis, quedas procedurais) → partículas normais → aditivas → brilho. */
   readonly root = new Container();
   private sprites = new Container();
@@ -71,7 +77,7 @@ export class FxSystem {
     const self = this;
     this.ctx = {
       state: null as unknown as GameState, local: 0, clock: 0, dt: 0, zoom: 1, baked: false, quality: null as unknown as Quality,
-      particles: this.particles, decals: this.decals, tex: this.tex, layer: this.sprites, glowLayer: this.glow,
+      particles: this.particles, decals: this.decals, tex: this.tex, layer: this.sprites, glowLayer: this.glow, screen: this.screen,
       get host(): FxHost { return self.host!; },
       visibleAt: (x, y) => this.visibleAt(x, y),
       onScreen: (x, y, m = 2) => this.onScreen(x, y, m),
@@ -98,13 +104,14 @@ export class FxSystem {
     const v = this.frame?.view; if (!v) return false;
     return x >= v.x0 - margin && x <= v.x1 + margin && y >= v.y0 - margin && y <= v.y1 + margin;
   }
-  private addDecal(name: string, x: number, y: number, o: { rot?: number; size?: number; alpha?: number; life?: number; tint?: number }): void {
+  private addDecal(name: string, x: number, y: number, o: { rot?: number; size?: number; alpha?: number; life?: number; tint?: number; aspect?: number }): void {
     const f = this.frame; if (!f) return;
     // nome de família ('decal/burn') → uma variante aleatória; nome de quadro ('decal/burn/1') → ele mesmo
     const tex = FX_FAMILIES[name] ? this.tex.pick(name) : this.tex.frame(name);
     const w = tex.orig?.width || 64;
     const blend = name.startsWith('decal/debris') ? 'normal' : 'multiply';
-    this.decals.add({ tex, x: x * TILE, y: y * TILE, rot: o.rot, scale: (o.size ?? w) / w, alpha: o.alpha, life: o.life ?? 30, blend, tint: o.tint }, f.clock, this.visibleAt(x, y));
+    const scale = (o.size ?? w) / w;
+    this.decals.add({ tex, x: x * TILE, y: y * TILE, rot: o.rot, scale, scaleY: scale * (o.aspect ?? 1), alpha: o.alpha, life: o.life ?? 30, blend, tint: o.tint }, f.clock, this.visibleAt(x, y));
   }
 
   // ---------------- quadro ----------------
@@ -129,10 +136,11 @@ export class FxSystem {
     this.moving++;
     const gait = gaitOf(type);
     const terrain = terrainAt(f.state, x, y);
-    if (shoreDistance(f.state.map, x, y) < SHORE_WET) return;   // na margem molhada: respingo (fx/unitFx.ts), não pó
     acc.dust += footDustRate(gait, speed, this.movingPrev, terrain) * f.dt;
     if (acc.dust < 1) return;
     const n = Math.floor(acc.dust); acc.dust -= n;
+    // na margem molhada: respingo (fx/unitFx.ts), não pó — conferido só quando sai pó e só perto d'água (cache por tile)
+    if (coastal(acc, f.state.map, x, y) && shoreDistance(f.state.map, x, y) < SHORE_WET) return;
     const l = Math.sqrt(dx * dx + dy * dy) || 1, ux = dx / l, uy = dy / l;
     const big = gait === 'hoof' || gait === 'wheel';
     // legível a zoom 1: o cavalo a galope levanta uma nuvem clara que se vê; o passo, um pó discreto
@@ -169,7 +177,7 @@ export class FxSystem {
    *  habilidades, brilho de cura, lascas da coleta/obra, respingos na margem. Depois da vista (o quadro da coleta). */
   unit(acc: FxAcc, u: Unit, x: number, y: number, uv: UnitView | null): void {
     if (!this.frame) return;
-    this.unitFx.unit(this.ctx, acc.u ??= newUnitAcc(), u, x, y, uv);
+    this.unitFx.unit(this.ctx, acc.u ??= newUnitAcc(), u, x, y, uv, coastal(acc, this.frame.state.map, x, y));
   }
   /** Edifício pronto, à vista e sem dano (fx/ambient.ts): o fio de fumaça da lareira/forja enquanto produz. */
   building(acc: FxAcc, b: Building, bv: BuildingView | null): void {
@@ -216,6 +224,7 @@ export class FxSystem {
     for (const w of this.watchers) w.update(ctx);
     this.unitFx.end(ctx);
     this.ambient.update(ctx, f.view, f.revealAll);
+    this.screen.update(f.dt, f.screenW ?? 0, f.screenH ?? 0);
     this.particles.update(f.dt);
     const vis = st.players[f.local]?.visibility ?? null;
     this.decals.update(f.clock, vis, st.map.w, f.revealAll || !!st.config.revealMap);
@@ -247,9 +256,20 @@ export class FxSystem {
     this.decals.clear(sourceChanged);
     this.sprites.removeChildren().forEach((c) => c.destroy({ children: true }));
     this.glow.removeChildren().forEach((c) => c.destroy({ children: true }));
+    this.screen.reset();
   }
   /** Editor: o chão mudou no retângulo de tiles (decalques dali saem). */
   clearRect(x0: number, y0: number, x1: number, y1: number): void { this.decals.clearRect(x0, y0, x1, y1); }
+  /** Diagnóstico (scripts de captura: artparade, artcavalry): as vistas assadas das quedas em curso (efeitos `death`;
+   *  antes da Etapa 5 era o `renderer.dying`). */
+  dyingViews(): UnitView[] {
+    const out: UnitView[] = [];
+    for (const [e, inst] of this.live) if (e.type === 'death') { const uv = deathView(inst.s); if (uv) out.push(uv); }
+    return out;
+  }
+  /** Diagnóstico (scripts de captura: artcity, artages…): partículas vivas de fumaça (a dos edifícios danificados — o
+   *  `renderer.smoke` da Etapa 3 — e a de trabalho, a mesma família). */
+  get smokeCount(): number { return this.particles.groupCount('smoke'); }
   /** Diagnóstico (?perf=1, scripts de captura). */
   stats(): { particles: number; budget: number; peak: number; dropped: number; decals: number; decalCap: number; effects: number; unknown: number; source: string } {
     return { particles: this.particles.count, budget: this.particles.budget, peak: this.particles.peak, dropped: this.particles.dropped, decals: this.decals.count, decalCap: this.decals.cap, effects: this.live.size, unknown: this.unknown, source: this.tex.source };

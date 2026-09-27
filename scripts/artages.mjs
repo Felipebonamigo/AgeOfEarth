@@ -125,7 +125,7 @@ async function scene(name, age, build, extra, W, H) {
   await page.screenshot({ path: file });
   console.log(`captura: ${file} (zoom ${zoom.toFixed(2)})`);
   const ck = await page.evaluate(() => {
-    const s = window.aoe.session, R = window.aoe.renderer, out = { baked: 0, procedural: [], states: {}, variants: {}, open: 0, smoke: R.smoke.count, rubble: R.rubbleViews.length, glow: 0 };
+    const s = window.aoe.session, R = window.aoe.renderer, out = { baked: 0, procedural: [], states: {}, variants: {}, open: 0, smoke: R.fx.smokeCount, rubble: R.rubbleViews.length, glow: 0 };
     for (const [id, v] of R.views) {
       const b = s.state.buildings.get(id); if (!b || b.owner !== s.local) continue;
       if (!v.bld) { out.procedural.push(b.type); continue; }

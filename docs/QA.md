@@ -5,7 +5,7 @@
 | Comando | O que cobre | Tempo |
 |---|---|---|
 | `npm run typecheck` | Tipos estritos | ~10 s |
-| `npm test` | 760 testes em 52 arquivos (26/09/2026, base da Etapa 5 da arte: `fx-registry` — o registro de efeitos contra o que o núcleo emite, sem `default`, os 16 tipos rodando numa partida em Node —, `particles` — orçamento total e prioridade por preset, tetos por família, relógio de jogo, física 2,5D, flipbook, a receita da fumaça da Etapa 3 —, `decals` — teto, vida, névoa —, `fx-logic` — arco e sombra pelo contrato de luz, direção + resto, material do golpe, poeira de marcha, ciclo de luz desligado por padrão e com `filterArea` — e `fx-atlas` — índice, catálogo = renderizador, 8 direções, fogo, VRAM, `puff` igual à da Etapa 3); antes, 706 em 45 (integração da Etapa 4 da arte: `art-cavalry`, `art-distancia-cerco` e `art-heroes` — kits, poses, pé/sombra/altura e silhuetas a zoom 1 das 17 unidades da etapa, habilidade Q pela recarga do núcleo — e, no `art-manifest`, a sombra a ½ resolução e as páginas em múltiplos de 32 px); antes, 631 em 40 (com a Fase 6: `steam` — conquistas servem de API name e têm PT/EN, planilha do Steamworks em dia, espelho do Steam Cloud igual no jogo e no processo principal, `planCloudSync`, limites do IPC, gravação/restauração de ponta a ponta numa pasta real, nenhuma gravação de chave espelhada fora do `storeSet`, servidor padrão no Electron, licenças SPDX sem GPL/AGPL e lista da tela Créditos em dia com os lockfiles); antes, 616 em 39 (anti-trapaça 4.5 e a revisão): fuzz determinístico de comandos e regras de validação (`command-fuzz`: 7 200 comandos malucos numa partida em curso sem exceção, invariantes — sem NaN, recursos ≥ 0, população coerente, ids/guarnições consistentes — e o mesmo hash/save em duas execuções; entrada do `NetworkScheduler`: ids repetidos e limites por tick, tick em que o par não é aguardado, deus com nome do protótipo), relatório de dessincronização (`desync-report`: dois pares em memória com estado adulterado → tick, hashes e categoria/jogador divergentes), relay anti-trapaça (`relay-anticheat`: comando em nome de outra vaga, tick repetido/para trás, JSON malformado, quadro WebSocket inválido, mensagem grande, limite de taxa também do anfitrião, ficha de reconexão, instantâneo só pedido, configurações saneadas), texto de outros pares no HUD (`hud-text`: aviso e falas nunca viram HTML), justiça de posição (`position-fairness`: referenciais, desempates, kit, rodízio das IAs, sondagens de simetria do Egeu e do Estreito, poderes e entidades espelhados), versão da simulação no relay (`relay-version`), dados (inclui `checkMap` dos mapas embutidos, recursos iguais por início e mapas oficiais reprodutíveis pelos scripts), determinismo, pathfinding, simulação, regressões, cenários, lockstep/reconexão, modos, mapas fixos, editor, qualidade, áudio, controle, shader do terreno | ~15 s |
+| `npm test` | 775 testes em 53 arquivos (27/09/2026, lote poderes-luz da Etapa 5 da arte: `fx-powers` — o caminho e a descarga do raio, o surgimento divino pelo que nasceu no ponto, a Maldição sem queda nem cadáver, o lançamento visto uma vez, a duração da peste/bronze/trégua/oráculo só onde e para quem deve, a camada de tela, o orçamento com todos os poderes ao mesmo tempo e o ciclo de luz com amanhecer × entardecer distintos e legível o dia inteiro); antes, 760 em 52 (26/09/2026, base da Etapa 5 da arte: `fx-registry` — o registro de efeitos contra o que o núcleo emite, sem `default`, os 16 tipos rodando numa partida em Node —, `particles` — orçamento total e prioridade por preset, tetos por família, relógio de jogo, física 2,5D, flipbook, a receita da fumaça da Etapa 3 —, `decals` — teto, vida, névoa —, `fx-logic` — arco e sombra pelo contrato de luz, direção + resto, material do golpe, poeira de marcha, ciclo de luz desligado por padrão e com `filterArea` — e `fx-atlas` — índice, catálogo = renderizador, 8 direções, fogo, VRAM, `puff` igual à da Etapa 3); antes, 706 em 45 (integração da Etapa 4 da arte: `art-cavalry`, `art-distancia-cerco` e `art-heroes` — kits, poses, pé/sombra/altura e silhuetas a zoom 1 das 17 unidades da etapa, habilidade Q pela recarga do núcleo — e, no `art-manifest`, a sombra a ½ resolução e as páginas em múltiplos de 32 px); antes, 631 em 40 (com a Fase 6: `steam` — conquistas servem de API name e têm PT/EN, planilha do Steamworks em dia, espelho do Steam Cloud igual no jogo e no processo principal, `planCloudSync`, limites do IPC, gravação/restauração de ponta a ponta numa pasta real, nenhuma gravação de chave espelhada fora do `storeSet`, servidor padrão no Electron, licenças SPDX sem GPL/AGPL e lista da tela Créditos em dia com os lockfiles); antes, 616 em 39 (anti-trapaça 4.5 e a revisão): fuzz determinístico de comandos e regras de validação (`command-fuzz`: 7 200 comandos malucos numa partida em curso sem exceção, invariantes — sem NaN, recursos ≥ 0, população coerente, ids/guarnições consistentes — e o mesmo hash/save em duas execuções; entrada do `NetworkScheduler`: ids repetidos e limites por tick, tick em que o par não é aguardado, deus com nome do protótipo), relatório de dessincronização (`desync-report`: dois pares em memória com estado adulterado → tick, hashes e categoria/jogador divergentes), relay anti-trapaça (`relay-anticheat`: comando em nome de outra vaga, tick repetido/para trás, JSON malformado, quadro WebSocket inválido, mensagem grande, limite de taxa também do anfitrião, ficha de reconexão, instantâneo só pedido, configurações saneadas), texto de outros pares no HUD (`hud-text`: aviso e falas nunca viram HTML), justiça de posição (`position-fairness`: referenciais, desempates, kit, rodízio das IAs, sondagens de simetria do Egeu e do Estreito, poderes e entidades espelhados), versão da simulação no relay (`relay-version`), dados (inclui `checkMap` dos mapas embutidos, recursos iguais por início e mapas oficiais reprodutíveis pelos scripts), determinismo, pathfinding, simulação, regressões, cenários, lockstep/reconexão, modos, mapas fixos, editor, qualidade, áudio, controle, shader do terreno | ~15 s |
 | `npm run balance 30 1,2,3,4,5,6` | 6 partidas IA×IA de 30 min: idades (Clássica ~5, Heroica 12–18, Mítica 19–26), ninguém travado | ~2 min |
 | `npx tsx scripts/missions.ts` | Todas as missões do registro × 3 dificuldades: validação, viabilidade passiva e o roteiro do jogador (`MISSION_SCRIPTS` em `src/core/scenario/testing.ts`) vencendo dentro da janela. Referência 26/09/2026 (depois da correção do viés de posição; roteiros da m2, m5 e m7 reajustados e janela da m4 revista para 15m–39m — só o roteiro/janela, nunca a missão; causas em `docs/STORY.md` §4 e §7.2): m1 14m39s/14m26s/15m55s, m2 19m33s/15m32s/15m25s, m3 18m30s/19m10s/19m16s, m4 16m14s/19m00s/19m09s, m5 15m55s/16m55s/17m55s (variante "escolta" 6m08s/7m55s/8m59s), m6 19m36s/20m02s/22m17s, m7 17m47s/17m00s/22m52s (Fácil/Normal/Difícil). Para rodar em paralelo: `npx tsx scripts/missions.ts 14 m1_despertar,m2_cerco,m3_portal` etc. | ~8 min (1 processo) |
 | `npm run map:check [arquivo.map.json…]` | Sem arquivos: os mapas embutidos. Validação (erros/avisos), tabela de recursos por início (raio 16) e 2 min de IA×IA em cada (`src/core/map/check.ts`, o mesmo que `tests/data.test.ts` exige): falha com erro, IA parada ou partida encerrada no 1º minuto | ~5 s |
@@ -346,6 +346,101 @@ Leitura:
   o resto usa o atlas `fx` da base; draw calls iguais.
 - **Falta a GPU real** (como na base): o fill rate do aditivo (halos, brilhos, fogo) só se mede com `?perf=1` no PC e
   no Deck.
+
+## Desempenho do renderizador — Etapa 5 da arte, lote poderes-luz (27/09/2026)
+
+Antes = a base da Etapa 5 (44ac4fb, 1ª versão dos poderes; porta 4374) e depois = o lote poderes-luz (porta 4373), rodadas
+alternadas na mesma máquina. `rendercpu` ganhou `--powers`: um 6º cenário `powers` com a **Tempestade de Raios** e o
+**Terremoto** sobre a linha inimiga e a **Pele de Bronze** num dos lados, todos ativos durante a medida, no meio da
+batalha 100 × 100 (postos direto no estado, como o núcleo os põe: o jogador local da partida de perf já perdeu aos 20 min).
+O cenário `fight` desta partida tem, por acaso, uma **Maldição** de uma IA caindo na batalha (8 vítimas): a transformação
+entra na conta. A máquina estava dividida com outro trabalho pesado (carga 6–7 em 4 CPUs): a tabela usa as **medianas**
+por quadro (a média oscila com a interferência); `docs/perf/2026-09-27-etapa5-poderes-{antes,antes-r2,antes-r3,depois,depois-r2}-cpu.json`.
+
+| Cenário (preset Baixo, orçamento 800) | render med antes → depois (ms) | Pixi med antes → depois (ms) | partículas (pico) | decalques | sprites |
+|---|---|---|---|---|---|
+| `fight` (batalha + a Maldição da IA) | 0,7–0,8 → 0,8–1,1 | 1,2–1,4 → 1,3–1,7 | 252–253 → 367–369 | 0 → 0 | 1 402 → 1 378 |
+| `powers` (Tempestade + Terremoto + Bronze) | 0,6–0,8 → 0,9–1,0 | 1,0–1,4 → 1,4–1,5 | 375–379 → 737–746 | 13 → 47–50 | 1 338 → 1 372–1 376 |
+
+Leitura:
+- Com os três poderes contínuos mais caros ativos no meio de uma batalha 100 × 100, a CPU do nosso código sobe ~0,2–0,3 ms
+  (média 1,1–1,5 ms, p95 2,2–3,7 ms com a interferência) e a do Pixi ~0,2–0,4 ms: dentro do orçamento de §6 do ART.md
+  (render ≤ 3 ms, p95 ≤ 6 ms). O pico de partículas chega perto do orçamento do Baixo (746 de 800) e é ele que segura o custo:
+  os poderes (prioridade mais alta) tomam o lugar do ambiente e do combate, nada passa do teto.
+- Os raios da Tempestade (um a cada 0,5 s) usam duas camadas e 16 segmentos — um terço dos sprites do Raio de Zeus: numa
+  1ª medida com três camadas o cenário `powers` tinha 1 540–1 552 sprites e +0,1–0,2 ms de Pixi.
+- A Maldição no `fight`: a transformação (fumaça, centelhas, o soldado se desfazendo) no lugar da queda e do cadáver —
+  +~115 partículas e 24 sprites a menos (8 cadáveres × corpo, time e sombra).
+- O ciclo de luz custa o mesmo de antes (o mesmo filtro com `filterArea`, só a matriz mudou): na cena `luz` do `artfx`,
+  1º quartil de 12 blocos alternados liga/desliga, **0,45 → 0,60 ms (+0,15 ms**; +0,16 na base; teto 0,5). Ligar e
+  desligar o ciclo pelas opções deixa o quadro como antes (sem filtro, sem efeito no mundo; conferido à parte).
+- Falta a GPU real (a camada de tela soma uma vinheta em tela cheia enquanto a Trégua ou o Oráculo duram, e o clarão do
+  Raio de Zeus um quadro): medir com `?perf=1` no PC e no Deck.
+
+## Desempenho do renderizador — Etapa 5 integrada (base + os dois lotes, 27/09/2026)
+
+Antes = a build da `main` (db1877c, Etapa 4 revisada; efeitos no `switch` de `renderer.ts`, sem partículas; porta 4251)
+e depois = a Etapa 5 integrada (base 44ac4fb + lote combate-ambiente a8ae885 + lote poderes-luz a34b7d8 + os cortes da
+integração abaixo; porta 4250), rodadas alternadas na mesma máquina (4 CPUs, sem outro trabalho pesado nas medidas).
+`rendercpu --battle 100 --powers --modes a`: a partida de perf de 20 min (144×144, 3 IAs Muito difícil, 260 unidades) com
+100 × 100 no meio do mapa e os 6 cenários (`powers` = Tempestade + Terremoto + Bronze ativos no meio da batalha).
+Antes = média de 3 rodadas, depois = média de 2 rodadas com a build final
+(`docs/perf/2026-09-27-etapa5-int-{antes,antes-r2,antes-r3,depois,depois-r2}-cpu.json`):
+
+| Cenário (preset Baixo, orçamento 800) | render antes → depois (ms) | Pixi antes → depois (ms) | render + Pixi | partículas (pico) | decalques |
+|---|---|---|---|---|---|
+| zoom 1 (cidade) | 0,51 → 0,65 (+0,15) | 0,91 → 1,02 | 1,42 → 1,67 (+18 %) | 128–132 | 1 |
+| mapa inteiro | 1,27 → 1,41 (+0,15) | 3,64 → 3,35 | 4,91 → 4,77 (−3 %) | 199–205 | 1 |
+| zoom 1,5 aglomerado | 0,50 → 0,59 (+0,09) | 1,00 → 1,00 | 1,50 → 1,60 (+6 %) | 196–202 | 3 |
+| rolagem | 0,36 → 0,37 (+0,01) | 0,87 → 0,80 | 1,23 → 1,17 (−5 %) | 114–118 | 5 |
+| **batalha 100 × 100** (`fight`) | **0,62 → 0,71 (+0,10)** | **1,22 → 1,18** | **1,83 → 1,89 (+3 %)** | **190–193** (0 descartadas) | 5 |
+| batalha + Tempestade + Terremoto + Bronze (`powers`) | 0,52 → 0,73 (+0,20) | 1,24 → 1,18 | 1,77 → 1,90 (+8 %) | 499–503 (89–90 descartadas: o Baixo cheio, os poderes tomam o lugar do ambiente) | 55–56 |
+
+No preset **Alto** (orçamento 2 000, atlas 2×; `…-{antes,depois}-alto-cpu.json`, 1 rodada): render 0,47–1,27 → 0,66–1,47 ms,
+Pixi 0,88–4,20 → 1,00–3,74 ms, pico de **121–209 partículas** nos cenários da partida e **571** com os três poderes, 0
+descartadas.
+
+**`artfx` cena `orcamento`** (preset Alto, a batalha mista 100 × 100 das capturas `docs/art/etapa5-batalha-{z10,z22}.png`:
+hoplitas, hipaspistas, toxotas, peltastas, hipeus, 4 petróbolos de cada lado, 2 quimeras cuspindo fogo e um quartel em
+chamas; amostra a cada tick as partículas VIVAS): pico de **521–566 de 2 000** (0 descartadas, 1 533–1 813 projéteis
+vistos, 23–25 decalques) e, com Tempestade de Raios e Terremoto caindo na mesma batalha, **845–863 de 2 000** (0
+descartadas, 78–93 decalques) — 3 rodadas.
+
+**`renderperf` no preset Baixo** (`--reveal`, 12 s por cenário, 2 rodadas de cada lado;
+`docs/perf/2026-09-27-etapa5-int-{antes,depois}-baixo{,-r2}.json`):
+
+| Cenário | fps antes → depois | render média ms antes → depois | draw calls | tex MB |
+|---|---|---|---|---|
+| zoom 1 (cidade) | 7,3 → 7,4 | 0,72 → 1,06 | 6 → 10 | 84,2 → 85,0 |
+| mapa inteiro | 8,3 → 8,5 | 1,24 → 1,52 | 7–8 → 10 | 84,3 → 85,1 |
+| zoom 1,5 aglomerado | 7,9 → 7,4 | 0,89 → 1,17 | 8 → 11 | 84,3 → 85,1 |
+| rolagem | 7,5 → 8,2 | 0,76 → 0,83 | 7 → 9–10 | 84,3 → 85,1 |
+
+**Cortes da integração** (perfil por parte com cronômetro em volta de cada chamada, zoom 1 na cidade e `fight`): o
+`place` das partículas gravava cor e alfa pelos setters do Pixi (`tint` passa por `Color.shared`, que normaliza e aloca
+a cada partícula por quadro) — agora `setColor` escreve o `color` do lote direto (mesmo valor, teste): `particles.update`
+0,063 → 0,032 ms na cidade; a poeira dos pés conferia a margem d'água (9 tiles) a cada quadro de cada unidade andando —
+agora só quando sai pó e só em tile com água em volta (`coastal`, cache por unidade do tile do pé), e a margem do
+`unitFx` idem. Com isso o depois caiu de 0,73 → 0,65 ms na cidade, 0,66 → 0,59 no aglomerado e 0,48 → 0,37 na rolagem
+(rodadas antes dos cortes: 0,64–0,81 / 0,64–0,68 / 0,43–0,54 ms).
+
+Leitura:
+- **Batalha 100 × 100 dentro do orçamento**: o nosso código fica em 0,6–0,9 ms e o Pixi em 1,0–1,3 ms no cenário `fight`
+  (Baixo e Alto), render + Pixi igual ao da `main` (+3 %); o pico de partículas vivas fica em 190–209 na partida de perf
+  e 521–566 de 2 000 na batalha mista das capturas (845–863 com dois poderes de área por cima), sem descarte no Alto.
+- **O que passa de 15 %** é só a CPU do NOSSO código nos cenários onde há efeitos que a `main` não tinha: +0,09–0,15 ms
+  na cidade, no aglomerado e na batalha (fumaça de trabalho das oficinas, halo e auras dos heróis, lascas da coleta,
+  poeira dos pés, a simulação de 130–200 partículas e os handlers de todos os efeitos vivos do mapa) e +0,20 ms com os
+  três poderes (a arte deles no lugar dos círculos de antes). É conteúdo novo da etapa, não regressão: somado ao Pixi, o
+  quadro fica entre −5 % e +18 %, e o absoluto (≤ 1,5 ms nosso; p95 ≤ 2,4 ms no Baixo e 3,1 ms no mapa inteiro do Alto) segue bem abaixo do teto de §6 do ART.md
+  (≤ 3 ms, p95 ≤ 6 ms). No mapa inteiro a poeira e a margem nem rodam (`DUST_MIN_ZOOM`), e o custo que sobra (+0,15 ms)
+  é a chamada por unidade à vista e os handlers.
+- No `renderperf` a diferença parece maior (+0,1–0,3 ms) pelo mesmo motivo da base: a ~7 fps de software cada quadro
+  cobre ~0,15 s de jogo e emite ~8× o que emitiria a 60 fps; fps dentro do ruído (7,3–8,5 dos dois lados).
+- **+2–4 draw calls** (lotes normal e aditivo das partículas, decalques `multiply`/`normal`, halos dos heróis: 9–11 no
+  total, teto 40) e **+0,8 MB de texturas** (o atlas `fx` a 1×; os lotes não criaram textura nova).
+- **Falta a GPU real** (como na base e nos lotes): o fill rate do aditivo (fogo, raios, halos, brilhos) e do `multiply`
+  dos decalques e a vinheta de tela cheia da Trégua/Oráculo só se medem com `?perf=1` no PC e no Deck.
 
 ## Matriz de testes (6.8, por versão candidata)
 

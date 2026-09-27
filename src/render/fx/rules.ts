@@ -133,6 +133,19 @@ const isWater = (map: GameMap, x: number, y: number): boolean => {
   const t = map.terrain[y * map.w + x];
   return t === TERRAIN.WATER || t === TERRAIN.DEEP;
 };
+/** Há água no tile (x, y) ou num dos 8 vizinhos (só aí `shoreDistance` pode dar < Infinity). */
+export function nearWater(map: GameMap, x: number, y: number): boolean {
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (isWater(map, x + dx, y + dy)) return true;
+  return false;
+}
+/** Cache por unidade da vizinhança d'água do tile do pé (`ct` = índice do tile, `coast` = `nearWater` dele): recalcula só
+ *  quando o pé muda de tile — a poeira dos pés e a margem deixam de olhar 9 tiles por unidade andando a cada quadro. */
+export interface CoastCache { ct?: number; coast?: boolean }
+export function coastal(c: CoastCache, map: GameMap, x: number, y: number): boolean {
+  const tx = Math.floor(x), ty = Math.floor(y), ti = ty * map.w + tx;
+  if (c.ct !== ti) { c.ct = ti; c.coast = nearWater(map, tx, ty); }
+  return c.coast!;
+}
 /**
  * Distância (tiles) do ponto até a borda do tile de água mais perto entre os 8 vizinhos (Infinity sem água em volta; 0
  * sobre a água) e, em `dir`, o vetor unitário do ponto para a água.

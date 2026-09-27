@@ -9,7 +9,10 @@
 // `--battle N` (Etapa 5): antes de medir, N contra N no meio do mapa (hoplita, toxota, peltasta, hipeu, hipaspista, vida
 // alta, ataque-mover um contra o outro) e um 5º cenário `fight` (zoom 1 no meio da batalha: projéteis, golpes, poeira,
 // decalques) — com o pico de partículas e os decalques do sistema de efeitos, se a build tiver (`renderer.fx`).
-// Uso: node scripts/rendercpu.mjs [url] [--frames 150] [--modes papa] [--quality low] [--label texto] [--minutes 20] [--battle 100] [--views zoom1,fight]
+// `--powers` (lote poderes-luz): mais um cenário `powers` — no meio da mesma batalha, Tempestade de Raios e Terremoto nos
+// inimigos e Pele de Bronze nos nossos, todos ativos durante a medida (sombra da nuvem, chuva, raios, rachaduras, poeira,
+// reflexos do bronze).
+// Uso: node scripts/rendercpu.mjs [url] [--frames 150] [--modes papa] [--quality low] [--label texto] [--minutes 20] [--battle 100] [--powers] [--views zoom1,fight]
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -25,7 +28,8 @@ const quality = opt('--quality', 'low');
 const warm = Number(opt('--minutes', 20));
 const label = opt('--label', 'cpu');
 const battle = Number(opt('--battle', 0));
-const VIEWS = opt('--views', battle ? 'zoom1,zoomOut,battle,scroll,fight' : 'zoom1,zoomOut,battle,scroll').split(',');
+const powers = args.includes('--powers') && battle > 0;
+const VIEWS = opt('--views', battle ? `zoom1,zoomOut,battle,scroll,fight${powers ? ',powers' : ''}` : 'zoom1,zoomOut,battle,scroll').split(',');
 const date = new Date().toISOString().slice(0, 10);
 let commit = ''; try { commit = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch { /* fora do git */ }
 
@@ -79,6 +83,19 @@ const run = (view) => page.evaluate(([view, N]) => {
   else if (view === 'zoomOut') R.fitMap();
   else if (view === 'scroll') { R.cam.zoom = 1; R.cam.centerOn(40, 40); }
   else if (view === 'fight') { R.cam.zoom = 1; R.cam.centerOn(st.map.w / 2, st.map.h / 2); }
+  else if (view === 'powers') {
+    // os poderes contínuos mais caros, ativos agora no meio da batalha — postos direto no estado, como o núcleo os põe
+    // (o jogador local pode ter perdido nos 20 min da IA, e um jogador fora da partida não lança poder): a tempestade e o
+    // terremoto de um jogador vivo sobre a linha inimiga, o bronze nas unidades do lado esquerdo da batalha
+    const cx = st.map.w / 2, cy = st.map.h / 2, caster = st.players.find((p) => p.alive)?.id ?? 0;
+    const left = [...st.units.values()].find((u) => Math.abs(u.x - (cx - 9)) < 6 && Math.abs(u.y - cy) < 8)?.owner ?? s.local;
+    st.timed.push({ type: 'lightning_storm', owner: caster, until: st.tick + 160, x: cx + 4, y: cy, data: 6 });
+    st.timed.push({ type: 'earthquake', owner: caster, until: st.tick + 100, x: cx + 2, y: cy + 3, data: 7 });
+    st.effects.push({ type: 'quake', x: cx + 2, y: cy + 3, ttl: 100, total: 100, data: 7 });
+    st.players[left].bronzeUntil = st.tick + 45 * 20;
+    st.effects.push({ type: 'bronze', x: 0, y: 0, ttl: 10, total: 10, owner: left });
+    R.cam.zoom = 1; R.cam.centerOn(cx + 2, cy);
+  }
   else { R.cam.zoom = 1.5; let best = null, bn = -1; for (const u of st.units.values()) { if (u.inside !== -1) continue; let n = 0; for (const v of st.units.values()) if (v.inside === -1 && Math.abs(v.x - u.x) < 12 && Math.abs(v.y - u.y) < 8) n++; if (n > bn) { bn = n; best = u; } } R.cam.centerOn(best.x, best.y); }
   const ui = window.aoe.input.renderUI();
   const tR = [], tP = [];

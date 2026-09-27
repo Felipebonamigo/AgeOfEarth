@@ -143,7 +143,7 @@ await page.evaluate(() => {
 });
 const falls = {};
 for (let k = 0; k < 16; k++) {
-  const r = await page.evaluate(() => { const out = []; for (const uv of window.aoe.renderer.dying.values()) out.push([uv.type, uv.anim]); return out; });
+  const r = await page.evaluate(() => { const out = []; for (const uv of window.aoe.renderer.fx.dyingViews()) out.push([uv.type, uv.anim]); return out; });
   for (const [t, a] of r) if (a === 'die') falls[t] = (falls[t] ?? 0) + 1;
   if (k === 5) { await look({ x: scene.fight.x, y: scene.fight.y + 4 }, 1.6); await shot('cavalaria-queda'); }
   await page.waitForTimeout(200);

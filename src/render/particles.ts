@@ -12,6 +12,17 @@
 import { Particle, ParticleContainer, type Texture } from 'pixi.js';
 import { GROUP_CAP, PRIO_CAP, lerpColor } from './fx/logic';
 
+/** Cor (0xRRGGBB) e alfa direto no `color` do Particle do Pixi (o que o lote lê), sem os setters `tint`/`alpha`: o de
+ *  `tint` passa por `Color.shared` (normaliza e aloca um array) a cada partícula por quadro. Mantém `_tint`/`_alpha`
+ *  como o Pixi os guarda, para os getters (`p.tint`, `p.alpha`) continuarem certos. */
+export function setColor(p: Particle, rgb: number, alpha: number): void {
+  const q = p as unknown as { _tint: number; _alpha: number; color: number };
+  const a = alpha < 0 ? 0 : alpha > 1 ? 1 : alpha;
+  const bgr = ((rgb & 0xff) << 16) | (rgb & 0xff00) | ((rgb >> 16) & 0xff);
+  q._tint = bgr; q._alpha = a;
+  q.color = bgr + ((a * 255 | 0) << 24);
+}
+
 /** Prioridade no orçamento: ambiente (fumaça dos edifícios, poeira dos pés) < combate < poderes. */
 export const PRIO = { ambient: 0, combat: 1, power: 2 } as const;
 export type Prio = 0 | 1 | 2;
@@ -138,8 +149,7 @@ export class ParticleSystem {
     const s = l.s0 + (l.s1 - l.s0) * t;
     p.scaleX = s; p.scaleY = s;
     const a = l.fin > 0 && t < l.fin ? l.a0 * (t / l.fin) : l.a0 + (l.a1 - l.a0) * (l.fin >= 1 ? 0 : (t - l.fin) / (1 - l.fin));
-    p.alpha = a;
-    p.tint = l.c0 === l.c1 ? l.c0 : lerpColor(l.c0, l.c1, t);
+    setColor(p, l.c0 === l.c1 ? l.c0 : lerpColor(l.c0, l.c1, t), a);
     p.rotation = l.align ? Math.atan2(l.vy - l.vz, l.vx) : l.rot + l.spin * l.age;
     const n = l.frames.length;
     if (n > 1) {

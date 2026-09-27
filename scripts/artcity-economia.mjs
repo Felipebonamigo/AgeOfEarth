@@ -102,7 +102,7 @@ const shot = async (name) => { await page.waitForTimeout(900); const f = join(ou
 await look(center, 1.3); await shot('cidade');
 
 const checks = await page.evaluate((lot) => {
-  const s = window.aoe.session, R = window.aoe.renderer, out = { baked: {}, procedural: [], states: {}, farm: [], smoke: R.smoke.count, rubble: R.rubbleViews.length };
+  const s = window.aoe.session, R = window.aoe.renderer, out = { baked: {}, procedural: [], states: {}, farm: [], smoke: R.fx.smokeCount, rubble: R.rubbleViews.length };
   const crops = new Set();
   for (const [id, v] of R.views) {
     const b = s.state.buildings.get(id); if (!b || !lot.includes(b.type)) continue;

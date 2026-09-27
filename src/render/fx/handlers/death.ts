@@ -45,6 +45,8 @@ function fallTime(type: string): number {
 function create(e: VisualEffect, fx: FxContext, age: number): S {
   const type = typeof e.data === 'string' ? e.data : '';
   const s: S = { uv: null, proc: null, dusted: age > FRESH + 0.4, statue: null, type };
+  // amaldiçoado (efeito 'curse' no mesmo ponto): não cai nem vira cadáver — o handler da Maldição desenha a transformação
+  if (e.type === 'death' && fx.state.effects.some((o) => o.type === 'curse' && Math.abs(o.x - e.x) < 0.01 && Math.abs(o.y - e.y) < 0.01)) { s.dusted = true; return s; }
   const art = fx.baked && type && UNITS[type] && !UNITS[type].flying ? fx.host.art.unit(type) : null;
   const petrify = e.type === 'petrify';
   if (art) {

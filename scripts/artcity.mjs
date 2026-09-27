@@ -112,7 +112,7 @@ const shot = async (name) => { await page.waitForTimeout(900); const f = join(ou
 await look(center, 1.3); await shot('cidade');
 
 const checks = await page.evaluate(() => {
-  const s = window.aoe.session, R = window.aoe.renderer, out = { baked: 0, procedural: 0, wallMasks: [], states: {}, open: 0, smoke: R.smoke.count, rubble: R.rubbleViews.length };
+  const s = window.aoe.session, R = window.aoe.renderer, out = { baked: 0, procedural: 0, wallMasks: [], states: {}, open: 0, smoke: R.fx.smokeCount, rubble: R.rubbleViews.length };
   const masks = new Set();
   for (const [id, v] of R.views) {
     const b = s.state.buildings.get(id); if (!b) continue;

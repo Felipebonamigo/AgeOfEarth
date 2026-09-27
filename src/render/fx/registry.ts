@@ -10,9 +10,17 @@ import { death, petrify } from './handlers/death';
 import { collapse } from './handlers/collapse';
 import { nodeGone } from './handlers/nodeGone';
 import { splash } from './handlers/splash';
-import { bolt, bronze, curse, heal, pestilence, quake, titanRise } from './handlers/powers';
+// Q dos heróis (lote combate-ambiente): arte própria por herói
 import { ability } from './handlers/ability';
-import { ceasefireWatcher, earthquake, lightningStorm, oracleWatcher } from './handlers/timed';
+// poderes (lote poderes-luz): um arquivo por poder
+import { bolt, lightningStorm } from './handlers/bolt';
+import { heal } from './handlers/restoration';
+import { pestilence, pestilenceWatcher } from './handlers/pestilence';
+import { earthquake, quake } from './handlers/earthquake';
+import { curse, curseWatcher } from './handlers/curse';
+import { bronze, bronzeWatcher } from './handlers/bronze';
+import { titanRise } from './handlers/titan';
+import { ceasefireWatcher, oracleWatcher } from './handlers/global';
 
 export const FX_HANDLERS: Record<EffectType, FxHandler<any>> = {
   projectile, hit, spawn, death, petrify, collapse, nodeGone, splash,
@@ -23,8 +31,9 @@ export const TIMED_HANDLERS: Record<TimedType, TimedHandler<any>> = {
   lightning_storm: lightningStorm, earthquake,
 };
 
-/** Observadores de estado (poderes sem efeito próprio); um por instância do FxSystem. */
-export function makeWatchers(): FxWatcher[] { return [ceasefireWatcher(), oracleWatcher()]; }
+/** Observadores de estado (poderes sem efeito próprio, a duração de um poder, o lançamento de um poder de área); um por
+ *  instância do FxSystem. */
+export function makeWatchers(): FxWatcher[] { return [ceasefireWatcher(), oracleWatcher(), pestilenceWatcher(), bronzeWatcher(), curseWatcher()]; }
 
 /**
  * De onde sai a arte de cada poder (POWERS em src/core/data/gods.ts): `effect:<tipo>` (VisualEffect), `timed:<tipo>`
@@ -36,10 +45,10 @@ export const POWER_ART: Record<string, string> = {
   sentinel: 'effect:spawn',
   restoration: 'effect:heal',
   ceasefire: 'watch:ceasefire',
-  pestilence: 'effect:pestilence',
+  pestilence: 'effect:pestilence+watch:pestilence',
   oracle: 'watch:oracle',
-  bronze: 'effect:bronze',
-  curse: 'effect:curse',
+  bronze: 'effect:bronze+watch:bronze',
+  curse: 'effect:curse+watch:curse',
   lightning_storm: 'timed:lightning_storm+effect:bolt',
   plenty: 'effect:spawn',
   earthquake: 'effect:quake+timed:earthquake',

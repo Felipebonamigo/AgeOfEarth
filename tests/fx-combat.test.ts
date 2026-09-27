@@ -11,7 +11,7 @@ import { FxSystem, type FxAcc } from '../src/render/fx/FxSystem';
 import type { FxHost } from '../src/render/fx/types';
 import { resolveQuality } from '../src/render/quality';
 import {
-  AURA, ARID_MIN, SHORE_WET, WORK_STRIKE_PERIOD, abilityHero, aridFraction, auraOf, effectTick, hasHalo, healGain, shoreDistance,
+  AURA, ARID_MIN, SHORE_WET, WORK_STRIKE_PERIOD, abilityHero, aridFraction, auraOf, coastal, effectTick, hasHalo, healGain, nearWater, shoreDistance,
   splashSource, splashStyle, windDustRate, workOf, workSmokeOn,
 } from '../src/render/fx/rules';
 import { acquireStone, crop, cropTexture, releaseStone, type StoneSet } from '../src/render/fx/stone';
@@ -123,6 +123,16 @@ describe('regras do lote combate-ambiente', () => {
     expect(shoreDistance(m, 11.5, 10.5)).toBe(0);
     expect(shoreDistance(m, 20.5, 20.5)).toBe(Infinity);
     expect(SHORE_WET).toBeLessThan(0.5);   // quem passa pelo meio do tile da praia não respinga
+    // a vizinhança d'água por tile (integração: poeira dos pés e margem só olham os 9 tiles perto d'água) bate com a
+    // distância: sem água nos 8 vizinhos, shoreDistance é infinita
+    for (let y = 5; y < 16; y++) for (let x = 5; x < 16; x++) expect(nearWater(m, x, y)).toBe(shoreDistance(m, x + 0.5, y + 0.5) < Infinity);
+    const c: { ct?: number; coast?: boolean } = {};
+    expect(coastal(c, m, 10.8, 10.5)).toBe(true);
+    expect(coastal(c, m, 20.5, 20.5)).toBe(false);
+    m.terrain[20 * m.w + 21] = TERRAIN.WATER;   // o terreno mudou (editor): o cache vale até o pé trocar de tile
+    expect(coastal(c, m, 20.6, 20.4)).toBe(false);
+    expect(coastal(c, m, 21.6, 20.4)).toBe(true);
+    expect(coastal(c, m, 20.6, 20.4)).toBe(true);
   });
 
   it('chão árido: fração só dos tiles vistos, vento acima do limiar e do zoom 0,5', () => {
@@ -316,7 +326,9 @@ describe('efeitos por unidade e ambiente', () => {
     v.state = 'gather'; v.nodeId = tree.id;
     const acc: FxAcc = { dust: 0 };
     const counts = (r.fx as unknown as { unitFx: { counts: { strike: number; shore: number } } }).unitFx.counts;
-    for (let f = 0; f < Math.ceil(WORK_STRIKE_PERIOD * 30 * 2.2); f++) { r.begin(); r.fx.unit(acc, v, v.x, v.y, null); r.fx.update(); }
+    // 12 golpes: cada um solta lascas com chance WORK_CHIP_CHANCE (0,6; Math.random no renderizador) — com 2 golpes o
+    // teste falhava 16 % das vezes (0,4²); com 12, ~2·10⁻⁵
+    for (let f = 0; f < Math.ceil(WORK_STRIKE_PERIOD * 30 * 12); f++) { r.begin(); r.fx.unit(acc, v, v.x, v.y, null); r.fx.update(); }
     expect(counts.strike).toBeGreaterThanOrEqual(1);
     // margem: um tile de água logo ao norte, a unidade andando rente a ele
     const st2 = quickGame(); const p = spot(st2); const m = st2.map;

@@ -42,8 +42,9 @@ export class UnitFx {
   /** Começo do quadro: quantos trabalhavam na tela no quadro anterior decide a densidade das lascas. */
   begin(): void { this.frameN++; this.workersPrev = this.workers; this.workers = 0; }
 
-  /** Uma unidade à vista na tela em (x, y) (tiles, interpolado); `uv` = vista assada (sincroniza o golpe da coleta). */
-  unit(fx: FxContext, a: UnitAcc, u: Unit, x: number, y: number, uv: UnitView | null): void {
+  /** Uma unidade à vista na tela em (x, y) (tiles, interpolado); `uv` = vista assada (sincroniza o golpe da coleta);
+   *  `coast` = há água no tile do pé ou em volta (senão a margem nem é conferida). */
+  unit(fx: FxContext, a: UnitAcc, u: Unit, x: number, y: number, uv: UnitView | null, coast = true): void {
     const def = UNITS[u.type];
     if (!def) return;
     const hp = u.hp, gain = healGain(a.hp < 0 ? undefined : a.hp, hp);
@@ -69,7 +70,7 @@ export class UnitFx {
     if (work) this.work(fx, a, u, work, px, py, uv);
     // margem da água: respingos no lugar da poeira (FxSystem.footstep não levanta pó aqui)
     const mdx = u.x - u.px, mdy = u.y - u.py;
-    if (mdx * mdx + mdy * mdy > 4e-4 && gaitOf(u.type) !== 'none') {
+    if (coast && mdx * mdx + mdy * mdy > 4e-4 && gaitOf(u.type) !== 'none') {   // `coast`: há água em volta do tile do pé
       const d = shoreDistance(fx.state.map, x, y, this.dir);
       if (d < SHORE_WET) {
         const speed = Math.sqrt(mdx * mdx + mdy * mdy) / DT;

@@ -425,7 +425,7 @@ await page.evaluate(() => {
 });
 // cada queda (efeito de 1,2 s) é vista a cada quadro até aparecer a de todos os tipos (teto: 12 s de jogo)
 await page.evaluate((A) => { window.__watchAll = (o) => A.every((t) => o[t]); }, ARMY);
-const falls = await watchFrames(ARMY, 240, ((R) => { const out = []; for (const uv of R.dying.values()) if (uv.anim === 'die') out.push([uv.type]); return out; }).toString());
+const falls = await watchFrames(ARMY, 240, ((R) => { const out = []; for (const uv of R.fx.dyingViews()) if (uv.anim === 'die') out.push([uv.type]); return out; }).toString());
 await page.evaluate(() => { window.__watchAll = null; });
 console.log('quedas assadas:', JSON.stringify(falls));
 for (const t of ARMY) if (!falls[t]) errors.push(`${t}: a morte não saiu assada`);

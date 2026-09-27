@@ -1,0 +1,156 @@
+{
+  "date": "2026-09-27",
+  "commit": "integração da Etapa 5 (a8ae885 + a34b7d8, porta 4250)",
+  "label": "etapa5-int-depois",
+  "url": "http://localhost:4250/",
+  "quality": "low",
+  "frames": 150,
+  "note": "CPU por quadro (ms) em laço síncrono, resolução 0,25 (sem rasterização relevante); render = renderer.render, pixi = app.renderer.render.",
+  "scenario": {
+    "units": 260,
+    "buildings": 133,
+    "localAlive": false,
+    "warmMinutes": 20,
+    "battle": {
+      "x": 72,
+      "y": 72,
+      "a": 100,
+      "b": 100
+    }
+  },
+  "results": [
+    {
+      "baked": true,
+      "view": "zoom1",
+      "render": {
+        "avg": 0.645,
+        "med": 0.6,
+        "p95": 1.1
+      },
+      "pixi": {
+        "avg": 0.982,
+        "med": 0.9,
+        "p95": 1.4
+      },
+      "sprites": 877,
+      "fx": {
+        "peak": 132,
+        "budget": 800,
+        "dropped": 0,
+        "decals": 1,
+        "effects": 29
+      }
+    },
+    {
+      "baked": true,
+      "view": "zoomOut",
+      "render": {
+        "avg": 1.425,
+        "med": 1.1,
+        "p95": 2.2
+      },
+      "pixi": {
+        "avg": 3.205,
+        "med": 3.1,
+        "p95": 4.5
+      },
+      "sprites": 5816,
+      "fx": {
+        "peak": 205,
+        "budget": 800,
+        "dropped": 0,
+        "decals": 1,
+        "effects": 13
+      }
+    },
+    {
+      "baked": true,
+      "view": "battle",
+      "render": {
+        "avg": 0.602,
+        "med": 0.6,
+        "p95": 0.8
+      },
+      "pixi": {
+        "avg": 1.01,
+        "med": 1,
+        "p95": 1.4
+      },
+      "sprites": 808,
+      "fx": {
+        "peak": 196,
+        "budget": 800,
+        "dropped": 0,
+        "decals": 3,
+        "effects": 7
+      }
+    },
+    {
+      "baked": true,
+      "view": "scroll",
+      "render": {
+        "avg": 0.34,
+        "med": 0.3,
+        "p95": 0.6
+      },
+      "pixi": {
+        "avg": 0.727,
+        "med": 0.7,
+        "p95": 1.1
+      },
+      "sprites": 653,
+      "fx": {
+        "peak": 114,
+        "budget": 800,
+        "dropped": 0,
+        "decals": 5,
+        "effects": 9
+      }
+    },
+    {
+      "baked": true,
+      "view": "fight",
+      "render": {
+        "avg": 0.719,
+        "med": 0.6,
+        "p95": 0.9
+      },
+      "pixi": {
+        "avg": 1.201,
+        "med": 1.1,
+        "p95": 1.6
+      },
+      "sprites": 1115,
+      "fx": {
+        "peak": 193,
+        "budget": 800,
+        "dropped": 0,
+        "decals": 5,
+        "effects": 16
+      }
+    },
+    {
+      "baked": true,
+      "view": "powers",
+      "render": {
+        "avg": 0.737,
+        "med": 0.6,
+        "p95": 1.3
+      },
+      "pixi": {
+        "avg": 1.207,
+        "med": 1.1,
+        "p95": 1.8
+      },
+      "sprites": 1166,
+      "fx": {
+        "peak": 503,
+        "budget": 800,
+        "dropped": 89,
+        "decals": 55,
+        "effects": 28
+      }
+    }
+  ],
+  "errors": []
+}

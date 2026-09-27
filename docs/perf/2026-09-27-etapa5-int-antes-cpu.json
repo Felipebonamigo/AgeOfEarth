@@ -1,0 +1,114 @@
+{
+  "date": "2026-09-27",
+  "commit": "db1877c (main, build servida na porta 4251)",
+  "label": "etapa5-int-antes",
+  "url": "http://localhost:4251/",
+  "quality": "low",
+  "frames": 150,
+  "note": "CPU por quadro (ms) em laço síncrono, resolução 0,25 (sem rasterização relevante); render = renderer.render, pixi = app.renderer.render.",
+  "scenario": {
+    "units": 260,
+    "buildings": 133,
+    "localAlive": false,
+    "warmMinutes": 20,
+    "battle": {
+      "x": 72,
+      "y": 72,
+      "a": 100,
+      "b": 100
+    }
+  },
+  "results": [
+    {
+      "baked": true,
+      "view": "zoom1",
+      "render": {
+        "avg": 0.437,
+        "med": 0.4,
+        "p95": 0.7
+      },
+      "pixi": {
+        "avg": 0.788,
+        "med": 0.7,
+        "p95": 1.3
+      },
+      "sprites": 899
+    },
+    {
+      "baked": true,
+      "view": "zoomOut",
+      "render": {
+        "avg": 1.27,
+        "med": 1.1,
+        "p95": 2
+      },
+      "pixi": {
+        "avg": 3.721,
+        "med": 3.5,
+        "p95": 5.9
+      },
+      "sprites": 5827
+    },
+    {
+      "baked": true,
+      "view": "battle",
+      "render": {
+        "avg": 0.557,
+        "med": 0.4,
+        "p95": 0.7
+      },
+      "pixi": {
+        "avg": 1.106,
+        "med": 1,
+        "p95": 1.7
+      },
+      "sprites": 824
+    },
+    {
+      "baked": true,
+      "view": "scroll",
+      "render": {
+        "avg": 0.335,
+        "med": 0.3,
+        "p95": 0.7
+      },
+      "pixi": {
+        "avg": 0.752,
+        "med": 0.7,
+        "p95": 1.3
+      },
+      "sprites": 660
+    },
+    {
+      "baked": true,
+      "view": "fight",
+      "render": {
+        "avg": 0.551,
+        "med": 0.5,
+        "p95": 1
+      },
+      "pixi": {
+        "avg": 1.124,
+        "med": 1,
+        "p95": 1.6
+      },
+      "sprites": 1121
+    },
+    {
+      "baked": true,
+      "view": "powers",
+      "render": {
+        "avg": 0.434,
+        "med": 0.4,
+        "p95": 0.7
+      },
+      "pixi": {
+        "avg": 1.066,
+        "med": 1,
+        "p95": 1.5
+      },
+      "sprites": 1097
+    }
+  ],
+  "errors": []
+}

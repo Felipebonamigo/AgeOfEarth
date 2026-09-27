@@ -3,8 +3,8 @@
 // (pausa congela), física (gravidade com quique, arrasto, vento), alfa/escala/cor no tempo, flipbook e a receita da
 // fumaça dos edifícios igual à do SmokeLayer da Etapa 3.
 import { describe, it, expect } from 'vitest';
-import { Texture, type Particle } from 'pixi.js';
-import { ParticleSystem, PRIO, WIND, type EmitSpec } from '../src/render/particles';
+import { Particle as PixiParticle, Texture, type Particle } from 'pixi.js';
+import { ParticleSystem, PRIO, WIND, setColor, type EmitSpec } from '../src/render/particles';
 import { PARTICLE_BUDGET } from '../src/render/quality';
 import { GROUP_CAP, PRIO_CAP } from '../src/render/fx/logic';
 import { smokePuffs } from '../src/render/fx/emitters';
@@ -149,5 +149,17 @@ describe('fumaça dos edifícios (Etapa 3 migrada sem mudar de aparência)', () 
     // a fumaça escura (dano pesado) é mais escura e mais opaca; teto de 35 % do orçamento
     const d = new ParticleSystem(); d.budget = 100;
     expect(smokePuffs(d, fakeTex, 100, 0, 1, 0, 1, true)).toBe(35);
+  });
+});
+
+describe('cor direta no lote (integração da Etapa 5)', () => {
+  it('setColor grava no `color` do Particle o mesmo que os setters tint + alpha do Pixi (e os getters continuam certos)', () => {
+    for (const [c, a] of [[0xffffff, 1], [0x999999, 0.4], [0x2f4fa8, 0.5], [0xa8322f, 0], [0x123456, 0.999], [0xd0a12e, 1.5], [0x5a8a2f, -0.2]] as const) {
+      const ref = new PixiParticle({ texture: Texture.WHITE }); ref.tint = c; ref.alpha = a;
+      const p = new PixiParticle({ texture: Texture.WHITE }); setColor(p, c, a);
+      expect(p.color).toBe(ref.color);
+      expect(p.tint).toBe(ref.tint);
+      expect(p.alpha).toBe(ref.alpha);
+    }
   });
 });

@@ -100,7 +100,7 @@ const center = { x: scene.x0 + scene.W / 2, y: scene.y0 + scene.H / 2 + 0.3 };
 await look(center, 1.0); await shot('cidade');
 
 const checks = await page.evaluate((LOT) => {
-  const s = window.aoe.session, R = window.aoe.renderer, out = { baked: {}, procedural: [], states: {}, rubble: R.rubbleViews.length, smoke: R.smoke.count };
+  const s = window.aoe.session, R = window.aoe.renderer, out = { baked: {}, procedural: [], states: {}, rubble: R.rubbleViews.length, smoke: R.fx.smokeCount };
   for (const [id, v] of R.views) {
     const b = s.state.buildings.get(id); if (!b || !LOT.includes(b.type)) continue;
     if (!v.bld) { out.procedural.push(b.type); continue; }
