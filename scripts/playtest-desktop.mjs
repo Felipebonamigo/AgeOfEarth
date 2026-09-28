@@ -110,6 +110,19 @@ try {
   check(!!settingsFile && JSON.parse(settingsFile).edgeScroll === false && JSON.parse(settingsFile).locale === 'en', 'opções gravadas em saves/settings.json', settingsFile?.slice(0, 80) ?? 'ausente');
   check(readSave(savesDir, 'locale.json') === 'en', 'idioma gravado em saves/locale.json');
 
+  // Etapa 8: fundo pintado do menu e fonte dos títulos (Cinzel) servidos pelo app://
+  const look = await page.evaluate(async () => {
+    const bg = getComputedStyle(document.getElementById('menu')).backgroundImage;
+    const url = (bg.match(/url\("([^"]*fundo-menu\.jpg)"\)/) ?? [])[1] ?? null;
+    let img = false;
+    if (url) { const i = new Image(); i.src = url; try { await i.decode(); img = i.naturalWidth === 1920; } catch { img = false; } }
+    await document.fonts.ready;
+    const font = [...document.fonts].some((f) => f.family.replace(/["']/g, '') === 'Cinzel' && f.status === 'loaded');
+    return { url, img, font };
+  });
+  check(look.img && !!look.url?.startsWith('app://'), 'fundo pintado do menu carregado pelo app://', look.url ?? 'sem url');
+  check(look.font, 'fonte Cinzel dos títulos carregada pelo app://');
+
   // partida rápida + save (F5) → saves/save.json
   await page.fill('#m-seed', '7'); await page.click('#m-start');
   await page.waitForFunction(() => !!window.aoe.session && window.aoe.session.state.tick > 0, null, { timeout: 60_000 });
@@ -159,7 +172,7 @@ try {
   }));
   check(after.probe2 === null, 'o localStorage estava mesmo vazio (chave fora do espelho sumiu)', String(after.probe2));
   check(after.edge === false && after.locale === 'en' && !!after.settings, 'opções restauradas do arquivo (sem rolagem pela borda, inglês)', `edge=${after.edge} locale=${after.locale}`);
-  check(after.play === '▶ Play', 'menu já abre em inglês', String(after.play));
+  check(after.play === 'Play', 'menu já abre em inglês', String(after.play));   // o ▶ virou glifo (Etapa 8): o texto do botão é só a palavra
   check(after.save === (saveFile ?? '').length && after.load, 'save restaurado do arquivo (Carregar habilitado)', `${Math.round(after.save / 1024)} KB`);
   const restoredLog = logs.find((l) => l.startsWith('cloud:')) ?? '';
   check(/aoe_settings_v1/.test(restoredLog) && /aoe_save_v1/.test(restoredLog), 'boot registra o que restaurou', restoredLog.slice(0, 160));
