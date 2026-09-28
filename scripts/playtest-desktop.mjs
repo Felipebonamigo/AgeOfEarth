@@ -117,6 +117,10 @@ try {
   await page.waitForTimeout(6000);
   const t1 = await page.evaluate(() => window.aoe.session.state.tick);
   check(t1 > t0 + 20, 'partida avança', `tick ${t0} → ${t1}`);
+  // ícones do HUD (atlas hud, Etapa 7) e arte assada servidos pelo app:// (sem emoji no topo)
+  await page.waitForFunction(() => document.querySelectorAll('#top .res img.hic').length >= 5, null, { timeout: 30_000 }).catch(() => {});
+  const hud = await page.evaluate(() => ({ icons: document.querySelectorAll('#hud img.hic').length, empty: document.querySelectorAll('#hud .hic-ph').length, art: window.aoe.renderer.art?.atlas?.status?.() ?? null }));
+  check(hud.icons >= 6 && hud.empty === 0, 'ícones do HUD carregados pelo app:// (atlas hud)', `${hud.icons} ícones, ${hud.empty} vazios`);
   const gpu = await page.evaluate(() => window.aoe.renderer.gpuName?.() ?? null);
   console.log('   GPU:', gpu);
   if (shot) { await page.screenshot({ path: shot }); console.log('   captura:', shot); }
