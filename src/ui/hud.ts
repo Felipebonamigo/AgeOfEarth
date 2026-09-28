@@ -1,7 +1,7 @@
 // Interface em DOM: barra de recursos, painel de seleção, grade de comandos, poderes divinos,
 // minimapa, mensagens, tooltips e modais (deuses menores, menu, ajuda, enciclopédia, fim de jogo).
 import { RESOURCES, RESOURCE_ICONS, STANCES, TICK_RATE, MAX_SCHOLARS, SCHOLAR_COST, WONDER_VICTORY_SECONDS, KOTH_SECONDS, FORMATIONS, PLAYER_COLORS, rankOf, type ResourceType, type Stance, type Formation } from '../core/constants';
-const FORMATION_ICONS: Record<Formation, string> = { line: '▬', box: '▦', column: '▮', wedge: '▲' };
+const FORMATION_GLYPHS: Record<Formation, string> = { line: 'fLine', box: 'fBox', column: 'fColumn', wedge: 'fWedge' };
 import { teamNames } from '../core/sim/modes';
 import { relicsOf } from '../core/sim/relics';
 import { AGES, BUILDINGS, BUILD_MENU, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS, ACADEMY_LINES, ABILITIES } from '../core/data';
@@ -29,17 +29,35 @@ const isOfficialScenario = (id: string) => id === HORDE.id || isCampaignMission(
 /** Cenário da partida (embutido ou JSON compilado no idioma atual); um JSON inválido vira "sem cenário" em vez de derrubar o HUD. */
 const scenarioOf = (state: GameState): ScenarioDef | undefined => { try { return getScenarioFor(state); } catch { return undefined; } };
 import { t } from '../i18n';
-import { esc } from './html';
+import { esc, noEmoji } from './html';
 import { optionsHTML, bindOptions, type OptionsContext } from './options';
 import { padHelpRows } from './gamepad';
 import { DialogueQueue } from './dialogue';
 import { creditsHTML } from './credits';
 import { storeSet } from '../game/cloud';
+import { ic, iconHtml, iconsGeneration, loadIcons, onIconsReady } from './icons';
+import { glyph } from './glyphs';
+
+/** Ícone de quem fala / de um cenário: o emoji do roteiro (ícone de deus ou de unidade nos dados) vira o retrato ou o
+ *  ícone correspondente do atlas `hud`; sem correspondência, o glifo de fala (nunca o emoji). */
+let speakerMap: Map<string, string> | null = null;
+function speakerIcon(emoji: string, cls = ''): string {
+  if (!speakerMap) {
+    speakerMap = new Map();
+    for (const [id, g] of Object.entries(MAJOR_GODS)) speakerMap.set(g.icon, `god/${id}`);
+    for (const [id, g] of Object.entries(MINOR_GODS)) if (!speakerMap.has(g.icon)) speakerMap.set(g.icon, `god/${id}`);
+    // titãs e heróis antes das criaturas (ícones repetidos: 🔥 é Prometeu, não a Quimera)
+    const units = Object.values(UNITS).sort((a, b) => (a.cls === 'titan' || a.cls === 'hero' ? 0 : 1) - (b.cls === 'titan' || b.cls === 'hero' ? 0 : 1));
+    for (const u of units) if (!speakerMap.has(u.icon)) speakerMap.set(u.icon, `unit/${u.id}`);
+  }
+  const name = speakerMap.get(emoji.trim());
+  return name ? iconHtml(name, { cls }) : `<span class="hic hic-gly ${cls}">${glyph('chat')}</span>`;
+}
 
 export interface HUDCallbacks { onSave: () => void; onLoad: () => void; onQuit: () => void; hasSave: () => boolean; onNextMission?: (currentId: string) => void; onExport?: () => void; onImport?: () => void; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onDiagnostic?: () => void; onExportMap?: () => void; onSaveMapLocal?: () => void }
 
 const el = (tag: string, cls?: string, html?: string): HTMLElement => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
-const fmtCost = (cost: Record<string, number>, player?: { resources: Record<string, number> }) => Object.entries(cost).filter(([, v]) => v > 0).map(([k, v]) => `<span class="${player && player.resources[k] < v ? 'miss' : ''}">${RESOURCE_ICONS[k as ResourceType]} ${v}</span>`).join('');
+const fmtCost = (cost: Record<string, number>, player?: { resources: Record<string, number> }) => Object.entries(cost).filter(([, v]) => v > 0).map(([k, v]) => `<span class="${player && player.resources[k] < v ? 'miss' : ''}">${ic.res(k)} ${v}</span>`).join('');
 /**
  * Escala da interface (CSS zoom em #menu/#modal-back) também multiplica `vh`: publica o zoom em --uiz para o CSS
  * limitar a altura (`calc(94vh / var(--uiz))`) e a caixa caber na tela (Steam Deck 1280×800 a 130 %).
@@ -49,6 +67,8 @@ export function syncUiZoom(el: HTMLElement): void {
   if (typeof MutationObserver !== 'undefined') new MutationObserver(sync).observe(el, { attributes: true, attributeFilter: ['style'] });
   sync();
 }
+/** Texto de dica (i18n): os símbolos de tempo e população viram glifos; o resto dos emoji sai (Etapa 7). */
+const tipHtml = (html: string): string => noEmoji(html.replace(/⏱\uFE0F?/g, glyph('clock')).replace(/👥/g, glyph('people')));
 const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 export class HUD {
@@ -87,7 +107,18 @@ export class HUD {
   constructor(root: HTMLElement, renderer: Renderer, audio: Audio, cb: HUDCallbacks) {
     this.root = root; this.renderer = renderer; this.audio = audio; this.cb = cb;
     this.mount();
+    // ícones do HUD (atlas `hud`, independe da arte assada): ao chegar, redesenha o que tem ícone
+    onIconsReady(() => { this.redrawIcons(); });
+    void loadIcons();
   }
+
+  /** Redesenha o que mostra ícones (recursos no topo, seleção, comandos, poderes, objetivos) quando o atlas chega. */
+  private redrawIcons() {
+    for (const r of RESOURCES) { const sp = this.resEls[r]?.querySelector('span'); if (sp) sp.innerHTML = ic.res(r); }
+    this.lastSelKey = ''; this.lastCmdKey = ''; this.lastObjKey = ''; this.lastAgeKey = ''; this.godsPanel.dataset.key = '';
+    if (this.session) { this.refreshTop(); this.refreshSelection(true); this.refreshGods(); this.refreshObjectives(true); this.renderDialogue(); }
+  }
+  private lastAgeKey = '';
 
   setSession(s: Session | null) {
     this.session = s; this.lastEv = null; this.lastSelKey = ''; this.lastCmdKey = ''; this.lastCmdSel = ''; this.lastObjKey = ''; this.gameOverShown = false;   // lastObjKey: outra partida do mesmo cenário precisa redesenhar (e reexibir) o painel de objetivos
@@ -100,8 +131,8 @@ export class HUD {
   private mount() {
     const hud = el('div'); hud.id = 'hud';
     this.top = el('div'); this.top.id = 'top';
-    for (const r of RESOURCES) { const e = el('div', 'res', `<span>${RESOURCE_ICONS[r]}</span><b>0</b>`); e.title = t(`res.${r}`); this.resEls[r] = e; this.top.appendChild(e); }
-    this.popEl = el('div', 'res', `<span>👥</span><b>0/0</b>`); this.popEl.title = t('pop'); this.top.appendChild(this.popEl);
+    for (const r of RESOURCES) { const e = el('div', 'res', `<span>${ic.res(r)}</span><b>0</b>`); e.title = t(`res.${r}`); this.resEls[r] = e; this.top.appendChild(e); }
+    this.popEl = el('div', 'res', `<span class="gly-wrap">${glyph('people')}</span><b>0/0</b>`); this.popEl.title = t('pop'); this.top.appendChild(this.popEl);
     this.top.appendChild(el('div', 'spacer'));
     this.ageEl = el('div', 'age', ''); this.top.appendChild(this.ageEl);
     this.ageBtn = el('button', 'btn gold', t('top.advance')); this.ageBtn.id = 'age-btn'; this.ageBtn.addEventListener('click', () => this.tryAdvanceAge()); this.top.appendChild(this.ageBtn);
@@ -110,16 +141,17 @@ export class HUD {
     // Selo do modo de teste do editor (partida criada a partir do arquivo): clique volta ao editor
     this.testEl = el('button', 'btn gold hidden', t('editor.testBadge')); this.testEl.id = 'test-badge'; this.testEl.addEventListener('click', () => this.onBackToEditor?.()); this.top.appendChild(this.testEl);
     this.speedEl = el('div', '', ''); this.speedEl.id = 'speed'; this.top.appendChild(this.speedEl);
-    const speedBtns = [['⏸', 0], ['1×', 1], ['2×', 2], ['3×', 3]] as const;
-    for (const [lbl, sp] of speedBtns) { const b = el('button', 'btn', lbl); b.addEventListener('click', () => { if (!this.session) return; if (sp === 0) this.session.paused = !this.session.paused; else { this.session.speed = sp; this.session.paused = false; } this.refreshTop(); }); this.speedEl.appendChild(b); }
-    const mute = el('button', 'btn', this.audio.muted ? '🔇' : '🔊'); mute.addEventListener('click', () => { mute.textContent = this.audio.toggleMute() ? '🔇' : '🔊'; }); this.top.appendChild(mute); this.muteBtn = mute;
-    const menuBtn = el('button', 'btn', t('top.menu')); menuBtn.id = 'top-menu'; menuBtn.addEventListener('click', () => this.showMenu()); this.top.appendChild(menuBtn);
+    const speedBtns = [[glyph('pause'), 0], ['1×', 1], ['2×', 2], ['3×', 3]] as const;
+    for (const [lbl, sp] of speedBtns) { const b = el('button', 'btn', lbl); if (sp === 0) b.title = t('top.pauseTip'); b.addEventListener('click', () => { if (!this.session) return; if (sp === 0) this.session.paused = !this.session.paused; else { this.session.speed = sp; this.session.paused = false; } this.refreshTop(); }); this.speedEl.appendChild(b); }
+    const mute = el('button', 'btn', glyph(this.audio.muted ? 'mute' : 'sound')); mute.dataset.muted = String(this.audio.muted); mute.title = t('top.muteTip');
+    mute.addEventListener('click', () => { const m = this.audio.toggleMute(); mute.innerHTML = glyph(m ? 'mute' : 'sound'); mute.dataset.muted = String(m); }); this.top.appendChild(mute); this.muteBtn = mute;
+    const menuBtn = el('button', 'btn', `${glyph('menu')} ${esc(noEmoji(t('top.menu')))}`); menuBtn.id = 'top-menu'; menuBtn.addEventListener('click', () => this.showMenu()); this.top.appendChild(menuBtn);
     hud.appendChild(this.top);
 
     this.bottom = el('div'); this.bottom.id = 'bottom';
     const mmWrap = el('div'); mmWrap.id = 'minimap-wrap';
     const mm = document.createElement('canvas'); mm.id = 'minimap'; mmWrap.appendChild(mm);
-    this.idleBtn = el('button', 'btn'); this.idleBtn.id = 'idle'; this.idleBtn.textContent = t('top.idle', { n: 0 }); this.idleBtn.title = t('top.idleTip'); this.idleBtn.addEventListener('click', () => this.selectIdleVillager()); mmWrap.appendChild(this.idleBtn);
+    this.idleBtn = el('button', 'btn'); this.idleBtn.id = 'idle'; this.idleBtn.textContent = noEmoji(t('top.idle', { n: 0 })); this.idleBtn.title = t('top.idleTip'); this.idleBtn.addEventListener('click', () => this.selectIdleVillager()); mmWrap.appendChild(this.idleBtn);
     this.bottom.appendChild(mmWrap);
     this.minimap = new Minimap(mm);
     mm.addEventListener('contextmenu', (e) => e.preventDefault());   // botão direito no minimapa não abre o menu do navegador
@@ -156,7 +188,7 @@ export class HUD {
   get hudVisible() { return !this.root.querySelector('#hud')!.classList.contains('hidden'); }
   setVisible(v: boolean) { (this.root.querySelector('#hud') as HTMLElement).classList.toggle('hidden', !v); }
 
-  showTooltip(html: string, x: number, y: number) { this.tooltip.innerHTML = html; this.tooltip.classList.remove('hidden'); this.positionTooltip(x, y); }
+  showTooltip(html: string, x: number, y: number) { this.tooltip.innerHTML = tipHtml(html); this.tooltip.classList.remove('hidden'); this.positionTooltip(x, y); }
   hideTooltip() { this.tooltip.classList.add('hidden'); }
   private positionTooltip(x: number, y: number) {
     const r = this.tooltip.getBoundingClientRect();
@@ -187,7 +219,7 @@ export class HUD {
   setTestMode(cb: (() => void) | null) { this.onBackToEditor = cb; this.testEl.classList.toggle('hidden', !cb); }
   /** Aviso na coluna de mensagens. Texto puro (textContent): chat, nomes de jogadores e textos de cenário vêm de outros pares. */
   toast(text: string, kind: 'info' | 'warn' | 'good' | 'gold' = 'info', pos?: { x: number; y: number }) {
-    const t = el('div', `toast ${kind}`); t.textContent = text;
+    const t = el('div', `toast ${kind}`); t.textContent = noEmoji(text);   // textos de roteiro e mensagens do núcleo podem trazer emoji
     if (pos) t.addEventListener('click', () => { this.renderer.cam.centerOn(pos.x, pos.y); });
     this.msgPanel.appendChild(t);
     while (this.msgPanel.children.length > 6) this.msgPanel.removeChild(this.msgPanel.firstChild!);
@@ -241,17 +273,23 @@ export class HUD {
 
   refreshTop() {
     const s = this.session; if (!s) return;
-    if (this.muteBtn) { const icon = this.audio.muted ? '🔇' : '🔊'; if (this.muteBtn.textContent !== icon) this.muteBtn.textContent = icon; }   // mudo pelas opções ou Ctrl+M
+    if (this.muteBtn && this.muteBtn.dataset.muted !== String(this.audio.muted)) { this.muteBtn.innerHTML = glyph(this.audio.muted ? 'mute' : 'sound'); this.muteBtn.dataset.muted = String(this.audio.muted); }   // mudo pelas opções ou Ctrl+M
     const p = s.player;
     for (const r of RESOURCES) { const e = this.resEls[r]; e.querySelector('b')!.textContent = String(Math.floor(p.resources[r])); e.classList.toggle('low', p.resources[r] < 50 && r !== 'knowledge' && r !== 'favor'); }
     this.popEl.querySelector('b')!.textContent = `${p.pop}/${p.popCap}`; this.popEl.classList.toggle('low', p.pop >= p.popCap);
     const age = AGES[p.age];
-    this.ageEl.innerHTML = `${age.icon} ${age.name} · ${MAJOR_GODS[p.god].icon} ${MAJOR_GODS[p.god].name}${p.minorGods.length ? ' · ' + p.minorGods.map((g) => MINOR_GODS[g].icon).join('') : ''}`;
-    this.ageEl.title = this.ageEl.textContent ?? '';   // texto completo quando a barra compacta corta com reticências
+    // (só redesenha quando muda: o innerHTML com <img> a cada 0,12 s faria os retratos piscarem)
+    const ageKey = `${p.age}|${p.god}|${p.minorGods.join(',')}|${iconsGeneration()}`;
+    if (ageKey !== this.lastAgeKey) {
+      this.lastAgeKey = ageKey;
+      this.ageEl.innerHTML = `${ic.age(p.age, 'sm')} ${age.name} · ${ic.god(p.god, 'sm')} ${MAJOR_GODS[p.god].name}${p.minorGods.length ? ' · ' + p.minorGods.map((g) => ic.god(g, 'sm')).join('') : ''}`;
+      this.ageEl.title = `${age.name} · ${MAJOR_GODS[p.god].name}${p.minorGods.length ? ' · ' + p.minorGods.map((g) => MINOR_GODS[g].name).join(', ') : ''}`;   // texto completo quando a barra compacta corta com reticências
+    }
     const adv = canAdvanceAge(s.state, p);
     const inProgress = [...s.state.buildings.values()].some((b) => b.owner === p.id && b.queue.some((q) => q.kind === 'age'));
     const capped = p.age < AGES.length - 1 && p.age >= maxAgeOf(s.state, p.id);   // G6: Idade máxima da missão (o tooltip diz o motivo)
-    this.ageBtn.textContent = inProgress ? t('top.advancing') : p.age >= AGES.length - 1 ? t('top.maxAge') : `⬆ ${AGES[p.age + 1].name}`;
+    const ageLbl = inProgress ? t('top.advancing') : p.age >= AGES.length - 1 ? t('top.maxAge') : `${glyph('up')} ${AGES[p.age + 1].name}`;
+    if (this.ageBtn.dataset.lbl !== ageLbl) { this.ageBtn.dataset.lbl = ageLbl; this.ageBtn.innerHTML = ageLbl; }
     (this.ageBtn as HTMLButtonElement).disabled = inProgress || p.age >= AGES.length - 1 || capped;
     this.ageBtn.dataset.tip = p.age >= AGES.length - 1 ? t('top.maxAgeTip') : `<b>${AGES[p.age + 1].name}</b><div class="cost">${fmtCost(AGES[p.age + 1].cost as Record<string, number>, p)}</div><div class="desc">${AGES[p.age + 1].desc}</div>${adv.ok ? '' : `<div style="color:#ef4444;margin-top:4px">${adv.reason ?? ''}</div>`}`;
     this.ageBtn.classList.toggle('primary', adv.ok);
@@ -262,10 +300,10 @@ export class HUD {
     this.modeEl.textContent = (s.spectator ? t('top.spectator') + ' ' : '') + (k && !s.state.scenario ? (k.team === -1 ? t('top.kothNone') : t('top.koth', { who: teamNames(s.state, k.team), s: k.seconds, total: KOTH_SECONDS })) : '') + (relics > 0 ? ' ' + t('top.relics', { n: relics }) : '');
     this.modeEl.dataset.tip = relics > 0 ? t('top.relicsTip') : '';
     const waiting = (s.scheduler as { waiting?: number }).waiting ?? 0;
-    this.clockEl.textContent = fmtTime(s.state.time) + (s.paused ? ' ⏸' : s.speed !== 1 ? ` ${s.speed}×` : '') + (waiting > 10 ? ' ' + t('top.waiting') : '');
+    this.clockEl.textContent = fmtTime(s.state.time) + (s.paused ? ' ‖' : s.speed !== 1 ? ` ${s.speed}×` : '') + (waiting > 10 ? ' ' + noEmoji(t('top.waiting')) : '');
     let idle = 0;
     for (const u of s.state.units.values()) if (u.owner === p.id && u.type === 'villager' && u.state === 'idle' && !u.order) idle++;
-    this.idleBtn.textContent = t('top.idle', { n: idle });
+    this.idleBtn.textContent = noEmoji(t('top.idle', { n: idle }));
     this.idleBtn.classList.toggle('gold', idle > 0);
   }
 
@@ -292,7 +330,7 @@ export class HUD {
     if (!d) { this.dlgPanel.classList.add('hidden'); return; }
     const [icon, speaker] = d.meta.split('|');
     const more = this.dlg.waiting > 0 ? ` · +${this.dlg.waiting}` : '';
-    this.dlgPanel.innerHTML = `<span class="ic">${esc(icon)}</span><div><b>${esc(speaker)}</b><div>${esc(d.text)}</div></div><small>${t('modal.close').toLowerCase()}${more}</small>`;
+    this.dlgPanel.innerHTML = `<span class="ic">${speakerIcon(icon ?? '', 'hic-portrait')}</span><div><b>${esc(noEmoji(speaker ?? ''))}</b><div>${esc(noEmoji(d.text))}</div></div><small>${t('modal.close').toLowerCase()}${more}</small>`;
     this.dlgPanel.classList.remove('hidden');
   }
 
@@ -306,8 +344,8 @@ export class HUD {
     const key = Object.entries(sc.objectives).map(([k, v]) => `${k}${v}${sc.hidden[k] ? 'h' : ''}`).join(',') + Math.floor(s.state.time / 5) + '|' + extra;
     if (!force && key === this.lastObjKey) return;
     this.lastObjKey = key;
-    const rows = def.objectives.filter((o) => !sc.hidden[o.id]).map((o) => { const st = sc.objectives[o.id]; return `<li class="${st}">${st === 'done' ? '✅' : st === 'failed' ? '❌' : '◻️'} ${esc(o.text)}${o.optional ? ` <small>${t('mission.optional')}</small>` : ''}</li>`; }).join('');
-    this.objPanel.innerHTML = `<h4>${esc(def.icon)} ${esc(def.title)}</h4><ul>${rows}</ul>${extra}`;   // textos do cenário escapados: o JSON pode vir do anfitrião
+    const rows = def.objectives.filter((o) => !sc.hidden[o.id]).map((o) => { const st = sc.objectives[o.id]; return `<li class="${st}">${glyph(st === 'done' ? 'check' : st === 'failed' ? 'cross' : 'box', `obj-${st}`)} ${esc(noEmoji(o.text))}${o.optional ? ` <small>${t('mission.optional')}</small>` : ''}</li>`; }).join('');
+    this.objPanel.innerHTML = `<h4>${speakerIcon(def.icon, 'sm')} ${esc(noEmoji(def.title))}</h4><ul>${rows}</ul>${extra}`;   // textos do cenário escapados: o JSON pode vir do anfitrião
     this.objPanel.classList.remove('hidden');
   }
 
@@ -316,13 +354,17 @@ export class HUD {
     const p = s.player;
     // G11: o roteiro tirou (ou gastou) o poder que estava sendo mirado: sai do modo de mira
     if (s.ui.mode === 'power' && s.ui.powerId && !p.powers.some((x) => x.id === s.ui.powerId && !x.used)) { this.cancelMode(); return; }
-    const key = p.powers.map((x) => `${x.id}${x.used ? 1 : 0}`).join(',') + s.ui.powerId;
+    const key = p.powers.map((x) => `${x.id}${x.used ? 1 : 0}`).join(',') + s.ui.powerId + '|' + p.god + p.minorGods.join(',') + '|' + iconsGeneration();
     if (this.godsPanel.dataset.key === key) return;
     this.godsPanel.dataset.key = key;
     this.godsPanel.innerHTML = '';
+    // panteão do jogador: o deus maior e os menores escolhidos, em medalhões (Etapa 7: retratos no painel de deuses)
+    const pan = el('div', 'pantheon', `${ic.god(p.god, 'md')}${p.minorGods.map((g) => ic.god(g, 'md')).join('')}`);
+    pan.dataset.tip = `<b>${MAJOR_GODS[p.god].name}</b> — ${MAJOR_GODS[p.god].title}${p.minorGods.map((g) => `<div class="desc">${MINOR_GODS[g].name} — ${MINOR_GODS[g].title}</div>`).join('')}`;
+    this.godsPanel.appendChild(pan);
     for (const ps of p.powers) {
       const def = POWERS[ps.id];
-      const e = el('div', `pw ${ps.used ? 'used' : ''} ${s.ui.powerId === ps.id ? 'active' : ''}`, `<span class="ic">${def.icon}</span><span>${def.name}<br><small style="color:#9aa5b8">${ps.used ? t('power.used') : def.targeting === 'global' ? t('power.clickInvoke') : t('power.clickTarget')}</small></span>`);
+      const e = el('div', `pw ${ps.used ? 'used' : ''} ${s.ui.powerId === ps.id ? 'active' : ''}`, `<span class="ic">${ic.power(ps.id)}</span><span>${def.name}<br><small style="color:#9aa5b8">${ps.used ? t('power.used') : def.targeting === 'global' ? t('power.clickInvoke') : t('power.clickTarget')}</small></span>`);
       e.dataset.tip = `<b>${def.name}</b><div class="desc">${def.desc}</div>`;
       if (!ps.used) e.addEventListener('click', () => this.activatePower(ps.id));
       this.godsPanel.appendChild(e);
@@ -350,7 +392,7 @@ export class HUD {
     const s = this.session; if (!s) return;
     s.pruneSelection();
     const units = s.selectedUnits(), blds = s.selectedBuildings();
-    const key = [...s.selection].join(',') + '|' + units.map((u) => `${u.hp}`).join(',') + '|' + blds.map((b) => `${b.hp}${b.complete}${b.queue.map((q) => q.id + Math.floor(q.elapsed)).join('.')}${b.scholars}g${b.garrison.length}`).join(',') + '|' + s.ui.mode + s.ui.placeType + '|' + s.player.age + s.player.techs.length + Math.floor(s.state.tick / 10) + '|' + (this.renderer.art?.generation ?? 0);
+    const key = [...s.selection].join(',') + '|' + units.map((u) => `${u.hp}`).join(',') + '|' + blds.map((b) => `${b.hp}${b.complete}${b.queue.map((q) => q.id + Math.floor(q.elapsed)).join('.')}${b.scholars}g${b.garrison.length}`).join(',') + '|' + s.ui.mode + s.ui.placeType + '|' + s.player.age + s.player.techs.length + Math.floor(s.state.tick / 10) + '|' + (this.renderer.art?.generation ?? 0) + '|' + iconsGeneration();
     if (!force && key === this.lastSelKey) return;
     this.lastSelKey = key;
     this.selPanel.innerHTML = '';
@@ -364,7 +406,7 @@ export class HUD {
       const multi = el('div', 'multi');
       for (const e of [...units, ...blds].slice(0, 40)) {
         const def = e.kind === 'unit' ? UNITS[e.type] : BUILDINGS[e.type];
-        const mi = el('div', 'mi', `${e.kind === 'building' ? this.bIcon(e.type, e.owner) : def.icon}<div class="hp"><div style="width:${Math.round((e.hp / e.maxHp) * 100)}%"></div></div>`);
+        const mi = el('div', 'mi', `${e.kind === 'building' ? this.bIcon(e.type, e.owner) : ic.unit(e.type, s.state.players[e.owner].color)}<div class="hp"><div style="width:${Math.round((e.hp / e.maxHp) * 100)}%"></div></div>`);
         mi.dataset.tip = `<b>${esc(entityDisplayName(e))}</b> ${Math.round(e.hp)}/${e.maxHp}`;
         mi.addEventListener('click', (ev) => { if (ev.ctrlKey) s.select([e.id], true); else s.select([e.id]); });
         multi.appendChild(mi);
@@ -379,7 +421,7 @@ export class HUD {
     const st = getUnitStats(s.state, owner, u.type);
     const c = el('div');
     // G8: nome próprio do cenário no idioma atual (o tipo vai na descrição) e nome da facção por idioma
-    c.appendChild(el('div', 'title', `<span class="icon">${def.icon}</span>${esc(entityDisplayName(u))} <small style="color:${'#' + owner.color.toString(16).padStart(6, '0')}">${esc(playerDisplayName(s.state, u.owner))}</small>`));
+    c.appendChild(el('div', 'title', `<span class="icon">${ic.unit(u.type, owner.color, 'big')}</span>${esc(entityDisplayName(u))} <small style="color:${'#' + owner.color.toString(16).padStart(6, '0')}">${esc(playerDisplayName(s.state, u.owner))}</small>`));
     c.appendChild(el('div', 'hpbar', `<div style="width:${Math.round((u.hp / u.maxHp) * 100)}%"></div>`));
     const stats: string[] = [`${t('sel.hp')} <b>${Math.round(u.hp)}/${u.maxHp}</b>`];
     if (st.attack > 0) stats.push(`${t('sel.attack')} <b>${st.attack}</b> (${t(`dmg.${def.attackType}`)})`);
@@ -388,9 +430,9 @@ export class HUD {
     stats.push(`${t('sel.speed')} <b>${st.speed.toFixed(1)}</b>`);
     if (def.special === 'heads') stats.push(`${t('sel.heads')} <b>${u.heads}</b>`);
     if (u.kills > 0) stats.push(`${t('sel.kills')} <b>${u.kills}</b>`);
-    if (rankOf(u.kills) > 0 && UNITS[u.type].tags.includes('military') && !UNITS[u.type].tags.includes('titan')) stats.push(`${t('sel.rank')} <b>${'⭐'.repeat(rankOf(u.kills))}</b>`);
+    if (rankOf(u.kills) > 0 && UNITS[u.type].tags.includes('military') && !UNITS[u.type].tags.includes('titan')) stats.push(`${t('sel.rank')} <b class="rank">${glyph('star').repeat(rankOf(u.kills))}</b>`);
     if (u.owner === s.local) stats.push(`${t('sel.stance')} <b>${t(`stance.${u.stance}`)}</b>`);
-    if (u.carry && u.carryAmt > 0) stats.push(`${t('sel.carry')} <b>${RESOURCE_ICONS[u.carry]} ${Math.floor(u.carryAmt)}</b>`);
+    if (u.carry && u.carryAmt > 0) stats.push(`${t('sel.carry')} <b>${ic.res(u.carry)} ${Math.floor(u.carryAmt)}</b>`);
     if (u.owner === s.local) stats.push(`${t('sel.state')} <b>${t(`state.${u.state}`)}</b>`);
     c.appendChild(el('div', 'stats', stats.map((x) => `<span>${x}</span>`).join('')));
     const bonuses = Object.entries(def.bonus).map(([k, v]) => `×${v} vs ${t(`vs.${k}`)}`).join(', ');
@@ -402,7 +444,7 @@ export class HUD {
     const s = this.session!; const def = BUILDINGS[b.type]; const owner = s.state.players[b.owner];
     const st = getBuildingStats(s.state, owner, b.type);
     const c = el('div');
-    c.appendChild(el('div', 'title', `<span class="icon">${this.bIcon(b.type, b.owner)}</span>${esc(entityDisplayName(b))} <small style="color:${'#' + owner.color.toString(16).padStart(6, '0')}">${esc(playerDisplayName(s.state, b.owner))}</small>`));
+    c.appendChild(el('div', 'title', `<span class="icon">${this.bIcon(b.type, b.owner, 'big')}</span>${esc(entityDisplayName(b))} <small style="color:${'#' + owner.color.toString(16).padStart(6, '0')}">${esc(playerDisplayName(s.state, b.owner))}</small>`));
     if (!b.complete) c.appendChild(el('div', 'hpbar', `<div style="width:${Math.round((b.progress / st.buildTime) * 100)}%;background:#60a5fa"></div>`));
     else c.appendChild(el('div', 'hpbar', `<div style="width:${Math.round((b.hp / b.maxHp) * 100)}%"></div>`));
     const stats: string[] = [`${t('sel.hp')} <b>${Math.round(b.hp)}/${b.maxHp}</b>`];
@@ -421,7 +463,7 @@ export class HUD {
     if (b.owner === s.local && b.queue.length > 0) {
       const q = el('div', 'queue');
       b.queue.forEach((item, i) => {
-        const icon = item.kind === 'unit' ? UNITS[item.id].icon : item.kind === 'tech' ? TECHS[item.id].icon : item.kind === 'scholar' ? '🧑‍🏫' : AGES[owner.age + 1]?.icon ?? '⬆';
+        const icon = item.kind === 'unit' ? ic.unit(item.id, owner.color) : item.kind === 'tech' ? ic.tech(item.id) : item.kind === 'scholar' ? `<span class="hic hic-gly">${glyph('scholar')}</span>` : ic.age(owner.age + 1);
         const name = item.kind === 'unit' ? UNITS[item.id].name : item.kind === 'tech' ? TECHS[item.id].name : item.kind === 'scholar' ? t('cmd.scholar') : `${AGES[owner.age + 1]?.name ?? ''}`;
         const qi = el('div', 'qi', `${icon}<div class="prog" style="width:${i === 0 ? Math.round((item.elapsed / item.total) * 100) : 0}%"></div>`);
         qi.dataset.tip = `<b>${name}</b><div class="desc">${i === 0 ? t('sel.remaining', { n: Math.ceil(item.total - item.elapsed) }) : t('sel.queued')} · ${t('sel.clickCancel')}</div>`;
@@ -433,14 +475,9 @@ export class HUD {
     return c;
   }
 
-  /**
-   * Ícone de um edifício para o HUD: o assado (atlas `icons`, docs/ART.md Etapa 3) com os estandartes na cor do dono
-   * quando a arte assada está ligada e carregada; senão o emoji de sempre.
-   */
-  private bIcon(type: string, owner: number): string {
-    const color = PLAYER_COLORS[owner % PLAYER_COLORS.length].num;
-    const url = this.renderer.iconUrl?.(type, color) ?? null;
-    return url ? `<img class="art-ic" src="${url}" alt="${BUILDINGS[type]?.icon ?? ''}" draggable="false">` : (BUILDINGS[type]?.icon ?? '');
+  /** Ícone de um edifício para o HUD (atlas `hud`, com os estandartes na cor do dono). */
+  private bIcon(type: string, owner: number, cls?: string): string {
+    return ic.bld(type, PLAYER_COLORS[owner % PLAYER_COLORS.length].num, cls);
   }
 
   // ---------------- Comandos ----------------
@@ -448,7 +485,7 @@ export class HUD {
     const s = this.session; if (!s) return;
     const p = s.player;
     const units = s.ownSelectedUnits(); const b = s.ownSelectedBuilding();
-    const key = `${[...s.selection].join(',')}|${s.ui.mode}|${s.ui.placeType}|${this.renderer.art?.generation ?? 0}|${p.age}|${p.techs.length}|${p.minorGods.length}|${b?.garrison.length ?? 0}|${Object.values(p.resources).map((v) => Math.floor(v / 25)).join(',')}|${p.pop}/${p.popCap}|${b?.queue.length}|${b?.scholars}`;
+    const key = `${[...s.selection].join(',')}|${s.ui.mode}|${s.ui.placeType}|${this.renderer.art?.generation ?? 0}|${iconsGeneration()}|${p.age}|${p.techs.length}|${p.minorGods.length}|${b?.garrison.length ?? 0}|${Object.values(p.resources).map((v) => Math.floor(v / 25)).join(',')}|${p.pop}/${p.popCap}|${b?.queue.length}|${b?.scholars}`;
     if (!force && key === this.lastCmdKey) return;
     this.lastCmdKey = key;
     // a grade rola (styles.css): com a mesma seleção, o redesenho (recursos, fila…) mantém a rolagem; seleção nova volta ao topo
@@ -459,7 +496,7 @@ export class HUD {
     this.cmdPanel.innerHTML = '';
     const add = (icon: string, label: string, tip: string, hk: string | null, onClick: (() => void) | null, opts: { disabled?: boolean; active?: boolean; used?: boolean } = {}) => {
       const btn = el('button', `cmd ${opts.active ? 'active' : ''} ${opts.used ? 'used' : ''}`, `<span class="ic">${icon}</span><span class="lbl">${label}</span>${hk ? `<span class="hk">${hk}</span>` : ''}`) as HTMLButtonElement;
-      btn.dataset.tip = tip; btn.disabled = !!opts.disabled;
+      btn.dataset.tip = tipHtml(tip); btn.disabled = !!opts.disabled;
       if (onClick) btn.addEventListener('click', () => { if (btn.disabled) return; onClick(); });
       this.cmdPanel.appendChild(btn);
       return btn;
@@ -480,29 +517,29 @@ export class HUD {
           const tip = `${t('cmd.buildTipB', { name: def.name, cost: fmtCost(cost, p), desc: def.desc })}${reasons.length ? `<div style="color:#ef4444;margin-top:4px">${reasons.join(' · ')}</div>` : ''}`;
           add(this.bIcon(type, s.local), def.name, tip, def.hotkey ?? null, () => this.startPlacement(type), { disabled: reasons.length > 0, active: s.ui.mode === 'place' && s.ui.placeType === type });
         }
-        add('✋', t('cmd.stop'), t('cmd.stopTipV'), '⇧S', () => { s.issue({ type: 'stop', player: s.local, ids: units.map((u) => u.id) }); });
+        add(glyph('stop'), t('cmd.stop'), t('cmd.stopTipV'), '⇧S', () => { s.issue({ type: 'stop', player: s.local, ids: units.map((u) => u.id) }); });
       } else {
         const ids = units.map((u) => u.id);
-        add('⚔️', t('cmd.attackMove'), t('cmd.attackMoveTip'), 'A', () => { s.ui.mode = 'attackMove'; document.body.className = 'cur-attack'; this.lastCmdKey = ''; this.refreshCommands(true); }, { active: s.ui.mode === 'attackMove' });
+        add(glyph('attack'), t('cmd.attackMove'), t('cmd.attackMoveTip'), 'A', () => { s.ui.mode = 'attackMove'; document.body.className = 'cur-attack'; this.lastCmdKey = ''; this.refreshCommands(true); }, { active: s.ui.mode === 'attackMove' });
         const seenAb = new Set<string>();
         for (const h of units) {
           const abId = UNITS[h.type].ability; if (!abId || seenAb.has(h.type)) continue; seenAb.add(h.type);
           const ab = ABILITIES[abId]; const left = Math.ceil((h.abilityReadyAt - s.state.tick) / TICK_RATE);
-          add(ab.icon, ab.name, `<b>${ab.icon} ${ab.name}</b> · ${UNITS[h.type].name}<div class="desc">${ab.desc}</div><div>${left > 0 ? t('cmd.abilityCooldown', { s: left }) : t('cmd.abilityReady')}</div>`, 'Q', () => { this.issueChecked({ type: 'ability', player: s.local, unitId: h.id }); this.lastCmdKey = ''; }, { disabled: left > 0 });
+          add(ic.ability(abId), ab.name, `<b>${ab.name}</b> · ${UNITS[h.type].name}<div class="desc">${ab.desc}</div><div>${left > 0 ? t('cmd.abilityCooldown', { s: left }) : t('cmd.abilityReady')}</div>`, 'Q', () => { this.issueChecked({ type: 'ability', player: s.local, unitId: h.id }); this.lastCmdKey = ''; }, { disabled: left > 0 });
         }
-        add('✋', t('cmd.stop'), t('cmd.stopTip'), 'S', () => { s.issue({ type: 'stop', player: s.local, ids }); });
-        if (units.length >= 4) for (const f of FORMATIONS) add(FORMATION_ICONS[f], t(`formation.${f}`), `<b>${t(`formation.${f}`)}</b><div class="desc">${t(`formation.${f}Tip`)}</div>`, null, () => { s.ui.formation = f; this.lastCmdKey = ''; this.refreshCommands(true); }, { active: s.ui.formation === f });
+        add(glyph('stop'), t('cmd.stop'), t('cmd.stopTip'), 'S', () => { s.issue({ type: 'stop', player: s.local, ids }); });
+        if (units.length >= 4) for (const f of FORMATIONS) add(glyph(FORMATION_GLYPHS[f]), t(`formation.${f}`), `<b>${t(`formation.${f}`)}</b><div class="desc">${t(`formation.${f}Tip`)}</div>`, null, () => { s.ui.formation = f; this.lastCmdKey = ''; this.refreshCommands(true); }, { active: s.ui.formation === f });
         const stance = units[0].stance;
-        for (const k of Object.keys(STANCES)) add(k === 'aggressive' ? '🔥' : k === 'defensive' ? '🛡️' : '🕊️', t(`stance.${k}`), `<b>${t('cmd.stance', { name: t(`stance.${k}`) })}</b><div class="desc">${t(`cmd.stanceTip.${k}`)}</div>`, null, () => { s.issue({ type: 'stance', player: s.local, ids, stance: k as Stance }); this.lastCmdKey = ''; }, { active: stance === k });
-        if (villagers.length > 0) add('🏗️', t('cmd.build'), t('cmd.buildTip'), null, () => { s.select(villagers.map((u) => u.id)); });
+        for (const k of Object.keys(STANCES)) add(glyph(k === 'aggressive' ? 'aggressive' : k === 'defensive' ? 'defensive' : 'passive'), t(`stance.${k}`), `<b>${t('cmd.stance', { name: t(`stance.${k}`) })}</b><div class="desc">${t(`cmd.stanceTip.${k}`)}</div>`, null, () => { s.issue({ type: 'stance', player: s.local, ids, stance: k as Stance }); this.lastCmdKey = ''; }, { active: stance === k });
+        if (villagers.length > 0) add(glyph('build'), t('cmd.build'), t('cmd.buildTip'), null, () => { s.select(villagers.map((u) => u.id)); });
       }
-      if (units.some((u) => ['civilian', 'infantry', 'archer', 'skirmisher', 'hero'].some((t) => UNITS[u.type].tags.includes(t)))) add('🏰', t('cmd.garrison'), t('cmd.garrisonTip'), null, () => this.garrisonNearest(units));
-      add('🗑️', t('cmd.dismiss'), t('cmd.dismissTip'), 'Del', () => { s.issue({ type: 'delete', player: s.local, ids: units.map((u) => u.id) }); });
+      if (units.some((u) => ['civilian', 'infantry', 'archer', 'skirmisher', 'hero'].some((t) => UNITS[u.type].tags.includes(t)))) add(glyph('garrison'), t('cmd.garrison'), t('cmd.garrisonTip'), null, () => this.garrisonNearest(units));
+      add(glyph('trash'), t('cmd.dismiss'), t('cmd.dismissTip'), 'Del', () => { s.issue({ type: 'delete', player: s.local, ids: units.map((u) => u.id) }); });
       return;
     }
     if (b) {
       const def = BUILDINGS[b.type];
-      if (!b.complete) { add('❌', t('cmd.cancelBuild'), t('cmd.cancelBuildTip'), null, () => { s.issue({ type: 'cancel', player: s.local, buildingId: b.id, index: -1 }); s.select([]); }); return; }
+      if (!b.complete) { add(glyph('cancel'), t('cmd.cancelBuild'), t('cmd.cancelBuildTip'), null, () => { s.issue({ type: 'cancel', player: s.local, buildingId: b.id, index: -1 }); s.select([]); }); return; }
       if (def.trains) for (const ut of def.trains) {
         const ud = UNITS[ut];
         if (ud.age > p.age + 1) continue;
@@ -510,11 +547,11 @@ export class HUD {
         const st = getUnitStats(s.state, p, ut);
         const c = canTrain(s.state, p, b, ut);
         const tip = `${t('cmd.trainTip', { name: ud.name, cost: fmtCost(st.cost, p), time: Math.round(st.trainTime), pop: ud.pop, desc: ud.desc, hp: st.hp, attack: st.attack, range: st.range >= 1.6 ? st.range : t('sel.melee') })}${c.ok ? '' : `<div style="color:#ef4444;margin-top:4px">${c.reason ?? (ud.age > p.age ? t('cmd.requiresAge', { age: AGES[ud.age].name }) : '')}</div>`}`;
-        add(ud.icon, ud.name, tip, ud.hotkey ?? null, () => { const r = this.issueChecked({ type: 'train', player: s.local, buildingId: b.id, unit: ut }); if (r) this.audio.play('command'); }, { disabled: !c.ok });
+        add(ic.unit(ut, p.color), ud.name, tip, ud.hotkey ?? null, () => { const r = this.issueChecked({ type: 'train', player: s.local, buildingId: b.id, unit: ut }); if (r) this.audio.play('command'); }, { disabled: !c.ok });
       }
       if (def.scholars) {
         const c = b.scholars >= MAX_SCHOLARS ? t('cmd.maxReached') : !canAfford(p, SCHOLAR_COST) ? t('cmd.noResources') : '';
-        add('🧑‍🏫', t('cmd.scholar'), `${t('cmd.scholarTip', { cost: fmtCost(SCHOLAR_COST, p), max: MAX_SCHOLARS })}${c ? `<div style="color:#ef4444">${c}</div>` : ''}`, 'Q', () => this.issueChecked({ type: 'hireScholar', player: s.local, buildingId: b.id }), { disabled: !!c });
+        add(glyph('scholar'), t('cmd.scholar'), `${t('cmd.scholarTip', { cost: fmtCost(SCHOLAR_COST, p), max: MAX_SCHOLARS })}${c ? `<div style="color:#ef4444">${c}</div>` : ''}`, 'Q', () => this.issueChecked({ type: 'hireScholar', player: s.local, buildingId: b.id }), { disabled: !!c });
       }
       for (const tech of Object.values(TECHS)) {
         if (tech.building !== b.type || p.techs.includes(tech.id)) continue;
@@ -524,24 +561,24 @@ export class HUD {
         const cost = techCost(p, tech.id);
         const c = canResearch(s.state, p, b, tech.id);
         const tip = `${t('cmd.techTip', { name: tech.name, cost: fmtCost(cost, p), time: tech.time, desc: tech.desc })}${c.ok ? '' : `<div style="color:#ef4444;margin-top:4px">${c.reason ?? (tech.age > p.age ? t('cmd.requiresAge', { age: AGES[tech.age].name }) : '')}</div>`}`;
-        add(tech.icon, tech.name, tip, null, () => { if (this.issueChecked({ type: 'research', player: s.local, buildingId: b.id, tech: tech.id })) this.audio.play('command'); }, { disabled: !c.ok });
+        add(ic.tech(tech.id), tech.name, tip, null, () => { if (this.issueChecked({ type: 'research', player: s.local, buildingId: b.id, tech: tech.id })) this.audio.play('command'); }, { disabled: !c.ok });
       }
       if (b.type === 'town_center') {
         const adv = canAdvanceAge(s.state, p, b);
-        add('⬆', p.age < AGES.length - 1 ? AGES[p.age + 1].short : t('cmd.ageMax'), this.ageBtn.dataset.tip ?? '', null, () => this.tryAdvanceAge(b), { disabled: !adv.ok });
+        add(ic.age(Math.min(p.age + 1, AGES.length - 1)), p.age < AGES.length - 1 ? AGES[p.age + 1].short : t('cmd.ageMax'), this.ageBtn.dataset.tip ?? '', null, () => this.tryAdvanceAge(b), { disabled: !adv.ok });
       }
       if (def.trade) {
         for (const r of ['food', 'wood'] as ResourceType[]) {
           const tax = 0.3 * p.mods.player.tradeTax;
           const buy = Math.round(p.prices[r] * (1 + tax)), sell = Math.round(p.prices[r] * (1 - tax));
-          add(`🛒`, t('cmd.buy', { res: t(`res.${r}`) }), t('cmd.buyTip', { res: t(`res.${r}`), price: buy }), null, () => { if (this.issueChecked({ type: 'trade', player: s.local, action: 'buy', resource: r })) this.audio.play('coin'); }, { disabled: p.resources.gold < buy });
-          add(`💰`, t('cmd.sell', { res: t(`res.${r}`) }), t('cmd.sellTip', { res: t(`res.${r}`), price: sell }), null, () => { if (this.issueChecked({ type: 'trade', player: s.local, action: 'sell', resource: r })) this.audio.play('coin'); }, { disabled: p.resources[r] < 100 });
+          add(glyph('buy'), t('cmd.buy', { res: t(`res.${r}`) }), t('cmd.buyTip', { res: t(`res.${r}`), price: buy }), null, () => { if (this.issueChecked({ type: 'trade', player: s.local, action: 'buy', resource: r })) this.audio.play('coin'); }, { disabled: p.resources.gold < buy });
+          add(glyph('sell'), t('cmd.sell', { res: t(`res.${r}`) }), t('cmd.sellTip', { res: t(`res.${r}`), price: sell }), null, () => { if (this.issueChecked({ type: 'trade', player: s.local, action: 'sell', resource: r })) this.audio.play('coin'); }, { disabled: p.resources[r] < 100 });
         }
       }
-      if (def.worship) add('🚪', t('cmd.releaseWorship'), t('cmd.releaseWorshipTip'), null, () => s.issue({ type: 'ungarrison', player: s.local, buildingId: b.id }));
-      if (def.garrison) add('🚪', t('cmd.release', { n: b.garrison.length }), t('cmd.releaseTip'), 'U', () => s.issue({ type: 'ungarrison', player: s.local, buildingId: b.id }), { disabled: b.garrison.length === 0 });
-      if (def.trains || def.scholars) add('🚩', t('cmd.rally'), t('cmd.rallyTip'), 'R', () => { s.ui.mode = 'rally'; document.body.className = 'cur-attack'; }, { active: s.ui.mode === 'rally' });
-      add('🗑️', t('cmd.demolish'), t('cmd.demolishTip'), 'Del', () => { s.issue({ type: 'delete', player: s.local, ids: [b.id] }); s.select([]); });
+      if (def.worship) add(glyph('release'), t('cmd.releaseWorship'), t('cmd.releaseWorshipTip'), null, () => s.issue({ type: 'ungarrison', player: s.local, buildingId: b.id }));
+      if (def.garrison) add(glyph('release'), t('cmd.release', { n: b.garrison.length }), t('cmd.releaseTip'), 'U', () => s.issue({ type: 'ungarrison', player: s.local, buildingId: b.id }), { disabled: b.garrison.length === 0 });
+      if (def.trains || def.scholars) add(glyph('rally'), t('cmd.rally'), t('cmd.rallyTip'), 'R', () => { s.ui.mode = 'rally'; document.body.className = 'cur-rally'; }, { active: s.ui.mode === 'rally' });
+      add(glyph('trash'), t('cmd.demolish'), t('cmd.demolishTip'), 'Del', () => { s.issue({ type: 'delete', player: s.local, ids: [b.id] }); s.select([]); });
     }
   }
 
@@ -629,7 +666,7 @@ export class HUD {
   openChat() { if (!this.onChat) return; this.chatEl.classList.remove('hidden'); this.chatEl.value = ''; this.chatEl.focus(); }
   closeChat() { this.chatEl.classList.add('hidden'); this.chatEl.blur(); }
 
-  showModal(html: string, dismissable = true) { this.modal.innerHTML = html; this.modalBack.classList.remove('hidden'); this.modalDismissable = dismissable; }
+  showModal(html: string, dismissable = true) { this.modal.innerHTML = noEmoji(html); this.modalBack.classList.remove('hidden'); this.modalDismissable = dismissable; }
   hideModal() {
     this.modalBack.classList.add('hidden');
     if (this.menuOpen) { this.menuOpen = false; if (this.session) this.session.paused = this.pausedBeforeMenu; }   // Esc ou clique fora do menu: volta ao estado anterior
@@ -640,9 +677,9 @@ export class HUD {
     const s = this.session!;
     const cards = options.map((g) => {
       const d = MINOR_GODS[g]; const pw = POWERS[d.power]; const mu = UNITS[d.mythUnit];
-      return `<div class="card" data-god="${g}"><h3>${d.icon} ${d.name}</h3><small>${d.title}</small><ul><li><b>${t('modal.power')}:</b> ${pw.icon} ${pw.name} — ${pw.desc}</li><li><b>${t('modal.creature')}:</b> ${mu.icon} ${mu.name} — ${mu.desc}</li>${d.techs.map((x) => `<li><b>${t('modal.tech')}:</b> ${TECHS[x].icon} ${TECHS[x].name} — ${TECHS[x].desc}</li>`).join('')}</ul></div>`;
+      return `<div class="card" data-god="${g}"><div class="card-head">${ic.god(g, 'lg')}<div><h3>${d.name}</h3><small>${d.title}</small></div></div><ul><li>${ic.power(d.power, 'sm')} <b>${t('modal.power')}:</b> ${pw.name} — ${pw.desc}</li><li>${ic.unit(d.mythUnit, s.player.color, 'sm')} <b>${t('modal.creature')}:</b> ${mu.name} — ${mu.desc}</li>${d.techs.map((x) => `<li>${ic.tech(x, 'sm')} <b>${t('modal.tech')}:</b> ${TECHS[x].name} — ${TECHS[x].desc}</li>`).join('')}</ul></div>`;
     }).join('');
-    this.showModal(`<h2>${AGES[s.player.age + 1].icon} ${t('modal.advanceTo', { age: AGES[s.player.age + 1].name })}</h2><p>${t('modal.chooseMinor')}</p><div class="row">${cards}</div><div class="actions"><button class="btn" id="m-cancel">${t('modal.cancel')}</button></div>`);
+    this.showModal(`<h2>${ic.age(s.player.age + 1, 'md')} ${t('modal.advanceTo', { age: AGES[s.player.age + 1].name })}</h2><p>${t('modal.chooseMinor')}</p><div class="row">${cards}</div><div class="actions"><button class="btn" id="m-cancel">${t('modal.cancel')}</button></div>`);
     this.modal.querySelectorAll('.card').forEach((c) => c.addEventListener('click', () => { const g = (c as HTMLElement).dataset.god!; this.hideModal(); cb(g); }));
     this.modal.querySelector('#m-cancel')!.addEventListener('click', () => this.hideModal());
   }
@@ -658,7 +695,7 @@ export class HUD {
         <button class="btn primary" id="m-continue">${t('menu.continue')}</button>
         ${this.testMode ? '' : `<button class="btn" id="m-save">${t('menu.save')}</button>
         <button class="btn" id="m-load" ${this.cb.hasSave() ? '' : 'disabled'}>${t('menu.load')}</button>`}
-        <div style="display:flex;gap:8px"><button class="btn" id="m-export" style="flex:1">📤 → arquivo / file</button><button class="btn" id="m-import" style="flex:1">📥 ← arquivo / file</button></div>
+        <div style="display:flex;gap:8px"><button class="btn" id="m-export" style="flex:1">${glyph('export')} arquivo / file</button><button class="btn" id="m-import" style="flex:1">${glyph('import')} arquivo / file</button></div>
         <button class="btn" id="m-help">${t('menu.help')}</button>
         <button class="btn" id="m-enc">${t('menu.enc')}</button>
         <div style="margin-top:8px">${opts ? optionsHTML(opts) : ''}</div>
@@ -722,8 +759,8 @@ export class HUD {
     const builds = Object.entries(BUILDINGS).filter(([, b]) => b.hotkey && !b.notBuildable).sort((a, b) => a[1].age - b[1].age || a[1].hotkey!.localeCompare(b[1].hotkey!));
     const byKey = new Map<string, string[]>();
     for (const [id, b] of builds) byKey.set(b.hotkey!, [...(byKey.get(b.hotkey!) ?? []), id]);
-    const buildRows = [...byKey.entries()].map(([key, ids]) => `<tr><td>${k(key)}</td><td>${ids.map((id) => `${BUILDINGS[id].icon} ${BUILDINGS[id].name} <small style="color:#9aa5b8">(${AGES[BUILDINGS[id].age].short})</small>`).join(' · ')}${ids.length > 1 ? ` <small style="color:#9aa5b8">— ${t('hk.wonderCycle')}</small>` : ''}</td></tr>`).join('');
-    const trainRows = Object.entries(BUILDINGS).filter(([, b]) => b.trains && b.trains.length > 0).map(([, b]) => `<tr><td>${b.icon} ${b.name}</td><td>${b.trains!.filter((u) => UNITS[u].hotkey).map((u) => `${k(UNITS[u].hotkey!)} ${UNITS[u].icon} ${UNITS[u].name}`).join(' · ')}</td></tr>`).join('');
+    const buildRows = [...byKey.entries()].map(([key, ids]) => `<tr><td>${k(key)}</td><td>${ids.map((id) => `${ic.bld(id, undefined, 'sm')} ${BUILDINGS[id].name} <small style="color:#9aa5b8">(${AGES[BUILDINGS[id].age].short})</small>`).join(' · ')}${ids.length > 1 ? ` <small style="color:#9aa5b8">— ${t('hk.wonderCycle')}</small>` : ''}</td></tr>`).join('');
+    const trainRows = Object.entries(BUILDINGS).filter(([, b]) => b.trains && b.trains.length > 0).map(([id, b]) => `<tr><td>${ic.bld(id, undefined, 'sm')} ${b.name}</td><td>${b.trains!.filter((u) => UNITS[u].hotkey).map((u) => `${k(UNITS[u].hotkey!)} ${ic.unit(u, undefined, 'sm')} ${UNITS[u].name}`).join(' · ')}</td></tr>`).join('');
     const rows = (list: [string, string][]) => list.map(([a, b]) => `<tr><td style="white-space:nowrap">${a}</td><td>${b}</td></tr>`).join('');
     this.showModal(`<h2>${t('hk.title')}</h2>
       <h3>${t('hk.general')}</h3><table>${rows(general)}</table>
@@ -738,11 +775,11 @@ export class HUD {
   showEncyclopedia(tab = 'units') {
     const tabs = [['units', t('enc.units')], ['buildings', t('enc.buildings')], ['techs', t('enc.techs')], ['gods', t('enc.gods')], ['ages', t('enc.ages')]];
     let body = '';
-    if (tab === 'units') body = `<table><tr><th>${t('enc.units')}</th><th>${t('enc.cost')}</th><th>${t('sel.hp')}</th><th>${t('sel.attack')}</th><th>${t('sel.armor')}</th><th>${t('sel.range')}</th><th>${t('sel.speed')}</th><th>${t('over.age')}</th><th>${t('enc.where')}</th><th>${t('enc.description')}</th></tr>${Object.values(UNITS).filter((u) => u.building || u.tags.includes('titan')).map((u) => `<tr><td>${u.icon} ${u.name}</td><td>${fmtCost(u.cost as Record<string, number>) || '—'}</td><td>${u.hp}</td><td>${u.attack} ${u.attackType}</td><td>${Math.round(u.armor.hack * 100)}/${Math.round(u.armor.pierce * 100)}/${Math.round(u.armor.crush * 100)}</td><td>${u.range >= 1.6 ? u.range : t('sel.melee')}</td><td>${u.speed}</td><td>${AGES[u.age].short}</td><td>${u.building ? BUILDINGS[u.building].name : t('enc.gate')}${u.god ? ` (${(MINOR_GODS[u.god] ?? MAJOR_GODS[u.god]).name})` : ''}</td><td>${u.desc}</td></tr>`).join('')}</table>`;
-    else if (tab === 'buildings') body = `<table><tr><th>${t('enc.buildings')}</th><th>${t('enc.cost')}</th><th>${t('sel.hp')}</th><th>${t('enc.size')}</th><th>${t('over.age')}</th><th>${t('enc.description')}</th></tr>${Object.values(BUILDINGS).filter((b) => !b.notBuildable).map((b) => `<tr><td>${b.icon} ${b.name}</td><td>${fmtCost(b.cost as Record<string, number>)}</td><td>${b.hp}</td><td>${b.w}×${b.h}</td><td>${AGES[b.age].short}</td><td>${b.desc}</td></tr>`).join('')}</table>`;
-    else if (tab === 'techs') body = `<table><tr><th>${t('modal.tech')}</th><th>${t('enc.buildings')}</th><th>${t('enc.cost')}</th><th>${t('over.age')}</th><th>${t('enc.effect')}</th></tr>${Object.values(TECHS).map((x) => `<tr><td>${x.icon} ${x.name}${x.god ? ` <small>(${MINOR_GODS[x.god].name})</small>` : ''}</td><td>${BUILDINGS[x.building].name}</td><td>${fmtCost(x.cost as Record<string, number>)}</td><td>${AGES[x.age].short}</td><td>${x.desc}</td></tr>`).join('')}</table>`;
-    else if (tab === 'gods') body = Object.values(MAJOR_GODS).map((g) => `<h3>${g.icon} ${g.name} — ${g.title}</h3><p>${g.desc}</p><ul>${g.perks.map((x) => `<li>${x}</li>`).join('')}</ul><p><b>${t('enc.minorGods')}:</b> ${g.minorGods.map((pair, i) => `${AGES[i + 1].short}: ${pair.map((m) => `${MINOR_GODS[m].icon} ${MINOR_GODS[m].name}`).join(` ${t('enc.or')} `)}`).join(' · ')}</p>`).join('') + `<h3>${t('enc.minorGods')}</h3><table><tr><th>${t('enc.god')}</th><th>${t('over.age')}</th><th>${t('modal.power')}</th><th>${t('modal.creature')}</th><th>${t('enc.techs')}</th></tr>${Object.values(MINOR_GODS).map((m) => `<tr><td>${m.icon} ${m.name}<br><small>${m.title}</small></td><td>${AGES[m.age].short}</td><td>${POWERS[m.power].icon} ${POWERS[m.power].name}<br><small>${POWERS[m.power].desc}</small></td><td>${UNITS[m.mythUnit].icon} ${UNITS[m.mythUnit].name}</td><td>${m.techs.map((x) => `${TECHS[x].icon} ${TECHS[x].name}`).join('<br>')}</td></tr>`).join('')}</table>`;
-    else body = `<table><tr><th>${t('over.age')}</th><th>${t('enc.cost')}</th><th>${t('enc.requirements')}</th><th>${t('enc.description')}</th></tr>${AGES.map((a) => `<tr><td>${a.icon} ${a.name}</td><td>${fmtCost(a.cost as Record<string, number>) || '—'}</td><td>${a.requires.building ? BUILDINGS[a.requires.building].name : ''} ${a.requires.techCount ? t('enc.academyLines', { n: a.requires.techCount, lines: ACADEMY_LINES.join(', ') }) : ''}</td><td>${a.desc}</td></tr>`).join('')}</table>`;
+    if (tab === 'units') body = `<table><tr><th>${t('enc.units')}</th><th>${t('enc.cost')}</th><th>${t('sel.hp')}</th><th>${t('sel.attack')}</th><th>${t('sel.armor')}</th><th>${t('sel.range')}</th><th>${t('sel.speed')}</th><th>${t('over.age')}</th><th>${t('enc.where')}</th><th>${t('enc.description')}</th></tr>${Object.values(UNITS).filter((u) => u.building || u.tags.includes('titan')).map((u) => `<tr><td>${ic.unit(u.id, undefined, 'sm')} ${u.name}</td><td>${fmtCost(u.cost as Record<string, number>) || '—'}</td><td>${u.hp}</td><td>${u.attack} ${u.attackType}</td><td>${Math.round(u.armor.hack * 100)}/${Math.round(u.armor.pierce * 100)}/${Math.round(u.armor.crush * 100)}</td><td>${u.range >= 1.6 ? u.range : t('sel.melee')}</td><td>${u.speed}</td><td>${AGES[u.age].short}</td><td>${u.building ? BUILDINGS[u.building].name : t('enc.gate')}${u.god ? ` (${(MINOR_GODS[u.god] ?? MAJOR_GODS[u.god]).name})` : ''}</td><td>${u.desc}</td></tr>`).join('')}</table>`;
+    else if (tab === 'buildings') body = `<table><tr><th>${t('enc.buildings')}</th><th>${t('enc.cost')}</th><th>${t('sel.hp')}</th><th>${t('enc.size')}</th><th>${t('over.age')}</th><th>${t('enc.description')}</th></tr>${Object.values(BUILDINGS).filter((b) => !b.notBuildable).map((b) => `<tr><td>${ic.bld(b.id, undefined, 'sm')} ${b.name}</td><td>${fmtCost(b.cost as Record<string, number>)}</td><td>${b.hp}</td><td>${b.w}×${b.h}</td><td>${AGES[b.age].short}</td><td>${b.desc}</td></tr>`).join('')}</table>`;
+    else if (tab === 'techs') body = `<table><tr><th>${t('modal.tech')}</th><th>${t('enc.buildings')}</th><th>${t('enc.cost')}</th><th>${t('over.age')}</th><th>${t('enc.effect')}</th></tr>${Object.values(TECHS).map((x) => `<tr><td>${ic.tech(x.id, 'sm')} ${x.name}${x.god ? ` <small>(${MINOR_GODS[x.god].name})</small>` : ''}</td><td>${BUILDINGS[x.building].name}</td><td>${fmtCost(x.cost as Record<string, number>)}</td><td>${AGES[x.age].short}</td><td>${x.desc}</td></tr>`).join('')}</table>`;
+    else if (tab === 'gods') body = Object.values(MAJOR_GODS).map((g) => `<h3>${ic.god(g.id, 'md')} ${g.name} — ${g.title}</h3><p>${g.desc}</p><ul>${g.perks.map((x) => `<li>${x}</li>`).join('')}</ul><p><b>${t('enc.minorGods')}:</b> ${g.minorGods.map((pair, i) => `${AGES[i + 1].short}: ${pair.map((m) => `${ic.god(m, 'sm')} ${MINOR_GODS[m].name}`).join(` ${t('enc.or')} `)}`).join(' · ')}</p>`).join('') + `<h3>${t('enc.minorGods')}</h3><table><tr><th>${t('enc.god')}</th><th>${t('over.age')}</th><th>${t('modal.power')}</th><th>${t('modal.creature')}</th><th>${t('enc.techs')}</th></tr>${Object.values(MINOR_GODS).map((m) => `<tr><td>${m.icon} ${m.name}<br><small>${m.title}</small></td><td>${AGES[m.age].short}</td><td>${POWERS[m.power].icon} ${POWERS[m.power].name}<br><small>${POWERS[m.power].desc}</small></td><td>${UNITS[m.mythUnit].icon} ${UNITS[m.mythUnit].name}</td><td>${m.techs.map((x) => `${TECHS[x].icon} ${TECHS[x].name}`).join('<br>')}</td></tr>`).join('')}</table>`;
+    else body = `<table><tr><th>${t('over.age')}</th><th>${t('enc.cost')}</th><th>${t('enc.requirements')}</th><th>${t('enc.description')}</th></tr>${AGES.map((a, n) => `<tr><td>${ic.age(n, 'sm')} ${a.name}</td><td>${fmtCost(a.cost as Record<string, number>) || '—'}</td><td>${a.requires.building ? BUILDINGS[a.requires.building].name : ''} ${a.requires.techCount ? t('enc.academyLines', { n: a.requires.techCount, lines: ACADEMY_LINES.join(', ') }) : ''}</td><td>${a.desc}</td></tr>`).join('')}</table>`;
     this.showModal(`<h2>${t('enc.title')}</h2><div class="tabs">${tabs.map(([k, l]) => `<button class="btn ${k === tab ? 'active' : ''}" data-tab="${k}">${l}</button>`).join('')}</div><div style="max-height:60vh;overflow:auto">${body}</div><div class="actions"><button class="btn primary" id="m-close">${t('modal.close')}</button></div>`);
     this.modal.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => this.showEncyclopedia((b as HTMLElement).dataset.tab!)));
     this.modal.querySelector('#m-close')!.addEventListener('click', () => this.hideModal());
@@ -753,7 +790,7 @@ export class HUD {
     if (st.scenario) { this.showScenarioEnd(); return; }
     const won = st.winner >= 0 && st.players[st.winner].team === s.player.team;
     this.audio.play(won ? 'victory' : 'defeat');
-    const rows = st.players.map((p) => `<tr><td style="color:#${p.color.toString(16).padStart(6, '0')}">${esc(playerDisplayName(st, p.id))}${st.winner >= 0 && st.players[st.winner].team === p.team ? ' 🏆' : ''}</td><td>${p.team + 1}</td><td>${AGES[p.age].short}</td><td>${p.stats.kills}</td><td>${p.stats.losses}</td><td>${p.stats.razed}</td><td>${p.stats.buildingsBuilt}</td><td>${p.stats.unitsTrained}</td><td>${Math.round(p.stats.gathered.food + p.stats.gathered.wood + p.stats.gathered.gold)}</td><td>${p.techs.length}</td><td>${p.territoryTiles}</td></tr>`).join('');
+    const rows = st.players.map((p) => `<tr><td style="color:#${p.color.toString(16).padStart(6, '0')}">${esc(playerDisplayName(st, p.id))}${st.winner >= 0 && st.players[st.winner].team === p.team ? ` ${glyph('trophy')}` : ''}</td><td>${p.team + 1}</td><td>${AGES[p.age].short}</td><td>${p.stats.kills}</td><td>${p.stats.losses}</td><td>${p.stats.razed}</td><td>${p.stats.buildingsBuilt}</td><td>${p.stats.unitsTrained}</td><td>${Math.round(p.stats.gathered.food + p.stats.gathered.wood + p.stats.gathered.gold)}</td><td>${p.techs.length}</td><td>${p.territoryTiles}</td></tr>`).join('');
     this.showModal(`<h2>${won ? t('over.victory') : st.winner === -1 ? t('over.draw') : t('over.defeat')}</h2><p>${st.events.filter((e) => e.type === 'victory').map((e) => e.text).join(' ') || ''} ${t('over.time', { time: fmtTime(st.time) })}</p>
       <table><tr><th>${t('over.player')}</th><th>${t('over.team')}</th><th>${t('over.age')}</th><th>${t('over.kills')}</th><th>${t('over.losses')}</th><th>${t('over.razed')}</th><th>${t('over.built')}</th><th>${t('over.trained')}</th><th>${t('over.gathered')}</th><th>${t('over.techs')}</th><th>${t('over.territory')}</th></tr>${rows}</table>
       <div class="actions"><button class="btn" id="m-continue">${t('over.watch')}</button><button class="btn primary" id="m-quit">${this.testMode ? t('editor.backToEditor') : t('over.menu')}</button></div>`, false);

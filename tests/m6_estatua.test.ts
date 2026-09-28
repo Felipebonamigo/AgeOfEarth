@@ -262,16 +262,16 @@ describe('m6_estatua', () => {
     const c = alive(s, 3, 'colossus')[0];
     expect(c.displayName).toEqual({ pt: 'Colosso de Poseidon', en: 'Colossus of Poseidon' });
     expect(entityDisplayName(c)).toBe('Colosso de Poseidon');
-    expect(scenarioHudHtml(def, s)).toContain('🗽 Obra da Estátua');
+    expect(scenarioHudHtml(def, s)).toContain('Obra da Estátua');
     killUnit(s, c, 0);
     advanceBuild(s, w, 999);
     run(s, 30);
     const html = scenarioHudHtml(def, s);
     expect(s.scenario!.vars.estatua_s).toBeGreaterThanOrEqual(29);
-    expect(html).toContain('🛡️ Guarda da Estátua: 0:');
+    expect(html).toContain('Guarda da Estátua: 0:');
     expect(html).toContain('/ 6:00');
     expect(html).not.toContain('Obra da Estátua');   // obra concluída: a barra da obra some
     setLocale('en');
-    try { expect(scenarioHudHtml(campaignMission('m6_estatua')!, s)).toContain('🛡️ Statue watch: 0:'); } finally { setLocale('pt'); }
+    try { expect(scenarioHudHtml(campaignMission('m6_estatua')!, s)).toContain('Statue watch: 0:'); } finally { setLocale('pt'); }
   }, 60_000);
 });

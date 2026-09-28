@@ -53,6 +53,44 @@ button { font-family: inherit; cursor: pointer; }
 .cmd .ic { font-size: 22px; }
 /* ícones assados dos edifícios (docs/ART.md Etapa 3); o emoji continua como reserva */
 .art-ic { width: 1.55em; height: 1.55em; object-fit: contain; vertical-align: middle; pointer-events: none; }
+/* ---------- Etapa 7 (docs/ART.md §1.10, Apêndice H): ícones do atlas `hud` (src/ui/icons.ts) e glifos SVG (src/ui/glyphs.ts) ---------- */
+.hic { display: inline-block; width: 1.6em; height: 1.6em; object-fit: contain; vertical-align: middle; pointer-events: none; flex: none; }
+.hic-ph { border-radius: 50%; background: radial-gradient(circle, rgba(242, 193, 78, 0.16), transparent 70%); }
+.hic.sm { width: 1.45em; height: 1.45em; }
+.hic.md { width: 2.4em; height: 2.4em; }
+.hic.big { width: 46px; height: 46px; }
+.hic-res { width: 22px; height: 22px; }
+.hic-gly { display: inline-flex; align-items: center; justify-content: center; color: var(--marble); }
+/* retratos dos deuses: medalhão com aro de bronze */
+.hic-god { border-radius: 50%; object-fit: cover; background: radial-gradient(circle at 50% 38%, #3a4d74, #121a2c 72%); box-shadow: 0 0 0 1.5px #a07a36, 0 0 0 3px rgba(0, 0, 0, 0.45); }
+.hic-god.sm { width: 22px; height: 22px; box-shadow: 0 0 0 1px #a07a36; }
+.hic-god.md { width: 44px; height: 44px; }
+.hic-god.lg { width: 76px; height: 76px; }
+.hic-portrait { width: 58px; height: 58px; border-radius: 50%; object-fit: cover; background: radial-gradient(circle at 50% 38%, #3a4d74, #121a2c 72%); box-shadow: 0 0 0 1.5px var(--gold); }
+.gly { width: 1.25em; height: 1.25em; vertical-align: -0.22em; flex: none; }
+#top .btn .gly, #top .res .gly { width: 16px; height: 16px; vertical-align: -3px; }
+#top .age .hic.sm { width: 24px; height: 24px; }
+.cmd .ic .hic { width: 34px; height: 34px; }
+.cmd .ic .gly { width: 24px; height: 24px; color: var(--marble); }
+.cmd.active .ic .gly { color: var(--ok); }
+#selection .title .icon .hic { width: 46px; height: 46px; }
+#selection .queue .qi .hic { width: 40px; height: 40px; }
+#selection .queue .qi .hic-gly .gly { width: 24px; height: 24px; }
+#selection .multi .mi .hic { width: 34px; height: 34px; }
+#gods .pw .ic .hic { width: 38px; height: 38px; }
+#gods .pantheon { display: flex; justify-content: flex-end; gap: 6px; padding: 2px 2px 4px; }
+#gods .pantheon .hic-god.md { width: 40px; height: 40px; }
+#objectives h4 .hic { width: 22px; height: 22px; }
+#objectives li .gly { width: 14px; height: 14px; }
+.gly.obj-done { color: var(--ok); } .gly.obj-failed { color: var(--danger); } .gly.obj-pending, .gly.obj-active { color: var(--muted); }
+.rank .gly { color: var(--gold); width: 13px; height: 13px; }
+#modal .card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+#modal .card-head h3 { margin: 0; }
+#modal .card li .hic.sm { width: 22px; height: 22px; }
+#modal td .hic.sm, #modal h3 .hic { vertical-align: middle; }
+/* molduras de bronze: botões de comando e painéis com o aro claro em cima e a sombra embaixo */
+.cmd { border-color: #5d4a2c; box-shadow: inset 0 1px 0 rgba(255, 228, 170, 0.12), inset 0 -1px 0 rgba(0, 0, 0, 0.45); }
+#selection, #gods .pw { border-color: #5d4a2c; box-shadow: inset 0 1px 0 rgba(255, 228, 170, 0.08); }
 .cmd .hk { position: absolute; top: 2px; right: 4px; font-size: 9px; color: var(--muted); }
 .cmd:hover { border-color: var(--gold); background: #2a3556; }
 .cmd:disabled { opacity: 0.4; }
@@ -123,9 +161,12 @@ button { font-family: inherit; cursor: pointer; }
 #menu .credits { color: var(--muted); font-size: 11px; margin-top: 14px; }
 
 /* cursores */
-body.cur-attack #app canvas { cursor: crosshair; }
-body.cur-place #app canvas { cursor: cell; }
-body.cur-power #app canvas { cursor: crosshair; }
+/* ---------- Etapa 7: cursores próprios (SVG de bronze com contorno escuro; docs/ART.md §1.10) ---------- */
+#app canvas { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M3 2v22l6-5.5 4.2 9.3 3.6-1.6-4.1-9.2H21z' fill='%23d8a34a' stroke='%231a1206' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M5 6v12l3.5-3.2' fill='none' stroke='%23f6d68a' stroke-width='1.1'/%3E%3C/svg%3E") 3 2, default; }
+body.cur-attack #app canvas { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg stroke-linecap='round' fill='none'%3E%3Cpath d='M6 6l15 15M26 6L11 21M17 23l5 5M15 23l-5 5M21 17l4 4M11 17l-4 4' stroke='%231a1206' stroke-width='5'/%3E%3Cpath d='M6 6l15 15M26 6L11 21M17 23l5 5M15 23l-5 5M21 17l4 4M11 17l-4 4' stroke='%23e2b35a' stroke-width='2.4'/%3E%3C/g%3E%3Ccircle cx='16' cy='16' r='1.6' fill='%23fff4d0'/%3E%3C/svg%3E") 16 16, crosshair; }
+body.cur-place #app canvas { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M17 4l9 9-4 4-9-9z' fill='%23d8a34a' stroke='%231a1206' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M15 12L4 23l4 4 11-11' fill='%238a5a2c' stroke='%231a1206' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M19 6l5 5' stroke='%23f6d68a' stroke-width='1.2'/%3E%3C/svg%3E") 6 26, cell; }
+body.cur-power #app canvas { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M19 2L7 18h7l-3 12 13-17h-7l4-11z' fill='%23ffd35a' stroke='%231a1206' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M17 6l-6 9' stroke='%23fffbe6' stroke-width='1.2'/%3E%3C/svg%3E") 12 18, crosshair; }
+body.cur-rally #app canvas { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M7 30V3' stroke='%231a1206' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M7 30V3' stroke='%23d8a34a' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M8 4h16l-4 5.5 4 5.5H8z' fill='%23f2c14e' stroke='%231a1206' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") 7 30, crosshair; }
 
 #objectives { width: 300px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12px; }
 #objectives h4 { margin: 0 0 6px; color: var(--gold); font-size: 13px; }
@@ -146,7 +187,7 @@ body.cur-power #app canvas { cursor: crosshair; }
 #modal .es-bar .btn { padding: 3px 8px; font-size: 12px; }
 #menu .scenariocards { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; max-height: 260px; overflow: auto; }
 #dialogue { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); width: 640px; max-width: 80vw; background: rgba(8, 12, 24, 0.96); border: 1px solid var(--gold); border-radius: 10px; padding: 10px 14px; display: flex; gap: 12px; align-items: flex-start; font-size: 13px; cursor: pointer; box-shadow: 0 6px 24px rgba(0,0,0,0.5); animation: fadein 0.3s; }
-#dialogue .ic { font-size: 30px; }
+#dialogue .ic { font-size: 30px; display: flex; align-items: center; }
 #dialogue b { color: var(--gold); display: block; margin-bottom: 2px; }
 #dialogue small { color: var(--muted); white-space: nowrap; font-size: 10px; align-self: flex-end; }
 #menu .missions { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }

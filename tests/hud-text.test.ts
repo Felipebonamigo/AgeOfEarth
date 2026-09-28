@@ -33,7 +33,7 @@ describe('HUD: texto de outros pares não vira HTML', () => {
     HUD.prototype.toast.call(fake as unknown as HUD, `${XSS} foi eliminado!`, 'warn', { x: 1, y: 2 });
     expect(msgPanel.children).toHaveLength(2);
     for (const e of msgPanel.children) expect(e.html).toBeNull();   // ninguém escreveu HTML
-    expect(msgPanel.children[0].textContent).toBe(`💬 Beto: ${XSS}`);   // aparece como texto, inteiro
+    expect(msgPanel.children[0].textContent).toBe(`Beto: ${XSS}`);   // aparece como texto, inteiro (sem o emoji: Etapa 7)
     expect(msgPanel.children[0].className).toBe('toast info');
   });
 

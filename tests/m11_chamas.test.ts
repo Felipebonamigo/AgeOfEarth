@@ -400,25 +400,25 @@ describe('m11_chamas', () => {
     run(s, 5);
     const def = campaignMission('m11_chamas')!;
     let html = scenarioHudHtml(def, s);
-    for (const t of ['⛵ As naus zarpam em: 17:5', '⚓ Primeira nau em: 3:5', '⏳ Cronos chega em: 11:5', '⛵ A bordo: 0/30', '⚓ Lugares nas naus atracadas: 0/30']) expect(html).toContain(t);
-    expect(html).not.toContain('⏳ ⏳');
+    for (const t of ['As naus zarpam em: 17:5', 'Primeira nau em: 3:5', 'Cronos chega em: 11:5', 'A bordo: 0/30', 'Lugares nas naus atracadas: 0/30']) expect(html).toContain(t);
+    expect(html).not.toContain('⏳');
     jump(s, 300); run(s, 2);
     html = scenarioHudHtml(def, s);
-    expect(html).toContain('⚓ Próxima nau em: 3:5');
-    expect(html).toContain('⚓ Lugares nas naus atracadas: 10/30');
+    expect(html).toContain('Próxima nau em: 3:5');
+    expect(html).toContain('Lugares nas naus atracadas: 10/30');
     expect(html).not.toContain('Primeira nau');
     setLocale('en');
     try {
       const en = scenarioHudHtml(campaignMission('m11_chamas')!, s);
-      for (const t of ['⛵ The ships sail in: 12:5', '⚓ Next ship in: 3:5', '⏳ Cronus arrives in: 6:5', '⛵ Aboard: 0/30']) expect(en).toContain(t);
+      for (const t of ['The ships sail in: 12:5', 'Next ship in: 3:5', 'Cronus arrives in: 6:5', 'Aboard: 0/30']) expect(en).toContain(t);
     } finally { setLocale('pt'); }
     const e = calm('easy');
     run(e, 5);
-    expect(scenarioHudHtml(def, e)).toContain('⏳ Cronos chega em: 12:2');
+    expect(scenarioHudHtml(def, e)).toContain('Cronos chega em: 12:2');
     const h = calm('hard');
     run(h, 5);
-    expect(scenarioHudHtml(def, h)).toContain('⏳ Cronos chega em: 9:5');
-    expect(scenarioHudHtml(def, h)).toContain('⛵ A bordo: 0/40');
+    expect(scenarioHudHtml(def, h)).toContain('Cronos chega em: 9:5');
+    expect(scenarioHudHtml(def, h)).toContain('A bordo: 0/40');
   });
 
   it('registro e roteiro: Ato III depois da m9; janela da §4 ±30 % (18 min → 12m36s–23m24s), levas antes de Cronos e os poderes das ondas no fim', () => {

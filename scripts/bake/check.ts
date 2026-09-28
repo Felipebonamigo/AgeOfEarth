@@ -12,6 +12,7 @@ import { loadManifests, validateManifest, validateAll, expandFrames, animationsO
 import { PX_PER_TILE, PITCH_DEG, PIPELINE_VERSION, DIRS, FPS } from './page/camera.js';
 import { SHADOW_TEXEL } from './page/atlas.js';
 import { fxNames, FX_PROJECTILES, FX_DIRS, FX_FIRE_FRAMES } from './fx/catalog.mjs';
+import { hudNames, PORTRAIT } from './hud/catalog.mjs';
 
 /** Orçamento (docs/ART.md §6 e §3.5). Tamanhos de quadro a 1× (multiplicados pela escala). */
 export const BUDGET = {
@@ -25,14 +26,19 @@ export const BUDGET = {
   /** Atlas `fx` (Etapa 5: projéteis, partículas, fogo, decalques — scripts/bake/fx.mjs): VRAM pequena, por escala em
    *  texels de 1× (como os outros: o 2× pode ter 4×). */
   maxFxVramMB: 2,
+  /** Atlas `hud` (Etapa 7: ícones e retratos do HUD — scripts/bake/hud.mjs): vai para o DOM, não para a GPU (fora da
+   *  soma de VRAM); teto do PNG de todas as escalas. */
+  maxHudPngMB: 4,
 };
+/** Nomes do atlas `hud` (`unit/hoplite`, `bld/temple`, `tech/wheel`, `god/zeus`, `age/2`). */
+export const HUD_NAME_RE = /^(unit|bld|tech|power|god|age|ability|res)\/[a-z0-9_]+$/;
 /** Nomes de quadro do atlas `fx` (`proj/arrow/3`, `fire/05`, `decal/burn/1`, `spark`). */
 export const FX_NAME_RE = /^[a-z][a-z0-9_]*(\/[a-z0-9_]+)*$/;
 
 interface SheetFrame { frame: { x: number; y: number; w: number; h: number }; spriteSourceSize: { x: number; y: number; w: number; h: number }; sourceSize: { w: number; h: number }; anchor: { x: number; y: number } }
 interface Sheet { frames: Record<string, SheetFrame>; animations: Record<string, string[]>; meta: { image: string; size: { w: number; h: number }; scale: string; aoe: Record<string, unknown> } }
 interface IndexAtlas { json: string; image: string; group: string; pass: string; scale: number; texel?: number; w: number; h: number; frames: number; bytes: number; sha256: string }
-interface ArtIndex { version: number; aoe: Record<string, unknown>; atlases: IndexAtlas[]; assets: Record<string, { kind: AssetKind | 'fx'; items?: string[]; mirror: boolean; variants?: string[]; variantBy?: string; icon?: boolean; rubble?: boolean; anims?: Record<string, unknown>; atlases: Record<string, Partial<Record<'color' | 'team' | 'shadow', string[]>>> }>; totals: { pngBytes: number; vramBytes: number } }
+interface ArtIndex { version: number; aoe: Record<string, unknown>; atlases: IndexAtlas[]; assets: Record<string, { kind: AssetKind | 'fx' | 'hud'; items?: string[]; teamItems?: string[]; mirror: boolean; variants?: string[]; variantBy?: string; icon?: boolean; rubble?: boolean; anims?: Record<string, unknown>; atlases: Record<string, Partial<Record<'color' | 'team' | 'shadow', string[]>>> }>; totals: { pngBytes: number; vramBytes: number } }
 
 /** Poses que o manifesto de unidade pede (`pose` no arquivo do rig, `rider` no do cavaleiro) existem nos arquivos. */
 export function poseErrors(root: string, m: ArtManifest): string[] {
@@ -80,8 +86,9 @@ export function runCheck(root: string): CheckResult {
     const png = PNG.sync.read(buf);
     const sheet = JSON.parse(fs.readFileSync(jf, 'utf8')) as Sheet;
     sheets.set(a.json, sheet);
-    stats.atlases++; stats.pngBytes += buf.length; stats.vramBytes += png.width * png.height * 4;
-    stats.vramByScale[a.scale] = (stats.vramByScale[a.scale] ?? 0) + png.width * png.height * 4;
+    stats.atlases++; stats.pngBytes += buf.length;
+    // o atlas do HUD vai para o DOM (<img>/canvas), não para a GPU: fora da VRAM
+    if (a.group !== 'hud') { stats.vramBytes += png.width * png.height * 4; stats.vramByScale[a.scale] = (stats.vramByScale[a.scale] ?? 0) + png.width * png.height * 4; }
     if (crypto.createHash('sha256').update(buf).digest('hex') !== a.sha256) errors.push(`${a.image}: sha256 difere do índice (rode art:bake --pack-only)`);
     if (png.width !== sheet.meta.size.w || png.height !== sheet.meta.size.h) errors.push(`${a.image}: tamanho ${png.width}×${png.height} ≠ meta.size`);
     if (png.width > BUDGET.maxAtlasSide || png.height > BUDGET.maxAtlasSide) errors.push(`${a.image}: maior que ${BUDGET.maxAtlasSide}²`);
@@ -96,14 +103,14 @@ export function runCheck(root: string): CheckResult {
     if (sheet.meta.image !== a.image || sheet.meta.scale !== String(a.scale * texel)) errors.push(`${a.json}: meta.image/scale incoerentes`);
     for (const [name, f] of Object.entries(sheet.frames)) {
       stats.frames++;
-      const kind: AssetKind | 'icon' | 'fx' = a.group === 'fx' ? 'fx' : a.group === 'icons' ? 'icon' : (Object.keys(GROUP_OF) as AssetKind[]).find((k) => GROUP_OF[k] === a.group)!;
-      if (!(kind === 'fx' ? FX_NAME_RE : FRAME_NAME_RE[kind]).test(name)) errors.push(`${a.json}: nome de quadro fora do padrão: ${name}`);
+      const kind: AssetKind | 'icon' | 'fx' | 'hud' = a.group === 'fx' ? 'fx' : a.group === 'hud' ? 'hud' : a.group === 'icons' ? 'icon' : (Object.keys(GROUP_OF) as AssetKind[]).find((k) => GROUP_OF[k] === a.group)!;
+      if (!(kind === 'fx' ? FX_NAME_RE : kind === 'hud' ? HUD_NAME_RE : FRAME_NAME_RE[kind]).test(name)) errors.push(`${a.json}: nome de quadro fora do padrão: ${name}`);
       const { x, y, w, h } = f.frame;
       if (x < 0 || y < 0 || x + w > png.width || y + h > png.height) errors.push(`${a.json}: ${name} fora do atlas`);
       if (!(f.anchor.x >= 0 && f.anchor.x <= 1 && f.anchor.y >= 0 && f.anchor.y <= 1)) errors.push(`${a.json}: ${name} âncora fora de [0,1]`);
       const s = f.spriteSourceSize;
       if (s.x < 0 || s.y < 0 || s.x + s.w > f.sourceSize.w || s.y + s.h > f.sourceSize.h || s.w !== w || s.h !== h) errors.push(`${a.json}: ${name} recorte fora do sourceSize`);
-      const max = (kind === 'unit' ? sizeCeiling(byId.get(name.split('/')[0]) as ArtManifest) : BUDGET.maxSourceSize[kind]) * a.scale * texel;
+      const max = (kind === 'unit' ? sizeCeiling(byId.get(name.split('/')[0]) as ArtManifest) : kind === 'hud' ? PORTRAIT : BUDGET.maxSourceSize[kind]) * a.scale * texel;
       if (f.sourceSize.w > max || f.sourceSize.h > max) errors.push(`${a.json}: ${name} sourceSize ${f.sourceSize.w}×${f.sourceSize.h} acima do orçamento ${max}`);
     }
     for (const [anim, list] of Object.entries(sheet.animations)) for (const n of list) if (!sheet.frames[n]) errors.push(`${a.json}: animação ${anim} referencia quadro ausente ${n}`);
@@ -194,6 +201,7 @@ export function runCheck(root: string): CheckResult {
     }
   }
   errors.push(...fxErrors(index, sheets, warnings));
+  errors.push(...hudErrors(index, sheets, warnings, manifests.filter((m) => m.kind === 'unit' && !m.variantOf).map((m) => m.id), manifests.filter((m) => m.kind === 'building' && m.icon).map((m) => m.id)));
   if (stats.pngBytes > BUDGET.maxPngMB * 1048576) errors.push(`PNG somam ${(stats.pngBytes / 1048576).toFixed(1)} MB > ${BUDGET.maxPngMB} MB`);
   for (const [scale, bytes] of Object.entries(stats.vramByScale)) if (bytes > vramBudgetMB(Number(scale)) * 1048576) errors.push(`atlas ${scale}× somam ${(bytes / 1048576).toFixed(1)} MB de VRAM > ${vramBudgetMB(Number(scale))} MB`);
   if (index.totals.pngBytes !== stats.pngBytes) errors.push('totals.pngBytes do índice difere dos arquivos');
@@ -229,6 +237,32 @@ export function fxErrors(index: ArtIndex, sheets: Map<string, Sheet>, warnings: 
     if (mb > BUDGET.maxFxVramMB) e.push(`fx ${scale}×: ${mb.toFixed(2)} MB de VRAM (texels de 1×) > ${BUDGET.maxFxVramMB} MB`);
   }
   if (!asset.atlases['1']) e.push('fx: sem a escala 1× (obrigatória)');
+  return e;
+}
+
+/**
+ * Atlas `hud` (Etapa 7, scripts/bake/hud.mjs): o asset `hud` lista os ícones do catálogo (hud/catalog.mjs) — toda
+ * unidade com manifesto, tecnologia, poder, deus, Idade, habilidade e recurso —; em cada escala todo ícone está no passe de
+ * cor e os de `teamItems` também no de máscara; o PNG do grupo fica dentro de `maxHudPngMB`. Sem o asset: aviso.
+ */
+export function hudErrors(index: ArtIndex, sheets: Map<string, Sheet>, warnings: string[], unitIds: string[], buildingIds: string[] = []): string[] {
+  const e: string[] = [];
+  const asset = index.assets.hud;
+  if (!asset) { warnings.push('hud: atlas de ícones do HUD ainda não gerado (npm run art:hud)'); return e; }
+  const expected = hudNames(unitIds, buildingIds).sort();
+  if (asset.kind !== 'hud') e.push(`hud: kind ${asset.kind} no índice`);
+  if (JSON.stringify(asset.items) !== JSON.stringify(expected)) e.push('hud: ícones do índice ≠ catálogo (rode npm run art:hud)');
+  for (const [scale, byPass] of Object.entries(asset.atlases)) {
+    for (const [pass, want] of [['color', expected], ['team', asset.teamItems ?? []]] as const) {
+      const have = new Set<string>();
+      for (const j of byPass[pass] ?? []) { const sh = sheets.get(j); if (sh) for (const n of Object.keys(sh.frames)) have.add(n); }
+      const missing = want.filter((n) => !have.has(n));
+      if (missing.length) e.push(`hud ${scale}×: ${missing.length} ícones ausentes no passe ${pass} (ex.: ${missing.slice(0, 3).join(', ')})`);
+    }
+  }
+  if (!asset.atlases['1']) e.push('hud: sem a escala 1× (obrigatória)');
+  const mb = index.atlases.filter((a) => a.group === 'hud').reduce((s, a) => s + a.bytes, 0) / 1048576;
+  if (mb > BUDGET.maxHudPngMB) e.push(`hud: ${mb.toFixed(2)} MB de PNG > ${BUDGET.maxHudPngMB} MB`);
   return e;
 }
 

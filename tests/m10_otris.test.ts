@@ -300,7 +300,7 @@ describe('m10_otris', () => {
     expect(s.scenario!.objectives.altar).toBe('pending');
     expect(s.scenario!.vars.altar_s).toBe(0);
     expect(lines(s).some((t) => t.includes('retomaram o Altar do Tempo'))).toBe(true);
-    expect(scenarioHudHtml(campaignMission('m10_otris')!, s)).toContain('⏳ Altar do Tempo');
+    expect(scenarioHudHtml(campaignMission('m10_otris')!, s)).toContain('Altar do Tempo');
     run(s, 811 - Math.floor(s.tick / TICK_RATE));
     expect([s.scenario!.vars['@sortida'], s.scenario!.vars['@sortida_altar']]).toEqual([1, 1]);
     expect(lines(s).some((t) => t.includes('As Sentinelas do Ótris desceram a encosta'))).toBe(true);
@@ -346,7 +346,7 @@ describe('m10_otris', () => {
     const s = calm();
     run(s, 2);
     const def = campaignMission('m10_otris')!;
-    expect(scenarioHudHtml(def, s)).toContain('🏛️ Pilares derrubados');
+    expect(scenarioHudHtml(def, s)).toContain('Pilares derrubados');
     for (const [k, tag] of ['pilar1', 'pilar2', 'pilar3'].entries()) {
       const b = bldByTag(s, tag) as Building;
       b.hpFloor = 0;
@@ -367,9 +367,9 @@ describe('m10_otris', () => {
     post(s, 0, 'hypaspist', 72, 79);
     run(s, 31);
     const def = campaignMission('m10_otris')!;
-    expect(scenarioHudHtml(def, s)).toContain('⏳ Altar do Tempo');
+    expect(scenarioHudHtml(def, s)).toContain('Altar do Tempo');
     setLocale('en');
-    try { expect(scenarioHudHtml(campaignMission('m10_otris')!, s)).toContain('⏳ Altar of Time'); } finally { setLocale('pt'); }
+    try { expect(scenarioHudHtml(campaignMission('m10_otris')!, s)).toContain('Altar of Time'); } finally { setLocale('pt'); }
   }, 60_000);
 
   it('registro e roteiro: Ato III depois da m9; janela 20m–45m30s (§4 ±30 %, piso revisto: a IA não mira alvos invulneráveis)', () => {

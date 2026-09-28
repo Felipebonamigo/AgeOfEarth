@@ -10,6 +10,7 @@ const pt = {
   'dmg.hack': 'corte', 'dmg.pierce': 'perfuração', 'dmg.crush': 'esmagamento', 'dmg.divine': 'divino',
   // barra superior
   'top.advance': '⬆ Avançar Idade', 'top.advancing': '⏳ Avançando...', 'top.maxAge': '🌋 Idade máxima', 'top.maxAgeTip': 'Você alcançou a Idade dos Titãs.',
+  'top.pauseTip': 'Pausar / continuar (P)', 'top.muteTip': 'Som ligado / mudo (Ctrl+M)',
   'top.menu': '☰ Menu', 'top.waiting': '⏳ aguardando jogadores', 'top.idle': '👤 Ociosos: {n}', 'top.idleTip': 'Selecionar cidadão ocioso (tecla .)',
   // seleção
   'sel.hint': 'Selecione unidades ou edifícios. Clique com o botão direito para dar ordens. <br>F1 para ajuda.',
@@ -180,6 +181,7 @@ const en: Record<keyof typeof pt, string> = {
   'map.small': 'Small', 'map.medium': 'Medium', 'map.large': 'Large',
   'dmg.hack': 'hack', 'dmg.pierce': 'pierce', 'dmg.crush': 'crush', 'dmg.divine': 'divine',
   'top.advance': '⬆ Advance Age', 'top.advancing': '⏳ Advancing...', 'top.maxAge': '🌋 Max age', 'top.maxAgeTip': 'You have reached the Age of Titans.',
+  'top.pauseTip': 'Pause / resume (P)', 'top.muteTip': 'Sound on / mute (Ctrl+M)',
   'top.menu': '☰ Menu', 'top.waiting': '⏳ waiting for players', 'top.idle': '👤 Idle: {n}', 'top.idleTip': 'Select an idle citizen (key .)',
   'sel.hint': 'Select units or buildings. Right-click to give orders. <br>F1 for help.',
   'sel.count': '{n} selected', 'sel.hp': 'Health', 'sel.attack': 'Attack', 'sel.armor': 'Armor', 'sel.range': 'Range', 'sel.speed': 'Speed',

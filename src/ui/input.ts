@@ -318,7 +318,7 @@ export class Input {
     } else if (b) {
       const def = BUILDINGS[b.type];
       const keyU = e.key.toUpperCase();
-      if (keyU === 'R') { s.ui.mode = 'rally'; document.body.className = 'cur-attack'; return; }
+      if (keyU === 'R') { s.ui.mode = 'rally'; document.body.className = 'cur-rally'; return; }
       if (keyU === 'U' && (BUILDINGS[b.type].garrison || BUILDINGS[b.type].worship)) { s.issue({ type: 'ungarrison', player: s.local, buildingId: b.id }); return; }
       if (def.scholars && keyU === 'Q') { this.hud.issueChecked({ type: 'hireScholar', player: s.local, buildingId: b.id }); return; }
       if (def.trains) for (const ut of def.trains) if (UNITS[ut].hotkey === keyU) { this.hud.issueChecked({ type: 'train', player: s.local, buildingId: b.id, unit: ut }); return; }

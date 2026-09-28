@@ -22,7 +22,8 @@
     "art:diff": "node scripts/artdiff.mjs",
     "art:bake": "node scripts/bake/bake.mjs",
     "art:check": "tsx scripts/bake/check.ts",
-    "art:fx": "node scripts/bake/fx.mjs"
+    "art:fx": "node scripts/bake/fx.mjs",
+    "art:hud": "node scripts/bake/hud.mjs"
   },
   "license": "MIT",
   "dependencies": {

@@ -147,7 +147,7 @@ async function boot() {
     onHotkeys: () => hud.showHotkeys(),
     setPad: (patch) => { Object.assign(settings, patch); saveSettings(settings); },
   };
-  achievements.onUnlock = (a) => { const tx = achievementText(a, getLocale()); hud.toast(`🏅 ${t('msg.achievement')}: ${a.icon} ${tx.name} — ${tx.desc}`, 'gold'); audio.play('complete'); };
+  achievements.onUnlock = (a) => { const tx = achievementText(a, getLocale()); hud.toast(`${t('msg.achievement')}: ${tx.name} — ${tx.desc}`, 'gold'); audio.play('complete'); };
   const input: Input = new Input(renderer.canvas, () => session, renderer, hud, audio);
 
   const startGame = (config: GameConfig) => {
@@ -223,7 +223,7 @@ async function boot() {
     const humans = slots.map((_, i) => i);
     const sched = new NetworkScheduler(spectator ? -1 : local, humans, delay, { sendCmds: (t, c) => client.sendCmds(t, c), sendHash: (t, h, p) => client.sendHash(t, h, p) });
     hud.onChat = (text) => client.chat(text);
-    client.on('chat', (m) => hud.toast(`💬 ${String(m.name ?? '?')}: ${String(m.text ?? '')}`, 'info'));   // toast é texto puro: o chat nunca vira HTML
+    client.on('chat', (m) => hud.toast(`${String(m.name ?? '?')}: ${String(m.text ?? '')}`, 'info'));   // toast é texto puro: o chat nunca vira HTML
     sched.onDesync = (tk) => {
       hud.toast(t('msg.desync', { tick: tk }), 'warn');
       const where = sched.lastDesync ? desyncWhere(sched.lastDesync, config) : '';
@@ -485,7 +485,7 @@ async function boot() {
   };
   requestAnimationFrame(loop);
   // Expõe para depuração/testes automatizados
-  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, pad, input, perf, settings, audio, applyQuality, startGame, loadGame, diagnostic, menu, startEditor, exitEditor, testFromEditor, startScenarioFile, get editor() { return editor; }, get editorPanel() { return editorPanel; }, mapData: () => (session ? mapToData(session.state.map) : null), debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; },
+  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, hud, pad, input, perf, settings, audio, applyQuality, startGame, loadGame, diagnostic, menu, startEditor, exitEditor, testFromEditor, startScenarioFile, get editor() { return editor; }, get editorPanel() { return editorPanel; }, mapData: () => (session ? mapToData(session.state.map) : null), debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; },
     // cenas de teste (scripts/artparade.mjs): edifício no canto (tx, ty) com a obra na fração `frac` (1 = completo); fora do lockstep, como debugSpawn
     debugBuild: (owner: number, type: string, tx: number, ty: number, frac = 1) => { if (!session) return null; const st = session.state; if (!canPlaceBuilding(st, st.players[owner], type, tx, ty, true, true).ok) return null; const b = placeBuilding(st, owner, type, tx, ty, frac >= 1); if (frac < 1) b.progress = Math.max(0, frac) * getBuildingStats(st, st.players[owner], type).buildTime; return b; },
     // cenas de teste (scripts/artcity.mjs): derruba um edifício como se fosse destruído (colapso + escombros)

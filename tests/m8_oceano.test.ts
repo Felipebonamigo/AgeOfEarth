@@ -292,18 +292,18 @@ describe('m8_oceano', () => {
     const s = calm('normal');
     run(s, 5);
     const def = campaignMission('m8_oceano')!;
-    expect(scenarioHudHtml(def, s)).toContain('🌊 Oceano sobe em: 9:5');
+    expect(scenarioHudHtml(def, s)).toContain('Oceano sobe em: 9:5');
     run(s, 596);
     let html = scenarioHudHtml(def, s);
     expect(html).not.toContain('Oceano sobe em');
-    expect(html).toContain('🌊 Maré: 1/3');
+    expect(html).toContain('Maré: 1/3');
     expect(html).not.toContain('A maré volta em');
     scriptedDamage(s, oceanus(s)!, 99999);
     run(s, 2);
     html = scenarioHudHtml(def, s);
-    expect(html).toContain('🌊 A maré volta em: 5:5');
+    expect(html).toContain('A maré volta em: 5:5');
     setLocale('en');
-    try { expect(scenarioHudHtml(campaignMission('m8_oceano')!, s)).toContain('🌊 The tide returns in: 5:5'); } finally { setLocale('pt'); }
+    try { expect(scenarioHudHtml(campaignMission('m8_oceano')!, s)).toContain('The tide returns in: 5:5'); } finally { setLocale('pt'); }
   }, 60_000);
 
   it('roteiro de teste registrado: janela da §4 ±30 % (30–35 min → 21m–45m30s) e a variante dos Titãs exige Prometeu', () => {

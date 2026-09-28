@@ -228,7 +228,7 @@ describe('m12_titanomaquia', () => {
       run(s, 2);
       expect(s.scenario!.vars.prazo, d).toBe(prazo);
       const def = campaignMission('m12_titanomaquia')!;
-      expect(scenarioHudHtml(def, s), d).toContain(`⏳ Cronos deixa o trono em: ${Math.floor((prazo - 2) / 60)}:`);
+      expect(scenarioHudHtml(def, s), d).toContain(`Cronos deixa o trono em: ${Math.floor((prazo - 2) / 60)}:`);
     }
     const s = calm('hard', 200);
     run(s, 21);
@@ -385,21 +385,21 @@ describe('m12_titanomaquia', () => {
     run(s, 5);
     const def = campaignMission('m12_titanomaquia')!;
     let html = scenarioHudHtml(def, s);
-    expect(html).toContain('🔥 Altares da Foice derrubados: 0/3');
+    expect(html).toContain('Altares da Foice derrubados: 0/3');
     razeAltars(s);
     run(s, 58);
     html = scenarioHudHtml(def, s);
     expect(html).not.toContain('Altares da Foice derrubados');
-    expect(html).toContain('⏳ Idade de Cronos: 1/3');
+    expect(html).toContain('Idade de Cronos: 1/3');
     const c = cronus(s)!;
     destroyBuilding(s, byTag(s, 'trono') as Building, 0);
     scriptedDamage(s, c, 99999);
     run(s, 2);
     html = scenarioHudHtml(def, s);
-    expect(html).toContain('⏳ Idade de Cronos: 2/3');
-    expect(html).toContain('⏳ Cronos devora a hora: 2:');
+    expect(html).toContain('Idade de Cronos: 2/3');
+    expect(html).toContain('Cronos devora a hora: 2:');
     setLocale('en');
-    try { expect(scenarioHudHtml(campaignMission('m12_titanomaquia')!, s)).toContain('⏳ Cronus devours the hour: 2:'); } finally { setLocale('pt'); }
+    try { expect(scenarioHudHtml(campaignMission('m12_titanomaquia')!, s)).toContain('Cronus devours the hour: 2:'); } finally { setLocale('pt'); }
   }, 120_000);
 
   it('última missão do plano, registrada no Ato III; roteiro de teste com a janela da §4 ±30 % (35–40 min → 24m30s–52m) e o chefe lutando', () => {

@@ -277,11 +277,11 @@ function packAll(opts, manifests, hashes) {
   const index = { version: 1, app: 'age-of-earth/scripts/bake', aoe: { ...atlasMeta({ pass: 'color', scale: 1, mirror: opts.mirror }) }, atlases: [], assets: {}, totals: {} };
   delete index.aoe.pass; delete index.aoe.pxPerTile;
   // escalas não refeitas agora continuam no índice
-  // (e o grupo `fx` do gerador de efeitos, em todas as escalas)
+  // (e os grupos `fx` do gerador de efeitos e `hud` do gerador de ícones, em todas as escalas)
   if (prev) {
-    index.atlases = prev.atlases.filter((a) => a.group === 'fx' || !opts.scales.includes(a.scale));
+    index.atlases = prev.atlases.filter((a) => a.group === 'fx' || a.group === 'hud' || !opts.scales.includes(a.scale));
     for (const [id, a] of Object.entries(prev.assets)) {
-      if (a.kind === 'fx') { index.assets[id] = a; continue; }
+      if (a.kind === 'fx' || a.kind === 'hud') { index.assets[id] = a; continue; }
       const keep = Object.fromEntries(Object.entries(a.atlases ?? {}).filter(([s]) => !opts.scales.includes(Number(s))));
       if (Object.keys(keep).length) index.assets[id] = { ...a, atlases: keep };
     }
