@@ -422,3 +422,6 @@ export async function renderSteam(job) {
 }
 
 window.__backdrop = { renderBackdrop, renderSteam, shots: Object.keys(SHOTS), three: THREE.REVISION };
+
+// peças reaproveitadas pelas ilustrações da campanha (page/illustrations.js): o mesmo renderizador, céu, ruído, ruína e pós
+export { renderer, makeSky, valueNoise, bump, mesa, makeRuin, readRGBA, downsample, post };

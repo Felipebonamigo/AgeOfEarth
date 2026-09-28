@@ -9,7 +9,7 @@ const expected = JSON.parse(readFileSync(new URL('../src/ui/third-party.json', i
 let failures = 0;
 const check = (ok, label, detail = '') => { console.log(`${ok ? 'ok ' : 'FALHOU'} ${label}${detail ? ' — ' + detail : ''}`); if (!ok) failures++; };
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({ env: { ...process.env, LANG: 'pt_BR.UTF-8', LANGUAGE: 'pt_BR' }, executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));

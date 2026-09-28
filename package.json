@@ -24,7 +24,9 @@
     "art:check": "tsx scripts/bake/check.ts",
     "art:fx": "node scripts/bake/fx.mjs",
     "art:hud": "node scripts/bake/hud.mjs",
-    "art:backdrop": "node scripts/bake/backdrop.mjs"
+    "art:backdrop": "node scripts/bake/backdrop.mjs",
+    "store:shots": "node scripts/storeshots.mjs",
+    "art:missions": "node scripts/bake/illustrations.mjs"
   },
   "license": "MIT",
   "dependencies": {

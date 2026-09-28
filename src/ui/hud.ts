@@ -36,6 +36,7 @@ import { DialogueQueue } from './dialogue';
 import { creditsHTML } from './credits';
 import { storeSet } from '../game/cloud';
 import { emojiIcon, ic, iconHtml, iconsGeneration, loadIcons, missionIcon, onIconsReady } from './icons';
+import { missionArtUrl } from './loading';
 import { glyph, laurelSvg } from './glyphs';
 import { watchEmoji } from './emoji';
 
@@ -816,7 +817,8 @@ export class HUD {
    *  Textos escapados: o cenário JSON pode vir do anfitrião da sala (docs/EDITOR.md §4.7). */
   showIntro(onStart: () => void) {
     const def = this.session ? scenarioOf(this.session.state) : undefined; if (!def) { onStart(); return; }
-    this.showModal(`<h2>${missionIcon(def.id, def.icon, 'md')} ${esc(noEmoji(def.title))}</h2><p style="color:#f2c14e">${esc(def.subtitle)}</p>${def.intro.map((x) => `<p>${esc(x)}</p>`).join('')}<h3>${t('mission.objectives')}</h3><ul>${def.objectives.filter((o) => !o.hidden).map((o) => `<li>${esc(o.text)}${o.optional ? ` <small>${t('mission.optional')}</small>` : ''}</li>`).join('')}</ul>${def.hints ? `<h3>${t('mission.hints')}</h3><ul>${def.hints.map((h) => `<li>${esc(h)}</li>`).join('')}</ul>` : ''}<div class="actions"><button class="btn primary" id="m-go">${t('mission.start')}</button></div>`, false);
+    const art = missionArtUrl(def.id);   // ilustração da missão (ROADMAP 2.7) no alto do briefing
+    this.showModal(`${art ? `<div class="mission-art" style="background-image:url('${esc(art)}')"></div>` : ''}<h2>${missionIcon(def.id, def.icon, 'md')} ${esc(noEmoji(def.title))}</h2><p style="color:#f2c14e">${esc(def.subtitle)}</p>${def.intro.map((x) => `<p>${esc(x)}</p>`).join('')}<h3>${t('mission.objectives')}</h3><ul>${def.objectives.filter((o) => !o.hidden).map((o) => `<li>${esc(o.text)}${o.optional ? ` <small>${t('mission.optional')}</small>` : ''}</li>`).join('')}</ul>${def.hints ? `<h3>${t('mission.hints')}</h3><ul>${def.hints.map((h) => `<li>${esc(h)}</li>`).join('')}</ul>` : ''}<div class="actions"><button class="btn primary" id="m-go">${t('mission.start')}</button></div>`, false);
     this.modal.querySelector('#m-go')!.addEventListener('click', () => { this.hideModal(); onStart(); });
   }
 

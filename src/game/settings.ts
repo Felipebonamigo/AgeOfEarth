@@ -1,6 +1,7 @@
 // Configurações persistentes do jogador (localStorage; no Electron, também em <userData>/saves/settings.json — src/game/cloud.ts).
 import { QUALITY_PRESETS, type QualityPreset } from '../render/quality';
 import { storeSet } from './cloud';
+import { detectLocale } from '../i18n';
 
 /** Esquemas de botões do controle (src/ui/gamepad.ts): padrão Xbox/Steam Deck ou alternativo (A↔B e analógicos trocados). */
 export const PAD_SCHEMES = ['standard', 'alt'] as const;
@@ -40,6 +41,9 @@ export const DEFAULT_SETTINGS: Settings = { volume: 0.5, muted: false, sfxVolume
 /** Corrige campos ausentes ou inválidos (saves antigos e JSON editado à mão) para os padrões. */
 export function sanitizeSettings(raw: Partial<Settings> | null | undefined): Settings {
   const s: Settings = { ...DEFAULT_SETTINGS, ...(raw ?? {}) };
+  // idioma: o salvo nas opções; sem ele (primeira execução, save antigo) o de `aoe_locale` ou o do sistema — o padrão 'pt'
+  // de DEFAULT_SETTINGS tapava `detectLocale`, e a primeira execução num sistema em inglês abria em português
+  if ((s.locale !== 'pt' && s.locale !== 'en') || raw?.locale === undefined) s.locale = detectLocale();
   const vol = (x: unknown, d: number) => (typeof x === 'number' && Number.isFinite(x) ? Math.max(0, Math.min(1, x)) : d);
   s.volume = vol(s.volume, DEFAULT_SETTINGS.volume); s.sfxVolume = vol(s.sfxVolume, DEFAULT_SETTINGS.sfxVolume);
   s.musicVolume = vol(s.musicVolume, DEFAULT_SETTINGS.musicVolume); s.ambienceVolume = vol(s.ambienceVolume, DEFAULT_SETTINGS.ambienceVolume);

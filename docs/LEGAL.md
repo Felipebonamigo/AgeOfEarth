@@ -171,6 +171,10 @@ respectivos donos; Age of Earth não é afiliado a eles").
 ## 6. Checklist antes de publicar
 
 - [ ] Preencher todos os **[DONO: …]** e revisar com um advogado (§7).
+- [ ] Responder à seção de **conteúdo gerado por IA** do questionário de conteúdo da Steam (Steamworks → Conteúdo): conteúdo
+  *pré-gerado* feito com assistência de IA durante o desenvolvimento — o código, os textos (campanha, falas, ajuda, página da
+  loja) e as cenas/imagens que o código renderiza (modelos 3D procedurais; nenhuma imagem de IA generativa); nenhum conteúdo
+  gerado por IA *durante o jogo*. O texto final da declaração é do dono.
 - [ ] Publicar a política de privacidade (PT e EN) em uma URL pública (a Steam pede o link) e linká-la no jogo (tela Créditos ou Opções).
 - [ ] Definir quem opera o servidor de retransmissão em produção, onde roda e a retenção do log; atualizar §1.3 e §2.
 - [x] Lista de licenças de terceiros gerada e embutida (tela Créditos, `resources/THIRD_PARTY.md`), com teste contra GPL/AGPL.

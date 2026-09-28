@@ -15,7 +15,7 @@ const url = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[
 const outIdx = process.argv.indexOf('--out');
 const out = outIdx > 0 ? process.argv[outIdx + 1] : 'docs/art';
 const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
-const browser = await chromium.launch({ executablePath: fs.existsSync(CHROME) ? CHROME : undefined, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({ env: { ...process.env, LANG: 'pt_BR.UTF-8', LANGUAGE: 'pt_BR' }, executablePath: fs.existsSync(CHROME) ? CHROME : undefined, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const relayIdx = process.argv.indexOf('--relay');
 const relay = relayIdx > 0 ? process.argv[relayIdx + 1] : 'ws://localhost:8787';
 const failures = [];

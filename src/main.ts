@@ -13,7 +13,7 @@ import { validateScenario } from './core/scenario/schema';
 import { gameConfigFor } from './core/scenario/compile';
 import { localHumanIndex, migrateLegacyPuppets } from './core/scenario/helpers';
 import { putMap, slugify, mapName } from './game/maps';
-import { LoadingScreen, type LoadingInfo } from './ui/loading';
+import { LoadingScreen, missionArtUrl, type LoadingInfo } from './ui/loading';
 import { installFrames } from './ui/frames';
 import { ic, missionIcon } from './ui/icons';
 import { noEmoji } from './ui/html';
@@ -163,7 +163,7 @@ async function boot() {
   const loadingInfoFor = (config: GameConfig, s: Session): LoadingInfo => {
     let def: ReturnType<typeof getScenarioFor> | undefined;
     try { def = getScenarioFor(s.state); } catch { def = undefined; }
-    if (def) return { title: noEmoji(def.title), subtitle: noEmoji(def.subtitle ?? ''), iconHtml: missionIcon(def.id, def.icon, 'lg') };
+    if (def) return { title: noEmoji(def.title), subtitle: noEmoji(def.subtitle ?? ''), iconHtml: missionIcon(def.id, def.icon, 'lg'), backdrop: missionArtUrl(def.id) };
     const mode = t(`mode.${config.mode ?? 'conquest'}`).split(/[:(]/)[0].trim();
     const where = config.map ? mapName(config.map) : `${t(`maptype.${config.mapType ?? 'continental'}`)} · ${t(`map.${config.mapSize}`)}`;
     const gods = config.players.map((p) => MAJOR_GODS[p.god]?.name ?? p.god).join(` ${t('load.vs')} `);

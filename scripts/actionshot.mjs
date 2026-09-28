@@ -2,7 +2,7 @@
 import { chromium } from 'playwright';
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const out = process.argv[3] ?? 'docs/screenshot.png';
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({ env: { ...process.env, LANG: 'pt_BR.UTF-8', LANGUAGE: 'pt_BR' }, executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 await page.goto(url, { waitUntil: 'networkidle' });
 await page.fill('#m-seed', '2024'); await page.selectOption('#m-ais', '2'); await page.click('#m-start'); await page.waitForTimeout(1200);

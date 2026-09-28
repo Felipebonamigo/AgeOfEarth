@@ -1659,7 +1659,7 @@ As lacunas foram conferidas no código atual. A ordem é: impacto nas missões �
 
 - **Mapas fixos:** 6 no total, desenhados no editor (Etapa 4 do `docs/EDITOR.md`). Cada um passa por `validateMap` sem erros e por `npm run map:check`.
 - **Textos:** ~250 falas `{ pt, en }` (as fichas trazem as principais).
-- **Ilustrações das intros:** ficam para a Fase 2.7.
+- **Ilustrações das intros:** feitas (28/09/2026, Fase 2.7): uma cena por missão renderizada com os modelos do jogo (`npm run art:missions`, `scripts/bake/illustrations/scenes.mjs` → `public/ui/missao-<id>.jpg`), no alto do briefing e como fundo da tela de carregamento da missão; `docs/ART.md` Apêndice H. Uma ilustração pintada à mão substitui a cena mantendo o nome do arquivo.
 
 ### 7.2 Testes por missão (Fase 3.5)
 

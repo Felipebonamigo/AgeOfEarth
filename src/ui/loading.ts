@@ -2,10 +2,12 @@
 // `npm run art:backdrop` com os modelos do jogo). Numa partida local a tela fica até a arte da partida estar na GPU (a
 // sessão fica em espera — `Session.hold`, que não é a pausa do jogador nem a do briefing), com teto de tempo: sem ela, o
 // jogo começava com as vistas procedurais e trocava para as assadas diante do jogador. Título e subtítulo da partida (a
-// missão com o ícone dela, ou o modo, o mapa e os deuses), barra de progresso dos atlas e uma dica que troca sozinha.
+// missão com o ícone dela, ou o modo, o mapa e os deuses), barra de progresso dos atlas e uma dica que troca sozinha. Numa
+// missão da campanha o fundo é a ilustração dela (public/ui/missao-<id>.jpg).
 import { t } from '../i18n';
 import { esc } from './html';
 import { WONDER_VICTORY_SECONDS } from '../core/constants';
+import { CAMPAIGN_PLAN } from '../core/scenario/official';
 
 /** URL de um fundo pintado (public/ui/fundo-<nome>.jpg), relativa à base do app (vale no app:// do Electron). */
 export function backdropUrl(name = 'menu'): string {
@@ -14,7 +16,17 @@ export function backdropUrl(name = 'menu'): string {
   try { return typeof document !== 'undefined' ? new URL(rel, document.baseURI).href : rel; } catch { return rel; }
 }
 
-export interface LoadingInfo { title: string; subtitle?: string; iconHtml?: string }
+/**
+ * Ilustração de uma missão oficial da campanha (public/ui/missao-<id>.jpg, gerada por `npm run art:missions` com os
+ * modelos do jogo; ROADMAP 2.7), ou null para cenários de fora da campanha.
+ */
+export function missionArtUrl(id: string | undefined): string | null {
+  if (!id || !CAMPAIGN_PLAN.some((m) => m.id === id)) return null;
+  const rel = `${import.meta.env?.BASE_URL ?? './'}ui/missao-${id}.jpg`;
+  try { return typeof document !== 'undefined' ? new URL(rel, document.baseURI).href : rel; } catch { return rel; }
+}
+
+export interface LoadingInfo { title: string; subtitle?: string; iconHtml?: string; /** fundo (padrão: o do menu) */ backdrop?: string | null }
 /** Quantidade de dicas `load.tip<n>` nos textos. */
 export const LOADING_TIPS = 12;
 const TIP_MS = 6500;
@@ -42,6 +54,7 @@ export class LoadingScreen {
 
   show(info: LoadingInfo): void {
     if (this.hideTimer) { clearTimeout(this.hideTimer); this.hideTimer = null; }
+    (this.el.querySelector('.bg') as HTMLElement).style.backgroundImage = `url('${info.backdrop ?? backdropUrl('menu')}')`;
     (this.el.querySelector('h1') as HTMLElement).textContent = info.title;
     (this.el.querySelector('.sub') as HTMLElement).textContent = info.subtitle ?? '';
     (this.el.querySelector('.ic') as HTMLElement).innerHTML = info.iconHtml ?? '';

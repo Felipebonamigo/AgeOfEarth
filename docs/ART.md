@@ -514,6 +514,29 @@ falange em duas fileiras diante do templo e sem a coluna) e o logo desenhado em 
 contorno escuro, sombra e dois ramos de louro); nove peças em `docs/steam/` (cápsulas, biblioteca, logo transparente e
 fundo). O refactor da cena (`renderScene` comum às duas saídas) deixou `public/ui/fundo-menu.jpg` idêntico byte a byte.
 
+**Etapa 8 — ilustrações da campanha** (28/09/2026, ROADMAP 2.7). Uma cena por missão, montada em dados
+(`scripts/bake/illustrations/scenes.mjs`) e renderizada por `npm run art:missions` (`scripts/bake/illustrations.mjs` +
+`page/illustrations.js`, que reaproveita o céu, o ruído, a ruína e o pós do fundo do menu) em `public/ui/missao-<id>.jpg`
+(1920×1080, 160–240 KB; 2,3 MB no total). Com os MESMOS modelos do jogo: rigs de unidade com o kit do manifesto (hoplitas,
+heróis, cavalaria, cerco, Cérbero, Ciclopes, sombras e os três titãs), edifícios em qualquer estado (muralha, portão e
+torres por bitmask, templo em obra, casas incendiadas, Centro Cívico por Idade, Portal dos Titãs, Estátua de Zeus), árvores
+e os deuses dos retratos do HUD; cor de time por figura (clone do material de time); relevo com cordilheiras recortadas
+(ruído de cristas proporcional à altura), mar de lado ou ao fundo, neve por altitude; fogo em sprites aditivos com luz e
+coluna de fumaça, raios em zigue-zague com ramos, correntes de elos, Pilares do Tempo e Altares da Foice acesos, destroços
+de navio; `skySun` tira o disco do sol do céu (noite, tempestade, submundo). Como no fundo do menu, a luz é de capa
+(contraluz, fogo, névoa): as figuras leem em silhueta, que é onde modelos feitos para 32–64 px aguentam a câmera perto. As
+cenas: m1 a aldeia ao amanhecer com o templo em obra; m2 o exército de Hades e as helépoles diante das muralhas ao pôr do
+sol; m3 o Portal aceso nas montanhas à noite; m4 Prometeu acorrentado no rochedo do Cáucaso; m5 os náufragos e Odisseu na
+praia de Náuplia com os cavaleiros de Corinto na crista; m6 a Estátua de Zeus com Argos e Micenas em fileiras; m7 Aquiles e
+os mirmidões diante das aldeias em chamas; m8 Oceano erguendo-se do golfo na tempestade; m9 Cérbero, as sombras e os
+Ciclopes acorrentados no Tênaro; m10 a cidadela de Ótris com os três Pilares; m11 Argos em chamas com Cronos atrás da
+cidade; m12 Cronos, os Altares e os três deuses à frente dos exércitos. No jogo: faixa no alto do briefing (`.mission-art`,
+`missionArtUrl` de `src/ui/loading.ts`, só para as missões de `CAMPAIGN_PLAN`), fundo da tela de carregamento da missão e
+fundo do menu com o mouse (ou o foco) numa missão liberada da aba Campanha (as bloqueadas não revelam a cena).
+Testes em `tests/mission-art.test.ts` (arquivo por missão, 16:9, ≤ 400 KB, uma cena por missão, tipos de unidade com
+manifesto). Folha de contato: `docs/art/etapa8-missoes.jpg`. Uma ilustração pintada à mão substitui a cena mantendo o nome
+do arquivo.
+
 **Verificação da Etapa 8**: `node scripts/playtest-noemoji.mjs http://localhost:4173/` com o relay — menu (3 retratos, 12 ícones de
 missão, 3 marcas de cumprida e 1 do Difícil), opções, ajuda, enciclopédia (todas as abas), créditos, salas abertas, lobby (retrato,
 coroa, chat com o emoji do jogador preservado), editor (7 ferramentas, templo do jogador 2 posto e inspecionado, Propriedades,

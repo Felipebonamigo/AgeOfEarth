@@ -127,6 +127,8 @@ button { font-family: inherit; cursor: pointer; }
 #modal-back { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); display: flex; align-items: center; justify-content: center; z-index: 40; }
 #modal { background: rgb(24, 31, 51); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; min-width: 420px; max-width: 900px; max-height: 88vh; overflow: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
 #modal h2 { margin: 0 0 6px; color: var(--gold); }
+/* ilustração da missão no briefing (public/ui/missao-<id>.jpg): faixa larga no alto do modal, sangrando até as bordas */
+#modal .mission-art { height: clamp(150px, 26vh, 250px); margin: -20px -24px 14px; background-size: cover; background-position: center 45%; border-radius: 12px 12px 0 0; border-bottom: 1px solid var(--border); box-shadow: inset 0 -40px 40px -20px rgba(24, 31, 51, 0.9); }
 #modal h3 { margin: 12px 0 6px; color: var(--marble); }
 #modal p { color: var(--muted); line-height: 1.4; }
 #modal .row { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
@@ -146,7 +148,7 @@ button { font-family: inherit; cursor: pointer; }
 
 /* ---------- Menu principal ---------- */
 /* fundo pintado (public/ui/fundo-menu.jpg, npm run art:backdrop) sob um véu que escurece as bordas e o centro atrás da caixa; sem a imagem, o gradiente de antes */
-#menu { position: fixed; inset: 0; background: linear-gradient(90deg, rgba(6, 9, 18, 0.5) 0%, rgba(6, 9, 18, 0.12) 22%, rgba(6, 9, 18, 0.45) 40%, rgba(6, 9, 18, 0.45) 60%, rgba(6, 9, 18, 0.12) 78%, rgba(6, 9, 18, 0.5) 100%), var(--menu-bg, none) center / cover no-repeat, radial-gradient(1200px 600px at 50% -10%, #2b3a6b 0%, #0b1020 60%); display: flex; align-items: center; justify-content: center; z-index: 30; }
+#menu { position: fixed; inset: 0; background: linear-gradient(90deg, rgba(6, 9, 18, 0.5) 0%, rgba(6, 9, 18, 0.12) 22%, rgba(6, 9, 18, 0.45) 40%, rgba(6, 9, 18, 0.45) 60%, rgba(6, 9, 18, 0.12) 78%, rgba(6, 9, 18, 0.5) 100%), var(--menu-bg, none) center / cover no-repeat, radial-gradient(1200px 600px at 50% -10%, #2b3a6b 0%, #0b1020 60%); display: flex; align-items: center; justify-content: center; z-index: 30; transition: background-image 0.35s ease; }
 #menu .box { width: 880px; max-width: 96vw; max-height: 94vh; overflow: auto; background: rgba(18, 24, 40, 0.86); border: 1px solid rgba(160, 122, 54, 0.55); border-radius: 16px; padding: 28px 32px; box-shadow: 0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(242, 193, 78, 0.12); backdrop-filter: blur(6px); }
 #menu h1 { margin: 0; font-size: 44px; letter-spacing: 2px; color: var(--gold); text-shadow: 0 2px 12px rgba(242,193,78,0.35); }
 #menu .sub { color: var(--muted); margin: 4px 0 18px; }

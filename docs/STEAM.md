@@ -107,7 +107,16 @@ apagou (`aoe_cloud_prev:<chave>`, uma por chave, descartada sozinha quando falta
   texto: a Steam põe o logo por cima), logo `library_logo_1280x720.png` (PNG transparente, contorno escuro para ler sobre
   qualquer herói); fundo da página `page_background_1438x810.jpg` (escurecido). Reprodutível (mesma cena, mesma fonte) e
   sem imagem gerada por IA. São um ponto de partida honesto para a página "Em breve"; uma arte-chave pintada à mão, quando
-  houver orçamento (`docs/ART_ASSETS.md`), substitui a cena mantendo os mesmos nomes. Faltam o que é do dono: screenshots
-  escolhidas (as capturas de `docs/art/` servem de base), trailer, texto da página e tags.
+  houver orçamento (`docs/ART_ASSETS.md`), substitui a cena mantendo os mesmos nomes.
+- **Screenshots (rascunho pronto, 28/09/2026)**: `npm run store:shots -- [url] [--lang en] [--out pasta]`
+  (`scripts/storeshots.mjs`, exige `npm run preview`) captura 7 cenas a 1920×1080 no preset Alta com a arte assada e o HUD:
+  cidade (a maior cidade de IA de uma partida real de 4 IAs Muito difícil avançada 22 min), batalha (falange, arqueiros,
+  cavalaria, cerco e heróis contra criaturas míticas), Tempestade de Raios, Cronos no campo, cerco a uma cidade de IA, a
+  m12 em andamento (fala, objetivos, contagem de Cronos) e o editor (cópia do Egeu, paleta de edifícios). PT em
+  `docs/steam/screens/`, EN em `docs/steam/screens-en/` (JPEG 92). As batalhas são montadas (unidades criadas e com a
+  vida aumentada para a luta durar a cena), como é comum em capturas de loja; a cidade, os mapas e o HUD são do jogo.
+- **Texto da página**: rascunho em PT e EN (descrição curta, "Sobre o jogo", perguntas do Acesso Antecipado, tags,
+  requisitos) em `docs/steam/LOJA.md`, conferido contra o código. Faltam o que é do dono: aprovar/trocar imagens e texto,
+  trailer, preço e datas.
 - Página "Em breve" o quanto antes: wishlists movem o algoritmo da Steam.
 - Playtest com o **Steam Playtest** (gratuito) antes do Early Access.

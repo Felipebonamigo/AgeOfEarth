@@ -6,7 +6,7 @@
 import { chromium } from 'playwright';
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const relay = process.argv[3] ?? 'ws://localhost:8787';
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({ env: { ...process.env, LANG: 'pt_BR.UTF-8', LANGUAGE: 'pt_BR' }, executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const errors = [];
 const ok = (label, cond, extra = '') => console.log(`${label}: ${cond ? 'ok' : 'FALHOU'}${extra ? ' ' + extra : ''}`);
 const mk = async (name) => {

@@ -20,7 +20,7 @@ import { esc } from './html';
 import { ic, missionIcon } from './icons';
 import { glyph } from './glyphs';
 import { watchEmoji } from './emoji';
-import { backdropUrl } from './loading';
+import { backdropUrl, missionArtUrl } from './loading';
 import { syncUiZoom } from './hud';
 
 const fixedMapLabel = (d: { name?: string; nameEn?: string; id?: string; w: number; h: number; starts: number | unknown[]; hash?: number }) => t('main.fixedMapInfo', { name: esc(mapName(d)), w: d.w, h: d.h, n: Array.isArray(d.starts) ? d.starts.length : d.starts }) + (d.hash !== undefined ? ` <span style="color:#6b7690">#${(d.hash >>> 0).toString(16).slice(0, 6)}</span>` : '');
@@ -270,6 +270,18 @@ export class MainMenu {
     if (this.tab === 'campaign') this.bindCustomScenarios();
     (this.el.querySelector('#m-cdiff') as HTMLSelectElement | null)?.addEventListener('change', (e) => { try { storeSet('aoe_campaign_diff', (e.target as HTMLSelectElement).value); } catch { /* ignore */ } });
     this.el.querySelectorAll('.mission').forEach((m) => m.addEventListener('click', () => { if ((m as HTMLElement).classList.contains('locked')) return; this.cb.onMission((m as HTMLElement).dataset.id!, this.campaignDifficulty()); }));
+    // ROADMAP 2.7: com o mouse (ou o foco do controle) numa missão liberada, o fundo do menu vira a ilustração dela; as
+    // bloqueadas não revelam a cena. Fora da lista (e em outra aba) volta o fundo do menu.
+    const menuBg = `url("${backdropUrl('menu')}")`;
+    this.el.style.setProperty('--menu-bg', menuBg);
+    this.el.querySelectorAll('.mission:not(.locked)').forEach((m) => {
+      const art = missionArtUrl((m as HTMLElement).dataset.id); if (!art) return;
+      const show = () => this.el.style.setProperty('--menu-bg', `url("${art}")`);
+      m.addEventListener('mouseenter', show); m.addEventListener('focus', show);
+      try { new Image().src = art; } catch { /* sem DOM de imagem (testes) */ }   // pré-carrega: a troca não pisca
+    });
+    this.el.querySelectorAll('.mission.locked').forEach((m) => m.addEventListener('mouseenter', () => this.el.style.setProperty('--menu-bg', menuBg)));
+    this.el.querySelector('.missions')?.addEventListener('mouseleave', () => this.el.style.setProperty('--menu-bg', menuBg));
     this.el.querySelectorAll('.god').forEach((g) => g.addEventListener('click', () => { this.god = (g as HTMLElement).dataset.god!; this.el.querySelectorAll('.god').forEach((x) => x.classList.toggle('sel', (x as HTMLElement).dataset.god === this.god)); }));
     const q = (id: string) => this.el.querySelector(id) as HTMLInputElement;
     q('#m-start').addEventListener('click', () => {

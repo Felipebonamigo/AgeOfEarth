@@ -67,6 +67,24 @@ describe('qualidade (docs/ART.md §3.9)', () => {
     const b = new AutoQuality('medium'); b.decided = true; b.reset();
     expect(b.decided).toBe(false);
   });
+  it('loadSettings: sem idioma salvo, vale aoe_locale ou o do sistema (a primeira execução em inglês abre em inglês)', () => {
+    const store: Record<string, string> = {};
+    const g = globalThis as { localStorage?: unknown; navigator?: unknown };
+    const prevLs = g.localStorage, prevNav = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+    g.localStorage = { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => { store[k] = v; } };
+    const setLang = (language: string) => Object.defineProperty(globalThis, 'navigator', { value: { language }, configurable: true, writable: true });
+    try {
+      setLang('en-US'); expect(loadSettings().locale).toBe('en');          // primeira execução, sistema em inglês
+      setLang('pt-BR'); expect(loadSettings().locale).toBe('pt');          // … em português
+      store.aoe_locale = 'en'; expect(loadSettings().locale).toBe('en');   // escolhido antes (aoe_locale) vence o sistema
+      store.aoe_settings_v1 = JSON.stringify({ volume: 0.4 }); expect(loadSettings().locale).toBe('en');   // save antigo sem o campo
+      store.aoe_settings_v1 = JSON.stringify({ locale: 'pt' }); expect(loadSettings().locale).toBe('pt'); // o das opções vence
+      store.aoe_settings_v1 = JSON.stringify({ locale: 'xx' }); expect(loadSettings().locale).toBe('en'); // inválido → detectado
+    } finally {
+      g.localStorage = prevLs;
+      if (prevNav) Object.defineProperty(globalThis, 'navigator', prevNav); else delete g.navigator;
+    }
+  });
   it('loadSettings: padrões novos e save antigo sem os campos', () => {
     expect(DEFAULT_SETTINGS.quality).toBe('auto'); expect(DEFAULT_SETTINGS.showFps).toBe(false); expect(DEFAULT_SETTINGS.teamOutline).toBe(false);
     const store: Record<string, string> = { aoe_settings_v1: JSON.stringify({ volume: 0.3, muted: true, edgeScroll: false, showRanges: true, locale: 'en', uiScale: 1.3, fullscreen: false, renderScale: 0.75 }) };
