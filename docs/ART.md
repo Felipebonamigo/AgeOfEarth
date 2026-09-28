@@ -483,8 +483,10 @@ recurso. D-pad e Menu do controle viraram glifos (o `☰`/`✚` somia no HUD). O
 ícone quando o atlas chega, sem redesenhar a tela (`data-ic`; o menu não perde o que o jogador digitou). Layout: botões do menu com
 glifo e texto numa linha (quebram em duas fileiras em vez de espremer o texto) e o seletor de idioma no tamanho do texto.
 Achado no caminho e corrigido: o briefing e a tela de fim de um cenário JSON inseriam título, subtítulo, introdução, objetivos,
-dicas e desfecho **sem escapar** — um anfitrião mal-intencionado executava HTML no cliente dos convidados; agora escapados, com
-teste em `tests/hud-text.test.ts`.
+dicas e desfecho **sem escapar** — um anfitrião mal-intencionado executava HTML no cliente dos convidados —, e a tela de fim de
+partida punha o texto de vitória (com os nomes dos jogadores; sem limite num save, replay ou cenário compartilhado) cru; agora
+escapados, com testes em `tests/hud-text.test.ts`. O menu também escapa o que o próprio jogador guardou nos campos (nome, sala,
+servidor: um nome com aspas voltava cortado) e as mensagens do servidor.
 
 **Verificação da Etapa 8**: `node scripts/playtest-noemoji.mjs http://localhost:4173/` com o relay — menu (3 retratos, 12 ícones de
 missão, 3 marcas de cumprida e 1 do Difícil), opções, ajuda, enciclopédia (todas as abas), créditos, salas abertas, lobby (retrato,

@@ -230,7 +230,7 @@ export class MainMenu {
       <div class="${this.tab === 'editor' ? '' : 'hidden'}" id="ed">${this.tab === 'editor' ? this.renderEditor() : ''}</div>
       <div class="grid ${this.tab === 'skirmish' ? '' : 'hidden'}">
         <div>
-          <label>${t('main.name')}</label><input id="m-name" value="${saved.name ?? t('main.player')}" maxlength="18">
+          <label>${t('main.name')}</label><input id="m-name" value="${esc(saved.name ?? t('main.player'))}" maxlength="18">
           <label>${t('main.god')}</label>
           <div class="gods">${MAJOR_GOD_LIST.map((g) => { const d = MAJOR_GODS[g]; return `<div class="god ${g === this.god ? 'sel' : ''}" data-god="${g}"><div class="ic">${ic.god(g, 'lg')}</div><b>${d.name}</b><small>${d.title}</small><small>${d.perks.slice(0, 3).join(' · ')}</small></div>`; }).join('')}</div>
           <label>${t('main.seed')}</label><input id="m-seed" placeholder="${t('main.random')}">
@@ -383,9 +383,9 @@ export class MainMenu {
     const defaultUrl = saved.url ?? defaultRelayUrl();
     if (!this.net || !lobby) {
       return `<p style="color:#9aa5b8;font-size:13px;margin:0 0 8px">${t('mp.intro')}</p>
-        <div class="grid"><div><label>${t('mp.server')}</label><input id="mp-url" value="${defaultUrl}"><label>${t('mp.room')}</label><input id="mp-room" value="${saved.room ?? 'OLIMPO'}" maxlength="12"></div>
-        <div><label>${t('main.name')}</label><input id="mp-name" value="${saved.name ?? t('main.player')}" maxlength="18"><label>${t('main.god')}</label><select id="mp-god">${MAJOR_GOD_LIST.map((g) => `<option value="${g}">${MAJOR_GODS[g].name}</option>`).join('')}</select></div></div>
-        <div class="actions"><button class="btn primary" id="mp-join">${t('mp.join')}</button><button class="btn" id="mp-spectate" title="${t('mp.spectateTip')}">${t('mp.spectate')}</button><button class="btn" id="mp-browse">${this.browsing ? t('mp.browseClose') : t('mp.browse')}</button><span style="color:#ef4444;font-size:13px">${this.netStatus}</span></div>
+        <div class="grid"><div><label>${t('mp.server')}</label><input id="mp-url" value="${esc(defaultUrl)}"><label>${t('mp.room')}</label><input id="mp-room" value="${esc(saved.room ?? 'OLIMPO')}" maxlength="12"></div>
+        <div><label>${t('main.name')}</label><input id="mp-name" value="${esc(saved.name ?? t('main.player'))}" maxlength="18"><label>${t('main.god')}</label><select id="mp-god">${MAJOR_GOD_LIST.map((g) => `<option value="${g}">${MAJOR_GODS[g].name}</option>`).join('')}</select></div></div>
+        <div class="actions"><button class="btn primary" id="mp-join">${t('mp.join')}</button><button class="btn" id="mp-spectate" title="${t('mp.spectateTip')}">${t('mp.spectate')}</button><button class="btn" id="mp-browse">${this.browsing ? t('mp.browseClose') : t('mp.browse')}</button><span style="color:#ef4444;font-size:13px">${esc(this.netStatus)}</span></div>
         <div id="mp-rooms">${this.roomListHTML()}</div>`;
     }
     const me = this.net.slot; const host = lobby.host === me;
@@ -407,7 +407,7 @@ export class MainMenu {
         <label><input type="checkbox" id="mp-horde" ${host ? '' : 'disabled'} ${st.horde ? 'checked' : ''}> ${t('mp.horde')}</label>${st.horde && st.fixedMap ? `<div style="font-size:12px;color:#f2c14e">${t('mp.fixedMapHorde')}</div>` : ''}
         <label><input type="checkbox" id="mp-public" ${host ? '' : 'disabled'} ${st.public !== false ? 'checked' : ''}> ${t('mp.public')}</label>
         ${this.net.isSpectator ? '' : `<label>${t('mp.myGod')}</label><select id="mp-mygod">${MAJOR_GOD_LIST.map((g) => `<option value="${g}" ${lobby.players.find((p) => p.slot === me)?.god === g ? 'selected' : ''}>${MAJOR_GODS[g].name}</option>`).join('')}</select>`}</div></div>
-      <div class="actions">${host ? `<button class="btn primary" id="mp-start">${t('mp.start')}</button>` : `<span style="color:#9aa5b8">${t('mp.waitingHost')}</span>`}<button class="btn" id="mp-leave">${t('mp.leave')}</button><span style="color:#ef4444;font-size:13px">${this.netStatus}</span></div>${chat}`;
+      <div class="actions">${host ? `<button class="btn primary" id="mp-start">${t('mp.start')}</button>` : `<span style="color:#9aa5b8">${t('mp.waitingHost')}</span>`}<button class="btn" id="mp-leave">${t('mp.leave')}</button><span style="color:#ef4444;font-size:13px">${esc(this.netStatus)}</span></div>${chat}`;
   }
 
   private bindMultiplayer() {

@@ -70,4 +70,15 @@ describe('HUD: texto de outros pares não vira HTML', () => {
     for (const k of ['T', 'S', 'I', 'Obj', 'H']) expect(shown[0]).toContain(`${k} &lt;img`);
     expect(shown[1]).toContain('T &lt;img');
   });
+
+  it('fim de partida: o texto de vitória (com os nomes dos jogadores) sai escapado', () => {
+    const shown: string[] = [];
+    const player = (id: number, name: string) => ({ id, name, team: id, color: 0x3b82f6, age: 0, stats: { kills: 0, losses: 0, razed: 0, buildingsBuilt: 0, unitsTrained: 0, gathered: { food: 0, wood: 0, gold: 0 } }, techs: [], territoryTiles: 0 });
+    const st = { scenario: undefined, winner: 1, time: 90, players: [player(0, 'Ana'), player(1, XSS)], events: [{ type: 'victory', text: `Vitória de ${XSS}!` }], config: { players: [] } };
+    const fake = { session: { state: st, player: st.players[0] }, audio: { play: () => {} }, modal: { querySelector: () => ({ addEventListener: () => {} }) }, showModal: (h: string) => { shown.push(h); }, hideModal: () => {}, cb: { onQuit: () => {} } };
+    (HUD.prototype as unknown as { showGameOver(this: unknown): void }).showGameOver.call(fake);
+    expect(shown).toHaveLength(1);
+    expect(shown[0]).not.toContain('<img');
+    expect(shown[0]).toContain('Vitória de &lt;img src=x onerror=&quot;');
+  });
 });
