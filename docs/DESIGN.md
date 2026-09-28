@@ -59,6 +59,10 @@ toca a simulação (pode usar `Math.random`) e só lê o estado.
 - `synth.ts` + `sfx.ts`: 47 receitas (bronze com parciais inarmônicas, carne/escudo, arco, flecha, catapulta, cascos, marcha, machado,
   picareta, colheita, martelos, sino, desabamento, fogo, mortes estilizadas sem gore, raio com trovão, terremoto, ondas, invocação,
   Titã, cura, interface de mármore/bronze, trompa), cada uma com variação de altura/tempo por disparo e nivelada por `renderOffline`.
+- Respostas das unidades (`Audio.ack`, tabela `ACKS`): ao selecionar toca o equipamento da classe que predomina na seleção (escudo
+  de bronze da infantaria, corda e aljava do arqueiro, bufo do cavalo, rangido do cerco, ferramenta do cidadão, rosnado mítico,
+  salpinx do herói); ao mover, passos ou cascos; ao atacar, um grito curto em coro (vozes por formantes, sem fala). Uma resposta a
+  cada 280 ms no máximo, por cima do clique de interface.
 - `events.ts`: a cada quadro lê os `state.effects`/`state.events` novos (por identidade: o núcleo descarta eventos antigos), escolhe
   a receita, atenua pela distância ao centro da câmera (fora da tela cai forte e abafa), faz pan por x e respeita a névoa do jogador
   local. Golpes demais num quadro viram a camada de batalha (clamor + choques esparsos com intensidade). Trabalho, marcha, cascos e

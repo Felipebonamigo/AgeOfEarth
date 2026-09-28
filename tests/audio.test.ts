@@ -9,6 +9,8 @@ import { MODES, chooseIntensity, composePhrase, degreeToMidi, inMode, layersFor,
 import { ambienceTargets, sampleBiome } from '../src/audio/ambience';
 import { ksFill, CATEGORY_LIMITS, MAX_VOICES } from '../src/audio/engine';
 import { loadSettings } from '../src/game/settings';
+import { ACKS } from '../src/audio/audio';
+import { UNITS } from '../src/core/data';
 
 /** Gerador reprodutível para os testes de composição. */
 function mulberry32(seed: number): () => number {
@@ -226,5 +228,19 @@ describe('áudio: síntese e configurações', () => {
       store.aoe_settings_v1 = JSON.stringify({ volume: 0.2, muted: false, sfxVolume: 0.1, musicVolume: 2, ambienceVolume: 'x' });
       expect(loadSettings()).toMatchObject({ volume: 0.2, muted: false, sfxVolume: 0.1, musicVolume: 1, ambienceVolume: 0.6 });   // já migrado: aoe_volume ignorado; inválidos corrigidos
     } finally { delete (globalThis as { localStorage?: unknown }).localStorage; }
+  });
+});
+
+describe('áudio: resposta das unidades (2.6)', () => {
+  it('toda classe de unidade do jogo responde a seleção, mover e atacar, com receitas que existem e categorias limitadas', () => {
+    const classes = new Set(Object.values(UNITS).map((u) => u.cls));
+    for (const c of classes) {
+      expect(ACKS[c], c).toBeTruthy();
+      for (const kind of ['select', 'move', 'attack'] as const) {
+        expect(ACKS[c][kind].length, `${c}/${kind}`).toBeGreaterThan(0);
+        for (const r of ACKS[c][kind]) { expect(RECIPES[r], r).toBeTypeOf('function'); expect(RECIPE_CATEGORY[r], r).toBeTruthy(); }
+      }
+    }
+    expect(CATEGORY_LIMITS.ack).toBeGreaterThan(0);
   });
 });

@@ -17,6 +17,23 @@ const UI_SOUNDS: Record<string, RecipeName> = {
 };
 /** Intervalo mínimo entre repetições do mesmo som de interface (ms). */
 const MIN_GAP: Record<string, number> = { select: 40, command: 40, build: 150, error: 120, alert: 1500, complete: 200, power: 300 };
+/** Ações de resposta das unidades (2.6). */
+export type AckKind = 'select' | 'move' | 'attack';
+/** Resposta por classe de unidade: o equipamento ao selecionar, passos/cascos ao mover, grito ou arma ao atacar. */
+export const ACKS: Record<string, Record<AckKind, RecipeName[]>> = {
+  villager: { select: ['ackTool'], move: ['march'], attack: ['ackTool'] },
+  infantry: { select: ['ackShield'], move: ['march'], attack: ['ackShout', 'ackShield'] },
+  skirmisher: { select: ['ackShield'], move: ['march'], attack: ['ackShout'] },
+  archer: { select: ['ackBow'], move: ['march'], attack: ['ackBow'] },
+  scout: { select: ['ackHorse'], move: ['hooves'], attack: ['ackHorse'] },
+  cavalry: { select: ['ackHorse'], move: ['hooves'], attack: ['ackShout', 'ackHorse'] },
+  siege: { select: ['ackCreak'], move: ['ackCreak'], attack: ['ackCreak'] },
+  hero: { select: ['ackHorn'], move: ['march'], attack: ['ackHorn', 'ackShout'] },
+  myth: { select: ['ackGrowl'], move: ['heavyStep'], attack: ['ackGrowl'] },
+  titan: { select: ['ackGrowl'], move: ['heavyStep'], attack: ['ackGrowl'] },
+};
+/** Intervalo mínimo entre respostas (ms): cliques rápidos não viram metralhadora de sons. */
+const ACK_GAP = 280;
 
 export class Audio {
   readonly engine: AudioEngine;
@@ -58,6 +75,22 @@ export class Audio {
     const recipe = UI_SOUNDS[name] ?? (name in RECIPES ? (name as RecipeName) : null);
     if (!recipe) return;
     this.engine.play(RECIPE_CATEGORY[recipe] === 'ui' ? 'ui' : RECIPE_CATEGORY[recipe], RECIPES[recipe], { bus: 'ui', gain: 0.9, reverb: RECIPE_REVERB[recipe] ?? 0.08, exempt: true, priority: 4 });
+  }
+
+  /**
+   * Resposta das unidades a uma seleção ou ordem (2.6): o clique de interface de sempre e, por cima, o som da classe que
+   * predomina na seleção (`cls`; null = sem unidades próprias: só o clique).
+   */
+  ack(kind: AckKind, cls: string | null): void {
+    this.play(kind === 'select' ? 'select' : 'command');
+    const list = cls ? ACKS[cls]?.[kind] : undefined;
+    if (!list) return;
+    const now = performance.now();
+    if (now - (this.last.get('ack') ?? 0) < ACK_GAP) return;
+    this.last.set('ack', now);
+    if (!this.engine.ensure()) return;
+    const t0 = performance.now();
+    try { for (const r of list) this.engine.play('ack', RECIPES[r], { bus: 'ui', gain: 0.75, reverb: 0.12, exempt: true, priority: 3 }); } finally { this.engine.cpu(performance.now() - t0); }
   }
 
   /** Chamado a cada quadro pelo laço principal: partida (posicional, ambiente, música) ou menu (tema do menu). */

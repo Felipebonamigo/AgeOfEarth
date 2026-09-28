@@ -38,6 +38,18 @@ s = await stats();
 check('partida: tema do jogo em paz', s.music.theme === 'game' && s.music.intensity === 'peace', `${s.music.theme}/${s.music.intensity}`);
 check('partida: ambiente por bioma ativo', s.ambience.wind > 0, JSON.stringify(s.ambience));
 
+// ---- resposta das unidades (2.6): clicar num cidadão e mandar mover pelo mouse tocam o som da classe ----
+await waitFor(() => !window.aoe.session.hold && document.getElementById('loading')?.classList.contains('hidden'), 20000);
+const ack0 = (await stats()).created.ack ?? 0;
+const vpos = await page.evaluate(() => { const ss = window.aoe.session; const v = [...ss.state.units.values()].find((u) => u.owner === ss.local && u.type === 'villager'); window.aoe.renderer.cam.centerOn(v.x, v.y); return { x: v.x, y: v.y }; });
+await page.waitForTimeout(300);
+const vs = await page.evaluate(({ x, y }) => window.aoe.renderer.cam.worldToScreen(x, y), vpos);
+await page.mouse.click(vs.x, vs.y - 6); await page.waitForTimeout(400);
+const picked = await page.evaluate(() => window.aoe.session.ownSelectedUnits().length);
+await page.mouse.click(vs.x + 140, vs.y + 60, { button: 'right' }); await page.waitForTimeout(400);
+const ack1 = (await stats()).created.ack ?? 0;
+check('resposta das unidades: selecionar um cidadão e mandar mover tocam o som da classe', picked > 0 && ack1 >= ack0 + 2, `selecionados=${picked} respostas ${ack0} → ${ack1}`);
+
 // ---- trabalho + edifício concluído: cidadãos constroem uma casa ao lado do CC (velocidade 3×) ----
 const placed = await page.evaluate(([x, y]) => {
   const ss = window.aoe.session; const st = ss.state;

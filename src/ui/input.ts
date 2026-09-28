@@ -159,7 +159,7 @@ export class Input {
       const mil = ids.filter((id) => isMilitary(s.state.units.get(id)!));
       const final = mil.length > 0 && mil.length < ids.length && !m.alt ? mil : ids;
       if (final.length > 0 || !m.ctrl) s.select(final, m.ctrl, false);
-      if (final.length > 0) this.audio.play('select');
+      if (final.length > 0) this.audio.ack('select', this.dominantClass(s));
       this.mouse.dragging = false;
       return;
     }
@@ -170,11 +170,19 @@ export class Input {
     if (ent) {
       if (now - this.lastClick < 450 && this.lastClickId === ent.id && ent.kind === 'unit' && ent.owner === s.local) this.selectTypeOnScreen(ent.type, m.ctrl);   // duplo clique: todas do mesmo tipo visíveis na tela
       else s.select([ent.id], m.ctrl);
-      this.audio.play('select');
+      this.audio.ack('select', this.dominantClass(s));
     } else if (!m.ctrl) s.select([]);
     this.lastClick = now; this.lastClickId = ent ? ent.id : -1;
   }
 
+  /** Classe de unidade que predomina entre as unidades próprias selecionadas (resposta sonora, 2.6); null sem unidades. */
+  private dominantClass(s: Session): string | null {
+    const n = new Map<string, number>();
+    for (const u of s.ownSelectedUnits()) { const c = UNITS[u.type]?.cls; if (c) n.set(c, (n.get(c) ?? 0) + 1); }
+    let best: string | null = null, bn = 0;
+    for (const [c, k] of n) if (k > bn) { best = c; bn = k; }
+    return best;
+  }
   /** Ordem contextual com o botão direito. */
   private contextCommand(x: number, y: number, queue: boolean) {
     const s = this.getSession(); if (!s) return;
@@ -214,7 +222,7 @@ export class Input {
       if (cmd.type === 'build') { // juntar-se a uma obra existente: usa "repair" (mesmo comportamento para obras incompletas)
         s.issue({ type: 'repair', player: s.local, ids: cmd.ids, targetId: (target as Building).id, queue });
       } else s.issue(cmd);
-      this.audio.play('command');
+      this.audio.ack(cmd.type === 'attack' ? 'attack' : 'move', this.dominantClass(s));
       s.state.effects.push({ type: 'spawn', x, y, ttl: 8, total: 8, data: 'order' });   // marcador de clique (visual; fx/handlers/spawn.ts)
     }
   }
@@ -222,7 +230,7 @@ export class Input {
   private attackMove(x: number, y: number, queue: boolean): boolean {
     const s = this.getSession()!; const ids = s.ownSelectedUnits().map((u) => u.id);
     if (ids.length === 0) return false;
-    s.issue({ type: 'attackMove', player: s.local, ids, x, y, queue, formation: s.ui.formation }); this.audio.play('command');
+    s.issue({ type: 'attackMove', player: s.local, ids, x, y, queue, formation: s.ui.formation }); this.audio.ack('attack', this.dominantClass(s));
     return true;
   }
 
@@ -359,7 +367,7 @@ export class Input {
     const s = this.getSession(); if (!s) return false;
     const us = [...s.state.units.values()].filter((u) => u.owner === s.local && !u.dead && u.inside === -1 && isMilitary(u));
     if (!us.length) return false;
-    s.select(us.map((u) => u.id)); this.audio.play('select');
+    s.select(us.map((u) => u.id)); this.audio.ack('select', this.dominantClass(s));
     this.renderer.cam.centerOn(us.reduce((a, u) => a + u.x, 0) / us.length, us.reduce((a, u) => a + u.y, 0) / us.length);
     return true;
   }

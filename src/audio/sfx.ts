@@ -335,6 +335,64 @@ const leveled = <T extends Record<string, Recipe>>(rs: T): T => {
   return out as T;
 };
 
+
+// ---------------- Respostas das unidades (seleção e ordens; 2.6) ----------------
+// Curtas e discretas (tocam a cada clique): o som do equipamento da classe ao selecionar, passos/cascos ao mover e um grito
+// curto em coro ao mandar atacar. Sem fala: vozes estilizadas por formantes, como nas mortes.
+/** Infantaria: a lança batendo no escudo de bronze (um ou dois toques) e o couro da correia. */
+const ackShield: Recipe = (h, out, t) => {
+  partials(h, out, t, rnd(600, 900), BRONZE, 0.045, rnd(0.14, 0.24), { spread: 0.012 });
+  thump(h, out, t, rnd(130, 170), 0.2, 0.06);
+  noise(h, out, t, { color: 'pink', gain: 0.07, decay: 0.05, filters: [{ type: 'bandpass', f: 1200, q: 1 }] });
+  if (Math.random() < 0.6) partials(h, out, t + rnd(0.09, 0.13), rnd(650, 950), BRONZE, 0.03, 0.13);
+  return 0.35;
+};
+/** Arqueiro: a corda tensionando (rangido curto) e as flechas batendo na aljava. */
+const ackBow: Recipe = (h, out, t) => {
+  tone(h, out, t, { type: 'sawtooth', f: rnd(90, 120), f2: rnd(140, 180), glide: 0.18, gain: 0.16, attack: 0.02, decay: 0.12, hold: 0.06, filter: { type: 'bandpass', f: 1400, q: 3 } });
+  crackles(h, out, t + 0.12, 4, 0.12, 0.3, 2500, 6000, 0.01);
+  return 0.32;
+};
+/** Cavaleiro: o bufo do cavalo (sopro nasal) e dois cascos. */
+const ackHorse: Recipe = (h, out, t) => {
+  noise(h, out, t, { color: 'pink', gain: 0.16, attack: 0.03, decay: 0.2, filters: [{ type: 'bandpass', f: rnd(500, 700), f2: rnd(300, 400), glide: 0.2, q: 2.5 }] });
+  noise(h, out, t + 0.02, { gain: 0.04, attack: 0.02, decay: 0.14, filters: [{ type: 'highpass', f: 3000 }] });
+  for (const d of [0.26, 0.36]) { noise(h, out, t + d, { gain: 0.18, decay: 0.03, filters: [{ type: 'bandpass', f: rnd(700, 1100), q: 1.8 }] }); thump(h, out, t + d, rnd(150, 190), 0.2, 0.035); }
+  return 0.45;
+};
+/** Cerco: madeira rangendo e o baque da carga. */
+const ackCreak: Recipe = (h, out, t) => {
+  tone(h, out, t, { type: 'sawtooth', f: rnd(55, 75), f2: rnd(80, 110), glide: 0.3, gain: 0.028, attack: 0.04, decay: 0.2, hold: 0.12, vibrato: { rate: 23, depth: 0.08 }, filter: { type: 'bandpass', f: 700, q: 4 } });
+  thump(h, out, t + 0.32, rnd(90, 120), 0.22, 0.08);
+  return 0.45;
+};
+/** Cidadão: a ferramenta tocando pedra ou madeira, de leve. */
+const ackTool: Recipe = (h, out, t) => {
+  pluck(h, out, t, rnd(380, 520), 0.16, { bright: 0.4, dur: 0.1 });
+  noise(h, out, t, { gain: 0.07, decay: 0.012, filters: [{ type: 'bandpass', f: 2600, q: 1 }] });
+  if (Math.random() < 0.5) pluck(h, out, t + 0.1, rnd(420, 560), 0.1, { bright: 0.4, dur: 0.08 });
+  return 0.25;
+};
+/** Criatura mítica ou titã: rosnado grave e curto. */
+const ackGrowl: Recipe = (h, out, t) => {
+  const f = rnd(60, 95);
+  voice(h, out, t, { f, f2: f * 0.8, dur: rnd(0.32, 0.46), gain: 1.2, vowel: VOWELS.o, breath: 0.35, rough: 0.06, attack: 0.05 });
+  return 0.5;
+};
+/** Herói: toque curto de salpinx (trombeta de bronze) em quinta. */
+const ackHorn: Recipe = (h, out, t) => {
+  const f = pick([233.1, 261.6, 293.7]);
+  tone(h, out, t, { type: 'sawtooth', f, gain: 0.1, attack: 0.03, decay: 0.12, hold: 0.08, filter: { type: 'lowpass', f: 1400, q: 2 } });
+  tone(h, out, t + 0.18, { type: 'sawtooth', f: f * 1.5, gain: 0.1, attack: 0.03, decay: 0.25, hold: 0.1, vibrato: { rate: 5.5, depth: 0.008 }, filter: { type: 'lowpass', f: 1800, q: 2 } });
+  return 0.6;
+};
+/** Ordem de ataque: grito curto em coro ("ha!"), três vozes. */
+const ackShout: Recipe = (h, out, t) => {
+  const base = rnd(150, 210);
+  for (let i = 0; i < 3; i++) voice(h, out, t + rnd(0, 0.04), { f: base * rnd(0.9, 1.12), f2: base * rnd(0.75, 0.85), dur: rnd(0.16, 0.22), gain: 0.55, vowel: pick([VOWELS.a, VOWELS.ah]), breath: 0.25, attack: 0.015 });
+  return 0.3;
+};
+
 export const RECIPES = leveled({
   clash, flesh, shieldWood, melee, bow, arrowImpact, mythShot, catapult, stoneImpact,
   hooves, march, heavyStep,
@@ -342,6 +400,7 @@ export const RECIPES = leveled({
   deathHuman, deathMyth, deathHorse, deathWing,
   zeusBolt, quake, waves, summon, titanRise, heal, curse, pestilence, petrify, ability, divine, bronzeRing,
   uiClick, uiConfirm, uiError, uiCoin, uiPlace, research, alertHorn, ageUp, ageOther, toll,
+  ackShield, ackBow, ackHorse, ackCreak, ackTool, ackGrowl, ackHorn, ackShout,
 } satisfies Record<string, Recipe>);
 export type RecipeName = keyof typeof RECIPES;
 
@@ -353,6 +412,7 @@ export const RECIPE_CATEGORY: Record<RecipeName, string> = {
   deathHuman: 'death', deathMyth: 'death', deathHorse: 'death', deathWing: 'death',
   zeusBolt: 'power', quake: 'power', waves: 'power', summon: 'magic', titanRise: 'power', heal: 'magic', curse: 'magic', pestilence: 'magic', petrify: 'magic', ability: 'magic', divine: 'power', bronzeRing: 'power',
   uiClick: 'ui', uiConfirm: 'ui', uiError: 'ui', uiCoin: 'ui', uiPlace: 'ui', research: 'ui', alertHorn: 'alert', ageUp: 'stinger', ageOther: 'stinger', toll: 'stinger',
+  ackShield: 'ack', ackBow: 'ack', ackHorse: 'ack', ackCreak: 'ack', ackTool: 'ack', ackGrowl: 'ack', ackHorn: 'ack', ackShout: 'ack',
 };
 
 /** Reverberação típica por receita (espaço aberto: pouco; poderes e sinos: muito). */

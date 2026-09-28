@@ -13,7 +13,7 @@ export const MAX_VOICES = 24;
 /** Limite de vozes simultâneas por categoria; categorias ausentes usam DEFAULT_LIMIT. */
 export const CATEGORY_LIMITS: Record<string, number> = {
   melee: 5, bow: 3, arrow: 3, siege: 3, impact: 3, death: 3, work: 4, march: 3, hooves: 2, battle: 3, bird: 3,
-  ui: 3, power: 3, built: 2, collapse: 2, fire: 2, magic: 3, alert: 1, stinger: 2,
+  ui: 3, power: 3, built: 2, collapse: 2, fire: 2, magic: 3, alert: 1, stinger: 2, ack: 2,
 };
 const DEFAULT_LIMIT = 3;
 
