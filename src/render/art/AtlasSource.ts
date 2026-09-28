@@ -73,6 +73,9 @@ export class AtlasSource {
   onChange: ((kind: LoadKind) => void) | null = null;
   /** Carregamentos em curso (manifesto e páginas, até subirem para a GPU). */
   get busy(): number { return this.pending.size; }
+  /** Carregamentos terminados desde o início (a tela de carregamento mede o progresso por ele). */
+  get completed(): number { return this.done; }
+  private done = 0;
   /** Carregamentos em curso de um tipo (a ArtLibrary só muda a geração quando não há mais nenhum de grupo). */
   busyOf(kind: LoadKind): number { let n = 0; for (const k of this.pending.values()) if (k === kind) n++; return n; }
   /** Mensagens de recusa/erro (diagnóstico e testes do navegador). */
@@ -92,7 +95,7 @@ export class AtlasSource {
   private url(file: string): string { return this.base + file; }
   private track<T>(p: Promise<T>, kind: LoadKind = 'group'): Promise<T> {
     this.pending.set(p, kind);
-    void p.finally(() => { this.pending.delete(p); this.onChange?.(kind); });
+    void p.finally(() => { this.pending.delete(p); this.done++; this.onChange?.(kind); });
     return p;
   }
   private fail(msg: string): void { this.errors.push(msg); if (this.errors.length > 20) this.errors.shift(); console.warn('[arte]', msg); }

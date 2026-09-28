@@ -65,7 +65,7 @@ ok('diálogo do gatilho em #dialogue', test.dlgVisible && test.dialogue.includes
 // fim do cenário em teste: vitória forçada → modal sem marcar progresso (id não oficial) e botão "Voltar ao editor"
 await page.evaluate(() => { const s = window.aoe.session; s.state.scenario.outcome = 'victory'; s.state.gameOver = true; s.state.winner = 0; });
 await page.waitForTimeout(400);
-ok('fim do cenário em teste: modal sem progresso da campanha', await page.isVisible('#modal #m-quit') && (await page.textContent('#modal h2'))?.includes('Cenario Teste') && await page.evaluate(() => localStorage.getItem('aoe_campaign') === null) && (await page.textContent('#modal #m-quit'))?.includes('editor') && !(await page.$('#modal #m-next')));
+ok('fim do cenário em teste: modal sem progresso da campanha', await page.isVisible('#modal #m-quit') && (await page.textContent('#modal .over-banner, #modal h2'))?.includes('Cenario Teste') && await page.evaluate(() => localStorage.getItem('aoe_campaign') === null) && (await page.textContent('#modal #m-quit'))?.includes('editor') && !(await page.$('#modal #m-next')));
 await page.click('#modal #m-quit'); await page.waitForTimeout(600);
 ok('de volta ao editor com meta.scenario', await page.evaluate(() => window.aoe.session?.ui.mode === 'editor' && !!window.aoe.editor.meta.scenario && window.aoe.editor.meta.scenario.triggers.length === 1) && await page.isVisible('#editor'));
 
@@ -82,7 +82,7 @@ const imported = await page.evaluate((f) => window.aoe.menu.importScenarioMap(JS
 await page.waitForTimeout(200);
 ok('importar → cartão em Cenários personalizados', imported === 'cenario-teste' && await page.isVisible('#m-scenarios [data-scn="cenario-teste"]') && (await page.textContent('#m-scenarios [data-scn="cenario-teste"]'))?.includes('Cenario Teste'));
 await page.click('#m-scenarios [data-scn="cenario-teste"] [data-act="play"]'); await page.waitForTimeout(1200);
-ok('jogar → intro', await page.isVisible('#modal #m-go') && (await page.textContent('#modal h2'))?.includes('Cenario Teste'));
+ok('jogar → intro', await page.isVisible('#modal #m-go') && (await page.textContent('#modal .over-banner, #modal h2'))?.includes('Cenario Teste'));
 await page.click('#m-go'); await page.waitForTimeout(2500);
 const play = await page.evaluate(() => { const s = window.aoe.session; const c = s.state.config; return { scenarioData: !!c.scenarioData, map: c.map?.id, hash: c.mapHash, tick: s.state.tick, campaign: localStorage.getItem('aoe_campaign') }; });
 ok('session.state.config.scenarioData existe (mapa inline com hash)', play.scenarioData && play.map === 'cenario-teste' && typeof play.hash === 'number' && play.tick > 0, JSON.stringify(play));

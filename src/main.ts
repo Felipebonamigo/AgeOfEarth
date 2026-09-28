@@ -12,7 +12,12 @@ import { migrateMap, validateMap, canonicalize, mapHash, type FixedMapData, type
 import { validateScenario } from './core/scenario/schema';
 import { gameConfigFor } from './core/scenario/compile';
 import { localHumanIndex, migrateLegacyPuppets } from './core/scenario/helpers';
-import { putMap, slugify } from './game/maps';
+import { putMap, slugify, mapName } from './game/maps';
+import { LoadingScreen, type LoadingInfo } from './ui/loading';
+import { installFrames } from './ui/frames';
+import { ic, missionIcon } from './ui/icons';
+import { noEmoji } from './ui/html';
+import { getScenarioFor } from './core/scenario/runner';
 import { MapEditor } from './editor/editor';
 import { EditorPanel, type TestOpts } from './editor/panel';
 import type { EditorView } from './editor/types';
@@ -67,6 +72,7 @@ async function boot() {
   const settings = loadSettings();
   setLocale(settings.locale ?? detectLocale());
   const root = document.getElementById('app')!;
+  installFrames();   // moldura de bronze com a grega (border-image do menu e das telas de fim)
   const renderer = new Renderer();
   await renderer.init(root);
   // Contador de desempenho (?perf=1 ou opção "mostrar desempenho") e preset de qualidade (docs/ART.md §3.9)
@@ -150,6 +156,42 @@ async function boot() {
   achievements.onUnlock = (a) => { const tx = achievementText(a, getLocale()); hud.toast(`${t('msg.achievement')}: ${tx.name} — ${tx.desc}`, 'gold'); audio.play('complete'); };
   const input: Input = new Input(renderer.canvas, () => session, renderer, hud, audio);
 
+  // ---------------- Tela de carregamento (src/ui/loading.ts) ----------------
+  const loading = new LoadingScreen(root);
+  let loadToken = 0;
+  /** Título da partida: a missão/cenário (com o ícone dela) ou a partida rápida (modo · mapa · deuses). */
+  const loadingInfoFor = (config: GameConfig, s: Session): LoadingInfo => {
+    let def: ReturnType<typeof getScenarioFor> | undefined;
+    try { def = getScenarioFor(s.state); } catch { def = undefined; }
+    if (def) return { title: noEmoji(def.title), subtitle: noEmoji(def.subtitle ?? ''), iconHtml: missionIcon(def.id, def.icon, 'lg') };
+    const mode = t(`mode.${config.mode ?? 'conquest'}`).split(/[:(]/)[0].trim();
+    const where = config.map ? mapName(config.map) : `${t(`maptype.${config.mapType ?? 'continental'}`)} · ${t(`map.${config.mapSize}`)}`;
+    const gods = config.players.map((p) => MAJOR_GODS[p.god]?.name ?? p.god).join(` ${t('load.vs')} `);
+    return { title: t('load.skirmish'), subtitle: `${mode} · ${where} · ${gods}`, iconHtml: ic.god(config.players[s.local]?.god ?? 'zeus', 'lg') };
+  };
+  /**
+   * Partida local: a sessão espera (`hold`) até os atlas pedidos pela partida chegarem (os tipos quentes são pedidos no
+   * primeiro quadro: espera alguns quadros antes de acreditar em "nada carregando"), no máximo 15 s; a tela some sozinha.
+   * Outra partida começando, ou a volta ao menu, cancela a espera.
+   */
+  const beginLoading = (s: Session, info: LoadingInfo) => {
+    const my = ++loadToken;
+    loading.show(info);
+    s.hold = true;
+    const t0 = performance.now(), base = renderer.artLoading().done;
+    let frames = 0;
+    const tick = () => {
+      if (my !== loadToken || session !== s) { s.hold = false; if (my === loadToken) loading.hide(); return; }
+      frames++;
+      const { busy, done } = renderer.artLoading(), got = done - base;
+      loading.progress(busy + got > 0 ? got / (busy + got) : frames > 3 ? 1 : null);
+      const elapsed = performance.now() - t0;
+      if ((frames > 4 && busy === 0 && elapsed > 600) || elapsed > 15000) { s.hold = false; loading.progress(1); loading.hide(); return; }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  };
+
   const startGame = (config: GameConfig) => {
     session = Session.newGame(config);
     if (!returnToEditor) achievements.recordGod(config.players[session.local]?.god ?? 'zeus');   // testes do editor não contam
@@ -157,6 +199,7 @@ async function boot() {
     const home = [...session.state.buildings.values()].find((b) => b.owner === session!.local && b.type === 'town_center');
     if (home) renderer.cam.centerOn(home.x, home.y);
     hud.setSession(session); hud.setVisible(true); menu.hide();
+    beginLoading(session, loadingInfoFor(config, session));
     hud.toast(t('msg.welcome', { name: session.player.name, god: MAJOR_GODS[session.state.players[session.local].god]?.name ?? '' }), 'gold');
     if (config.mode === 'regicide') hud.toast(t('msg.regicideStart'), 'info');
     if (config.mode === 'koth' && !config.scenario) hud.toast(t('msg.kothStart', { min: 4 }), 'info');   // em cenário (m10) a colina é do roteiro
@@ -171,6 +214,7 @@ async function boot() {
       const tc = [...session.state.buildings.values()].find((b) => b.owner === session!.local && b.type === 'town_center');
       if (tc) renderer.cam.centerOn(tc.x, tc.y);
       hud.setSession(session); hud.setVisible(true); menu.hide();
+      beginLoading(session, { ...loadingInfoFor(session.state.config, session), title: t('load.saved') });
       hud.toast(t('msg.loaded'), 'good');
     } catch (e) { hud.toast(t('msg.loadFail', { err: (e as Error).message }), 'warn'); }
   };
@@ -485,7 +529,7 @@ async function boot() {
   };
   requestAnimationFrame(loop);
   // Expõe para depuração/testes automatizados
-  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, hud, pad, input, perf, settings, audio, applyQuality, startGame, loadGame, diagnostic, menu, startEditor, exitEditor, testFromEditor, startScenarioFile, get editor() { return editor; }, get editorPanel() { return editorPanel; }, mapData: () => (session ? mapToData(session.state.map) : null), debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; },
+  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, hud, loading, pad, input, perf, settings, audio, applyQuality, startGame, loadGame, diagnostic, menu, startEditor, exitEditor, testFromEditor, startScenarioFile, get editor() { return editor; }, get editorPanel() { return editorPanel; }, mapData: () => (session ? mapToData(session.state.map) : null), debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; },
     // cenas de teste (scripts/artparade.mjs): edifício no canto (tx, ty) com a obra na fração `frac` (1 = completo); fora do lockstep, como debugSpawn
     debugBuild: (owner: number, type: string, tx: number, ty: number, frac = 1) => { if (!session) return null; const st = session.state; if (!canPlaceBuilding(st, st.players[owner], type, tx, ty, true, true).ok) return null; const b = placeBuilding(st, owner, type, tx, ty, frac >= 1); if (frac < 1) b.progress = Math.max(0, frac) * getBuildingStats(st, st.players[owner], type).buildTime; return b; },
     // cenas de teste (scripts/artcity.mjs): derruba um edifício como se fosse destruído (colapso + escombros)

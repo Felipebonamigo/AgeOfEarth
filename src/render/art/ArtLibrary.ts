@@ -155,6 +155,8 @@ export class ArtLibrary {
     return a.atlases[String(o)] && this.atlas.assetStatus(id, o) === 'ready' ? o : null;
   }
 
+  /** Carregamentos em curso e terminados (desligada: nada carrega). */
+  loading(): { busy: number; done: number } { return this.enabled ? { busy: this.atlas.busy, done: this.atlas.completed } : { busy: 0, done: 0 }; }
   /** Resolve quando nada mais está carregando (capturas e testes do navegador). */
   async ready(): Promise<void> { await this.atlas.idle(); await this.atlas.idle(); }
 

@@ -93,3 +93,27 @@ export function glyph(name: keyof typeof P | string, cls = ''): string {
   return `<svg class="gly${cls ? ' ' + cls : ''}" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 }
 export const GLYPHS = Object.keys(P);
+
+/**
+ * Ramo de louro decorativo (telas de vitória/derrota e fim de missão): haste curva com folhas em pares ao longo dela, em
+ * `currentColor`. `flip` espelha (o par forma a coroa aberta dos dois lados do título).
+ */
+export function laurelSvg(flip = false, cls = ''): string {
+  // haste em "(": arco de círculo à esquerda do centro (80, 52), de baixo (θ = 255°) até o alto (θ = 108°)
+  const cx = 80, cy = 52, r = 38, N = 9, D = Math.PI / 180;
+  const pt = (th: number) => [cx + r * Math.cos(th * D), cy - r * Math.sin(th * D)];
+  const leaves: string[] = [];
+  for (let i = 0; i < N; i++) {
+    const u = i / (N - 1), th = 250 - u * 138, [x, y] = pt(th);
+    const tang = Math.atan2(Math.cos(th * D), Math.sin(th * D)) / D + 90;   // eixo da folha ao longo da haste, para cima
+    const nx = Math.cos(th * D), ny = -Math.sin(th * D), s = 1.15 - u * 0.5;
+    for (const side of [1, -1]) {
+      const lx = x + side * nx * 5.5 * s, ly = y + side * ny * 5.5 * s;
+      leaves.push(`<ellipse cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" rx="${(3.3 * s).toFixed(1)}" ry="${(8.2 * s).toFixed(1)}" transform="rotate(${(tang + side * 32).toFixed(0)} ${lx.toFixed(1)} ${ly.toFixed(1)})"/>`);
+    }
+  }
+  const [x0, y0] = pt(258), [x1, y1] = pt(104);
+  const stem = `<path d="M${x0.toFixed(1)} ${y0.toFixed(1)} A${r} ${r} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>`;
+  const berry = (th: number) => { const [x, y] = pt(th); return `<circle cx="${(x - Math.cos(th * D) * 2).toFixed(1)}" cy="${(y + Math.sin(th * D) * 2).toFixed(1)}" r="2.2"/>`; };
+  return `<svg class="laurel${cls ? ' ' + cls : ''}" viewBox="0 0 100 100" aria-hidden="true"${flip ? ' style="transform:scaleX(-1)"' : ''}>${stem}<g fill="currentColor">${leaves.join('')}${berry(214)}${berry(160)}</g></svg>`;
+}

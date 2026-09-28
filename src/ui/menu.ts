@@ -20,6 +20,7 @@ import { esc } from './html';
 import { ic, missionIcon } from './icons';
 import { glyph } from './glyphs';
 import { watchEmoji } from './emoji';
+import { backdropUrl } from './loading';
 import { syncUiZoom } from './hud';
 
 const fixedMapLabel = (d: { name?: string; nameEn?: string; id?: string; w: number; h: number; starts: number | unknown[]; hash?: number }) => t('main.fixedMapInfo', { name: esc(mapName(d)), w: d.w, h: d.h, n: Array.isArray(d.starts) ? d.starts.length : d.starts }) + (d.hash !== undefined ? ` <span style="color:#6b7690">#${(d.hash >>> 0).toString(16).slice(0, 6)}</span>` : '');
@@ -61,6 +62,7 @@ export class MainMenu {
     this.el = document.createElement('div'); this.el.id = 'menu';
     syncUiZoom(this.el);
     watchEmoji(this.el);   // Etapa 8: os emoji dos textos viram glifos (src/ui/emoji.ts)
+    this.el.style.setProperty('--menu-bg', `url("${backdropUrl('menu')}")`);   // fundo pintado (npm run art:backdrop)
     root.appendChild(this.el);
     this.restoreFixedMap();
     this.render();

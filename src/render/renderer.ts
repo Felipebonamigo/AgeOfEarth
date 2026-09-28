@@ -223,6 +223,8 @@ export class Renderer {
 
   get canvas(): HTMLCanvasElement { return this.app.canvas; }
 
+  /** Atlas carregando e já carregados (tela de carregamento, src/ui/loading.ts). */
+  artLoading(): { busy: number; done: number } { return this.art.loading(); }
   setState(state: GameState): void {
     this.state = state;
     this.cam.setMap(state.map.w, state.map.h);

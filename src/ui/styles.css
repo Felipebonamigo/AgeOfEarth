@@ -1,6 +1,10 @@
+/* fonte dos títulos: Cinzel (© The Cinzel Project Authors, SIL Open Font License 1.1; subconjunto latino, que cobre o português) */
+@import '@fontsource/cinzel/latin-600.css';
+@import '@fontsource/cinzel/latin-700.css';
 :root {
   --bg: #0b1020; --panel: rgba(16, 22, 38, 0.92); --panel2: rgba(26, 34, 56, 0.95); --border: #3b4a6b; --gold: #f2c14e; --marble: #f1ece2;
   --text: #e6e9f0; --muted: #9aa5b8; --accent: #60a5fa; --danger: #ef4444; --ok: #4ade80; --font: 'Segoe UI', 'Noto Sans', Roboto, Arial, sans-serif;
+  --font-title: 'Cinzel', 'Trajan Pro', Georgia, 'Times New Roman', serif;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); overflow: hidden; user-select: none; -webkit-user-select: none; }
@@ -141,8 +145,9 @@ button { font-family: inherit; cursor: pointer; }
 #modal input[type=range] { width: 200px; }
 
 /* ---------- Menu principal ---------- */
-#menu { position: fixed; inset: 0; background: radial-gradient(1200px 600px at 50% -10%, #2b3a6b 0%, #0b1020 60%); display: flex; align-items: center; justify-content: center; z-index: 30; }
-#menu .box { width: 880px; max-width: 96vw; max-height: 94vh; overflow: auto; background: var(--panel2); border: 1px solid var(--border); border-radius: 16px; padding: 28px 32px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
+/* fundo pintado (public/ui/fundo-menu.jpg, npm run art:backdrop) sob um véu que escurece as bordas e o centro atrás da caixa; sem a imagem, o gradiente de antes */
+#menu { position: fixed; inset: 0; background: linear-gradient(90deg, rgba(6, 9, 18, 0.5) 0%, rgba(6, 9, 18, 0.12) 22%, rgba(6, 9, 18, 0.45) 40%, rgba(6, 9, 18, 0.45) 60%, rgba(6, 9, 18, 0.12) 78%, rgba(6, 9, 18, 0.5) 100%), var(--menu-bg, none) center / cover no-repeat, radial-gradient(1200px 600px at 50% -10%, #2b3a6b 0%, #0b1020 60%); display: flex; align-items: center; justify-content: center; z-index: 30; }
+#menu .box { width: 880px; max-width: 96vw; max-height: 94vh; overflow: auto; background: rgba(18, 24, 40, 0.86); border: 1px solid rgba(160, 122, 54, 0.55); border-radius: 16px; padding: 28px 32px; box-shadow: 0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(242, 193, 78, 0.12); backdrop-filter: blur(6px); }
 #menu h1 { margin: 0; font-size: 44px; letter-spacing: 2px; color: var(--gold); text-shadow: 0 2px 12px rgba(242,193,78,0.35); }
 #menu .sub { color: var(--muted); margin: 4px 0 18px; }
 #menu .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
@@ -333,3 +338,61 @@ html.pad-active, html.pad-active * { cursor: none !important; }
 #modal { max-height: calc(88vh / var(--uiz, 1)); }
 html.pad-active #menu .box { max-height: calc(86vh / var(--uiz, 1)); }
 html.pad-active #modal { max-height: calc(82vh / var(--uiz, 1)); }
+/* títulos em Cinzel (capitulares romanas): menu principal, campanha, modais, cartões dos deuses */
+#menu h1, #menu h3, #menu .act-head, #menu .god b, #menu .mission b, #modal h2, #modal h3, #gods .pw b { font-family: var(--font-title); letter-spacing: 0.02em; }
+#menu h1 { font-weight: 700; letter-spacing: 0.08em; }
+#menu h3, #modal h2, #modal h3, #menu .act-head { font-weight: 700; }
+#menu .god b, #menu .mission b { font-weight: 600; }
+/* tela de carregamento (src/ui/loading.ts): o fundo pintado aproximando devagar, véu escuro embaixo, título, barra e dica */
+#loading { position: fixed; inset: 0; z-index: 55; background: #05070d; overflow: hidden; transition: opacity 0.45s ease; }
+#loading.out { opacity: 0; pointer-events: none; }
+#loading .bg { position: absolute; inset: -2%; background: center / cover no-repeat; animation: loading-zoom 24s ease-out both; }
+@keyframes loading-zoom { from { transform: scale(1); } to { transform: scale(1.07); } }
+#loading .shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(5, 7, 13, 0.1) 0%, rgba(5, 7, 13, 0) 40%, rgba(5, 7, 13, 0.72) 72%, rgba(5, 7, 13, 0.92) 100%); }
+#loading .content { position: absolute; left: 50%; bottom: 7vh; transform: translateX(-50%); width: min(880px, 92vw); color: var(--text); }
+#loading .head { display: flex; align-items: center; gap: 16px; }
+#loading .head .ic:empty { display: none; }
+#loading .head .hic { width: 64px; height: 64px; }
+#loading h1 { margin: 0; font-family: var(--font-title); font-weight: 700; font-size: clamp(28px, 4vw, 46px); letter-spacing: 0.05em; color: var(--gold); text-shadow: 0 2px 14px rgba(0, 0, 0, 0.8), 0 0 18px rgba(242, 193, 78, 0.25); }
+#loading .sub { color: #d9d2c2; font-size: 15px; margin-top: 2px; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9); }
+#loading .bar { margin: 18px 0 8px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.1); box-shadow: inset 0 0 0 1px rgba(160, 122, 54, 0.5); overflow: hidden; }
+#loading .bar span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #a07a36, #f2c14e); transition: width 0.25s ease; }
+#loading.indeterminate .bar span { width: 30% !important; animation: loading-slide 1.4s ease-in-out infinite; }
+@keyframes loading-slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+#loading .status { font-size: 12px; color: var(--muted); letter-spacing: 0.04em; }
+#loading .tip { margin-top: 14px; font-size: 15px; line-height: 1.45; color: #e8e2d4; min-height: 2.9em; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9); }
+#loading .tip b { color: var(--gold); font-weight: 600; margin-right: 4px; }
+@media (prefers-reduced-motion: reduce) { #loading .bg, #loading.indeterminate .bar span { animation: none; } }
+/* telas até 940 px de altura (Steam Deck 1280×800, notebooks 1440×900): o menu cabe sem rolar — campos, rótulos e botões mais justos */
+@media (max-height: 940px) {
+  #menu .box { padding: 18px 26px; }
+  #menu h1 { font-size: 34px; }
+  #menu .sub { margin: 2px 0 10px; font-size: 13px; }
+  #menu .tabs { margin-bottom: 10px; }
+  #menu label { margin: 5px 0 2px; }
+  #menu input, #menu select { padding: 4px 8px; font-size: 13px; }
+  #menu .god { padding: 7px; }
+  #menu .god .ic { height: 64px; }
+  #menu .god .hic-god.lg { width: 60px; height: 60px; }
+  #menu .actions { margin-top: 12px; gap: 8px; }
+  #menu .actions .btn { padding: 7px 13px; font-size: 14px; }
+  #menu .credits { margin-top: 8px; }
+}
+/* telas de fim (vitória, derrota, missão): estandarte com ramos de louro, dourado na vitória e bronze apagado na derrota */
+#modal.over { min-width: min(760px, 94vw); background: radial-gradient(120% 70% at 50% 0%, rgba(242, 193, 78, 0.16), transparent 60%), rgb(22, 28, 46); border-color: rgba(160, 122, 54, 0.7); }
+#modal.over.lost, #modal.over.draw { background: radial-gradient(120% 70% at 50% 0%, rgba(150, 70, 50, 0.18), transparent 60%), rgb(22, 24, 36); }
+#modal .over-banner { display: flex; align-items: center; justify-content: center; gap: 10px; margin: -4px 0 14px; text-align: center; }
+#modal .over-banner .t { min-width: 0; }
+#modal .over-banner h2 { margin: 0; font-size: clamp(30px, 4.2vw, 46px); letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); text-shadow: 0 2px 14px rgba(242, 193, 78, 0.35); }
+#modal .over-banner p { margin: 4px 0 0; color: #d9d2c2; font-size: 14px; }
+#modal .over-banner .laurel { width: 64px; height: 64px; flex: none; color: #c9a14a; filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.6)); }
+#modal .over-banner.lost h2, #modal .over-banner.draw h2 { color: #c8b8a0; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7); }
+#modal .over-banner.lost .laurel, #modal .over-banner.draw .laurel { color: #7d6a50; opacity: 0.8; }
+#modal.over table { font-size: 13px; }
+#modal.over th { background: transparent; border-bottom-color: rgba(160, 122, 54, 0.6); }
+#modal.over tr:nth-child(odd) td { background: rgba(255, 255, 255, 0.025); }
+#modal.over td .hic-god.sm { width: 20px; height: 20px; vertical-align: -5px; }
+/* moldura de bronze com a grega (src/ui/frames.ts): caixa do menu principal e telas de fim; sem a imagem, a borda comum */
+#menu .box, #modal.over { border: 16px solid rgba(106, 76, 30, 0.9); border-image-source: var(--frame-meander, none); border-image-slice: var(--frame-slice, 16); border-image-repeat: round; border-radius: 0; background-clip: padding-box; }
+#menu .box { padding: 22px 28px; }
+@media (max-height: 940px) { #menu .box { padding: 14px 22px; } }

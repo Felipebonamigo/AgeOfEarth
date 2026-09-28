@@ -20,7 +20,9 @@ export interface Dependency { name: string; version: string; license: string; sc
 export interface ThirdPartyEntry extends Dependency { copyright: string[]; url?: string }
 
 // ---------------- Classificação SPDX ----------------
-const PERMISSIVE = new Set(['MIT', 'MIT-0', 'X11', 'ISC', '0BSD', 'BSD-2-Clause', 'BSD-3-Clause', 'Apache-2.0', 'Zlib', 'CC0-1.0', 'Unlicense', 'BlueOak-1.0.0', 'Python-2.0', 'CC-BY-3.0', 'CC-BY-4.0', 'BSL-1.0', 'PSF-2.0']);
+// OFL-1.1 (fontes): embutir a fonte num programa, comercial inclusive, é permitido; só não se vende a fonte sozinha e o aviso
+// de copyright/licença vai junto (tela Créditos e docs/THIRD_PARTY.md)
+const PERMISSIVE = new Set(['MIT', 'MIT-0', 'X11', 'ISC', '0BSD', 'BSD-2-Clause', 'BSD-3-Clause', 'Apache-2.0', 'Zlib', 'CC0-1.0', 'Unlicense', 'BlueOak-1.0.0', 'Python-2.0', 'CC-BY-3.0', 'CC-BY-4.0', 'BSL-1.0', 'PSF-2.0', 'OFL-1.1']);
 const WEAK = /^(LGPL-(2\.0|2\.1|3\.0)(-only|-or-later|\+)?|MPL-(1\.1|2\.0)|EPL-(1\.0|2\.0)|CDDL-1\.[01])$/;
 const STRONG = /^(A?GPL-(1\.0|2\.0|3\.0)(-only|-or-later|\+)?|SSPL-1\.0|OSL-3\.0|EUPL-1\.[12]|CC-BY-(NC-)?SA-[0-9.]+|CC-BY-NC.*)$/;
 /** Licenças proprietárias que o parceiro pode redistribuir (Steamworks SDK dentro do steamworks.js). */

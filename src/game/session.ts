@@ -29,6 +29,8 @@ export class Session {
   groups = new Map<number, number[]>();
   speed = 1;
   paused = false;
+  /** Espera da tela de carregamento (partida local: a arte chegando na GPU). Não é a pausa do jogador nem a do briefing. */
+  hold = false;
   accumulator = 0;
   ui: UIState = { mode: 'normal', placeType: null, powerId: null, wallStart: null, showRanges: false, formation: 'line' };
   lastEvent: { x: number; y: number } | null = null;
@@ -76,7 +78,7 @@ export class Session {
 
   /** Avança a simulação conforme o tempo real decorrido; retorna a fração de interpolação. */
   step(dtReal: number): number {
-    if (this.paused || this.state.gameOver) return 1;
+    if (this.paused || this.hold || this.state.gameOver) return 1;
     this.accumulator += Math.min(0.25, dtReal) * this.speed;
     let n = 0;
     while (this.accumulator >= DT && n < 12) { if (!this.scheduler.step(this.state)) { this.accumulator = Math.min(this.accumulator, DT * 2); break; } this.accumulator -= DT; n++; }

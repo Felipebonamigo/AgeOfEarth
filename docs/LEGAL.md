@@ -152,9 +152,11 @@ Contato: **[DONO: e-mail]** · Controlador: **[DONO: razão social, CNPJ]** · E
   sem codecs proprietários — sem H.264/AAC — que `desktop/after-pack.cjs` põe no lugar da padrão do Electron ao empacotar;
   `scripts/playtest-desktop.mjs` confere o binário),
   steamworks.js 0.4 (MIT) com a biblioteca `steam_api` da Valve (Steamworks SDK Access Agreement, redistribuível pelo
-  parceiro Steamworks); **relay** — ws 8.21 (MIT). Nenhuma GPL/AGPL.
+  parceiro Steamworks); **relay** — ws 8.21 (MIT). Nenhuma GPL/AGPL. Fonte embutida (28/09/2026): **Cinzel** (@fontsource/cinzel 5.3,
+  © The Cinzel Project Authors, SIL Open Font License 1.1 — embutir num programa comercial é permitido; a fonte não é vendida
+  sozinha e o aviso de copyright vai na tela Créditos e em `docs/THIRD_PARTY.md`), só nos títulos.
 - Ferramentas de desenvolvimento (Vite, TypeScript, Vitest, Playwright, three.js, pngjs, pixelmatch, electron-builder) não vão
-  no pacote. Música e efeitos são sintetizados pelo próprio código (`src/audio/`); fontes são as do sistema (nenhuma embutida);
+  no pacote. Música e efeitos são sintetizados pelo próprio código (`src/audio/`); o texto corrido usa as fontes do sistema (só os títulos usam a Cinzel, acima);
   a arte é do projeto (texturas procedurais e sprites assados de modelos paramétricos próprios).
 - **[DONO: ao adquirir fontes, música, SFX ou arte de terceiros (Fase 2), registrar licença, autor e escopo aqui e na tela Créditos]**
 

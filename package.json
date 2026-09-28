@@ -23,10 +23,12 @@
     "art:bake": "node scripts/bake/bake.mjs",
     "art:check": "tsx scripts/bake/check.ts",
     "art:fx": "node scripts/bake/fx.mjs",
-    "art:hud": "node scripts/bake/hud.mjs"
+    "art:hud": "node scripts/bake/hud.mjs",
+    "art:backdrop": "node scripts/bake/backdrop.mjs"
   },
   "license": "MIT",
   "dependencies": {
+    "@fontsource/cinzel": "^5.3.0",
     "pixi.js": "^8.21.0",
     "ws": "^8.21.3"
   },

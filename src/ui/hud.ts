@@ -36,7 +36,7 @@ import { DialogueQueue } from './dialogue';
 import { creditsHTML } from './credits';
 import { storeSet } from '../game/cloud';
 import { emojiIcon, ic, iconHtml, iconsGeneration, loadIcons, missionIcon, onIconsReady } from './icons';
-import { glyph } from './glyphs';
+import { glyph, laurelSvg } from './glyphs';
 import { watchEmoji } from './emoji';
 
 /** Ícone de quem fala (o emoji do roteiro vira o retrato ou o ícone do atlas; sem correspondência, o glifo de fala). */
@@ -57,6 +57,9 @@ export function syncUiZoom(el: HTMLElement): void {
 }
 /** Texto de dica (i18n): os símbolos de tempo e população viram glifos; o resto dos emoji sai (Etapa 7). */
 const tipHtml = (html: string): string => noEmoji(html.replace(/⏱\uFE0F?/g, glyph('clock')).replace(/👥/g, glyph('people')));
+/** Cabeçalho das telas de fim (partida e missão): o título entre dois ramos de louro e a linha de baixo (HTML já escapado). */
+const overBanner = (kind: 'won' | 'lost' | 'draw', title: string, sub: string): string =>
+  `<div class="over-banner ${kind}">${laurelSvg()}<div class="t"><h2>${esc(noEmoji(title))}</h2><p>${sub}</p></div>${laurelSvg(true)}</div>`;
 const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 export class HUD {
@@ -655,7 +658,7 @@ export class HUD {
   openChat() { if (!this.onChat) return; this.chatEl.classList.remove('hidden'); this.chatEl.value = ''; this.chatEl.focus(); }
   closeChat() { this.chatEl.classList.add('hidden'); this.chatEl.blur(); }
 
-  showModal(html: string, dismissable = true) { this.modal.innerHTML = html; this.modalBack.classList.remove('hidden'); this.modalDismissable = dismissable; }
+  showModal(html: string, dismissable = true) { this.modal.className = ''; this.modal.innerHTML = html; this.modalBack.classList.remove('hidden'); this.modalDismissable = dismissable; }
   hideModal() {
     this.modalBack.classList.add('hidden');
     if (this.menuOpen) { this.menuOpen = false; if (this.session) this.session.paused = this.pausedBeforeMenu; }   // Esc ou clique fora do menu: volta ao estado anterior
@@ -779,10 +782,12 @@ export class HUD {
     if (st.scenario) { this.showScenarioEnd(); return; }
     const won = st.winner >= 0 && st.players[st.winner].team === s.player.team;
     this.audio.play(won ? 'victory' : 'defeat');
-    const rows = st.players.map((p) => `<tr><td style="color:#${p.color.toString(16).padStart(6, '0')}">${esc(playerDisplayName(st, p.id))}${st.winner >= 0 && st.players[st.winner].team === p.team ? ` ${glyph('trophy')}` : ''}</td><td>${p.team + 1}</td><td>${AGES[p.age].short}</td><td>${p.stats.kills}</td><td>${p.stats.losses}</td><td>${p.stats.razed}</td><td>${p.stats.buildingsBuilt}</td><td>${p.stats.unitsTrained}</td><td>${Math.round(p.stats.gathered.food + p.stats.gathered.wood + p.stats.gathered.gold)}</td><td>${p.techs.length}</td><td>${p.territoryTiles}</td></tr>`).join('');
-    this.showModal(`<h2>${won ? t('over.victory') : st.winner === -1 ? t('over.draw') : t('over.defeat')}</h2><p>${st.events.filter((e) => e.type === 'victory').map((e) => esc(e.text ?? '')).join(' ')} ${t('over.time', { time: fmtTime(st.time) })}</p>
+    const rows = st.players.map((p) => `<tr><td style="color:#${p.color.toString(16).padStart(6, '0')}">${MAJOR_GODS[p.god] ? ic.god(p.god, 'sm') + ' ' : ''}${esc(playerDisplayName(st, p.id))}${st.winner >= 0 && st.players[st.winner].team === p.team ? ` ${glyph('trophy')}` : ''}</td><td>${p.team + 1}</td><td>${AGES[p.age].short}</td><td>${p.stats.kills}</td><td>${p.stats.losses}</td><td>${p.stats.razed}</td><td>${p.stats.buildingsBuilt}</td><td>${p.stats.unitsTrained}</td><td>${Math.round(p.stats.gathered.food + p.stats.gathered.wood + p.stats.gathered.gold)}</td><td>${p.techs.length}</td><td>${p.territoryTiles}</td></tr>`).join('');
+    const kind = won ? 'won' : st.winner === -1 ? 'draw' : 'lost';
+    this.showModal(`${overBanner(kind, won ? t('over.victory') : st.winner === -1 ? t('over.draw') : t('over.defeat'), `${st.events.filter((e) => e.type === 'victory').map((e) => esc(e.text ?? '')).join(' ')} ${t('over.time', { time: fmtTime(st.time) })}`)}
       <table><tr><th>${t('over.player')}</th><th>${t('over.team')}</th><th>${t('over.age')}</th><th>${t('over.kills')}</th><th>${t('over.losses')}</th><th>${t('over.razed')}</th><th>${t('over.built')}</th><th>${t('over.trained')}</th><th>${t('over.gathered')}</th><th>${t('over.techs')}</th><th>${t('over.territory')}</th></tr>${rows}</table>
       <div class="actions"><button class="btn" id="m-continue">${t('over.watch')}</button><button class="btn primary" id="m-quit">${this.testMode ? t('editor.backToEditor') : t('over.menu')}</button></div>`, false);
+    this.modal.classList.add('over', kind);
     this.modal.querySelector('#m-continue')!.addEventListener('click', () => this.hideModal());
     this.modal.querySelector('#m-quit')!.addEventListener('click', () => { this.hideModal(); this.cb.onQuit(); });
   }
@@ -799,8 +804,9 @@ export class HUD {
     // a última missão do plano (m12) fecha a campanha: sem "Próxima missão" (voltaria ao menu) e com o selo de fim; a Horda também não tem próxima
     const finale = won && sc.id === CAMPAIGN_PLAN[CAMPAIGN_PLAN.length - 1].id;
     const hasNext = won && this.cb.onNextMission && isOfficialScenario(sc.id) && !this.testMode && !!nextCampaignMission(sc.id);
-    this.showModal(`<h2>${won ? t('mission.done') : t('mission.failed')} — ${esc(noEmoji(def.title))}</h2>${text}${finale ? `<p><strong>${t('mission.campaignEnd')}</strong></p>` : ''}<p><small>${t('mission.stats', { time: fmtTime(st.time), kills: s.player.stats.kills, losses: s.player.stats.losses })}</small></p>
+    this.showModal(`${overBanner(won ? 'won' : 'lost', won ? t('mission.done') : t('mission.failed'), esc(noEmoji(def.title)))}${text}${finale ? `<p><strong>${t('mission.campaignEnd')}</strong></p>` : ''}<p><small>${t('mission.stats', { time: fmtTime(st.time), kills: s.player.stats.kills, losses: s.player.stats.losses })}</small></p>
       <div class="actions"><button class="btn" id="m-continue">${t('mission.continue')}</button>${hasNext ? `<button class="btn primary" id="m-next">${t('mission.next')}</button>` : ''}<button class="btn ${won && hasNext ? '' : 'primary'}" id="m-quit">${this.testMode ? t('editor.backToEditor') : t('over.menu')}</button></div>`, false);
+    this.modal.classList.add('over', won ? 'won' : 'lost');
     this.modal.querySelector('#m-continue')!.addEventListener('click', () => this.hideModal());
     this.modal.querySelector('#m-next')?.addEventListener('click', () => { this.hideModal(); this.cb.onNextMission?.(sc.id); });
     this.modal.querySelector('#m-quit')!.addEventListener('click', () => { this.hideModal(); this.cb.onQuit(); });
