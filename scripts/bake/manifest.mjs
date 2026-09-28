@@ -96,9 +96,9 @@ export function validateManifest(m) {
   if (!m || typeof m !== 'object') return ['manifesto não é objeto'];
   if (typeof m.id !== 'string' || !/^[a-z][a-z0-9_-]*$/.test(m.id)) e.push(`${where}: id inválido`);
   if (!KINDS.includes(m.kind)) e.push(`${where}: kind deve ser ${KINDS.join('|')}`);
-  if (typeof m.docs !== 'string' || !m.docs.includes('glb')) e.push(`${where}: campo docs (1 linha sobre trocar por .glb) ausente`);
   const s = m.source;
-  if (!s || (s.type !== 'param' && s.type !== 'glb')) e.push(`${where}: source.type deve ser param|glb`);
+  if (typeof m.docs !== 'string' || (!m.docs.includes('glb') && s?.type !== 'frames')) e.push(`${where}: campo docs (1 linha sobre trocar por .glb) ausente`);
+  if (!s || (s.type !== 'param' && s.type !== 'glb' && s.type !== 'frames')) e.push(`${where}: source.type deve ser param|glb|frames`);
   else if (s.type === 'param') {
     if (!RIGS.includes(s.rig)) e.push(`${where}: source.rig desconhecido (${s.rig})`);
     if (s.rig === 'props' && (!Array.isArray(s.items) || !s.items.length)) e.push(`${where}: props sem items`);
@@ -109,6 +109,11 @@ export function validateManifest(m) {
       const nested = NESTED_HUMAN[s.rig];
       if (nested && s.params?.[nested]) e.push(...kitErrors(`${where} (${nested === 'rider' ? 'cavaleiro' : nested})`, UNIT_KITS.human, s.params[nested]));
     }
+  } else if (s.type === 'frames') {
+    // quadros 2D pintados (frames2d.mjs): pasta <path>/<escala>x/<passe>/<quadro>.png; passada opcional (tiles por ciclo)
+    if (typeof s.path !== 'string' || !s.path) e.push(`${where}: source.path (pasta dos quadros) ausente`);
+    if (s.stride !== undefined && !(s.stride && typeof s.stride === 'object' && Object.values(s.stride).every((v) => isNum(v) && v > 0))) e.push(`${where}: source.stride deve ser { walk: tiles por ciclo, … }`);
+    if (s.stride && m.kind !== 'unit') e.push(`${where}: source.stride só em unidades`);
   } else {
     if (typeof s.path !== 'string') e.push(`${where}: source.path ausente`);
     if (!isNum(s.scale)) e.push(`${where}: source.scale ausente`);

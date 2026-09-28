@@ -7,12 +7,14 @@ export interface AnimDef { frames: number; fps?: number; loop?: boolean; pose?: 
 export interface PropItem { kind: string; variants: (number | string)[]; tags?: string[]; size?: [number, number]; anchor?: [number, number] }
 export interface ParamSource { type: 'param'; rig: 'human' | 'horse' | 'siege' | 'beast' | 'giant' | 'serpent' | 'titan' | 'building' | 'props'; poses?: string; riderPoses?: string; params?: Record<string, unknown>; items?: PropItem[] }
 export interface GlbSource { type: 'glb'; path: string; scale: number; forward?: '-z' | '+z' | '+x' | '-x'; anims?: Record<string, string>; teamMaterials?: string[] }
+/** Quadros 2D pintados (frames2d.mjs): <path>/<escala>x/<passe>/<quadro>.png; `stride` = tiles por ciclo das animações de andar. */
+export interface FramesSource { type: 'frames'; path: string; stride?: Record<string, number> }
 
 export interface ArtManifest {
   id: string;
   kind: AssetKind;
   docs: string;
-  source: ParamSource | GlbSource;
+  source: ParamSource | GlbSource | FramesSource;
   size: { tiles: [number, number] };
   anchor: [number, number];
   dirs?: number;

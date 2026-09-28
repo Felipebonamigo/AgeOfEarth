@@ -5,7 +5,8 @@
 // Uso:
 //   node scripts/bake/bake.mjs [--only hoplite,villager,temple,props] [--scale 1|2|1,2] [--dirs 8|5] [--mirror]
 //                              [--pack-only] [--out public/art] [--cache art/cache] [--contact docs/art] [--selftest-glb]
-//                              [--preview art/examples[,outro.json]]
+//                              [--preview art/examples[,outro.json]] [--export-frames <id> [--to art/src/<id>]]
+//                              [--selftest-frames]
 //
 // Etapas: (1) valida os manifestos; (2) para cada asset/escala calcula o hash de entrada (manifesto + poses + fontes da
 // página + versão do three + PIPELINE_VERSION); se art/cache/<id>/<escala>x-<hash>/ existe, não reassa; senão abre a
@@ -16,6 +17,9 @@
 // (N = `stage` do manifesto; padrão 3 nos edifícios e 2 no resto).
 // `--preview pasta|arquivo.json,...` assa manifestos de FORA de art/manifest (exemplos dos rigs, protótipos de um lote)
 // só para o cache e as folhas de contato (`--contact`, padrão docs/art): não entram nos atlas nem em public/art.
+// Quadros 2D pintados (docs/ART_ASSETS.md §3.3, `frames2d.mjs`): manifesto com `source.type: "frames"` é importado da
+// pasta em vez de assado; `--export-frames <id>` escreve o bake atual nesse formato (para pintar por cima) e
+// `--selftest-frames` confere a ida e volta byte a byte num cidadão.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -28,6 +32,7 @@ import { RIG_FILES } from './page/rigs/units.js';
 import { alphaBounds, crop, packShelf, blit, sheetJson, halve, SHADOW_TEXEL } from './page/atlas.js';
 import { PX_PER_TILE, PIPELINE_VERSION, MIRROR_FROM, atlasMeta } from './page/camera.js';
 import { measureUnit } from './measure.mjs';
+import { importFrames, exportFrames, frameSourceFiles, framesMeasure, frameKey, boxOf } from './frames2d.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PAGE = path.join(ROOT, 'scripts', 'bake', 'page');
@@ -46,7 +51,7 @@ const TEAM_PREVIEW = 0x2f4fa8;   // azul de time da tabela 1.6, só nas folhas d
 // argumentos
 
 function parseArgs(argv) {
-  const o = { only: null, scales: [1], mirror: false, packOnly: false, out: 'public/art', cache: 'art/cache', contact: null, selftestGlb: false, preview: null };
+  const o = { only: null, scales: [1], mirror: false, packOnly: false, out: 'public/art', cache: 'art/cache', contact: null, selftestGlb: false, preview: null, exportFrames: null, to: null, selftestFrames: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i], next = () => argv[++i];
     if (a === '--only') o.only = next().split(',').map((s) => s.trim()).filter(Boolean);
@@ -58,6 +63,9 @@ function parseArgs(argv) {
     else if (a === '--cache') o.cache = next();
     else if (a === '--contact') o.contact = next();
     else if (a === '--selftest-glb') o.selftestGlb = true;
+    else if (a === '--export-frames') o.exportFrames = next();
+    else if (a === '--to') o.to = next();
+    else if (a === '--selftest-frames') o.selftestFrames = true;
     else if (a === '--preview') o.preview = next().split(',').map((s) => s.trim()).filter(Boolean);
     else if (a === '--help' || a === '-h') { console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 20).join('\n')); process.exit(0); }
     else throw new Error(`argumento desconhecido: ${a}`);
@@ -82,6 +90,7 @@ function sourceFiles(m) {
   const files = ['scripts/bake/page/camera.js', 'scripts/bake/page/materials.js', 'scripts/bake/page/bake.js'];
   const s = m.source;
   if (s.type === 'glb') files.push(s.path);
+  else if (s.type === 'frames') files.push('scripts/bake/frames2d.mjs', ...frameSourceFiles(ROOT, s.path));
   else if (RIG_FILES[s.rig]) {
     // rigs de unidade (Etapa 4): o registro, os arquivos do rig (o cavalo e o cerco incluem o humano) e as poses
     const p = posesOf(m);
@@ -119,14 +128,6 @@ function writePng(file, w, h, data) {
   return buf;
 }
 
-/** Caixa de render (px finais) de um quadro: manifesto ou item de prop (ícone: ICON_PX², centrado). Âncora em px inteiros. */
-function boxOf(m, f, scale) {
-  if (f.icon) { const s = ICON_PX * scale; return { w: s, h: s, ax: s / 2, ay: s / 2 }; }
-  const tiles = f.item?.size ?? m.size.tiles;
-  const anchor = f.item?.anchor ?? m.anchor;
-  const w = Math.round(tiles[0] * PX_PER_TILE * scale), h = Math.round(tiles[1] * PX_PER_TILE * scale);
-  return { w, h, ax: Math.round(anchor[0] * w), ay: Math.round(anchor[1] * h) };
-}
 
 // ---------------------------------------------------------------------------------------------------------------
 // navegador
@@ -194,14 +195,40 @@ async function bakeAsset(opts, m, scale, hash) {
       idx++;
     }
   }
-  fs.writeFileSync(path.join(tmp, 'frames.json'), JSON.stringify(entry, null, 1) + '\n');
-  // troca atômica e remove versões antigas deste asset/escala
-  fs.mkdirSync(path.dirname(dir), { recursive: true });
-  for (const old of fs.readdirSync(path.dirname(dir))) if (old.startsWith(`${scale}x-`) && !old.endsWith('.tmp')) fs.rmSync(path.join(path.dirname(dir), old), { recursive: true, force: true });
-  fs.renameSync(tmp, dir);
+  commitCache(dir, tmp, scale, entry);
   for (const w of warnings) console.warn('  aviso:', w);
   console.log(`  ${m.id} ${scale}×: ${entry.frames.length} quadros em ${((Date.now() - t0) / 1000).toFixed(1)} s`);
 }
+
+/** Grava frames.json e troca a pasta temporária pela do cache (atômico), removendo versões antigas deste asset/escala. */
+function commitCache(dir, tmp, scale, entry) {
+  fs.mkdirSync(tmp, { recursive: true });
+  fs.writeFileSync(path.join(tmp, 'frames.json'), JSON.stringify(entry, null, 1) + '\n');
+  fs.mkdirSync(path.dirname(dir), { recursive: true });
+  for (const old of fs.readdirSync(path.dirname(dir))) if (old.startsWith(`${scale}x-`) && !old.endsWith('.tmp')) fs.rmSync(path.join(path.dirname(dir), old), { recursive: true, force: true });
+  fs.renameSync(tmp, dir);
+}
+
+/** Quadros 2D pintados (source.type "frames"): importa a pasta para o cache, sem navegador (frames2d.mjs). */
+function importAsset(opts, m, scale, hash) {
+  const t0 = Date.now();
+  const frames = expandFrames(m, { mirror: opts.mirror }).map((f) => ({ ...f, box: boxOf(m, f, scale), box2: scale === 1 ? boxOf(m, f, 2) : null }));
+  const dir = cacheDir(opts, m, scale, hash);
+  const tmp = dir + '.tmp';
+  fs.rmSync(tmp, { recursive: true, force: true });
+  const res = importFrames({ root: ROOT, m, scale, frames, tmp });
+  for (const w of res.warnings) console.warn('  aviso:', w);
+  if (res.errors.length) {
+    fs.rmSync(tmp, { recursive: true, force: true });
+    throw new Error(`quadros 2D de ${m.id} ${scale}× (${m.source.path}):\n  ${res.errors.slice(0, 20).join('\n  ')}${res.errors.length > 20 ? `\n  … e mais ${res.errors.length - 20}` : ''}`);
+  }
+  const entry = { id: m.id, kind: m.kind, hash, scale, mirror: mirrorOf(m, opts.mirror), pipeline: PIPELINE_VERSION, source: 'frames',
+    frames: res.frames.map(({ f, passes }) => ({ name: f.name, group: f.group, anim: f.anim ?? null, variant: f.variant ?? null, atlas: atlasOf(m, f), icon: !!f.icon, dir: f.dir, frame: f.frame, box: f.box, passes })) };
+  commitCache(dir, tmp, scale, entry);
+  console.log(`  ${m.id} ${scale}×: ${entry.frames.length} quadros importados de ${m.source.path} em ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+}
+/** Assa ou importa, conforme a fonte do manifesto. */
+const produce = (opts, m, scale, hash) => (m.source?.type === 'frames' ? importAsset(opts, m, scale, hash) : bakeAsset(opts, m, scale, hash));
 
 function loadCache(opts, m, scale, hash) {
   const dir = cacheDir(opts, m, scale, hash);
@@ -397,7 +424,7 @@ function packAll(opts, manifests, hashes) {
           a.sizes ??= {};
           a.sizes[String(scale)] = { sourceSize: { w: G.w, h: G.h }, anchor: G.anchor };
           a.anims = animSummary(m);
-          const me = m.kind === 'unit' ? measureOf(m) : null;
+          const me = m.kind !== 'unit' ? null : m.source?.type === 'frames' ? framesMeasure(m, e, scale) : measureOf(m);
           if (me) {
             for (const [anim, st] of Object.entries(me.strides)) if (a.anims[anim] && st > 0) a.anims[anim].stride = st;
             a.tops = me.tops;
@@ -653,9 +680,80 @@ async function preview(opts, official) {
     if (!scalesOf(m, [scale]).length) continue;
     const hash = hashes.get(`${m.id}/${scale}`);
     if (loadCache(opts, m, scale, hash)) { console.log(`  ${m.id} ${scale}×: cache ${hash}`); continue; }
-    await bakeAsset(opts, m, scale, hash);
+    await produce(opts, m, scale, hash);
   }
   await contactSheets({ ...opts, contact: opts.contact ?? 'docs/art' }, manifests, hashes, manifests);
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// quadros 2D (frames2d.mjs)
+
+/** Cache de um asset numa escala, assando se faltar (o bake é determinístico: sai igual ao atlas publicado). */
+async function ensureCache(opts, m, scale) {
+  const hash = inputHash(m, scale, opts.mirror);
+  let e = loadCache(opts, m, scale, hash);
+  if (!e) { await produce(opts, m, scale, hash); e = loadCache(opts, m, scale, hash); }
+  return e;
+}
+
+/** --export-frames <id>: o bake atual no formato de quadros 2D (art/src/<id>/ ou --to), com guia e LEIA-ME. */
+async function exportFramesCmd(opts, manifests) {
+  const m = manifests.find((x) => x.id === opts.exportFrames);
+  if (!m) throw new Error(`--export-frames: manifesto ${opts.exportFrames} não existe`);
+  if (m.source.type === 'frames') throw new Error(`${m.id} já é de quadros 2D (${m.source.path})`);
+  const entries = {};
+  for (const scale of scalesOf(m, [1, 2])) entries[scale] = await ensureCache(opts, m, scale);
+  const r = exportFrames({ root: ROOT, m, entries, out: opts.to ?? `art/src/${m.id}`, strides: m.kind === 'unit' ? measureOf(m)?.strides : null });
+  console.log(`  ${m.id}: ${r.files} PNGs em ${path.relative(ROOT, r.dir)} (${Object.keys(entries).map((s) => `${s}x`).join(', ')}; LEIA-ME.txt, guia-<escala>x.png)`);
+}
+
+/**
+ * --selftest-frames: exporta o cidadão (assa se faltar o cache), importa a pasta como manifesto de quadros e confere que
+ * cada recorte de cada passe volta idêntico, byte a byte e na mesma posição; depois apaga a pasta 1x e confere que a 1×
+ * derivada da 2× tem os mesmos quadros, a mesma caixa e a mesma âncora.
+ */
+async function selftestFrames(opts, manifests) {
+  const src = manifests.find((x) => x.id === 'villager');
+  const rel = path.relative(ROOT, path.resolve(ROOT, opts.cache, '_selftest-frames'));
+  fs.rmSync(path.join(ROOT, rel), { recursive: true, force: true });
+  const entries = { 1: await ensureCache(opts, src, 1), 2: await ensureCache(opts, src, 2) };
+  exportFrames({ root: ROOT, m: src, entries, out: rel });
+  const m = { ...src, id: 'selftest_frames', source: { type: 'frames', path: rel, stride: { walk: 1 } } };
+  const errs = validateManifest(m);
+  if (errs.length) throw new Error(errs.join('\n'));
+  const cmp = (a, b, what) => {
+    if (a.frames.length !== b.frames.length) throw new Error(`${what}: ${b.frames.length} quadros, esperado ${a.frames.length}`);
+    let px = 0;
+    a.frames.forEach((fa, i) => {
+      const fb = b.frames[i];
+      if (frameKey(src, fa) !== frameKey(m, fb) || JSON.stringify(fa.box) !== JSON.stringify(fb.box)) throw new Error(`${what}: quadro ${i} (${fa.name} × ${fb.name}) com nome ou caixa diferente`);
+      for (const pass of PASSES) {
+        const ra = fa.passes[pass], rb = fb.passes[pass];
+        if (!ra !== !rb) throw new Error(`${what}: ${fa.name} ${pass} presente num lado só`);
+        if (!ra) continue;
+        if (ra.x !== rb.x || ra.y !== rb.y || ra.w !== rb.w || ra.h !== rb.h) throw new Error(`${what}: ${fa.name} ${pass} recorte ${JSON.stringify(rb)} ≠ ${JSON.stringify(ra)}`);
+        const da = fs.readFileSync(path.join(a.dir, ra.file)), db = fs.readFileSync(path.join(b.dir, rb.file));
+        if (!da.equals(db)) throw new Error(`${what}: ${fa.name} ${pass} com pixels diferentes`);
+        px += ra.w * ra.h;
+      }
+    });
+    return px;
+  };
+  for (const s of [1, 2]) {
+    const back = await ensureCache(opts, m, s);
+    const px = cmp(entries[s], back, `ida e volta ${s}×`);
+    console.log(`  ${s}×: ${back.frames.length} quadros × 3 passes idênticos ao bake (${(px / 1e6).toFixed(2)} Mpx)`);
+  }
+  fs.rmSync(path.join(ROOT, rel, '1x'), { recursive: true, force: true });
+  const m2 = { ...m, id: 'selftest_frames_half' };
+  const half = await ensureCache(opts, m2, 1);
+  if (half.frames.length !== entries[1].frames.length || half.frames.some((f, i) => JSON.stringify(f.box) !== JSON.stringify(entries[1].frames[i].box) || !f.passes.color)) throw new Error('1× derivada da 2×: quadros ou caixas diferentes da 1× assada');
+  const me = framesMeasure(m, entries[1], 1), ref = measureOf(src);
+  const dTop = Math.max(...me.tops.map((t, d) => Math.abs(t - ref.tops[d])));
+  console.log(`  1× derivada da 2×: ${half.frames.length} quadros nas caixas da 1×; topo do corpo pelo alfa × rig: ${dTop.toFixed(1)} px no pior caso`);
+  for (const id of ['selftest_frames', 'selftest_frames_half']) fs.rmSync(path.resolve(ROOT, opts.cache, id), { recursive: true, force: true });
+  fs.rmSync(path.join(ROOT, rel), { recursive: true, force: true });
+  console.log('selftest dos quadros 2D: ok');
 }
 
 async function main() {
@@ -674,6 +772,8 @@ async function main() {
 
   try {
     if (opts.selftestGlb) { await selftestGlb(opts); return; }
+    if (opts.exportFrames) { await exportFramesCmd(opts, manifests); return; }
+    if (opts.selftestFrames) { await selftestFrames(opts, manifests); return; }
     if (opts.preview) { await preview(opts, manifests); return; }
     console.log(`bake: ${selected.map((m) => m.id).join(', ')} · escala ${opts.scales.join(',')}× · ${opts.mirror ? '5 direções + 3 espelhadas' : '8 direções'}`);
     for (const scale of opts.scales) for (const m of selected) {
@@ -681,7 +781,7 @@ async function main() {
       const hash = hashes.get(`${m.id}/${scale}`);
       if (loadCache(opts, m, scale, hash)) { console.log(`  ${m.id} ${scale}×: cache ${hash} (nada a assar)`); continue; }
       if (opts.packOnly) throw new Error(`${m.id} ${scale}× não está no cache (${hash}); rode sem --pack-only`);
-      await bakeAsset(opts, m, scale, hash);
+      await produce(opts, m, scale, hash);
     }
     packAll(opts, manifests, hashes);
     if (opts.contact) await contactSheets(opts, selected, hashes, manifests);

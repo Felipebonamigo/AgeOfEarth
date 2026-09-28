@@ -69,11 +69,28 @@ Requisitos do arquivo:
 - Prova do caminho: `node scripts/bake/bake.mjs --selftest-glb` exporta um cidadão de teste com clipe e o assa.
 
 ### 3.3 Sprites 2D pintados
-Pintar os quadros no contrato do §2 (mesmo ângulo, luz de noroeste, sombra separada, âncora no pé, 8 direções, a máscara
-de time como imagem à parte, 1× e 2×). **Ainda não há importador**: hoje os quadros entram pelo cache do bake
-(`art/cache/<id>/<escala>x-<hash>/frames.json` + um PNG recortado por quadro e passe) e são empacotados com `npm run
-art:bake -- --pack-only`. Um importador de pasta (`<id>/<passe>/<animação>_<direção>_<quadro>.png`) é a pendência para
-esse caminho — combinar antes de começar.
+Pintar os quadros no contrato do §2 (mesmo ângulo, luz de noroeste, sombra separada, âncora no pé, 8 direções) e entregar
+uma pasta; o bake importa em vez de renderizar (`scripts/bake/frames2d.mjs`) e daí para frente é o mesmo pipeline:
+
+```json
+"source": { "type": "frames", "path": "art/src/hoplite", "stride": { "walk": 0.75, "run": 1.4 } }
+```
+
+- **Pasta**: `art/src/<id>/<escala>x/<passe>/<quadro>.png` — escalas `1x` e `2x` (a `1x` pode faltar: sai da 2× por média
+  2×2 com as âncoras alinhadas); passes `color` (obrigatório), `team` (máscara de time: branco iluminado só nas partes que levam a
+  cor do jogador) e `shadow` (só a sombra no chão, preto com alfa); quadro = o nome do manifesto sem o id, com `_`:
+  `walk_3_02` (animação, direção 0–7 a partir do leste no sentido horário, quadro), `complete_0` (estado e variante de
+  edifício), `icon` (ícone do edifício), `tree_0_green` (prop).
+- **Cada PNG tem o tamanho exato da caixa de render** (`size.tiles` × 32 px × escala) com o pé no pixel da âncora; o bake
+  recusa tamanho errado ou quadro de cor faltando (com o caminho e o tamanho esperado) e avisa PNG que não é de nenhum quadro.
+- **Para começar pintando por cima do que existe**: `node scripts/bake/bake.mjs --export-frames <id> [--to pasta]` escreve o
+  bake atual nesse formato (1× e 2×, os três passes), um `guia-<escala>x.png` (caixa, âncora, 1 tile no chão, 1,8 m de altura)
+  e um `LEIA-ME.txt` com a lista dos arquivos esperados e o `source` pronto para colar (com as passadas do rig atual).
+- `stride` (unidades): tiles andados por ciclo de cada animação de andar — o jogo avança a animação pela distância, então um
+  passo pintado mais longo pede um número maior (senão os pés deslizam). O topo do corpo (barra de vida) sai do alfa dos
+  quadros `idle`.
+- Prova do caminho: `node scripts/bake/bake.mjs --selftest-frames` exporta o cidadão, importa a pasta e confere cada recorte
+  dos três passes **idêntico byte a byte** ao bake, a 1× e a 2×; o atlas empacotado a partir dos quadros sai igual ao assado.
 
 ## 4. O que existe e o que mais ganharia com arte profissional
 
