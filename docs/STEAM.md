@@ -98,5 +98,16 @@ apagou (`aoe_cloud_prev:<chave>`, uma por chave, descartada sozinha quando falta
 
 ## 5. Checklist de loja
 - Capsules (imagens), trailer, descrição PT-BR/EN, tags (RTS, Mitologia, Estratégia, Single-player).
+- **Imagens da página (rascunho pronto, 28/09/2026)**: `npm run art:backdrop -- --steam [pasta]` (padrão `docs/steam/`)
+  renderiza as peças nos tamanhos atuais da Steam com a mesma cena do fundo do menu (falange de hoplitas e templo em
+  contraluz ao pôr do sol, os modelos do jogo) em câmeras por proporção e o logo "AGE OF EARTH" em Cinzel dourado entre
+  louros — cápsula do cabeçalho `header_capsule_920x430.jpg`, pequena `small_capsule_462x174.jpg` (logo ocupando a largura,
+  legível na miniatura), principal `main_capsule_1232x706.jpg`, vertical `vertical_capsule_748x896.jpg`; biblioteca:
+  cápsula `library_capsule_600x900.jpg`, cabeçalho `library_header_920x430.jpg`, herói `library_hero_3840x1240.jpg` (sem
+  texto: a Steam põe o logo por cima), logo `library_logo_1280x720.png` (PNG transparente, contorno escuro para ler sobre
+  qualquer herói); fundo da página `page_background_1438x810.jpg` (escurecido). Reprodutível (mesma cena, mesma fonte) e
+  sem imagem gerada por IA. São um ponto de partida honesto para a página "Em breve"; uma arte-chave pintada à mão, quando
+  houver orçamento (`docs/ART_ASSETS.md`), substitui a cena mantendo os mesmos nomes. Faltam o que é do dono: screenshots
+  escolhidas (as capturas de `docs/art/` servem de base), trailer, texto da página e tags.
 - Página "Em breve" o quanto antes: wishlists movem o algoritmo da Steam.
 - Playtest com o **Steam Playtest** (gratuito) antes do Early Access.

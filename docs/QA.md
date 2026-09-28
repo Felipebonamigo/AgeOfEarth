@@ -615,7 +615,7 @@ com outro computador (chat, queda proposital e reconexão), 1 Horda até a onda 
 - [ ] Assinatura de código no Windows (evita o aviso do SmartScreen) e notarização no macOS.
 - [ ] EULA e política de privacidade (PT/EN) preenchidas, revisadas e publicadas; link na página da Steam (`docs/LEGAL.md` §6–7).
 - [ ] Servidor de retransmissão em produção: `wss://` com certificado, `OFFICIAL_RELAY_URL` em `src/ui/menu.ts` apontando para ele (hoje vazio: o desktop usa `ws://localhost:8787`), monitoramento de uptime, retenção do log definida.
-- [ ] Página da Steam: cápsulas, 6+ screenshots atuais, trailer, descrição PT/EN, tags, requisitos mínimos/recomendados (tirados da matriz).
+- [ ] Página da Steam: cápsulas (rascunho gerado em `docs/steam/` por `npm run art:backdrop -- --steam`; o dono aprova ou troca), 6+ screenshots atuais, trailer, descrição PT/EN, tags, requisitos mínimos/recomendados (tirados da matriz).
 - [ ] Classificação indicativa (questionário IARC na Steam).
 - [ ] Plano de hotfix: quem aprova, como publicar em < 24 h, canal de suporte (Discord/e-mail) na página.
 - [ ] Backup do repositório e das chaves (Steamworks, certificado do servidor, assinatura de código).

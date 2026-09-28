@@ -507,7 +507,12 @@ da partida (a missão com o ícone dela, ou modo · mapa · deuses), barra de br
 (`laurelSvg`, dourado na vitória, bronze apagado na derrota), o retrato do deus de cada jogador na tabela. **Molduras**:
 nine-slice desenhado em canvas na densidade da tela (`src/ui/frames.ts`: faixa de bronze com a **grega** em relevo e
 rosetas nos cantos, `border-image`) na caixa do menu e nas telas de fim. Capturas: `docs/art/etapa8-fundo-menu.jpg`,
-`etapa8-carregamento.png`, `etapa8-vitoria.png`, `etapa8-derrota.png`, `etapa8-menu-1280x800.png`.
+`etapa8-carregamento.png`, `etapa8-vitoria.png`, `etapa8-derrota.png`, `etapa8-menu-1280x800.png`. **Imagens da loja** (`npm run art:backdrop
+-- --steam`, `docs/STEAM.md` §5): a mesma cena em variantes de câmera por proporção (`VARIANTS` em `page/backdrop.js`:
+`hero` e `header` mais fechadas, `small` com o logo ocupando a largura, `vertical` com a câmera à direita, uma segunda
+falange em duas fileiras diante do templo e sem a coluna) e o logo desenhado em canvas (Cinzel 700 com degradê dourado,
+contorno escuro, sombra e dois ramos de louro); nove peças em `docs/steam/` (cápsulas, biblioteca, logo transparente e
+fundo). O refactor da cena (`renderScene` comum às duas saídas) deixou `public/ui/fundo-menu.jpg` idêntico byte a byte.
 
 **Verificação da Etapa 8**: `node scripts/playtest-noemoji.mjs http://localhost:4173/` com o relay — menu (3 retratos, 12 ícones de
 missão, 3 marcas de cumprida e 1 do Difícil), opções, ajuda, enciclopédia (todas as abas), créditos, salas abertas, lobby (retrato,

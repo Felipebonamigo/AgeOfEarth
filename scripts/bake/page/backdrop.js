@@ -228,10 +228,42 @@ const SHOTS = {
   },
 };
 
+/**
+ * Variantes da tomada `menu` para outras proporções (peças da loja Steam, docs/STEAM.md §5): a mesma cena com outra câmera
+ * (o campo horizontal fica perto dos ~54° do 16:9) e, na vertical, um cume a mais com um grupo de hoplitas em primeiro plano.
+ */
+const VARIANTS = {
+  hero: { cam: { pos: [0, 1.2, 8], target: [0.5, 2.1, -40], fov: 20 } },
+  header: { cam: { pos: [0, 1.2, 8], target: [0.8, 2.3, -40], fov: 26 } },
+  small: { cam: { pos: [0, 1.2, 8], target: [1.2, 2.4, -40], fov: 22 } },
+  vertical: {
+    cam: { pos: [6.2, 1.25, 6], target: [8.6, 8.2, -40], fov: 42 },
+    extraBumps: [{ x: 6.6, z: -5.5, rx: 5.5, rz: 2.6, h: 1.25, sharp: 1.8 }],
+    phalanx2: { x0: 4.4, x1: 8.4, z: -5.4, rows: 2, rowGap: 0.7, per: 5, jitter: 0.1 },
+    ruin: null,
+  },
+};
+const shotOf = (name) => {
+  const base = SHOTS.menu, v = VARIANTS[name];
+  if (SHOTS[name]) return SHOTS[name];
+  if (!v) throw new Error(`tomada desconhecida: ${name}`);
+  return { ...base, ...v, layout: { bumps: [...base.layout.bumps, ...(v.extraBumps ?? [])] }, ruin: v.ruin === undefined ? base.ruin : v.ruin };
+};
+
+/** Kit do hoplita e poses (vêm do Node: art/manifest/hoplite.json e art/poses/human.json). */
+let MODELS = null;
+
 /** Renderiza a tomada `shot` em w×h (super-amostragem ss) e devolve o JPEG em base64 (sem o prefixo data:). */
 export function renderBackdrop(job) {
-  const S = SHOTS[job.shot ?? 'menu'];
-  const { w, h } = job, ss = job.ss ?? 2, W = w * ss, H = h * ss;
+  MODELS = { hoplite: job.hoplite, poses: job.poses };
+  const cv = renderScene(job.shot ?? 'menu', job.w, job.h, job.ss ?? 2);
+  return { w: job.w, h: job.h, jpeg: cv.toDataURL('image/jpeg', job.quality ?? 0.86).split(',')[1] };
+}
+
+/** A cena de uma tomada (ou variante) já pós-processada, num canvas w×h. */
+function renderScene(shot, w, h, ss = 2) {
+  const S = shotOf(shot);
+  const W = w * ss, H = h * ss;
   const look = S.look;
   renderer.setSize(W, H, false);
   renderer.toneMappingExposure = look.exposure;
@@ -279,12 +311,12 @@ export function renderBackdrop(job) {
   // ruína do primeiro plano
   if (S.ruin) { const ru = makeRuin(M, rng(5), S.ruin.drums); ru.position.set(S.ruin.x, heightAt(S.ruin.x, S.ruin.z, noise, S.layout) - 0.1, S.ruin.z); ru.rotation.y = S.ruin.yaw ?? 0; ru.scale.setScalar(S.ruin.scale ?? 1); scene.add(ru); }
   // falange no cume, de costas para a câmera, olhando o mar
-  const P = S.phalanx, r = rng(71);
-  const man = job.hoplite;
-  for (let row = 0; row < P.rows; row++) for (let i = 0; i < P.per; i++) {
+  const r = rng(71);
+  const man = MODELS.hoplite;
+  for (const P of [S.phalanx, S.phalanx2].filter(Boolean)) for (let row = 0; row < P.rows; row++) for (let i = 0; i < P.per; i++) {
     const rig = UNIT_RIGS.human(THREE, M, man.params);
     const a = man.anims.idle;
-    rig.pose({ anim: 'idle', dir: 6, frame: Math.floor(r() * a.frames), frames: a.frames, loop: true, pose: a.pose, params: a.params }, job.poses);
+    rig.pose({ anim: 'idle', dir: 6, frame: Math.floor(r() * a.frames), frames: a.frames, loop: true, pose: a.pose, params: a.params }, MODELS.poses);
     const x = P.x0 + (P.x1 - P.x0) * (i + (row % 2) * 0.5) / (P.per - 0.5) + (r() - 0.5) * P.jitter, z = P.z - row * P.rowGap + (r() - 0.5) * P.jitter;
     rig.group.position.set(x, heightAt(x, z, noise, S.layout) - 0.03, z);
     rig.group.rotation.y += (r() - 0.5) * 0.25 + 0.12;
@@ -298,10 +330,95 @@ export function renderBackdrop(job) {
   renderer.render(scene, cam);
   const rgba = downsample(readRGBA(W, H), W, H, ss);
   const cv = post(rgba, w, h, look);
-  const jpeg = cv.toDataURL('image/jpeg', job.quality ?? 0.86).split(',')[1];
   pm.dispose(); env.dispose();
   scene.traverse((o) => { if (o.isMesh) o.geometry?.dispose(); });
-  return { w, h, jpeg };
+  return cv;
 }
 
-window.__backdrop = { renderBackdrop, shots: Object.keys(SHOTS), three: THREE.REVISION };
+// ---------------------------------------------------------------------------------------------------------------
+// logo e peças da loja (docs/STEAM.md §5)
+
+/** Ramo de louro em canvas (a mesma geometria de laurelSvg em src/ui/glyphs.ts), em (x, y) com altura `size`. */
+function drawLaurel(g, x, y, size, flip, fill) {
+  const k = size / 100, D = Math.PI / 180, cx = 80, cy = 52, r = 38, N = 9;
+  g.save(); g.translate(x, y); if (flip) g.scale(-1, 1); g.translate(-50 * k, -50 * k); g.scale(k, k);
+  g.fillStyle = fill; g.strokeStyle = fill; g.lineWidth = 2.4; g.lineCap = 'round';
+  g.beginPath(); g.arc(cx, cy, r, -258 * D, -104 * D, false); g.stroke();
+  for (let i = 0; i < N; i++) {
+    const u = i / (N - 1), th = 250 - u * 138, px = cx + r * Math.cos(th * D), py = cy - r * Math.sin(th * D);
+    const tang = Math.atan2(Math.cos(th * D), Math.sin(th * D)) + Math.PI / 2, nx = Math.cos(th * D), ny = -Math.sin(th * D), sc = 1.15 - u * 0.5;
+    for (const side of [1, -1]) {
+      g.beginPath(); g.ellipse(px + side * nx * 5.5 * sc, py + side * ny * 5.5 * sc, 3.3 * sc, 8.2 * sc, tang + side * 32 * D, 0, Math.PI * 2); g.fill();
+    }
+  }
+  for (const th of [214, 160]) { g.beginPath(); g.arc(cx + r * Math.cos(th * D) - Math.cos(th * D) * 2, cy - r * Math.sin(th * D) + Math.sin(th * D) * 2, 2.2, 0, Math.PI * 2); g.fill(); }
+  g.restore();
+}
+
+/** Logo "AGE OF EARTH" em Cinzel dourada com contorno escuro e sombra, entre dois ramos de louro; largura total `width`. */
+function drawLogo(g, cx, cy, width, { laurels = true, glow = 0.75 } = {}) {
+  const text = 'AGE OF EARTH';
+  g.save();
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  let size = 100;
+  g.font = `700 ${size}px Cinzel`; g.letterSpacing = `${size * 0.07}px`;
+  const w0 = g.measureText(text).width;
+  size = (size * width * (laurels ? 0.72 : 0.98)) / w0;
+  g.font = `700 ${size}px Cinzel`; g.letterSpacing = `${size * 0.07}px`;
+  const tw = g.measureText(text).width, base = cy + size * 0.34;
+  const grad = g.createLinearGradient(0, base - size * 0.72, 0, base + size * 0.05);
+  grad.addColorStop(0, '#fff3c8'); grad.addColorStop(0.42, '#f4c95a'); grad.addColorStop(0.58, '#c8922e'); grad.addColorStop(1, '#8c5e1a');
+  g.shadowColor = `rgba(0,0,0,${glow})`; g.shadowBlur = size * 0.22; g.shadowOffsetY = size * 0.05;
+  g.lineJoin = 'round'; g.lineWidth = size * 0.07; g.strokeStyle = '#231505'; g.strokeText(text, cx, base);
+  g.shadowColor = 'transparent';
+  g.fillStyle = grad; g.fillText(text, cx, base);
+  // brilho fino no alto das letras (bronze polido)
+  g.globalCompositeOperation = 'source-atop'; g.globalAlpha = 0.35;
+  const hl = g.createLinearGradient(0, base - size * 0.72, 0, base - size * 0.45); hl.addColorStop(0, '#ffffff'); hl.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = hl; g.fillText(text, cx, base);
+  g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+  if (laurels) {
+    const ls = size * 1.55, lg = g.createLinearGradient(0, cy - ls / 2, 0, cy + ls / 2);
+    lg.addColorStop(0, '#f4d27a'); lg.addColorStop(1, '#a8741f');
+    g.shadowColor = `rgba(0,0,0,${glow})`; g.shadowBlur = size * 0.16;
+    drawLaurel(g, cx - tw / 2 - ls * 0.42, cy, ls, false, lg);
+    drawLaurel(g, cx + tw / 2 + ls * 0.42, cy, ls, true, lg);
+  }
+  g.restore();
+}
+
+async function ensureFont() {
+  if ([...document.fonts].some((f) => f.family === 'Cinzel' && f.status === 'loaded')) return;
+  const f = new FontFace('Cinzel', 'url(/node_modules/@fontsource/cinzel/files/cinzel-latin-700-normal.woff2)', { weight: '700' });
+  await f.load(); document.fonts.add(f);
+}
+
+/**
+ * Peças da página da loja: cada item { name, w, h, shot|null, logo: { y, width } | null, shade, format } vira JPEG (ou PNG
+ * transparente, para o logo da biblioteca). `shade` escurece o fundo sob o logo (legibilidade nas cápsulas pequenas).
+ */
+export async function renderSteam(job) {
+  MODELS = { hoplite: job.hoplite, poses: job.poses };
+  await ensureFont();
+  const out = [];
+  for (const it of job.items) {
+    const cv = document.createElement('canvas'); cv.width = it.w; cv.height = it.h;
+    const g = cv.getContext('2d');
+    if (it.shot) g.drawImage(renderScene(it.shot, it.w, it.h, it.ss ?? 2), 0, 0);
+    if (it.dim) { g.fillStyle = `rgba(8,10,18,${it.dim})`; g.fillRect(0, 0, it.w, it.h); }
+    if (it.logo) {
+      const ly = it.logo.y * it.h;
+      if (it.shade) {
+        const sg = g.createRadialGradient(it.w / 2, ly, 0, it.w / 2, ly, it.w * 0.6);
+        sg.addColorStop(0, `rgba(10,8,14,${it.shade})`); sg.addColorStop(1, 'rgba(10,8,14,0)');
+        g.fillStyle = sg; g.fillRect(0, 0, it.w, it.h);
+      }
+      drawLogo(g, it.w / 2, ly, it.logo.width * it.w, { laurels: it.logo.laurels !== false, glow: it.logo.glow ?? 0.75 });
+    }
+    const png = it.format === 'png';
+    out.push({ name: it.name, w: it.w, h: it.h, mime: png ? 'image/png' : 'image/jpeg', b64: cv.toDataURL(png ? 'image/png' : 'image/jpeg', 0.9).split(',')[1] });
+  }
+  return out;
+}
+
+window.__backdrop = { renderBackdrop, renderSteam, shots: Object.keys(SHOTS), three: THREE.REVISION };
