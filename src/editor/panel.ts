@@ -16,6 +16,9 @@ import type { Renderer } from '../render/renderer';
 import { terrainHex } from '../render/palette';
 import { issueText } from '../ui/menu';
 import { esc } from '../ui/html';
+import { ic, iconHtml } from '../ui/icons';
+import { glyph } from '../ui/glyphs';
+import { watchEmoji } from '../ui/emoji';
 import { t } from '../i18n';
 import type { MapEditor } from './editor';
 import type { EditError } from './ops';
@@ -54,14 +57,18 @@ function scenarioTemplate(id: ScenarioTemplateId): ScenarioTemplate {
 function uniqueId(base: string, used: Set<string>): string { let id = base, n = 2; while (used.has(id)) id = `${base}${n++}`; used.add(id); return id; }
 export interface EditorPanelCallbacks { onTest: (opts: TestOpts) => void; onExit: () => void; onResize?: (w: number, h: number, anchor: ResizeAnchor) => void }
 
+/** Ferramentas: `icon` = glifo (src/ui/glyphs.ts). */
 const TOOLS: { id: EditorTool; key: string; icon: string }[] = [
-  { id: 'terrain', key: 'T', icon: '🖌' }, { id: 'node', key: 'N', icon: '🌲' }, { id: 'building', key: 'B', icon: '🏛' }, { id: 'unit', key: 'M', icon: '⚔' },
-  { id: 'start', key: 'I', icon: '🚩' }, { id: 'select', key: 'V', icon: '🖱' }, { id: 'erase', key: 'E', icon: '🧽' },
+  { id: 'terrain', key: 'T', icon: 'brush' }, { id: 'node', key: 'N', icon: 'tree' }, { id: 'building', key: 'B', icon: 'temple' }, { id: 'unit', key: 'M', icon: 'attack' },
+  { id: 'start', key: 'I', icon: 'rally' }, { id: 'select', key: 'V', icon: 'pointer' }, { id: 'erase', key: 'E', icon: 'eraser' },
 ];
 /** Subpaleta de terreno na ordem das teclas 1..6 (grama, areia, terra, água, montanha, água profunda). */
 const TERRAIN_ORDER: number[] = [TERRAIN.GRASS, TERRAIN.SAND, TERRAIN.DIRT, TERRAIN.WATER, TERRAIN.MOUNTAIN, TERRAIN.DEEP];
 const NODE_TYPES: NodeType[] = ['tree', 'berry', 'deer', 'boar', 'gold', 'lure'];
-const NODE_ICONS: Record<NodeType, string> = { tree: '🌲', berry: '🫐', deer: '🦌', boar: '🐗', gold: '⛏', lure: '🔱' };
+/** Ícone de cada recurso do mapa (atlas `hud`: a árvore é o glifo; o resto são os ícones de recurso, caça e poder). */
+const NODE_ICONS: Record<NodeType, string> = { tree: '', berry: 'res/food', deer: 'tech/great_hunt', boar: 'power/curse', gold: 'res/gold', lure: 'power/lure' };
+const nodeIcon = (n: NodeType): string => (NODE_ICONS[n] ? iconHtml(NODE_ICONS[n], { cls: 'hic-res' }) : `<span class="hic hic-gly hic-res">${glyph('tree')}</span>`);
+const teamNum = (p: number): number => PLAYER_COLORS[p % PLAYER_COLORS.length].num;
 const UNIT_CLASSES: UnitClass[] = ['villager', 'scout', 'infantry', 'archer', 'skirmisher', 'cavalry', 'siege', 'hero', 'myth', 'titan'];
 const el = (tag: string, cls?: string, html?: string): HTMLElement => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 
@@ -96,6 +103,7 @@ export class EditorPanel {
   constructor(readonly editor: MapEditor, private hud: HUD, private renderer: Renderer, private cb: EditorPanelCallbacks) {
     this.top = el('div'); this.top.id = 'editor-top';
     this.root = el('div'); this.root.id = 'editor';
+    watchEmoji(this.top); watchEmoji(this.root);   // Etapa 8: os emoji dos textos viram glifos (src/ui/emoji.ts)
     this.build();
     hud.mountTop(this.top); hud.mountBottom(this.root);
     window.addEventListener('pagehide', this.onPageHide); window.addEventListener('beforeunload', this.onPageHide);   // fechar/recarregar grava o rascunho
@@ -116,17 +124,17 @@ export class EditorPanel {
     this.toolsEl = q('#ed-tools'); this.paletteEl = q('#ed-palette'); this.brushEl = q('#ed-brush'); this.playerEl = q('#ed-player'); this.overlayEl = q('#ed-overlays'); this.inspEl = q('#ed-insp'); this.issuesEl = q('#ed-issues') as HTMLElement; this.issuesHead = q('#ed-issues-head'); this.resEl = q('#ed-res');
     // ferramentas (fixas)
     for (const tool of TOOLS) {
-      const b = el('button', 'tool', `<span class="ic">${tool.icon}</span><span class="lbl">${t(`editor.tool.${tool.id}`)}</span><kbd>${tool.key}</kbd>`);
+      const b = el('button', 'tool', `<span class="ic">${glyph(tool.icon)}</span><span class="lbl">${t(`editor.tool.${tool.id}`)}</span><kbd>${tool.key}</kbd>`);
       b.dataset.tool = tool.id;
       b.addEventListener('click', () => { this.cancelPick(); this.editor.ui.tool = tool.id; this.editor.ui.eyedrop = false; this.editor.ui.selected = tool.id === 'select' ? this.editor.ui.selected : null; this.renderAll(); });
       this.toolsEl.appendChild(b);
     }
     // conta-gotas (um clique): copia terreno, recurso, edifício ou unidade sob o cursor para a ferramenta correspondente
-    const drop = el('button', 'tool', `<span class="ic">💧</span><span class="lbl">${t('editor.eyedrop')}</span><kbd>P</kbd>`); drop.id = 'ed-eyedrop'; drop.title = t('editor.eyedropTip');
+    const drop = el('button', 'tool', `<span class="ic">${glyph('pipette')}</span><span class="lbl">${t('editor.eyedrop')}</span><kbd>P</kbd>`); drop.id = 'ed-eyedrop'; drop.title = t('editor.eyedropTip');
     drop.addEventListener('click', () => { this.cancelPick(); this.editor.ui.eyedrop = !this.editor.ui.eyedrop; this.update(); });
     this.toolsEl.appendChild(drop);
     // pincel (construído uma vez; valores atualizados em renderBrush para não perder o arraste do controle)
-    this.brushEl.innerHTML = `<span class="lbl">${t('editor.brushRadius')}</span><input type="range" id="ed-radius" min="1" max="8" step="1"><b id="ed-radius-v"></b><button class="btn" id="ed-shape"></button><button class="btn" id="ed-bucket" title="${t('editor.bucketTip')}">🪣 ${t('editor.bucket')}</button><span class="hint" id="ed-hint"></span>`;
+    this.brushEl.innerHTML = `<span class="lbl">${t('editor.brushRadius')}</span><input type="range" id="ed-radius" min="1" max="8" step="1"><b id="ed-radius-v"></b><button class="btn" id="ed-shape"></button><button class="btn" id="ed-bucket" title="${t('editor.bucketTip')}">${glyph('bucket')} ${t('editor.bucket')}</button><span class="hint" id="ed-hint"></span>`;
     this.brushEl.querySelector('#ed-bucket')!.addEventListener('click', () => { const ui = this.editor.ui; ui.bucket = !ui.bucket; this.keys.brush = ''; this.renderBrush(); });
     (this.brushEl.querySelector('#ed-radius') as HTMLInputElement).addEventListener('change', (e) => (e.target as HTMLElement).blur());   // devolve os atalhos ao canvas
     (this.brushEl.querySelector('#ed-radius') as HTMLInputElement).addEventListener('input', (e) => { this.editor.ui.brushRadius = Math.max(1, Math.min(8, Number((e.target as HTMLInputElement).value) || 1)); this.renderBrush(); });
@@ -181,7 +189,7 @@ export class EditorPanel {
     const key = `${this.mapTitle()}|${ed.dirty}|${ed.undoDepth}|${ed.redoDepth}|${this.statusText()}|${ed.meta.scenario ? 's' : ''}`;
     if (key === this.keys.top) return; this.keys.top = key;
     const errors = this.issues.some((i) => i.level === 'error');
-    (this.top.querySelector('#ed-name') as HTMLElement).innerHTML = `${esc(this.mapTitle())}${ed.meta.scenario ? ` <span title="${t('editor.hasScenario')}">📜</span>` : ''}${ed.dirty ? ' <span class="dirty">•</span>' : ''}`;
+    (this.top.querySelector('#ed-name') as HTMLElement).innerHTML = `${esc(this.mapTitle())}${ed.meta.scenario ? ` <span class="has-scn" title="${t('editor.hasScenario')}">${glyph('scroll')}</span>` : ''}${ed.dirty ? ' <span class="dirty">•</span>' : ''}`;
     (this.top.querySelector('#ed-counters') as HTMLElement).innerHTML = `<span title="${t('editor.undo')} (Ctrl+Z)">↶ ${ed.undoDepth}</span> <span title="${t('editor.redo')} (Ctrl+Y)">↷ ${ed.redoDepth}</span>`;
     const st = this.top.querySelector('#ed-status') as HTMLElement;
     st.textContent = this.statusText(); st.className = `status ${errors ? 'err' : this.issues.length ? 'warn' : 'ok'}`;
@@ -195,7 +203,7 @@ export class EditorPanel {
   }
   private renderPalette(): void {
     const ui = this.editor.ui;
-    const key = `${ui.tool}|${ui.terrain}|${ui.nodeType}|${ui.nodeAmount}|${ui.buildingType}|${ui.unitType}`;
+    const key = `${ui.tool}|${ui.terrain}|${ui.nodeType}|${ui.nodeAmount}|${ui.buildingType}|${ui.unitType}|${ui.player}`;   // jogador: cor de time dos ícones
     if (key === this.keys.palette) return; this.keys.palette = key;
     const p = this.paletteEl; p.innerHTML = '';
     const chip = (html: string, active: boolean, tip: string, onClick: () => void, data?: [string, string]) => {
@@ -205,7 +213,7 @@ export class EditorPanel {
     if (ui.tool === 'terrain') {
       TERRAIN_ORDER.forEach((tr, i) => p.appendChild(chip(`<span class="sw" style="background:${terrainHex(tr)}"></span>${t(`editor.terrain.${tr}`)} <kbd>${i + 1}</kbd>`, ui.terrain === tr || (ui.terrain === 6 && tr === TERRAIN.DEEP), t(`editor.terrain.${tr}`), () => { ui.terrain = tr; this.renderPalette(); }, ['terrain', String(tr)])));
     } else if (ui.tool === 'node') {
-      for (const nt of NODE_TYPES) p.appendChild(chip(`${NODE_ICONS[nt]} ${t(`node.${nt}`)}`, ui.nodeType === nt, `${t(`node.${nt}`)} · ${t('editor.amountDefault')}: ${NODE_AMOUNT[nt]}`, () => { ui.nodeType = nt; ui.nodeAmount = null; this.renderPalette(); }, ['node', nt]));
+      for (const nt of NODE_TYPES) p.appendChild(chip(`${nodeIcon(nt)} ${t(`node.${nt}`)}`, ui.nodeType === nt, `${t(`node.${nt}`)} · ${t('editor.amountDefault')}: ${NODE_AMOUNT[nt]}`, () => { ui.nodeType = nt; ui.nodeAmount = null; this.renderPalette(); }, ['node', nt]));
       const amt = el('label', 'amt', `${t('editor.amount')} <input type="number" id="ed-amount" min="1" max="99999" placeholder="${NODE_AMOUNT[ui.nodeType]} (${t('editor.amountDefault')})" value="${ui.nodeAmount ?? ''}">`);
       amt.querySelector('input')!.addEventListener('change', (e) => { const v = Number((e.target as HTMLInputElement).value); ui.nodeAmount = v > 0 ? Math.round(v) : null; this.keys.palette = ''; });
       p.appendChild(amt);
@@ -215,13 +223,13 @@ export class EditorPanel {
       for (const cat of ['economy', 'military', 'culture', 'special'] as const) {
         const list = ids.filter((id) => buildingCategory(id) === cat); if (!list.length) continue;
         p.appendChild(el('span', 'cat', t(`editor.cat.${cat}`)));
-        for (const id of list) { const d = BUILDINGS[id]; p.appendChild(chip(`${d.icon} ${d.name}`, ui.buildingType === id, `${d.name} (${d.w}×${d.h})\n${d.desc}`, () => { ui.buildingType = id; this.renderPalette(); }, ['building', id])); }
+        for (const id of list) { const d = BUILDINGS[id]; p.appendChild(chip(`${ic.bld(id, teamNum(ui.player), 'chi')} ${d.name}`, ui.buildingType === id, `${d.name} (${d.w}×${d.h})\n${d.desc}`, () => { ui.buildingType = id; this.renderPalette(); }, ['building', id])); }
       }
     } else if (ui.tool === 'unit') {
       for (const cls of UNIT_CLASSES) {
         const list = Object.values(UNITS).filter((u) => u.cls === cls); if (!list.length) continue;
         p.appendChild(el('span', 'cat', t(`editor.cls.${cls}`)));
-        for (const u of list) p.appendChild(chip(`${u.icon} ${u.name}`, ui.unitType === u.id, `${u.name}\n${u.desc}`, () => { ui.unitType = u.id; this.renderPalette(); }, ['unit', u.id]));
+        for (const u of list) p.appendChild(chip(`${ic.unit(u.id, teamNum(ui.player), 'chi')} ${u.name}`, ui.unitType === u.id, `${u.name}\n${u.desc}`, () => { ui.unitType = u.id; this.renderPalette(); }, ['unit', u.id]));
       }
     } else if (ui.tool === 'start') p.appendChild(el('span', 'hint', t('editor.startsHint')));
     else if (ui.tool === 'select') p.appendChild(el('span', 'hint', t('editor.selectHint')));
@@ -270,10 +278,10 @@ export class EditorPanel {
     const tagIn = (id: number) => `<label>${t('editor.tag')} <input id="ed-tag" maxlength="32" value="${esc(ed.tags.get(id) ?? '')}"></label>`;
     let body = '';
     if (!sel) body = `<div class="hint">${t('editor.inspNone')}</div>`;
-    else if (sel.kind === 'unit') { const u = state.units.get(sel.id); if (u) { const d = UNITS[u.type]; body = `<div class="ttl">${d.icon} ${d.name} <small>(${Math.floor(u.x)}, ${Math.floor(u.y)})</small></div>${ownerSel(u.owner)}${tagIn(u.id)}<button class="btn" id="ed-apply">${t('editor.apply')}</button><button class="btn danger" id="ed-remove">${t('editor.remove')}</button>`; } }
-    else if (sel.kind === 'building') { const b = state.buildings.get(sel.id); if (b) { const d = BUILDINGS[b.type]; body = `<div class="ttl">${d.icon} ${d.name} <small>(${b.tx}, ${b.ty})</small></div>${ownerSel(b.owner)}<label><input type="checkbox" id="ed-bcomplete" ${b.complete ? 'checked' : ''}> ${t('editor.complete')}</label>${tagIn(b.id)}<button class="btn" id="ed-apply">${t('editor.apply')}</button><button class="btn danger" id="ed-remove">${t('editor.remove')}</button>`; } }
-    else if (sel.kind === 'node') { const n = map.nodes.get(sel.id); if (n) body = `<div class="ttl">${NODE_ICONS[n.type]} ${t(`node.${n.type}`)} <small>(${n.x}, ${n.y})</small></div><label>${t('editor.amount')} <input type="number" id="ed-namount" min="1" max="99999" value="${Math.round(n.amount)}"></label><button class="btn" id="ed-apply">${t('editor.apply')}</button><button class="btn danger" id="ed-remove">${t('editor.remove')}</button>`; }
-    else { const s = map.starts[sel.id]; if (s) body = `<div class="ttl" style="color:${PLAYER_COLORS[sel.id % PLAYER_COLORS.length].hex}">🚩 ${t('editor.inspStart', { n: sel.id + 1 })} <small>(${s.x}, ${s.y})</small></div><button class="btn danger" id="ed-remove">${t('editor.remove')}</button>`; }
+    else if (sel.kind === 'unit') { const u = state.units.get(sel.id); if (u) { const d = UNITS[u.type]; body = `<div class="ttl">${ic.unit(u.type, teamNum(u.owner), 'md')} ${d.name} <small>(${Math.floor(u.x)}, ${Math.floor(u.y)})</small></div>${ownerSel(u.owner)}${tagIn(u.id)}<button class="btn" id="ed-apply">${t('editor.apply')}</button><button class="btn danger" id="ed-remove">${t('editor.remove')}</button>`; } }
+    else if (sel.kind === 'building') { const b = state.buildings.get(sel.id); if (b) { const d = BUILDINGS[b.type]; body = `<div class="ttl">${ic.bld(b.type, teamNum(b.owner), 'md')} ${d.name} <small>(${b.tx}, ${b.ty})</small></div>${ownerSel(b.owner)}<label><input type="checkbox" id="ed-bcomplete" ${b.complete ? 'checked' : ''}> ${t('editor.complete')}</label>${tagIn(b.id)}<button class="btn" id="ed-apply">${t('editor.apply')}</button><button class="btn danger" id="ed-remove">${t('editor.remove')}</button>`; } }
+    else if (sel.kind === 'node') { const n = map.nodes.get(sel.id); if (n) body = `<div class="ttl">${nodeIcon(n.type)} ${t(`node.${n.type}`)} <small>(${n.x}, ${n.y})</small></div><label>${t('editor.amount')} <input type="number" id="ed-namount" min="1" max="99999" value="${Math.round(n.amount)}"></label><button class="btn" id="ed-apply">${t('editor.apply')}</button><button class="btn danger" id="ed-remove">${t('editor.remove')}</button>`; }
+    else { const s = map.starts[sel.id]; if (s) body = `<div class="ttl" style="color:${PLAYER_COLORS[sel.id % PLAYER_COLORS.length].hex}">${glyph('rally')} ${t('editor.inspStart', { n: sel.id + 1 })} <small>(${s.x}, ${s.y})</small></div><button class="btn danger" id="ed-remove">${t('editor.remove')}</button>`; }
     if (!body) { ui.selected = null; body = `<div class="hint">${t('editor.inspNone')}</div>`; }
     this.inspEl.innerHTML = `<div class="head">${t('editor.inspector')} <span class="hover">${hoverText}</span></div>${body}`;
     const q = (id: string) => this.inspEl.querySelector(id) as HTMLInputElement | null;
@@ -308,7 +316,7 @@ export class EditorPanel {
     const kinds = ['food', 'wood', 'gold'] as const;
     const max = Object.fromEntries(kinds.map((k) => [k, Math.max(...rows.map((r) => r[k]))])) as Record<typeof kinds[number], number>;
     const cell = (r: (typeof rows)[number], k: typeof kinds[number]) => `<td class="${max[k] > 0 && r[k] < max[k] * 0.8 ? 'low' : ''}" title="${t('editor.resNodes', { n: r[`${k}Nodes`] })}">${r[k]}</td>`;
-    this.resEl.innerHTML = `<div class="ttl">${t('editor.resTitle', { r: 16 })}</div><table><tr><th></th><th title="${t('res.food')}">🍖</th><th title="${t('res.wood')}">🌲</th><th title="${t('res.gold')}">⛏</th></tr>${rows.map((r, i) => `<tr data-start="${i}"><th style="color:${PLAYER_COLORS[i % PLAYER_COLORS.length].hex}">🚩 ${i + 1}</th>${kinds.map((k) => cell(r, k)).join('')}</tr>`).join('')}</table>`;
+    this.resEl.innerHTML = `<div class="ttl">${t('editor.resTitle', { r: 16 })}</div><table><tr><th></th><th title="${t('res.food')}">${ic.res('food')}</th><th title="${t('res.wood')}">${ic.res('wood')}</th><th title="${t('res.gold')}">${ic.res('gold')}</th></tr>${rows.map((r, i) => `<tr data-start="${i}"><th style="color:${PLAYER_COLORS[i % PLAYER_COLORS.length].hex}">${glyph('rally')} ${i + 1}</th>${kinds.map((k) => cell(r, k)).join('')}</tr>`).join('')}</table>`;
   }
   /** "Corrigir" quando cabe (docs/EDITOR.md §4.4): cada aviso/erro com uma correção automática desfazível (um passo de Ctrl+Z). */
   private fixFor(it: MapIssue): { label: string; run: () => boolean } | null {
@@ -406,7 +414,7 @@ export class EditorPanel {
       <div class="row" style="flex-direction:column;gap:6px">
         <label>${t('editor.testAs')} <select id="et-as">${starts.map((_, i) => `<option value="${i}" ${as === i ? 'selected' : ''}>${t('editor.testStartN', { n: i + 1 })}</option>`).join('')}</select></label>
         <div id="et-slots" style="display:flex;flex-direction:column;gap:4px">${starts.map((_, i) => slotSel(i)).join('')}</div>
-        <label>${t('editor.testGod')} <select id="et-god">${MAJOR_GOD_LIST.map((g) => `<option value="${g}" ${(saved.god ?? 'zeus') === g ? 'selected' : ''}>${MAJOR_GODS[g].icon} ${MAJOR_GODS[g].name}</option>`).join('')}</select></label>
+        <label>${t('editor.testGod')} <select id="et-god">${MAJOR_GOD_LIST.map((g) => `<option value="${g}" ${(saved.god ?? 'zeus') === g ? 'selected' : ''}>${MAJOR_GODS[g].name}</option>`).join('')}</select></label>
         <label>${t('editor.testMode')} <select id="et-mode">${GAME_MODES.map((m) => `<option value="${m}" ${(saved.mode ?? 'conquest') === m ? 'selected' : ''}>${t(`mode.${m}`)}</option>`).join('')}</select></label>
         <label><input type="checkbox" id="et-reveal" ${saved.reveal ? 'checked' : ''}> ${t('editor.testReveal')}</label>
         ${ed.meta.scenario ? `<label><input type="checkbox" id="et-scenario" ${saved.scenario === false ? '' : 'checked'}> ${t('editor.testScenario')}</label>` : ''}
@@ -633,7 +641,7 @@ export class EditorPanel {
   showHotkeys(): void {
     const k = (...keys: string[]) => keys.map((x) => `<kbd>${x}</kbd>`).join(' ');
     const rows: [string, string][] = [
-      [k('T', 'N', 'B', 'M', 'I', 'V', 'E'), t('editor.hk.tools')], [k('1', '2', '3', '4', '5', '6'), t('editor.hk.terrain')], [`${k('[', ']')} · ${k('X')}`, t('editor.hk.brush')], [`${k('F')} · 🪣`, t('editor.hk.fill')],
+      [k('T', 'N', 'B', 'M', 'I', 'V', 'E'), t('editor.hk.tools')], [k('1', '2', '3', '4', '5', '6'), t('editor.hk.terrain')], [`${k('[', ']')} · ${k('X')}`, t('editor.hk.brush')], [`${k('F')} · ${glyph('bucket')}`, t('editor.hk.fill')],
       [`${k('Shift')}+${k(t('hk.k.click'))}`, t('editor.hk.line')], [`${k('P')} · ${k('Alt')}+${k(t('hk.k.click'))}`, t('editor.hk.eyedrop')], [`${k('Shift')}+${k('1-4')}`, t('editor.hk.player')], [k('C'), t('editor.hk.complete')], [k('Tab'), t('editor.hk.startCycle')],
       [k('G', 'L', 'O', 'K'), t('editor.hk.overlays')], [`${k('Ctrl')}+${k('Z')} · ${k('Ctrl')}+${k('Y')}`, t('editor.hk.undo')], [`${k('Ctrl')}+${k('S')} · ${k('Ctrl')}+${k('Enter')}`, t('editor.hk.save')],
       [k(t('hk.k.right')), t('editor.hk.erase')], [k('Delete'), t('editor.hk.delete')], [`${k('W A S D')} · ${k(t('hk.k.arrows'))} · ${t('hk.k.edge')} · ${k(t('hk.k.middle'))} · ${k(t('hk.k.wheel'))}`, t('editor.hk.camera')], [`${k('Esc')} · ${k('H')}`, t('editor.hk.esc')],

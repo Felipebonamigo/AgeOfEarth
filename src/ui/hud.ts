@@ -35,24 +35,12 @@ import { padHelpRows } from './gamepad';
 import { DialogueQueue } from './dialogue';
 import { creditsHTML } from './credits';
 import { storeSet } from '../game/cloud';
-import { ic, iconHtml, iconsGeneration, loadIcons, onIconsReady } from './icons';
+import { emojiIcon, ic, iconHtml, iconsGeneration, loadIcons, missionIcon, onIconsReady } from './icons';
 import { glyph } from './glyphs';
+import { watchEmoji } from './emoji';
 
-/** Ícone de quem fala / de um cenário: o emoji do roteiro (ícone de deus ou de unidade nos dados) vira o retrato ou o
- *  ícone correspondente do atlas `hud`; sem correspondência, o glifo de fala (nunca o emoji). */
-let speakerMap: Map<string, string> | null = null;
-function speakerIcon(emoji: string, cls = ''): string {
-  if (!speakerMap) {
-    speakerMap = new Map();
-    for (const [id, g] of Object.entries(MAJOR_GODS)) speakerMap.set(g.icon, `god/${id}`);
-    for (const [id, g] of Object.entries(MINOR_GODS)) if (!speakerMap.has(g.icon)) speakerMap.set(g.icon, `god/${id}`);
-    // titãs e heróis antes das criaturas (ícones repetidos: 🔥 é Prometeu, não a Quimera)
-    const units = Object.values(UNITS).sort((a, b) => (a.cls === 'titan' || a.cls === 'hero' ? 0 : 1) - (b.cls === 'titan' || b.cls === 'hero' ? 0 : 1));
-    for (const u of units) if (!speakerMap.has(u.icon)) speakerMap.set(u.icon, `unit/${u.id}`);
-  }
-  const name = speakerMap.get(emoji.trim());
-  return name ? iconHtml(name, { cls }) : `<span class="hic hic-gly ${cls}">${glyph('chat')}</span>`;
-}
+/** Ícone de quem fala (o emoji do roteiro vira o retrato ou o ícone do atlas; sem correspondência, o glifo de fala). */
+const speakerIcon = (emoji: string, cls = ''): string => emojiIcon(emoji, cls);
 
 export interface HUDCallbacks { onSave: () => void; onLoad: () => void; onQuit: () => void; hasSave: () => boolean; onNextMission?: (currentId: string) => void; onExport?: () => void; onImport?: () => void; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onDiagnostic?: () => void; onExportMap?: () => void; onSaveMapLocal?: () => void }
 
@@ -169,6 +157,7 @@ export class HUD {
     this.tooltip = el('div'); this.tooltip.id = 'tooltip'; this.tooltip.classList.add('hidden'); hud.appendChild(this.tooltip);
     this.modalBack = el('div'); this.modalBack.id = 'modal-back'; this.modalBack.classList.add('hidden');
     this.modal = el('div'); this.modal.id = 'modal'; this.modalBack.appendChild(this.modal);
+    watchEmoji(this.modal);   // menu do jogo, ajuda, enciclopédia, créditos, briefing: emoji dos textos → glifos (src/ui/emoji.ts)
     this.chatEl = el('input', 'hidden') as HTMLInputElement; this.chatEl.id = 'chat'; this.chatEl.maxLength = 200; this.chatEl.placeholder = t('mp.chatPlaceholder');
     this.chatEl.style.cssText = 'position:fixed;left:50%;bottom:190px;transform:translateX(-50%);width:420px;background:#0f1628;color:#e5e7eb;border:1px solid #f2c14e;border-radius:6px;padding:6px 10px;font-size:14px;z-index:35';
     this.chatEl.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { const v = this.chatEl.value.trim(); if (v && this.onChat) this.onChat(v); this.closeChat(); } else if (e.key === 'Escape') this.closeChat(); });
@@ -345,7 +334,7 @@ export class HUD {
     if (!force && key === this.lastObjKey) return;
     this.lastObjKey = key;
     const rows = def.objectives.filter((o) => !sc.hidden[o.id]).map((o) => { const st = sc.objectives[o.id]; return `<li class="${st}">${glyph(st === 'done' ? 'check' : st === 'failed' ? 'cross' : 'box', `obj-${st}`)} ${esc(noEmoji(o.text))}${o.optional ? ` <small>${t('mission.optional')}</small>` : ''}</li>`; }).join('');
-    this.objPanel.innerHTML = `<h4>${speakerIcon(def.icon, 'sm')} ${esc(noEmoji(def.title))}</h4><ul>${rows}</ul>${extra}`;   // textos do cenário escapados: o JSON pode vir do anfitrião
+    this.objPanel.innerHTML = `<h4>${missionIcon(def.id, def.icon, 'sm')} ${esc(noEmoji(def.title))}</h4><ul>${rows}</ul>${extra}`;   // textos do cenário escapados: o JSON pode vir do anfitrião
     this.objPanel.classList.remove('hidden');
   }
 
@@ -666,7 +655,7 @@ export class HUD {
   openChat() { if (!this.onChat) return; this.chatEl.classList.remove('hidden'); this.chatEl.value = ''; this.chatEl.focus(); }
   closeChat() { this.chatEl.classList.add('hidden'); this.chatEl.blur(); }
 
-  showModal(html: string, dismissable = true) { this.modal.innerHTML = noEmoji(html); this.modalBack.classList.remove('hidden'); this.modalDismissable = dismissable; }
+  showModal(html: string, dismissable = true) { this.modal.innerHTML = html; this.modalBack.classList.remove('hidden'); this.modalDismissable = dismissable; }
   hideModal() {
     this.modalBack.classList.add('hidden');
     if (this.menuOpen) { this.menuOpen = false; if (this.session) this.session.paused = this.pausedBeforeMenu; }   // Esc ou clique fora do menu: volta ao estado anterior
@@ -806,21 +795,22 @@ export class HUD {
     this.audio.play(won ? 'victory' : 'defeat');
     // Progresso da campanha só para ids oficiais: cenários JSON personalizados nunca marcam aoe_campaign (nem conquistas de missão)
     if (won && isOfficialScenario(sc.id) && !this.testMode) { try { const prog = JSON.parse(localStorage.getItem('aoe_campaign') ?? '{"completed":[]}'); if (!prog.completed.includes(sc.id)) prog.completed.push(sc.id); if (st.config.campaignDifficulty === 'hard') { prog.hard = prog.hard ?? []; if (!prog.hard.includes(sc.id)) prog.hard.push(sc.id); } storeSet('aoe_campaign', JSON.stringify(prog)); } catch { /* ignore */ } }
-    const text = won ? (def.outro ?? [t('mission.done')]).map((x) => `<p>${x}</p>`).join('') : `<p>${t('mission.failedText')}</p>`;
+    const text = won ? (def.outro ? def.outro.map((x) => `<p>${esc(x)}</p>`).join('') : `<p>${t('mission.done')}</p>`) : `<p>${t('mission.failedText')}</p>`;
     // a última missão do plano (m12) fecha a campanha: sem "Próxima missão" (voltaria ao menu) e com o selo de fim; a Horda também não tem próxima
     const finale = won && sc.id === CAMPAIGN_PLAN[CAMPAIGN_PLAN.length - 1].id;
     const hasNext = won && this.cb.onNextMission && isOfficialScenario(sc.id) && !this.testMode && !!nextCampaignMission(sc.id);
-    this.showModal(`<h2>${won ? t('mission.done') : t('mission.failed')} — ${def.title}</h2>${text}${finale ? `<p><strong>${t('mission.campaignEnd')}</strong></p>` : ''}<p><small>${t('mission.stats', { time: fmtTime(st.time), kills: s.player.stats.kills, losses: s.player.stats.losses })}</small></p>
+    this.showModal(`<h2>${won ? t('mission.done') : t('mission.failed')} — ${esc(noEmoji(def.title))}</h2>${text}${finale ? `<p><strong>${t('mission.campaignEnd')}</strong></p>` : ''}<p><small>${t('mission.stats', { time: fmtTime(st.time), kills: s.player.stats.kills, losses: s.player.stats.losses })}</small></p>
       <div class="actions"><button class="btn" id="m-continue">${t('mission.continue')}</button>${hasNext ? `<button class="btn primary" id="m-next">${t('mission.next')}</button>` : ''}<button class="btn ${won && hasNext ? '' : 'primary'}" id="m-quit">${this.testMode ? t('editor.backToEditor') : t('over.menu')}</button></div>`, false);
     this.modal.querySelector('#m-continue')!.addEventListener('click', () => this.hideModal());
     this.modal.querySelector('#m-next')?.addEventListener('click', () => { this.hideModal(); this.cb.onNextMission?.(sc.id); });
     this.modal.querySelector('#m-quit')!.addEventListener('click', () => { this.hideModal(); this.cb.onQuit(); });
   }
 
-  /** Tela de abertura do cenário da sessão atual (campanha, Horda ou JSON): título, intro, objetivos visíveis e dicas no idioma atual. */
+  /** Tela de abertura do cenário da sessão atual (campanha, Horda ou JSON): título, intro, objetivos visíveis e dicas no idioma atual.
+   *  Textos escapados: o cenário JSON pode vir do anfitrião da sala (docs/EDITOR.md §4.7). */
   showIntro(onStart: () => void) {
     const def = this.session ? scenarioOf(this.session.state) : undefined; if (!def) { onStart(); return; }
-    this.showModal(`<h2>${def.icon} ${def.title}</h2><p style="color:#f2c14e">${def.subtitle}</p>${def.intro.map((x) => `<p>${x}</p>`).join('')}<h3>${t('mission.objectives')}</h3><ul>${def.objectives.filter((o) => !o.hidden).map((o) => `<li>${o.text}${o.optional ? ` <small>${t('mission.optional')}</small>` : ''}</li>`).join('')}</ul>${def.hints ? `<h3>${t('mission.hints')}</h3><ul>${def.hints.map((h) => `<li>${h}</li>`).join('')}</ul>` : ''}<div class="actions"><button class="btn primary" id="m-go">${t('mission.start')}</button></div>`, false);
+    this.showModal(`<h2>${missionIcon(def.id, def.icon, 'md')} ${esc(noEmoji(def.title))}</h2><p style="color:#f2c14e">${esc(def.subtitle)}</p>${def.intro.map((x) => `<p>${esc(x)}</p>`).join('')}<h3>${t('mission.objectives')}</h3><ul>${def.objectives.filter((o) => !o.hidden).map((o) => `<li>${esc(o.text)}${o.optional ? ` <small>${t('mission.optional')}</small>` : ''}</li>`).join('')}</ul>${def.hints ? `<h3>${t('mission.hints')}</h3><ul>${def.hints.map((h) => `<li>${esc(h)}</li>`).join('')}</ul>` : ''}<div class="actions"><button class="btn primary" id="m-go">${t('mission.start')}</button></div>`, false);
     this.modal.querySelector('#m-go')!.addEventListener('click', () => { this.hideModal(); onStart(); });
   }
 

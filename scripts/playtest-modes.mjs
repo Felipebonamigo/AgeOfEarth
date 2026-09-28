@@ -28,7 +28,7 @@ console.log('aviso do rei:', (await page.textContent('#messages'))?.includes('re
 // veterania: unidade com abates mostra estrelas (renderizador) e a patente no painel
 await page.evaluate(() => { const s = window.aoe.session; const tc = [...s.state.buildings.values()].find((b) => b.owner === s.local); const u = window.aoe.debugSpawn(s.local, 'hoplite', tc.x + 4, tc.y + 4); u.kills = 9; s.select([u.id]); });
 await page.waitForTimeout(400);
-console.log('veterania no painel:', (await page.textContent('#selection'))?.includes('⭐⭐') ? 'ok' : 'FALHOU');
+console.log('veterania no painel:', (await page.$$('#selection .rank svg.gly')).length >= 2 ? 'ok' : 'FALHOU');   // estrelas em glifo (Etapa 7)
 // habilidade de herói: botão no painel e tecla Q
 await page.evaluate(() => { const s = window.aoe.session; const tc = [...s.state.buildings.values()].find((b) => b.owner === s.local); const h = window.aoe.debugSpawn(s.local, 'jason', tc.x - 4, tc.y + 4); s.select([h.id]); });
 await page.waitForTimeout(400);

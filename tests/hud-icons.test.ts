@@ -8,7 +8,9 @@ import { hudNames, techIconKey, TECH_ICONS } from '../scripts/bake/hud/catalog.m
 import { runCheck } from '../scripts/bake/check';
 import { GLYPHS } from '../src/ui/glyphs';
 import { noEmoji } from '../src/ui/html';
-import { techIconName } from '../src/ui/icons';
+import { techIconName, MISSION_ICONS } from '../src/ui/icons';
+import { EMOJI_GLYPHS } from '../src/ui/emoji';
+import { CAMPAIGN } from '../src/core/scenario/campaign';
 
 const ROOT = path.resolve(__dirname, '..');
 const manifests = fs.readdirSync(path.join(ROOT, 'art/manifest')).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(fs.readFileSync(path.join(ROOT, 'art/manifest', f), 'utf8')) as { id: string; kind: string; icon?: unknown });
@@ -69,5 +71,36 @@ describe('HUD sem emoji (Etapa 7)', () => {
     expect(noEmoji('🧑‍🏫 Acadêmico')).toBe('Acadêmico');
     expect(noEmoji('<b>⚔️ Unidades</b>')).toBe('<b>Unidades</b>');
     expect(noEmoji('Vida 350/350 · ×1.5 vs edifícios → ok')).toBe('Vida 350/350 · ×1.5 vs edifícios → ok');
+  });
+});
+
+describe('menu, lobby e editor sem emoji (Etapa 8)', () => {
+  const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2300}-\u{23FF}]/u;
+  const EMOJI_G = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2300}-\u{23FF}]/gu;
+  const code = (f: string) => fs.readFileSync(path.join(ROOT, f), 'utf8').split('\n').map((l) => l.replace(/\/\/.*$/, '')).join('\n').replace(/\/\*[\s\S]*?\*\//g, '');
+  it('o código do menu, do editor e do controle não escreve emoji (os ícones de cenário nos modelos do editor são dado)', () => {
+    for (const f of ['src/ui/menu.ts', 'src/editor/panel.ts', 'src/ui/gamepad.ts', 'src/ui/options.ts', 'src/ui/credits.ts']) {
+      const hits = code(f).split('\n').filter((l) => EMOJI.test(l) && !/icon: '[^']+'/.test(l));
+      expect(hits, f).toEqual([]);
+    }
+  });
+  it('todo emoji dos textos da interface tem glifo (nenhum some sem substituto no menu e nos modais)', () => {
+    const strings = fs.readFileSync(path.join(ROOT, 'src/i18n/strings.ts'), 'utf8');
+    const used = new Set([...strings.matchAll(EMOJI_G)].map((m) => m[0]));
+    expect([...used].filter((e) => !EMOJI_GLYPHS[e])).toEqual([]);
+  });
+  it('o destino de cada emoji existe (glifo desenhado ou ícone do atlas hud)', () => {
+    const bad = Object.entries(EMOJI_GLYPHS).filter(([, v]) => (v.startsWith('@') ? !names.has(v.slice(1)) : !GLYPHS.includes(v)));
+    expect(bad).toEqual([]);
+    // glifos pedidos direto pelo menu, editor, controle e objetivos
+    const want = new Set<string>();
+    for (const f of ['src/ui/menu.ts', 'src/editor/panel.ts', 'src/ui/gamepad.ts', 'src/ui/icons.ts']) for (const m of fs.readFileSync(path.join(ROOT, f), 'utf8').matchAll(/glyph\('([A-Za-z]+)'/g)) want.add(m[1]);
+    for (const m of fs.readFileSync(path.join(ROOT, 'src/editor/panel.ts'), 'utf8').matchAll(/icon: '([a-z]+)' \}/g)) want.add(m[1]);
+    expect([...want].filter((g) => !GLYPHS.includes(g))).toEqual([]);
+  });
+  it('cada missão da campanha (e a Horda) tem ícone escolhido, e ele existe no atlas', () => {
+    for (const e of CAMPAIGN) expect(MISSION_ICONS[e.id], e.id).toBeTruthy();
+    expect(MISSION_ICONS.horde).toBeTruthy();
+    expect(Object.values(MISSION_ICONS).filter((n) => !names.has(n))).toEqual([]);
   });
 });

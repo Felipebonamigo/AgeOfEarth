@@ -47,4 +47,27 @@ describe('HUD: texto de outros pares não vira HTML', () => {
     expect(dlgPanel.html).toContain('&lt;img src=x onerror=&quot;');
     expect(dlgPanel.html).toContain('&lt;b onclick=x&gt;Cronos&lt;/b&gt;');
   });
+
+  it('briefing e fim de um cenário JSON (do anfitrião) escapam título, subtítulo, intro, objetivos, dicas e desfecho', () => {
+    const file = {
+      format: 'aoe-scenario', version: 1, id: 'xss', title: { pt: `T ${XSS}` }, subtitle: { pt: `S ${XSS}` }, intro: [{ pt: `I ${XSS}` }],
+      hints: [{ pt: `H ${XSS}` }], outro: [{ pt: `O ${XSS}` }],
+      map: { gen: { mapSize: 'small', seed: 1 } },
+      config: { players: [{ name: 'A', god: 'zeus', isAI: false, difficulty: 'normal' }, { name: 'B', god: 'hades', isAI: true, difficulty: 'normal' }] },
+      objectives: [{ id: 'a', text: { pt: `Obj ${XSS}` } }], triggers: [], victory: { time: { gte: 99999 } },
+    };
+    const shown: string[] = [];
+    const btn = { addEventListener: () => {} };
+    const state = { config: { scenarioData: file, players: [] }, scenario: { id: 'xss', objectives: { a: 'done' }, hidden: {}, winner: 0, winnerTeam: 0 }, time: 60, players: [] };
+    const fake = {
+      session: { state, player: { team: 0, stats: { kills: 0, losses: 0 } } }, modal: { querySelector: () => btn }, audio: { play: () => {} }, cb: { onQuit: () => {} }, testMode: true,
+      showModal: (html: string) => { shown.push(html); }, hideModal: () => {},
+    };
+    (HUD.prototype as unknown as { showIntro(this: unknown, f: () => void): void }).showIntro.call(fake, () => {});
+    (HUD.prototype as unknown as { showScenarioEnd(this: unknown): void }).showScenarioEnd.call(fake);
+    expect(shown).toHaveLength(2);
+    for (const html of shown) { expect(html).not.toContain('<img'); expect(html).toContain('&lt;img src=x onerror=&quot;'); }
+    for (const k of ['T', 'S', 'I', 'Obj', 'H']) expect(shown[0]).toContain(`${k} &lt;img`);
+    expect(shown[1]).toContain('T &lt;img');
+  });
 });

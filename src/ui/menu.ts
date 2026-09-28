@@ -17,6 +17,9 @@ import { gameConfigFor } from '../core/scenario/compile';
 import { tx } from '../core/scenario/text';
 import { AUTOSAVE_KEY } from '../editor/panel';
 import { esc } from './html';
+import { ic, missionIcon } from './icons';
+import { glyph } from './glyphs';
+import { watchEmoji } from './emoji';
 import { syncUiZoom } from './hud';
 
 const fixedMapLabel = (d: { name?: string; nameEn?: string; id?: string; w: number; h: number; starts: number | unknown[]; hash?: number }) => t('main.fixedMapInfo', { name: esc(mapName(d)), w: d.w, h: d.h, n: Array.isArray(d.starts) ? d.starts.length : d.starts }) + (d.hash !== undefined ? ` <span style="color:#6b7690">#${(d.hash >>> 0).toString(16).slice(0, 6)}</span>` : '');
@@ -57,6 +60,7 @@ export class MainMenu {
     this.root = root;
     this.el = document.createElement('div'); this.el.id = 'menu';
     syncUiZoom(this.el);
+    watchEmoji(this.el);   // Etapa 8: os emoji dos textos viram glifos (src/ui/emoji.ts)
     root.appendChild(this.el);
     this.restoreFixedMap();
     this.render();
@@ -77,7 +81,7 @@ export class MainMenu {
     if (this.net?.isHost && this.net.lobby) this.net.settings({ fixedMap: d ? { id: this.fixedMapId ?? undefined, name: mapName(d), w: d.w, h: d.h, starts: d.starts.length, hash: mapHash(d), scenario: d.scenario ? tx(d.scenario.title) : undefined } : null });
     this.render();
   }
-  /** Missões do registro da campanha (G0) com cabeçalho por ato, selo "Prólogo", desbloqueio sequencial, ✅ e 🔥 do Difícil. */
+  /** Missões do registro da campanha (G0) com cabeçalho por ato, selo "Prólogo", desbloqueio sequencial, marcas de cumprida e do Difícil. */
   private campaignHTML(completed: string[], hardDone: string[]): string {
     const list = CAMPAIGN.map((e) => ({ e, m: campaignMission(e.id) })).filter((x) => !!x.m);
     let act = 0;
@@ -85,7 +89,7 @@ export class MainMenu {
       const head = e.act !== act ? `<div class="act-head" style="margin:${i ? 10 : 0}px 0 0;color:#f2c14e;font-weight:bold">${t(`main.act${(act = e.act)}`)}</div>` : '';
       const locked = i > 0 && !completed.includes(list[i - 1].e.id); const done = completed.includes(e.id); const hard = hardDone.includes(e.id);
       const badge = e.prologue ? ` <span class="badge" style="font-size:11px;color:#9aa5b8;border:1px solid var(--border);border-radius:6px;padding:0 5px">${t('main.prologue')}</span>` : '';
-      return `${head}<div class="mission ${locked ? 'locked' : ''}" data-id="${e.id}"><span class="ic">${m!.icon}</span><div><b>${esc(m!.title)}${badge} ${done ? '✅' : ''}${hard ? ` <span title="${t('main.doneHard')}">🔥</span>` : ''}</b><small>${esc(m!.subtitle)}${locked ? ` · ${t('main.locked')}` : ''}</small></div></div>`;
+      return `${head}<div class="mission ${locked ? 'locked' : ''}" data-id="${e.id}"><span class="ic">${missionIcon(e.id, m!.icon, 'mi')}</span><div><b>${esc(m!.title)}${badge}${done ? ` <span class="mark done">${glyph('check')}</span>` : ''}${hard ? ` <span class="mark hard" title="${t('main.doneHard')}">${glyph('aggressive')}</span>` : ''}</b><small>${esc(m!.subtitle)}${locked ? ` · ${t('main.locked')}` : ''}</small></div></div>`;
     }).join('');
   }
   // ---------------- Cenários personalizados (aba Campanha; docs/EDITOR.md §4.7) ----------------
@@ -97,7 +101,7 @@ export class MainMenu {
   }
   private customScenariosHTML(): string {
     const list = this.customScenarios();
-    const card = (c: { id: string; map: FixedMapData; scenario: ScenarioFile }) => `<div class="mapcard" data-scn="${esc(c.id)}"><span class="ic" style="font-size:24px">${esc(c.scenario.icon ?? '📜')}</span><div class="info"><b>${esc(tx(c.scenario.title))}</b><small>${esc(tx(c.scenario.subtitle) || t('main.customScenarioInfo', { map: mapName(c.map), w: c.map.w, h: c.map.h, n: c.scenario.config?.players?.length ?? 0 }))} · ${esc(c.id)}</small></div><button class="btn primary" data-act="play">${t('main.customScenarioPlay')}</button></div>`;
+    const card = (c: { id: string; map: FixedMapData; scenario: ScenarioFile }) => `<div class="mapcard" data-scn="${esc(c.id)}"><span class="ic">${missionIcon(c.id, c.scenario.icon, 'mi')}</span><div class="info"><b>${esc(tx(c.scenario.title))}</b><small>${esc(tx(c.scenario.subtitle) || t('main.customScenarioInfo', { map: mapName(c.map), w: c.map.w, h: c.map.h, n: c.scenario.config?.players?.length ?? 0 }))} · ${esc(c.id)}</small></div><button class="btn primary" data-act="play">${t('main.customScenarioPlay')}</button></div>`;
     return `<h3 style="margin:14px 0 4px;color:#f2c14e">${t('main.customScenarios')}</h3><p style="color:#9aa5b8;margin:0 0 6px;font-size:13px">${t('main.customScenariosDesc')}</p>
       <div class="scenariocards" id="m-scenarios">${list.length ? list.map(card).join('') : `<small style="color:#9aa5b8">${t('main.customScenariosNone')}</small>`}</div>
       <div style="margin-top:8px"><button class="btn" id="m-scn-import">${t('main.customScenarioImport')}</button></div>`;
@@ -157,7 +161,7 @@ export class MainMenu {
     if (!this.roomList) return `<div style="font-size:12px;color:#9aa5b8;margin-top:6px">${t('mp.connecting')}</div>`;
     if (this.roomList.length === 0) return `<div style="font-size:12px;color:#9aa5b8;margin-top:6px">${t('mp.roomsNone')}</div>`;
     const modeName = (m: string) => (m === 'horde' ? t('mp.horde') : t(`mode.${m}`)).split(/[:(]/)[0].trim();
-    return `<div style="font-size:12px;color:#9aa5b8;margin-top:6px">${t('mp.roomsTitle')}</div><table style="width:100%;font-size:13px;border-collapse:collapse">${this.roomList.map((r) => `<tr><td><b>${esc(r.code)}</b></td><td style="color:#9aa5b8">${t('mp.roomInfo', { host: esc(r.host), n: r.players, mode: modeName(r.mode), map: r.fixedMap ? esc(r.fixedMap) : t(`map.${r.mapSize}`) })}${r.started ? ` · <span style="color:#f2c14e">${t('mp.roomStarted')}</span>` : ''}${r.spectators ? ` · 👁 ${r.spectators}` : ''}${r.sim !== undefined && r.sim !== SIM_VERSION ? ` · <span style="color:#ef4444">${t('mp.roomOtherVersion', { v: Number(r.sim) })}</span>` : ''}</td><td align="right" style="white-space:nowrap">${r.started ? '' : `<button class="btn" data-room="${esc(r.code)}" style="padding:2px 10px;font-size:12px">${t('mp.enter')}</button> `}<button class="btn" data-spectate="${esc(r.code)}" style="padding:2px 10px;font-size:12px">${t('mp.spectate')}</button></td></tr>`).join('')}</table>`;
+    return `<div style="font-size:12px;color:#9aa5b8;margin-top:6px">${t('mp.roomsTitle')}</div><table style="width:100%;font-size:13px;border-collapse:collapse">${this.roomList.map((r) => `<tr><td><b>${esc(r.code)}</b></td><td style="color:#9aa5b8">${t('mp.roomInfo', { host: esc(r.host), n: r.players, mode: modeName(r.mode), map: r.fixedMap ? esc(r.fixedMap) : t(`map.${r.mapSize}`) })}${r.started ? ` · <span style="color:#f2c14e">${t('mp.roomStarted')}</span>` : ''}${r.spectators ? ` · ${glyph('eye')} ${r.spectators}` : ''}${r.sim !== undefined && r.sim !== SIM_VERSION ? ` · <span style="color:#ef4444">${t('mp.roomOtherVersion', { v: Number(r.sim) })}</span>` : ''}</td><td align="right" style="white-space:nowrap">${r.started ? '' : `<button class="btn" data-room="${esc(r.code)}" style="padding:2px 10px;font-size:12px">${t('mp.enter')}</button> `}<button class="btn" data-spectate="${esc(r.code)}" style="padding:2px 10px;font-size:12px">${t('mp.spectate')}</button></td></tr>`).join('')}</table>`;
   }
   private bindRoomList(joinRoom: (room: string, spectate?: boolean) => Promise<void>) {
     this.el.querySelectorAll('[data-room]').forEach((b) => b.addEventListener('click', () => void joinRoom(String((b as HTMLElement).dataset.room))));
@@ -228,11 +232,11 @@ export class MainMenu {
         <div>
           <label>${t('main.name')}</label><input id="m-name" value="${saved.name ?? t('main.player')}" maxlength="18">
           <label>${t('main.god')}</label>
-          <div class="gods">${MAJOR_GOD_LIST.map((g) => { const d = MAJOR_GODS[g]; return `<div class="god ${g === this.god ? 'sel' : ''}" data-god="${g}"><div class="ic">${d.icon}</div><b>${d.name}</b><small>${d.title}</small><small>${d.perks.slice(0, 3).join(' · ')}</small></div>`; }).join('')}</div>
+          <div class="gods">${MAJOR_GOD_LIST.map((g) => { const d = MAJOR_GODS[g]; return `<div class="god ${g === this.god ? 'sel' : ''}" data-god="${g}"><div class="ic">${ic.god(g, 'lg')}</div><b>${d.name}</b><small>${d.title}</small><small>${d.perks.slice(0, 3).join(' · ')}</small></div>`; }).join('')}</div>
           <label>${t('main.seed')}</label><input id="m-seed" placeholder="${t('main.random')}">
         </div>
         <div>
-          <label>${t('main.fixedMapSel')}</label><div style="display:flex;gap:6px;align-items:center">${this.mapSelectHTML('m-fixed-sel', true)}<button class="btn" id="m-fixed-load" title="${t('main.fixedMapImport')}" style="padding:4px 8px;font-size:12px">📂</button>${this.fixedMap ? `<button class="btn" id="m-fixed-clear" style="padding:4px 8px;font-size:12px">${t('main.fixedMapClear')}</button>` : ''}</div>
+          <label>${t('main.fixedMapSel')}</label><div style="display:flex;gap:6px;align-items:center">${this.mapSelectHTML('m-fixed-sel', true)}<button class="btn" id="m-fixed-load" title="${t('main.fixedMapImport')}" style="padding:4px 8px;font-size:12px">${glyph('folder')}</button>${this.fixedMap ? `<button class="btn" id="m-fixed-clear" style="padding:4px 8px;font-size:12px">${t('main.fixedMapClear')}</button>` : ''}</div>
           <div id="m-fixed" style="font-size:12px;color:${this.fixedMap ? '#f2c14e' : '#9aa5b8'};margin:-4px 0 4px">${this.fixedMap ? fixedMapLabel({ ...this.fixedMap, hash: mapHash(this.fixedMap) }) : t('main.fixedMapNone')}</div>${this.issuesHTML('m-fixed-issues')}
           <label>${t('main.mapSize')}</label><select id="m-map" ${this.fixedMap ? 'disabled' : ''}>${Object.entries(MAP_SIZES).map(([k, v]) => `<option value="${k}" ${(saved.map ?? 'medium') === k ? 'selected' : ''}>${t(`map.${k}`)} (${v.w}×${v.h})</option>`).join('')}</select>
           <label>${t('main.opponents')}</label><select id="m-ais">${[1, 2, 3].filter((n) => !this.fixedMap || n <= this.fixedMap.starts.length - 1).map((n, _i, arr) => `<option value="${n}" ${Math.min(saved.ais ?? 1, arr[arr.length - 1]) === n ? 'selected' : ''}>${n}</option>`).join('')}</select>
@@ -310,7 +314,7 @@ export class MainMenu {
   }
   private renderEditor(): string {
     const draft = this.draft();
-    const card = (m: { id: string; name: string; nameEn?: string; w: number; h: number; starts: number; builtin?: boolean }) => `<div class="mapcard" data-id="${esc(m.id)}"><div class="info"><b>${esc(mapName(m))}</b><small>${t('editor.cardInfo', { w: m.w, h: m.h, n: m.starts })} · ${esc(m.id)}</small></div>${m.builtin ? `<button class="btn" data-act="copy">${t('editor.editCopy')}</button>` : `<button class="btn primary" data-act="edit">${t('editor.edit')}</button><button class="btn" data-act="dup" title="${t('editor.duplicate')}">⧉</button><button class="btn" data-act="export" title="${t('editor.export')}">📤</button><button class="btn danger" data-act="del" title="${t('editor.delete')}">🗑</button>`}</div>`;
+    const card = (m: { id: string; name: string; nameEn?: string; w: number; h: number; starts: number; builtin?: boolean }) => `<div class="mapcard" data-id="${esc(m.id)}"><div class="info"><b>${esc(mapName(m))}</b><small>${t('editor.cardInfo', { w: m.w, h: m.h, n: m.starts })} · ${esc(m.id)}</small></div>${m.builtin ? `<button class="btn" data-act="copy">${t('editor.editCopy')}</button>` : `<button class="btn primary" data-act="edit">${t('editor.edit')}</button><button class="btn" data-act="dup" title="${t('editor.duplicate')}">⧉</button><button class="btn" data-act="export" title="${t('editor.export')}">${glyph('export')}</button><button class="btn danger" data-act="del" title="${t('editor.delete')}">${glyph('trash')}</button>`}</div>`;
     const mine = allMaps().filter((m) => !m.builtin), builtin = allMaps().filter((m) => m.builtin);
     return `<div class="grid">
       <div>
@@ -380,19 +384,19 @@ export class MainMenu {
     if (!this.net || !lobby) {
       return `<p style="color:#9aa5b8;font-size:13px;margin:0 0 8px">${t('mp.intro')}</p>
         <div class="grid"><div><label>${t('mp.server')}</label><input id="mp-url" value="${defaultUrl}"><label>${t('mp.room')}</label><input id="mp-room" value="${saved.room ?? 'OLIMPO'}" maxlength="12"></div>
-        <div><label>${t('main.name')}</label><input id="mp-name" value="${saved.name ?? t('main.player')}" maxlength="18"><label>${t('main.god')}</label><select id="mp-god">${MAJOR_GOD_LIST.map((g) => `<option value="${g}">${MAJOR_GODS[g].icon} ${MAJOR_GODS[g].name}</option>`).join('')}</select></div></div>
+        <div><label>${t('main.name')}</label><input id="mp-name" value="${saved.name ?? t('main.player')}" maxlength="18"><label>${t('main.god')}</label><select id="mp-god">${MAJOR_GOD_LIST.map((g) => `<option value="${g}">${MAJOR_GODS[g].name}</option>`).join('')}</select></div></div>
         <div class="actions"><button class="btn primary" id="mp-join">${t('mp.join')}</button><button class="btn" id="mp-spectate" title="${t('mp.spectateTip')}">${t('mp.spectate')}</button><button class="btn" id="mp-browse">${this.browsing ? t('mp.browseClose') : t('mp.browse')}</button><span style="color:#ef4444;font-size:13px">${this.netStatus}</span></div>
         <div id="mp-rooms">${this.roomListHTML()}</div>`;
     }
     const me = this.net.slot; const host = lobby.host === me;
-    const rows = lobby.players.map((p) => `<tr><td>${p.slot === lobby.host ? '👑 ' : ''}${esc(p.name)}${p.slot === me ? ` ${t('mp.you')}` : ''}</td><td>${MAJOR_GODS[p.god]?.icon ?? ''} ${MAJOR_GODS[p.god]?.name ?? p.god}</td><td>${host ? `<select data-team="${p.slot}">${[0, 1, 2, 3].map((k) => `<option value="${k}" ${p.team === k ? 'selected' : ''}>${t('mp.teamN', { n: k + 1 })}</option>`).join('')}</select>` : t('mp.teamN', { n: p.team + 1 })}</td><td class="ping">${(p.ping ?? -1) >= 0 ? `${p.ping} ms` : '…'}</td><td>${host && p.slot !== me ? `<button class="btn" data-kick="${p.slot}" style="padding:2px 8px;font-size:12px">${t('mp.kick')}</button>` : ''}</td></tr>`).join('');
-    const chat = `<div id="mp-chat" style="margin-top:10px"><div style="font-size:12px;color:#9aa5b8">${t('mp.chat')}</div><div id="mp-chat-log" style="height:96px;overflow:auto;background:#0f1628;border:1px solid var(--border);border-radius:6px;padding:6px;font-size:13px">${this.chatLog.map((m) => `<div><b>${esc(m.name)}:</b> ${esc(m.text)}</div>`).join('')}</div><div style="display:flex;gap:6px;margin-top:6px"><input id="mp-chat-input" placeholder="${t('mp.chatPlaceholder')}" maxlength="200" style="flex:1"><button class="btn" id="mp-chat-send">${t('mp.send')}</button></div></div>`;
+    const rows = lobby.players.map((p) => `<tr><td>${p.slot === lobby.host ? `<span class="host" title="${t('mp.host')}">${glyph('crown')}</span> ` : ''}${esc(p.name)}${p.slot === me ? ` ${t('mp.you')}` : ''}</td><td>${MAJOR_GODS[p.god] ? ic.god(p.god, 'sm') : ''} ${esc(MAJOR_GODS[p.god]?.name ?? p.god)}</td><td>${host ? `<select data-team="${p.slot}">${[0, 1, 2, 3].map((k) => `<option value="${k}" ${p.team === k ? 'selected' : ''}>${t('mp.teamN', { n: k + 1 })}</option>`).join('')}</select>` : t('mp.teamN', { n: p.team + 1 })}</td><td class="ping">${(p.ping ?? -1) >= 0 ? `${p.ping} ms` : '…'}</td><td>${host && p.slot !== me ? `<button class="btn" data-kick="${p.slot}" style="padding:2px 8px;font-size:12px">${t('mp.kick')}</button>` : ''}</td></tr>`).join('');
+    const chat = `<div id="mp-chat" style="margin-top:10px"><div style="font-size:12px;color:#9aa5b8">${t('mp.chat')}</div><div id="mp-chat-log" data-raw style="height:96px;overflow:auto;background:#0f1628;border:1px solid var(--border);border-radius:6px;padding:6px;font-size:13px">${this.chatLog.map((m) => `<div><b>${esc(m.name)}:</b> ${esc(m.text)}</div>`).join('')}</div><div style="display:flex;gap:6px;margin-top:6px"><input id="mp-chat-input" placeholder="${t('mp.chatPlaceholder')}" maxlength="200" style="flex:1"><button class="btn" id="mp-chat-send">${t('mp.send')}</button></div></div>`;
     const st = lobby.settings;
     return `<h3 style="margin:0;color:#f2c14e">${t('mp.roomTitle', { room: this.net.room })} <small style="color:#9aa5b8;font-weight:normal">${t('mp.connected', { n: lobby.players.length })}</small></h3>
       <table style="width:100%;font-size:13px;margin:8px 0;border-collapse:collapse"><tr style="color:#9aa5b8"><th align="left">${t('mp.player')}</th><th align="left">${t('mp.god')}</th><th align="left">${t('mp.team')}</th><th align="left">${t('mp.ping')}</th><th></th></tr>${rows}</table>
       ${lobby.spectators?.length ? `<div id="mp-spectators" style="font-size:12px;color:#9aa5b8;margin:-4px 0 8px">${t('mp.spectators', { names: lobby.spectators.map((s) => `${esc(s.name)}${s.slot === me ? ` ${t('mp.you')}` : ''}${host ? ` <button class="btn" data-kick="${s.slot}" style="padding:0 6px;font-size:11px">${t('mp.kick')}</button>` : ''}`).join(', ') })}</div>` : ''}
       <div class="grid"><div>
-        <label>${t('main.fixedMapSel')}</label><div style="display:flex;gap:6px;align-items:center">${host ? `${this.mapSelectHTML('mp-fixed-sel', true)}<button class="btn" id="mp-fixed-load" title="${t('main.fixedMapImport')}" style="padding:4px 8px;font-size:12px">📂</button>${st.fixedMap ? `<button class="btn" id="mp-fixed-clear" style="padding:4px 8px;font-size:12px">${t('main.fixedMapClear')}</button>` : ''}` : ''}</div>
+        <label>${t('main.fixedMapSel')}</label><div style="display:flex;gap:6px;align-items:center">${host ? `${this.mapSelectHTML('mp-fixed-sel', true)}<button class="btn" id="mp-fixed-load" title="${t('main.fixedMapImport')}" style="padding:4px 8px;font-size:12px">${glyph('folder')}</button>${st.fixedMap ? `<button class="btn" id="mp-fixed-clear" style="padding:4px 8px;font-size:12px">${t('main.fixedMapClear')}</button>` : ''}` : ''}</div>
         <div id="mp-fixed" style="font-size:12px;color:${st.fixedMap ? '#f2c14e' : '#9aa5b8'};margin:-4px 0 4px">${st.fixedMap ? fixedMapLabel(st.fixedMap) : t('main.fixedMapNone')}</div>${host ? this.issuesHTML('mp-fixed-issues') : ''}
         ${st.fixedMap?.scenario ? `<div id="mp-scenario" style="font-size:12px;color:#f2c14e;margin:-2px 0 4px">${t('mp.scenario', { title: esc(st.fixedMap.scenario) })}<div style="color:#9aa5b8">${t('mp.scenarioAis')}</div></div>` : ''}
         <label>${t('main.mapSize')}</label><select id="mp-map" ${host && !st.fixedMap ? '' : 'disabled'}>${Object.keys(MAP_SIZES).map((k) => `<option value="${k}" ${st.mapSize === k ? 'selected' : ''}>${t(`map.${k}`)}</option>`).join('')}</select>
@@ -402,7 +406,7 @@ export class MainMenu {
         <div><label>${t('mp.aiDiff')}</label><select id="mp-diff" ${host ? '' : 'disabled'}>${Object.keys(DIFFICULTIES).map((k) => `<option value="${k}" ${st.difficulty === k ? 'selected' : ''}>${t(`diff.${k}`)}</option>`).join('')}</select>
         <label><input type="checkbox" id="mp-horde" ${host ? '' : 'disabled'} ${st.horde ? 'checked' : ''}> ${t('mp.horde')}</label>${st.horde && st.fixedMap ? `<div style="font-size:12px;color:#f2c14e">${t('mp.fixedMapHorde')}</div>` : ''}
         <label><input type="checkbox" id="mp-public" ${host ? '' : 'disabled'} ${st.public !== false ? 'checked' : ''}> ${t('mp.public')}</label>
-        ${this.net.isSpectator ? '' : `<label>${t('mp.myGod')}</label><select id="mp-mygod">${MAJOR_GOD_LIST.map((g) => `<option value="${g}" ${lobby.players.find((p) => p.slot === me)?.god === g ? 'selected' : ''}>${MAJOR_GODS[g].icon} ${MAJOR_GODS[g].name}</option>`).join('')}</select>`}</div></div>
+        ${this.net.isSpectator ? '' : `<label>${t('mp.myGod')}</label><select id="mp-mygod">${MAJOR_GOD_LIST.map((g) => `<option value="${g}" ${lobby.players.find((p) => p.slot === me)?.god === g ? 'selected' : ''}>${MAJOR_GODS[g].name}</option>`).join('')}</select>`}</div></div>
       <div class="actions">${host ? `<button class="btn primary" id="mp-start">${t('mp.start')}</button>` : `<span style="color:#9aa5b8">${t('mp.waitingHost')}</span>`}<button class="btn" id="mp-leave">${t('mp.leave')}</button><span style="color:#ef4444;font-size:13px">${this.netStatus}</span></div>${chat}`;
   }
 

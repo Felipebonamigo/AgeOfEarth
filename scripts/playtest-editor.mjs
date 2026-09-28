@@ -229,7 +229,7 @@ for (const [id, w, n] of [['estreito', 80, 2], ['egeu', 113, 4]]) {
   await page.click(`#ed-builtin .mapcard[data-id="${id}"] [data-act="copy"]`); await page.waitForTimeout(1500);
   st = await info();
   const issuesN = await ed(() => window.aoe.editor.validate().length);
-  ok(`${id}: aberto no editor (${w}×${w}, ${n} inícios, sem avisos)`, st.mode === 'editor' && st.w === w && st.starts.length === n && issuesN === 0 && (await page.textContent('#ed-status')).includes('✔'), `| ${st.nodes} nós, avisos=${issuesN}`);
+  ok(`${id}: aberto no editor (${w}×${w}, ${n} inícios, sem avisos)`, st.mode === 'editor' && st.w === w && st.starts.length === n && issuesN === 0 && /V[áa]lid/.test(await page.textContent('#ed-status')) && !!(await page.$('#ed-status svg.gly')), `| ${st.nodes} nós, avisos=${issuesN}`);
   const res = await page.$$eval('#ed-res tr[data-start]', (l) => l.map((r) => [...r.querySelectorAll('td')].map((td) => td.textContent).join('/')));
   ok(`${id}: recursos iguais em todos os inícios`, res.length === n && res.every((r) => r === res[0]) && (await page.$$('#ed-res td.low')).length === 0, `| ${res[0]}`);
   if (id === 'egeu') ok('egeu: times sugeridos no arquivo', await ed(() => JSON.stringify(window.aoe.editor.toFile().startTeams) === '[0,0,1,1]'));

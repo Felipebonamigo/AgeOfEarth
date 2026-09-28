@@ -6,6 +6,8 @@
 // nunca um emoji; quem desenha o HUD escuta `onIconsReady` para redesenhar.
 import { UNITS } from '../core/data/units';
 import { TECHS } from '../core/data/techs';
+import { MAJOR_GODS, MINOR_GODS } from '../core/data/gods';
+import { glyph } from './glyphs';
 
 interface Frame { img: HTMLImageElement; x: number; y: number; w: number; h: number; tx: number; ty: number; sw: number; sh: number }
 interface SheetJson { frames: Record<string, { frame: { x: number; y: number; w: number; h: number }; spriteSourceSize: { x: number; y: number }; sourceSize: { w: number; h: number } }>; meta: { image: string } }
@@ -53,6 +55,7 @@ export async function loadIcons(base = `${import.meta.env?.BASE_URL ?? './'}art/
     state = 'ready';
     generation++;
     cache.clear();
+    hydrate();
     for (const fn of listeners) { try { fn(); } catch { /* um ouvinte com erro não impede os outros */ } }
   } catch (err) {
     state = 'failed';
@@ -90,6 +93,20 @@ export function iconUrl(name: string, teamColor?: number): string | null {
   return url;
 }
 
+/** Troca os marcadores neutros que já estão na página (menu, lobby, editor) pelos ícones, sem redesenhar a tela. */
+function hydrate(): void {
+  if (typeof document === 'undefined') return;
+  for (const ph of document.querySelectorAll<HTMLElement>('span.hic-ph[data-ic]')) {
+    const team = ph.dataset.team !== undefined ? Number(ph.dataset.team) : undefined;
+    const url = iconUrl(ph.dataset.ic!, team);
+    if (!url) continue;
+    const img = document.createElement('img');
+    img.className = [...ph.classList].filter((c) => c !== 'hic-ph').join(' ');
+    img.src = url; img.alt = ph.getAttribute('aria-label') ?? ''; img.draggable = false;
+    ph.replaceWith(img);
+  }
+}
+
 /** Nome do ícone de uma tecnologia (as de nível — civic1…5 — usam o do ramo). */
 export function techIconName(id: string): string {
   const m = /^(civic|commerce|military|science|harvest)\d$/.exec(id);
@@ -104,7 +121,7 @@ export function iconHtml(name: string, opts: { team?: number; cls?: string; labe
   const url = iconUrl(name, opts.team);
   const cls = `hic${opts.cls ? ' ' + opts.cls : ''}`;
   const alt = (opts.label ?? '').replace(/"/g, '&quot;');
-  return url ? `<img class="${cls}" src="${url}" alt="${alt}" draggable="false">` : `<span class="${cls} hic-ph" aria-label="${alt}"></span>`;
+  return url ? `<img class="${cls}" src="${url}" alt="${alt}" draggable="false">` : `<span class="${cls} hic-ph" aria-label="${alt}" data-ic="${name}"${opts.team !== undefined ? ` data-team="${opts.team}"` : ''}></span>`;
 }
 
 /** Atalhos por tipo de conteúdo. */
@@ -118,3 +135,39 @@ export const ic = {
   ability: (id: string, cls?: string): string => iconHtml(`ability/${id}`, { cls }),
   res: (r: string, cls?: string): string => iconHtml(`res/${r}`, { cls: `hic-res${cls ? ' ' + cls : ''}` }),
 };
+
+/**
+ * Ícone de quem fala / de um cenário: o emoji do roteiro (o ícone de um deus ou de uma unidade nos dados) vira o retrato
+ * ou o ícone correspondente do atlas; sem correspondência, `fallback` (glifo; padrão: o de fala) — nunca o emoji.
+ */
+let emojiMap: Map<string, string> | null = null;
+export function emojiIcon(emoji: string, cls = '', fallback = 'chat'): string {
+  if (!emojiMap) {
+    emojiMap = new Map();
+    for (const [id, g] of Object.entries(MAJOR_GODS)) emojiMap.set(g.icon, `god/${id}`);
+    for (const [id, g] of Object.entries(MINOR_GODS)) if (!emojiMap.has(g.icon)) emojiMap.set(g.icon, `god/${id}`);
+    // titãs e heróis antes das criaturas (ícones repetidos: 🔥 é Prometeu, não a Quimera)
+    const units = Object.values(UNITS).sort((a, b) => (a.cls === 'titan' || a.cls === 'hero' ? 0 : 1) - (b.cls === 'titan' || b.cls === 'hero' ? 0 : 1));
+    for (const u of units) if (!emojiMap.has(u.icon)) emojiMap.set(u.icon, `unit/${u.id}`);
+  }
+  const name = emojiMap.get(emoji.trim());
+  if (!name) return `<span class="hic hic-gly ${cls}">${glyph(fallback)}</span>`;
+  return iconHtml(name, { cls: name.startsWith('god/') ? `hic-god${cls ? ' ' + cls : ''}` : cls });
+}
+
+/**
+ * Ícone de cada missão da campanha (menu e objetivos): o protagonista, o antagonista ou o lugar da missão, escolhido à
+ * mão entre os ícones do atlas (o emoji do roteiro é genérico — três missões usam 🔥).
+ */
+export const MISSION_ICONS: Record<string, string> = {
+  m1_despertar: 'age/0', m2_cerco: 'bld/tower', m3_portal: 'bld/titan_gate', m4_caucaso: 'unit/prometheus',
+  m5_itaca: 'unit/odysseus', m6_estatua: 'bld/wonder_zeus', m7_aquiles: 'unit/achilles', m8_oceano: 'unit/oceanus',
+  m9_tenaro: 'god/hades', m10_otris: 'unit/helepolis', m11_chamas: 'unit/basileus', m12_titanomaquia: 'unit/cronus',
+  horde: 'power/pestilence',
+};
+/** Ícone de uma missão ou cenário (`id` do registro; senão o emoji do arquivo, pelo `emojiIcon`, com o pergaminho). */
+export function missionIcon(id: string, emoji: string | undefined, cls = ''): string {
+  const name = MISSION_ICONS[id];
+  if (name) return iconHtml(name, { cls: name.startsWith('god/') ? `hic-god${cls ? ' ' + cls : ''}` : cls });
+  return emojiIcon(emoji ?? '', cls, 'scroll');
+}

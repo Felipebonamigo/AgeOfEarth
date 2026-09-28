@@ -14,6 +14,7 @@ import type { Settings, PadScheme } from '../game/settings';
 import { POWERS } from '../core/data';
 import { t } from '../i18n';
 import { esc } from './html';
+import { glyph } from './glyphs';
 
 // ---------------------------------------------------------------------------------------------
 // Lógica pura
@@ -203,9 +204,9 @@ export function navPick(rects: Rect[], from: number, dir: Dir): number {
 /** Nome curto do controle para os avisos ("Xbox Wireless Controller (STANDARD GAMEPAD Vendor…)" → "Xbox Wireless Controller"). */
 export function padDisplayName(id: string): string { const s = id.replace(/\s*\(.*$/, '').trim() || id.trim(); return s.length > 40 ? s.slice(0, 39) + '…' : s; }
 
-/** Texto de um botão físico (A/B/X/Y coloridos, LB/RB/LT/RT, ☰, ⧉, D-pad). */
+/** Texto de um botão físico (A/B/X/Y coloridos, LB/RB/LT/RT, Menu/Exibir e D-pad como glifos — sem emoji, Etapa 8). */
 export function padGlyph(i: number | string): string {
-  const LABELS: Record<number, [string, string]> = { 0: ['A', 'pb-a'], 1: ['B', 'pb-b'], 2: ['X', 'pb-x'], 3: ['Y', 'pb-y'], 4: ['LB', 'pb-sh'], 5: ['RB', 'pb-sh'], 6: ['LT', 'pb-sh'], 7: ['RT', 'pb-sh'], 8: ['⧉', 'pb-sys'], 9: ['☰', 'pb-sys'], 10: ['L3', 'pb-sh'], 11: ['R3', 'pb-sh'], 12: ['✚▲', 'pb-dp'], 13: ['✚▼', 'pb-dp'], 14: ['✚◀', 'pb-dp'], 15: ['✚▶', 'pb-dp'] };
+  const LABELS: Record<number, [string, string]> = { 0: ['A', 'pb-a'], 1: ['B', 'pb-b'], 2: ['X', 'pb-x'], 3: ['Y', 'pb-y'], 4: ['LB', 'pb-sh'], 5: ['RB', 'pb-sh'], 6: ['LT', 'pb-sh'], 7: ['RT', 'pb-sh'], 8: ['⧉', 'pb-sys'], 9: [glyph('menu'), 'pb-sys'], 10: ['L3', 'pb-sh'], 11: ['R3', 'pb-sh'], 12: [glyph('dpadUp'), 'pb-dp'], 13: [glyph('dpadDown'), 'pb-dp'], 14: [glyph('dpadLeft'), 'pb-dp'], 15: [glyph('dpadRight'), 'pb-dp'] };
   if (typeof i === 'string') return `<span class="pb pb-sh">${i}</span>`;
   const [lbl, cls] = LABELS[i] ?? ['?', ''];
   return `<span class="pb ${cls}">${lbl}</span>`;
@@ -540,7 +541,7 @@ export class GamepadController {
     else if (this.pendingGlobal) items = [it(g('primary'), t('pad.hint.cast', { power: POWERS[this.pendingGlobal].name })), it(g('power'), t('pad.hint.next')), it(g('context'), t('pad.hint.cancel'))];
     else if (s.ui.mode === 'place') items = [it(g('primary'), t('pad.hint.build')), it(g('context'), t('pad.hint.cancel'))];
     else if (s.ui.mode !== 'normal') items = [it(g('primary'), t('pad.hint.target')), it(g('context'), t('pad.hint.cancel'))];
-    else items = [it(`${g('primary')}${padGlyph(BTN.RT)}`, t('pad.hint.select')), it(g('context'), t('pad.hint.order')), it(g('attackMove'), t('pad.hint.attackMove')), it(g('stop'), t('pad.hint.stop')), it(g('modifier'), t('pad.hint.commands')), it(`${padGlyph(BTN.LB)}${padGlyph(BTN.RB)}`, t('pad.hint.groups')), it('<span class="pb pb-dp">✚</span>', t('pad.hint.dpad')), it(g('menu'), t('pad.hint.menu'))];
+    else items = [it(`${g('primary')}${padGlyph(BTN.RT)}`, t('pad.hint.select')), it(g('context'), t('pad.hint.order')), it(g('attackMove'), t('pad.hint.attackMove')), it(g('stop'), t('pad.hint.stop')), it(g('modifier'), t('pad.hint.commands')), it(`${padGlyph(BTN.LB)}${padGlyph(BTN.RB)}`, t('pad.hint.groups')), it(`<span class="pb pb-dp">${glyph('dpad')}</span>`, t('pad.hint.dpad')), it(g('menu'), t('pad.hint.menu'))];
     return items.join('');
   }
 
@@ -673,8 +674,8 @@ export class GamepadController {
     const it = (glyph: string, label: string) => `<span class="ph">${glyph}${label}</span>`;
     const tabs = root.querySelectorAll('.tabs [data-tab]').length > 1;
     const html = this.editingSelect
-      ? [it('<span class="pb pb-dp">✚</span>', t('pad.hint.change')), it(padGlyph(sc.confirm), t('pad.hint.ok')), it(padGlyph(sc.back), t('pad.hint.cancel'))].join('')
-      : [it('<span class="pb pb-dp">✚</span>', t('pad.hint.move')), it(padGlyph(sc.confirm), t('pad.hint.confirm')), it(padGlyph(sc.back), t('pad.hint.back')), tabs ? it(`${padGlyph(BTN.LB)}${padGlyph(BTN.RB)}`, t('pad.hint.tabs')) : ''].join('');
+      ? [it(`<span class="pb pb-dp">${glyph('dpad')}</span>`, t('pad.hint.change')), it(padGlyph(sc.confirm), t('pad.hint.ok')), it(padGlyph(sc.back), t('pad.hint.cancel'))].join('')
+      : [it(`<span class="pb pb-dp">${glyph('dpad')}</span>`, t('pad.hint.move')), it(padGlyph(sc.confirm), t('pad.hint.confirm')), it(padGlyph(sc.back), t('pad.hint.back')), tabs ? it(`${padGlyph(BTN.LB)}${padGlyph(BTN.RB)}`, t('pad.hint.tabs')) : ''].join('');
     if (html !== this.hintKey) { this.navHintsEl.innerHTML = html; this.hintKey = html; }
     this.navHintsEl.classList.remove('hidden');
   }

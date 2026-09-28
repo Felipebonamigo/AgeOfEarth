@@ -64,7 +64,7 @@ async function walkTo(id, dir, alt) {
   for (let i = 0; i < 16 && (await focused()) !== id; i++) { const f = await focused(); await tap(dir); if ((await focused()) === f) await tap(alt); }
   return (await focused()) === id;
 }
-ok('D-pad chega a Créditos', await walkTo('m-credits', B.RIGHT, B.DOWN), String(await focused()));
+ok('D-pad chega a Créditos', await walkTo('m-credits', B.DOWN, B.RIGHT), String(await focused()));   // os botões do menu quebram em duas linhas (Etapa 8): desce e anda para a direita
 await tap(B.A); await waitFrames(3);
 const cred = await page.evaluate(() => {
   const m = document.getElementById('modal'); const team = m.querySelector('.credits-team'); const f = m.querySelector('.pad-focus');

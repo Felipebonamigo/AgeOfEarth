@@ -35,7 +35,7 @@ ok('modelos inseridos (diálogo + objetivo de contagem)', parsed.triggers.length
 ok('validação sem erros', (await page.textContent('#es-issues'))?.includes('válido') && !(await page.$eval('#es-save', (b) => b.disabled)), `| ${(await page.textContent('#es-issues'))?.trim()}`);
 await page.click('#es-save'); await page.waitForTimeout(200);
 ok('Salvar → meta.scenario', await page.evaluate(() => { const s = window.aoe.editor.meta.scenario; return !!s && s.objectives.length === 1 && s.triggers.length === 1 && window.aoe.editor.dirty; }) && !(await page.isVisible('#modal-back')));
-ok('marca 📜 na barra', (await page.textContent('#ed-name'))?.includes('📜'));
+ok('marca de cenário (glifo do pergaminho) na barra', !!(await page.$('#ed-name .has-scn svg.gly')));
 // JSON inválido (vírgula a menos) e id de unidade inexistente → erros com path, Salvar desabilitado
 await page.click('#ed-triggers'); await page.waitForTimeout(300);
 const good = await page.inputValue('#es-json');
