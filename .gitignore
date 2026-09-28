@@ -14,3 +14,6 @@ scripts/_tmp-*
 art/cache/
 art/src/
 !public/art/**/*.png
+
+# capturas de trabalho do art:shot (comparadas por art:diff com docs/art/ref/; nunca versionadas)
+docs/art/atual-*.png

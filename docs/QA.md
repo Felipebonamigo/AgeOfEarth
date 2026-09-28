@@ -602,6 +602,16 @@ com outro computador (chat, queda proposital e reconexão), 1 Horda até a onda 
 - [ ] `npm ci` e `npm run dist:linux` em `desktop/` + `xvfb-run -a node scripts/playtest-desktop.mjs` — `app://`, ponte, partida, tela cheia, espelho do Steam Cloud (apagar o localStorage e restaurar dos arquivos)
 - [ ] `npm run dist:win` (e `dist:mac` quando houver conta Apple) gerados da mesma revisão
 
+**Última execução do agente (28/09/2026, commits 3425b03 + capturas EN)**: typecheck, 896 testes e build ok; `missions.ts` —
+12 missões × 3 dificuldades dentro da janela (Missões: OK); smoke 20 42 duas vezes com o mesmo hash (`8783483f`); `map:check`,
+Horda (derrota sem jogador, como esperado), conquistas (40, 10 ocultas) e licenças ok; `perf.ts` com a máquina ociosa: média
+0,57 ms/tick, pior tick 37,8 ms (com outros processos pesados rodando juntos o pior pulou para 263 ms em ticks diferentes a cada
+rodada — ruído de contenção/JIT, não trabalho da simulação; meça o `perf.ts` sozinho); playtests base, campanha (com a
+ilustração do briefing), opções, i18n, créditos, controle, editor, Horda/replay, modos, mapa fixo, áudio, noemoji (PT/EN),
+multiplayer, salas, espectador, reconexão, cenário e mapa fixo em rede sem falhas; `art:shot` + `art:diff` 0,00 % nas 6
+tomadas; `dist:linux` + `playtest-desktop.mjs` com todas as verificações. Não rodados nesta passada (nada na simulação mudou
+desde a última): `npm run balance` e o `loadtest` de 40 min.
+
 ### Manuais e do dono
 - [ ] Matriz acima com a build candidata (cada linha de plataforma com o roteiro base; resoluções e idiomas distribuídos entre as máquinas).
 - [ ] Versão e notas de atualização (PT/EN); `package.json` e `desktop/package.json` com a mesma versão; `SIM_VERSION` subiu se a mesma semente passou a dar outra partida.
