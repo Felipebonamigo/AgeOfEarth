@@ -3,7 +3,7 @@
 // uma "batalha" (40 unidades de dois donos frente a frente); a cidade é a da IA, com o mapa revelado (só no renderizador). A simulação avança por scheduler.step (determinística) e fica
 // pausada nas capturas; o HUD (DOM) fica oculto para que só o renderizador entre na comparação (--hud para mantê-lo).
 // Saída: docs/art/<prefixo>-{z035,z13,z22,editor,cidade,batalha}.png (ou docs/art/ref/<nome>.png com --ref).
-// Uso: node scripts/artshot.mjs [url] [prefixo=atual] [--ref] [--hud] [--out pasta] [--procedural]
+// Uso: node scripts/artshot.mjs [url] [prefixo=atual] [--ref] [--hud] [--out pasta] [--procedural] [--quality low|medium|high]
 //      --procedural: com a arte assada desligada (Opções → "Arte assada"), o visual procedural de antes da Etapa 2B
 //      npm run art:shot -- http://localhost:4173/ etapa0-antes
 import { chromium } from 'playwright';
@@ -12,7 +12,7 @@ import { join } from 'node:path';
 
 const args = process.argv.slice(2);
 const flags = new Set(args.filter((a) => a.startsWith('--')));
-const pos = args.filter((a) => !a.startsWith('--') && args[args.indexOf(a) - 1] !== '--out');
+const pos = args.filter((a) => !a.startsWith('--') && args[args.indexOf(a) - 1] !== '--out' && args[args.indexOf(a) - 1] !== '--quality');
 const url = pos[0] ?? 'http://localhost:4173/';
 const prefix = pos[1] ?? 'atual';
 const outDir = flags.has('--out') ? args[args.indexOf('--out') + 1] : flags.has('--ref') ? 'docs/art/ref' : 'docs/art';
@@ -28,7 +28,9 @@ const errors = [];
 page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 // Sem rolagem na borda (o mouse do Playwright começa em (0,0) e arrastaria a câmera) e mouse no centro da tela
-await page.addInitScript((bakedArt) => { try { const k = 'aoe_settings_v1'; localStorage.setItem(k, JSON.stringify({ ...JSON.parse(localStorage.getItem(k) ?? '{}'), edgeScroll: false, bakedArt })); } catch { /* ignore */ } }, !flags.has('--procedural'));
+// --quality low|medium|high fixa o preset (padrão: 'auto', que por software começa no Baixo — o das referências)
+const quality = flags.has('--quality') ? args[args.indexOf('--quality') + 1] : null;
+await page.addInitScript(([bakedArt, q]) => { try { const k = 'aoe_settings_v1'; localStorage.setItem(k, JSON.stringify({ ...JSON.parse(localStorage.getItem(k) ?? '{}'), edgeScroll: false, bakedArt, ...(q ? { quality: q } : {}) })); } catch { /* ignore */ } }, [!flags.has('--procedural'), quality]);
 await page.goto(url, { waitUntil: 'networkidle' });
 await page.mouse.move(720, 450);
 // Configuração igual à do menu "Partida rápida" (1 IA normal, deus da IA pela semente), sem depender do DOM do menu

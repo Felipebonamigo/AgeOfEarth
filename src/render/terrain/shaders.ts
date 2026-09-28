@@ -180,16 +180,20 @@ vec4 bspline(sampler2D tex, vec2 p) {
 // Texture bombing em TRÊS grades de células CELL×CELL deslocadas de CELL/3 na diagonal (com duas grades sempre sobra
 // um ponto — aresta de uma no x, da outra no y — em que ambas têm costura; com três, as costuras de cada eixo ficam a
 // 1/3 de célula umas das outras e em todo ponto ao menos uma grade está a ≥ 1/6 de célula das suas). Cada célula gira
-// (até rot rad) e desloca o material por hash; o peso de uma grade vai a 0 a 1/12 de célula da sua costura.
+// (até rot rad) e desloca o material por hash. O peso de uma grade é (distância à costura mais próxima × 2)⁴: 1 no
+// centro da célula, 0 na costura — uma grade domina quase toda a área e as outras só entram perto das costuras dela
+// (onde a mistura por altura de sampleMat troca de uma para outra seguindo as folhas e pedras, sem linha).
 const float THIRD = CELL / 3.0;
 vec3 gridWeights(vec2 t) {
   vec3 w;
   for (int k = 0; k < 3; k++) {
     vec2 f = fract((t + float(k) * THIRD) / CELL);
-    vec2 s = smoothstep(1.0 / 12.0, 1.0 / 6.0, min(f, 1.0 - f));
-    w[k] = s.x * s.y;
+    vec2 d = min(f, 1.0 - f);
+    float e = min(d.x, d.y) * 2.0;
+    e *= e;
+    w[k] = e * e;
   }
-  return w / (w.x + w.y + w.z);
+  return w / max(w.x + w.y + w.z, 1e-6);
 }
 vec2 bombUV(vec2 t, float k, float rot, out vec2 cs) {
   vec2 c = floor((t + k * THIRD) / CELL) + k * 17.0;
@@ -203,23 +207,38 @@ vec2 unrot(vec2 n, vec2 cs) { return vec2(cs.x * n.x + cs.y * n.y, -cs.y * n.x +
 // Um material: albedo (grades com peso > 0 + escala larga) e normal (as mesmas grades, giradas de volta). textureGrad
 // com o gradiente contínuo de t: o salto de uv na aresta da célula não derruba o mip (sem linha de costura), e as
 // derivadas ficam válidas dentro dos ramos não uniformes (todas as derivadas são tiradas no topo de main).
+// As grades se misturam POR ALTURA (h + peso, com profundidade 0,2 — "height blend"): onde duas ou três grades valem,
+// a folha, a touceira ou a pedra mais alta vence em vez de a média das três apagar o contraste (uma média linear de
+// amostras descorrelacionadas de uma textura de touceiras vira um borrão liso); perto da costura de uma grade o peso
+// dela cai a 0 e as outras vencem sem corte, porque h ≤ 1.
 void sampleMat(sampler2D alb, sampler2D nrm, vec2 t, vec2 gx, vec2 gy, float rot, vec3 gw, float broadK, out vec4 a, out vec3 n) {
-  a = vec4(0.0); vec2 xy = vec2(0.0); float occ = 0.0;
+  vec4 ak[3]; vec4 nk[3]; vec2 csk[3];
+  float m = -1.0;
   for (int k = 0; k < 3; k++) {
-    float wk = gw[k];
-    if (wk > 0.001) {
+    ak[k] = vec4(0.0); nk[k] = vec4(0.5, 0.5, 1.0, 1.0); csk[k] = vec2(1.0, 0.0);
+    if (gw[k] > 0.001) {
       vec2 cs; vec2 uv = bombUV(t, float(k), rot, cs);
-      a += textureGrad(alb, uv, gx, gy) * wk;
-      if (uNormals > 0.5) { vec4 nn = textureGrad(nrm, uv, gx, gy); xy += unrot(nn.xy * 2.0 - 1.0, cs) * wk; occ += nn.a * wk; }
+      ak[k] = textureGrad(alb, uv, gx, gy); csk[k] = cs;
+      if (uNormals > 0.5) nk[k] = textureGrad(nrm, uv, gx, gy);
+      m = max(m, ak[k].a + gw[k]);
     }
   }
-  vec3 broad = textureGrad(alb, vec2(t.y, -t.x) / (TEX_TILES * 4.7) + 0.31, gx / 4.7, gy / 4.7).rgb;
+  m -= 0.2;
+  a = vec4(0.0); vec2 xy = vec2(0.0); float occ = 0.0; float bs = 0.0;
+  for (int k = 0; k < 3; k++) {
+    float b = gw[k] > 0.001 ? max(ak[k].a + gw[k] - m, 0.0) : 0.0;
+    a += ak[k] * b; bs += b;
+    xy += unrot(nk[k].xy * 2.0 - 1.0, csk[k]) * b; occ += nk[k].a * b;
+  }
+  bs = max(bs, 1e-4); a /= bs; xy /= bs; occ /= bs;
+  // escala larga só como COR (mip ~5 níveis acima: médias de ~32 texels): quebra a repetição sem folhas/pedras ampliadas
+  vec3 broad = textureGrad(alb, vec2(t.y, -t.x) / (TEX_TILES * 4.7) + 0.31, gx * 40.0 / 4.7, gy * 40.0 / 4.7).rgb;
   a.rgb = mix(a.rgb, broad, broadK);
   n = uNormals > 0.5 ? vec3(xy, occ) : vec3(0.0, 0.0, 1.0);   // z carrega a oclusão
 }
 // Mistura por altura: peso² × (altura + 0,2)⁶ — na transição o material mais alto (pedrinhas, tufos) vence primeiro,
 // o que dá bordas irregulares e nítidas em vez de um degradê borrado.
-#define ACC(W, ALB, NRM, ROT, BROAD) if (W > 0.004) { vec4 a; vec3 n; sampleMat(ALB, NRM, t, gx, gy, ROT, gw, BROAD, a, n); float k = W * W * pow(0.2 + a.a, 6.0); albedo += a.rgb * k; nxy += n.xy * k; ao += n.z * k; wsum += k; }
+#define ACC(W, ALB, NRM, ROT, BROAD) if (W > 0.004) { vec4 a; vec3 n; sampleMat(ALB, NRM, t, gx, gy, ROT, gw, BROAD, a, n); float k = W * W * pow(0.2 + a.a, 6.0); albedo += a.rgb * k; nxy += n.xy * k; ao += n.z * k; hs += a.a * k; wsum += k; }
 void main() {
   vec2 t = vUV;
   vec2 dtx = dFdx(t), dty = dFdy(t);
@@ -248,14 +267,18 @@ void main() {
   vec3 col = vec3(0.0);
   if (wm < 0.58) {
     vec3 gw = gridWeights(t);
-    vec3 albedo = vec3(0.0); vec2 nxy = vec2(0.0); float ao = 0.0; float wsum = 0.0;
-    ACC(w.r, uGrass, uGrassN, 6.2832, 0.3)
-    ACC(w.g, uDirt, uDirtN, 6.2832, 0.3)
+    vec3 albedo = vec3(0.0); vec2 nxy = vec2(0.0); float ao = 0.0; float hs = 0.0; float wsum = 0.0;
+    ACC(w.r, uGrass, uGrassN, 6.2832, 0.15)
+    ACC(w.g, uDirt, uDirtN, 6.2832, 0.15)
     ACC(w.b, uSand, uSandN, 0.5, 0.35)
     ACC(w.a, uRock, uRockN, 6.2832, 0.25)
-    wsum = max(wsum, 1e-4); albedo /= wsum; nxy /= wsum; ao /= wsum;
-    // manchas secas na grama (ruído não periódico por tile, bilinear)
-    albedo = mix(albedo, albedo * uDry, smoothstep(0.25, 0.85, kd.b) * w.r * 0.85);
+    wsum = max(wsum, 1e-4); albedo /= wsum; nxy /= wsum; ao /= wsum; hs /= wsum;
+    // manchas secas na grama (ruído não periódico por tile, B-spline): a borda segue a textura — as falhas baixas
+    // secam antes das touceiras altas — e um ruído médio, então a mancha não tem contorno liso de mancha de tinta
+    float dryK = smoothstep(0.25, 0.85, kd.b - (hs - 0.4) * 0.6 + (fine2.b - 0.5) * 0.35);
+    albedo = mix(albedo, albedo * uDry, dryK * w.r * 0.85);
+    // variação de matiz de 3–12 tiles na grama (mais azulada/mais amarelada), fraca
+    albedo *= mix(vec3(1.0), mix(vec3(0.93, 1.0, 1.03), vec3(1.06, 1.0, 0.9), (mac.a + mac2.a) * 0.5), w.r * 0.8);
     // montanha: encosta pela derivada da altura, topo claro
     // topo claro só nas cristas altas
     float top = smoothstep(0.58, 0.85, mh + (fine.a - 0.5) * 0.2) * w.a;
@@ -303,7 +326,8 @@ void main() {
   vec2 duv = (t + (vec2(n1, n2) - 0.5) * 0.9) / uSize;
   vec4 w = texture(uWeights, duv);
   vec4 kd = texture(uKind, duv);
-  vec2 uv = (t + vec2(n3, n2) * 0.9) / TEX_TILES;
+  // deformação só de baixa frequência (≈ 4 tiles): quebra a repetição sem esticar/torcer as folhas e pedras da textura
+  vec2 uv = (t + vec2(n3, vnoise(t * 0.23 + 63.0)) * 0.9) / TEX_TILES;
   vec2 gx = dFdx(uv), gy = dFdy(uv);
   vec3 albedo = vec3(0.0); float wsum = 0.0;
   if (w.r > 0.004) { albedo += textureGrad(uGrass, uv, gx, gy).rgb * w.r; wsum += w.r; }

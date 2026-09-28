@@ -131,4 +131,23 @@ describe('materiais gerados', () => {
     }
     expect(generateMaterials(256)).toBe(m);   // cache em memória
   });
+  it('512²: cor média de cada material no tom certo e relevo com contraste local (touceiras, pedras, fendas)', () => {
+    const m = generateMaterials(512);
+    const mean = (a: Uint8Array) => { const c = [0, 0, 0]; for (let i = 0; i < a.length; i += 4) for (let k = 0; k < 3; k++) c[k] += a[i + k]; return c.map((v) => v / (a.length / 4)); };
+    const [gr, gg, gb] = mean(m.grass.albedo), [dr, dg, db] = mean(m.dirt.albedo), [rr, rg, rb] = mean(m.rock.albedo);
+    expect(gg).toBeGreaterThan(gr); expect(gr).toBeGreaterThan(gb);   // verde de pasto, não gramado de golfe nem palha
+    expect(gg).toBeGreaterThan(70); expect(gg).toBeLessThan(120);
+    expect(dr).toBeGreaterThan(dg); expect(dg).toBeGreaterThan(db);   // terra parda/avermelhada
+    expect(Math.max(rr, rg, rb) - Math.min(rr, rg, rb)).toBeLessThan(25);   // calcário quase neutro
+    // contraste local da altura: desvio médio de cada texel para a média do seu bloco 8×8 (0,03 a 512² = "lisa")
+    for (const mat of [m.grass, m.dirt, m.rock]) {
+      let dev = 0, n = 0;
+      for (let by = 0; by < 512; by += 8) for (let bx = 0; bx < 512; bx += 8) {
+        let s = 0; for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) s += mat.albedo[((by + y) * 512 + bx + x) * 4 + 3];
+        const avg = s / 64;
+        for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { dev += Math.abs(mat.albedo[((by + y) * 512 + bx + x) * 4 + 3] - avg); n++; }
+      }
+      expect(dev / n / 255).toBeGreaterThan(0.03);
+    }
+  });
 });

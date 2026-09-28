@@ -1,5 +1,7 @@
-// Materiais tileáveis do terreno (docs/ART.md §1.7, §3.6) gerados em runtime por ruído determinístico (hash01 → valor
-// periódico, fBm, ridged, rachaduras por curvas de nível), sem Math.random: albedo RGB + altura no alfa e normal XYZ + oclusão no alfa, 512²
+// Materiais tileáveis do terreno (docs/ART.md §1.7, §3.6, Apêndice I) gerados em runtime, determinísticos e sem
+// Math.random: ruído periódico (fBm, ridged, Worley com domínio deformado) e objetos espalhados por um PRNG com semente
+// numa tela com altura (folhas de grama em touceiras, cascalho e pedras, placas de calcário com fendas, líquen e
+// arbustos) — albedo RGB + altura no alfa e normal XYZ + oclusão no alfa, 512²
 // (256² no preset baixo), mais o ruído de normais da água e a textura macro (colinas/tom/ruído largo). Também escreve os
 // bytes das texturas de dados w×h (pesos de material, tipo/água/manchas secas, dono) a partir de map.terrain/territory —
 // funções puras, sem Pixi nem DOM, testadas em tests/terrain-shader.test.ts. O bake em build (page/terrain.js) fica
@@ -62,17 +64,6 @@ const lattice = (size: number, cells: number, seed: number) => octaves(size, [[c
 const fbm = (size: number, list: readonly Octave[]) => octaves(size, list, false);
 /** Ridged: 1 − |2n − 1| ao quadrado por oitava (cristas finas), normalizado para [0, 1]. */
 const ridged = (size: number, list: readonly Octave[]) => octaves(size, list, true);
-/**
- * Rachaduras: linhas de contorno (|n − 0,5| pequeno) de um ruído deformado por outro — curvas fechadas finas que
- * lembram rachaduras/juntas de pedra, a ~1/10 do custo de um Worley. Devolve 0 (nada) … 1 (centro da rachadura).
- */
-function cracks(size: number, cells: number, width: number, seed: number): Float32Array {
-  const n = fbm(size, [[cells, 1, seed], [cells * 2, 0.5, seed + 1]]);
-  const warp = lattice(size, cells * 3, seed + 2);
-  const out = new Float32Array(size * size);
-  for (let i = 0; i < out.length; i++) { const d = Math.abs(n[i] + (warp[i] - 0.5) * 0.06 - 0.5); out[i] = d >= width ? 0 : 1 - (d / width) * (d / width); }
-  return out;
-}
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const smooth = (a: number, b: number, x: number) => { const k = clamp01((x - a) / (b - a)); return k * k * (3 - 2 * k); };
 /** Desfoque em caixa separável de raio r (periódico), para a oclusão. */
@@ -116,97 +107,301 @@ function normalMap(h: Float32Array, size: number, strength: number, aoStrength: 
   return out;
 }
 
-function grassMaterial(size: number): MaterialTex {
-  const s = size / 128;   // células por tile (1 tile = 128 px a 512²)
-  const low = fbm(size, [[2 * s, 1, 101], [4 * s, 0.5, 102], [8 * s, 0.25, 103]]);
-  const blades = ridged(size, [[24 * s, 1, 105], [48 * s, 0.6, 106], [96 * s, 0.35, 107]]);
-  const patches = fbm(size, [[1.5 * s, 1, 108], [3 * s, 0.5, 109]]);
-  const albedo = new Uint8Array(size * size * 4), h = new Float32Array(size * size);
-  const base = rgb(TERRAIN_PALETTE[TERRAIN.GRASS]), dark = rgb(0x4a5f28), light = rgb(0x788f3a), dry = rgb(GRASS_DRY);
-  for (let i = 0; i < h.length; i++) {
-    const b = blades[i], l = low[i];
-    h[i] = 0.5 * l + 0.5 * b;
-    const t = clamp01(b * 0.8 + l * 0.4 - 0.15);
-    const dryK = smooth(0.52, 0.8, patches[i]) * 0.45;
-    for (let c = 0; c < 3; c++) {
-      let v = lerp(lerp(dark[c], light[c], t), base[c], 0.45);
-      v = lerp(v, dry[c], dryK);
-      albedo[i * 4 + c] = Math.round(v);
-    }
-    albedo[i * 4 + 3] = Math.round(h[i] * 255);
+/** Gerador pseudoaleatório pequeno (mulberry32) para espalhar folhas e pedras nos materiais: determinístico por semente. */
+function prng(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+/**
+ * Tela de um material com altura e cor por texel, periódica (as coordenadas dão a volta), em que os objetos espalhados
+ * (folhas, pedras, arbustos) se sobrepõem por altura: um texel só troca de cor se o objeto novo ficar mais alto ali.
+ */
+interface Canvas { size: number; mask: number; h: Float32Array; col: Float32Array; rnd: () => number }
+function canvas(size: number, seed: number): Canvas {
+  return { size, mask: size - 1, h: new Float32Array(size * size), col: new Float32Array(size * size * 3), rnd: prng(seed) };
+}
+function put(cv: Canvas, x: number, y: number, hh: number, r: number, g: number, b: number): void {
+  const q = ((Math.floor(y) & cv.mask) * cv.size) + (Math.floor(x) & cv.mask);
+  if (hh > cv.h[q]) { cv.h[q] = hh; cv.col[q * 3] = r; cv.col[q * 3 + 1] = g; cv.col[q * 3 + 2] = b; }
+}
+/** Uma folha: de (x, y) na direção unitária (dx, dy), comprimento len e largura wd (texels), altura máx. hm; a cor vai de
+ *  `base` (junto ao chão) a `tip` (ponta ao sol), × bright. Sobe da base até ~45 % e verga na ponta; curva aleatória. */
+function blade(cv: Canvas, x: number, y: number, dx: number, dy: number, len: number, wd: number, hm: number, base: number[], tip: number[], bright: number): void {
+  const steps = Math.max(2, Math.ceil(len / 0.6));
+  const px = -dy, py = dx;
+  const bend = (cv.rnd() - 0.5) * 0.5;
+  for (let j = 0; j <= steps; j++) {
+    const t = j / steps;
+    const w = wd * (1 - 0.7 * t);
+    const cx = x + dx * len * t + px * bend * len * t * t, cy = y + dy * len * t + py * bend * len * t * t;
+    const ht = hm * (t < 0.45 ? 0.55 + t : 1 - (t - 0.45) * 0.9);
+    const r = lerp(base[0], tip[0], t) * bright, g = lerp(base[1], tip[1], t) * bright, b = lerp(base[2], tip[2], t) * bright;
+    put(cv, cx, cy, ht, r, g, b);
+    if (w >= 0.9) { put(cv, cx + px * w * 0.5, cy + py * w * 0.5, ht - 0.04, r, g, b); put(cv, cx - px * w * 0.5, cy - py * w * 0.5, ht - 0.04, r, g, b); }
   }
-  return { albedo, normal: normalMap(h, size, 5 * s / 4, 2.5) };
+}
+/** Pedra: elipse girada de semieixos rx, ry (texels) em (x, y), em cúpula achatada de altura hm sobre hb; a cor escurece
+ *  um pouco para a borda e ganha grão próprio (a pedra não é lisa). */
+function stone(cv: Canvas, x: number, y: number, rx: number, ry: number, ang: number, hb: number, hm: number, c: number[]): void {
+  const ca = Math.cos(ang), sa = Math.sin(ang), R = Math.ceil(Math.max(rx, ry)) + 1;
+  for (let j = -R; j <= R; j++) for (let i = -R; i <= R; i++) {
+    const u = (i * ca + j * sa) / rx, v = (-i * sa + j * ca) / ry, d = u * u + v * v;
+    if (d >= 1) continue;
+    const dome = Math.sqrt(1 - d);
+    const grain = 0.94 + 0.12 * hash01((x + i) | 0, (y + j) | 0, 77);
+    const k = (1 - 0.22 * d) * grain;
+    put(cv, x + i, y + j, hb + hm * (0.35 + 0.65 * dome), c[0] * k, c[1] * k, c[2] * k);
+  }
+}
+/** Tufo seco/verde: 6–14 folhas curtas em leque. */
+function tuftAt(cv: Canvas, x: number, y: number, r: number, hm: number, base: number[], tip: number[], bright: number, count: number): void {
+  for (let b = 0; b < count; b++) {
+    const a = cv.rnd() * Math.PI * 2, r0 = cv.rnd() * r * 0.25;
+    blade(cv, x + Math.cos(a) * r0, y + Math.sin(a) * r0, Math.cos(a), Math.sin(a), r * (0.55 + cv.rnd() * 0.6), 1 + cv.rnd() * 0.7, hm * (0.8 + cv.rnd() * 0.25), base, tip, bright * (0.9 + cv.rnd() * 0.2));
+  }
+}
+function finish(cv: Canvas, strength: number, ao: number): MaterialTex {
+  const n = cv.size * cv.size, albedo = new Uint8Array(n * 4);
+  for (let i = 0; i < n; i++) {
+    for (let c = 0; c < 3; c++) albedo[i * 4 + c] = Math.max(0, Math.min(255, Math.round(cv.col[i * 3 + c])));
+    albedo[i * 4 + 3] = Math.round(clamp01(cv.h[i]) * 255);
+  }
+  return { albedo, normal: normalMap(cv.h, cv.size, strength, ao) };
+}
+/**
+ * Worley periódico (células de Voronoi) com `cells` células por eixo: para cada texel, F1 e F2 (distâncias ao 1.º e ao
+ * 2.º ponto, em células), o índice da célula do ponto mais próximo e o vetor ponto → texel (em células), para facetas.
+ * `warp` (ruídos periódicos em [0, 1] e amplitude em células) deforma o domínio: arestas curvas em vez de polígonos.
+ */
+function worley(size: number, cells: number, seed: number, jitter = 0.8, warp?: { x: Float32Array; y: Float32Array; amp: number }): { f1: Float32Array; f2: Float32Array; id: Int32Array; vx: Float32Array; vy: Float32Array } {
+  const C = Math.max(1, Math.round(cells)), n = size * size;
+  const ptx = new Float32Array(C * C), pty = new Float32Array(C * C);
+  for (let j = 0; j < C; j++) for (let i = 0; i < C; i++) { ptx[j * C + i] = i + 0.5 + (hash01(i, j, seed) - 0.5) * jitter; pty[j * C + i] = j + 0.5 + (hash01(i, j, seed + 1) - 0.5) * jitter; }
+  const f1 = new Float32Array(n), f2 = new Float32Array(n), id = new Int32Array(n), vx = new Float32Array(n), vy = new Float32Array(n);
+  const sc = C / size;
+  for (let y = 0; y < size; y++) {
+    const fy = (y + 0.5) * sc, cj = Math.floor(fy);
+    for (let x = 0; x < size; x++) {
+      const o = y * size + x;
+      const fx = (x + 0.5) * sc + (warp ? (warp.x[o] - 0.5) * warp.amp : 0), gy = warp ? fy + (warp.y[o] - 0.5) * warp.amp : fy;
+      const ci = Math.floor(fx), cj2 = warp ? Math.floor(gy) : cj;
+      let d1 = 1e9, d2 = 1e9, best = 0, bx = 0, by = 0;
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+        const ni = ci + di, nj = cj2 + dj;
+        let wi = ni, wj = nj;   // volta periódica sem % (o domínio deformado passa no máximo ~2 células da borda)
+        while (wi < 0) wi += C; while (wi >= C) wi -= C; while (wj < 0) wj += C; while (wj >= C) wj -= C;
+        const w = wj * C + wi;
+        const px = ptx[w] + (ni - wi), py = pty[w] + (nj - wj);
+        const ex = fx - px, ey = gy - py, d = ex * ex + ey * ey;
+        if (d < d1) { d2 = d1; d1 = d; best = w; bx = ex; by = ey; } else if (d < d2) d2 = d;
+      }
+      f1[o] = Math.sqrt(d1); f2[o] = Math.sqrt(d2); id[o] = best; vx[o] = bx; vy[o] = by;
+    }
+  }
+  return { f1, f2, id, vx, vy };
 }
 
-function dirtMaterial(size: number): MaterialTex {
-  const s = size / 128;
-  const low = fbm(size, [[2 * s, 1, 201], [4 * s, 0.5, 202], [8 * s, 0.25, 203], [32 * s, 0.12, 204]]);
-  const cr = cracks(size, 3 * s, 0.014, 205);
-  const pebN = lattice(size, Math.round(40 * s), 206), pebSel = lattice(size, Math.round(6 * s), 207);
-  const albedo = new Uint8Array(size * size * 4), h = new Float32Array(size * size);
-  const dark = rgb(0x6e5533), light = rgb(0x9a7a4c), pebC = rgb(0xa89878), crackC = rgb(0x4f3b22);
-  for (let i = 0; i < h.length; i++) {
-    const crack = cr[i];
-    const pebble = pebSel[i] > 0.45 ? smooth(0.66, 0.8, pebN[i]) : 0;
-    h[i] = clamp01(0.55 * low[i] + 0.15 - 0.2 * crack + 0.45 * pebble);
-    for (let c = 0; c < 3; c++) {
-      let v = lerp(dark[c], light[c], low[i]);
-      v = lerp(v, pebC[c], pebble * 0.8);
-      v = lerp(v, crackC[c], crack * 0.4);
-      albedo[i * 4 + c] = Math.round(v);
-    }
-    albedo[i * 4 + 3] = Math.round(h[i] * 255);
+/** Tons da grama (albedo antes da luz): a folha vai da base (sombra dentro da touceira) à ponta (sol na ponta). */
+const GRASS_TONES: { base: number; tip: number; w: number }[] = [
+  { base: 0x44602a, tip: 0x88a24a, w: 0.38 },   // verde de pasto
+  { base: 0x52622a, tip: 0xa0a24c, w: 0.28 },   // verde-amarelado
+  { base: 0x385632, tip: 0x74945a, w: 0.18 },   // verde-azulado (mais úmido)
+  { base: 0x686034, tip: 0xb2a468, w: 0.11 },   // palha (folhas secas misturadas)
+  { base: 0x5a5430, tip: 0x968a52, w: 0.05 },   // pardo
+];
+const STRAW = { base: rgb(0x6a5f36), tip: rgb(0xb4a46c) };
+/**
+ * Grama de pasto mediterrâneo vista de cima: TOUCEIRAS (grade com jitter, 7 × 7 por tile, uma em dez ausente) de 26–60
+ * folhas que saem do centro em leque, mais folhas soltas entre elas, sobre um chão de palha e terra que aparece nas
+ * falhas; regiões mais úmidas puxam para os verdes, as secas para palha e pardo. A zoom 1 (4 texels por pixel) cada
+ * touceira é um tufo de 4–8 px com o lado do sol claro e o de sudeste na sombra; a zoom 2,2+ as folhas aparecem.
+ */
+function grassMaterial(size: number): MaterialTex {
+  const s = 4, r = size / 128, k = size / 512;   // s: células por tile × 4 (os ruídos têm o mesmo tamanho no mundo a 256² e 512²); r: força do relevo por texel; k: comprimento em texels
+  const cv = canvas(size, 0x9e3779b1), { rnd, mask } = cv, n = size * size;
+  const low = fbm(size, [[2 * s, 1, 101], [4 * s, 0.5, 102], [16 * s, 0.3, 103]]);
+  const moist = fbm(size, [[1 * s, 1, 108], [2 * s, 0.5, 109]]);
+  const soil = rgb(0x5e5034), thatch = rgb(0x6c683a), moss = rgb(0x4a5e2c);
+  for (let i = 0; i < n; i++) {
+    const l = low[i];
+    cv.h[i] = 0.08 + 0.14 * l;
+    const a = smooth(0.35, 0.7, l), g = 0.3 + smooth(0.35, 0.8, moist[i]) * 0.5;
+    for (let c = 0; c < 3; c++) cv.col[i * 3 + c] = lerp(lerp(soil[c], thatch[c], a), moss[c], g);
   }
-  return { albedo, normal: normalMap(h, size, 6 * s / 4, 3) };
+  const tones = GRASS_TONES.map((t) => ({ base: rgb(t.base), tip: rgb(t.tip), w: t.w }));
+  const pick = (u: number, wet: number): number => {
+    let acc = 0; const ws = tones.map((t, i) => t.w * (i <= 2 ? 0.6 + 0.8 * wet : 1.4 - 0.9 * wet));
+    const tot = ws.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < ws.length; i++) { acc += ws[i] / tot; if (u < acc) return i; }
+    return ws.length - 1;
+  };
+  const wetAt = (x: number, y: number) => smooth(0.3, 0.7, moist[((y | 0) & mask) * size + ((x | 0) & mask)]);
+  const per = 7 * s, cell = size / per;   // 7 touceiras por tile em cada eixo
+  const clumps: { x: number; y: number; r: number; hm: number; tone: number; bright: number }[] = [];
+  for (let j = 0; j < per; j++) for (let i = 0; i < per; i++) {
+    if (rnd() < 0.1) continue;
+    const x = (i + 0.15 + 0.7 * rnd()) * cell, y = (j + 0.15 + 0.7 * rnd()) * cell;
+    clumps.push({ x, y, r: (8 + rnd() * 9) * k, hm: 0.55 + rnd() * 0.4, tone: pick(rnd(), wetAt(x, y)), bright: 0.86 + rnd() * 0.28 });
+  }
+  clumps.sort((a, b) => a.hm - b.hm);
+  const loose = Math.round(per * per * 8);
+  for (let q = 0; q < loose; q++) {
+    const x = rnd() * size, y = rnd() * size, a = rnd() * Math.PI * 2;
+    const tn = tones[pick(rnd(), wetAt(x, y))];
+    blade(cv, x, y, Math.cos(a), Math.sin(a), (4 + rnd() * 6) * k, 1 + rnd() * 0.6, 0.3 + rnd() * 0.2, tn.base, tn.tip, 0.8 + rnd() * 0.3);
+  }
+  for (const c of clumps) {
+    const tn = tones[c.tone];
+    const blades = Math.round(26 + rnd() * 34);
+    for (let b = 0; b < blades; b++) {
+      const a = rnd() * Math.PI * 2, r0 = rnd() * c.r * 0.25;
+      const t = rnd() < 0.1 ? STRAW : tn;   // folhas secas no meio de qualquer touceira
+      blade(cv, c.x + Math.cos(a) * r0, c.y + Math.sin(a) * r0, Math.cos(a), Math.sin(a), c.r * (0.55 + rnd() * 0.6), 1 + rnd() * 0.7, c.hm * (0.8 + rnd() * 0.25), t.base, t.tip, c.bright * (0.9 + rnd() * 0.2));
+    }
+  }
+  return finish(cv, 2.2 * r, 3.2);
+}
+
+/** Cores de pedra solta (calcário claro, cinza, arenito, avermelhada). */
+const PEBBLES = [0xa39a88, 0x8c8474, 0xb3a994, 0x96806a, 0x7a7266, 0xa08c70].map(rgb);
+/**
+ * Terra batida mediterrânea: solo pardo-avermelhado (terra rossa) em manchas largas, grão fino, cascalho denso de 1–3
+ * texels, pedras de 3–8 texels meio enterradas e tufos secos esparsos. Sem as "curvas de nível" do protótipo: o que
+ * sombreia são as pedras e o grão.
+ */
+function dirtMaterial(size: number): MaterialTex {
+  const s = 4, r = size / 128, k = size / 512;
+  const cv = canvas(size, 0x51ed270b), { rnd } = cv, n = size * size;
+  const low = fbm(size, [[1 * s, 1, 201], [2 * s, 0.5, 202], [4 * s, 0.3, 203]]);
+  const red = fbm(size, [[1.5 * s, 1, 204], [3 * s, 0.5, 205]]);
+  const grain = fbm(size, [[32 * s, 1, 206], [64 * s, 0.6, 207]]);
+  const dark = rgb(0x6c5238), light = rgb(0x9a7c54), rossa = rgb(0x8c5a3a);
+  for (let i = 0; i < n; i++) {
+    const l = low[i], g = grain[i] - 0.5;
+    cv.h[i] = 0.12 + 0.2 * l + 0.06 * g;
+    for (let c = 0; c < 3; c++) {
+      let v = lerp(dark[c], light[c], clamp01(l * 1.2 - 0.1));
+      v = lerp(v, rossa[c], smooth(0.5, 0.8, red[i]) * 0.45);
+      cv.col[i * 3 + c] = v * (1 + g * 0.16);
+    }
+  }
+  const area = size * size / (128 * k * 128 * k);   // tiles cobertos pela textura (16)
+  // cascalho: muitas pedrinhas pequenas
+  // pedra coberta de pó: puxa a cor para a do solo
+  const dusty = (c: number[], x: number, y: number) => { const o = ((y | 0) & cv.mask) * size + ((x | 0) & cv.mask); return c.map((v, j) => lerp(v, cv.col[o * 3 + j], 0.3)); };
+  for (let q = 0, N = Math.round(90 * area); q < N; q++) {
+    const r = (0.8 + rnd() * 1.8) * k * 2, x = rnd() * size, y = rnd() * size;
+    stone(cv, x, y, r, r * (0.6 + rnd() * 0.4), rnd() * Math.PI, 0.18, 0.12 + rnd() * 0.1, dusty(PEBBLES[(rnd() * PEBBLES.length) | 0], x, y));
+  }
+  // pedras maiores, em grupos (onde o solo é mais claro)
+  for (let q = 0, N = Math.round(5 * area); q < N; q++) {
+    const x = rnd() * size, y = rnd() * size, r = (3 + rnd() * 5) * k * 2;
+    stone(cv, x, y, r, r * (0.55 + rnd() * 0.4), rnd() * Math.PI, 0.2, 0.3 + rnd() * 0.25, dusty(PEBBLES[(rnd() * PEBBLES.length) | 0], x, y));
+  }
+  // tufos secos
+  for (let q = 0, N = Math.round(2.5 * area); q < N; q++) tuftAt(cv, rnd() * size, rnd() * size, (5 + rnd() * 5) * k * 2, 0.55, STRAW.base, STRAW.tip, 0.85 + rnd() * 0.2, 10 + ((rnd() * 10) | 0));
+  return finish(cv, 2.4 * r, 3);
 }
 
 function sandMaterial(size: number): MaterialTex {
-  const s = size / 128;
+  const s = 4, r = size / 128, k = size / 512;
   // Areia: ondulação de baixa frequência (dunas suaves, com deformação larga) + grão fino de amplitude mínima —
-  // sem o "papel amassado" do protótipo (§1.7): a altura tem pouca amplitude e quase nenhuma alta frequência.
+  // sem o "papel amassado" do protótipo (§1.7); conchas e seixos raros por cima
   const warp = fbm(size, [[1 * s, 1, 301], [2 * s, 0.5, 302]]);
   const low = fbm(size, [[2 * s, 1, 303], [4 * s, 0.4, 304]]);
   const grain = fbm(size, [[64 * s, 1, 305], [128 * s, 0.5, 306]]);
-  const albedo = new Uint8Array(size * size * 4), h = new Float32Array(size * size);
-  const dark = rgb(0xc4b283), light = rgb(0xdccc9f), base = rgb(TERRAIN_PALETTE[TERRAIN.SAND]);
+  const tone = fbm(size, [[1.5 * s, 1, 307], [3 * s, 0.5, 308]]);
+  const cv = canvas(size, 0x2545f491), { rnd } = cv;
+  const dark = rgb(0xc4b283), light = rgb(0xdccc9f), base = rgb(TERRAIN_PALETTE[TERRAIN.SAND]), grey = rgb(0xb8ae94);
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     const i = y * size + x;
     const ph = (y / size) * Math.PI * 2 * 7 + (x / size) * Math.PI * 2 * 1 + warp[i] * 5.5;
     const rip = 0.5 + 0.5 * Math.sin(ph);
-    const ripS = rip * rip * (3 - 2 * rip);   // crista mais estreita que o vale
-    h[i] = clamp01(0.35 + 0.22 * ripS + 0.18 * (low[i] - 0.5) + 0.05 * (grain[i] - 0.5));
+    const ripS = rip * rip * (3 - 2 * rip);
+    cv.h[i] = clamp01(0.3 + 0.18 * ripS + 0.18 * (low[i] - 0.5) + 0.05 * (grain[i] - 0.5));
     for (let c = 0; c < 3; c++) {
-      let v = lerp(dark[c], light[c], 0.45 + 0.22 * ripS + 0.5 * (low[i] - 0.5));   // ondulação mais no relevo que na cor
-      v = lerp(v, base[c], 0.4) + (grain[i] - 0.5) * 8;
-      albedo[i * 4 + c] = Math.round(clamp01(v / 255) * 255);
+      let v = lerp(dark[c], light[c], 0.45 + 0.22 * ripS + 0.5 * (low[i] - 0.5));
+      v = lerp(v, base[c], 0.4);
+      v = lerp(v, grey[c], smooth(0.55, 0.85, tone[i]) * 0.35) + (grain[i] - 0.5) * 12;
+      cv.col[i * 3 + c] = v;
     }
-    albedo[i * 4 + 3] = Math.round(h[i] * 255);
   }
-  return { albedo, normal: normalMap(h, size, 2.5 * s / 4, 1.5) };
+  const area = size * size / (128 * k * 128 * k);
+  for (let q = 0, N = Math.round(10 * area); q < N; q++) {
+    const r = (0.8 + rnd() * 1.6) * k * 2;
+    stone(cv, rnd() * size, rnd() * size, r, r * (0.6 + rnd() * 0.4), rnd() * Math.PI, 0.3, 0.08, rnd() < 0.5 ? rgb(0xe8e0cc) : PEBBLES[(rnd() * PEBBLES.length) | 0]);
+  }
+  return finish(cv, 2.5 * r / 4, 1.5);
 }
 
-function rockMaterial(size: number): MaterialTex {
-  const s = size / 128;
-  // Rocha: cristas (ridged) em várias escalas + grão fino; fendas quase apagadas (as curvas de nível fortes do protótipo
-  // pareciam um mapa topográfico desenhado, não pedra)
-  const r = ridged(size, [[1.5 * s, 1, 401], [3 * s, 0.6, 402], [6 * s, 0.35, 403], [12 * s, 0.2, 404]]);
-  const low = fbm(size, [[1 * s, 1, 406], [2 * s, 0.5, 407]]);
-  const grain = fbm(size, [[24 * s, 1, 409], [48 * s, 0.6, 410]]);
-  const cr = cracks(size, 2 * s, 0.008, 408);
-  const albedo = new Uint8Array(size * size * 4), h = new Float32Array(size * size);
-  const dark = rgb(0x5a5850), light = rgb(0x8f8c83), warm = rgb(0x7f7466), cool = rgb(0x6c7077), base = rgb(TERRAIN_PALETTE[TERRAIN.MOUNTAIN]);
-  for (let i = 0; i < h.length; i++) {
-    const crack = cr[i];
-    h[i] = clamp01(0.6 * r[i] + 0.3 * low[i] + 0.1 * grain[i] - 0.12 * crack);
+/**
+ * Rocha calcária: placas de Voronoi (≈ 1,25 por tile) inclinadas cada uma para um lado (facetas que pegam a luz de
+ * formas diferentes), com fendas entre elas (F2 − F1 pequeno), fraturas menores (4 por tile), grão, líquen amarelo e
+ * cinza-esverdeado em manchas e arbustos baixos (maquis) crescendo nas fendas.
+ */
+/** Campos da rocha (a parte cara: dois Worley com domínio deformado e os ruídos), num passo próprio da geração. */
+function rockFields(size: number) {
+  const s = 4;
+  // domínio deformado: arestas das placas curvas e irregulares (sem o "calçamento" de polígonos retos); o y da
+  // deformação é o mesmo ruído lido meia textura adiante (descorrelacionado e sem custo)
+  const shifted = (a: Float32Array) => { const o = new Float32Array(a.length), half = (size >> 1) * size + (size >> 1); for (let i = 0; i < a.length; i++) o[i] = a[(i + half) % a.length]; return o; };
+  const n1 = fbm(size, [[2 * s, 1, 431], [5 * s, 0.4, 432]]), n2 = fbm(size, [[6 * s, 1, 435], [12 * s, 0.5, 436]]);
+  const big = worley(size, 1.25 * s, 401, 0.9, { x: n1, y: shifted(n1), amp: 1.1 }), small = worley(size, 4 * s, 405, 0.9, { x: n2, y: shifted(n2), amp: 0.9 });
+  const crackW = fbm(size, [[3 * s, 1, 439], [6 * s, 0.5, 440]]);   // largura da fenda (e fendas que se fecham)
+  const grain = fbm(size, [[16 * s, 1, 411], [32 * s, 0.6, 412]]);
+  const rough = ridged(size, [[3 * s, 1, 413], [6 * s, 0.5, 414], [12 * s, 0.3, 417]]);
+  const lichenMask = fbm(size, [[1.5 * s, 1, 415], [3 * s, 0.5, 416]]);
+  const spots = lattice(size, 10 * s, 409);   // manchas de líquen
+  return { big, small, crackW, grain, rough, lichenMask, spots };
+}
+function rockMaterial(size: number, f: ReturnType<typeof rockFields>): MaterialTex {
+  const s = 4, r = size / 128, k = size / 512;
+  const cv = canvas(size, 0x68e31da4), { rnd } = cv, n = size * size;
+  const { big, small, crackW, grain, rough, lichenMask, spots } = f;
+  const pale = rgb(0xa39d90), mid = rgb(0x8a857a), warm = rgb(0x9a8a74), crackC = rgb(0x4a453c), dust = rgb(0x6e604a);
+  const lichY = rgb(0xa89452), lichG = rgb(0x7c8268);
+  // sorteios por célula (uma vez por célula, não por texel): inclinação e altura da placa, tom, fratura
+  const perCell = (cells: number, seed: number, k: number) => { const C = Math.max(1, Math.round(cells)), out = new Float32Array(C * C * k); for (let c = 0; c < C * C; c++) for (let j = 0; j < k; j++) out[c * k + j] = hash01(c, j, seed); return out; };
+  const B = perCell(1.25 * s, 421, 4), S = perCell(4 * s, 422, 4);
+  for (let i = 0; i < n; i++) {
+    const b = big.id[i] * 4, sm = small.id[i] * 4;
+    // placa: altura-base e inclinação por célula
+    const tx = (B[b] - 0.5) * 0.9, ty = (B[b + 1] - 0.5) * 0.9;
+    const plate = 0.45 + (B[b + 2] - 0.5) * 0.3 + tx * big.vx[i] + ty * big.vy[i];
+    const sub = (S[sm] - 0.5) * 0.08 + (S[sm + 1] - 0.5) * 0.25 * small.vx[i] + (S[sm + 2] - 0.5) * 0.25 * small.vy[i];
+    const eBig = big.f2[i] - big.f1[i], eSm = small.f2[i] - small.f1[i];
+    const cw = crackW[i], open = smooth(0.3, 0.55, cw);
+    const crack = (1 - smooth(0.0, 0.02 + 0.08 * cw, eBig)) * open, crackS = (1 - smooth(0.0, 0.035, eSm)) * 0.5 * smooth(0.45, 0.7, 1 - cw);
+    const bevel = smooth(0, 0.22, eBig);   // a placa arredonda perto da fenda
+    cv.h[i] = clamp01((plate + sub) * (0.6 + 0.4 * bevel) + 0.16 * (rough[i] - 0.5) + 0.06 * (grain[i] - 0.5) - 0.25 * crack - 0.08 * crackS);
+    const tone = B[b + 3], g = grain[i] - 0.5;
     for (let c = 0; c < 3; c++) {
-      let v = lerp(dark[c], light[c], clamp01(h[i] * 1.1 - 0.05 + (grain[i] - 0.5) * 0.25));
-      v = lerp(v, lerp(warm[c], cool[c], low[i]), 0.35);
-      v = lerp(v, base[c], 0.2) * (1 - crack * 0.18);
-      albedo[i * 4 + c] = (v + 0.5) | 0;
+      let v = lerp(mid[c], pale[c], clamp01(tone * 0.8 + bevel * 0.3 - 0.05));
+      v = lerp(v, warm[c], S[sm + 3] * 0.35);
+      v *= 1 + g * 0.18;
+      // líquen: manchas pequenas (Worley fino) só onde a máscara larga deixa
+      const lk = smooth(0.55, 0.8, lichenMask[i]) * smooth(0.6, 0.72, spots[i]);
+      v = lerp(v, lichenMask[i] < 0.68 ? lichY[c] : lichG[c], lk * 0.55);
+      v = lerp(v, dust[c], Math.max(crack, crackS) * 0.5);
+      v = lerp(v, crackC[c], crack * 0.55);
+      cv.col[i * 3 + c] = v;
     }
-    albedo[i * 4 + 3] = (h[i] * 255 + 0.5) | 0;
   }
-  return { albedo, normal: normalMap(h, size, 9 * s / 4, 3.5) };
+  // arbustos baixos (maquis) nas fendas: tufos verde-escuros onde F2 − F1 é pequeno
+  const bush = { base: rgb(0x2e3a1e), tip: rgb(0x5c6a36) };
+  const area = size * size / (128 * k * 128 * k);
+  for (let q = 0, N = Math.round(40 * area), placed = 0; q < N && placed < 2.2 * area; q++) {
+    const x = rnd() * size, y = rnd() * size, o = ((y | 0) & cv.mask) * size + ((x | 0) & cv.mask);
+    if (big.f2[o] - big.f1[o] > 0.05 || crackW[o] < 0.35) continue;
+    placed++;
+    tuftAt(cv, x, y, (4 + rnd() * 5) * k * 2, 0.7, bush.base, bush.tip, 0.9 + rnd() * 0.2, 18 + ((rnd() * 14) | 0));
+  }
+  return finish(cv, 2.6 * r, 3.5);
 }
 
 /** Normais da água: fBm de 4 oitavas, RGB = normal, A = altura (espuma/brilho). */
@@ -229,8 +424,8 @@ const cache = new Map<number, TerrainMaterials>();
 /** Materiais já gerados neste tamanho (null se ainda não). */
 export function cachedMaterials(size: MaterialSize): TerrainMaterials | null { return cache.get(size) ?? null; }
 /**
- * Gera os materiais em passos (um material por `next()`), para o chamador espalhar o custo de 512² (≈ 250 ms em JS
- * frio) por várias macrotarefas no menu. O resultado final entra no cache. Determinístico.
+ * Gera os materiais em passos (um material por `next()`, a rocha em dois), para o chamador espalhar o custo de 512²
+ * (≈ 500 ms em JS frio, nenhum passo acima de ~140 ms) por várias macrotarefas no menu. O resultado final entra no cache. Determinístico.
  */
 export function* generateMaterialsLazy(size: MaterialSize = 512): Generator<string, TerrainMaterials, void> {
   const hit = cache.get(size);
@@ -242,7 +437,8 @@ export function* generateMaterialsLazy(size: MaterialSize = 512): Generator<stri
   const grass = grassMaterial(size); lap(); yield 'grass'; t = now();
   const dirt = dirtMaterial(size); lap(); yield 'dirt'; t = now();
   const sand = sandMaterial(size); lap(); yield 'sand'; t = now();
-  const rock = rockMaterial(size); lap(); yield 'rock'; t = now();
+  const rf = rockFields(size); lap(); yield 'rock-fields'; t = now();
+  const rock = rockMaterial(size, rf); lap(); yield 'rock'; t = now();
   const water = waterNormal(WATER_SIZE), macro = macroTexture(MACRO_SIZE); lap();
   const m: TerrainMaterials = { size, grass, dirt, sand, rock, waterNormal: water, macro, ms };
   cache.set(size, m);
