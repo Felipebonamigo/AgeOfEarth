@@ -5,6 +5,7 @@
 
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { M2T, dirYaw } from './camera.js';
+import { buildTree } from './trees.js';
 
 /** Semente inteira a partir de um texto (FNV-1a). */
 export function seedOf(text) { let h = 2166136261; for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -22,40 +23,13 @@ export function buildProp(THREE, M, kind, variant, tag) {
   const solid = (geo) => { geo.deleteAttribute('uv'); geo.deleteAttribute('normal'); return mergeVertices(geo, 1e-4); };
   const jitter = (geo, amt) => { geo = solid(geo); const p = geo.attributes.position; for (let i = 0; i < p.count; i++) { const n = 1 + (r() - 0.5) * amt; p.setXYZ(i, p.getX(i) * n, p.getY(i) * n, p.getZ(i) * n); } geo.computeVertexNormals(); return geo; };
   const sizeScale = tag === 'small' ? 0.72 : 1;
-  const canopy = tag === 'thin' ? 0.45 : 1;          // 'thin' = árvore sendo cortada (copa rala, docs/ART.md §4)
   const V = Number(variant) || 0;
 
   switch (kind) {
-    case 'olive': {
-      rig.scale.setScalar(M2T * sizeScale);
-      let p = new THREE.Vector3(0, 0, 0); let dir = new THREE.Vector3((r() - 0.5) * 0.4, 1, (r() - 0.5) * 0.4).normalize();
-      for (let i = 0; i < 5; i++) {
-        const len = 0.55, rad = 0.24 - i * 0.035;
-        const seg = new THREE.Group(); seg.position.copy(p); seg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir); rig.add(seg);
-        mesh(new THREE.CylinderGeometry(rad - 0.03, rad, len, 9), M.bark, 0, len / 2, 0, seg);
-        p = p.clone().add(dir.clone().multiplyScalar(len));
-        dir = dir.clone().add(new THREE.Vector3((r() - 0.5) * 0.9, 0.2, (r() - 0.5) * 0.9)).normalize();
-      }
-      const n = Math.round((9 + Math.floor(r() * 4)) * canopy);
-      for (let i = 0; i < n; i++) { const s = 0.55 + r() * 0.45; mesh(jitter(new THREE.IcosahedronGeometry(s, 1), 0.25), r() > 0.5 ? M.olive : M.olive2, (r() - 0.5) * 2.4, 2.5 + r() * 1.1, (r() - 0.5) * 2.4); }
-      break;
-    }
-    case 'cypress': {
-      rig.scale.setScalar(M2T * sizeScale);
-      mesh(new THREE.CylinderGeometry(0.1, 0.16, 0.8, 8), M.bark, 0, 0.4, 0);
-      const pts = []; const H = (6.2 + r() * 1.2) * (tag === 'thin' ? 0.6 : 1); const W = (0.7 + r() * 0.15) * (tag === 'thin' ? 0.7 : 1);
-      for (let i = 0; i <= 12; i++) { const t = i / 12; const w = Math.sin(Math.pow(t, 0.55) * Math.PI) * W + (i === 0 ? 0.05 : 0); pts.push(new THREE.Vector2(Math.max(0.01, w), 0.5 + t * H)); }
-      const cone = mesh(new THREE.LatheGeometry(pts, 14), M.cypress, 0, 0, 0);
-      const pos = cone.geometry.attributes.position; for (let i = 0; i < pos.count; i++) { const n = 1 + (r() - 0.5) * 0.18; pos.setX(i, pos.getX(i) * n); pos.setZ(i, pos.getZ(i) * n); }
-      cone.geometry.computeVertexNormals();
-      break;
-    }
-    case 'oak': {
-      rig.scale.setScalar(M2T * sizeScale * 0.85);
-      mesh(new THREE.CylinderGeometry(0.26, 0.38, 2.0, 10), M.bark, 0, 1.0, 0);
-      for (let i = 0; i < 4; i++) { const b = mesh(new THREE.CylinderGeometry(0.08, 0.16, 1.4, 7), M.bark, 0, 2.5, 0); b.rotation.z = (r() - 0.5) * 1.4; b.rotation.x = (r() - 0.5) * 1.4; }
-      const n = Math.round((12 + Math.floor(r() * 4)) * canopy);
-      for (let i = 0; i < n; i++) { const s = 0.8 + r() * 0.6; mesh(jitter(new THREE.IcosahedronGeometry(s, 1), 0.2), r() > 0.5 ? M.oak : M.oak2, (r() - 0.5) * 3.4, 3.1 + r() * 1.6, (r() - 0.5) * 3.4); }
+    case 'olive': case 'cypress': case 'oak': {
+      // Etapa 9: árvores de galhos com casca e copa de cartões de folhas (trees.js); o carvalho fica um pouco menor
+      rig.scale.setScalar(M2T * sizeScale * (kind === 'oak' ? 0.85 : 1));
+      rig.add(buildTree(THREE, kind, V, tag));
       break;
     }
     case 'stump': {

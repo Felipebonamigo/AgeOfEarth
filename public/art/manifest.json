@@ -291,60 +291,6 @@
    "sha256": "79421801a9d05c3eda9f893f2ba6baf46dff8b3d790cf6b7de1d2233706e2f6d"
   },
   {
-   "json": "props-1x-0.json",
-   "image": "props-1x-0.png",
-   "group": "props",
-   "pass": "color",
-   "scale": 1,
-   "page": 0,
-   "w": 1152,
-   "h": 288,
-   "frames": 51,
-   "bytes": 129399,
-   "sha256": "9a3593b3d0f9dc0718017840acf4ce48a1148ceae1b210c7cb25d57a0cef7fa0"
-  },
-  {
-   "json": "props-2x-0.json",
-   "image": "props-2x-0.png",
-   "group": "props",
-   "pass": "color",
-   "scale": 2,
-   "page": 0,
-   "w": 2016,
-   "h": 544,
-   "frames": 51,
-   "bytes": 360501,
-   "sha256": "0d7e135f2c24e093fd63730cc491ff3f919e42bb4845f39b8b9cf3f7b7f2f794"
-  },
-  {
-   "json": "props-shadow-1x-0.json",
-   "image": "props-shadow-1x-0.png",
-   "group": "props",
-   "pass": "shadow",
-   "scale": 1,
-   "texel": 0.5,
-   "page": 0,
-   "w": 640,
-   "h": 128,
-   "frames": 51,
-   "bytes": 17627,
-   "sha256": "3b65f88a426a476a9c113ea3e328907c7ed1d598c0a11e118557f40656a126db"
-  },
-  {
-   "json": "props-shadow-2x-0.json",
-   "image": "props-shadow-2x-0.png",
-   "group": "props",
-   "pass": "shadow",
-   "scale": 2,
-   "texel": 0.5,
-   "page": 0,
-   "w": 1056,
-   "h": 224,
-   "frames": 51,
-   "bytes": 45744,
-   "sha256": "847209c5bd02fada1986e601574964e01df43c5c5b6befa1b9159b2bd7703ea0"
-  },
-  {
    "json": "units-1x-0.json",
    "image": "units-1x-0.png",
    "group": "units",
@@ -2008,6 +1954,60 @@
    "frames": 192,
    "bytes": 450104,
    "sha256": "fc67eabf8697c155b387fcc8854eb807a0895d652de50a202d090e3b5498b900"
+  },
+  {
+   "json": "props-1x-0.json",
+   "image": "props-1x-0.png",
+   "group": "props",
+   "pass": "color",
+   "scale": 1,
+   "page": 0,
+   "w": 1056,
+   "h": 288,
+   "frames": 51,
+   "bytes": 184392,
+   "sha256": "c3dd988d56d8cb9f8d899a486bf4158d71060a429f3f4fbe2dfd6bed47d1f148"
+  },
+  {
+   "json": "props-2x-0.json",
+   "image": "props-2x-0.png",
+   "group": "props",
+   "pass": "color",
+   "scale": 2,
+   "page": 0,
+   "w": 2048,
+   "h": 544,
+   "frames": 51,
+   "bytes": 717870,
+   "sha256": "af641a81d7a402867a58e2f99cfa4a8faa6eac1c30eb48a73371183724592147"
+  },
+  {
+   "json": "props-shadow-1x-0.json",
+   "image": "props-shadow-1x-0.png",
+   "group": "props",
+   "pass": "shadow",
+   "scale": 1,
+   "texel": 0.5,
+   "page": 0,
+   "w": 800,
+   "h": 128,
+   "frames": 51,
+   "bytes": 30282,
+   "sha256": "ea4118bdb9d2fb3da9c3bb16b2b96e82bc325d3ff25613179c593f7e9cecc8d5"
+  },
+  {
+   "json": "props-shadow-2x-0.json",
+   "image": "props-shadow-2x-0.png",
+   "group": "props",
+   "pass": "shadow",
+   "scale": 2,
+   "texel": 0.5,
+   "page": 0,
+   "w": 1440,
+   "h": 224,
+   "frames": 51,
+   "bytes": 96667,
+   "sha256": "6e73c601a780a2ea9dd95b77f2cc7a6658fbb79e7cb2e5ea543f393b392b3c77"
   }
  ],
  "assets": {
@@ -6651,7 +6651,7 @@
   "props-nodes": {
    "kind": "prop",
    "group": "props",
-   "sourceHash": "cb8001703cb351c0",
+   "sourceHash": "d9cfccc2d7f12755",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -6702,7 +6702,7 @@
   "props-trees": {
    "kind": "prop",
    "group": "props",
-   "sourceHash": "0cd85de3728cba8c",
+   "sourceHash": "f4f8ecea6cbe3cdf",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -8242,8 +8242,8 @@
   }
  },
  "totals": {
-  "pngBytes": 105482990,
-  "vramBytes": 718675968,
+  "pngBytes": 105958930,
+  "vramBytes": 719060992,
   "atlases": 149
  }
 }
