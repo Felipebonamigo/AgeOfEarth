@@ -22,6 +22,7 @@ import { BuildingView } from './views/BuildingView';
 import { FxSystem, type FxAcc } from './fx/FxSystem';
 import { deathView } from './fx/handlers/death';
 import { DayCycle } from './fx/light';
+import { CloudShadows } from './fx/clouds';
 import { bronzeTint } from './fx/handlers/bronze';
 import {
   abilityUseTick, animDuration, buildingState, chooseAnim, riseElapsed, corpseAlpha, CORPSE_TTL, MAX_CORPSES, dirWithHysteresis, freshHit, isWalking, isRunning, isMoveAnim, warmUnitTypes, unitLook, mulColor, type UnitAnim, type AnimInput,
@@ -93,7 +94,7 @@ export class Renderer {
    *  → shadows → props (nós) → ground → buildings → units → fx → hp → editor → fog. Com a arte assada: terrain → decals →
    *  shadows → ground → props (faixas com nós, edifícios e unidades ordenados juntos pelo y do pé) → buildings (vazia) →
    *  units (só voadoras) → fx → hp → editor → fog. */
-  layers = { terrain: new Container(), decals: new Container(), shadows: new Container(), props: new Container(), ground: new Graphics(), buildings: new Container(), units: new Container(), fx: new Container(), hp: new Graphics(), ghost: new Container(), editor: new Container(), fog: new Container() };
+  layers = { terrain: new Container(), decals: new Container(), shadows: new Container(), props: new Container(), ground: new Graphics(), buildings: new Container(), units: new Container(), fx: new Container(), clouds: new Container(), hp: new Graphics(), ghost: new Container(), editor: new Container(), fog: new Container() };
   overlay = new Graphics();
   /** Compatibilidade com o editor (antes: chunks assados em cache). O terreno por shader não tem cache: no-op. */
   chunkCacheLimit = 60;
@@ -129,6 +130,8 @@ export class Renderer {
   readonly fx = new FxSystem(() => this.art ?? null);
   /** Ciclo de luz opcional (cor da luz por ColorMatrixFilter na camada do mundo; desligado por padrão). */
   private dayCycle = new DayCycle();
+  /** Sombras de nuvens (Etapa 9): presets Médio e Alto, fora do editor. */
+  private clouds = new CloudShadows();
   /** Escombros no chão (um monte por queda). */
   private rubbleViews: RubbleView[] = [];
   /** Topologia das muralhas (muralha/portão/torre): assinatura dos ids e versão; as vistas recalculam o bitmask só
@@ -183,7 +186,7 @@ export class Renderer {
     this.props = new PropLayer(this.tex, this.art);
     // camada de TELA dos efeitos (vinhetas da Trégua e do Oráculo, clarão do raio) entre o mundo e o overlay da interface
     this.app.stage.addChild(this.world, this.fx.screen.root, this.overlay);
-    this.world.addChild(this.layers.terrain, this.layers.decals, this.layers.shadows, this.layers.props, this.edgeFrame, this.layers.ground, this.layers.buildings, this.layers.units, this.layers.fx, this.layers.hp, this.layers.ghost, this.layers.editor, this.layers.fog);
+    this.world.addChild(this.layers.terrain, this.layers.decals, this.layers.shadows, this.layers.props, this.edgeFrame, this.layers.ground, this.layers.buildings, this.layers.units, this.layers.fx, this.layers.clouds, this.layers.hp, this.layers.ghost, this.layers.editor, this.layers.fog);
     // efeitos: partículas/sprites na camada fx, decalques na camada decals (acima do terreno, abaixo das sombras)
     this.layers.fx.addChild(this.fx.root);
     this.layers.decals.addChild(this.fx.decals.root);
@@ -341,6 +344,7 @@ export class Renderer {
     // orçamento TOTAL de partículas e teto de decalques do preset (a fumaça dos edifícios ocupa até 35 % dele)
     this.fx.setQuality(q);
     if (this.app?.stage) this.dayCycle.set(this.world, q.dayCycle);
+    if (this.app?.stage) this.clouds.set(this.layers.clouds, q.terrainShader === 'full');
     // materiais do preset gerados em segundo plano (um por macrotarefa, ≈ 250 ms no total a 512²) enquanto o menu está
     // aberto; main.ts chama setQuality logo após init, então a primeira partida já os encontra prontos
     prewarmTerrain(materialSizeFor(q));
@@ -368,8 +372,8 @@ export class Renderer {
     const L = this.layers;
     const F = this.edgeFrame;
     const order: Container[] = this.bakedMode
-      ? [L.terrain, L.decals, L.shadows, L.ground, L.props, F, L.buildings, L.units, L.fx, L.hp, L.ghost, L.editor, L.fog]
-      : [L.terrain, L.decals, L.shadows, L.props, F, L.ground, L.buildings, L.units, L.fx, L.hp, L.ghost, L.editor, L.fog];
+      ? [L.terrain, L.decals, L.shadows, L.ground, L.props, F, L.buildings, L.units, L.fx, L.clouds, L.hp, L.ghost, L.editor, L.fog]
+      : [L.terrain, L.decals, L.shadows, L.props, F, L.ground, L.buildings, L.units, L.fx, L.clouds, L.hp, L.ghost, L.editor, L.fog];
     order.forEach((c, i) => this.world.setChildIndex(c, i));
     F.visible = this.bakedMode;   // desligada: visual idêntico ao anterior
   }
@@ -1280,6 +1284,7 @@ export class Renderer {
     this.updateEffects();
     this.updateRubble(state, ui.localPlayer);
     if (this.dayCycle.enabled) { const z = this.cam.zoom; this.dayCycle.update(this.animClock, { x: -this.world.x / z - 2, y: -this.world.y / z - 2, w: this.app.screen.width / z + 4, h: this.app.screen.height / z + 4 }); }
+    if (this.clouds.enabled) { const z = this.cam.zoom; this.clouds.update(this.animClock, { x: -this.world.x / z - 2, y: -this.world.y / z - 2, w: this.app.screen.width / z + 4, h: this.app.screen.height / z + 4 }, this.layers.editor.visible); }
     this.updateEditor(state, ui);
     this.updateFog(state, ui.localPlayer);
     const o = this.overlay; o.clear();
