@@ -306,6 +306,15 @@ void main() {
     vec3 hv = normalize(uSun + vec3(0.0, 0.0, 1.0));
     float spec = pow(max(dot(nw, hv), 0.0), 80.0) * 0.6;
     vec3 water = wc * (0.5 + 0.65 * wd) + spec * vec3(1.0, 0.97, 0.9);
+    // Etapa 9: o fundo de areia visto pela água rasa — turquesa sobre a areia, com cáusticas (duas camadas de altura da
+    // água que se cruzam em linhas claras); some em ~2 tiles da costa, onde a água fica funda e opaca
+    vec3 bed = textureGrad(uSand, t / TEX_TILES + vec2(0.13, 0.57), gx, gy).rgb;
+    float c1 = textureGrad(uWaterN, t / 0.8 + anim * vec2(0.05, 0.03), dtx / 0.8, dty / 0.8).a;
+    float c2 = textureGrad(uWaterN, vec2(t.y, -t.x) / 0.6 - anim * vec2(0.03, 0.05), dtx / 0.6, dty / 0.6).a;
+    float caust = pow(max(0.0, 1.0 - abs(c1 - c2) * 5.0), 6.0);
+    float clear = 1.0 - smoothstep(0.02, 0.5, depth);
+    vec3 seabed = bed * vec3(0.42, 0.8, 0.88) * (0.72 + 0.45 * wd) + caust * 0.12 * clear * vec3(0.9, 1.0, 0.95);
+    water = mix(water, seabed + spec * vec3(1.0, 0.97, 0.9), clear * 0.66);
     float fn = textureGrad(uWaterN, t / 3.0 + anim * vec2(0.02, -0.03), dtx / 3.0, dty / 3.0).a;
     float band = smoothstep(0.44, 0.52, wm) * (1.0 - smoothstep(0.58, 0.8, wm));
     float foam = band * smoothstep(0.38, 0.68, fn + 0.12 * sin(anim * 1.3 + t.x * 1.7 + t.y * 0.9));
