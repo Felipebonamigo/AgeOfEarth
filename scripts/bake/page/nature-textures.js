@@ -85,6 +85,17 @@ export function rockMaterial(THREE, hex, roughness = 0.92) {
   return m;
 }
 
+/** Rocha com cor por vértice (a cor absoluta vem da malha; a textura só dá grão, fendas e líquen, média compensada). */
+export function rockVertexMaterial(THREE, roughness = 0.9) {
+  const key = `rockvc/${roughness}`;
+  if (TEX.has(key)) return TEX.get(key);
+  const set = rockSet(THREE);
+  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness, metalness: 0, map: set.map, normalMap: set.normalMap, vertexColors: true });
+  m.color.multiplyScalar(1 / set.mean);
+  TEX.set(key, m);
+  return m;
+}
+
 /** Topo cortado do toco: anéis concêntricos, cerne escuro, rachaduras radiais e borda de casca (UV 0–1 no disco). */
 export function stumpTopMaterial(THREE) {
   if (TEX.has('stumptop')) return TEX.get('stumptop');

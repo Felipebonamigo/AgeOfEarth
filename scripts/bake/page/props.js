@@ -8,7 +8,7 @@
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { M2T, dirYaw } from './camera.js';
 import { buildTree, buildShrub, buildGrassTuft, barkMaterial } from './trees.js';
-import { rockMaterial, stumpTopMaterial, worldUV } from './nature-textures.js';
+import { rockMaterial, rockVertexMaterial, stumpTopMaterial, worldUV } from './nature-textures.js';
 import { buildDeer, buildBoar } from './animals.js';
 
 /** Semente inteira a partir de um texto (FNV-1a). */
@@ -26,6 +26,45 @@ export function buildProp(THREE, M, kind, variant, tag) {
   // rachaduras. `solid` funde os vértices coincidentes antes; depois a deformação e as normais saem contínuas.
   const solid = (geo) => { geo.deleteAttribute('uv'); geo.deleteAttribute('normal'); return mergeVertices(geo, 1e-4); };
   const jitter = (geo, amt) => { geo = solid(geo); const p = geo.attributes.position; for (let i = 0; i < p.count; i++) { const n = 1 + (r() - 0.5) * amt; p.setXYZ(i, p.getX(i) * n, p.getY(i) * n, p.getZ(i) * n); } geo.computeVertexNormals(); return geo; };
+  // Bloco de rocha fraturada: icosaedro subdividido e deformado, cortado por `cuts` planos (faces planas de fratura, um
+  // deles quase no topo) e com normal por face (arestas vivas). Devolve a geometria não indexada e os planos.
+  const fractured = (s, sx, sy, sz, cuts, detail = 3) => {
+    const g = solid(new THREE.IcosahedronGeometry(s, detail)); const p = g.attributes.position;
+    for (let k = 0; k < p.count; k++) { const j = 1 + (r() - 0.5) * 0.1; p.setXYZ(k, p.getX(k) * sx * j, Math.max(-0.4 * s * sy, p.getY(k) * sy * j), p.getZ(k) * sz * j); }
+    const planes = [];
+    for (let c = 0; c < cuts; c++) {
+      const a = r() * 6.28, e = c === 0 ? 1.25 + r() * 0.25 : (r() - 0.2) * 0.9;
+      const n = new THREE.Vector3(Math.cos(a) * Math.cos(e), Math.sin(e), Math.sin(a) * Math.cos(e)).normalize();
+      const ext = s * Math.sqrt((n.x * sx) ** 2 + (n.y * sy) ** 2 + (n.z * sz) ** 2);
+      planes.push({ n, d: ext * (0.62 + r() * 0.26) });
+    }
+    const v = new THREE.Vector3();
+    for (let k = 0; k < p.count; k++) {
+      v.fromBufferAttribute(p, k);
+      for (const pl of planes) { const dist = v.dot(pl.n) - pl.d; if (dist > 0) v.addScaledVector(pl.n, -dist); }
+      p.setXYZ(k, v.x, v.y, v.z);
+    }
+    const out = g.toNonIndexed(); out.computeVertexNormals();
+    return out;
+  };
+  // Cor por vértice: fn(posição, normal da face) → hex (sRGB). O ruído deve depender só da posição (`posNoise`), para que
+  // os vértices repetidos das faces vizinhas tenham a mesma cor e as faixas passem contínuas de uma face para a outra.
+  const paintFaces = (g, fn) => {
+    const p = g.attributes.position, nr = g.attributes.normal, col = new Float32Array(p.count * 3), c = new THREE.Color();
+    const v = new THREE.Vector3(), n = new THREE.Vector3();
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i); n.fromBufferAttribute(nr, i);
+      c.setHex(fn(v, n));
+      col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  };
+  // ruído suave da posição (m), em [0, 1): soma de ondas cruzadas (só para a cor por vértice; o bake não tem determinismo de rede)
+  const posNoise = (v, f = 9, seed = 0) => {
+    const a = Math.sin(v.x * f + seed) * Math.cos(v.z * f * 0.83 - seed * 1.7) + Math.sin(v.y * f * 1.21 + v.x * f * 0.37 + seed * 2.3);
+    return Math.min(0.999, Math.max(0, 0.5 + a * 0.25));
+  };
+  const lerpHex = (x, y, t) => { const k = Math.max(0, Math.min(1, t)); const ch = (sh) => Math.round(((x >> sh) & 255) * (1 - k) + ((y >> sh) & 255) * k); return (ch(16) << 16) | (ch(8) << 8) | ch(0); };
   const sizeScale = tag === 'small' ? 0.72 : 1;
   const V = Number(variant) || 0;
 
@@ -72,34 +111,48 @@ export function buildProp(THREE, M, kind, variant, tag) {
       break;
     }
     case 'gold': {
-      // afloramento de calcário claro com um veio de quartzo leitoso e ouro nativo; minério solto no chão
+      // afloramento de calcário fraturado atravessado por um veio de quartzo leitoso com ouro nativo e o halo ferruginoso
+      // (gossan: óxido de ferro que denuncia o minério de longe); minério solto no chão
       const stage = V;                                           // 0 = cheio … 2 = quase esgotado
-      const rock = rockMaterial(THREE, 0x9d978b);
-      const quartz = new THREE.MeshStandardMaterial({ color: 0xece7da, roughness: 0.32, metalness: 0 });
-      const spots = [[-0.28, -0.12, 0.62], [0.42, 0.22, 0.5], [-0.02, 0.52, 0.42]];
-      const n = [3, 2, 1][stage];
-      for (let i = 0; i < n; i++) {
+      const rockVC = rockVertexMaterial(THREE, 0.88);
+      const spots = [[-0.32, -0.1, 0.73], [0.46, 0.26, 0.57], [-0.02, 0.6, 0.48]];
+      const HOST = 0xaea89b, QUARTZ = 0xeae4d8, RUST = 0x8e6038, GOLDC = 0xe0b23a;
+      for (let i = 0, n = [3, 2, 1][stage]; i < n; i++) {
         const [bx, bz, s0] = spots[i], s = s0 * (1 - stage * 0.1);
-        const geo = solid(new THREE.IcosahedronGeometry(s, 2)); const p = geo.attributes.position;
-        const sx = 0.95 + r() * 0.35, sy = 0.62 + r() * 0.22, sz = 0.9 + r() * 0.3;
-        for (let k = 0; k < p.count; k++) { const j = 1 + (r() - 0.5) * 0.22; p.setXYZ(k, p.getX(k) * sx * j, p.getY(k) * sy * j, p.getZ(k) * sz * j); }
-        geo.computeVertexNormals();
-        const b = mesh(geo, rock, bx, s * sy * 0.55, bz); b.rotation.y = r() * 6.28; worldUV(THREE, rig, b, 1);
-        // veio: cristais de quartzo cravados ao longo de uma faixa inclinada na face de cima, com pepitas de ouro
-        const va = r() * 6.28, vx = Math.cos(va), vz = Math.sin(va);
-        for (let q = 0; q < 6 - stage * 2; q++) {
-          const t = (q / 5 - 0.5) * 1.3, px = bx + vx * t * s * sx * 0.8, pz = bz + vz * t * s * sz * 0.8;
-          const py = s * sy * 0.55 + Math.sqrt(Math.max(0, 1 - t * t)) * s * sy * 0.8;
-          const c = mesh(jitter(new THREE.IcosahedronGeometry(0.07 + r() * 0.05, 0), 0.4), quartz, px, py, pz);
-          c.scale.set(1, 1.6 + r() * 0.8, 1); c.rotation.set((r() - 0.5) * 0.8, r() * 3, (r() - 0.5) * 0.8);
-          for (let gq = 0; gq < 2; gq++) mesh(jitter(new THREE.IcosahedronGeometry(0.05 + r() * 0.04, 1), 0.45), M.gold, px + (r() - 0.5) * 0.14, py + 0.03, pz + (r() - 0.5) * 0.14);
+        const sx = 0.95 + r() * 0.35, sy = 0.7 + r() * 0.25, sz = 0.9 + r() * 0.3;
+        const geo = fractured(s, sx, sy, sz, 5);
+        // veio: faixa entre dois planos quase verticais pelo miolo do bloco, de largura irregular; em volta, o halo ocre
+        // de óxido de ferro em manchas; ouro nativo em pintas no quartzo
+        const va = r() * 6.28, vn = new THREE.Vector3(Math.cos(va), (r() - 0.5) * 0.5, Math.sin(va)).normalize(), w = 0.05 + r() * 0.025;
+        const o = new THREE.Vector3((r() - 0.5) * s * 0.3, 0, (r() - 0.5) * s * 0.3), seed = r() * 10;
+        const veinAt = [], rel = new THREE.Vector3();
+        paintFaces(geo, (pos, nrm) => {
+          const n1 = posNoise(pos, 11, seed), n2 = posNoise(pos, 23, seed + 3);
+          const dv = Math.abs(rel.subVectors(pos, o).dot(vn)) - (n1 - 0.5) * w * 0.9;
+          const tone = lerpHex(HOST, 0x857f73, n2 * 0.6);
+          if (dv < w) {
+            if (n2 > 0.64 && nrm.y > -0.2) { if (n2 > 0.7) veinAt.push({ c: pos.clone(), n: nrm.clone() }); return GOLDC; }
+            return lerpHex(QUARTZ, 0xd6ccb4, n1 * 0.7);
+          }
+          const halo = w * (2.2 + n1 * 1.6);
+          return dv < halo ? lerpHex(tone, RUST, (1 - (dv - w) / (halo - w)) * (0.35 + n2 * 0.4)) : tone;
+        });
+        const b = mesh(geo, rockVC, bx, s * sy * 0.42, bz); b.rotation.y = r() * 6.28; worldUV(THREE, rig, b, 1);
+        // pepitas de ouro nativo cravadas no veio (brilho metálico)
+        b.updateMatrixWorld(true);
+        for (let q = 0, k = Math.min(veinAt.length, 10 - stage * 3); q < k; q++) {
+          const at = veinAt[Math.floor(r() * veinAt.length)];
+          const pw = at.c.clone().addScaledVector(at.n, 0.015).applyMatrix4(b.matrix);
+          mesh(jitter(new THREE.IcosahedronGeometry(0.035 + r() * 0.03, 1), 0.5), M.gold, pw.x, pw.y, pw.z);
         }
       }
-      // minério solto: pedrinhas de calcário e de quartzo com ouro
+      // minério solto: lascas de calcário, quartzo e ouro
+      const quartz = new THREE.MeshStandardMaterial({ color: QUARTZ, roughness: 0.35, metalness: 0 });
+      const rock = rockMaterial(THREE, HOST);
       for (let i = 0, k = [18, 11, 6][stage]; i < k; i++) {
-        const a = r() * 6.28, d = 0.45 + r() * 0.45, s = 0.06 + r() * 0.08, u = r();
-        const mt = u < 0.5 ? M.gold : u < 0.7 ? quartz : rock;
-        const m = mesh(jitter(new THREE.IcosahedronGeometry(s, 0), 0.4), mt, Math.cos(a) * d, s * 0.5, Math.sin(a) * d * 0.9);
+        const a = r() * 6.28, d = 0.45 + r() * 0.45, sz0 = 0.05 + r() * 0.08, u = r();
+        const mt = u < 0.35 ? M.gold : u < 0.6 ? quartz : rock;
+        const m = mesh(jitter(new THREE.IcosahedronGeometry(sz0, 0), 0.4), mt, Math.cos(a) * d, sz0 * 0.45, Math.sin(a) * d * 0.9);
         if (mt === rock) worldUV(THREE, rig, m, 1);
       }
       break;
@@ -142,20 +195,17 @@ export function buildProp(THREE, M, kind, variant, tag) {
       break;
     }
     case 'crag': {
-      // afloramento de calcário da serra: 2–4 blocos altos e fraturados (1–1,8 m), um arbusto numa fenda
-      const mat = rockMaterial(THREE, V % 2 ? 0x958f84 : 0xa7a194);
+      // afloramento de calcário da serra: 2–4 blocos altos e fraturados (1–1,8 m) com faces planas de fratura e arestas
+      // vivas (`fractured`), manchas de líquen e tom por face; às vezes um lentisco numa fenda
+      const mat = rockVertexMaterial(THREE, 0.92), base = V % 2 ? 0x958f84 : 0xa7a194;
       const n = 2 + (V % 3);
       for (let i = 0; i < n; i++) {
         const a = (i / n) * 6.28 + r() * 1.2, d = i === 0 ? 0 : 0.45 + r() * 0.35, s = (i === 0 ? 0.62 : 0.34 + r() * 0.22);
-        // poliedro de poucas faces (planos de fratura), com o topo cortado em patamar
-        const g = solid(new THREE.IcosahedronGeometry(s, 1)); const p = g.attributes.position;
         const sx = 0.8 + r() * 0.4, sy = (i === 0 ? 1.45 : 0.95) + r() * 0.5, sz = 0.75 + r() * 0.4;
-        for (let k = 0; k < p.count; k++) {
-          const y = p.getY(k), j = 1 + (r() - 0.5) * 0.36;
-          p.setXYZ(k, p.getX(k) * sx * j, Math.min(y, s * 0.42) * sy * j, p.getZ(k) * sz * j);
-        }
-        g.computeVertexNormals();
-        const m = mesh(g, mat, Math.cos(a) * d, s * sy * 0.4, Math.sin(a) * d * 0.8); m.rotation.y = r() * 6.28; worldUV(THREE, rig, m, 1);
+        const g = fractured(s, sx, sy, sz, 5, i === 0 ? 3 : 2);
+        const seed = r() * 10;
+        paintFaces(g, (pos, nrm) => { const h = posNoise(pos, 7, seed); return nrm.y > 0.55 && h > 0.68 ? lerpHex(base, 0x8c8a62, 0.45) : lerpHex(base, 0x7e786c, h * 0.45 + (nrm.y < 0 ? 0.3 : 0)); });
+        const m = mesh(g, mat, Math.cos(a) * d, s * sy * 0.36, Math.sin(a) * d * 0.8); m.rotation.y = r() * 6.28; worldUV(THREE, rig, m, 1);
       }
       if (V !== 1) { const { group: b } = buildShrub(THREE, 'lentisk', 10 + V, { radii: [0.3, 0.22, 0.28], cy: 0.25, cards: 45, size: 0.36, core: 0x33421f }); b.position.set(0.55, 0, 0.3); rig.add(b); }
       break;

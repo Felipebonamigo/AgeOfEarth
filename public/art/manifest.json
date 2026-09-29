@@ -1952,8 +1952,8 @@
    "w": 1056,
    "h": 352,
    "frames": 72,
-   "bytes": 213088,
-   "sha256": "380fcf6a7e2e2eef5be0b0f1630d0961048349cee79dbc2c81bb955d593bf4b4"
+   "bytes": 212729,
+   "sha256": "66d71ca7a3986b9c56820b8022bb83bf2de08f60bb0a21bacb5783d0d62aad8c"
   },
   {
    "json": "props-2x-0.json",
@@ -1965,8 +1965,8 @@
    "w": 2048,
    "h": 704,
    "frames": 72,
-   "bytes": 827624,
-   "sha256": "9c7b2e7394e78cbe980391fd073c68ed8c68f1768c8f06feb074008896211791"
+   "bytes": 826708,
+   "sha256": "7ac0a30d2eddf68e5a25e4adde456b5ce9018fd1340ac90a37164c4ddb252617"
   },
   {
    "json": "props-shadow-1x-0.json",
@@ -1977,10 +1977,10 @@
    "texel": 0.5,
    "page": 0,
    "w": 800,
-   "h": 128,
+   "h": 160,
    "frames": 72,
-   "bytes": 33481,
-   "sha256": "af8545248b714f7a1be2ad43e6e2aabd4b7b6a61ff98bca6c639c6ad9fff6f55"
+   "bytes": 33304,
+   "sha256": "e6d0114f53d97d5ca62571db57fe3d139e6a94ef1ac85a09eb2e61e00218b228"
   },
   {
    "json": "props-shadow-2x-0.json",
@@ -1993,8 +1993,8 @@
    "w": 1440,
    "h": 256,
    "frames": 72,
-   "bytes": 106439,
-   "sha256": "4f853690e77ec3343111a1308fea7e1cb6f0919076c2011f994a01d05dcf3608"
+   "bytes": 105448,
+   "sha256": "c05947d3406005d3f42a3f1ba7bdae7af27af493b7293bacb692c19ab6fee7b9"
   }
  ],
  "assets": {
@@ -6638,7 +6638,7 @@
   "props-ground": {
    "kind": "prop",
    "group": "props",
-   "sourceHash": "717c0f211605b07b",
+   "sourceHash": "da74bb5b38e0daca",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -6689,7 +6689,7 @@
   "props-nodes": {
    "kind": "prop",
    "group": "props",
-   "sourceHash": "d1f6c4c36bcd4613",
+   "sourceHash": "c9eb9fb38fd3cd3d",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -6740,7 +6740,7 @@
   "props-trees": {
    "kind": "prop",
    "group": "props",
-   "sourceHash": "1dea7682e673da94",
+   "sourceHash": "dddb9daff39bd88e",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -8280,8 +8280,8 @@
   }
  },
  "totals": {
-  "pngBytes": 115966226,
-  "vramBytes": 720289792,
+  "pngBytes": 115963783,
+  "vramBytes": 720392192,
   "atlases": 148
  }
 }

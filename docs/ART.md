@@ -606,15 +606,19 @@ no cache): mesma VRAM, PNG do grupo de 6,6 para 15,6 MB (110 MB no total, teto 1
 `docs/art/etapa9-edificios-antes-depois.png` (preset Alto, antes à esquerda; embaixo ampliado 2×).
 
 **Nós de recurso e vegetação rasteira** (`page/props.js`, `page/trees.js`, `page/nature-textures.js`,
-`art/manifest/props-ground.json`): o **ouro** virou afloramento de calcário claro (rocha texturizada com fendas, grão e
-líquen) com um veio de quartzo leitoso e pepitas de ouro nativo, e minério solto no chão (3 estágios pelo que resta —
-legível como ouro a zoom 1); as **frutas** são um medronheiro (*Arbutus unedo*: copa de cartões de folhas lustrosas com miolo
+`art/manifest/props-ground.json`): o **ouro** virou afloramento de calcário claro em blocos de **rocha fraturada**
+(`fractured` em `props.js`: icosaedro subdividido e deformado, cortado por 5 planos de fratura — um quase no topo —, com
+normal por face, arestas vivas e a textura de rocha por cima) atravessados por um veio de quartzo leitoso de largura
+irregular, com o halo ocre de óxido de ferro em manchas em volta (o *gossan* que denuncia o minério) e ouro nativo em
+pintas e pepitas metálicas cravadas no veio — cor por vértice com ruído que só depende da posição (`paintFaces`/`posNoise`,
+material `rockVertexMaterial`), para as faixas passarem contínuas entre as faces —, e minério solto no chão (3 estágios
+pelo que resta — legível como ouro a zoom 1; `docs/art/etapa9-ouro-antes-depois.png`, preset Alto, antes à esquerda de cada par); as **frutas** são um medronheiro (*Arbutus unedo*: copa de cartões de folhas lustrosas com miolo
 escuro e frutas vermelhas, laranja e amarelas por fora; cheio/meio/vazio); **tocos** com casca texturizada, topo serrado
 com anéis e rachaduras e lascas em volta; **rochas** texturizadas. Vegetação rasteira nova (grupo `props`): **maquis**
 (lentisco, 4 variantes), **capim seco** em touceiras (4; normal dos cartões puxada para o céu — a luz atravessa as folhas e
 a touceira não sai preta), **flores** (corolas achatadas viradas para cima sobre hastes: papoulas vermelhas de miolo escuro,
 camomilas, mistura de papoula, cardo e botão-de-ouro; 3), **seixos** (3), **rochedos** da serra (`crag`, 4: 2–4 blocos de
-calcário fraturados de topo em patamar, texturizados, às vezes com um lentisco na fenda) e **juncos** da margem (`reeds`,
+calcário em rocha fraturada — faces planas de fratura, topo em patamar, tom e líquen por vértice —, às vezes com um lentisco na fenda) e **juncos** da margem (`reeds`,
 3: caniçal de *Phragmites* — touceira de folhas verde-acinzentadas e hastes cor de palha de 1,3–2 m com o penacho
 pardo-arroxeado) — `groundDecor(x, y, terreno, beiraDaÁgua)` em `src/render/art/logic.ts` escolhe por tile (grama ~7 % em
 manchas, as secas puxam capim e seixos, as úmidas flores e maquis; grama vizinha de água, juncos ~30 %; terra ~5 %; areia
