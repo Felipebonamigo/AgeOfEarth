@@ -46,7 +46,7 @@ const BARK = {
   oak: { base: '#4f3f30', dark: '#2a2119', light: '#6a5845', fissures: 34, wave: 4, lichen: 0.12 },
   cypress: { base: '#6a4a36', dark: '#3a2618', light: '#8a654a', fissures: 44, wave: 2, lichen: 0 },
 };
-function barkMaterial(THREE, species) {
+export function barkMaterial(THREE, species) {
   const key = `bark/${species}`;
   if (TEX.has(`${key}/mat`)) return TEX.get(`${key}/mat`);
   const B = BARK[species], r = rng(seedOf(key));
@@ -88,10 +88,34 @@ const LEAF = {
   oak: { tones: ['#46652a', '#507233', '#5c7f3a', '#688b44', '#3c5a24', '#739550'], len: [10, 16], wid: [6, 9.5], count: 96, twig: '#43352a', spread: 1, angle: [0.35, 0.9] },
   // Cupressus sempervirens: ramos de escamas, verde-escuro fosco, bem cheios
   cypress: { tones: ['#4a6e36', '#557a3e', '#608647', '#6b9150', '#42642f', '#77995a'], len: [5, 9], wid: [3.2, 4.6], count: 260, twig: '#3a3024', spread: 0.75, angle: [0.15, 0.45] },
+  // Arbutus unedo (medronheiro, o arbusto das frutas): folha oval serrilhada, verde-escura lustrosa
+  arbutus: { tones: ['#3d5a26', '#46652c', '#507033', '#5a7a3a', '#35501f', '#627f40'], len: [14, 21], wid: [6, 9], count: 84, twig: '#5c3a26', spread: 1, angle: [0.4, 0.95] },
+  // Pistacia lentiscus / alecrim (maquis): folhinhas miúdas, verde-oliva escuro
+  lentisk: { tones: ['#4a5a2e', '#536634', '#5d703b', '#667a42', '#404f27', '#6e804a'], len: [16, 24], wid: [7, 10], count: 120, twig: '#4a3a2a', spread: 0.9, angle: [0.35, 0.85] },
+  // capim seco em touceira: folhas longas saindo da base em leque (palha com um pouco de verde)
+  grass: { tones: ['#b09a62', '#bea96e', '#a08e58', '#cab67e', '#949050', '#86904c'], blades: 22, len: [150, 235], wid: [11, 17] },
+  // prado: capim verde baixo (base das flores)
+  meadow: { tones: ['#5d7a36', '#68853d', '#728f45', '#56702f', '#7d9850', '#8a9a55'], blades: 26, len: [120, 200], wid: [11, 16] },
 };
 function leafTexture(THREE, species) {
   return canvasTex(THREE, `leaf/${species}`, 512, 512, (g) => {
     const L = LEAF[species], r = rng(seedOf(`leaf/${species}`));
+    if (L.blades) {
+      // capim: folhas finas saindo da base (embaixo, no meio de cada quadrante) em leque, curvando para fora
+      for (let q = 0; q < 4; q++) {
+        const ox = (q % 2) * 256, oy = Math.floor(q / 2) * 256;
+        g.save(); g.beginPath(); g.rect(ox + 2, oy + 2, 252, 252); g.clip(); g.translate(ox + 128, oy + 250);
+        for (let i = 0; i < L.blades; i++) {
+          const lean = (r() - 0.5) * 1.5, len = L.len[0] + r() * (L.len[1] - L.len[0]), w = L.wid[0] + r() * (L.wid[1] - L.wid[0]);
+          const x0 = (r() - 0.5) * 30, tipX = x0 + lean * len * 0.55, tipY = -len, midX = x0 + lean * len * 0.15, midY = -len * 0.55;
+          const tone = L.tones[Math.floor(r() * L.tones.length)];
+          const gr = g.createLinearGradient(0, 0, 0, -len); gr.addColorStop(0, shade(tone, -0.35)); gr.addColorStop(0.6, tone); gr.addColorStop(1, shade(tone, 0.12));
+          g.fillStyle = gr; g.beginPath(); g.moveTo(x0 - w / 2, 0); g.quadraticCurveTo(midX - w * 0.4, midY, tipX, tipY); g.quadraticCurveTo(midX + w * 0.4, midY, x0 + w / 2, 0); g.fill();
+        }
+        g.restore();
+      }
+      return;
+    }
     for (let q = 0; q < 4; q++) {
       const ox = (q % 2) * 256, oy = Math.floor(q / 2) * 256;
       g.save(); g.beginPath(); g.rect(ox + 2, oy + 2, 252, 252); g.clip(); g.translate(ox + 128, oy + 238);
@@ -142,7 +166,8 @@ function leafMaterials(THREE, species) {
   const key = `leafmat/${species}`;
   if (TEX.has(key)) return TEX.get(key);
   const map = leafTexture(THREE, species);
-  const mat = new THREE.MeshStandardMaterial({ map, alphaTest: 0.45, vertexColors: true, roughness: species === 'oak' ? 0.62 : 0.85, metalness: 0, side: THREE.FrontSide });
+  const glossy = species === 'oak' || species === 'arbutus';
+  const mat = new THREE.MeshStandardMaterial({ map, alphaTest: 0.45, vertexColors: true, roughness: glossy ? 0.62 : 0.85, metalness: 0, side: THREE.FrontSide });
   const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map, alphaTest: 0.45 });
   const out = { mat, depth };
   TEX.set(key, out);
@@ -210,7 +235,7 @@ function cardsMesh(THREE, r, species, cards, center, radii, { dark = 0.55 } = {}
     const nrm = cd.n.clone().normalize();
     u.crossVectors(Math.abs(nrm.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : up, nrm).normalize();
     v.crossVectors(nrm, u).normalize();
-    const roll = r() * Math.PI * 2, cr = Math.cos(roll), sr = Math.sin(roll);
+    const roll = cd.up ? 0 : r() * Math.PI * 2, cr = Math.cos(roll), sr = Math.sin(roll);   // capim: sem rolagem (topo da imagem = para cima)
     const U = u.clone().multiplyScalar(cr).add(v.clone().multiplyScalar(sr)), Vv = v.clone().multiplyScalar(cr).sub(u.clone().multiplyScalar(sr));
     const h = cd.s / 2;
     // sombreamento: para fora do centro (no espaço do elipsoide)
@@ -344,5 +369,60 @@ export function buildTree(THREE, species, V, tag) {
     }
     g.add(cardsMesh(THREE, r, 'cypress', cards, new THREE.Vector3(0, y0 + H * 0.4, 0), new THREE.Vector3(W, H * 0.6, W), { dark: 0.8 }));
   }
+  return g;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Arbustos e capim (nós de frutas e vegetação rasteira)
+
+/**
+ * Arbusto em METROS com a base em y = 0: `arbutus` (medronheiro, o nó de frutas: copa redonda de 1,5 m) ou `lentisk`
+ * (maquis baixo, decoração). Galhinhos de casca saindo do chão e copa de cartões num elipsoide `radii` com o centro a
+ * `cy`. Devolve { group, surface(r) } — `surface` sorteia um ponto na casca da copa (onde vão as frutas).
+ */
+export function buildShrub(THREE, species, V, { radii = [0.75, 0.55, 0.75], cy = 0.62, cards: nCards = 120, size = 0.42, thin = 1, dark = 0.62, core = 0 } = {}) {
+  const r = rng(seedOf(`shrub/${species}/${V}`));
+  const g = new THREE.Group();
+  const bark = barkMaterial(THREE, 'oak');
+  const R = new THREE.Vector3(radii[0] * (0.9 + r() * 0.2), radii[1] * (0.9 + r() * 0.2), radii[2] * (0.9 + r() * 0.2));
+  const center = new THREE.Vector3((r() - 0.5) * 0.1, cy, (r() - 0.5) * 0.1);
+  for (let i = 0; i < 4; i++) {
+    const az = r() * 6.28, t = grow(THREE, r, { start: new THREE.Vector3(Math.cos(az) * 0.08, 0, Math.sin(az) * 0.08), dir: new THREE.Vector3(Math.cos(az) * 0.6, 1, Math.sin(az) * 0.6), len: cy * 0.9, rad: 0.035, depth: 1, spread: 0.5, bend: 0.6, taper: 0.6, lenK: 0.6 });
+    for (const sg of t.segs) { const m = new THREE.Mesh(branchGeo(THREE, sg.a, sg.b, sg.r0, sg.r1, 6), bark); m.castShadow = true; g.add(m); }
+  }
+  const cards = [];
+  for (let i = 0, n = Math.round(nCards * thin); i < n; i++) {
+    const d = new THREE.Vector3(r() * 2 - 1, r() * 2 - 1, r() * 2 - 1); if (d.lengthSq() > 1 || d.y < -0.75) { i--; continue; }
+    const k = 0.55 + 0.45 * Math.cbrt(r());
+    cards.push({ c: center.clone().add(new THREE.Vector3(d.x * R.x * k, d.y * R.y * k, d.z * R.z * k)), s: size * (0.8 + r() * 0.4), n: d.clone().add(new THREE.Vector3(0, 0.35, 0)) });
+  }
+  g.add(cardsMesh(THREE, r, species, cards, center, R, { dark }));
+  if (core) {   // miolo escuro: a copa não fica transparente onde os cartões rareiam
+    const c = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), new THREE.MeshStandardMaterial({ color: core, roughness: 0.95 }));
+    c.scale.set(R.x * 0.72, R.y * 0.7, R.z * 0.72); c.position.copy(center); c.castShadow = true; c.receiveShadow = true; g.add(c);
+  }
+  const surface = (rr) => {
+    for (;;) {
+      const d = new THREE.Vector3(rr() * 2 - 1, rr() * 2 - 1, rr() * 2 - 1); const l = d.length();
+      if (l > 1 || l < 0.2 || d.y < -0.35) continue;
+      d.multiplyScalar((0.88 + rr() * 0.12) / l);
+      return center.clone().add(new THREE.Vector3(d.x * R.x, d.y * R.y, d.z * R.z));
+    }
+  };
+  return { group: g, surface };
+}
+
+/** Touceira de capim (`grass` seco ou `meadow` verde): cartões de folhas em pé, em volta do centro, altura ~`h` m. */
+export function buildGrassTuft(THREE, species, V, { h = 0.55, radius = 0.28, count = 14 } = {}) {
+  const r = rng(seedOf(`tuft/${species}/${V}`));
+  const cards = [];
+  for (let i = 0; i < count; i++) {
+    const az = r() * 6.28, rad = radius * Math.sqrt(r());
+    const c = new THREE.Vector3(Math.cos(az) * rad, h * (0.42 + r() * 0.12), Math.sin(az) * rad);
+    // cartão quase vertical, virado para fora (as folhas sobem do centro)
+    cards.push({ c, s: h * (0.85 + r() * 0.3), n: new THREE.Vector3(Math.cos(az), 0.15 + r() * 0.2, Math.sin(az)), up: true });
+  }
+  const mesh = cardsMesh(THREE, r, species, cards, new THREE.Vector3(0, h * 0.4, 0), new THREE.Vector3(radius + 0.2, h * 0.6, radius + 0.2), { dark: 0.72 });
+  const g = new THREE.Group(); g.add(mesh);
   return g;
 }

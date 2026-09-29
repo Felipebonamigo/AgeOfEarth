@@ -10,7 +10,7 @@ import {
   isMirrored, frameBox, mulColor, isWalking, freshHit, corpseAlpha, CORPSE_TTL, CORPSE_HOLD, strideAdvance, isRunning, isMoveAnim, RUN_SPEED, warmUnitTypes, type UnitAnim,
   BUILDING_STATES, damageLevel, buildingState, fallbackState, WALL_LINK_TYPES, wallMask, wallVariant, gateAxis, ageTier,
   buildingVariant, placementMasks, gateNear, GATE_OPEN_RANGE, rubbleName, rubbleAlpha, RUBBLE_SECONDS, RUBBLE_FADE, smokeRate,
-  smokeBudget, ghostTint, wallFlagAt, WALL_FLAG_PROBE,
+  smokeBudget, ghostTint, wallFlagAt, WALL_FLAG_PROBE, groundDecor, groundDecorPlace, GROUND_DECOR,
 } from '../src/render/art/logic';
 import { BUILDINGS, UNITS } from '../src/core/data';
 import { DT } from '../src/core/constants';
@@ -586,6 +586,28 @@ describe.skipIf(!hasArt)('artefatos do bake: toda chave pedida pelo renderizador
     for (let y = 0; y < 40; y++) for (let x = 0; x < 40; x++) { const t = treeLook(x, y); want.add(propFrameName(t.species, t.variant, t.size)); want.add(propFrameName('stump', stumpVariant(x, y))); }
     expect(want.size).toBeGreaterThanOrEqual(24 + 3 + 3 + 3 + 3 + 4 + 4 + 1);
     const items = new Set([...(manifest.assets['props-trees']?.items ?? []), ...(manifest.assets['props-nodes']?.items ?? [])]);
+    for (const s of scales) for (const pass of ['color', 'shadow']) {
+      const p = passOf('props', s, pass);
+      for (const k of want) { expect(p.frames.has(k), `${k} ${pass} ${s}x`).toBe(true); expect(items.has(k), k).toBe(true); }
+    }
+  });
+
+  it('vegetação rasteira (Etapa 9): todo quadro que groundDecor pede existe nas duas escalas; densidade e terrenos', () => {
+    const T = { GRASS: 0, WATER: 1, MOUNTAIN: 2, SAND: 3, DIRT: 4, DEEP: 5 };
+    const want = new Set<string>(), count = { grass: 0, dirt: 0, sand: 0 }, N = 120;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      for (const [k, t] of [['grass', T.GRASS], ['dirt', T.DIRT], ['sand', T.SAND]] as const) { const n = groundDecor(x, y, t); if (n) { want.add(n); count[k]++; } }
+      expect(groundDecor(x, y, T.MOUNTAIN)).toBeNull(); expect(groundDecor(x, y, T.WATER)).toBeNull(); expect(groundDecor(x, y, T.DEEP)).toBeNull();
+      const pl = groundDecorPlace(x, y);
+      expect(Math.abs(pl.dx)).toBeLessThanOrEqual(0.3); expect(Math.abs(pl.dy)).toBeLessThanOrEqual(0.25); expect(pl.scale).toBeGreaterThan(0.8); expect(pl.scale).toBeLessThan(1.2);
+    }
+    // grama ~7 % (em manchas), terra ~5 %, areia ~1,5 %: decorativo, sem cobrir o campo
+    expect(count.grass / (N * N)).toBeGreaterThan(0.04); expect(count.grass / (N * N)).toBeLessThan(0.11);
+    expect(count.dirt / (N * N)).toBeGreaterThan(0.02); expect(count.dirt / (N * N)).toBeLessThan(0.08);
+    expect(count.sand / (N * N)).toBeLessThan(0.03);
+    // todas as variantes aparecem
+    for (const [kind, n] of Object.entries(GROUND_DECOR)) for (let v = 0; v < n; v++) expect(want.has(propFrameName(kind, v)), `${kind}/${v}`).toBe(true);
+    const items = new Set(manifest.assets['props-ground']?.items ?? []);
     for (const s of scales) for (const pass of ['color', 'shadow']) {
       const p = passOf('props', s, pass);
       for (const k of want) { expect(p.frames.has(k), `${k} ${pass} ${s}x`).toBe(true); expect(items.has(k), k).toBe(true); }

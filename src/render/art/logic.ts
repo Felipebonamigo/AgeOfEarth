@@ -2,8 +2,8 @@
 // estágio de obra, dano, variantes de edifício (bitmask da muralha, eixo do portão, Idade), escombros, fumaça,
 // estágio/variante de props e validação do meta.aoe dos atlas. Sem Pixi e sem DOM: testáveis em Node
 // (tests/art-library.test.ts). Fica fora do núcleo determinístico: pode usar Math.atan2/Math.round à vontade.
-import type { NodeType } from '../../core/constants';
-import { hash01, noise2 } from '../palette';
+import { TERRAIN, type NodeType } from '../../core/constants';
+import { dryness, hash01, noise2 } from '../palette';
 import { ART_CONTRACT_VERSION, ART_PITCH_DEG, ART_PX_PER_TILE, type ArtScale, type SheetAoeMeta } from './types';
 
 const OCTANT = Math.PI / 4;
@@ -390,6 +390,37 @@ export function treeOffset(x: number, y: number): { dx: number; dy: number } {
 }
 /** Pequena variação de escala (0,94–1,06) por tile para as árvores não parecerem carimbadas. */
 export function treeScale(x: number, y: number): number { return 0.94 + hash01(x, y, 76) * 0.12; }
+
+// ---------------- Vegetação rasteira (Etapa 9) ----------------
+/** Variantes assadas de cada decoração rasteira (art/manifest/props-ground.json). */
+export const GROUND_DECOR = { maquis: 4, tuft: 4, flowers: 3, pebbles: 3 } as const;
+/**
+ * Decoração rasteira do tile (x, y) de terreno `terrain` — só do renderizador, não é nó do jogo nem bloqueia nada — ou
+ * null. Em manchas (ruído largo): ~7 % da grama (as manchas secas puxam capim seco e seixos, as úmidas flores e maquis),
+ * ~5 % da terra (seixos e capim) e ~1,5 % da areia (seixos); montanha e água, nada. Determinístico pelo tile.
+ */
+export function groundDecor(x: number, y: number, terrain: number): string | null {
+  const patch = 0.35 + 1.3 * noise2(x * 0.23 + 13, y * 0.23 + 57);   // aglomera em manchas
+  const p = hash01(x, y, 81), k = hash01(x, y, 82), v = hash01(x, y, 83);
+  const pick = (kind: keyof typeof GROUND_DECOR) => propFrameName(kind, Math.floor(v * GROUND_DECOR[kind]) % GROUND_DECOR[kind]);
+  if (terrain === TERRAIN.GRASS) {
+    if (p >= 0.07 * patch) return null;
+    const dry = dryness(x, y);
+    const wTuft = 0.25 + 0.35 * dry, wPeb = 0.08 + 0.12 * dry, wFlow = 0.3 * (1 - dry) + 0.05, wMaq = 0.3;
+    let u = k * (wTuft + wPeb + wFlow + wMaq);
+    if ((u -= wMaq) < 0) return pick('maquis');
+    if ((u -= wTuft) < 0) return pick('tuft');
+    if ((u -= wFlow) < 0) return pick('flowers');
+    return pick('pebbles');
+  }
+  if (terrain === TERRAIN.DIRT) return p < 0.05 * patch ? (k < 0.6 ? pick('pebbles') : pick('tuft')) : null;
+  if (terrain === TERRAIN.SAND) return p < 0.015 * patch ? pick('pebbles') : null;
+  return null;
+}
+/** Deslocamento (tiles) e escala da decoração rasteira dentro do tile, para não parecer carimbada numa grade. */
+export function groundDecorPlace(x: number, y: number): { dx: number; dy: number; scale: number } {
+  return { dx: (hash01(x, y, 84) - 0.5) * 0.6, dy: (hash01(x, y, 85) - 0.5) * 0.5, scale: 0.82 + hash01(x, y, 86) * 0.36 };
+}
 
 // ---------------- Atlas ----------------
 /** Confere o meta.aoe de um atlas contra o contrato esperado para a escala; devolve o motivo da recusa ou null. */

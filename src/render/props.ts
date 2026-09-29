@@ -1,5 +1,5 @@
 // Nós do mapa como sprites (camada 'props', docs/ART.md §3.7): um Sprite por nó (árvore, arbusto, mina, animal, Pedra de
-// Poseidon) e, com a arte assada, tocos das árvores esgotadas. Os sprites vivem num Container por FAIXA de chunks (16
+// Poseidon) e, com a arte assada, tocos das árvores esgotadas e a vegetação rasteira dos tiles livres (logic.groundDecor). Os sprites vivem num Container por FAIXA de chunks (16
 // linhas de tiles), ordenado por zIndex = y: a ordem por y vale para o mapa inteiro (faixas em ordem crescente de y, e
 // dentro da faixa o sort do Pixi), sem costura de ordenação nas colunas de chunk. Com a arte assada, as unidades e os
 // edifícios (não voadores) também entram nessas faixas (rowFor), então árvore, casa e hoplita se ocluem pela posição do
@@ -19,12 +19,13 @@ import type { GameState, ResourceNode } from '../core/types';
 import type { TextureCache } from './textures';
 import { NODE_ANCHOR } from './textures';
 import type { ArtLibrary } from './art/ArtLibrary';
-import { nodeFrameName, nodeStage, propFrameName, stumpVariant, treeOffset, treeScale } from './art/logic';
+import { groundDecor, groundDecorPlace, nodeFrameName, nodeStage, propFrameName, stumpVariant, treeOffset, treeScale } from './art/logic';
 import { CHUNK } from './terrain/ChunkMesh';
 import { SHADOW_ALPHA } from './palette';
 
-/** `stage` = estágio visual do quadro assado (logic.nodeStage) ou −1 (procedural/toco: não muda de quadro). */
-interface PropView { sprite: Sprite; shadow: Sprite | null; type: string; x: number; y: number; chunk: number; node: ResourceNode | null; stage: number }
+/** `stage` = estágio visual do quadro assado (logic.nodeStage) ou −1 (procedural/toco: não muda de quadro); `frame` = quadro
+ *  da decoração rasteira (type 'decor'). */
+interface PropView { sprite: Sprite; shadow: Sprite | null; type: string; x: number; y: number; chunk: number; node: ResourceNode | null; stage: number; frame?: string }
 
 const ZERO_OFF = { dx: 0, dy: 0 } as const;
 /** O tile `i` tem uma árvore. */
@@ -41,13 +42,15 @@ export class PropLayer {
   private rows: Container[] = [];
   private shadowRows: Container[] = [];
   private props = new Map<number, PropView>();
-  /** Ids dos props de cada chunk (índice cy · cw + cx); tocos usam a chave −(tile + 1). */
+  /** Ids dos props de cada chunk (índice cy · cw + cx); tocos usam a chave −(tile + 1) e a vegetação rasteira
+   *  −(tile + 1) − tiles do mapa. */
   private ids: Set<number>[] = [];
   /** Chunks na tela no último quadro (1), chave da névoa já aplicada e jogador local. */
   private vis = new Uint8Array(0);
   private fogKey = -1;
   private local = 0;
   private cw = 0;
+  private nTiles = 0;
   private frameN = 0;
   private lastNodeCount = -1;
   private revealed = false;
@@ -74,7 +77,7 @@ export class PropLayer {
     if (!keepStumps) this.stumps.clear();
     this.bakedMode = bakedMode; this.bakedProps = bakedMode && bakedProps;
     const cw = Math.ceil(state.map.w / CHUNK), ch = Math.ceil(state.map.h / CHUNK);
-    this.cw = cw;
+    this.cw = cw; this.nTiles = state.map.w * state.map.h;
     this.rows = []; this.shadowRows = []; this.ids = []; this.vis = new Uint8Array(cw * ch); this.fogKey = -1;
     for (let r = 0; r < ch; r++) {
       // faixa comum (não grupo de render): no Pixi 8 cada grupo é um lote próprio (+1 draw call por faixa na tela) e, com
@@ -146,6 +149,27 @@ export class PropLayer {
     this.ids[chunk]?.add(key);
     this.props.set(key, { sprite: s, shadow: sh, type: 'stump', x, y, chunk, node: null, stage: -1 });
   }
+  /**
+   * Vegetação rasteira (só arte assada; Etapa 9): maquis, capim seco, flores ou seixos no tile livre `t` (logic.groundDecor),
+   * com deslocamento e escala pelo tile; um pouco atrás de quem pisa o mesmo tile. Some quando um nó, um edifício ou um
+   * toco ocupa o tile ou o terreno muda (editor).
+   */
+  private addDecor(state: GameState, t: number, name: string): void {
+    const map = state.map, x = t % map.w, y = (t - x) / map.w;
+    const key = -(t + 1) - this.nTiles;
+    const f = this.art.prop(name);
+    if (!f) return;
+    const chunk = this.chunkOf(x, y), cy = Math.floor(y / CHUNK), pl = groundDecorPlace(x, y);
+    const s = new Sprite(f.color); s.anchor.set(f.anchor.x, f.anchor.y);
+    s.position.set((x + 0.5 + pl.dx) * TILE, (y + 0.5 + pl.dy) * TILE); s.scale.set(pl.scale);
+    s.zIndex = y + 0.5 + pl.dy - 0.35;
+    const sh = f.shadow ? this.makeShadow(f.shadow, f.anchor, s, cy) : null;
+    const on = this.vis[chunk] === 1 && this.explored(state, x, y);
+    s.visible = on; if (sh) sh.visible = on;
+    this.rows[cy]?.addChild(s);
+    this.ids[chunk]?.add(key);
+    this.props.set(key, { sprite: s, shadow: sh, type: 'decor', x, y, chunk, node: null, stage: -1, frame: name });
+  }
   /** Sombra de um prop assado na faixa de sombras `cy`, no mesmo ponto/escala do sprite. */
   private makeShadow(tex: Texture, anchor: { x: number; y: number }, s: Sprite, cy: number): Sprite {
     const sh = new Sprite(tex); sh.anchor.set(anchor.x, anchor.y); sh.position.copyFrom(s.position); sh.scale.copyFrom(s.scale);
@@ -182,6 +206,7 @@ export class PropLayer {
     for (const id of ids) {
       const v = this.props.get(id)!;
       const t = v.y * map.w + v.x;
+      if (v.type === 'decor') { if (map.nodeAt[t] !== -1 || map.buildingAt[t] !== -1 || this.stumps.has(t) || groundDecor(v.x, v.y, map.terrain[t]) !== v.frame) this.drop(id, v); continue; }
       if (id < 0) { if (map.nodeAt[t] !== -1 || map.buildingAt[t] !== -1) { this.drop(id, v); this.stumps.delete(t); } continue; }
       const n = map.nodes.get(id);
       if (!n || n.type !== v.type || map.nodeAt[t] !== id) {
@@ -205,6 +230,13 @@ export class PropLayer {
     const cx = chunk % cw, cy = (chunk - cx) / cw;
     const x0 = cx * CHUNK, y0 = cy * CHUNK, x1 = Math.min(map.w, x0 + CHUNK), y1 = Math.min(map.h, y0 + CHUNK);
     for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const id = map.nodeAt[y * map.w + x]; if (id !== -1 && !this.props.has(id)) this.add(state, id); }
+    // vegetação rasteira nos tiles livres (sem nó, edifício nem toco)
+    if (this.bakedProps) for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+      const t = y * map.w + x;
+      if (map.nodeAt[t] !== -1 || map.buildingAt[t] !== -1 || this.stumps.has(t) || this.props.has(-(t + 1) - this.nTiles)) continue;
+      const name = groundDecor(x, y, map.terrain[t]);
+      if (name) this.addDecor(state, t, name);
+    }
   }
   /** Visibilidade dos sprites de um chunk: na tela e em tile explorado. */
   private showChunk(state: GameState, chunk: number, on: boolean): void {

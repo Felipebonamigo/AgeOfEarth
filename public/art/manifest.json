@@ -1772,60 +1772,6 @@
    "sha256": "fc67eabf8697c155b387fcc8854eb807a0895d652de50a202d090e3b5498b900"
   },
   {
-   "json": "props-1x-0.json",
-   "image": "props-1x-0.png",
-   "group": "props",
-   "pass": "color",
-   "scale": 1,
-   "page": 0,
-   "w": 1056,
-   "h": 288,
-   "frames": 51,
-   "bytes": 184392,
-   "sha256": "c3dd988d56d8cb9f8d899a486bf4158d71060a429f3f4fbe2dfd6bed47d1f148"
-  },
-  {
-   "json": "props-2x-0.json",
-   "image": "props-2x-0.png",
-   "group": "props",
-   "pass": "color",
-   "scale": 2,
-   "page": 0,
-   "w": 2048,
-   "h": 544,
-   "frames": 51,
-   "bytes": 717870,
-   "sha256": "af641a81d7a402867a58e2f99cfa4a8faa6eac1c30eb48a73371183724592147"
-  },
-  {
-   "json": "props-shadow-1x-0.json",
-   "image": "props-shadow-1x-0.png",
-   "group": "props",
-   "pass": "shadow",
-   "scale": 1,
-   "texel": 0.5,
-   "page": 0,
-   "w": 800,
-   "h": 128,
-   "frames": 51,
-   "bytes": 30282,
-   "sha256": "ea4118bdb9d2fb3da9c3bb16b2b96e82bc325d3ff25613179c593f7e9cecc8d5"
-  },
-  {
-   "json": "props-shadow-2x-0.json",
-   "image": "props-shadow-2x-0.png",
-   "group": "props",
-   "pass": "shadow",
-   "scale": 2,
-   "texel": 0.5,
-   "page": 0,
-   "w": 1440,
-   "h": 224,
-   "frames": 51,
-   "bytes": 96667,
-   "sha256": "6e73c601a780a2ea9dd95b77f2cc7a6658fbb79e7cb2e5ea543f393b392b3c77"
-  },
-  {
    "json": "buildings-1x-0.json",
    "image": "buildings-1x-0.png",
    "group": "buildings",
@@ -2008,6 +1954,60 @@
    "frames": 21,
    "bytes": 4800,
    "sha256": "79421801a9d05c3eda9f893f2ba6baf46dff8b3d790cf6b7de1d2233706e2f6d"
+  },
+  {
+   "json": "props-1x-0.json",
+   "image": "props-1x-0.png",
+   "group": "props",
+   "pass": "color",
+   "scale": 1,
+   "page": 0,
+   "w": 1056,
+   "h": 320,
+   "frames": 65,
+   "bytes": 198025,
+   "sha256": "87e124643ec298033b79c69db2de09cd75e435f5c8741f124375ae11c683c479"
+  },
+  {
+   "json": "props-2x-0.json",
+   "image": "props-2x-0.png",
+   "group": "props",
+   "pass": "color",
+   "scale": 2,
+   "page": 0,
+   "w": 2048,
+   "h": 608,
+   "frames": 65,
+   "bytes": 777087,
+   "sha256": "3e60cb79ae9864ffd7f48ba913565da65270d6a59dceda66adfd367bd5118fec"
+  },
+  {
+   "json": "props-shadow-1x-0.json",
+   "image": "props-shadow-1x-0.png",
+   "group": "props",
+   "pass": "shadow",
+   "scale": 1,
+   "texel": 0.5,
+   "page": 0,
+   "w": 800,
+   "h": 128,
+   "frames": 65,
+   "bytes": 31725,
+   "sha256": "3426c7700487756e5e10d42adac00327c7bb7d945f65d19773a5f56bc5a37c8f"
+  },
+  {
+   "json": "props-shadow-2x-0.json",
+   "image": "props-shadow-2x-0.png",
+   "group": "props",
+   "pass": "shadow",
+   "scale": 2,
+   "texel": 0.5,
+   "page": 0,
+   "w": 1440,
+   "h": 256,
+   "frames": 65,
+   "bytes": 101602,
+   "sha256": "5da1dd757007d09cb1cf0cc26f24f5fea83f09ea465b305e48da68db17ce3ccb"
   }
  ],
  "assets": {
@@ -6648,10 +6648,54 @@
    ],
    "sizeClass": "titan"
   },
+  "props-ground": {
+   "kind": "prop",
+   "group": "props",
+   "sourceHash": "37aa7eb2cbc0a83d",
+   "dirs": 1,
+   "mirror": false,
+   "team": false,
+   "shadow": true,
+   "frames": 14,
+   "atlases": {
+    "1": {
+     "color": [
+      "props-1x-0.json"
+     ],
+     "shadow": [
+      "props-shadow-1x-0.json"
+     ]
+    },
+    "2": {
+     "color": [
+      "props-2x-0.json"
+     ],
+     "shadow": [
+      "props-shadow-2x-0.json"
+     ]
+    }
+   },
+   "items": [
+    "maquis/0",
+    "maquis/1",
+    "maquis/2",
+    "maquis/3",
+    "tuft/0",
+    "tuft/1",
+    "tuft/2",
+    "tuft/3",
+    "flowers/0",
+    "flowers/1",
+    "flowers/2",
+    "pebbles/0",
+    "pebbles/1",
+    "pebbles/2"
+   ]
+  },
   "props-nodes": {
    "kind": "prop",
    "group": "props",
-   "sourceHash": "d9cfccc2d7f12755",
+   "sourceHash": "3fabe45ecb9bcf53",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -6702,7 +6746,7 @@
   "props-trees": {
    "kind": "prop",
    "group": "props",
-   "sourceHash": "f4f8ecea6cbe3cdf",
+   "sourceHash": "d10f7779f2609bbb",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -8242,8 +8286,8 @@
   }
  },
  "totals": {
-  "pngBytes": 115587926,
-  "vramBytes": 719060992,
+  "pngBytes": 115667154,
+  "vramBytes": 719904768,
   "atlases": 149
  }
 }
