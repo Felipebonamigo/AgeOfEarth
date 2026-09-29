@@ -16,7 +16,8 @@
 //   context  — geometria invisível que só projeta sombra (os vizinhos de uma muralha): a sombra do vizinho cai sobre esta
 //              peça como cairia no jogo, e a costura entre peças some;
 //   decal    — rachaduras/fuligem/buracos coplanares (não projetam sombra; fora do passe de time);
-//   noShadow — não projeta sombra.
+//   noShadow — não projeta sombra;
+//   tileRow  — tira de fiada de um telhado liso (some quando o telhado ganha a textura de telhas, Etapa 9).
 // `group.userData.shadowClip = { x0, x1, z0, z1, cut? }` (tiles, ±Infinity = aberto): a sombra projetada no chão é
 // recortada à região "dona" da peça (muralhas: a sombra de um trecho contínuo é desenhada uma vez só, sem faixas escuras
 // dobradas); `cut` = retângulos a tirar dessa região (a torre tira a faixa que a muralha vizinha já sombreia).
@@ -28,6 +29,7 @@
 import { M2T, PITCH_DEG } from './camera.js';
 import { ECONOMY_BUILDERS } from './rigs/buildings-economy.js';
 import { MILITARY_BUILDERS } from './buildings-military.js';
+import { texturize } from './buildings-textures.js';
 
 /** Estados de todo edifício com arte (o portão tem também `open`). */
 export const BUILDING_STATES = ['build0', 'build1', 'build2', 'complete', 'damage1', 'damage2'];
@@ -99,7 +101,7 @@ function makeKit(THREE, M, seed) {
     for (const s of [-1, 1]) {
       const slab = k.box(slope + 0.25, 0.1, len + 0.3, roof, s * halfW / 2, rise / 2 + 0.05, 0, g);
       slab.rotation.z = -s * ang;
-      for (let i = 1; i < nRows; i++) k.box(0.05, 0.05, len + 0.3, rows, -slope / 2 + (i * slope) / nRows, 0.07, 0, slab);
+      for (let i = 1; i < nRows; i++) k.box(0.05, 0.05, len + 0.3, rows, -slope / 2 + (i * slope) / nRows, 0.07, 0, slab).userData.tileRow = true;
       slab.userData.roof = true;
     }
     k.box(0.16, 0.12, len + 0.3, rows, 0, rise + 0.05, 0, g);
@@ -117,7 +119,7 @@ function makeKit(THREE, M, seed) {
     }
     const slab = k.box(x1 - x0 + 0.2, 0.1, L + 0.3, roof, 0, 0, 0, g);
     slab.userData.roof = true;
-    for (let i = 1; i < nRows; i++) k.box(x1 - x0 + 0.2, 0.05, 0.05, rows, 0, 0.07, -L / 2 + (i * L) / nRows, g);
+    for (let i = 1; i < nRows; i++) k.box(x1 - x0 + 0.2, 0.05, 0.05, rows, 0, 0.07, -L / 2 + (i * L) / nRows, g).userData.tileRow = true;
     return g;
   };
 
@@ -132,7 +134,7 @@ function makeKit(THREE, M, seed) {
     }
     const slab = k.box(L + 0.3, 0.1, z1 - z0 + 0.2, roof, 0, 0, 0, g);
     slab.userData.roof = true;
-    for (let i = 1; i < nRows; i++) k.box(0.05, 0.05, z1 - z0 + 0.2, rows, -L / 2 + (i * L) / nRows, 0.07, 0, g);
+    for (let i = 1; i < nRows; i++) k.box(0.05, 0.05, z1 - z0 + 0.2, rows, -L / 2 + (i * L) / nRows, 0.07, 0, g).userData.tileRow = true;
     return g;
   };
 
@@ -441,7 +443,7 @@ BUILDERS.temple = (k, p) => {
     for (const s of [-1, 1]) {
       const slab = box(slope + 0.25, 0.1, len + 0.3, M.terracotta, s * halfW / 2, eaves + roofH / 2 + 0.05, 0);
       slab.rotation.z = -s * ang;
-      for (let n = 1; n < 7; n++) box(0.05, 0.05, len + 0.3, M.terracottaDark, -slope / 2 + n * slope / 7, 0.07, 0, slab);
+      for (let n = 1; n < 7; n++) box(0.05, 0.05, len + 0.3, M.terracottaDark, -slope / 2 + n * slope / 7, 0.07, 0, slab).userData.tileRow = true;
     }
     box(0.16, 0.12, len + 0.3, M.terracottaDark, 0, eaves + roofH + 0.05, 0);
     box(5.4, 0.12, 0.22, M.marbleDark, 0, eaves - 0.02, len / 2 + 0.06);
@@ -934,6 +936,8 @@ export function buildBuilding(THREE, M, style, params = {}) {
   // do estilo (se houver) vem antes do genérico, para rachaduras e fuligem não ficarem nas peças que caíram
   B(k, { ...params, ...info, stage: info.stage });
   if (info.damage) { k.onDamage?.(info.damage); applyDamage(k, info.damage); }
+  // Etapa 9: telhas, cantaria, alvenaria, reboco, mármore e madeira texturizados (buildings-textures.js)
+  texturize(THREE, M, k.group);
   return k.group;
 }
 
