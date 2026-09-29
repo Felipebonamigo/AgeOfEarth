@@ -51,6 +51,21 @@ export function lightMatrix(l: LightKey): number[] {
     0, 0, 0, 1, 0,
   ];
 }
+/**
+ * Correção de cor do preset Alto (`quality.post`, Etapa 9): contraste e saturação um pouco maiores, altas luzes quentes e
+ * sombras levemente frias — a luz dura do verão mediterrâneo de uma foto, sem mudar o brilho médio.
+ */
+export const GRADE: LightKey = K(0, 1.035, 1.0, 0.955, 1.07, 1.0, 1.07, 0, 0.004, 0.014);
+/** Composição de matrizes 4×5 do ColorMatrixFilter: aplica `a` e depois `b`. */
+export function composeMatrix(a: readonly number[], b: readonly number[]): number[] {
+  const out = new Array<number>(20).fill(0);
+  for (let i = 0; i < 4; i++) {
+    for (let j = 0; j < 4; j++) { let v = 0; for (let k = 0; k < 4; k++) v += b[i * 5 + k] * a[k * 5 + j]; out[i * 5 + j] = v; }
+    let o = b[i * 5 + 4]; for (let k = 0; k < 4; k++) o += b[i * 5 + k] * a[k * 5 + 4]; out[i * 5 + 4] = o;
+  }
+  return out;
+}
+const NOON: LightKey = K(0.25, 1, 1, 1, 1, 1);
 /** Um cinza `v` (0–1) passado pela luz `l` (média dos canais): a régua de legibilidade dos testes. */
 export function lightGrey(l: LightKey, v: number): number {
   const m = lightMatrix(l);
@@ -69,8 +84,13 @@ export class DayCycle {
   offset = 0;
   /** `makeFilter`: os testes em Node passam um filtro falso (o ColorMatrixFilter real pede um canvas). */
   constructor(private readonly makeFilter: () => ColorMatrixFilter = () => new ColorMatrixFilter()) {}
-  /** Liga/desliga na camada `world` (desligado: nenhum filtro — custo zero). */
-  set(world: Container, on: boolean): void {
+  /** Correção de cor do preset Alto (GRADE), composta na mesma matriz do ciclo (um filtro só). */
+  private grade = false;
+  private cycle = false;
+  /** Liga/desliga na camada `world` o ciclo (`on`) e/ou a correção de cor (`grade`); nenhum dos dois: nenhum filtro — custo zero. */
+  set(world: Container, on: boolean, grade = false): void {
+    this.cycle = on; this.grade = grade;
+    on = on || grade;
     this.enabled = on;
     if (!on) {
       if (this.target && this.filter) { this.target.filters = (this.target.filters ?? []).filter((x) => x !== this.filter); if (this.target.filterArea === this.area) this.target.filterArea = undefined as unknown as Rectangle; }
@@ -85,9 +105,10 @@ export class DayCycle {
     if (!this.enabled || !this.filter) return;
     if (view) { const r = this.area; r.x = view.x; r.y = view.y; r.width = view.w; r.height = view.h; }
     t += this.offset;
-    const q = Math.floor(t * 4);
+    const q = this.cycle ? Math.floor(t * 4) : -2;   // só a correção de cor: a matriz é fixa
     if (q === this.last) return;
     this.last = q;
-    this.filter.matrix = lightMatrix(dayLight(t)) as ColorMatrixFilter['matrix'];
+    const base = lightMatrix(this.cycle ? dayLight(t) : NOON);
+    this.filter.matrix = (this.grade ? composeMatrix(base, lightMatrix(GRADE)) : base) as ColorMatrixFilter['matrix'];
   }
 }

@@ -23,6 +23,7 @@ import { FxSystem, type FxAcc } from './fx/FxSystem';
 import { deathView } from './fx/handlers/death';
 import { DayCycle } from './fx/light';
 import { CloudShadows } from './fx/clouds';
+import { vignetteTexture } from './fx/screen';
 import { bronzeTint } from './fx/handlers/bronze';
 import {
   abilityUseTick, animDuration, buildingState, chooseAnim, riseElapsed, corpseAlpha, CORPSE_TTL, MAX_CORPSES, dirWithHysteresis, freshHit, isWalking, isRunning, isMoveAnim, warmUnitTypes, unitLook, mulColor, type UnitAnim, type AnimInput,
@@ -132,6 +133,8 @@ export class Renderer {
   private dayCycle = new DayCycle();
   /** Sombras de nuvens (Etapa 9): presets Médio e Alto, fora do editor. */
   private clouds = new CloudShadows();
+  /** Vinheta escura suave nos cantos (preset Alto, `quality.post`): a lente de uma foto. */
+  private vignette: Sprite | null = null;
   /** Escombros no chão (um monte por queda). */
   private rubbleViews: RubbleView[] = [];
   /** Topologia das muralhas (muralha/portão/torre): assinatura dos ids e versão; as vistas recalculam o bitmask só
@@ -185,7 +188,8 @@ export class Renderer {
     this.art.configure(this.quality.bakedArt, this.quality.atlasScale);
     this.props = new PropLayer(this.tex, this.art);
     // camada de TELA dos efeitos (vinhetas da Trégua e do Oráculo, clarão do raio) entre o mundo e o overlay da interface
-    this.app.stage.addChild(this.world, this.fx.screen.root, this.overlay);
+    this.vignette = new Sprite(vignetteTexture()); this.vignette.tint = 0x0a0806; this.vignette.alpha = 0.3; this.vignette.eventMode = 'none'; this.vignette.visible = false;
+    this.app.stage.addChild(this.world, this.vignette, this.fx.screen.root, this.overlay);
     this.world.addChild(this.layers.terrain, this.layers.decals, this.layers.shadows, this.layers.props, this.edgeFrame, this.layers.ground, this.layers.buildings, this.layers.units, this.layers.fx, this.layers.clouds, this.layers.hp, this.layers.ghost, this.layers.editor, this.layers.fog);
     // efeitos: partículas/sprites na camada fx, decalques na camada decals (acima do terreno, abaixo das sombras)
     this.layers.fx.addChild(this.fx.root);
@@ -343,7 +347,8 @@ export class Renderer {
     this.art?.configure(q.bakedArt, q.atlasScale);
     // orçamento TOTAL de partículas e teto de decalques do preset (a fumaça dos edifícios ocupa até 35 % dele)
     this.fx.setQuality(q);
-    if (this.app?.stage) this.dayCycle.set(this.world, q.dayCycle);
+    if (this.app?.stage) this.dayCycle.set(this.world, q.dayCycle, q.post);
+    if (this.vignette) this.vignette.visible = q.post;
     if (this.app?.stage) this.clouds.set(this.layers.clouds, q.terrainShader === 'full');
     // materiais do preset gerados em segundo plano (um por macrotarefa, ≈ 250 ms no total a 512²) enquanto o menu está
     // aberto; main.ts chama setQuality logo após init, então a primeira partida já os encontra prontos
@@ -1284,6 +1289,7 @@ export class Renderer {
     this.updateEffects();
     this.updateRubble(state, ui.localPlayer);
     if (this.dayCycle.enabled) { const z = this.cam.zoom; this.dayCycle.update(this.animClock, { x: -this.world.x / z - 2, y: -this.world.y / z - 2, w: this.app.screen.width / z + 4, h: this.app.screen.height / z + 4 }); }
+    if (this.vignette?.visible) { this.vignette.width = this.app.screen.width; this.vignette.height = this.app.screen.height; }
     if (this.clouds.enabled) { const z = this.cam.zoom; this.clouds.update(this.animClock, { x: -this.world.x / z - 2, y: -this.world.y / z - 2, w: this.app.screen.width / z + 4, h: this.app.screen.height / z + 4 }, this.layers.editor.visible); }
     this.updateEditor(state, ui);
     this.updateFog(state, ui.localPlayer);

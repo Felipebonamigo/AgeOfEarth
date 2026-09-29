@@ -137,3 +137,24 @@ describe('ciclo de luz (opção)', () => {
     expect(world.filterArea).toBeFalsy();
   });
 });
+
+describe('correção de cor do preset Alto (Etapa 9)', () => {
+  it('compõe com o ciclo numa matriz só; sem ciclo, a grade é fixa e não muda o cinza médio', async () => {
+    const { GRADE, composeMatrix, lightMatrix: lm, lightGrey } = await import('../src/render/fx/light');
+    const id = [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0];
+    expect(composeMatrix(id, lm(GRADE)).map((v) => +v.toFixed(6))).toEqual(lm(GRADE).map((v) => +v.toFixed(6)));
+    expect(Math.abs(lightGrey(GRADE, 0.5) - 0.5)).toBeLessThan(0.02);   // brilho médio igual
+    const { Container } = await import('pixi.js');
+    const world = new Container(), dc = new DayCycle(() => ({ matrix: [] }) as unknown as ColorMatrixFilter);
+    dc.set(world, false, true);
+    expect(world.filters?.length).toBe(1);
+    dc.update(10, { x: 0, y: 0, w: 100, h: 100 });
+    const m = (world.filters![0] as ColorMatrixFilter).matrix.slice();
+    dc.update(500, { x: 0, y: 0, w: 100, h: 100 });   // sem ciclo: a matriz não anda com o tempo
+    expect((world.filters![0] as ColorMatrixFilter).matrix).toEqual(m);
+    dc.set(world, true, true);
+    expect(world.filters?.length).toBe(1);             // ciclo + grade: ainda um filtro
+    dc.set(world, false, false);
+    expect(world.filters?.length ?? 0).toBe(0);
+  });
+});
