@@ -9,6 +9,7 @@ import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { M2T, dirYaw } from './camera.js';
 import { buildTree, buildShrub, buildGrassTuft, barkMaterial } from './trees.js';
 import { rockMaterial, stumpTopMaterial, worldUV } from './nature-textures.js';
+import { buildDeer, buildBoar } from './animals.js';
 
 /** Semente inteira a partir de um texto (FNV-1a). */
 export function seedOf(text) { let h = 2166136261; for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -138,17 +139,10 @@ export function buildProp(THREE, M, kind, variant, tag) {
       break;
     }
     case 'deer': case 'boar': {
-      const deer = kind === 'deer';
-      const body = new THREE.Group(); rig.add(body);
-      body.rotation.y = dirYaw(V);                              // a variante é a direção (0 = E, horário)
-      const bodyMat = deer ? M.fur : M.furDark, H = deer ? 0.95 : 0.6, L = deer ? 1.3 : 1.1;
-      mesh(new THREE.CapsuleGeometry(deer ? 0.28 : 0.32, L - 0.5, 6, 12), bodyMat, 0, H, 0, body).rotation.x = Math.PI / 2;
-      for (const [x, z] of [[-0.16, -0.4], [0.16, -0.4], [-0.16, 0.4], [0.16, 0.4]]) mesh(new THREE.CylinderGeometry(0.05, 0.04, H, 6), deer ? M.furDark : M.hoof, x, H / 2, z, body);
-      const neck = mesh(new THREE.CylinderGeometry(0.1, 0.14, deer ? 0.6 : 0.3, 8), bodyMat, 0, H + (deer ? 0.25 : 0.05), -L / 2 + 0.05, body); neck.rotation.x = deer ? 0.7 : 1.2;
-      const head = mesh(new THREE.BoxGeometry(0.18, 0.2, deer ? 0.36 : 0.4), deer ? M.fur : M.furDark, 0, H + (deer ? 0.5 : 0.05), -L / 2 - (deer ? 0.15 : 0.3), body);
-      if (deer) { for (const s of [-1, 1]) { const a = mesh(new THREE.ConeGeometry(0.03, 0.4, 5), M.bark, s * 0.08, 0.3, 0.05, head); a.rotation.z = -s * 0.5; a.rotation.x = -0.3; } }
-      else { for (const s of [-1, 1]) mesh(new THREE.ConeGeometry(0.025, 0.14, 5), M.marble, s * 0.07, -0.06, -0.2, head).rotation.x = -Math.PI / 2; }
-      mesh(new THREE.ConeGeometry(0.05, 0.16, 5), bodyMat, 0, H + 0.05, L / 2 - 0.05, body).rotation.x = Math.PI / 2 + 0.5; // cauda
+      // Etapa 9: cervo e javali esculpidos (animals.js); a variante é a direção (0 = E, horário); o cervo pasta em 2 e 6
+      const body = kind === 'deer' ? buildDeer(THREE, M, V === 2 || V === 6) : buildBoar(THREE, M);
+      body.rotation.y = dirYaw(V);
+      rig.add(body);
       break;
     }
     case 'lure': {

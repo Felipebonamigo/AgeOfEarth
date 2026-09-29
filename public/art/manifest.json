@@ -1963,10 +1963,10 @@
    "scale": 1,
    "page": 0,
    "w": 1056,
-   "h": 320,
+   "h": 352,
    "frames": 65,
-   "bytes": 198025,
-   "sha256": "87e124643ec298033b79c69db2de09cd75e435f5c8741f124375ae11c683c479"
+   "bytes": 199859,
+   "sha256": "953b1cae6564a06558e3fac9d5a88f4862378dc13854aed19f5a210c3f069f64"
   },
   {
    "json": "props-2x-0.json",
@@ -1976,10 +1976,10 @@
    "scale": 2,
    "page": 0,
    "w": 2048,
-   "h": 608,
+   "h": 672,
    "frames": 65,
-   "bytes": 777087,
-   "sha256": "3e60cb79ae9864ffd7f48ba913565da65270d6a59dceda66adfd367bd5118fec"
+   "bytes": 783374,
+   "sha256": "0a29f4d047b9dccf8ab9d096b92c37a7796971787faec63f98f1ed6ce2c3e9db"
   },
   {
    "json": "props-shadow-1x-0.json",
@@ -1992,8 +1992,8 @@
    "w": 800,
    "h": 128,
    "frames": 65,
-   "bytes": 31725,
-   "sha256": "3426c7700487756e5e10d42adac00327c7bb7d945f65d19773a5f56bc5a37c8f"
+   "bytes": 31832,
+   "sha256": "f62238bc1170153f3aee4d37b5d0b470d4aeb78e408e77dd2c385b8a6d4dd23e"
   },
   {
    "json": "props-shadow-2x-0.json",
@@ -2006,8 +2006,8 @@
    "w": 1440,
    "h": 256,
    "frames": 65,
-   "bytes": 101602,
-   "sha256": "5da1dd757007d09cb1cf0cc26f24f5fea83f09ea465b305e48da68db17ce3ccb"
+   "bytes": 101672,
+   "sha256": "d59284d9a14554d73b34c18c410f49ab7a00fcbd50d7978da4b7ef7ff475e3aa"
   }
  ],
  "assets": {
@@ -6651,7 +6651,7 @@
   "props-ground": {
    "kind": "prop",
    "group": "props",
-   "sourceHash": "37aa7eb2cbc0a83d",
+   "sourceHash": "64f394ac568d4407",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -6695,7 +6695,7 @@
   "props-nodes": {
    "kind": "prop",
    "group": "props",
-   "sourceHash": "3fabe45ecb9bcf53",
+   "sourceHash": "71fb735af4390a80",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -6746,7 +6746,7 @@
   "props-trees": {
    "kind": "prop",
    "group": "props",
-   "sourceHash": "d10f7779f2609bbb",
+   "sourceHash": "05e54beb9f30c4ab",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -8286,8 +8286,8 @@
   }
  },
  "totals": {
-  "pngBytes": 115667154,
-  "vramBytes": 719904768,
+  "pngBytes": 115675452,
+  "vramBytes": 720564224,
   "atlases": 149
  }
 }
