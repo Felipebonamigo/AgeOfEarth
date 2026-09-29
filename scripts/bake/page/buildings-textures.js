@@ -333,3 +333,74 @@ export function texturize(THREE, M, group) {
     o.material = texturedFor(THREE, M, key);
   }
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// Plantações da fazenda (cartões com recorte por alfa)
+
+/**
+ * Textura de plantação em pé (2 m de largura × 1 m de altura, base embaixo): `ripe` = colmos dourados com as espigas e as
+ * barbas no alto; `growing` = folhas verdes compridas; `sown` = brotos baixos. Transparente entre as plantas.
+ */
+function cropCanvas(kind) {
+  const W = 512, H = 256, r = rng(seedOf(`crop/${kind}`));
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  const tone = (a, b, t) => `rgb(${Math.round(a[0] + (b[0] - a[0]) * t)},${Math.round(a[1] + (b[1] - a[1]) * t)},${Math.round(a[2] + (b[2] - a[2]) * t)})`;
+  const n = kind === 'ripe' ? 150 : kind === 'growing' ? 120 : 90;
+  for (let i = 0; i < n; i++) {
+    const x0 = r() * W, lean = (r() - 0.5) * 0.25;
+    const hFrac = kind === 'ripe' ? 0.78 + r() * 0.2 : kind === 'growing' ? 0.5 + r() * 0.45 : 0.18 + r() * 0.2;
+    const h = hFrac * H, x1 = x0 + lean * h, t = r();
+    if (kind === 'ripe') {
+      g.strokeStyle = tone([150, 120, 58], [206, 170, 86], t); g.lineWidth = 2.2;
+      g.beginPath(); g.moveTo(x0, H); g.quadraticCurveTo(x0 + lean * h * 0.3, H - h * 0.5, x1, H - h); g.stroke();
+      // espiga: fuso dourado com as barbas
+      const ex = x1, ey = H - h, el = 24 + r() * 10, ang = -Math.PI / 2 + lean * 1.4 + (r() - 0.5) * 0.3;
+      g.save(); g.translate(ex, ey); g.rotate(ang + Math.PI / 2);
+      g.fillStyle = tone([196, 156, 70], [234, 200, 112], r()); g.beginPath(); g.ellipse(0, -el / 2, 4.2, el / 2, 0, 0, 6.29); g.fill();
+      g.strokeStyle = 'rgba(80,60,20,0.35)'; g.lineWidth = 1; for (let k = 1; k < 5; k++) { g.beginPath(); g.moveTo(-4, -k * el / 5); g.lineTo(4, -k * el / 5 - 2); g.stroke(); }
+      g.strokeStyle = tone([210, 180, 100], [240, 214, 140], r()); g.lineWidth = 0.8;
+      for (let k = 0; k < 7; k++) { const yy = -el * (0.2 + k * 0.11); g.beginPath(); g.moveTo(0, yy); g.lineTo((k % 2 ? 1 : -1) * (6 + r() * 5), yy - 14 - r() * 8); g.stroke(); }
+      g.restore();
+      // folha seca pendente
+      if (r() < 0.5) { g.strokeStyle = tone([160, 132, 70], [196, 166, 96], r()); g.lineWidth = 3; const yy = H - h * (0.3 + r() * 0.3); g.beginPath(); g.moveTo(x0 + lean * (H - yy), yy); g.quadraticCurveTo(x0 + 14 * (r() > 0.5 ? 1 : -1), yy - 8, x0 + 22 * (r() > 0.5 ? 1 : -1), yy + 12); g.stroke(); }
+    } else {
+      // folhas em fita: base mais escura, ponta clara, curvando para o lado
+      const side = r() > 0.5 ? 1 : -1, w = kind === 'growing' ? 5 + r() * 4 : 4 + r() * 3;
+      const gr = g.createLinearGradient(0, H, 0, H - h);
+      const base = kind === 'growing' ? [58, 92, 38] : [80, 116, 50], tip = kind === 'growing' ? [118, 158, 70] : [140, 176, 90];
+      gr.addColorStop(0, tone(base, base, 0)); gr.addColorStop(1, tone(tip, tip, 0));
+      g.fillStyle = gr; g.beginPath(); g.moveTo(x0 - w / 2, H);
+      g.quadraticCurveTo(x0 + side * h * 0.1, H - h * 0.6, x0 + side * h * 0.28, H - h);
+      g.quadraticCurveTo(x0 + side * h * 0.08, H - h * 0.55, x0 + w / 2, H); g.fill();
+    }
+  }
+  return cv;
+}
+/** Material de plantação em pé (cartão): textura com alfa, as duas faces, sombra recortada pela planta. */
+export function cropMaterial(THREE, kind) {
+  const key = `cropmat/${kind}`;
+  if (TEX.has(key)) return TEX.get(key);
+  const t = new THREE.CanvasTexture(cropCanvas(kind)); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.anisotropy = 8;
+  // o trigo maduro puxado para o dourado (a textura sozinha, com a normal para cima, saía clara demais, quase palha)
+  const mat = new THREE.MeshStandardMaterial({ map: t, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.9, color: kind === 'ripe' ? 0xe6c88c : 0xffffff });
+  const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: t, alphaTest: 0.5 });
+  const out = { mat, depth };
+  TEX.set(key, out);
+  return out;
+}
+/**
+ * Cartão de plantação: plano vertical de `w` × `h` m (a textura inteira na altura), ao longo de x, com a base em y = 0; UV
+ * em metros na largura (a textura cobre 2 m) com o deslocamento `u0`; a normal aponta para cima e para a câmera (o cartão pega a luz como o topo da plantação,
+ * não como uma parede contra o sol).
+ */
+export function cropCard(THREE, kind, w, h, u0 = 0) {
+  const { mat, depth } = cropMaterial(THREE, kind);
+  const geo = new THREE.PlaneGeometry(w, h);
+  const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, u0 + uv.getX(i) * (w / 2));
+  const nrm = geo.attributes.normal, l = Math.sqrt(0.85 * 0.85 + 0.5 * 0.5);
+  for (let i = 0; i < nrm.count; i++) nrm.setXYZ(i, 0, 0.85 / l, 0.5 / l);
+  geo.translate(0, h / 2, 0);
+  const m = new THREE.Mesh(geo, mat); m.customDepthMaterial = depth; m.castShadow = true; m.receiveShadow = true;
+  return m;
+}

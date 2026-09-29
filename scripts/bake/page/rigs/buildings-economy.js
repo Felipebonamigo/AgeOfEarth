@@ -8,6 +8,8 @@
 // ficam na meia-sombra (sol de noroeste): fachadas claras. Sem Math.random: sementes por estilo/variante — não por
 // estado, para o dano partir do mesmo modelo do `complete`.
 
+import { cropCard } from '../buildings-textures.js';
+
 const TAU = Math.PI * 2;
 function seedOf(text) { let h = 2166136261; for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -267,22 +269,14 @@ B.farm = (k, p) => {
           else if (crop > 0) box(0.28, 0.025, 0.06, X.stubble, jx, 0.09, jz).rotation.y = rt * 3;
           continue;
         }
-        if (crop === 0) {
-          // brotos: dois pares de folhinhas em V
-          for (const s of [-1, 1]) { const b = box(0.05, 0.1 + rh * 0.05, 0.04, X.sprout, jx + s * 0.025, 0.11, jz); b.rotation.z = s * 0.45; }
-        } else if (crop === 1) {
-          // touceiras verdes: 2–3 cones
-          for (let c = 0; c < 3; c++) {
-            const h = 0.3 + R() * 0.2, cc = k.mesh(new k.THREE.ConeGeometry(0.08, h, 5), c % 2 ? X.cropDark : X.crop, jx + (c - 1) * 0.07, 0.09 + h / 2, jz + (R() - 0.5) * 0.06);
-            cc.rotation.set((R() - 0.5) * 0.3, R() * 3, (R() - 0.5) * 0.4);
-          }
-        } else {
-          // trigo maduro: colmo dourado com a faixa das espigas por cima; a fileira da frente ceifada à leste
-          if (ri === rows.length - 1 && x > -0.2) { box(0.22, 0.07, 0.16, X.stubble, jx, 0.12, jz); continue; }
-          const h = 0.72 + rh * 0.16;
-          const stalk = box(0.26, h - 0.12, 0.24, X.wheat, jx, 0.09 + (h - 0.12) / 2, jz);
-          stalk.rotation.z = (rt - 0.5) * 0.12;
-          box(0.29, 0.14, 0.27, X.wheatHead, jx + (rt - 0.5) * 0.06, 0.09 + h - 0.06, jz).rotation.y = (rh - 0.5) * 0.5;
+        if (crop === 2 && ri === rows.length - 1 && x > -0.2) { box(0.22, 0.07, 0.16, X.stubble, jx, 0.12, jz); continue; }   // fileira da frente ceifada
+        // Etapa 9: plantação em cartões com recorte por alfa (colmos e espigas, folhas, brotos), três camadas por trecho
+        const kind = crop === 2 ? 'ripe' : crop === 1 ? 'growing' : 'sown';
+        const h = crop === 2 ? 0.86 + rh * 0.14 : crop === 1 ? 0.5 + rh * 0.12 : 0.3;
+        const step = crop === 0 ? 0.21 : crop === 1 ? 0.3 : 0.26;
+        for (const dz of [-0.09, 0, 0.09]) {
+          const c = cropCard(k.THREE, kind, step + 0.05, h, R() * 2);
+          c.position.set(jx, 0.09, jz + dz + (R() - 0.5) * 0.03); c.rotation.y = (rt - 0.5) * 0.08; k.r.add(c);
         }
       }
     }
