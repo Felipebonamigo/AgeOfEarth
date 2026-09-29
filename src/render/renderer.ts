@@ -15,6 +15,7 @@ import { terrainColor, regionColor, SHADOW_ALPHA } from './palette';
 import { FogMesh } from './fog';
 import { unitShadow, buildingShadow } from './shadows';
 import { ChunkMesh, materialSizeFor, prewarmTerrain } from './terrain/ChunkMesh';
+import { buildWear } from './terrain/materials';
 import { PropLayer } from './props';
 import { ArtLibrary } from './art/ArtLibrary';
 import { UnitView } from './views/UnitView';
@@ -174,6 +175,8 @@ export class Renderer {
   revealAll = false;
   private fog: FogMesh | null = null; private fogVersion = -1;
   private terrVersion = -1;
+  /** Assinatura do conjunto de edifícios do último chão batido ('' = refazer) e contador de quadros da checagem. */
+  private wearKey = ''; private wearTick = 0;
   private state: GameState | null = null;
   time = 0;
 
@@ -250,6 +253,7 @@ export class Renderer {
     const { w, h } = state.map;
     // Terreno (e fronteiras) por shader: texturas w×h escritas a partir do mapa; névoa: malha w×h própria (fog.ts)
     this.terrain = new ChunkMesh(state.map, this.quality); this.layers.terrain.addChild(this.terrain.mesh);
+    this.wearKey = '';
     this.fog = new FogMesh(w, h); this.layers.fog.addChild(this.fog.mesh);
     // arte assada: pré-aquecimento dos atlas (sem esperar; enquanto carrega, tudo sai procedural)
     this.bakedMode = this.quality.bakedArt; this.artGen = this.art.generation;
@@ -363,6 +367,12 @@ export class Renderer {
     t.frame(this.time, this.cam.zoom);
     // Fronteiras: só uOwner é reescrito quando o território muda
     if (state.territoryVersion !== this.terrVersion) { this.terrVersion = state.territoryVersion; t.updateOwner(state.territory); }
+    // Chão batido em volta dos edifícios: refeito quando o conjunto muda (assinatura barata a cada 15 quadros)
+    if (this.wearKey === '' || ++this.wearTick % 15 === 0) {
+      let ids = 0; for (const id of state.buildings.keys()) ids = (ids + id * 2654435761) >>> 0;
+      const key = `${state.buildings.size}:${ids}`;
+      if (key !== this.wearKey) { this.wearKey = key; const wear = buildWear(state.map.w, state.map.h, state.buildings.values()); t.setWear(wear); this.props.wear = wear; }
+    }
     this.updateProps(state, local);
   }
 

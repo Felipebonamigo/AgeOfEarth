@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { TERRAIN, PLAYER_COLORS } from '../src/core/constants';
 import { generateMap } from '../src/core/map/mapgen';
 import { TERRAIN_FRAG_FULL, TERRAIN_FRAG_SIMPLE, TERRAIN_VERT, TERRAIN_UNIFORMS, TERRAIN_DATA_SAMPLERS, TERRAIN_MATERIAL_SAMPLERS, TERRAIN_SIMPLE_SAMPLERS } from '../src/render/terrain/shaders';
-import { generateMaterials, writeOwner, writeTerrainRect, TERRAIN_INFLUENCE, KIND_CHANNEL, WEIGHT_CHANNEL, type TerrainSource } from '../src/render/terrain/materials';
+import { buildWear, generateMaterials, writeOwner, writeTerrainRect, TERRAIN_INFLUENCE, KIND_CHANNEL, WEIGHT_CHANNEL, WEAR_DIRT, WEAR_RADIUS, type TerrainSource } from '../src/render/terrain/materials';
 
 /** Mapa pequeno e determinístico (só terreno) para os testes de bytes. */
 function smallMap(): TerrainSource {
@@ -111,6 +111,42 @@ describe('texturas de dados do terreno', () => {
     const fa = full(a), fb = full(b);
     expect(Buffer.from(fa.kd).equals(Buffer.from(fb.kd))).toBe(true);
     expect(Buffer.from(fa.wt).equals(Buffer.from(fb.wt))).toBe(true);
+  });
+});
+
+describe('chão batido (Etapa 9)', () => {
+  const tc = { type: 'town_center', tx: 20, ty: 12, w: 4, h: 4 };
+  it('buildWear: gasto encostado na pegada, some além do raio, máximo entre edifícios; fazenda e muralha não pisam', () => {
+    const w = 60, h = 40, wear = buildWear(w, h, [tc]);
+    expect(wear[11 * w + 21]).toBeGreaterThan(200);            // logo acima da pegada
+    expect(wear[14 * w + 24]).toBeGreaterThan(200);            // logo à direita
+    const far = Math.ceil(WEAR_RADIUS.town_center + 2);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const dx = Math.max(tc.tx - x - 0.5, 0, x + 0.5 - (tc.tx + tc.w)), dy = Math.max(tc.ty - y - 0.5, 0, y + 0.5 - (tc.ty + tc.h));
+      if (Math.sqrt(dx * dx + dy * dy) > far) expect(wear[y * w + x], `${x},${y}`).toBe(0);
+    }
+    // a borda é recortada (manchas), não um anel: a 2 tiles da pegada o gasto varia entre os tiles
+    const ring = [18, 19, 20, 21, 22, 23, 24, 25].map((x) => wear[9 * w + x]);
+    expect(Math.max(...ring) - Math.min(...ring)).toBeGreaterThan(20);
+    const house = { type: 'house', tx: 40, ty: 20, w: 2, h: 2 };
+    const both = buildWear(w, h, [tc, house]);
+    for (let i = 0; i < w * h; i++) expect(both[i]).toBe(Math.max(wear[i], buildWear(w, h, [house])[i]));
+    expect(buildWear(w, h, [{ type: 'farm', tx: 5, ty: 5, w: 3, h: 3 }, { type: 'wall', tx: 30, ty: 30, w: 1, h: 1 }]).every((v) => v === 0)).toBe(true);
+    expect(buildWear(w, h, [tc])).toEqual(wear);                 // determinístico
+  });
+  it('writeTerrainRect com desgaste: só a grama cede peso para a terra (no máximo WEAR_DIRT/256)', () => {
+    const m = smallMap(), wear = new Uint8Array(m.w * m.h).fill(255);
+    const wt = new Uint8Array(m.w * m.h * 4), kd = new Uint8Array(m.w * m.h * 4);
+    writeTerrainRect(m, wt, kd, 0, 0, m.w - 1, m.h - 1, wear);
+    const base = full(m);
+    for (let i = 0; i < m.w * m.h; i++) {
+      const o = i * 4;
+      if (m.terrain[i] === TERRAIN.GRASS) {
+        expect(wt[o + WEIGHT_CHANNEL.dirt]).toBe((255 * WEAR_DIRT + 127) >> 8);
+        expect(wt[o + WEIGHT_CHANNEL.grass] + wt[o + WEIGHT_CHANNEL.dirt]).toBe(255);
+      } else for (let c = 0; c < 4; c++) expect(wt[o + c]).toBe(base.wt[o + c]);
+    }
+    expect(kd).toEqual(base.kd);
   });
 });
 

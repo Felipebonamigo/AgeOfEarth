@@ -7,7 +7,7 @@
 // funções puras, sem Pixi nem DOM, testadas em tests/terrain-shader.test.ts. O bake em build (page/terrain.js) fica
 // para a Etapa 2: quando os PNG existirem, este gerador vira o fallback.
 import { TERRAIN } from '../../core/constants';
-import { TERRAIN_PALETTE, GRASS_DRY, hash01, dryness } from '../palette';
+import { TERRAIN_PALETTE, GRASS_DRY, hash01, dryness, noise2 } from '../palette';
 
 export type MaterialSize = 256 | 512;
 /** Um material: albedo (RGBA, alfa = altura 0..255) e normal (RGBA, xyz em 0..255, alfa = oclusão 0..255). */
@@ -486,7 +486,7 @@ const isMountain = (t: number) => t === TERRAIN.MOUNTAIN;
  * TERRAIN_INFLUENCE são lidos, não escritos); função pura e determinística. Água e profunda levam areia por baixo
  * (leito visível na margem); montanha leva rocha. Devolve o retângulo efetivamente escrito ou null se vazio.
  */
-export function writeTerrainRect(map: TerrainSource, weights: Uint8Array, kind: Uint8Array, x0: number, y0: number, x1: number, y1: number): { x0: number; y0: number; x1: number; y1: number } | null {
+export function writeTerrainRect(map: TerrainSource, weights: Uint8Array, kind: Uint8Array, x0: number, y0: number, x1: number, y1: number, wear?: Uint8Array | null): { x0: number; y0: number; x1: number; y1: number } | null {
   const ax0 = Math.max(0, Math.min(x0, x1)), ay0 = Math.max(0, Math.min(y0, y1));
   const ax1 = Math.min(map.w - 1, Math.max(x0, x1)), ay1 = Math.min(map.h - 1, Math.max(y0, y1));
   if (ax1 < ax0 || ay1 < ay0) return null;
@@ -495,7 +495,7 @@ export function writeTerrainRect(map: TerrainSource, weights: Uint8Array, kind: 
     weights[o] = 0; weights[o + 1] = 0; weights[o + 2] = 0; weights[o + 3] = 0;
     kind[o] = 0; kind[o + 1] = 0; kind[o + 2] = 0; kind[o + 3] = 0;
     switch (t) {
-      case TERRAIN.GRASS: weights[o] = 255; kind[o + 2] = (dryness(x, y) * 255 + 0.5) | 0; break;
+      case TERRAIN.GRASS: { const k = wear ? (wear[i] * WEAR_DIRT + 127) >> 8 : 0; weights[o] = 255 - k; weights[o + 1] = k; kind[o + 2] = (dryness(x, y) * 255 + 0.5) | 0; break; }
       case TERRAIN.DIRT: weights[o + 1] = 255; break;
       case TERRAIN.SAND: weights[o + 2] = 255; break;
       case TERRAIN.MOUNTAIN: {
@@ -514,6 +514,41 @@ export function writeTerrainRect(map: TerrainSource, weights: Uint8Array, kind: 
     }
   }
   return { x0: ax0, y0: ay0, x1: ax1, y1: ay1 };
+}
+
+// ---------------- Chão batido (Etapa 9, docs/ART.md Apêndice I) ----------------
+/** Fração máxima (/256) do peso da grama que o chão mais pisado passa para a terra (o resto deixa touceiras furando a terra). */
+export const WEAR_DIRT = 200;
+/** Raio (tiles, a partir da borda da pegada) do chão batido por tipo de edifício; os ausentes (fazenda, muralha, torre) não pisam. */
+export const WEAR_RADIUS: Readonly<Record<string, number>> = {
+  town_center: 3.4, market: 2.6, wonder_zeus: 2.8, wonder_artemis: 2.8, wonder_colossus: 2.8, titan_gate: 2.6, fortress: 2.4,
+  barracks: 2.2, stable: 2.2, siege_workshop: 2.2, temple: 2.2, academy: 2, granary: 2, lumber_camp: 2, mine: 2,
+  cornucopia: 1.8, house: 1.3, gate: 1.6,
+};
+export interface WearSource { type: string; tx: number; ty: number; w: number; h: number }
+/**
+ * Chão batido em volta dos edifícios (só do renderizador): por tile, 0–255 de quanto o movimento de gente e animais
+ * gastou a grama — 255 encostado na pegada, caindo até 0 em WEAR_RADIUS[tipo] tiles, com a borda recortada por um ruído
+ * largo (manchas, não anéis) e o máximo entre edifícios. Determinístico pelos edifícios; função pura (testada em Node).
+ */
+export function buildWear(w: number, h: number, buildings: Iterable<WearSource>): Uint8Array {
+  const out = new Uint8Array(w * h);
+  for (const b of buildings) {
+    const R = WEAR_RADIUS[b.type];
+    if (!R) continue;
+    const r = Math.ceil(R + 1);
+    const x0 = Math.max(0, b.tx - r), y0 = Math.max(0, b.ty - r), x1 = Math.min(w - 1, b.tx + b.w - 1 + r), y1 = Math.min(h - 1, b.ty + b.h - 1 + r);
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      // distância do centro do tile à pegada [tx, tx + w] × [ty, ty + h]
+      const cx = x + 0.5, cy = y + 0.5;
+      const dx = Math.max(b.tx - cx, 0, cx - (b.tx + b.w)), dy = Math.max(b.ty - cy, 0, cy - (b.ty + b.h));
+      const d = Math.sqrt(dx * dx + dy * dy) + (noise2(x * 0.45 + 17, y * 0.45 + 91) - 0.5) * 1.6 + (hash01(x, y, 87) - 0.5) * 0.35;
+      const k = 1 - Math.max(0, Math.min(1, (d - 0.2) / (R - 0.2)));
+      const v = Math.round(255 * k * k * (3 - 2 * k)), i = y * w + x;
+      if (v > out[i]) out[i] = v;
+    }
+  }
+  return out;
 }
 
 /** Escreve uOwner (RGBA: RGB = cor do dono, A = dono + 1, 0 = ninguém) a partir de state.territory (w·h entradas). */

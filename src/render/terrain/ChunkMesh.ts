@@ -11,7 +11,7 @@ import { BufferImageSource, Mesh, MeshGeometry, Shader, UniformGroup } from 'pix
 import { TILE, TERRAIN, PLAYER_COLORS } from '../../core/constants';
 import { FOAM, GRASS_DRY, MOUNTAIN_TOP, SUN_DIR, TERRAIN_PALETTE } from '../palette';
 import type { Quality } from '../quality';
-import { cachedMaterials, generateMaterials, generateMaterialsLazy, writeOwner, writeTerrainRect, TERRAIN_INFLUENCE, type MaterialSize, type TerrainMaterials, type TerrainSource } from './materials';
+import { cachedMaterials, generateMaterials, generateMaterialsLazy, writeOwner, writeTerrainRect, TERRAIN_INFLUENCE, WEAR_DIRT, type MaterialSize, type TerrainMaterials, type TerrainSource } from './materials';
 import { TERRAIN_FRAG_FULL, TERRAIN_FRAG_SIMPLE, TERRAIN_VERT } from './shaders';
 
 export const CHUNK = 16;
@@ -97,6 +97,8 @@ export class ChunkMesh {
   private shader: Shader | null = null;
   private shaderKey = '';
   private cullKey = '';
+  /** Chão batido em vigor (buildWear; null = nenhum). */
+  private wear: Uint8Array | null = null;
 
   constructor(private map: TerrainSource, quality: TerrainQuality) {
     const { w, h } = map;
@@ -183,9 +185,27 @@ export class ChunkMesh {
    */
   invalidateRect(x0: number, y0: number, x1: number, y1: number): void {
     const r = TERRAIN_INFLUENCE;
-    const done = writeTerrainRect(this.map, this.weights, this.kind, Math.min(x0, x1) - r, Math.min(y0, y1) - r, Math.max(x0, x1) + r, Math.max(y0, y1) + r);
+    const done = writeTerrainRect(this.map, this.weights, this.kind, Math.min(x0, x1) - r, Math.min(y0, y1) - r, Math.max(x0, x1) + r, Math.max(y0, y1) + r, this.wear);
     if (!done) return;
     this.wSrc.update(); this.kSrc.update();
+  }
+
+  /**
+   * Chão batido (materials.buildWear, w·h bytes): reescreve os pesos só dos tiles de grama cujo desgaste mudou (parte do
+   * peso da grama passa para a terra) e sobe uWeights; nada mudou, nada sobe.
+   */
+  setWear(wear: Uint8Array | null): void {
+    const old = this.wear, { w, h, terrain } = this.map;
+    this.wear = wear;
+    let changed = false;
+    for (let i = 0, n = w * h; i < n; i++) {
+      const a = old ? old[i] : 0, b = wear ? wear[i] : 0;
+      if (a === b || terrain[i] !== TERRAIN.GRASS) continue;
+      const k = (b * WEAR_DIRT + 127) >> 8;
+      this.weights[i * 4] = 255 - k; this.weights[i * 4 + 1] = k;
+      changed = true;
+    }
+    if (changed) this.wSrc.update();
   }
 
   /** Território mudou: só uOwner é reescrito e enviado. */

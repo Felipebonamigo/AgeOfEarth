@@ -40,6 +40,8 @@ const BAKED_MARGIN = { left: 2, right: 1, top: 1, bottom: 4 } as const;
 const LEGACY_MARGIN = { left: 1, right: 1, top: 1, bottom: 1 } as const;
 /** Abaixo deste zoom a vegetação rasteira some (e nem nasce): a zoom 0,35 é sub-pixel e custava ~3 ms de CPU no mapa inteiro. */
 export const DECOR_MIN_ZOOM = 0.6;
+/** Desgaste (0–255) a partir do qual a grama do chão batido só recebe a decoração da terra (seixos, capim ralo). */
+export const WEAR_BARE = 110;
 
 export class PropLayer {
   /** Faixas de props (e, no modo assado, de unidades/edifícios); vai na camada 'props'. */
@@ -63,6 +65,8 @@ export class PropLayer {
   private revealed = false;
   /** Tiles com toco (sobrevive a reconstruções da arte; zera numa partida nova). */
   private stumps = new Set<number>();
+  /** Chão batido em vigor (materials.buildWear, posto pelo renderizador): a grama muito pisada perde flores e maquis. */
+  wear: Uint8Array | null = null;
   /** Modo assado (ordem global com entidades, folgas maiores) e props assados servidos. */
   private bakedMode = false;
   private bakedProps = false;
@@ -83,7 +87,7 @@ export class PropLayer {
     for (const c of this.shadowRows) c.destroy({ children: true });
     this.props.clear();
     this.root.removeChildren(); this.shadowRoot.removeChildren();
-    if (!keepStumps) this.stumps.clear();
+    if (!keepStumps) { this.stumps.clear(); this.wear = null; }   // partida nova: o chão batido vem no primeiro quadro
     this.bakedMode = bakedMode; this.bakedProps = bakedMode && bakedProps;
     const cw = Math.ceil(state.map.w / CHUNK), ch = Math.ceil(state.map.h / CHUNK);
     this.cw = cw; this.nTiles = state.map.w * state.map.h;
@@ -179,6 +183,13 @@ export class PropLayer {
     this.ids[chunk]?.add(key);
     this.props.set(key, { sprite: s, shadow: sh, type: 'decor', x, y, chunk, node: null, stage: -1, frame: name });
   }
+  /** Decoração do tile `t` pelo terreno que ela enxerga: a grama do chão batido (desgaste > WEAR_BARE) conta como terra. */
+  private decorAt(map: GameState['map'], t: number): string | null {
+    const x = t % map.w, y = (t - x) / map.w;
+    let ter = map.terrain[t];
+    if (ter === TERRAIN.GRASS && this.wear && this.wear[t] > WEAR_BARE) ter = TERRAIN.DIRT;
+    return groundDecor(x, y, ter, nearWater(map, x, y));
+  }
   /** Sombra de um prop assado na faixa de sombras `cy`, no mesmo ponto/escala do sprite. */
   private makeShadow(tex: Texture, anchor: { x: number; y: number }, s: Sprite, cy: number): Sprite {
     const sh = new Sprite(tex); sh.anchor.set(anchor.x, anchor.y); sh.position.copyFrom(s.position); sh.scale.copyFrom(s.scale);
@@ -215,7 +226,7 @@ export class PropLayer {
     for (const id of ids) {
       const v = this.props.get(id)!;
       const t = v.y * map.w + v.x;
-      if (v.type === 'decor') { if (map.nodeAt[t] !== -1 || map.buildingAt[t] !== -1 || this.stumps.has(t) || groundDecor(v.x, v.y, map.terrain[t], nearWater(map, v.x, v.y)) !== v.frame) this.drop(id, v); continue; }
+      if (v.type === 'decor') { if (map.nodeAt[t] !== -1 || map.buildingAt[t] !== -1 || this.stumps.has(t) || this.decorAt(map, t) !== v.frame) this.drop(id, v); continue; }
       if (id < 0) { if (map.nodeAt[t] !== -1 || map.buildingAt[t] !== -1) { this.drop(id, v); this.stumps.delete(t); } continue; }
       const n = map.nodes.get(id);
       if (!n || n.type !== v.type || map.nodeAt[t] !== id) {
@@ -243,7 +254,7 @@ export class PropLayer {
     if (this.bakedProps && this.decorOn) for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
       const t = y * map.w + x;
       if (map.nodeAt[t] !== -1 || map.buildingAt[t] !== -1 || this.stumps.has(t) || this.props.has(-(t + 1) - this.nTiles)) continue;
-      const name = groundDecor(x, y, map.terrain[t], nearWater(map, x, y));
+      const name = this.decorAt(map, t);
       if (name) this.addDecor(state, t, name);
     }
   }
