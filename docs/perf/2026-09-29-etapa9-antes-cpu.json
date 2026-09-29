@@ -1,0 +1,195 @@
+{
+  "date": "2026-09-29",
+  "commit": "e26e6b5",
+  "label": "etapa9-antes",
+  "url": "http://localhost:4174/",
+  "quality": "medium",
+  "frames": 150,
+  "note": "CPU por quadro (ms) em laço síncrono, resolução 0,25 (sem rasterização relevante); render = renderer.render, pixi = app.renderer.render.",
+  "scenario": {
+    "units": 260,
+    "buildings": 133,
+    "localAlive": false,
+    "warmMinutes": 20,
+    "battle": null
+  },
+  "results": [
+    {
+      "baked": true,
+      "view": "zoom1",
+      "render": {
+        "avg": 1.019,
+        "med": 0.9,
+        "p95": 1.8
+      },
+      "pixi": {
+        "avg": 1.663,
+        "med": 1.4,
+        "p95": 3.1
+      },
+      "sprites": 875,
+      "fx": {
+        "peak": 127,
+        "budget": 2000,
+        "dropped": 0,
+        "decals": 2,
+        "effects": 0
+      }
+    },
+    {
+      "baked": true,
+      "view": "zoomOut",
+      "render": {
+        "avg": 2.573,
+        "med": 2,
+        "p95": 4.1
+      },
+      "pixi": {
+        "avg": 8.521,
+        "med": 7.9,
+        "p95": 11.7
+      },
+      "sprites": 5224,
+      "fx": {
+        "peak": 116,
+        "budget": 2000,
+        "dropped": 0,
+        "decals": 2,
+        "effects": 0
+      }
+    },
+    {
+      "baked": true,
+      "view": "battle",
+      "render": {
+        "avg": 0.767,
+        "med": 0.6,
+        "p95": 1.8
+      },
+      "pixi": {
+        "avg": 1.268,
+        "med": 1.2,
+        "p95": 2.4
+      },
+      "sprites": 801,
+      "fx": {
+        "peak": 184,
+        "budget": 2000,
+        "dropped": 0,
+        "decals": 2,
+        "effects": 1
+      }
+    },
+    {
+      "baked": true,
+      "view": "scroll",
+      "render": {
+        "avg": 0.491,
+        "med": 0.4,
+        "p95": 1.1
+      },
+      "pixi": {
+        "avg": 1.123,
+        "med": 1,
+        "p95": 2.4
+      },
+      "sprites": 630,
+      "fx": {
+        "peak": 149,
+        "budget": 2000,
+        "dropped": 0,
+        "decals": 4,
+        "effects": 0
+      }
+    },
+    {
+      "baked": true,
+      "view": "zoom1",
+      "render": {
+        "avg": 0.825,
+        "med": 0.6,
+        "p95": 1.4
+      },
+      "pixi": {
+        "avg": 1.323,
+        "med": 1.1,
+        "p95": 2.2
+      },
+      "sprites": 773,
+      "fx": {
+        "peak": 132,
+        "budget": 2000,
+        "dropped": 0,
+        "decals": 6,
+        "effects": 5
+      }
+    },
+    {
+      "baked": true,
+      "view": "zoomOut",
+      "render": {
+        "avg": 1.819,
+        "med": 1.6,
+        "p95": 3
+      },
+      "pixi": {
+        "avg": 7.479,
+        "med": 7,
+        "p95": 12.7
+      },
+      "sprites": 5243,
+      "fx": {
+        "peak": 113,
+        "budget": 2000,
+        "dropped": 0,
+        "decals": 6,
+        "effects": 3
+      }
+    },
+    {
+      "baked": true,
+      "view": "battle",
+      "render": {
+        "avg": 0.654,
+        "med": 0.5,
+        "p95": 1.5
+      },
+      "pixi": {
+        "avg": 1.11,
+        "med": 0.9,
+        "p95": 2.5
+      },
+      "sprites": 659,
+      "fx": {
+        "peak": 125,
+        "budget": 2000,
+        "dropped": 0,
+        "decals": 6,
+        "effects": 8
+      }
+    },
+    {
+      "baked": true,
+      "view": "scroll",
+      "render": {
+        "avg": 0.857,
+        "med": 0.5,
+        "p95": 2.2
+      },
+      "pixi": {
+        "avg": 1.469,
+        "med": 0.9,
+        "p95": 3.8
+      },
+      "sprites": 644,
+      "fx": {
+        "peak": 298,
+        "budget": 2000,
+        "dropped": 0,
+        "decals": 12,
+        "effects": 12
+      }
+    }
+  ],
+  "errors": []
+}

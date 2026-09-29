@@ -633,6 +633,16 @@ tile/s de jogo — a pausa congela). Escurecem terreno, props, edifícios e unid
 nuvem só no shader do terreno). Custo: 1 sprite em mosaico por quadro. Ligadas nos presets Médio e Alto (shader completo do
 terreno), desligadas no Baixo e no editor. Teste: `tests/clouds.test.ts`. Captura: `docs/art/etapa9-nuvens-antes-depois.png`.
 
+**Desempenho** (antes = `57be3e0`, o commit anterior à Etapa 9; mesma máquina, builds lado a lado nas portas 4174/4173):
+`rendercpu --modes aa --quality medium` (mediana em ms/quadro, `render` = nosso código, `pixi` = Pixi sem esperar a GPU) —
+zoom 1 na cidade 0,6/1,1 → **0,5/1,1** (1 026 sprites em vez de 773: a vegetação rasteira); batalha 0,5–0,6/0,9–1,2 →
+0,5–0,7/1,1–1,3; rolagem 0,4–0,5/0,9–1,0 → 0,5/1,3–1,6 (os chunks novos criam a vegetação); **mapa inteiro 1,6/7,0 →
+1,5/6,5** — a primeira medida, sem limite de zoom, dava 1,8/10,2 com 7 028 sprites (+1 785 de vegetação sub-pixel), daí
+`DECOR_MIN_ZOOM` = 0,6 em `props.ts` (abaixo disso a vegetação some e nem nasce). `renderperf --quality medium --reveal`:
++1 draw call (as nuvens), textura residente 94,5–97,2 MB (antes 97,4–100,1: o atlas de props ficou menor). O shader do
+terreno faz as mesmas amostras de antes (3 grades × albedo+normal); a geração dos materiais subiu de ~310 para ~510 ms a
+512², em passos de ≤ 140 ms no menu. JSON em `docs/perf/2026-09-29-etapa9-{antes,depois}-{cpu,medio}.json`.
+
 **Bake parcial num contêiner novo** (`scripts/bake/merge-group.mjs`): o cache do bake (`art/cache`, fora do git) começa vazio, e
 `art:bake --only …` sem `--out` refaria os atlas só com o que estiver no cache. O caminho seguro é assar o grupo num rascunho e
 fundir: `node scripts/bake/bake.mjs --only props-trees,props-nodes --scale 1,2 --out <rascunho>` e

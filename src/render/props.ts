@@ -33,6 +33,8 @@ function isTree(map: GameState['map'], i: number): boolean { const id = map.node
 /** Folga do culling (tiles) no modo assado: copas altas (cipreste ≈ 3 tiles) e sombras para SE entram pela borda. */
 const BAKED_MARGIN = { left: 2, right: 1, top: 1, bottom: 4 } as const;
 const LEGACY_MARGIN = { left: 1, right: 1, top: 1, bottom: 1 } as const;
+/** Abaixo deste zoom a vegetação rasteira some (e nem nasce): a zoom 0,35 é sub-pixel e custava ~3 ms de CPU no mapa inteiro. */
+export const DECOR_MIN_ZOOM = 0.6;
 
 export class PropLayer {
   /** Faixas de props (e, no modo assado, de unidades/edifícios); vai na camada 'props'. */
@@ -59,6 +61,8 @@ export class PropLayer {
   /** Modo assado (ordem global com entidades, folgas maiores) e props assados servidos. */
   private bakedMode = false;
   private bakedProps = false;
+  /** Vegetação rasteira ligada neste zoom (DECOR_MIN_ZOOM). */
+  private decorOn = true;
 
   constructor(private tex: TextureCache, private art: ArtLibrary) {}
 
@@ -164,7 +168,7 @@ export class PropLayer {
     s.position.set((x + 0.5 + pl.dx) * TILE, (y + 0.5 + pl.dy) * TILE); s.scale.set(pl.scale);
     s.zIndex = y + 0.5 + pl.dy - 0.35;
     const sh = f.shadow ? this.makeShadow(f.shadow, f.anchor, s, cy) : null;
-    const on = this.vis[chunk] === 1 && this.explored(state, x, y);
+    const on = this.decorOn && this.vis[chunk] === 1 && this.explored(state, x, y);
     s.visible = on; if (sh) sh.visible = on;
     this.rows[cy]?.addChild(s);
     this.ids[chunk]?.add(key);
@@ -231,7 +235,7 @@ export class PropLayer {
     const x0 = cx * CHUNK, y0 = cy * CHUNK, x1 = Math.min(map.w, x0 + CHUNK), y1 = Math.min(map.h, y0 + CHUNK);
     for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const id = map.nodeAt[y * map.w + x]; if (id !== -1 && !this.props.has(id)) this.add(state, id); }
     // vegetação rasteira nos tiles livres (sem nó, edifício nem toco)
-    if (this.bakedProps) for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+    if (this.bakedProps && this.decorOn) for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
       const t = y * map.w + x;
       if (map.nodeAt[t] !== -1 || map.buildingAt[t] !== -1 || this.stumps.has(t) || this.props.has(-(t + 1) - this.nTiles)) continue;
       const name = groundDecor(x, y, map.terrain[t]);
@@ -241,7 +245,7 @@ export class PropLayer {
   /** Visibilidade dos sprites de um chunk: na tela e em tile explorado. */
   private showChunk(state: GameState, chunk: number, on: boolean): void {
     const ids = this.ids[chunk]; if (!ids) return;
-    for (const id of ids) { const v = this.props.get(id); if (!v) continue; const s = on && this.explored(state, v.x, v.y); v.sprite.visible = s; if (v.shadow) v.shadow.visible = s; }
+    for (const id of ids) { const v = this.props.get(id); if (!v) continue; const s = on && (v.type !== 'decor' || this.decorOn) && this.explored(state, v.x, v.y); v.sprite.visible = s; if (v.shadow) v.shadow.visible = s; }
   }
   /** Editor: confere os chunks que tocam o retângulo. */
   syncRect(state: GameState, x0: number, y0: number, x1: number, y1: number): void {
@@ -250,8 +254,11 @@ export class PropLayer {
   }
 
   /** Culling por chunk, névoa e conferência periódica; `v` = tiles visíveis da câmera. */
-  update(state: GameState, local: number, revealed: boolean, v: { x0: number; y0: number; x1: number; y1: number }): void {
-    const changed = state.map.nodes.size !== this.lastNodeCount || ++this.frameN % 30 === 0;
+  update(state: GameState, local: number, revealed: boolean, v: { x0: number; y0: number; x1: number; y1: number }, zoom = 1): void {
+    // vegetação rasteira: liga/desliga pelo zoom; ao ligar, os chunks na tela são conferidos já (nascem as que faltam)
+    const decorOn = zoom >= DECOR_MIN_ZOOM, decorFlip = decorOn !== this.decorOn;
+    this.decorOn = decorOn;
+    const changed = decorFlip || state.map.nodes.size !== this.lastNodeCount || ++this.frameN % 30 === 0;
     this.lastNodeCount = state.map.nodes.size;
     this.revealed = revealed;
     // névoa: um tile recém-explorado revela os nós dele (só nos chunks na tela; os outros são conferidos ao voltar)
@@ -266,7 +273,7 @@ export class PropLayer {
       const was = this.vis[i] === 1;
       this.vis[i] = vis ? 1 : 0;
       if (vis && (changed || !was)) this.syncChunk(state, i);
-      if (vis !== was || (vis && fogChanged)) this.showChunk(state, i, vis);
+      if (vis !== was || (vis && (fogChanged || decorFlip))) this.showChunk(state, i, vis);
     }
     for (let r = 0; r < this.rows.length; r++) { const on = r >= cy0 && r <= cy1; this.rows[r].visible = on; this.shadowRows[r].visible = on; }
   }

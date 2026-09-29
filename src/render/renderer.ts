@@ -363,7 +363,7 @@ export class Renderer {
 
   // ---------------- Nós (camada 'props', props.ts) ----------------
   private updateProps(state: GameState, local: number): void {
-    this.props.update(state, local, this.revealAll, this.cam.visibleTiles());
+    this.props.update(state, local, this.revealAll, this.cam.visibleTiles(), this.cam.zoom);
   }
 
   // ---------------- Arte assada: modo, camadas e reconstrução ----------------
