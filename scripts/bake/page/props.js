@@ -116,14 +116,68 @@ export function buildProp(THREE, M, kind, variant, tag) {
       break;
     }
     case 'flowers': {
-      rig.add(buildGrassTuft(THREE, 'meadow', V, { h: 0.42, radius: 0.38, count: 26 }));
-      // papoulas (0), camomilas (1), ou mistura de papoula, lavanda e botão-de-ouro (2)
-      const palettes = [[0xc4261c, 0xd02a1e, 0xb02016], [0xf2efe4, 0xf4f1e8, 0xe9d44a], [0xc4261c, 0x8a62b4, 0xe2c23a]];
-      const mats = palettes[V % 3].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.6 }));
-      for (let i = 0, n = 16 + Math.floor(r() * 8); i < n; i++) {
-        const a = r() * 6.28, d = Math.sqrt(r()) * 0.45, h = 0.3 + r() * 0.16;
-        const f = mesh(new THREE.SphereGeometry(0.05 + r() * 0.025, 8, 5), mats[Math.floor(r() * mats.length)], Math.cos(a) * d, h, Math.sin(a) * d);
-        f.scale.set(1, 0.4, 1);
+      rig.add(buildGrassTuft(THREE, 'meadow', V, { h: 0.4, radius: 0.38, count: 26 }));
+      // corolas achatadas viradas para o céu (de cima, pintas de cor sobre o capim, não bolinhas): papoulas vermelhas de
+      // miolo escuro (0), camomilas brancas de miolo amarelo (1) ou papoula, cardo roxo e botão-de-ouro (2)
+      const mix = [[['poppy', 1]], [['daisy', 1]], [['poppy', 0.4], ['thistle', 0.3], ['butter', 0.3]]][V % 3];
+      const SP = { poppy: { c: 0xc8261c, eye: 0x1c1410, r: 0.05, lobes: 4 }, daisy: { c: 0xf4f1e6, eye: 0xe0b820, r: 0.034, lobes: 12 }, thistle: { c: 0x8e5aa8, eye: 0x6a3c80, r: 0.03, lobes: 0 }, butter: { c: 0xe8c230, eye: 0xc89a18, r: 0.026, lobes: 5 } };
+      const mats = new Map(), matOf = (c) => { if (!mats.has(c)) mats.set(c, new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, side: THREE.DoubleSide })); return mats.get(c); };
+      const stem = new THREE.MeshStandardMaterial({ color: 0x5a7a34, roughness: 0.8 });
+      for (let i = 0, n = 18 + Math.floor(r() * 10); i < n; i++) {
+        let u = r(), k = mix[0][0]; for (const [kk, w] of mix) if ((u -= w) < 0) { k = kk; break; }
+        const sp = SP[k], a = r() * 6.28, d = Math.sqrt(r()) * 0.48, x = Math.cos(a) * d, z = Math.sin(a) * d, h = 0.26 + r() * 0.22, rad = sp.r * (0.8 + r() * 0.4);
+        mesh(new THREE.CylinderGeometry(0.006, 0.008, h, 4), stem, x, h / 2, z).castShadow = false;
+        const head = new THREE.Group(); head.position.set(x, h, z); head.rotation.set((r() - 0.5) * 0.7, r() * 6.28, (r() - 0.5) * 0.7); rig.add(head);
+        if (!sp.lobes) { const b = mesh(new THREE.SphereGeometry(rad, 8, 6), matOf(sp.c), 0, rad * 0.4, 0, head); b.scale.set(1, 0.8, 1); continue; }   // cardo: pompom
+        // corola: disco com `lobes` pétalas (raio modulado pelo ângulo), a papoula em taça rasa
+        const g = new THREE.CircleGeometry(rad, sp.lobes * 6); const p = g.attributes.position;
+        for (let q = 1; q < p.count; q++) {
+          const px = p.getX(q), py = p.getY(q), ang = Math.atan2(py, px), f = 0.55 + 0.45 * Math.abs(Math.cos(ang * sp.lobes / 2));
+          p.setXYZ(q, px * f, py * f, k === 'poppy' ? rad * 0.35 : 0);
+        }
+        g.rotateX(-Math.PI / 2); g.computeVertexNormals();
+        mesh(g, matOf(sp.c), 0, 0, 0, head).castShadow = false;
+        mesh(new THREE.SphereGeometry(rad * (k === 'daisy' ? 0.38 : 0.28), 6, 4), matOf(sp.eye), 0, rad * 0.12, 0, head).castShadow = false;
+      }
+      break;
+    }
+    case 'crag': {
+      // afloramento de calcário da serra: 2–4 blocos altos e fraturados (1–1,8 m), um arbusto numa fenda
+      const mat = rockMaterial(THREE, V % 2 ? 0x958f84 : 0xa7a194);
+      const n = 2 + (V % 3);
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * 6.28 + r() * 1.2, d = i === 0 ? 0 : 0.45 + r() * 0.35, s = (i === 0 ? 0.62 : 0.34 + r() * 0.22);
+        // poliedro de poucas faces (planos de fratura), com o topo cortado em patamar
+        const g = solid(new THREE.IcosahedronGeometry(s, 1)); const p = g.attributes.position;
+        const sx = 0.8 + r() * 0.4, sy = (i === 0 ? 1.45 : 0.95) + r() * 0.5, sz = 0.75 + r() * 0.4;
+        for (let k = 0; k < p.count; k++) {
+          const y = p.getY(k), j = 1 + (r() - 0.5) * 0.36;
+          p.setXYZ(k, p.getX(k) * sx * j, Math.min(y, s * 0.42) * sy * j, p.getZ(k) * sz * j);
+        }
+        g.computeVertexNormals();
+        const m = mesh(g, mat, Math.cos(a) * d, s * sy * 0.4, Math.sin(a) * d * 0.8); m.rotation.y = r() * 6.28; worldUV(THREE, rig, m, 1);
+      }
+      if (V !== 1) { const { group: b } = buildShrub(THREE, 'lentisk', 10 + V, { radii: [0.3, 0.22, 0.28], cy: 0.25, cards: 45, size: 0.36, core: 0x33421f }); b.position.set(0.55, 0, 0.3); rig.add(b); }
+      break;
+    }
+    case 'reeds': {
+      // caniçal da margem (Phragmites): folhas verde-acinzentadas embaixo e hastes cor de palha de 1,3–2 m com o penacho
+      // pardo-arroxeado na ponta, todas inclinadas para o mesmo lado pelo vento
+      rig.add(buildGrassTuft(THREE, 'reed', V, { h: 0.95 + V * 0.1, radius: 0.26, count: 16 }));
+      const t = buildGrassTuft(THREE, 'reed', V + 20, { h: 0.7, radius: 0.16, count: 10 }); t.position.set(0.35, 0, 0.2); rig.add(t);
+      const straw = new THREE.MeshStandardMaterial({ color: 0xc8b88a, roughness: 0.8 });
+      const plumes = [new THREE.MeshStandardMaterial({ color: 0x8a6e62, roughness: 1 }), new THREE.MeshStandardMaterial({ color: 0xb49a7c, roughness: 1 })];
+      const up = new THREE.Vector3(0, 1, 0);
+      for (let i = 0, n = 7 + V * 2; i < n; i++) {
+        const a = r() * 6.28, d = Math.sqrt(r()) * 0.3, x0 = Math.cos(a) * d, z0 = Math.sin(a) * d * 0.9;
+        const H = 1.3 + r() * 0.65, lx = (0.07 + (r() - 0.5) * 0.14) * H, lz = (-0.03 + (r() - 0.5) * 0.14) * H;
+        const tip = new THREE.Vector3(x0 + lx, H, z0 + lz);
+        const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(x0, 0, z0), new THREE.Vector3(x0 + lx * 0.2, H * 0.5, z0 + lz * 0.2), tip]);
+        mesh(new THREE.TubeGeometry(curve, 8, 0.018, 4), straw).castShadow = false;
+        // penacho: fuso na ponta, seguindo a curva da haste e pendendo um pouco
+        const dir = new THREE.Vector3(lx * 2.2 + 0.05 * H, H * 0.3, lz * 2.2).normalize();
+        const pl = mesh(new THREE.SphereGeometry(1, 8, 6), plumes[Math.floor(r() * 2)], tip.x + dir.x * 0.13, tip.y + dir.y * 0.13, tip.z + dir.z * 0.13);
+        pl.scale.set(0.05, 0.19, 0.05); pl.quaternion.setFromUnitVectors(up, dir);
       }
       break;
     }

@@ -94,6 +94,8 @@ const LEAF = {
   lentisk: { tones: ['#4a5a2e', '#536634', '#5d703b', '#667a42', '#404f27', '#6e804a'], len: [16, 24], wid: [7, 10], count: 120, twig: '#4a3a2a', spread: 0.9, angle: [0.35, 0.85] },
   // capim seco em touceira: folhas longas saindo da base em leque (palha com um pouco de verde)
   grass: { tones: ['#b09a62', '#bea96e', '#a08e58', '#cab67e', '#949050', '#86904c'], blades: 22, len: [150, 235], wid: [11, 17] },
+  // junco/caniço da margem: folhas longas e estreitas, verdes com as pontas secas
+  reed: { tones: ['#7e9a58', '#8aa262', '#98ac6c', '#a9a872', '#b8aa78', '#72904e'], blades: 18, len: [200, 245], wid: [7, 11] },
   // prado: capim verde baixo (base das flores)
   meadow: { tones: ['#5d7a36', '#68853d', '#728f45', '#56702f', '#7d9850', '#8a9a55'], blades: 26, len: [120, 200], wid: [11, 16] },
 };
@@ -224,7 +226,7 @@ function grow(THREE, r, { start, dir, len, rad, depth, spread, bend, taper = 0.7
  * para fora do centro da copa (`center`, elipsoide `radii`) com a do cartão; a cor varia por cartão e escurece para o
  * miolo. Cada cartão tem as duas faces (duas ordens de vértices, a mesma normal).
  */
-function cardsMesh(THREE, r, species, cards, center, radii, { dark = 0.55 } = {}) {
+function cardsMesh(THREE, r, species, cards, center, radii, { dark = 0.55, lift = 0 } = {}) {
   const { mat, depth } = leafMaterials(THREE, species);
   const n = cards.length;
   const pos = new Float32Array(n * 4 * 3), nor = new Float32Array(n * 4 * 3), uv = new Float32Array(n * 4 * 2), col = new Float32Array(n * 4 * 3);
@@ -243,6 +245,7 @@ function cardsMesh(THREE, r, species, cards, center, radii, { dark = 0.55 } = {}
     const depthK = Math.min(1, radial.length());
     radial.normalize();
     nn.copy(radial).multiplyScalar(0.78).add(nrm.clone().multiplyScalar(0.22)).normalize();
+    if (lift) nn.lerp(up, lift).normalize();   // capim: a luz do céu atravessa as folhas (normal puxada para cima)
     // cor: variação por cartão e oclusão para o miolo e para baixo
     const t = 0.82 + r() * 0.3, ao = dark + (1 - dark) * Math.pow(depthK, 1.3), below = radial.y < 0 ? 1 + radial.y * 0.25 : 1;
     const warm = 0.96 + r() * 0.08;
@@ -422,7 +425,7 @@ export function buildGrassTuft(THREE, species, V, { h = 0.55, radius = 0.28, cou
     // cartão quase vertical, virado para fora (as folhas sobem do centro)
     cards.push({ c, s: h * (0.85 + r() * 0.3), n: new THREE.Vector3(Math.cos(az), 0.15 + r() * 0.2, Math.sin(az)), up: true });
   }
-  const mesh = cardsMesh(THREE, r, species, cards, new THREE.Vector3(0, h * 0.4, 0), new THREE.Vector3(radius + 0.2, h * 0.6, radius + 0.2), { dark: 0.72 });
+  const mesh = cardsMesh(THREE, r, species, cards, new THREE.Vector3(0, h * 0.4, 0), new THREE.Vector3(radius + 0.2, h * 0.6, radius + 0.2), { dark: 0.72, lift: 0.5 });
   const g = new THREE.Group(); g.add(mesh);
   return g;
 }

@@ -14,7 +14,7 @@
 //   Assado: quadro `<kind>/<variante>[/<tag>]` do atlas de props (logic.nodeFrameName) + sombra separada numa faixa
 //   espelhada da camada 'shadows'; espécie/variante por hash do tile, estágio por amount/max, toco ao esgotar.
 import { Container, Sprite, type Texture } from 'pixi.js';
-import { TILE } from '../core/constants';
+import { TERRAIN, TILE } from '../core/constants';
 import type { GameState, ResourceNode } from '../core/types';
 import type { TextureCache } from './textures';
 import { NODE_ANCHOR } from './textures';
@@ -28,6 +28,11 @@ import { SHADOW_ALPHA } from './palette';
 interface PropView { sprite: Sprite; shadow: Sprite | null; type: string; x: number; y: number; chunk: number; node: ResourceNode | null; stage: number; frame?: string }
 
 const ZERO_OFF = { dx: 0, dy: 0 } as const;
+/** Algum dos 4 vizinhos do tile é água (juncos na margem). */
+function nearWater(map: GameState['map'], x: number, y: number): boolean {
+  const w = map.w, h = map.h, water = (i: number) => map.terrain[i] === TERRAIN.WATER || map.terrain[i] === TERRAIN.DEEP;
+  return (x > 0 && water(y * w + x - 1)) || (x + 1 < w && water(y * w + x + 1)) || (y > 0 && water((y - 1) * w + x)) || (y + 1 < h && water((y + 1) * w + x));
+}
 /** O tile `i` tem uma árvore. */
 function isTree(map: GameState['map'], i: number): boolean { const id = map.nodeAt[i]; return id !== -1 && map.nodes.get(id)?.type === 'tree'; }
 /** Folga do culling (tiles) no modo assado: copas altas (cipreste ≈ 3 tiles) e sombras para SE entram pela borda. */
@@ -163,7 +168,7 @@ export class PropLayer {
     const key = -(t + 1) - this.nTiles;
     const f = this.art.prop(name);
     if (!f) return;
-    const chunk = this.chunkOf(x, y), cy = Math.floor(y / CHUNK), pl = groundDecorPlace(x, y);
+    const chunk = this.chunkOf(x, y), cy = Math.floor(y / CHUNK), pl = groundDecorPlace(x, y, name.startsWith('crag/'));
     const s = new Sprite(f.color); s.anchor.set(f.anchor.x, f.anchor.y);
     s.position.set((x + 0.5 + pl.dx) * TILE, (y + 0.5 + pl.dy) * TILE); s.scale.set(pl.scale);
     s.zIndex = y + 0.5 + pl.dy - 0.35;
@@ -210,7 +215,7 @@ export class PropLayer {
     for (const id of ids) {
       const v = this.props.get(id)!;
       const t = v.y * map.w + v.x;
-      if (v.type === 'decor') { if (map.nodeAt[t] !== -1 || map.buildingAt[t] !== -1 || this.stumps.has(t) || groundDecor(v.x, v.y, map.terrain[t]) !== v.frame) this.drop(id, v); continue; }
+      if (v.type === 'decor') { if (map.nodeAt[t] !== -1 || map.buildingAt[t] !== -1 || this.stumps.has(t) || groundDecor(v.x, v.y, map.terrain[t], nearWater(map, v.x, v.y)) !== v.frame) this.drop(id, v); continue; }
       if (id < 0) { if (map.nodeAt[t] !== -1 || map.buildingAt[t] !== -1) { this.drop(id, v); this.stumps.delete(t); } continue; }
       const n = map.nodes.get(id);
       if (!n || n.type !== v.type || map.nodeAt[t] !== id) {
@@ -238,7 +243,7 @@ export class PropLayer {
     if (this.bakedProps && this.decorOn) for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
       const t = y * map.w + x;
       if (map.nodeAt[t] !== -1 || map.buildingAt[t] !== -1 || this.stumps.has(t) || this.props.has(-(t + 1) - this.nTiles)) continue;
-      const name = groundDecor(x, y, map.terrain[t]);
+      const name = groundDecor(x, y, map.terrain[t], nearWater(map, x, y));
       if (name) this.addDecor(state, t, name);
     }
   }

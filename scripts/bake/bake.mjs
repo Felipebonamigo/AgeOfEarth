@@ -98,7 +98,7 @@ function sourceFiles(m) {
   }
   else if (s.rig === 'building') {
     // buildings.js, os módulos de lote em page/ (buildings-*.js) e em page/rigs/ (buildings-*.js), em ordem estável
-    files.push(...fs.readdirSync(PAGE).filter((f) => /^buildings(-[a-z0-9-]+)?\.js$/.test(f)).sort().map((f) => `scripts/bake/page/${f}`), 'scripts/bake/manifest.mjs', ...buildingModules());
+    files.push(...fs.readdirSync(PAGE).filter((f) => /^buildings(-[a-z0-9-]+)?\.js$/.test(f)).sort().map((f) => `scripts/bake/page/${f}`), 'scripts/bake/manifest.mjs', ...buildingModules(), 'scripts/bake/page/trees.js', 'scripts/bake/page/props.js');   // as oliveiras dos pátios (trees.js, que usa o gerador de props.js)
   }
   else if (s.rig === 'props') files.push('scripts/bake/page/props.js', 'scripts/bake/page/trees.js', 'scripts/bake/page/nature-textures.js', 'scripts/bake/page/animals.js', 'scripts/bake/page/rigs/organic.js');
   return files;

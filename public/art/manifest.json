@@ -1772,60 +1772,6 @@
    "sha256": "fc67eabf8697c155b387fcc8854eb807a0895d652de50a202d090e3b5498b900"
   },
   {
-   "json": "props-1x-0.json",
-   "image": "props-1x-0.png",
-   "group": "props",
-   "pass": "color",
-   "scale": 1,
-   "page": 0,
-   "w": 1056,
-   "h": 352,
-   "frames": 65,
-   "bytes": 199859,
-   "sha256": "953b1cae6564a06558e3fac9d5a88f4862378dc13854aed19f5a210c3f069f64"
-  },
-  {
-   "json": "props-2x-0.json",
-   "image": "props-2x-0.png",
-   "group": "props",
-   "pass": "color",
-   "scale": 2,
-   "page": 0,
-   "w": 2048,
-   "h": 672,
-   "frames": 65,
-   "bytes": 783374,
-   "sha256": "0a29f4d047b9dccf8ab9d096b92c37a7796971787faec63f98f1ed6ce2c3e9db"
-  },
-  {
-   "json": "props-shadow-1x-0.json",
-   "image": "props-shadow-1x-0.png",
-   "group": "props",
-   "pass": "shadow",
-   "scale": 1,
-   "texel": 0.5,
-   "page": 0,
-   "w": 800,
-   "h": 128,
-   "frames": 65,
-   "bytes": 31832,
-   "sha256": "f62238bc1170153f3aee4d37b5d0b470d4aeb78e408e77dd2c385b8a6d4dd23e"
-  },
-  {
-   "json": "props-shadow-2x-0.json",
-   "image": "props-shadow-2x-0.png",
-   "group": "props",
-   "pass": "shadow",
-   "scale": 2,
-   "texel": 0.5,
-   "page": 0,
-   "w": 1440,
-   "h": 256,
-   "frames": 65,
-   "bytes": 101672,
-   "sha256": "d59284d9a14554d73b34c18c410f49ab7a00fcbd50d7978da4b7ef7ff475e3aa"
-  },
-  {
    "json": "buildings-1x-0.json",
    "image": "buildings-1x-0.png",
    "group": "buildings",
@@ -1833,23 +1779,10 @@
    "scale": 1,
    "page": 0,
    "w": 2048,
-   "h": 1920,
-   "frames": 355,
-   "bytes": 3302353,
-   "sha256": "a389f400cffcce93f667e808a914c83f312d75662254e3e7d7265f26168e9d32"
-  },
-  {
-   "json": "buildings-1x-1.json",
-   "image": "buildings-1x-1.png",
-   "group": "buildings",
-   "pass": "color",
-   "scale": 1,
-   "page": 1,
-   "w": 832,
-   "h": 224,
-   "frames": 6,
-   "bytes": 178610,
-   "sha256": "9fc0a8410358f4b3986be6f1afb31b12e59e0e0f9e37e1b276ea93210b827f30"
+   "h": 1824,
+   "frames": 361,
+   "bytes": 3490843,
+   "sha256": "0dd7a50256d899d9a498c774be15e2db5b1bd58f2e9b8e9ff52b076b9f47df94"
   },
   {
    "json": "buildings-2x-0.json",
@@ -1858,11 +1791,11 @@
    "pass": "color",
    "scale": 2,
    "page": 0,
-   "w": 2016,
+   "w": 2048,
    "h": 1888,
    "frames": 74,
-   "bytes": 3032625,
-   "sha256": "fba947fe5de8c54dbaa82a9093e937571be149ca0b6741c7291bb880d942c296"
+   "bytes": 3123289,
+   "sha256": "d3a6ebcb39284a21dc4823e655575db1cb8f98c718fb0cb4127743b9a1dafeeb"
   },
   {
    "json": "buildings-2x-1.json",
@@ -1912,10 +1845,10 @@
    "texel": 0.5,
    "page": 0,
    "w": 2048,
-   "h": 448,
+   "h": 544,
    "frames": 355,
-   "bytes": 248449,
-   "sha256": "a8c1c6de1675c635994ecfbaed84ec8ada5d9ac3be78c810190af547999e4ce1"
+   "bytes": 252980,
+   "sha256": "6e3d6b3527e4591f98ab7e522860e5ad3ab8eba22f9941683f7a49754299dcff"
   },
   {
    "json": "buildings-shadow-2x-0.json",
@@ -1928,8 +1861,8 @@
    "w": 2048,
    "h": 1472,
    "frames": 355,
-   "bytes": 775682,
-   "sha256": "cb3653d7ed19086c388f6eeced389440560d2b166615a95a7dc3a6d28a62c72e"
+   "bytes": 780360,
+   "sha256": "fc2033ddffcba4a1539b21f12276468736b15a64ba182193d3f26e4722ef5b1e"
   },
   {
    "json": "buildings-team-1x-0.json",
@@ -1964,11 +1897,11 @@
    "pass": "color",
    "scale": 1,
    "page": 0,
-   "w": 352,
+   "w": 448,
    "h": 192,
    "frames": 21,
-   "bytes": 82537,
-   "sha256": "aa0e829974f525fb79fcedee7df3940b18d3c1da2a3b10c15ed66d7cafd33308"
+   "bytes": 82133,
+   "sha256": "62b3745470def459107f122bc3003231158422bc0199e2873711003768f3780d"
   },
   {
    "json": "icons-2x-0.json",
@@ -1980,8 +1913,8 @@
    "w": 768,
    "h": 352,
    "frames": 21,
-   "bytes": 277533,
-   "sha256": "9b276713d31e74605b156401e4e10a62fedc719e5bc640f80f2e485be7191130"
+   "bytes": 276396,
+   "sha256": "62f49dca476251227067741f6da858acece7c33f5266caaaf30322c97eca7ec2"
   },
   {
    "json": "icons-team-1x-0.json",
@@ -1993,8 +1926,8 @@
    "w": 192,
    "h": 224,
    "frames": 21,
-   "bytes": 2371,
-   "sha256": "11d7422f682163b6b96af9add77389e0a55e2ab08a25a2358c45d7a4b7b2ebeb"
+   "bytes": 2352,
+   "sha256": "01ddadcfc7d9bd08de47dce7c11a09ab9957749aff6ca3dcc5fe90c3c0172be8"
   },
   {
    "json": "icons-team-2x-0.json",
@@ -2003,18 +1936,72 @@
    "pass": "team",
    "scale": 2,
    "page": 0,
-   "w": 352,
+   "w": 288,
    "h": 416,
    "frames": 21,
-   "bytes": 4796,
-   "sha256": "46079c6c164b626fc89bbe1bd4c0d4009312f750f6c05c4089150163bfc49ff4"
+   "bytes": 4648,
+   "sha256": "b17164a188427504f0a7bdcbcff07a991cf1919f5fb594f0d397951497b48f89"
+  },
+  {
+   "json": "props-1x-0.json",
+   "image": "props-1x-0.png",
+   "group": "props",
+   "pass": "color",
+   "scale": 1,
+   "page": 0,
+   "w": 1056,
+   "h": 352,
+   "frames": 72,
+   "bytes": 213088,
+   "sha256": "380fcf6a7e2e2eef5be0b0f1630d0961048349cee79dbc2c81bb955d593bf4b4"
+  },
+  {
+   "json": "props-2x-0.json",
+   "image": "props-2x-0.png",
+   "group": "props",
+   "pass": "color",
+   "scale": 2,
+   "page": 0,
+   "w": 2048,
+   "h": 704,
+   "frames": 72,
+   "bytes": 827624,
+   "sha256": "9c7b2e7394e78cbe980391fd073c68ed8c68f1768c8f06feb074008896211791"
+  },
+  {
+   "json": "props-shadow-1x-0.json",
+   "image": "props-shadow-1x-0.png",
+   "group": "props",
+   "pass": "shadow",
+   "scale": 1,
+   "texel": 0.5,
+   "page": 0,
+   "w": 800,
+   "h": 128,
+   "frames": 72,
+   "bytes": 33481,
+   "sha256": "af8545248b714f7a1be2ad43e6e2aabd4b7b6a61ff98bca6c639c6ad9fff6f55"
+  },
+  {
+   "json": "props-shadow-2x-0.json",
+   "image": "props-shadow-2x-0.png",
+   "group": "props",
+   "pass": "shadow",
+   "scale": 2,
+   "texel": 0.5,
+   "page": 0,
+   "w": 1440,
+   "h": 256,
+   "frames": 72,
+   "bytes": 106439,
+   "sha256": "4f853690e77ec3343111a1308fea7e1cb6f0919076c2011f994a01d05dcf3608"
   }
  ],
  "assets": {
   "academy": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "ac1496b7d569eba4",
+   "sourceHash": "5c304cc0ea24a9b2",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2052,22 +2039,22 @@
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 146,
-      "h": 158
+      "w": 148,
+      "h": 166
      },
      "anchor": {
-      "x": 0.38356,
-      "y": 0.64557
+      "x": 0.39189,
+      "y": 0.61446
      }
     },
     "2": {
      "sourceSize": {
-      "w": 290,
-      "h": 312
+      "w": 294,
+      "h": 330
      },
      "anchor": {
-      "x": 0.38621,
-      "y": 0.64744
+      "x": 0.39456,
+      "y": 0.61212
      }
     }
    },
@@ -2205,7 +2192,7 @@
   "barracks": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "4f56c31ccd49d270",
+   "sourceHash": "7651e61ce71da8a4",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2762,7 +2749,7 @@
   "cornucopia": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "e0392697a45a3bd1",
+   "sourceHash": "fd09eb809292e7f1",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -3120,7 +3107,7 @@
   "farm": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "251b3e70ace6e033",
+   "sourceHash": "1b779276c1b44d15",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -3223,7 +3210,7 @@
   "fortress": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "9c8fe3fa59091692",
+   "sourceHash": "c27f92fe80b67686",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -3435,7 +3422,7 @@
   "gate": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "5c11377ff90faf28",
+   "sourceHash": "fe4c05bdc3438a6e",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -3542,7 +3529,7 @@
   "granary": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "3dd0575310b0aaf4",
+   "sourceHash": "56b23c7e444d2b1d",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -4101,7 +4088,7 @@
   "house": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "bac2d155c86dcc5f",
+   "sourceHash": "2664dbf1658877c5",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -5180,7 +5167,7 @@
   "lumber_camp": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "af40e97f82e3d5e6",
+   "sourceHash": "851e8efd1a37707f",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -5378,7 +5365,7 @@
   "market": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "ffebd91e60bce76d",
+   "sourceHash": "20af699d24266995",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -5659,7 +5646,7 @@
   "mine": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "219e41195daf6e69",
+   "sourceHash": "1635edf9971d5d85",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -6651,12 +6638,12 @@
   "props-ground": {
    "kind": "prop",
    "group": "props",
-   "sourceHash": "64f394ac568d4407",
+   "sourceHash": "717c0f211605b07b",
    "dirs": 1,
    "mirror": false,
    "team": false,
    "shadow": true,
-   "frames": 14,
+   "frames": 21,
    "atlases": {
     "1": {
      "color": [
@@ -6689,13 +6676,20 @@
     "flowers/2",
     "pebbles/0",
     "pebbles/1",
-    "pebbles/2"
+    "pebbles/2",
+    "crag/0",
+    "crag/1",
+    "crag/2",
+    "crag/3",
+    "reeds/0",
+    "reeds/1",
+    "reeds/2"
    ]
   },
   "props-nodes": {
    "kind": "prop",
    "group": "props",
-   "sourceHash": "71fb735af4390a80",
+   "sourceHash": "d1f6c4c36bcd4613",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -6746,7 +6740,7 @@
   "props-trees": {
    "kind": "prop",
    "group": "props",
-   "sourceHash": "05e54beb9f30c4ab",
+   "sourceHash": "1dea7682e673da94",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -6806,7 +6800,7 @@
   "rubble": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "0b7f095474bfa4d3",
+   "sourceHash": "8876cdb83c128ceb",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -7072,7 +7066,7 @@
   "siege_workshop": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "6abb102444d793f2",
+   "sourceHash": "1c502aae6ef81f15",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -7169,7 +7163,7 @@
   "stable": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "14050ffe2c42d724",
+   "sourceHash": "fafca322d0722bff",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -7266,7 +7260,7 @@
   "temple": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "0dc59218cf5c0523",
+   "sourceHash": "909d219ddc64bfcb",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -7363,7 +7357,7 @@
   "titan_gate": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "0b879734b72d9887",
+   "sourceHash": "c53c63a9d16bc09c",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -7465,7 +7459,7 @@
   "tower": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "029ba127700bbfef",
+   "sourceHash": "ca74e9c953978eb7",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -7581,7 +7575,7 @@
   "town_center": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "25f29d0ee5d67db5",
+   "sourceHash": "fd867d1bbf25a9b4",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -7878,7 +7872,7 @@
   "wall": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "cff5581def523a9c",
+   "sourceHash": "0fa160e2acad1877",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -7996,7 +7990,7 @@
   "wonder_artemis": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "d70fe062bc8cc538",
+   "sourceHash": "d0a8d37a6a774c63",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -8093,7 +8087,7 @@
   "wonder_colossus": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "6ed9a85fc268757e",
+   "sourceHash": "51f5a267a6ed8b6c",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -8190,7 +8184,7 @@
   "wonder_zeus": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "4bc59df9d35fd92c",
+   "sourceHash": "a21362aa12b68802",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -8200,7 +8194,7 @@
    "atlases": {
     "1": {
      "color": [
-      "buildings-1x-1.json",
+      "buildings-1x-0.json",
       "icons-1x-0.json"
      ],
      "team": [
@@ -8286,8 +8280,8 @@
   }
  },
  "totals": {
-  "pngBytes": 115794286,
-  "vramBytes": 720564224,
-  "atlases": 149
+  "pngBytes": 115966226,
+  "vramBytes": 720289792,
+  "atlases": 148
  }
 }

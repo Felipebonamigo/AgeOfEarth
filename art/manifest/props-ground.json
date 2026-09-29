@@ -9,7 +9,9 @@
       { "kind": "maquis", "variants": [0, 1, 2, 3] },
       { "kind": "tuft", "variants": [0, 1, 2, 3] },
       { "kind": "flowers", "variants": [0, 1, 2] },
-      { "kind": "pebbles", "variants": [0, 1, 2] }
+      { "kind": "pebbles", "variants": [0, 1, 2] },
+      { "kind": "crag", "variants": [0, 1, 2, 3], "size": [2.2, 2.4], "anchor": [0.42, 0.66] },
+      { "kind": "reeds", "variants": [0, 1, 2], "size": [1.6, 2], "anchor": [0.42, 0.7] }
     ]
   },
   "size": { "tiles": [1.6, 1.6] },

@@ -393,16 +393,23 @@ export function treeScale(x: number, y: number): number { return 0.94 + hash01(x
 
 // ---------------- Vegetação rasteira (Etapa 9) ----------------
 /** Variantes assadas de cada decoração rasteira (art/manifest/props-ground.json). */
-export const GROUND_DECOR = { maquis: 4, tuft: 4, flowers: 3, pebbles: 3 } as const;
+export const GROUND_DECOR = { maquis: 4, tuft: 4, flowers: 3, pebbles: 3, crag: 4, reeds: 3 } as const;
 /**
  * Decoração rasteira do tile (x, y) de terreno `terrain` — só do renderizador, não é nó do jogo nem bloqueia nada — ou
  * null. Em manchas (ruído largo): ~7 % da grama (as manchas secas puxam capim seco e seixos, as úmidas flores e maquis),
- * ~5 % da terra (seixos e capim) e ~1,5 % da areia (seixos); montanha e água, nada. Determinístico pelo tile.
+ * ~5 % da terra (seixos e capim) e ~1,5 % da areia (seixos); na serra, rochedos de calcário em afloramentos (~27 %: dão volume à montanha,
+ * que é intransponível); grama na beira da água (`nearWater`), juncos (~30 %). Água, nada. Determinístico pelo tile.
  */
-export function groundDecor(x: number, y: number, terrain: number): string | null {
+export function groundDecor(x: number, y: number, terrain: number, nearWater = false): string | null {
   const patch = 0.35 + 1.3 * noise2(x * 0.23 + 13, y * 0.23 + 57);   // aglomera em manchas
   const p = hash01(x, y, 81), k = hash01(x, y, 82), v = hash01(x, y, 83);
   const pick = (kind: keyof typeof GROUND_DECOR) => propFrameName(kind, Math.floor(v * GROUND_DECOR[kind]) % GROUND_DECOR[kind]);
+  if (terrain === TERRAIN.MOUNTAIN) {
+    // afloramentos: os rochedos se juntam onde o ruído sobe e deixam trechos de encosta lisa entre eles
+    const o = noise2(x * 0.31 + 71, y * 0.31 + 19), c = Math.max(0, Math.min(1, (o - 0.52) / 0.16));
+    return p < 0.06 + 0.6 * c * c * (3 - 2 * c) ? pick('crag') : null;
+  }
+  if (terrain === TERRAIN.GRASS && nearWater && k < 0.3) return pick('reeds');
   if (terrain === TERRAIN.GRASS) {
     if (p >= 0.07 * patch) return null;
     const dry = dryness(x, y);
@@ -417,9 +424,11 @@ export function groundDecor(x: number, y: number, terrain: number): string | nul
   if (terrain === TERRAIN.SAND) return p < 0.015 * patch ? pick('pebbles') : null;
   return null;
 }
-/** Deslocamento (tiles) e escala da decoração rasteira dentro do tile, para não parecer carimbada numa grade. */
-export function groundDecorPlace(x: number, y: number): { dx: number; dy: number; scale: number } {
-  return { dx: (hash01(x, y, 84) - 0.5) * 0.6, dy: (hash01(x, y, 85) - 0.5) * 0.5, scale: 0.82 + hash01(x, y, 86) * 0.36 };
+/** Deslocamento (tiles) e escala da decoração rasteira dentro do tile, para não parecer carimbada numa grade; os rochedos da
+ *  serra (`crag`) variam muito mais de tamanho (0,7–1,5). */
+export function groundDecorPlace(x: number, y: number, crag = false): { dx: number; dy: number; scale: number } {
+  const h = hash01(x, y, 86);
+  return { dx: (hash01(x, y, 84) - 0.5) * 0.6, dy: (hash01(x, y, 85) - 0.5) * 0.5, scale: crag ? 0.7 + h * h * 0.8 : 0.82 + h * 0.36 };
 }
 
 // ---------------- Atlas ----------------

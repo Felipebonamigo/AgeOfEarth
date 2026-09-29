@@ -9,6 +9,7 @@
 // estado, para o dano partir do mesmo modelo do `complete`.
 
 import { cropCard } from '../buildings-textures.js';
+import { buildTree } from '../trees.js';
 
 const TAU = Math.PI * 2;
 function seedOf(text) { let h = 2166136261; for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -193,21 +194,11 @@ function taperedTube(THREE, curve, n, seg, rOf, t1 = 1, t0 = 0) {
   return g;
 }
 
-/** Oliveira pequena (tronco torto + copa de esferas cinza-esverdeadas), ≈ 2,2 m. */
+/** Oliveira pequena do pátio (≈ 2,2 m): a oliveira de galhos e folhas das árvores do mapa (trees.js, Etapa 9), reduzida. */
 function olive(k, x, z, R, s = 1) {
-  const { THREE, M } = k;
-  let px = x, py = 0, pz = z;
-  for (let i = 0; i < 3; i++) {
-    const h = 0.42 * s, dx = (R() - 0.5) * 0.2 * s, dz = (R() - 0.5) * 0.16 * s;
-    const seg = k.cyl(0.07 * s * (1 - i * 0.18), 0.09 * s * (1 - i * 0.18), h, M.bark, px + dx / 2, py, pz + dz / 2, 7);
-    seg.rotation.set(dz * 1.4, 0, -dx * 1.4);
-    px += dx; py += h * 0.92; pz += dz;
-  }
-  for (let i = 0; i < 7; i++) {
-    const a = (i / 7) * TAU + R(), rr = i === 0 ? 0 : 0.42 * s;
-    const c = k.mesh(new THREE.IcosahedronGeometry((0.34 + R() * 0.12) * s, 1), i % 2 ? M.olive : M.olive2, px + Math.cos(a) * rr, py + 0.25 * s + R() * 0.3 * s, pz + Math.sin(a) * rr * 0.8);
-    c.scale.y = 0.75;
-  }
+  const t = buildTree(k.THREE, 'olive', Math.floor(R() * 4), 'small');
+  t.scale.setScalar(0.62 * s); t.position.set(x, 0, z); t.rotation.y = R() * TAU;
+  k.r.add(t);
 }
 
 // =================================================================================================================
