@@ -31,6 +31,7 @@ const browser = await chromium.launch({ env: { ...process.env, LANG: 'pt_BR.UTF-
 
 async function newPage({ campaign = false } = {}) {
   const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
+  page.setDefaultTimeout(120000);   // o primeiro quadro de uma partida (software, 1920×1080, Alto) prende a página por dezenas de segundos
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   await page.addInitScript(([lang, campaign]) => {
     try {
@@ -49,8 +50,9 @@ let n = 0;
 const ORDER = ['cidade', 'batalha', 'poder', 'tita', 'cerco', 'campanha', 'editor'];
 async function shot(page, name) {
   await page.waitForTimeout(300);
+  await frames(page, 2);
   const f = join(outDir, `${String(ORDER.indexOf(name) + 1).padStart(2, '0')}-${name}.jpg`);
-  await page.screenshot({ path: f, type: 'jpeg', quality: 92 });
+  await page.screenshot({ path: f, type: 'jpeg', quality: 92, timeout: 120000 });
   n++; console.log('captura:', f);
 }
 const look = (page, x, y, zoom) => page.evaluate(([x, y, z]) => { const c = window.aoe.renderer.cam; c.zoom = z; c.centerOn(x, y); }, [x, y, zoom]);
@@ -59,8 +61,13 @@ async function waitTicks(page, t, timeout = 240000) {
   const end = (await tickNow(page)) + t;
   await page.waitForFunction((e) => window.aoe.session.state.tick >= e, end, { timeout, polling: 50 });
 }
-const run = (page, speed = 1) => page.evaluate((sp) => { window.aoe.session.paused = false; window.aoe.session.speed = sp; }, speed);
-const pause = (page) => page.evaluate(() => { window.aoe.session.paused = true; });
+// A renderização por software a 1920×1080 no preset Alto leva segundos por quadro (a sessão avança no máximo 5 ticks por
+// quadro): enquanto o jogo corre, o palco do Pixi fica escondido — a lógica do renderizador, os efeitos e o HUD seguem
+// quadro a quadro, só sem rasterizar — e volta ao pausar, para a captura.
+const run = (page, speed = 1) => page.evaluate((sp) => { window.aoe.renderer.app.stage.visible = false; window.aoe.session.paused = false; window.aoe.session.speed = sp; }, speed);
+const pause = (page) => page.evaluate(() => { window.aoe.session.paused = true; window.aoe.renderer.app.stage.visible = true; });
+/** Espera `k` quadros desenhados (requestAnimationFrame). */
+const frames = (page, k) => page.evaluate((n) => new Promise((res) => { const f = (i) => (i <= 0 ? res() : requestAnimationFrame(() => f(i - 1))); f(n); }), k);
 const ready = (page, types = []) => page.evaluate((t) => { window.aoe.applyQuality(); window.aoe.renderer.art.prewarmUnits(t); return window.aoe.renderer.art.ready(); }, types);
 
 // ——— partida de verdade: 4 IAs, mapa grande, avançada sem renderizar ———
@@ -211,7 +218,7 @@ if (want('campanha')) {
   const page = await newPage({ campaign: true });
   await page.click('[data-tab="campaign"]'); await page.waitForTimeout(300);
   await page.click('.mission[data-id="m12_titanomaquia"]'); await page.waitForTimeout(1500);
-  await page.click('#m-go'); await page.waitForTimeout(2500);
+  await page.click('#m-go', { noWaitAfter: true }); await page.waitForTimeout(2500);
   const ok = await page.evaluate(() => window.aoe.session?.state.scenario?.id ?? window.aoe.session?.state.config?.scenarioId ?? !!window.aoe.session?.state.scenario);
   need(ok, 'campanha: a m12 não começou');
   await ready(page);
