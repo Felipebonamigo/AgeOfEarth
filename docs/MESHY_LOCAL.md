@@ -110,6 +110,19 @@ A sessão na nuvem varreu as páginas de tag. Confira cada um pelos critérios e
 | cavalo (`hippeus`, `hetairoi`) | White Horse | https://www.meshy.ai/3d-models/White-Horse-019b277f-a6a0-788b-8fa4-9e49cbd8dc50 |
 | cavalo | horse | https://www.meshy.ai/3d-models/horse-019dc34e-1a5f-7bbc-96fa-1838af5c5843 |
 | `minotaur` | A minotaur, dressed with tribal attire (realistic) | https://www.meshy.ai/3d-models/A-minotaur-dressed-with-tribal-attire-Realistic-base-pose-01941dd2-2deb-7ae8-ba26-832febdf8cbe |
+| `perseus` | Perseus with the Head of Medusa | https://www.meshy.ai/3d-models/Perseus-with-the-Head-of-Medusa-019d9b7f-075e-7ec6-a2ba-1c500cf1d50e |
+| `medusa` / `sentinel` | Cracked Marble Medusa | https://www.meshy.ai/3d-models/Cracked-Marble-Medusa-019d4fcf-356e-744d-86ec-d8cea08f3782 |
+| `hydra` | Snake Hydra | https://www.meshy.ai/3d-models/Snake-Hydra-019bf1f5-b1a8-7f29-bdb0-5fa0b5f56410 |
+| `centaur` | Centaur | https://www.meshy.ai/3d-models/Centaur-019cdc34-893b-746d-99a3-f0084d9912cc |
+| `cerberus` | Three-Headed Cerberus | https://www.meshy.ai/3d-models/ThreeHeaded-Cerberus-Fluffy-019c7439-6ab8-78f3-8c57-65c1f07021dc |
+| `cerberus` | Greek God Hades and Cerberus | https://www.meshy.ai/3d-models/Greek-God-Hades-and-Cerberus-019d2fa7-582e-7e35-87bb-f7923541eb3c |
+| `chimera` | High detail, mythical chimera | https://www.meshy.ai/3d-models/High-detail-mythical-chimera-0199cd2b-aa46-7aea-9cfc-722336465319 |
+| `chimera` | A mythical chimera | https://www.meshy.ai/3d-models/A-mythical-chimera-0194469e-0f41-710d-a6b8-0e08d2c9a0a8 |
+| `cronus` | Ancient Stone Titan | https://www.meshy.ai/3d-models/Ancient-Stone-Titan-019b42c8-f4dc-776f-b570-e97ec087de43 |
+| `villager` | Peasant Maiden with a Basket | https://www.meshy.ai/3d-models/Peasant-Maiden-with-a-Basket-019e5066-4e9d-7e06-beb3-57f0d335f56c |
+| `villager` | Peasant Girl with Wooden Bucket | https://www.meshy.ai/3d-models/Peasant-Girl-with-Wooden-Bucket-019e399b-c16d-7f35-b465-380966e977a9 |
+| `petrobolos` | Catapult (confira se não é medieval) | https://www.meshy.ai/3d-models/Catapult-019563c0-c96d-73e7-9db5-fd7f3366e11d |
+| `fortress` | Desert Stone Citadel (confira o estilo) | https://www.meshy.ai/3d-models/Desert-Stone-Citadel-019e23ea-f093-7e69-b186-9034e629cc2e |
 
 Também na **conta do dono** (página "My Assets"/workspace): o **javali "WildBoar3D"** e o tigre "BengalTiger3D" **expiram
 em 06/10/2026**. Baixe o javali (é o melhor que temos; o tigre não tem uso no jogo). A torre com canhão não serve
