@@ -271,16 +271,170 @@
       "rig": false,
       "baixadoEm": "2026-10-04",
       "notas": ""
+    },
+    {
+      "arquivo": "edificios/temple__parthenon.glb",
+      "idJogo": "temple",
+      "titulo": "The Parthenon",
+      "url": "https://www.meshy.ai/3d-models/the-parthenon-01a08003-637f-71c8-b564-ef093b286a60",
+      "autor": "lingbend",
+      "autorUrl": "https://www.meshy.ai/@s174044494048fa8",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 1021026,
+      "triangulos": 89934,
+      "textura": 1024,
+      "rig": false,
+      "baixadoEm": "2026-10-04",
+      "notas": "Partenon em ruína (colunas faltando, frontão parcial) com plataforma; serve de templo ou maravilha; reduzido soldando sem normais + simplify do meshoptimizer (o optimize parava longe do alvo); normais recalculadas suaves; textura 1024 para caber em 8 MB"
+    },
+    {
+      "arquivo": "edificios/temple__erechtheion.glb",
+      "idJogo": "temple",
+      "titulo": "Erechtheion (Porch of the Caryatids)",
+      "url": "https://www.meshy.ai/3d-models/A-highly-detailed-3D-model-of-the-Erechtheion-temple-on-the-Acropolis-of-Athens-ancient-Greek-architecture-made-of-Pentelic-marble-featuring-the-famous-Porch-of-the-Caryatids-with-six-sculpted-female-figures-as-columns-asymmetrical-floor-plan-Ionic-columns-with-ornate-capitals-realistic-weathered-stone-textures-accurate-historical-proportions-partially-damaged-friezes-set-on-an-ancient-rocky-platform-ambient-soft-lighting-suitable-for-architectural-visualization-and-realistic-3D-render-01965a6e-8553-7ea4-ba56-99cdcebbfddf",
+      "autor": "abuzeraxundzade",
+      "autorUrl": "https://www.meshy.ai/@s17452718494addf",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 14304,
+      "triangulos": 19497,
+      "textura": 1024,
+      "rig": false,
+      "baixadoEm": "2026-10-04",
+      "notas": "templo inteiro de cariátides sobre base com degraus; também serve para academy; malha original leve, só textura reduzida para 1024"
+    },
+    {
+      "arquivo": "edificios/fortress__akropolis.glb",
+      "idJogo": "fortress",
+      "titulo": "Akropolis",
+      "url": "https://www.meshy.ai/3d-models/akropolis-019fe72f-e273-782d-84b8-9a23eef4ef46",
+      "autor": "piklapssebastian",
+      "autorUrl": "https://www.meshy.ai/@s178083761359bce",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 1164854,
+      "triangulos": 88694,
+      "textura": 1024,
+      "rig": false,
+      "baixadoEm": "2026-10-04",
+      "notas": "acrópole inteira sobre a rocha (no Meshy o arquivo se chama Hilltop Acropolis); reduzido com simplifySloppy do meshoptimizer (o simplify topológico travava); normais recalculadas suaves; textura 1024"
+    },
+    {
+      "arquivo": "edificios/house__greek-tavern.glb",
+      "idJogo": "house",
+      "titulo": "Greek Tavern",
+      "url": "https://www.meshy.ai/3d-models/Greek-Tavern-0198611e-89d4-7c76-982e-c0063529bc59",
+      "autor": "Kava",
+      "autorUrl": "https://www.meshy.ai/@s1736362928d6492",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 565770,
+      "triangulos": 87603,
+      "textura": 1024,
+      "rig": false,
+      "baixadoEm": "2026-10-04",
+      "notas": "casa de pedra com telha vermelha e pérgola, sobre um piso de lajes; reduzido com simplifySloppy do meshoptimizer (o simplify topológico travava); normais recalculadas suaves; textura 1024"
+    },
+    {
+      "arquivo": "edificios/house__kalliope-house.glb",
+      "idJogo": "house",
+      "titulo": "Kalliope House Complete",
+      "url": "https://www.meshy.ai/3d-models/Kalliope-House-Complete-976b9986-0734-4641-a62b-d79901567e6f",
+      "autor": "marmphi",
+      "autorUrl": "https://www.meshy.ai/@g114596069849244597421",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 374279,
+      "triangulos": 89998,
+      "textura": 1024,
+      "rig": false,
+      "baixadoEm": "2026-10-04",
+      "notas": "casa caiada simples de telhado plano e cantos de pedra; janelas/porta azuis meio modernas; reduzido soldando sem normais + simplify do meshoptimizer (o optimize parava longe do alvo); normais recalculadas suaves; textura 1024 para caber em 8 MB"
+    },
+    {
+      "arquivo": "edificios/mine__mine-entrance.glb",
+      "idJogo": "mine",
+      "titulo": "Mine Entrance with Ore Cart",
+      "url": "https://www.meshy.ai/3d-models/Mine-Entrance-with-Ore-Cart-019d1ec4-3ece-7702-babe-62899d9069eb",
+      "autor": "jumpylion87",
+      "autorUrl": "https://www.meshy.ai/@s1763205407d45b4",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 362825,
+      "triangulos": 89997,
+      "textura": 1024,
+      "rig": false,
+      "baixadoEm": "2026-10-04",
+      "notas": "entrada de mina em pedra com escoras; tem carrinho sobre trilho (levemente anacrônico, pode ser recortado); reduzido soldando sem normais + simplify do meshoptimizer (o optimize parava longe do alvo); normais recalculadas suaves; textura 1024 para caber em 8 MB"
+    },
+    {
+      "arquivo": "edificios/gate__stone-archway.glb",
+      "idJogo": "gate",
+      "titulo": "Stone Archway",
+      "url": "https://www.meshy.ai/3d-models/Stone-Archway-019b3df4-3ee6-7b42-9106-2c87282c3610",
+      "autor": "Mcklem",
+      "autorUrl": "https://www.meshy.ai/@s17649693138b641",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 562618,
+      "triangulos": 89984,
+      "textura": 1024,
+      "rig": false,
+      "baixadoEm": "2026-10-04",
+      "notas": "arco simples de blocos de pedra; reduzido soldando sem normais + simplify do meshoptimizer (o optimize parava longe do alvo); normais recalculadas suaves; textura 1024 para caber em 8 MB"
+    },
+    {
+      "arquivo": "edificios/gate__ruined-archway.glb",
+      "idJogo": "gate",
+      "titulo": "Ruined Archway",
+      "url": "https://www.meshy.ai/3d-models/Ruined-Archway-019e23b9-ea17-7ef3-a3bd-df86f4d25ca3",
+      "autor": "kaesar3d",
+      "autorUrl": "https://www.meshy.ai/@kaesar3d",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 2441481,
+      "triangulos": 88692,
+      "textura": 1024,
+      "rig": false,
+      "baixadoEm": "2026-10-04",
+      "notas": "arco clássico em ruína com colunas e vegetação; mais decoração que portão; reduzido com simplifySloppy do meshoptimizer (o simplify topológico travava); normais recalculadas suaves; textura 1024"
     }
   ],
   "recusados": [
     {
       "url": "https://www.meshy.ai/3d-models/Hart-01a0f65b-3b56-74f8-bc99-f35a5934c110",
       "motivo": "é um coração humano anatômico, não um cervo"
+    },
+    {
+      "url": "https://www.meshy.ai/3d-models/ZeusX-019bc4c3-4735-7c55-9a34-06a15f8c12a2",
+      "motivo": "é uma arma de ficção científica, não a estátua de Zeus"
+    },
+    {
+      "url": "https://www.meshy.ai/3d-models/Desert-Stone-Citadel-019e23ea-f093-7e69-b186-9034e629cc2e",
+      "motivo": "ruína de fortaleza de deserto, não é grega"
+    },
+    {
+      "url": "https://www.meshy.ai/tags/colossus",
+      "motivo": "a tag só tem robôs e golens; nada serve para o Colosso de Rodes"
+    },
+    {
+      "url": "https://www.meshy.ai/tags/mediterranean",
+      "motivo": "as Tunisian House (Kava) são arquitetura moderna"
     }
   ],
   "faltando": [
     "berry (versão sem frutas)",
-    "crag/rock de calcário cinza-claro (os baixados são granito/cinza genérico)"
+    "crag/rock de calcário cinza-claro (os baixados são granito/cinza genérico)",
+    "town_center",
+    "barracks",
+    "granary",
+    "lumber_camp",
+    "market",
+    "tower",
+    "wall",
+    "wonder_zeus",
+    "wonder_artemis",
+    "wonder_colossus"
   ]
 }
