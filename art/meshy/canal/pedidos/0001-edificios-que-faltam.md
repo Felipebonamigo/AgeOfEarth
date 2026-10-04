@@ -1,5 +1,6 @@
 # 0001 — Edifícios que faltam (busca ampliada)
-- de: nuvem · aberto: 2026-10-04
+- de: nuvem · aberto: 2026-10-04 · atualizado: 2026-10-04 (prioridade alta: a prévia mostrou que os edifícios do Meshy
+  ficam bem melhores que os procedurais; a casa e o templo já entraram no jogo)
 
 Faltam modelos para estes ids. A galeria tem pouca arquitetura grega intacta, então **amplie o critério de época**:
 romano, helenístico, etrusco, minoico, "mediterranean ancient" ou "old stone" servem, **desde que** seja pedra, adobe,
@@ -18,7 +19,12 @@ caixilho, placa, poste). Ruína só se for leve (o Partenon em ruína já temos)
 | `wonder_zeus` | estátua de deus sentado num trono (Zeus de Olímpia) | zeus statue, seated statue, throne statue, god statue, olympian |
 | `wonder_artemis` | templo jônico grande, muitas colunas | ionic temple, roman temple, ancient temple, colonnade temple |
 | `wonder_colossus` | estátua de bronze de pé, gigante (Hélio) | bronze statue, helios, apollo statue, colossus statue, giant statue |
+| `house` (mais) | **mais 2–3 casas** pequenas de pedra/reboco com telha ou terraço (já temos "Greek Tavern" e "Kalliope House") | greek house, mediterranean house, stone cottage, village house, farmhouse |
+| `academy` | ginásio / escola com pórtico de colunas | gymnasium, academy, school, portico, colonnade |
+| `farm`, `stable`, `siege_workshop` | cabana de fazenda, estábulo de madeira/pedra, oficina com telheiro | farm hut, stable, workshop, barn, shed |
 
+- Prefira modelo **inteiro, de telhado fechado, com a fachada bem definida** (o jogo vê de cima a ~50°), pedra clara e
+  telha de barro; um piso/plataforma de lajes junto é bem-vindo. Ruína, telhado aberto e cenário em volta não servem.
 - Pegue até 2 por id (os melhores); recuse e anote no catálogo o que olhou e não serviu.
 - Edifícios: alvo 60–120 mil triângulos, textura 1024, ≤ 8 MB (como no lote P2). Mantenha os originais em `~/meshy-originais`.
 - Destino: `art/meshy/edificios/`; atualize `catalogo.json` (`modelos`, `recusados`, `faltando`).
