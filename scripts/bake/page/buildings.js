@@ -277,7 +277,8 @@ function applyDamage(k, level) {
     for (const [sa, sb] of [[-1, -1], [1, -1], [1, 1], [-1, 1], [0, 0]]) {
       const c = p.clone().addScaledVector(t1, sa * a).addScaledVector(t2, sb * b);
       const h = cast(c);
-      if (!h || Math.abs(h.point.clone().sub(c).dot(view)) > 0.012) return false;
+      // faces de um núcleo .glb são irregulares (pedra esculpida): aceitam mais desnível sob o decalque
+      if (!h || Math.abs(h.point.clone().sub(c).dot(view)) > (h.object.userData.glbSurface ? 0.035 : 0.012)) return false;
     }
     return true;
   };
@@ -303,8 +304,9 @@ function applyDamage(k, level) {
   for (let tries = 0; tries < 400; tries++) {
     const h = cast(at(bb.min.x + rand() * (bb.max.x - bb.min.x), v0 + rand() * (v1 - v0)));
     if (!h) continue;
-    const name = matName.get(h.object.material) ?? '';
     const bs = basis(h);
+    const glbName = () => (Math.abs(bs.n.y) < 0.5 ? 'stone' : k.glbRoof && bs.n.y > 0.5 ? 'terracotta' : '');
+    const name = h.object.userData.glbSurface ? glbName() : matName.get(h.object.material) ?? '';
     const rel = (h.point.y - bb.min.y) / Math.max(1e-6, bb.max.y - bb.min.y);
     if (ROOF_MATS.includes(name) && done.hole < want.hole) {
       const a = (0.3 + rand() * 0.25) * T, b = (0.24 + rand() * 0.18) * T;
@@ -914,6 +916,68 @@ BUILDERS.rubble = (k, p) => {
     const c = k.cyl(0.19, 0.19, 0.45, M.limestone, x, 0, z, 14); c.rotation.set(0, rand() * 3, Math.PI / 2); c.position.y = height(x, z) + 0.15;
   }
   k.debris = null;
+};
+
+/** Especificação do núcleo .glb de um quadro: `params.glb` = { path, … } ou { <variante>: { path, … } } (uma por variante). */
+export function glbSpecOf(params, variant) {
+  const g = params?.glb;
+  if (!g) return null;
+  return typeof g.path === 'string' ? g : g[variant] ?? null;
+}
+
+// ---- Núcleo .glb (modelo pronto de fora, ex.: Meshy): `params.glb` = { path, size (maior lado no chão, tiles), yaw
+//      (graus; 0 = como o modelo veio), roof (o topo é telhado de telha: buracos no dano), banner: [x, z] (tiles, do
+//      centro; estandarte de time), plinth (soco de pedra na obra) }, ou um desses por variante. O modelo vem carregado em `params.glbScene`
+//      (bake.js). Obra = o modelo cortado por um plano horizontal (20 % / 42 % / 62 % da altura) dentro de um andaime;
+//      dano = o modelo escurecido, rachaduras e fuligem nas faces dele (paredes = faces verticais) e entulho na base ----
+BUILDERS.glb = (k, p) => {
+  const { THREE, M, group } = k;
+  const g = glbSpecOf(p, p.variant), scene = p.glbScene;
+  if (!g || !scene) throw new Error('estilo glb sem params.glb/glbScene');
+  const inner = scene.clone(true);
+  const raw = new THREE.Box3().setFromObject(inner);
+  const s = g.size / Math.max(raw.max.x - raw.min.x, raw.max.z - raw.min.z);
+  inner.position.set(-(raw.min.x + raw.max.x) / 2, -raw.min.y, -(raw.min.z + raw.max.z) / 2);
+  const holder = new THREE.Group();
+  holder.rotation.y = ((g.yaw ?? 0) * Math.PI) / 180;
+  holder.scale.setScalar(s);
+  holder.add(inner);
+  group.add(holder);
+  group.updateMatrixWorld(true);
+  const bb = new THREE.Box3().setFromObject(holder);   // tiles, já girado
+  const H = bb.max.y - bb.min.y;
+  const st = p.stage;
+  const clip = st <= 2 ? new THREE.Plane(new THREE.Vector3(0, -1, 0), H * [0.2, 0.42, 0.62][st]) : null;
+  inner.traverse((o) => {
+    if (!o.isMesh) return;
+    o.castShadow = true; o.receiveShadow = true;
+    o.userData.glbSurface = true;
+    const dim = [1, 0.86, 0.72][p.damage ?? 0];   // dano: pedra encardida pela fumaça
+    if (clip || dim < 1) {
+      const cut = (m) => {
+        const c = m.clone();
+        if (clip) { c.clippingPlanes = [clip]; c.clipShadows = true; c.side = THREE.DoubleSide; }
+        if (dim < 1) c.color.multiplyScalar(dim);
+        return c;
+      };
+      o.material = Array.isArray(o.material) ? o.material.map(cut) : cut(o.material);
+    }
+  });
+  k.glbRoof = !!g.roof;
+  const toM = 1 / M2T;   // tiles → metros (o kit trabalha em metros no grupo r)
+  const x0 = bb.min.x * toM, x1 = bb.max.x * toM, z0 = bb.min.z * toM, z1 = bb.max.z * toM;
+  k.debris = { x0, x1, z0, z1 };
+  k.debrisMats = [M.stoneWarm, M.plasterDark, M.stoneLight];
+  if (st <= 2) {
+    // chão da obra: soco de pedra cobrindo a pegada (o modelo cortado é oco por dentro)
+    if (g.plinth !== false) k.block(x0 + 0.05, x1 - 0.05, 0, 0.12, z0 + 0.05, z1 - 0.05, M.stoneWarm);
+    k.scaffold({ x0: x0 - 0.25, x1: x1 + 0.25, z0: z0 - 0.25, z1: z1 + 0.3, h: Math.max(1.1, H * toM * [0.4, 0.68, 0.98][st]) });
+    k.pile(x1 - 0.5, z1 + 0.55, M.stoneLight);
+  } else if (g.banner) {
+    const [bx, bz] = g.banner;
+    // pano maior que o dos estilos procedurais: o modelo de fora não tem outra peça de time (toldo, bandeirola)
+    k.banner(bx * toM, bz * toM, Math.max(2.4, H * toM * 0.8), bx > 0 ? -1 : 1, [0.7, 1.05]);
+  }
 };
 
 // lote militar (quartel, estábulo, oficina de cerco, fortaleza, portal dos titãs, maravilhas): buildings-military.js

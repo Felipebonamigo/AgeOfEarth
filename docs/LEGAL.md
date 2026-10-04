@@ -157,7 +157,14 @@ Contato: **[DONO: e-mail]** · Controlador: **[DONO: razão social, CNPJ]** · E
   sozinha e o aviso de copyright vai na tela Créditos e em `docs/THIRD_PARTY.md`), só nos títulos.
 - Ferramentas de desenvolvimento (Vite, TypeScript, Vitest, Playwright, three.js, pngjs, pixelmatch, electron-builder) não vão
   no pacote. Música e efeitos são sintetizados pelo próprio código (`src/audio/`); o texto corrido usa as fontes do sistema (só os títulos usam a Cinzel, acima);
-  a arte é do projeto (texturas procedurais e sprites assados de modelos paramétricos próprios).
+  a arte é do projeto (texturas procedurais e sprites assados de modelos paramétricos próprios), exceto os modelos 3D abaixo.
+- **Modelos 3D do Meshy** (04/10/2026; catálogo com link, autor, licença e redução de cada um em `art/meshy/catalogo.json`):
+  só entram no jogo modelos **CC0** (domínio público: uso comercial livre, sem exigência de crédito) ou **CC BY 4.0**
+  (crédito obrigatório ao autor e ao Meshy); CC BY-NC, "Private" e licença ausente são recusados. No jogo hoje: as casas
+  "Greek Tavern" (Kava) e "Kalliope House Complete" (marmphi) e o templo "Erechtheion (Porch of the Caryatids)"
+  (abuzeraxundzade), todos CC0, creditados na tela Créditos por cortesia. Os arquivos ficam em `art/meshy/` e só os
+  sprites assados vão no pacote. O javali `boar__wildboar3d-conta.glb` (gerado na conta do dono) está com licença
+  "Privado" e **não entra** até o dono confirmar que foi gerado com a assinatura paga (pedido 0003 em `art/meshy/canal/`).
 - **[DONO: ao adquirir fontes, música, SFX ou arte de terceiros (Fase 2), registrar licença, autor e escopo aqui e na tela Créditos]**
 
 ## 5. Créditos (no jogo)

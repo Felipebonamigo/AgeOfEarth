@@ -109,7 +109,7 @@ describe('edifícios (Etapa 3): estados, variantes, escombros e ícones', () => 
     for (const b of Object.values(BUILDINGS)) expect(names.has(`rubble/${b.w}x${b.h}`), `${b.id} ${b.w}x${b.h}`).toBe(true);
   });
   it('o esquema recusa edifício sem estado de dano, variante sem critério e ícone de estado inexistente', () => {
-    const base = manifests.find((m) => m.id === 'house')!;
+    const base = manifests.find((m) => m.id === 'barracks')!;
     const bad1 = { ...base, anims: { build0: { frames: 1 }, build1: { frames: 1 }, build2: { frames: 1 }, complete: { frames: 1 } } };
     expect(validateManifest(bad1).join()).toMatch(/damage1/);
     expect(validateManifest({ ...base, variants: ['a', 'b'] }).join()).toMatch(/variantBy/);

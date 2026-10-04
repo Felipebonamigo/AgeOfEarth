@@ -26,7 +26,7 @@ export const PASSES = ['color', 'team', 'shadow'];
 /** Estados de todo edifício com arte (docs/ART.md §1.8): obra 0–2, pronto, dano 1–2. */
 export const BUILDING_STATES = ['build0', 'build1', 'build2', 'complete', 'damage1', 'damage2'];
 /** Como o renderizador escolhe a variante de um edifício (src/render/art/logic.ts). */
-export const VARIANT_BY = ['wallMask', 'gateAxis', 'ageTier', 'farmCrop'];
+export const VARIANT_BY = ['wallMask', 'gateAxis', 'ageTier', 'farmCrop', 'pick'];
 /** Lado do ícone a 1× (px). */
 export const ICON_PX = 64;
 /** Rigs paramétricos conhecidos pela página de bake (scripts/bake/page/rigs/*.js, props.js, buildings.js). Etapa 6:
@@ -158,6 +158,12 @@ export function validateManifest(m) {
   }
   if (m.kind === 'building') {
     const states = Object.keys(m.anims ?? {});
+    // núcleo .glb (estilo glb): { path, size } ou um por variante
+    if (s?.type === 'param' && s.rig === 'building' && s.params?.style === 'glb') {
+      const g = s.params.glb;
+      const specs = !g ? [null] : typeof g.path === 'string' ? [g] : (m.variants ?? [null]).map((v) => g[v]);
+      if (specs.some((x) => !x || typeof x.path !== 'string' || !/\.glb$/.test(x.path) || !isNum(x.size) || x.size <= 0)) e.push(`${where}: estilo glb pede params.glb = { path: '….glb', size } (um por variante se houver variants)`);
+    }
     if (!m.rubble) for (const st of BUILDING_STATES) if (!states.includes(st)) e.push(`${where}: estado ${st} ausente (edifícios têm ${BUILDING_STATES.join(', ')})`);
     if (m.variants !== undefined) {
       if (!Array.isArray(m.variants) || !m.variants.length || !m.variants.every((v) => typeof v === 'string' && /^[a-z0-9_]+$/.test(v))) e.push(`${where}: variants deve ser lista de nomes [a-z0-9_]`);
@@ -226,6 +232,13 @@ export function sizeCeiling(m) { return SIZE_CLASSES[m?.sizeClass ?? 'unit'] ?? 
  * Espelhamento efetivo de um asset: o do CLI (`--mirror`, todos) ou o do próprio manifesto (`mirror: true`, Etapa 6 — os
  * titãs simétricos: E, SE e NE são O, SO e NO desenhados com scale.x = −1; a página leva `aoe.mirroredAssets`).
  */
+/** Os .glb que os parâmetros de um edifício com núcleo .glb usam (`params.glb` = { path, … } ou um por variante): entram no
+ *  hash do bake e dos ícones. */
+export function glbPathsOf(params) {
+  const g = params?.glb;
+  if (!g) return [];
+  return typeof g.path === 'string' ? [g.path] : Object.values(g).map((v) => v?.path).filter((x) => typeof x === 'string');
+}
 export function mirrorOf(m, mirror = false) { return !!mirror || (m?.kind === 'unit' && m?.mirror === true); }
 /**
  * Espelhamento do próprio manifesto (sem o `--mirror` global): espelha só a cor e o time — a sombra é assada nas 8

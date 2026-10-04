@@ -211,7 +211,7 @@ export function buildingStage(frac: number, complete: boolean): BuildStage {
 export const BUILDING_STATES = ['build0', 'build1', 'build2', 'complete', 'damage1', 'damage2'] as const;
 export type BuildingState = BuildStage | 'damage1' | 'damage2' | 'open';
 /** Como escolher a variante de um edifício (manifesto `variantBy`). */
-export type VariantBy = 'wallMask' | 'gateAxis' | 'ageTier' | 'farmCrop';
+export type VariantBy = 'wallMask' | 'gateAxis' | 'ageTier' | 'farmCrop' | 'pick';
 
 /** Nível de dano pela vida: ≥ 1/3 perdida → 1, ≥ 2/3 perdida → 2 (docs/ART.md §1.8). */
 export function damageLevel(hpFrac: number): 0 | 1 | 2 {
@@ -273,6 +273,17 @@ export function farmCrop(seconds: number, id = 0): FarmCrop {
   const t = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
   const ph = (t / FARM_CYCLE + off) % 1;
   return ph < 0.3 ? 'sown' : ph < 0.65 ? 'growing' : 'ripe';
+}
+/**
+ * Variante sorteada (`pick`, ex.: as casas do Meshy): pela posição do canto da pegada, estável (o fantasma mostra a que
+ * vai ser construída, e a mesma casa não troca de modelo ao ser vista de novo). Hash inteiro, sem Math.random.
+ */
+export function pickVariant(variants: readonly string[], x: number, y: number): string | null {
+  if (!variants.length) return null;
+  let h = (Math.imul(x | 0, 0x27d4eb2d) ^ Math.imul(y | 0, 0x165667b1)) >>> 0;
+  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b) >>> 0;
+  h = (h ^ (h >>> 13)) >>> 0;
+  return variants[h % variants.length];
 }
 /** Variante de um edifício pelo critério do manifesto (null = sem variantes). `crop` = segundos desde a colocação;
  *  `flag` = trecho reto de muralha com estandarte (wallFlagAt), só para assets que têm as variantes '05f'/'10f'. */

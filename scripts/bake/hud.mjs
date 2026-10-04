@@ -21,7 +21,7 @@ import { PNG } from 'pngjs';
 import { startServer } from './server.mjs';
 import { alphaBounds, crop, packShelf, blit, sheetJson } from './page/atlas.js';
 import { atlasMeta } from './page/camera.js';
-import { posesOf } from './manifest.mjs';
+import { posesOf, glbPathsOf } from './manifest.mjs';
 import { RIG_FILES } from './page/rigs/units.js';
 import { hudItems } from './hud/catalog.mjs';
 
@@ -63,6 +63,8 @@ function loadUnitManifests() {
   }
   return out;
 }
+/** Os .glb dos edifícios com núcleo .glb (pré-carregados na página e no hash). */
+const hudGlbPaths = (manifests) => [...new Set(Object.values(manifests).flatMap((m) => (m.kind === 'building' ? glbPathsOf(m.source?.params) : [])))].sort();
 const poseCache = new Map();
 function posesFor(m) {
   const p = posesOf(m);
@@ -77,6 +79,7 @@ export function hudInputHash(scale, manifests) {
   for (const f of ['scripts/bake/hud.mjs', 'scripts/bake/hud/catalog.mjs', MANIFEST_MJS, ...pageFiles(), ...rigFiles()]) { h.update(`file:${f}\n`); h.update(readRel(f)); }
   for (const f of fs.readdirSync(path.join(ROOT, 'art/poses')).filter((f) => f.endsWith('.json')).sort()) { h.update(`poses:${f}\n`); h.update(readRel(`art/poses/${f}`)); }
   for (const id of Object.keys(manifests).sort()) h.update(`manifest:${id}:${JSON.stringify(manifests[id])}\n`);
+  for (const f of hudGlbPaths(manifests)) { h.update(`glb:${f}\n`); h.update(readRel(f)); }
   return h.digest('hex').slice(0, 16);
 }
 
@@ -107,7 +110,7 @@ async function withPage(fn) {
     page.on('console', (msg) => { const t = msg.text(); if ((msg.type() === 'error' || msg.type() === 'warning') && !/GPU stall|favicon|status of 404/.test(t)) console.error('[página]', t); });
     await page.goto(`http://127.0.0.1:${server.port}/index.html`);
     await page.waitForFunction(() => window.__ready === true || window.__error || window.__bake, null, { timeout: 120000 });
-    await page.evaluate(async () => { await import('/hud.js'); });
+    await page.evaluate(async (glbs) => { await import('/hud.js'); await window.__hud.preloadGlb(glbs); }, hudGlbPaths(loadUnitManifests()));
     const err = await page.evaluate(() => window.__error);
     if (err) throw new Error('página: ' + err);
     return await fn(page);

@@ -19,7 +19,8 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { makeLights, HEMI_INTENSITY } from './camera.js';
 import { createMaterials } from './materials.js';
 import { UNIT_RIGS } from './rigs/units.js';
-import { buildBuilding } from './buildings.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { buildBuilding, glbSpecOf } from './buildings.js';
 import { buildObject } from './hud-objects.js';
 import { buildGod } from './hud-gods.js';
 
@@ -198,7 +199,9 @@ function modelFor(spec) {
   if (spec.kind === 'object') return { model: buildObject(THREE, M, spec.key, spec.params ?? {}, { pitch: spec.pitch ?? 32 }), dispose: true };
   if (spec.kind === 'god') return { model: buildGod(THREE, M, spec.key, spec.params ?? {}), dispose: true };
   if (spec.kind === 'building') {
-    const g = buildBuilding(THREE, M, spec.style ?? spec.key, { ...(spec.params ?? {}), state: spec.state ?? 'complete', variant: spec.variant ?? undefined, frame: 0, frames: 1 });
+    const gs = glbSpecOf(spec.params, spec.variant);
+    if (gs && !glbScenes.has(gs.path)) throw new Error(`${gs.path}: .glb não pré-carregado (preloadGlb)`);
+    const g = buildBuilding(THREE, M, spec.style ?? spec.key, { ...(spec.params ?? {}), glbScene: gs ? glbScenes.get(gs.path) : undefined, state: spec.state ?? 'complete', variant: spec.variant ?? undefined, frame: 0, frames: 1 });
     return { model: g, dispose: true };
   }
   throw new Error(`tipo de ícone desconhecido: ${spec.kind}`);
@@ -212,6 +215,12 @@ function dispose(root) {
  * Renderiza uma lista de ícones. `job` = { scale, items: [{ name, size, spec }] } (size = lado em px a 1×). Devolve
  * `[{ name, w, h, color, team }]` (base64 RGBA; team null se o modelo não tiver partes de time).
  */
+/** Edifícios com núcleo .glb: carrega as cenas antes (renderIcons é síncrono). */
+const glbScenes = new Map();
+export async function preloadGlb(paths) {
+  for (const p of paths) if (!glbScenes.has(p)) glbScenes.set(p, (await new GLTFLoader().loadAsync('/' + p)).scene);
+}
+
 export function renderIcons(job) {
   const out = [];
   for (const it of job.items) {
@@ -229,4 +238,4 @@ export function renderIcons(job) {
   return out;
 }
 
-window.__hud = { renderIcons, three: THREE.REVISION };
+window.__hud = { renderIcons, preloadGlb, three: THREE.REVISION };

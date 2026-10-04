@@ -81,6 +81,8 @@ export const ONCE_UNIT_ANIMS: string[];
 export function posesOf(m: ArtManifest): { main: string | null; rider: string | null };
 export function animDirOf(a: AnimDef | undefined, dir: number): number;
 export function mirrorOf(m: ArtManifest, mirror?: boolean): boolean;
+/** Os .glb que os parâmetros de um edifício com núcleo .glb usam (um por variante). */
+export function glbPathsOf(params: unknown): string[];
 export function ownMirror(m: ArtManifest, mirror?: boolean): boolean;
 export function packedDirs(m: ArtManifest, pass: 'color' | 'team' | 'shadow', mirror?: boolean): number[];
 export const FRAME_NAME_RE: Record<AssetKind | 'icon', RegExp>;

@@ -1,12 +1,21 @@
 {
   "id": "temple",
   "kind": "building",
-  "docs": "Para usar um modelo .glb, troque `source` por { \"type\": \"glb\", \"path\": \"art/src/temple.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"build0\": \"Build0\", …, \"damage2\": \"Damage2\" }, \"teamMaterials\": [\"Banner\"] } (um clipe estático por estado; docs/ART.md §3.4).",
+  "docs": "Núcleo .glb do Meshy (Erecteion, CC0, art/meshy/catalogo.json) no rig building: obra por plano de corte + andaime, dano, estandarte de time. Para voltar ao procedural: params = { \"style\": \"temple\" }.",
   "source": {
     "type": "param",
     "rig": "building",
     "params": {
-      "style": "temple"
+      "style": "glb",
+      "glb": {
+        "path": "art/meshy/edificios/temple__erechtheion.glb",
+        "size": 2.9,
+        "yaw": 0,
+        "banner": [
+          1.35,
+          1.45
+        ]
+      }
     }
   },
   "size": {

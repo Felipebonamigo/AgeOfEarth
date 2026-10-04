@@ -20,7 +20,7 @@ import { createMaterials } from './materials.js';
 import { buildHuman } from './rigs/human.js';
 import { UNIT_RIGS } from './rigs/units.js';
 import { buildProp } from './props.js';
-import { buildBuilding } from './buildings.js';
+import { buildBuilding, glbSpecOf } from './buildings.js';
 
 const LAYER_MODEL = 0, LAYER_GROUND = 1;
 
@@ -33,6 +33,7 @@ renderer.shadowMap.autoUpdate = false;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.localClippingEnabled = true;   // obra dos edifícios com núcleo .glb (plano de corte)
 document.body.appendChild(renderer.domElement);
 const gl = renderer.getContext();
 
@@ -189,6 +190,12 @@ async function loadGlb(src) {
   return { group, mixer, clips: gltf.animations };
 }
 
+/** Cena de um .glb (cacheada por caminho), para quem monta o modelo por cima (edifício com núcleo .glb). */
+async function glbSceneOf(p) {
+  if (!gltfCache.has(p)) gltfCache.set(p, await new GLTFLoader().loadAsync('/' + p));
+  return gltfCache.get(p).scene;
+}
+
 /** Constrói o modelo de um quadro (ou reaproveita). Devolve `{ model, pose(f) }`. */
 async function sourceFor(manifest, poses, state, f) {
   const src = manifest.source;
@@ -219,7 +226,10 @@ async function sourceFor(manifest, poses, state, f) {
   if (src.rig === 'building') {
     const key = fr_key(f);
     state.buildings ??= new Map();
-    if (!state.buildings.has(key)) state.buildings.set(key, buildBuilding(THREE, M, src.params?.style ?? manifest.id, { ...(src.params ?? {}), ...(f.params ?? {}), state: f.anim, variant: f.variant ?? undefined, frame: f.frame, frames: f.frames }));
+    // núcleo .glb (estilo glb): o modelo carregado vai junto dos parâmetros
+    const spec = glbSpecOf(src.params, f.variant);
+    const glbScene = spec ? await glbSceneOf(spec.path) : undefined;
+    if (!state.buildings.has(key)) state.buildings.set(key, buildBuilding(THREE, M, src.params?.style ?? manifest.id, { ...(src.params ?? {}), ...(f.params ?? {}), glbScene, state: f.anim, variant: f.variant ?? undefined, frame: f.frame, frames: f.frames }));
     return { model: state.buildings.get(key), pose() {} };
   }
   if (src.rig === 'props') return { model: buildProp(THREE, M, f.item.kind, f.item.variant, f.item.tag), pose() {} };

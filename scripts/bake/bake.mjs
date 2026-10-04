@@ -27,7 +27,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
 import { startServer } from './server.mjs';
-import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, animSummary, matchesOnly, GROUP_OF, PASSES, bakedDirs, ATLAS_GROUPS, ICON_PX, atlasOf, posesOf, expandUnitVariants, unitVariantId, scalesOf, mirrorOf, ownMirror } from './manifest.mjs';
+import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, animSummary, matchesOnly, GROUP_OF, PASSES, bakedDirs, ATLAS_GROUPS, ICON_PX, atlasOf, posesOf, expandUnitVariants, unitVariantId, scalesOf, mirrorOf, ownMirror, glbPathsOf } from './manifest.mjs';
 import { RIG_FILES } from './page/rigs/units.js';
 import { alphaBounds, crop, packShelf, blit, sheetJson, halve, SHADOW_TEXEL } from './page/atlas.js';
 import { PX_PER_TILE, PIPELINE_VERSION, MIRROR_FROM, atlasMeta } from './page/camera.js';
@@ -99,6 +99,7 @@ function sourceFiles(m) {
   else if (s.rig === 'building') {
     // buildings.js, os módulos de lote em page/ (buildings-*.js) e em page/rigs/ (buildings-*.js), em ordem estável
     files.push(...fs.readdirSync(PAGE).filter((f) => /^buildings(-[a-z0-9-]+)?\.js$/.test(f)).sort().map((f) => `scripts/bake/page/${f}`), 'scripts/bake/manifest.mjs', ...buildingModules(), 'scripts/bake/page/trees.js', 'scripts/bake/page/props.js');   // as oliveiras dos pátios (trees.js, que usa o gerador de props.js)
+    files.push(...glbPathsOf(s.params));   // núcleo .glb (estilo glb), um por variante
   }
   else if (s.rig === 'props') files.push('scripts/bake/page/props.js', 'scripts/bake/page/trees.js', 'scripts/bake/page/nature-textures.js', 'scripts/bake/page/animals.js', 'scripts/bake/page/rigs/organic.js');
   return files;

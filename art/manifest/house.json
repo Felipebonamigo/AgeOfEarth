@@ -1,12 +1,33 @@
 {
   "id": "house",
   "kind": "building",
-  "docs": "Para usar um modelo .glb, troque `source` por { \"type\": \"glb\", \"path\": \"art/src/house.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"build0\": \"Build0\", …, \"damage2\": \"Damage2\" }, \"teamMaterials\": [\"Banner\"] } (um clipe estático por estado; docs/ART.md §3.4).",
+  "docs": "Núcleo .glb do Meshy (CC0, art/meshy/catalogo.json) no rig building: obra por plano de corte + andaime, dano, estandarte de time; duas casas sorteadas pela posição (variantBy pick). Para voltar ao procedural: params = { \"style\": \"house\" } sem variants/variantBy.",
   "source": {
     "type": "param",
     "rig": "building",
     "params": {
-      "style": "house"
+      "style": "glb",
+      "glb": {
+        "tavern": {
+          "path": "art/meshy/edificios/house__greek-tavern.glb",
+          "size": 1.92,
+          "yaw": 90,
+          "roof": true,
+          "banner": [
+            -0.85,
+            0.95
+          ]
+        },
+        "kalliope": {
+          "path": "art/meshy/edificios/house__kalliope-house.glb",
+          "size": 1.9,
+          "yaw": 0,
+          "banner": [
+            0.85,
+            0.95
+          ]
+        }
+      }
     }
   },
   "size": {
@@ -24,6 +45,11 @@
     0.56
   ],
   "dirs": 1,
+  "variants": [
+    "tavern",
+    "kalliope"
+  ],
+  "variantBy": "pick",
   "anims": {
     "build0": {
       "frames": 1
@@ -45,7 +71,8 @@
     }
   },
   "icon": {
-    "anim": "complete"
+    "anim": "complete",
+    "variant": "tavern"
   },
   "team": true,
   "shadow": true

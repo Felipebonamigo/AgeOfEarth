@@ -29,6 +29,125 @@
  },
  "atlases": [
   {
+   "json": "buildings-1x-0.json",
+   "image": "buildings-1x-0.png",
+   "group": "buildings",
+   "pass": "color",
+   "scale": 1,
+   "page": 0,
+   "w": 2048,
+   "h": 1824,
+   "frames": 367,
+   "bytes": 3575765,
+   "sha256": "9bfc816af3fc505d7e7cddadf118dfdd7e0f13b43ce321ba7aa52bc1dfdf903c"
+  },
+  {
+   "json": "buildings-2x-0.json",
+   "image": "buildings-2x-0.png",
+   "group": "buildings",
+   "pass": "color",
+   "scale": 2,
+   "page": 0,
+   "w": 2048,
+   "h": 1888,
+   "frames": 80,
+   "bytes": 3496530,
+   "sha256": "de2c58b3f2a7be7e6e358f065ceb993153823c006bbe5d18b74d12bc47ea2abd"
+  },
+  {
+   "json": "buildings-2x-1.json",
+   "image": "buildings-2x-1.png",
+   "group": "buildings",
+   "pass": "color",
+   "scale": 2,
+   "page": 1,
+   "w": 2048,
+   "h": 1664,
+   "frames": 35,
+   "bytes": 2209912,
+   "sha256": "414145b2ea8710655e79344ebd32b31f8942b6df56cb7f4cadc31bf0e8214b9d"
+  },
+  {
+   "json": "buildings-2x-2.json",
+   "image": "buildings-2x-2.png",
+   "group": "buildings",
+   "pass": "color",
+   "scale": 2,
+   "page": 2,
+   "w": 2048,
+   "h": 2048,
+   "frames": 234,
+   "bytes": 4576931,
+   "sha256": "2ebce3eca0f453eff7463f4ccd80581b7d27418c06e0f74821c3eadd3c8521cc"
+  },
+  {
+   "json": "buildings-2x-3.json",
+   "image": "buildings-2x-3.png",
+   "group": "buildings",
+   "pass": "color",
+   "scale": 2,
+   "page": 3,
+   "w": 1920,
+   "h": 1248,
+   "frames": 18,
+   "bytes": 2031445,
+   "sha256": "dae75cd5b84e720d1def563ff069be68e2412655320dd54df157d65d1e865e32"
+  },
+  {
+   "json": "buildings-shadow-1x-0.json",
+   "image": "buildings-shadow-1x-0.png",
+   "group": "buildings",
+   "pass": "shadow",
+   "scale": 1,
+   "texel": 0.5,
+   "page": 0,
+   "w": 2048,
+   "h": 640,
+   "frames": 361,
+   "bytes": 264460,
+   "sha256": "5d83120847e55c9c1355f435017b884d4c3a1df92c5a43039dc9c5f336e0232f"
+  },
+  {
+   "json": "buildings-shadow-2x-0.json",
+   "image": "buildings-shadow-2x-0.png",
+   "group": "buildings",
+   "pass": "shadow",
+   "scale": 2,
+   "texel": 0.5,
+   "page": 0,
+   "w": 2048,
+   "h": 1600,
+   "frames": 361,
+   "bytes": 812028,
+   "sha256": "2d2e9d0888d7d1ebfd758d306e768ffe8b3f9c29e22d40b4b3f91578dedaf932"
+  },
+  {
+   "json": "buildings-team-1x-0.json",
+   "image": "buildings-team-1x-0.png",
+   "group": "buildings",
+   "pass": "team",
+   "scale": 1,
+   "page": 0,
+   "w": 672,
+   "h": 544,
+   "frames": 292,
+   "bytes": 7217,
+   "sha256": "106ce9a4bb7d0005a8185bd978ab62ad33967a4f3bba5fb497e0951f9bb3191b"
+  },
+  {
+   "json": "buildings-team-2x-0.json",
+   "image": "buildings-team-2x-0.png",
+   "group": "buildings",
+   "pass": "team",
+   "scale": 2,
+   "page": 0,
+   "w": 1120,
+   "h": 992,
+   "frames": 292,
+   "bytes": 14844,
+   "sha256": "e830e0514c9dfcf085d49cf30705f9cfe2f7b4d724a17a1af315673008a8bdb0"
+  },
+  {
    "json": "fx-1x-0.json",
    "image": "fx-1x-0.png",
    "group": "fx",
@@ -64,8 +183,8 @@
    "w": 2048,
    "h": 448,
    "frames": 144,
-   "bytes": 564407,
-   "sha256": "f2ae2853b497b142b47dae5363ca0ce5b9c22be9328a95c3672f0fd374aef613"
+   "bytes": 619217,
+   "sha256": "823cd87353c8a919e61cb7f451510a09c868697fd064cfa2f664a34e32c96727"
   },
   {
    "json": "hud-1x-team-0.json",
@@ -77,8 +196,8 @@
    "w": 2048,
    "h": 448,
    "frames": 60,
-   "bytes": 51253,
-   "sha256": "c2264bdb083da4bc51c1b732d90f177bfd910bfca0ce1bdb40f34ab84a25df2f"
+   "bytes": 50816,
+   "sha256": "18e48575d9cd9a95f99d7f1a1a4c649f7f53fe33eb6aeb470c0f8ae8aa7b8dff"
   },
   {
    "json": "hud-2x-0.json",
@@ -90,8 +209,8 @@
    "w": 2048,
    "h": 1344,
    "frames": 144,
-   "bytes": 1561142,
-   "sha256": "04931489edfbce423dcd287b641008a54b856f6ddd59f8d54fd78ee1bd3da0e0"
+   "bytes": 1803035,
+   "sha256": "8a4c0357fba16ce10bf0c08f780b377813057cd74f351718e57303228492c29c"
   },
   {
    "json": "hud-2x-team-0.json",
@@ -103,8 +222,114 @@
    "w": 2048,
    "h": 1344,
    "frames": 60,
-   "bytes": 126317,
-   "sha256": "a4bfbaac5f815cd63071b436d0aa1ecf4b0b30936ba1ea37fcb526236a295eaf"
+   "bytes": 125545,
+   "sha256": "0756df996df4ec52f8fbf3b73cc4a56501076676a5aa114dff4f131801e34af0"
+  },
+  {
+   "json": "icons-1x-0.json",
+   "image": "icons-1x-0.png",
+   "group": "icons",
+   "pass": "color",
+   "scale": 1,
+   "page": 0,
+   "w": 512,
+   "h": 192,
+   "frames": 21,
+   "bytes": 83766,
+   "sha256": "51715f0470efdcd2c42edb8485edf8fc5f01c5ca9c52132b787739a768ef43ee"
+  },
+  {
+   "json": "icons-2x-0.json",
+   "image": "icons-2x-0.png",
+   "group": "icons",
+   "pass": "color",
+   "scale": 2,
+   "page": 0,
+   "w": 864,
+   "h": 352,
+   "frames": 21,
+   "bytes": 283674,
+   "sha256": "f0a3692175c3ebc7d10951232e1849f28f1d7418195630191d833a8a01d70f53"
+  },
+  {
+   "json": "icons-team-1x-0.json",
+   "image": "icons-team-1x-0.png",
+   "group": "icons",
+   "pass": "team",
+   "scale": 1,
+   "page": 0,
+   "w": 160,
+   "h": 224,
+   "frames": 21,
+   "bytes": 2126,
+   "sha256": "f33840d7c20485168d86a1bb3e935fec404346e842040e40b4712b5ff82dfba6"
+  },
+  {
+   "json": "icons-team-2x-0.json",
+   "image": "icons-team-2x-0.png",
+   "group": "icons",
+   "pass": "team",
+   "scale": 2,
+   "page": 0,
+   "w": 288,
+   "h": 416,
+   "frames": 21,
+   "bytes": 4069,
+   "sha256": "42a5da0903c90d4233d3046733be5d365585b92ed77a4759d974b25898c12562"
+  },
+  {
+   "json": "props-1x-0.json",
+   "image": "props-1x-0.png",
+   "group": "props",
+   "pass": "color",
+   "scale": 1,
+   "page": 0,
+   "w": 1056,
+   "h": 352,
+   "frames": 72,
+   "bytes": 212729,
+   "sha256": "66d71ca7a3986b9c56820b8022bb83bf2de08f60bb0a21bacb5783d0d62aad8c"
+  },
+  {
+   "json": "props-2x-0.json",
+   "image": "props-2x-0.png",
+   "group": "props",
+   "pass": "color",
+   "scale": 2,
+   "page": 0,
+   "w": 2048,
+   "h": 704,
+   "frames": 72,
+   "bytes": 826708,
+   "sha256": "7ac0a30d2eddf68e5a25e4adde456b5ce9018fd1340ac90a37164c4ddb252617"
+  },
+  {
+   "json": "props-shadow-1x-0.json",
+   "image": "props-shadow-1x-0.png",
+   "group": "props",
+   "pass": "shadow",
+   "scale": 1,
+   "texel": 0.5,
+   "page": 0,
+   "w": 800,
+   "h": 160,
+   "frames": 72,
+   "bytes": 33304,
+   "sha256": "e6d0114f53d97d5ca62571db57fe3d139e6a94ef1ac85a09eb2e61e00218b228"
+  },
+  {
+   "json": "props-shadow-2x-0.json",
+   "image": "props-shadow-2x-0.png",
+   "group": "props",
+   "pass": "shadow",
+   "scale": 2,
+   "texel": 0.5,
+   "page": 0,
+   "w": 1440,
+   "h": 256,
+   "frames": 72,
+   "bytes": 105448,
+   "sha256": "c05947d3406005d3f42a3f1ba7bdae7af27af493b7293bacb692c19ab6fee7b9"
   },
   {
    "json": "units-1x-0.json",
@@ -1770,238 +1995,13 @@
    "frames": 192,
    "bytes": 450104,
    "sha256": "fc67eabf8697c155b387fcc8854eb807a0895d652de50a202d090e3b5498b900"
-  },
-  {
-   "json": "buildings-1x-0.json",
-   "image": "buildings-1x-0.png",
-   "group": "buildings",
-   "pass": "color",
-   "scale": 1,
-   "page": 0,
-   "w": 2048,
-   "h": 1824,
-   "frames": 361,
-   "bytes": 3490843,
-   "sha256": "0dd7a50256d899d9a498c774be15e2db5b1bd58f2e9b8e9ff52b076b9f47df94"
-  },
-  {
-   "json": "buildings-2x-0.json",
-   "image": "buildings-2x-0.png",
-   "group": "buildings",
-   "pass": "color",
-   "scale": 2,
-   "page": 0,
-   "w": 2048,
-   "h": 1888,
-   "frames": 74,
-   "bytes": 3123289,
-   "sha256": "d3a6ebcb39284a21dc4823e655575db1cb8f98c718fb0cb4127743b9a1dafeeb"
-  },
-  {
-   "json": "buildings-2x-1.json",
-   "image": "buildings-2x-1.png",
-   "group": "buildings",
-   "pass": "color",
-   "scale": 2,
-   "page": 1,
-   "w": 1984,
-   "h": 1696,
-   "frames": 35,
-   "bytes": 2248899,
-   "sha256": "c9dd5bc6bd0a7918b18673f5fa215becab092066852fdb63041649ebb41e045e"
-  },
-  {
-   "json": "buildings-2x-2.json",
-   "image": "buildings-2x-2.png",
-   "group": "buildings",
-   "pass": "color",
-   "scale": 2,
-   "page": 2,
-   "w": 2048,
-   "h": 2048,
-   "frames": 234,
-   "bytes": 4576931,
-   "sha256": "2ebce3eca0f453eff7463f4ccd80581b7d27418c06e0f74821c3eadd3c8521cc"
-  },
-  {
-   "json": "buildings-2x-3.json",
-   "image": "buildings-2x-3.png",
-   "group": "buildings",
-   "pass": "color",
-   "scale": 2,
-   "page": 3,
-   "w": 1920,
-   "h": 1248,
-   "frames": 18,
-   "bytes": 2031445,
-   "sha256": "dae75cd5b84e720d1def563ff069be68e2412655320dd54df157d65d1e865e32"
-  },
-  {
-   "json": "buildings-shadow-1x-0.json",
-   "image": "buildings-shadow-1x-0.png",
-   "group": "buildings",
-   "pass": "shadow",
-   "scale": 1,
-   "texel": 0.5,
-   "page": 0,
-   "w": 2048,
-   "h": 544,
-   "frames": 355,
-   "bytes": 252980,
-   "sha256": "6e3d6b3527e4591f98ab7e522860e5ad3ab8eba22f9941683f7a49754299dcff"
-  },
-  {
-   "json": "buildings-shadow-2x-0.json",
-   "image": "buildings-shadow-2x-0.png",
-   "group": "buildings",
-   "pass": "shadow",
-   "scale": 2,
-   "texel": 0.5,
-   "page": 0,
-   "w": 2048,
-   "h": 1472,
-   "frames": 355,
-   "bytes": 780360,
-   "sha256": "fc2033ddffcba4a1539b21f12276468736b15a64ba182193d3f26e4722ef5b1e"
-  },
-  {
-   "json": "buildings-team-1x-0.json",
-   "image": "buildings-team-1x-0.png",
-   "group": "buildings",
-   "pass": "team",
-   "scale": 1,
-   "page": 0,
-   "w": 640,
-   "h": 544,
-   "frames": 286,
-   "bytes": 7573,
-   "sha256": "824dc0ba49b7f89c8360fcafc2bbe31c32c8427972d1b3a8a6cec757c3d8162d"
-  },
-  {
-   "json": "buildings-team-2x-0.json",
-   "image": "buildings-team-2x-0.png",
-   "group": "buildings",
-   "pass": "team",
-   "scale": 2,
-   "page": 0,
-   "w": 1248,
-   "h": 992,
-   "frames": 286,
-   "bytes": 17035,
-   "sha256": "d4272f48fe403861669aa04dfbedf289791a42e2d0adc0819dd4c392abeafdd3"
-  },
-  {
-   "json": "icons-1x-0.json",
-   "image": "icons-1x-0.png",
-   "group": "icons",
-   "pass": "color",
-   "scale": 1,
-   "page": 0,
-   "w": 448,
-   "h": 192,
-   "frames": 21,
-   "bytes": 82133,
-   "sha256": "62b3745470def459107f122bc3003231158422bc0199e2873711003768f3780d"
-  },
-  {
-   "json": "icons-2x-0.json",
-   "image": "icons-2x-0.png",
-   "group": "icons",
-   "pass": "color",
-   "scale": 2,
-   "page": 0,
-   "w": 768,
-   "h": 352,
-   "frames": 21,
-   "bytes": 276396,
-   "sha256": "62f49dca476251227067741f6da858acece7c33f5266caaaf30322c97eca7ec2"
-  },
-  {
-   "json": "icons-team-1x-0.json",
-   "image": "icons-team-1x-0.png",
-   "group": "icons",
-   "pass": "team",
-   "scale": 1,
-   "page": 0,
-   "w": 192,
-   "h": 224,
-   "frames": 21,
-   "bytes": 2352,
-   "sha256": "01ddadcfc7d9bd08de47dce7c11a09ab9957749aff6ca3dcc5fe90c3c0172be8"
-  },
-  {
-   "json": "icons-team-2x-0.json",
-   "image": "icons-team-2x-0.png",
-   "group": "icons",
-   "pass": "team",
-   "scale": 2,
-   "page": 0,
-   "w": 288,
-   "h": 416,
-   "frames": 21,
-   "bytes": 4648,
-   "sha256": "b17164a188427504f0a7bdcbcff07a991cf1919f5fb594f0d397951497b48f89"
-  },
-  {
-   "json": "props-1x-0.json",
-   "image": "props-1x-0.png",
-   "group": "props",
-   "pass": "color",
-   "scale": 1,
-   "page": 0,
-   "w": 1056,
-   "h": 352,
-   "frames": 72,
-   "bytes": 212729,
-   "sha256": "66d71ca7a3986b9c56820b8022bb83bf2de08f60bb0a21bacb5783d0d62aad8c"
-  },
-  {
-   "json": "props-2x-0.json",
-   "image": "props-2x-0.png",
-   "group": "props",
-   "pass": "color",
-   "scale": 2,
-   "page": 0,
-   "w": 2048,
-   "h": 704,
-   "frames": 72,
-   "bytes": 826708,
-   "sha256": "7ac0a30d2eddf68e5a25e4adde456b5ce9018fd1340ac90a37164c4ddb252617"
-  },
-  {
-   "json": "props-shadow-1x-0.json",
-   "image": "props-shadow-1x-0.png",
-   "group": "props",
-   "pass": "shadow",
-   "scale": 1,
-   "texel": 0.5,
-   "page": 0,
-   "w": 800,
-   "h": 160,
-   "frames": 72,
-   "bytes": 33304,
-   "sha256": "e6d0114f53d97d5ca62571db57fe3d139e6a94ef1ac85a09eb2e61e00218b228"
-  },
-  {
-   "json": "props-shadow-2x-0.json",
-   "image": "props-shadow-2x-0.png",
-   "group": "props",
-   "pass": "shadow",
-   "scale": 2,
-   "texel": 0.5,
-   "page": 0,
-   "w": 1440,
-   "h": 256,
-   "frames": 72,
-   "bytes": 105448,
-   "sha256": "c05947d3406005d3f42a3f1ba7bdae7af27af493b7293bacb692c19ab6fee7b9"
   }
  ],
  "assets": {
   "academy": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "5c304cc0ea24a9b2",
+   "sourceHash": "b2ca3414dea4dbac",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2192,7 +2192,7 @@
   "barracks": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "7651e61ce71da8a4",
+   "sourceHash": "ee247e56b55726b4",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2749,7 +2749,7 @@
   "cornucopia": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "fd09eb809292e7f1",
+   "sourceHash": "54ba33c9e1b5b9c3",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -3107,7 +3107,7 @@
   "farm": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "1b779276c1b44d15",
+   "sourceHash": "a981a87b9bbc1564",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -3210,7 +3210,7 @@
   "fortress": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "c27f92fe80b67686",
+   "sourceHash": "70f2a65144063a36",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -3422,7 +3422,7 @@
   "gate": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "fe4c05bdc3438a6e",
+   "sourceHash": "b129ce9398ac2ea7",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -3529,7 +3529,7 @@
   "granary": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "56b23c7e444d2b1d",
+   "sourceHash": "19b43b19ceabdc87",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -4088,12 +4088,17 @@
   "house": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "2664dbf1658877c5",
+   "sourceHash": "17f77b4321621012",
    "dirs": 1,
    "mirror": false,
    "team": true,
    "shadow": true,
-   "frames": 7,
+   "frames": 13,
+   "variants": [
+    "tavern",
+    "kalliope"
+   ],
+   "variantBy": "pick",
    "icon": true,
    "atlases": {
     "1": {
@@ -4126,22 +4131,22 @@
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 100,
-      "h": 126
+      "w": 94,
+      "h": 124
      },
      "anchor": {
-      "x": 0.36,
-      "y": 0.60317
+      "x": 0.38298,
+      "y": 0.54839
      }
     },
     "2": {
      "sourceSize": {
-      "w": 198,
-      "h": 250
+      "w": 186,
+      "h": 244
      },
      "anchor": {
-      "x": 0.35354,
-      "y": 0.6
+      "x": 0.3871,
+      "y": 0.54918
      }
     }
    },
@@ -4185,7 +4190,7 @@
   "hud": {
    "kind": "hud",
    "group": "hud",
-   "sourceHash": "d9893d0df36ddb7f",
+   "sourceHash": "fab23c872c504ed5",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -5167,7 +5172,7 @@
   "lumber_camp": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "851e8efd1a37707f",
+   "sourceHash": "c85b5a641ac61e2c",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -5365,7 +5370,7 @@
   "market": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "20af699d24266995",
+   "sourceHash": "d078e65cf18b1909",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -5646,7 +5651,7 @@
   "mine": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "1635edf9971d5d85",
+   "sourceHash": "334288132638859c",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -6800,7 +6805,7 @@
   "rubble": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "8876cdb83c128ceb",
+   "sourceHash": "fcec1485cea19c33",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -7066,7 +7071,7 @@
   "siege_workshop": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "1c502aae6ef81f15",
+   "sourceHash": "18919c09785efc60",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -7163,7 +7168,7 @@
   "stable": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "fafca322d0722bff",
+   "sourceHash": "09e105ddd9c2f68f",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -7260,7 +7265,7 @@
   "temple": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "909d219ddc64bfcb",
+   "sourceHash": "44b55840fe4d9a87",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -7298,22 +7303,22 @@
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 138,
-      "h": 186
+      "w": 142,
+      "h": 188
      },
      "anchor": {
-      "x": 0.4058,
-      "y": 0.5914
+      "x": 0.38028,
+      "y": 0.56383
      }
     },
     "2": {
      "sourceSize": {
-      "w": 274,
-      "h": 370
+      "w": 282,
+      "h": 372
      },
      "anchor": {
-      "x": 0.40876,
-      "y": 0.59459
+      "x": 0.37589,
+      "y": 0.56452
      }
     }
    },
@@ -7357,7 +7362,7 @@
   "titan_gate": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "c53c63a9d16bc09c",
+   "sourceHash": "434f6caba14b9e36",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -7459,7 +7464,7 @@
   "tower": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "ca74e9c953978eb7",
+   "sourceHash": "b01cca9d768ffc2d",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -7575,7 +7580,7 @@
   "town_center": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "fd867d1bbf25a9b4",
+   "sourceHash": "4692f649d5a6ee4e",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -7872,7 +7877,7 @@
   "wall": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "0fa160e2acad1877",
+   "sourceHash": "2af94c7004131056",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -7990,7 +7995,7 @@
   "wonder_artemis": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "d0a8d37a6a774c63",
+   "sourceHash": "f3b7d561c19dfed7",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -8087,7 +8092,7 @@
   "wonder_colossus": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "51f5a267a6ed8b6c",
+   "sourceHash": "f305a91ecaae879f",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -8184,7 +8189,7 @@
   "wonder_zeus": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "a21362aa12b68802",
+   "sourceHash": "5573218070d10349",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -8280,8 +8285,8 @@
   }
  },
  "totals": {
-  "pngBytes": 115963783,
-  "vramBytes": 720392192,
+  "pngBytes": 116727160,
+  "vramBytes": 722116608,
   "atlases": 148
  }
 }
