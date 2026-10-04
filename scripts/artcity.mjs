@@ -164,7 +164,8 @@ const hud = await page.evaluate(() => {
   return { villager: v.id };
 });
 await page.waitForTimeout(700);
-const icons = await page.evaluate(() => ({ cmd: document.querySelectorAll('#commands img.art-ic, .cmd img.art-ic').length, emoji: [...document.querySelectorAll('.cmd .ic')].filter((e) => !e.querySelector('img')).length }));
+// Etapa 7: os ícones do menu vêm do atlas `hud` (`<img class="hic">` de src/ui/icons.ts), não mais do atlas `icons`
+const icons = await page.evaluate(() => ({ cmd: document.querySelectorAll('#commands .cmd .ic img, .cmd .ic img').length, emoji: [...document.querySelectorAll('.cmd .ic')].filter((e) => !e.querySelector('img, svg')).length }));
 console.log('ícones no menu de construção:', JSON.stringify(icons));
 if (icons.cmd < 6) errors.push(`só ${icons.cmd} ícones assados no menu de construção`);
 await shot('hud-icones');
