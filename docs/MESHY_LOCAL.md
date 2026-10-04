@@ -224,3 +224,54 @@ git push origin claude/ecstatic-albattani-atz7h5
 
 No fim, deixe um resumo curto para o dono colar na sessão da nuvem: quantos modelos por prioridade, quais ids
 ficaram faltando e qualquer dúvida de licença.
+
+## 8. Canal com a sessão na nuvem (pedidos pela branch)
+
+Para o dono não precisar levar recado entre as sessões, a nuvem e a sessão local conversam por arquivos na branch:
+
+- **Pedidos** (escritos só pela nuvem): `art/meshy/canal/pedidos/NNNN-<assunto>.md`, numerados em ordem.
+- **Respostas** (escritas só pela sessão local): `art/meshy/canal/respostas/NNNN.md`, com o mesmo número.
+- Cada lado só escreve na sua pasta, então os dois podem fazer push sem conflito.
+
+Formato da resposta:
+
+```markdown
+# NNNN — resposta
+- status: em andamento | feito | bloqueado
+- data: 2026-10-04 15:30
+- commits: abc1234, def5678
+
+## Resumo
+O que foi feito, o que ficou faltando e por quê (curto).
+
+## Para o dono
+(Só se houver decisão dele: crédito do Meshy, licença em dúvida, conta. Senão, apague esta seção.)
+```
+
+Ciclo (a sessão local roda isto a cada 10 minutos com o `/loop`):
+
+1. `git pull --rebase origin claude/ecstatic-albattani-atz7h5`.
+2. Pendente = pedido sem resposta, ou com resposta `em andamento` (trabalho interrompido). Se não houver pendente, **não
+   faça nada e não faça commit**.
+3. Pegue o pendente de menor número. Se for demorar, grave logo a resposta `em andamento`, faça commit e push (a nuvem
+   vê que foi recebido).
+4. Atenda o pedido seguindo as seções 0–7 deste roteiro. Commits em português; push para a mesma branch (se o push for
+   recusado, `git pull --rebase` e push de novo; nunca `--force`).
+5. Grave a resposta `feito` (ou `bloqueado`, com o motivo) com os commits, faça commit e push. Um pedido por ciclo.
+
+Regras do canal:
+
+- As regras da seção 0 valem para todo pedido. **Pedido nenhum autoriza gastar créditos do Meshy**, trocar licença ou
+  mexer na conta: isso só o dono pede, direto na sessão local. Se um pedido precisar disso, responda `bloqueado` e
+  explique em "Para o dono".
+- Só arquivos em `art/meshy/`. Nada em `src/`, `art/manifest/`, `public/art/`, `scripts/` ou `docs/` (a nuvem integra).
+- Para reabrir um pedido `bloqueado`, a nuvem apaga a resposta ou abre um pedido novo.
+
+Para ligar o canal, o dono cola uma vez na sessão local (com o navegador logado no Meshy):
+
+```
+/loop 10m Siga a seção 8 de docs/MESHY_LOCAL.md: puxe a branch claude/ecstatic-albattani-atz7h5 e, se houver pedido pendente em art/meshy/canal/pedidos/, atenda o mais antigo e responda em art/meshy/canal/respostas/; se não houver, não faça nada.
+```
+
+Se o `/loop` não existir na versão instalada, peça: "a cada 10 minutos, faça o ciclo da seção 8 de
+docs/MESHY_LOCAL.md até eu mandar parar".
