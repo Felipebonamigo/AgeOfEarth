@@ -747,7 +747,9 @@ contrato, com a escala calibrada pela altura de tela dos sprites atuais (`docs/a
   subindo de dentro da plataforma — cercando o soco inteiro, os postes do fundo passavam do teto de 256 px a 1×); moldura
   6,6 × 8,4 tiles (a sombra da estátua cabe à direita; o bake recorta a caixa para 180 × 230 px).
   Antes × depois em `docs/art/etapa9-meshy-maravilha-zeus.png`. O "Colosso" do lote é outro deus (mármore, tridente):
-  fica o procedural de bronze.
+  fica o procedural de bronze. Para estátuas de mármore servirem de bronze, `glb.tint` = `'bronze'` (ou { color,
+  metalness, roughness }) troca a cor e o metal do modelo, mantém a textura como detalhe e liga o mesmo mapa de ambiente
+  dos bronzes procedurais (sem ele, o metal sai preto); pedido 0004 busca uma estátua de pé para o Colosso.
 - **Canal com a sessão local** (`docs/MESHY_LOCAL.md` §8): pedidos em `art/meshy/canal/pedidos/`, respostas em
   `art/meshy/canal/respostas/`, a sessão local num `/loop` de 10 min. 0001 e 0003 respondidos em 05/10 (o javali da conta: no pior caso CC BY 4.0, uso comercial com crédito ao Meshy; não
   está no jogo).

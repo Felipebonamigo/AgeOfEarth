@@ -27,6 +27,7 @@
 // Sem Math.random: gerador com semente por estilo/estado/variante, então os quadros saem iguais em qualquer rodada.
 
 import { M2T, PITCH_DEG } from './camera.js';
+import { PALETTE } from './materials.js';
 import { ECONOMY_BUILDERS } from './rigs/buildings-economy.js';
 import { MILITARY_BUILDERS } from './buildings-military.js';
 import { texturize } from './buildings-textures.js';
@@ -957,14 +958,24 @@ BUILDERS.glb = (k, p) => {
   const H = bb.max.y - bb.min.y;
   const st = p.stage;
   const clip = st <= 2 ? new THREE.Plane(new THREE.Vector3(0, -1, 0), lift + H * [0.2, 0.42, 0.62][st]) : null;
+  // `tint`: 'bronze' (ou { color, metalness, roughness }) — uma estátua de mármore vira de bronze: a textura do modelo
+  // fica como detalhe (multiplicada pela cor) e o metal sai do mapa do modelo (que diz "pedra")
+  const tint = g.tint === 'bronze' ? { color: PALETTE.bronze, metalness: 0.9, roughness: 0.38 } : (g.tint ?? null);
   inner.traverse((o) => {
     if (!o.isMesh) return;
     o.castShadow = true; o.receiveShadow = true;
     o.userData.glbSurface = true;
     const dim = [1, 0.86, 0.72][p.damage ?? 0];   // dano: pedra encardida pela fumaça
-    if (clip || dim < 1) {
+    if (clip || dim < 1 || tint) {
       const cut = (m) => {
         const c = m.clone();
+        if (tint) {
+          c.color.setHex(tint.color);
+          if ('metalness' in c) { c.metalness = tint.metalness ?? 0.9; c.metalnessMap = null; }
+          if ('roughness' in c) { c.roughness = tint.roughness ?? 0.4; c.roughnessMap = null; }
+          // o metal reflete o ambiente do bake (o mesmo dos bronzes procedurais, bake.js); sem ele sai preto
+          c.envMap = M.bronze.envMap ?? null; c.envMapIntensity = M.bronze.envMapIntensity ?? 0.55;
+        }
         if (clip) { c.clippingPlanes = [clip]; c.clipShadows = true; c.side = THREE.DoubleSide; }
         if (dim < 1) c.color.multiplyScalar(dim);
         return c;

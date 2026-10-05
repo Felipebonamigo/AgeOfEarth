@@ -29,6 +29,9 @@ describe('edifícios com núcleo .glb', () => {
     expect(validateManifest(withGlb({ tavern: { path: 'a.glb', size: 2 }, kalliope: { path: 'b.glb' } })).join()).toMatch(/estilo glb/);
     expect(validateManifest(withGlb({ tavern: { path: 'a.obj', size: 2 }, kalliope: { path: 'b.glb', size: 2 } })).join()).toMatch(/estilo glb/);
     expect(validateManifest(withGlb({ tavern: { path: 'a.glb', size: 2 }, kalliope: { path: 'b.glb', size: 2 } }))).toEqual([]);
+    // tingimento: 'bronze' ou { color } (estátua de mármore que vira de bronze)
+    expect(validateManifest(withGlb({ tavern: { path: 'a.glb', size: 2, tint: 'bronze' }, kalliope: { path: 'b.glb', size: 2, tint: { color: 0x8c6a2e, metalness: 0.9 } } }))).toEqual([]);
+    expect(validateManifest(withGlb({ tavern: { path: 'a.glb', size: 2, tint: 'ouro' }, kalliope: { path: 'b.glb', size: 2 } })).join()).toMatch(/tint/);
   });
   it('todo modelo usado no jogo está no catálogo com licença CC0 ou CC BY 4.0', () => {
     const byFile = new Map(catalog.modelos.map((c) => [`art/meshy/${c.arquivo}`, c]));

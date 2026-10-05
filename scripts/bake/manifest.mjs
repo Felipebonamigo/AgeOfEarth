@@ -163,6 +163,8 @@ export function validateManifest(m) {
       const g = s.params.glb;
       const specs = !g ? [null] : typeof g.path === 'string' ? [g] : (m.variants ?? [null]).map((v) => g[v]);
       if (specs.some((x) => !x || typeof x.path !== 'string' || !/\.glb$/.test(x.path) || !isNum(x.size) || x.size <= 0)) e.push(`${where}: estilo glb pede params.glb = { path: '….glb', size } (um por variante se houver variants)`);
+      // tint: 'bronze' ou { color: 0xRRGGBB, metalness?, roughness? } (estátua de mármore tingida)
+      if (specs.some((x) => x?.tint !== undefined && x.tint !== 'bronze' && !(x.tint && isNum(x.tint.color)))) e.push(`${where}: params.glb.tint deve ser 'bronze' ou { color: número, metalness?, roughness? }`);
     }
     if (!m.rubble) for (const st of BUILDING_STATES) if (!states.includes(st)) e.push(`${where}: estado ${st} ausente (edifícios têm ${BUILDING_STATES.join(', ')})`);
     if (m.variants !== undefined) {
