@@ -161,10 +161,11 @@ Contato: **[DONO: e-mail]** · Controlador: **[DONO: razão social, CNPJ]** · E
 - **Modelos 3D do Meshy** (04/10/2026; catálogo com link, autor, licença e redução de cada um em `art/meshy/catalogo.json`):
   só entram no jogo modelos **CC0** (domínio público: uso comercial livre, sem exigência de crédito) ou **CC BY 4.0**
   (crédito obrigatório ao autor e ao Meshy); CC BY-NC, "Private" e licença ausente são recusados. No jogo hoje: as casas
-  "Greek Tavern" (Kava) e "Kalliope House Complete" (marmphi) e o templo "Erechtheion (Porch of the Caryatids)"
-  (abuzeraxundzade), todos CC0, creditados na tela Créditos por cortesia. Os arquivos ficam em `art/meshy/` e só os
-  sprites assados vão no pacote. O javali `boar__wildboar3d-conta.glb` (gerado na conta do dono) está com licença
-  "Privado" e **não entra** até o dono confirmar que foi gerado com a assinatura paga (pedido 0003 em `art/meshy/canal/`).
+  "Greek Tavern" (Kava) e "Kalliope House Complete" (marmphi), o templo "Erechtheion (Porch of the Caryatids)"
+  (abuzeraxundzade) e a estátua da maravilha de Zeus "Zeus Throne" (lionnik2013), todos CC0, creditados na tela Créditos por cortesia. Os arquivos ficam em `art/meshy/` e só os
+  sprites assados vão no pacote. O javali `boar__wildboar3d-conta.glb` (gerado na conta do dono em 03/10, no dia em que a assinatura Pro começou)
+  não está no jogo; pelos termos do Meshy, modelo de plano pago é do dono e de plano gratuito é CC BY 4.0 — nos dois casos
+  o uso comercial é permitido (no pior caso, com crédito ao Meshy; pedido 0003 em `art/meshy/canal/`).
 - **Texturas do terreno do Poly Haven** (05/10/2026; `public/terrain/fotos.json` lista id, link, autores e licença de cada
   uma): todo o acervo do Poly Haven é **CC0** (domínio público, uso comercial livre). No jogo: grama "Forest Ground 01" e
   terra "Dry Ground Rocks" (Rob Tuytel), areia "Dense Sand" (Dimitrios Savva) e calcário "Marble Cliff 06" (Amal Kumar),

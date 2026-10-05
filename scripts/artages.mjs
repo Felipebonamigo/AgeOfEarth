@@ -116,9 +116,10 @@ async function scene(name, age, build, extra, W, H) {
   await page.evaluate(() => window.aoe.applyQuality());
   // 4 s de JOGO (por software a partida anda mais devagar que o relógio): a fumaça sobe, o colapso (1,5 s) termina e
   // sobram os escombros, o cidadão chega ao portão, a colheita começa
-  const t0 = await page.evaluate(() => { const s = window.aoe.session; s.paused = false; s.speed = 1; return s.state.tick; });
-  await page.waitForFunction((t) => window.aoe.session.state.tick >= t + 80, t0, { timeout: 60000, polling: 100 });
-  await page.evaluate(() => { window.aoe.session.paused = true; });
+  // velocidade 4: por software um quadro chega a levar segundos, e a 1× os 80 ticks passavam do teto da espera
+  const t0 = await page.evaluate(() => { const s = window.aoe.session; s.paused = false; s.speed = 4; return s.state.tick; });
+  await page.waitForFunction((t) => window.aoe.session.state.tick >= t + 80, t0, { timeout: 180000, polling: 100 });
+  await page.evaluate(() => { const s = window.aoe.session; s.paused = true; s.speed = 1; });
   await page.evaluate(([x, y, z]) => { const c = window.aoe.renderer.cam; c.zoom = z; c.centerOn(x, y); }, [sc.x0 + W / 2, sc.y0 + H / 2 + view.dy, zoom]);
   await page.waitForTimeout(900);
   const file = join(outDir, `${prefix}-${name}.png`);

@@ -738,9 +738,19 @@ contrato, com a escala calibrada pela altura de tela dos sprites atuais (`docs/a
   `docs/art/etapa9-meshy-antes-depois.png`; a referência `docs/art/ref/cidade.png` do `art:diff` foi atualizada.
 - Créditos (CC0 não exige, mas creditamos): tela Créditos (`credits.art`) e `docs/LEGAL.md` §4. O javali da conta do dono
   (licença "Privado") não entra até a licença ser confirmada.
+- **Segundo lote (pedido 0001, 05/10/2026: 18 edifícios)**: prévia no tamanho real da pegada, com obra/dano
+  (`docs/art/etapa9-meshy-lote2-comparacao.png`). Os procedurais ganham em quartel, estábulo, mercado, serraria, oficina
+  de cerco e Centro Cívico — os modelos do Meshy são galpões genéricos e escuros, sem o que identifica a função (cavalos,
+  bancas, máquinas, escudos) —, e muralha, torre e fazenda ficam fora (bitmask/plantação). Entrou a **maravilha de Zeus**:
+  o Zeus de mármore no trono ("Zeus Throne", lionnik2013) sobre um soco de mármore em degraus (`glb.base` = { size,
+  steps, h, mat } no `BUILDERS.glb`: o modelo sobe para o topo, a obra corta só o modelo e o andaime cerca só ele,
+  subindo de dentro da plataforma — cercando o soco inteiro, os postes do fundo passavam do teto de 256 px a 1×); moldura
+  6,6 × 8,4 tiles (a sombra da estátua cabe à direita; o bake recorta a caixa para 180 × 230 px).
+  Antes × depois em `docs/art/etapa9-meshy-maravilha-zeus.png`. O "Colosso" do lote é outro deus (mármore, tridente):
+  fica o procedural de bronze.
 - **Canal com a sessão local** (`docs/MESHY_LOCAL.md` §8): pedidos em `art/meshy/canal/pedidos/`, respostas em
-  `art/meshy/canal/respostas/`, a sessão local num `/loop` de 10 min. Em aberto: 0001 (edifícios que faltam: Centro Cívico,
-  quartel, celeiro, serraria, mercado, torre, muralha, maravilhas, mais casas, academia) e 0003 (licença do javali).
+  `art/meshy/canal/respostas/`, a sessão local num `/loop` de 10 min. 0001 e 0003 respondidos em 05/10 (o javali da conta: no pior caso CC BY 4.0, uso comercial com crédito ao Meshy; não
+  está no jogo).
 
 ## Apêndice A — Evidências dos protótipos (não estão no repositório; `scratchpad/` desta sessão)
 

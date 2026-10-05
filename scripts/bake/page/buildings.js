@@ -943,11 +943,20 @@ BUILDERS.glb = (k, p) => {
   holder.scale.setScalar(s);
   holder.add(inner);
   group.add(holder);
+  // soco em degraus sob o modelo (`base` = { size: lado em tiles, steps, h: metros por degrau, mat }): estátuas e
+  // maravilhas sobre a plataforma da pegada; o modelo sobe para o topo dela e a obra corta só o modelo
+  let lift = 0;
+  if (g.base) {
+    const n = g.base.steps ?? 3, sh = g.base.h ?? 0.3, half = (g.base.size / M2T) / 2, mat = k.M[g.base.mat ?? 'marble'];
+    for (let i = 0; i < n; i++) k.block(-half + i * 0.4, half - i * 0.4, i * sh, (i + 1) * sh, -half + i * 0.4, half - i * 0.4, mat);
+    lift = n * sh * M2T;
+    holder.position.y = lift;
+  }
   group.updateMatrixWorld(true);
   const bb = new THREE.Box3().setFromObject(holder);   // tiles, já girado
   const H = bb.max.y - bb.min.y;
   const st = p.stage;
-  const clip = st <= 2 ? new THREE.Plane(new THREE.Vector3(0, -1, 0), H * [0.2, 0.42, 0.62][st]) : null;
+  const clip = st <= 2 ? new THREE.Plane(new THREE.Vector3(0, -1, 0), lift + H * [0.2, 0.42, 0.62][st]) : null;
   inner.traverse((o) => {
     if (!o.isMesh) return;
     o.castShadow = true; o.receiveShadow = true;
@@ -965,18 +974,21 @@ BUILDERS.glb = (k, p) => {
   });
   k.glbRoof = !!g.roof;
   const toM = 1 / M2T;   // tiles → metros (o kit trabalha em metros no grupo r)
-  const x0 = bb.min.x * toM, x1 = bb.max.x * toM, z0 = bb.min.z * toM, z1 = bb.max.z * toM;
+  const ext = g.base ? Math.max(bb.max.x, bb.max.z, g.base.size / 2) : 0;
+  const x0 = (g.base ? -ext : bb.min.x) * toM, x1 = (g.base ? ext : bb.max.x) * toM, z0 = (g.base ? -ext : bb.min.z) * toM, z1 = (g.base ? ext : bb.max.z) * toM;
   k.debris = { x0, x1, z0, z1 };
   k.debrisMats = [M.stoneWarm, M.plasterDark, M.stoneLight];
   if (st <= 2) {
     // chão da obra: soco de pedra cobrindo a pegada (o modelo cortado é oco por dentro)
-    if (g.plinth !== false) k.block(x0 + 0.05, x1 - 0.05, 0, 0.12, z0 + 0.05, z1 - 0.05, M.stoneWarm);
-    k.scaffold({ x0: x0 - 0.25, x1: x1 + 0.25, z0: z0 - 0.25, z1: z1 + 0.3, h: Math.max(1.1, H * toM * [0.4, 0.68, 0.98][st]) });
+    if (g.plinth !== false && !g.base) k.block(x0 + 0.05, x1 - 0.05, 0, 0.12, z0 + 0.05, z1 - 0.05, M.stoneWarm);
+    // com soco, o andaime cerca só o modelo (sobe de dentro da plataforma); o monte de pedra fica no chão, diante dela
+    const [sx0, sx1, sz0, sz1] = g.base ? [bb.min.x * toM, bb.max.x * toM, bb.min.z * toM, bb.max.z * toM] : [x0, x1, z0, z1];
+    k.scaffold({ x0: sx0 - 0.25, x1: sx1 + 0.25, z0: sz0 - 0.25, z1: sz1 + 0.3, h: Math.max(1.1, (lift + H * [0.4, 0.68, 0.98][st]) * toM) });
     k.pile(x1 - 0.5, z1 + 0.55, M.stoneLight);
   } else if (g.banner) {
     const [bx, bz] = g.banner;
     // pano maior que o dos estilos procedurais: o modelo de fora não tem outra peça de time (toldo, bandeirola)
-    k.banner(bx * toM, bz * toM, Math.max(2.4, H * toM * 0.8), bx > 0 ? -1 : 1, [0.7, 1.05]);
+    k.banner(bx * toM, bz * toM, Math.max(2.4, Math.min(5, H * toM * 0.8)), bx > 0 ? -1 : 1, [0.7, 1.05]);
   }
 };
 

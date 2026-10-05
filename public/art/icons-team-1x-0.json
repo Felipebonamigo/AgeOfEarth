@@ -20,7 +20,7 @@
   "wall": {"frame":{"x":45,"y":71,"w":7,"h":5},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":32,"y":12,"w":7,"h":5},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
   "wonder_artemis": {"frame":{"x":55,"y":1,"w":34,"h":4},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":15,"y":51,"w":34,"h":4},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
   "wonder_colossus": {"frame":{"x":93,"y":1,"w":26,"h":3},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":19,"y":52,"w":26,"h":3},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}},
-  "wonder_zeus": {"frame":{"x":123,"y":1,"w":28,"h":3},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":18,"y":49,"w":28,"h":3},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}}
+  "wonder_zeus": {"frame":{"x":123,"y":1,"w":4,"h":4},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":43,"y":43,"w":4,"h":4},"sourceSize":{"w":64,"h":64},"anchor":{"x":0.5,"y":0.5}}
  },
  "animations": {
 

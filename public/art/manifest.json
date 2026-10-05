@@ -38,8 +38,8 @@
    "w": 2048,
    "h": 1824,
    "frames": 367,
-   "bytes": 3575765,
-   "sha256": "9bfc816af3fc505d7e7cddadf118dfdd7e0f13b43ce321ba7aa52bc1dfdf903c"
+   "bytes": 3607198,
+   "sha256": "bc6c1953b8dd591f85001e941515fbd0c2b0155a2a61b7b76637497e8a8d21f6"
   },
   {
    "json": "buildings-2x-0.json",
@@ -88,10 +88,10 @@
    "scale": 2,
    "page": 3,
    "w": 1920,
-   "h": 1248,
+   "h": 1312,
    "frames": 18,
-   "bytes": 2031445,
-   "sha256": "dae75cd5b84e720d1def563ff069be68e2412655320dd54df157d65d1e865e32"
+   "bytes": 2165273,
+   "sha256": "16daccbf7d2a8d4deb1fd9643073565bf694545f16a82487ba26b004452fe204"
   },
   {
    "json": "buildings-shadow-1x-0.json",
@@ -102,10 +102,10 @@
    "texel": 0.5,
    "page": 0,
    "w": 2048,
-   "h": 640,
+   "h": 704,
    "frames": 361,
-   "bytes": 264460,
-   "sha256": "5d83120847e55c9c1355f435017b884d4c3a1df92c5a43039dc9c5f336e0232f"
+   "bytes": 265371,
+   "sha256": "f2b9d41261baaa089f1160212db26eb2433999daf3f6aec4a82c6d8df646c0c2"
   },
   {
    "json": "buildings-shadow-2x-0.json",
@@ -118,8 +118,8 @@
    "w": 2048,
    "h": 1600,
    "frames": 361,
-   "bytes": 812028,
-   "sha256": "2d2e9d0888d7d1ebfd758d306e768ffe8b3f9c29e22d40b4b3f91578dedaf932"
+   "bytes": 809990,
+   "sha256": "9cfa1c68e6b6547b2da4405e81c1056c71df13b01a99db100666a29975748fb8"
   },
   {
    "json": "buildings-team-1x-0.json",
@@ -131,8 +131,8 @@
    "w": 672,
    "h": 544,
    "frames": 292,
-   "bytes": 7217,
-   "sha256": "106ce9a4bb7d0005a8185bd978ab62ad33967a4f3bba5fb497e0951f9bb3191b"
+   "bytes": 7216,
+   "sha256": "aecf62a5b6115e4f4e6dc7a78d917581cc457e8c7eda7707e1013842ddde61f0"
   },
   {
    "json": "buildings-team-2x-0.json",
@@ -141,11 +141,11 @@
    "pass": "team",
    "scale": 2,
    "page": 0,
-   "w": 1120,
+   "w": 1056,
    "h": 992,
    "frames": 292,
-   "bytes": 14844,
-   "sha256": "e830e0514c9dfcf085d49cf30705f9cfe2f7b4d724a17a1af315673008a8bdb0"
+   "bytes": 14566,
+   "sha256": "b078cbe13b1f585abab0815d92efcb4f2f0aec0c9ebad32cdccd8955eea39228"
   },
   {
    "json": "fx-1x-0.json",
@@ -183,8 +183,8 @@
    "w": 2048,
    "h": 448,
    "frames": 144,
-   "bytes": 619217,
-   "sha256": "823cd87353c8a919e61cb7f451510a09c868697fd064cfa2f664a34e32c96727"
+   "bytes": 618158,
+   "sha256": "7096c8ecb732160ad63e447df91a4fc15fca8b4d9b218c16dfeb6b1ea71fbc23"
   },
   {
    "json": "hud-1x-team-0.json",
@@ -196,8 +196,8 @@
    "w": 2048,
    "h": 448,
    "frames": 60,
-   "bytes": 50816,
-   "sha256": "18e48575d9cd9a95f99d7f1a1a4c649f7f53fe33eb6aeb470c0f8ae8aa7b8dff"
+   "bytes": 50791,
+   "sha256": "ff8be86b9ff6a3ece9c9bfd68c7088aa198edfeec0bc327b1a26ed9bef7365c4"
   },
   {
    "json": "hud-2x-0.json",
@@ -209,8 +209,8 @@
    "w": 2048,
    "h": 1344,
    "frames": 144,
-   "bytes": 1803035,
-   "sha256": "8a4c0357fba16ce10bf0c08f780b377813057cd74f351718e57303228492c29c"
+   "bytes": 1801792,
+   "sha256": "cd5fd5eafe65cbc93a22ec7427284039dfbff46473c252be04513a936942a53a"
   },
   {
    "json": "hud-2x-team-0.json",
@@ -222,8 +222,8 @@
    "w": 2048,
    "h": 1344,
    "frames": 60,
-   "bytes": 125545,
-   "sha256": "0756df996df4ec52f8fbf3b73cc4a56501076676a5aa114dff4f131801e34af0"
+   "bytes": 125538,
+   "sha256": "fb14272a24f7bbc779091d5c1abdac2cf2fd4480fb86b7f2ee01902ecdbf5111"
   },
   {
    "json": "icons-1x-0.json",
@@ -235,8 +235,8 @@
    "w": 512,
    "h": 192,
    "frames": 21,
-   "bytes": 83766,
-   "sha256": "51715f0470efdcd2c42edb8485edf8fc5f01c5ca9c52132b787739a768ef43ee"
+   "bytes": 83268,
+   "sha256": "b88b25915e9e9dc8f5b4bb29ce9124b02689432af7cf62d5571f02bcdc3f727c"
   },
   {
    "json": "icons-2x-0.json",
@@ -248,8 +248,8 @@
    "w": 864,
    "h": 352,
    "frames": 21,
-   "bytes": 283674,
-   "sha256": "f0a3692175c3ebc7d10951232e1849f28f1d7418195630191d833a8a01d70f53"
+   "bytes": 283069,
+   "sha256": "11864fb542b9ebe0f1d128c30442fa92d93673ba637218907b93c3151de05614"
   },
   {
    "json": "icons-team-1x-0.json",
@@ -261,8 +261,8 @@
    "w": 160,
    "h": 224,
    "frames": 21,
-   "bytes": 2126,
-   "sha256": "f33840d7c20485168d86a1bb3e935fec404346e842040e40b4712b5ff82dfba6"
+   "bytes": 2117,
+   "sha256": "16e317e146ea00c86fc495e0bc99f29157b388a03d966e922c4f3ee188479076"
   },
   {
    "json": "icons-team-2x-0.json",
@@ -271,11 +271,11 @@
    "pass": "team",
    "scale": 2,
    "page": 0,
-   "w": 288,
+   "w": 256,
    "h": 416,
    "frames": 21,
-   "bytes": 4069,
-   "sha256": "42a5da0903c90d4233d3046733be5d365585b92ed77a4759d974b25898c12562"
+   "bytes": 3958,
+   "sha256": "0248486aa39fdd3ed9a4dec094082fe2b12bc6478ed9989441c276392955bbad"
   },
   {
    "json": "props-1x-0.json",
@@ -2001,7 +2001,7 @@
   "academy": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "b2ca3414dea4dbac",
+   "sourceHash": "92fc0f5d6662ee86",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2192,7 +2192,7 @@
   "barracks": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "ee247e56b55726b4",
+   "sourceHash": "a8d26e147f0bade7",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -2749,7 +2749,7 @@
   "cornucopia": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "54ba33c9e1b5b9c3",
+   "sourceHash": "f1faf39756debf55",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -3107,7 +3107,7 @@
   "farm": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "a981a87b9bbc1564",
+   "sourceHash": "d91a0b78f188022f",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -3210,7 +3210,7 @@
   "fortress": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "70f2a65144063a36",
+   "sourceHash": "286a237a1d1422e6",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -3422,7 +3422,7 @@
   "gate": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "b129ce9398ac2ea7",
+   "sourceHash": "47c408708739bb81",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -3529,7 +3529,7 @@
   "granary": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "19b43b19ceabdc87",
+   "sourceHash": "fb6aafd4ba12560c",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -4088,7 +4088,7 @@
   "house": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "17f77b4321621012",
+   "sourceHash": "b8cf66f976e779a4",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -4190,7 +4190,7 @@
   "hud": {
    "kind": "hud",
    "group": "hud",
-   "sourceHash": "fab23c872c504ed5",
+   "sourceHash": "4740ff93e585fbf4",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -5172,7 +5172,7 @@
   "lumber_camp": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "c85b5a641ac61e2c",
+   "sourceHash": "1244d9f6dc71abe4",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -5370,7 +5370,7 @@
   "market": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "d078e65cf18b1909",
+   "sourceHash": "be5a1db500a13fe2",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -5651,7 +5651,7 @@
   "mine": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "334288132638859c",
+   "sourceHash": "211911e568051c81",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -6805,7 +6805,7 @@
   "rubble": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "fcec1485cea19c33",
+   "sourceHash": "04a7f0f8205456fc",
    "dirs": 1,
    "mirror": false,
    "team": false,
@@ -7071,7 +7071,7 @@
   "siege_workshop": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "18919c09785efc60",
+   "sourceHash": "33c78307c7a48865",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -7168,7 +7168,7 @@
   "stable": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "09e105ddd9c2f68f",
+   "sourceHash": "830ccd9abbb1b67c",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -7265,7 +7265,7 @@
   "temple": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "44b55840fe4d9a87",
+   "sourceHash": "5aa4fa740bb57a7f",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -7362,7 +7362,7 @@
   "titan_gate": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "434f6caba14b9e36",
+   "sourceHash": "cbc324337207f352",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -7464,7 +7464,7 @@
   "tower": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "b01cca9d768ffc2d",
+   "sourceHash": "7c1af6b55d801b68",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -7580,7 +7580,7 @@
   "town_center": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "4692f649d5a6ee4e",
+   "sourceHash": "8dc7d55063cf11a4",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -7877,7 +7877,7 @@
   "wall": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "2af94c7004131056",
+   "sourceHash": "5121e6bf3df3c480",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -7995,7 +7995,7 @@
   "wonder_artemis": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "f3b7d561c19dfed7",
+   "sourceHash": "e36d06a8d5ce8bac",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -8092,7 +8092,7 @@
   "wonder_colossus": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "f305a91ecaae879f",
+   "sourceHash": "8dabbc436603febc",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -8189,7 +8189,7 @@
   "wonder_zeus": {
    "kind": "building",
    "group": "buildings",
-   "sourceHash": "5573218070d10349",
+   "sourceHash": "eafeac17fd300107",
    "dirs": 1,
    "mirror": false,
    "team": true,
@@ -8227,22 +8227,22 @@
    "sizes": {
     "1": {
      "sourceSize": {
-      "w": 172,
-      "h": 200
+      "w": 180,
+      "h": 230
      },
      "anchor": {
-      "x": 0.43023,
-      "y": 0.6
+      "x": 0.4,
+      "y": 0.61739
      }
     },
     "2": {
      "sourceSize": {
-      "w": 342,
-      "h": 398
+      "w": 358,
+      "h": 460
      },
      "anchor": {
-      "x": 0.4269,
-      "y": 0.60302
+      "x": 0.39665,
+      "y": 0.62174
      }
     }
    },
@@ -8285,8 +8285,8 @@
   }
  },
  "totals": {
-  "pngBytes": 116727160,
-  "vramBytes": 722116608,
+  "pngBytes": 116887458,
+  "vramBytes": 722825216,
   "atlases": 148
  }
 }

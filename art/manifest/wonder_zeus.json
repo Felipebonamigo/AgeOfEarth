@@ -1,18 +1,32 @@
 {
   "id": "wonder_zeus",
   "kind": "building",
-  "docs": "Para usar um modelo .glb, troque `source` por { \"type\": \"glb\", \"path\": \"art/src/wonder_zeus.glb\", \"scale\": 0.5, \"forward\": \"-z\", \"anims\": { \"build0\": \"Build0\", …, \"damage2\": \"Damage2\" }, \"teamMaterials\": [\"Banner\"] } (um clipe estático por estado; docs/ART.md §3.4).",
+  "docs": "Núcleo .glb do Meshy (Zeus de mármore no trono, CC0, art/meshy/catalogo.json) sobre um soco de mármore em degraus no rig building: obra por plano de corte + andaime, dano, estandarte de time. Para voltar ao procedural: params = { \"style\": \"wonder_zeus\" } e size/anchor antigos ([5.8, 6.9], [0.45, 0.59]).",
   "source": {
     "type": "param",
     "rig": "building",
     "params": {
-      "style": "wonder_zeus"
+      "style": "glb",
+      "glb": {
+        "path": "art/meshy/edificios/wonder_zeus__zeus-throne.glb",
+        "size": 2.0,
+        "yaw": 0,
+        "base": {
+          "size": 3.9,
+          "steps": 3,
+          "h": 0.3
+        },
+        "banner": [
+          1.75,
+          1.75
+        ]
+      }
     }
   },
   "size": {
     "tiles": [
-      5.8,
-      6.9
+      6.6,
+      8.4
     ]
   },
   "footprint": [
@@ -20,8 +34,8 @@
     4
   ],
   "anchor": [
-    0.45,
-    0.59
+    0.395,
+    0.663
   ],
   "dirs": 1,
   "anims": {

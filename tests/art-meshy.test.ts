@@ -12,8 +12,8 @@ const glbBuildings = manifests.filter((m) => m.kind === 'building' && m.source.t
 const catalog = JSON.parse(fs.readFileSync(path.join(ROOT, 'art', 'meshy', 'catalogo.json'), 'utf8')) as { modelos: { arquivo: string; licenca: string; autor: string }[] };
 
 describe('edifícios com núcleo .glb', () => {
-  it('casa e templo usam o núcleo .glb, com um modelo por variante, e os arquivos existem', () => {
-    expect(glbBuildings.map((m) => m.id).sort()).toEqual(['house', 'temple']);
+  it('casa, templo e a maravilha de Zeus usam o núcleo .glb, com um modelo por variante, e os arquivos existem', () => {
+    expect(glbBuildings.map((m) => m.id).sort()).toEqual(['house', 'temple', 'wonder_zeus']);
     for (const m of glbBuildings) {
       expect(validateManifest(m), m.id).toEqual([]);
       const paths = glbPathsOf((m.source as { params?: unknown }).params);
