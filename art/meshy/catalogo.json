@@ -151,14 +151,14 @@
       "url": "https://www.meshy.ai/workspace",
       "autor": "conta do dono",
       "autorUrl": "",
-      "licenca": "assinatura Meshy (privado)",
+      "licenca": "CC BY 4.0",
       "origem": "conta",
       "verticesOriginal": 3114534,
       "triangulos": 54131,
       "textura": 1024,
       "rig": false,
       "baixadoEm": "2026-10-04",
-      "notas": "image-to-3d gerado em 03/10/2026 na conta do dono, licença 'Privado' na conta; expira na conta em 06/10/2026. CONFIRMAR se foi gerado com plano pago (licença comercial da assinatura)"
+      "notas": "image-to-3d na conta do dono em 03/10/2026; plano Pro ativado 03/10/2026 23:11 (\"Mudança de plano\" no histórico). Há dois Imagem para 3D nesse dia: 23:06 (antes do Pro) e 23:12 (depois). A conta não mostra a hora de cada ativo; pela ordem em Meus Ativos (mais novo primeiro) o javali vem antes do tigre, então provavelmente é o das 23:12 (Pro, ativo do dono). Na dúvida vale o pior caso: plano gratuito = CC BY 4.0 (FAQ do Meshy), uso comercial permitido com crédito ao Meshy. Licença Privado na conta é só visibilidade."
     },
     {
       "arquivo": "natureza/deer__red-deer-stag.glb",
