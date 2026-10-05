@@ -11,7 +11,8 @@ import { BufferImageSource, Mesh, MeshGeometry, Shader, UniformGroup } from 'pix
 import { TILE, TERRAIN, PLAYER_COLORS } from '../../core/constants';
 import { FOAM, GRASS_DRY, MOUNTAIN_TOP, SUN_DIR, TERRAIN_PALETTE } from '../palette';
 import type { Quality } from '../quality';
-import { cachedMaterials, generateMaterials, generateMaterialsLazy, writeOwner, writeTerrainRect, TERRAIN_INFLUENCE, WEAR_DIRT, type MaterialSize, type TerrainMaterials, type TerrainSource } from './materials';
+import { cachedMaterials, generateMaterials, generateMaterialsLazy, proceduralExtras, writeOwner, writeTerrainRect, TERRAIN_INFLUENCE, WEAR_DIRT, type MaterialSize, type MaterialTex, type TerrainMaterials, type TerrainSource } from './materials';
+import { loadPhotos, photosFor, PHOTO_MATERIALS } from './photos';
 import { TERRAIN_FRAG_FULL, TERRAIN_FRAG_SIMPLE, TERRAIN_VERT } from './shaders';
 
 export const CHUNK = 16;
@@ -21,18 +22,27 @@ export type TerrainQuality = Pick<Quality, 'terrainShader' | 'normalMaps' | 'wat
 export function materialSizeFor(q: TerrainQuality): MaterialSize { return q.terrainShader === 'simple' ? 256 : 512; }
 
 // ---------------- Materiais na GPU (compartilhados entre partidas; nunca destruídos) ----------------
-interface GpuMaterials { grass: BufferImageSource; grassN: BufferImageSource; dirt: BufferImageSource; dirtN: BufferImageSource; sand: BufferImageSource; sandN: BufferImageSource; rock: BufferImageSource; rockN: BufferImageSource; water: BufferImageSource; macro: BufferImageSource }
+interface GpuMaterials { grass: BufferImageSource; grassN: BufferImageSource; dirt: BufferImageSource; dirtN: BufferImageSource; sand: BufferImageSource; sandN: BufferImageSource; rock: BufferImageSource; rockN: BufferImageSource; water: BufferImageSource; macro: BufferImageSource; photo: boolean }
 const gpuCache = new Map<number, GpuMaterials>();
 const pending = new Map<number, Generator<string, TerrainMaterials, void>>();
 
-/** Começa a gerar os materiais em segundo plano (um material por macrotarefa), para a primeira partida não esperar. */
+/**
+ * Materiais do preset em segundo plano: primeiro as texturas fotográficas (photos.ts, ~6 MB de PNG); se não vierem, o
+ * gerador procedural (um material por macrotarefa), para a primeira partida não esperar. Fotos que chegam com a partida
+ * já aberta trocam os materiais na GPU no lugar (applyPhotos).
+ */
 export function prewarmTerrain(size: MaterialSize): void {
+  void loadPhotos().then((set) => { if (set) applyPhotos(); else prewarmProcedural(size); });
+}
+function prewarmProcedural(size: MaterialSize): void {
   if (cachedMaterials(size) || pending.has(size)) return;
   const g = generateMaterialsLazy(size);
   pending.set(size, g);
   const step = () => { if (pending.get(size) !== g) return; if (g.next().done) pending.delete(size); else setTimeout(step, 0); };
   setTimeout(step, 0);
 }
+/** De onde vêm os materiais do terreno agora: fotos CC0 ou o gerador procedural (QA/`?perf=1`). */
+export function terrainMaterialsKind(size: MaterialSize): 'photo' | 'procedural' { return gpuCache.get(size)?.photo || photosFor(size) ? 'photo' : 'procedural'; }
 /** Materiais prontos (termina a geração em curso de uma vez, se preciso). */
 function ensureMaterials(size: MaterialSize): TerrainMaterials {
   const hit = cachedMaterials(size);
@@ -44,16 +54,34 @@ function ensureMaterials(size: MaterialSize): TerrainMaterials {
 function repeatSource(data: Uint8Array, size: number): BufferImageSource {
   return new BufferImageSource({ resource: data, width: size, height: size, format: 'rgba8unorm', scaleMode: 'linear', mipmapFilter: 'linear', addressMode: 'repeat', autoGenerateMipmaps: true, alphaMode: 'no-premultiply-alpha' });
 }
+/** Os 4 materiais (fotos, se já chegaram; senão o procedural) + água e macro procedurais. */
+function materialSet(size: MaterialSize): { mats: Record<(typeof PHOTO_MATERIALS)[number], MaterialTex>; waterNormal: Uint8Array; macro: Uint8Array; photo: boolean } {
+  const p = photosFor(size);
+  if (p) return { mats: p, ...proceduralExtras(), photo: true };
+  const m = ensureMaterials(size);
+  return { mats: m, waterNormal: m.waterNormal, macro: m.macro, photo: false };
+}
+/** Fotos chegaram com materiais procedurais já na GPU: troca os dados das fontes (os shaders continuam os mesmos). */
+function applyPhotos(): void {
+  for (const [size, g] of gpuCache) {
+    const p = g.photo ? null : photosFor(size as MaterialSize);
+    if (!p) continue;
+    const swap = (src: BufferImageSource, data: Uint8Array) => { src.resource = data; src.update(); };
+    swap(g.grass, p.grass.albedo); swap(g.grassN, p.grass.normal); swap(g.dirt, p.dirt.albedo); swap(g.dirtN, p.dirt.normal);
+    swap(g.sand, p.sand.albedo); swap(g.sandN, p.sand.normal); swap(g.rock, p.rock.albedo); swap(g.rockN, p.rock.normal);
+    g.photo = true;
+  }
+}
 function gpuMaterials(size: MaterialSize): GpuMaterials {
   const hit = gpuCache.get(size);
   if (hit) return hit;
-  const m = ensureMaterials(size);
+  const { mats: m, waterNormal, macro, photo } = materialSet(size);
   const g: GpuMaterials = {
     grass: repeatSource(m.grass.albedo, size), grassN: repeatSource(m.grass.normal, size),
     dirt: repeatSource(m.dirt.albedo, size), dirtN: repeatSource(m.dirt.normal, size),
     sand: repeatSource(m.sand.albedo, size), sandN: repeatSource(m.sand.normal, size),
     rock: repeatSource(m.rock.albedo, size), rockN: repeatSource(m.rock.normal, size),
-    water: repeatSource(m.waterNormal, Math.sqrt(m.waterNormal.length / 4)), macro: repeatSource(m.macro, Math.sqrt(m.macro.length / 4)),
+    water: repeatSource(waterNormal, Math.sqrt(waterNormal.length / 4)), macro: repeatSource(macro, Math.sqrt(macro.length / 4)), photo,
   };
   gpuCache.set(size, g);
   return g;
@@ -134,7 +162,7 @@ export class ChunkMesh {
     const simple = q.terrainShader === 'simple';
     this.shaderKey = `${q.terrainShader}:${size}`;
     const m = gpuMaterials(size);
-    this.materialsMs = ensureMaterials(size).ms;
+    this.materialsMs = m.photo ? 0 : ensureMaterials(size).ms;
     const resources: Record<string, unknown> = {
       terrainUniforms: this.group, uWeights: this.wSrc, uKind: this.kSrc, uOwner: this.oSrc,
       uGrass: m.grass, uDirt: m.dirt, uSand: m.sand, uRock: m.rock,

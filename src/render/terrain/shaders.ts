@@ -272,7 +272,8 @@ void main() {
     ACC(w.g, uDirt, uDirtN, 6.2832, 0.15)
     ACC(w.b, uSand, uSandN, 0.5, 0.35)
     ACC(w.a, uRock, uRockN, 6.2832, 0.25)
-    wsum = max(wsum, 1e-4); albedo /= wsum; nxy /= wsum; ao /= wsum; hs /= wsum;
+    // piso baixo: com alturas perto de 0 o peso (h + 0,2)⁶ fica na casa de 1e-5 e um piso de 1e-4 escurecia o texel
+    wsum = max(wsum, 1e-8); albedo /= wsum; nxy /= wsum; ao /= wsum; hs /= wsum;
     // manchas secas na grama (ruído não periódico por tile, B-spline): a borda segue a textura — as falhas baixas
     // secam antes das touceiras altas — e um ruído médio, então a mancha não tem contorno liso de mancha de tinta
     float dryK = smoothstep(0.25, 0.85, kd.b - (hs - 0.4) * 0.6 + (fine2.b - 0.5) * 0.35);

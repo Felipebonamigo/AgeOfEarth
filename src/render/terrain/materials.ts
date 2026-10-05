@@ -4,8 +4,9 @@
 // arbustos) — albedo RGB + altura no alfa e normal XYZ + oclusão no alfa, 512²
 // (256² no preset baixo), mais o ruído de normais da água e a textura macro (colinas/tom/ruído largo). Também escreve os
 // bytes das texturas de dados w×h (pesos de material, tipo/água/manchas secas, dono) a partir de map.terrain/territory —
-// funções puras, sem Pixi nem DOM, testadas em tests/terrain-shader.test.ts. O bake em build (page/terrain.js) fica
-// para a Etapa 2: quando os PNG existirem, este gerador vira o fallback.
+// funções puras, sem Pixi nem DOM, testadas em tests/terrain-shader.test.ts. Com as texturas fotográficas de
+// public/terrain (photos.ts, scripts/terrain-photos.ts), os 4 materiais daqui viram a reserva (sem os arquivos, fora do
+// navegador e até as fotos chegarem); a água e a macro continuam daqui.
 import { TERRAIN } from '../../core/constants';
 import { TERRAIN_PALETTE, GRASS_DRY, hash01, dryness, noise2 } from '../palette';
 
@@ -420,6 +421,12 @@ function macroTexture(size: number): Uint8Array {
   return n;
 }
 
+let extras: { waterNormal: Uint8Array; macro: Uint8Array } | null = null;
+/** Normais da água e textura macro (procedurais também com o terreno fotográfico: photos.ts só troca os 4 materiais). */
+export function proceduralExtras(): { waterNormal: Uint8Array; macro: Uint8Array } {
+  return (extras ??= { waterNormal: waterNormal(WATER_SIZE), macro: macroTexture(MACRO_SIZE) });
+}
+
 const cache = new Map<number, TerrainMaterials>();
 /** Materiais já gerados neste tamanho (null se ainda não). */
 export function cachedMaterials(size: MaterialSize): TerrainMaterials | null { return cache.get(size) ?? null; }
@@ -439,7 +446,7 @@ export function* generateMaterialsLazy(size: MaterialSize = 512): Generator<stri
   const sand = sandMaterial(size); lap(); yield 'sand'; t = now();
   const rf = rockFields(size); lap(); yield 'rock-fields'; t = now();
   const rock = rockMaterial(size, rf); lap(); yield 'rock'; t = now();
-  const water = waterNormal(WATER_SIZE), macro = macroTexture(MACRO_SIZE); lap();
+  const { waterNormal: water, macro } = proceduralExtras(); lap();
   const m: TerrainMaterials = { size, grass, dirt, sand, rock, waterNormal: water, macro, ms };
   cache.set(size, m);
   return m;

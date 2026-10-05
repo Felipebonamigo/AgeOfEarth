@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "size": 512,
+  "site": "https://polyhaven.com",
+  "license": "CC0-1.0",
+  "materials": {
+    "grass": {
+      "id": "forrest_ground_01",
+      "name": "Forest Ground 01",
+      "url": "https://polyhaven.com/a/forrest_ground_01",
+      "authors": [
+        "Rob Tuytel"
+      ],
+      "license": "CC0-1.0",
+      "worldMeters": 2
+    },
+    "dirt": {
+      "id": "dry_ground_rocks",
+      "name": "Dry Ground Rocks",
+      "url": "https://polyhaven.com/a/dry_ground_rocks",
+      "authors": [
+        "Rob Tuytel"
+      ],
+      "license": "CC0-1.0",
+      "worldMeters": 4
+    },
+    "sand": {
+      "id": "dense_sand",
+      "name": "Dense Sand",
+      "url": "https://polyhaven.com/a/dense_sand",
+      "authors": [
+        "Dimitrios Savva"
+      ],
+      "license": "CC0-1.0",
+      "worldMeters": 1.8
+    },
+    "rock": {
+      "id": "marble_cliff_06",
+      "name": "Marble Cliff 06",
+      "url": "https://polyhaven.com/a/marble_cliff_06",
+      "authors": [
+        "Amal Kumar"
+      ],
+      "license": "CC0-1.0",
+      "worldMeters": 8.14
+    }
+  }
+}

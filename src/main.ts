@@ -43,6 +43,7 @@ import type { OptionsContext } from './ui/options';
 import { MAJOR_GODS, MAJOR_GOD_LIST, AGES } from './core/data';
 import { serialize, deserialize } from './core/serialize';
 import { mapToData } from './core/map/fixed';
+import { photosSettled } from './render/terrain/photos';
 
 const SAVE_KEY = 'aoe_save_v1';
 const REPLAY_KEY = 'aoe_replay_v1';
@@ -186,7 +187,8 @@ async function boot() {
       const { busy, done } = renderer.artLoading(), got = done - base;
       loading.progress(busy + got > 0 ? got / (busy + got) : frames > 3 ? 1 : null);
       const elapsed = performance.now() - t0;
-      if ((frames > 4 && busy === 0 && elapsed > 600) || elapsed > 15000) { s.hold = false; loading.progress(1); loading.hide(); return; }
+      // …e as texturas fotográficas do terreno (photos.ts; sem elas, troca no meio da partida)
+      if ((frames > 4 && busy === 0 && elapsed > 600 && photosSettled()) || elapsed > 15000) { s.hold = false; loading.progress(1); loading.hide(); return; }
       requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);

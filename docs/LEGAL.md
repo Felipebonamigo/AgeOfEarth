@@ -165,6 +165,10 @@ Contato: **[DONO: e-mail]** · Controlador: **[DONO: razão social, CNPJ]** · E
   (abuzeraxundzade), todos CC0, creditados na tela Créditos por cortesia. Os arquivos ficam em `art/meshy/` e só os
   sprites assados vão no pacote. O javali `boar__wildboar3d-conta.glb` (gerado na conta do dono) está com licença
   "Privado" e **não entra** até o dono confirmar que foi gerado com a assinatura paga (pedido 0003 em `art/meshy/canal/`).
+- **Texturas do terreno do Poly Haven** (05/10/2026; `public/terrain/fotos.json` lista id, link, autores e licença de cada
+  uma): todo o acervo do Poly Haven é **CC0** (domínio público, uso comercial livre). No jogo: grama "Forest Ground 01" e
+  terra "Dry Ground Rocks" (Rob Tuytel), areia "Dense Sand" (Dimitrios Savva) e calcário "Marble Cliff 06" (Amal Kumar),
+  reduzidas e com a cor ajustada por `scripts/terrain-photos.ts`; creditadas na tela Créditos por cortesia.
 - **[DONO: ao adquirir fontes, música, SFX ou arte de terceiros (Fase 2), registrar licença, autor e escopo aqui e na tela Créditos]**
 
 ## 5. Créditos (no jogo)
