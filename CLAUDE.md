@@ -50,6 +50,7 @@ Idioma da interface e dos comentários: português (Brasil). Código em inglês.
 
 ## Memória do projeto (ler primeiro em toda sessão)
 - **Plano completo e cronograma**: `docs/ROADMAP.md` (fases 0–7, passos numerados, responsáveis V/A/T, marcos M1–M6, custos, riscos). É o documento vivo: ao concluir um passo, marque-o lá.
+- **Expansão das Eras** (decisão do dono, 06/10/2026): história inteira como o Rise of Nations (8 Eras, Biblioteca com um estudo por vez, pedra/petróleo/raros, linhas de unidade, edifícios por Era, naval, caravanas, 20 maravilhas, 9 deuses menores novos) — plano e etapas E1–E10 em `docs/ERAS.md`; cronograma em `docs/ROADMAP.md`.
 - **Roteiro da campanha**: `docs/STORY.md` (Titanomaquia, 12 missões, fichas com JSON, lacunas do motor, ordem de produção e testes por missão).
 - **Design e arquitetura**: `docs/DESIGN.md` · **Publicação na Steam**: `docs/STEAM.md` e `desktop/README.md`.
 - **Áudio**: sintetizado pelo próprio código (`src/audio/`: efeitos posicionais a partir dos efeitos/eventos do estado, ambiente por bioma, música generativa em modos gregos, volumes separados). **Controle**: `src/ui/gamepad.ts` (Xbox/Steam Deck, cursor virtual, menus navegáveis). Respostas das unidades ao selecionar/ordenar por classe (`Audio.ack`/`ACKS`).

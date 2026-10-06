@@ -28,6 +28,8 @@ míticas, poderes divinos, Titãs) no panteão grego.
 Arcaica → Clássica (Templo) → Heroica (Academia + 2 pesquisas) → Mítica (4 pesquisas) → Titãs (Fortaleza + 6 pesquisas).
 Cada avanço (exceto Titãs) exige escolher um deus menor.
 
+> **Em expansão (06/10/2026)**: o jogo passa a cobrir a história inteira (8 Eras, da Arcaica à Moderna), com a Biblioteca, pedra e petróleo, naval, caravanas e 20 maravilhas — plano em `docs/ERAS.md`. As seções acima descrevem o jogo de hoje.
+
 ## Vitória e modos
 Conquista (eliminar todos) ou Maravilha (manter uma por 6 minutos). Modos alternativos (`GameConfig.mode`): **Deathmatch** (cofres cheios, Idade Clássica), **Regicídio** (cada jogador tem um Rei 👑; sem rei, o reino cai — a IA o guarnece) e **Rei da Colina** (clareira central; um time que a segura sozinho com tropas por 240 s vence; `state.koth` guarda time e segundos). Tipos de mapa (`mapType`): continental, montanhoso, florestas, deserto e lagos — presets de limiares do ruído de elevação em `mapgen.ts`.
 

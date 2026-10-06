@@ -8,29 +8,35 @@ Legenda de responsável: **V** = você · **A** = agente (eu) · **T** = terceir
 
 ## Cronograma a partir de 06/10/2026
 
-O que já existe (06/10/2026): panteão grego completo (3 deuses maiores, 9 menores — 2 opções por Idade —, 12 poderes,
-3 titãs), 35 unidades (cidadão, batedor, 10 militares humanos, rei, milícia, 5 heróis, 13 míticas, sentinela, sombra,
-3 titãs), 47 pesquisas (4 linhas da Academia × 5 níveis, estilo Biblioteca do Rise of Nations, + economia, militares,
-templo e as dos deuses menores), 21 edifícios com 3 maravilhas e o Portal dos Titãs, 5 recursos (comida, madeira, ouro,
-Conhecimento, Favor), fronteiras/atrito/limite de cidades e 5 Idades. **O que falta na evolução por Idade**: avançar
-libera unidades, edifícios, pesquisas e o deus menor, mas **não melhora as unidades que já existem e não muda a
-aparência** — só o Centro Cívico muda por Idade; casas, quartéis, armas e roupas ficam iguais da Arcaica aos Titãs.
+**Decisão do dono (06/10/2026): o jogo cobre a história inteira, como o Rise of Nations** — 8 Eras, da Grécia arcaica à
+Era Moderna do petróleo, com os deuses gregos, os poderes, as criaturas e os Titãs em todas elas; tudo se estuda na
+Biblioteca, um estudo por vez; pedra, petróleo e recursos raros; naval antes do lançamento; caravanas; 20 maravilhas.
+O plano completo (Eras, Biblioteca, recursos, linhas de unidade, edifícios por Era, deuses menores novos, naval,
+comércio, maravilhas e etapas E1–E10) está em **`docs/ERAS.md`**.
+
+O que já existe hoje: panteão grego (3 deuses maiores, 9 menores, 12 poderes, 3 Titãs), 35 unidades, 47 pesquisas
+(4 linhas da Academia × 5 níveis + economia, militares, templo e deuses menores), 21 edifícios com 3 maravilhas e o
+Portal dos Titãs, 5 recursos e 5 Idades. Falta a evolução por Era: hoje avançar não melhora as unidades existentes e
+só o Centro Cívico muda de aparência.
 
 | Semanas | Datas | Agente (A) | Você (V) / terceiros (T) |
 |---|---|---|---|
-| 1–2 | 06/10–19/10 | **5.5a** Evolução por Idade no núcleo: linhas de unidade estilo Rise of Nations (ao avançar, a unidade da linha melhora — vida, ataque, armadura — e as já treinadas são atualizadas), desenho em `docs/DESIGN.md`, IA, `SIM_VERSION`, balanceamento e testes | Jogar 2–3 partidas/semana e mandar a lista curta (1.1); decidir os pontos abertos no fim desta seção; abrir a empresa/CNPJ (6.1) |
-| 3–6 | 20/10–16/11 | **5.5b** Aparência por Idade: os edifícios em 4 aparências (madeira e adobe → pedra e telha → mármore → mármore com bronze e ouro) e as pessoas e armas por Idade (cidadão, hoplita, arqueiros, peltasta, cavalaria), troca com poeira ao mudar de Idade, orçamento de VRAM, capturas antes × depois; peças do Meshy que chegarem (pedido 0004: Ártemis, Colosso, academia) | Aprovar as capturas de cada Idade; conta Steamworks + US$ 100 + App ID (6.2: a Valve exige 30 dias entre o pagamento e o lançamento) |
-| 7–8 | 17/11–30/11 | **5.6** Comércio por caravanas entre cidades e mercados (Riqueza em ouro, como no Rise of Nations) · **5.7** as 2 maravilhas gregas que faltam (Mausoléu de Halicarnasso e Farol de Alexandria) · pontos de rota visíveis (1.3) · balanceamento com os seus relatos (1.5) | **M1**: mandar para 3–5 amigos; uma partida multiplayer com 4 pessoas (4.4) |
-| 9–10 | 01/12–14/12 | **4.3** Lobbies, convites e rede da Steam (com o App ID); conquistas e Cloud testados no cliente Steam; telemetria opcional (6.6); limite de conexões por IP e névoa conferida no servidor (4.5) | Cadastro das conquistas e do Cloud no Steamworks (6.4); dados legais de `docs/LEGAL.md` §7 (6.7) |
-| 11–12 | 15/12–28/12 | Correções dos playtests; trailer gravado do próprio jogo; screenshots da loja refeitas com a aparência por Idade | Aprovar a página; publicar o **"Em breve"** (6.3) para juntar wishlists (a página precisa estar no ar ≥ 2 semanas antes do lançamento); vozes dos deuses (T, se houver orçamento) |
-| 13–16 | jan/2027 | Demo (1–2 missões + escaramuça limitada), Steam Playtest público (6.9), correções | Steam Deck real e matriz de QA (6.5, 6.8); inscrição no Steam Next Fest |
-| — | fev/2027 | Demo no Next Fest (confirmar as datas e o prazo de inscrição no Steamworks) | Divulgação: Discord, devlog, streamers de RTS (7.2) |
-| — | mar/2027 | **M5: Early Access** + 2 semanas de correções diárias (7.4) | Preço e regiões (7.3) |
-| — | abr–jul/2027 | **5.3** Naval (trirremes, transportes) e mapa de ilhas; balanceamento contínuo; **M6: versão 1.0** | Decidir o DLC de panteão (5.4) |
+| 1–2 | 06/10–19/10 | **E1** 8 Eras e Biblioteca (fila, um estudo por vez, avanço de Era na Biblioteca, linhas × 8 níveis, Era inicial/final) + painel da Biblioteca (E9) | Jogar a versão atual 2–3 vezes por semana e mandar a lista curta (1.1); abrir a empresa/CNPJ (6.1) |
+| 3–4 | 20/10–02/11 | **E2** pedra, petróleo e recursos raros · **E3** as 11 linhas de unidade I–VIII com evolução na Biblioteca (arte provisória) | Jogar uma partida de 8 Eras e dizer o que achou do ritmo |
+| 5–7 | 03/11–23/11 | **E4** naval: água navegável, Estaleiro, pesca, transporte, navios I–VIII, IA naval, mapas Costeiro/Ilhas/Mediterrâneo | Conta Steamworks + US$ 100 + App ID (6.2; a Valve exige 30 dias entre o pagamento e o lançamento) |
+| 8 | 24/11–30/11 | **E5** caravanas, navios mercantes, Mercador nos raros | **M1**: mandar para 3–5 amigos testarem |
+| 9–10 | 01/12–14/12 | **E6** 9 deuses menores novos, poderes, criaturas navais e voadoras, Bênçãos, poderes que crescem com a Era | Aprovar os deuses e poderes novos |
+| 11–12 | 15/12–28/12 | **E7** as 17 maravilhas novas e a vitória por pontos de maravilha | — |
+| 13–18 | 04/01–14/02/2027 | **E8** arte por Era em 2 lotes (I–IV, depois V–VIII): kit de Era nos edifícios, cidadão por Era, unidades novas, navios, tanque, efeitos de pólvora e vapor | Aprovar as capturas de cada Era |
+| 19–20 | 15/02–28/02 | **E10** balanceamento e IA em partidas de 60 min, justiça de posição, desempenho · **4.3** lobbies, convites e rede da Steam | Cadastro das conquistas e do Cloud (6.4); dados legais (`docs/LEGAL.md` §7) |
+| 21–22 | mar/2027 | Trailer gravado do jogo, screenshots e textos da loja refeitos | Publicar a página **"Em breve"** (6.3; precisa de ≥ 2 semanas no ar antes do lançamento) |
+| — | abr–mai/2027 | Demo, Steam Playtest público (6.9), correções, telemetria opcional (6.6) | Steam Deck real e matriz de QA (6.5, 6.8); inscrição no Next Fest |
+| — | jun/2027 | Demo no Steam Next Fest (confirmar as datas no Steamworks) | Divulgação (7.2) |
+| — | jul/2027 | **M5: Early Access** + 2 semanas de correções (7.4) | Preço e regiões (7.3) |
+| — | 2º sem./2027 | Segunda campanha pela história, ajustes do Early Access, **M6: versão 1.0** | DLC de panteão (5.4) |
 
-Pontos abertos para você decidir: (1) unidades melhorarem sozinhas ao avançar de Idade, como no Rise of Nations
-(recomendado), ou continuar só com tipos novos por Idade; (2) naval depois do Early Access (recomendado) ou antes;
-(3) comércio por caravanas (recomendado); (4) as 2 maravilhas extras ou ficar nas 3.
+Cada etapa sai jogável (com arte provisória até a E8), com testes, balanceamento automático, capturas e commit; os seus
+relatos semanais entram como correções em qualquer semana.
 
 ---
 
@@ -101,11 +107,9 @@ Marco **M4 (semana 22)**: partidas online estáveis pela Steam.
 |---|---|---|---|
 | 5.1 | ✅ Modos Deathmatch, Regicídio (rei 👑 por jogador; a IA o guarnece) e Rei da Colina (colina central, 4 min); tipos de mapa Continental, Montanhoso, Florestas, Deserto e Lagos (skirmish e lobby). Pendente: ilhas (depende do naval, 5.3) | A | 14–18 |
 | 5.2 | ✅ Veterania (3 patentes por abates: +10% ataque/vida cada; estrelas na unidade e no painel). ✅ Habilidades ativas dos 5 heróis (Grito dos Argonautas, Astúcia, Golpe Titânico, Fúria, Escudo Espelhado) com recarga, botão no painel e tecla Q; a IA as usa em combate. ✅ Formações de exército (linha, quadrado, coluna, cunha) no painel de comandos. ✅ Relíquias (2 + 1 por jogador, recolhidas por heróis e guardadas no Templo: +0,35 favor/s cada; a IA as busca) | A | 16–22 |
-| 5.3 | Naval (água navegável, transportes, trirremes) — opcional; se não couber, fica pós-lançamento | A | 20–26 |
+| 5.3 | Naval (água navegável, transportes, navios de guerra das 8 Eras) — **antes do Early Access** (decisão de 06/10/2026; `docs/ERAS.md` E4) | A | cronograma, semanas 5–7 |
 | 5.4 | Segundo panteão (Egípcio ou Nórdico) — planejar como DLC pós-lançamento | A + T | pós-lançamento |
-| 5.5 | Evolução por Idade: (a) linhas de unidade que melhoram ao avançar de Idade (estilo Rise of Nations); (b) aparência dos edifícios, das pessoas e das armas por Idade (hoje só o Centro Cívico muda) | A | cronograma, semanas 1–6 |
-| 5.6 | Comércio por caravanas entre cidades e mercados (Riqueza em ouro) | A | cronograma, semanas 7–8 |
-| 5.7 | Maravilhas que faltam: Mausoléu de Halicarnasso e Farol de Alexandria (arte + efeito) | A | cronograma, semanas 7–8 |
+| 5.5 | **Expansão das Eras** (`docs/ERAS.md`): 8 Eras da Grécia arcaica à Era Moderna; Biblioteca com um estudo por vez (Eras, 4 linhas × 8 níveis, evolução de cada tipo de unidade); pedra, petróleo e raros; 11 linhas de unidade; edifícios por Era; 9 deuses menores novos; caravanas; 20 maravilhas — etapas E1–E10 | A | cronograma, semanas 1–20 |
 
 ## Fase 6 — Steam, produção e legal · semanas 10–28
 | # | Passo | Resp. | Semanas |
