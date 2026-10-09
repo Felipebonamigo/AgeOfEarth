@@ -1,6 +1,10 @@
 # E5 + E7 — Comércio por caravanas e as 20 maravilhas (com a vitória por pontos)
 
-- Estado: pendente · Pré-requisitos: **E5** — E1, E2 e E3 concluídas (8 Eras, Biblioteca, `isScenarioConfig`, pedra e petróleo em `RESOURCES`, Mercador e `src/render/art/alias.ts` da E2, linhas da E3); a E4 só é exigida pelo passo do navio mercante (Fase F, marcado). **E7** — E5 concluída (usa `tradeIncome`/`seaTradeIncome`); E4 e E6 recomendadas (a Fase M e os passos 0'.2 e J7 dizem o que fazer se faltarem) · Estimativa: **E5 3 dias**, **E7 5 dias** de trabalho do agente
+- Estado: pendente · Pré-requisitos: **E5** — E1, E2 e E3 concluídas (8 Eras, Biblioteca, `isScenarioConfig`, pedra e petróleo em `RESOURCES`, Mercador e `src/render/art/alias.ts` da E2, linhas da E3); a E4 só é exigida pelo passo do navio mercante (Fase F) — na ordem oficial (E1, E2, E3, E4, E5+E7, E6…) ela já está pronta, então a Fase F é feita normalmente. **E7** — E5 concluída (usa `tradeIncome`/`seaTradeIncome`) e E4 pronta (Fase M); a **E6 vem depois** da E7 na ordem oficial: o 0'.2 não acha `charges` e o H1/J7 criam o campo e o `powerReady`, que a E6 depois respeita · Estimativa: **E5 3 dias**, **E7 5 dias** de trabalho do agente
+
+> **Antes de começar:** leia `docs/eras/LEIA-ME.md` (rotina de cada sessão, regras, quando parar) e marque cada
+> passo em `docs/eras/PROGRESSO.md`. Ordem das etapas: E1, E2, E3, E4, E5+E7, E6, E8, E9+E10. Onde este guia falar de
+> commit ou de push, vale a rotina do LEIA-ME: um commit por passo e push só para a branch da sessão.
 
 Este guia é para ser seguido **na ordem**, sem o contexto da conversa que o gerou. Ele cobre duas etapas do
 `docs/ERAS.md` §11, cada uma com o seu commit: **Parte 1 = E5** (Fases 0, A–G) e **Parte 2 = E7** (Fases 0', H–N).
@@ -29,7 +33,7 @@ verificação falhar, siga o que a seção "Verificação" manda ajustar.
 - a IA treina caravanas até uma meta por Era e escolhe a rota mais longa alcançável, sem viés de posição;
 - o Mercador da E2 continua ocupando os recursos raros (a E5 só confere e protege essa parte);
 - **navio mercante** (Estaleiro, Era III): a mesma rota por mar entre Estaleiros. Só entra se a E4 já estiver pronta
-  (Fase F); senão fica registrado como pendente.
+  (Fase F; na ordem oficial ela está); senão fica registrado como pendente.
 
 **E7 — 20 maravilhas.** Numa partida rápida:
 
@@ -82,7 +86,7 @@ Decisões deste guia (cada uma com o motivo em uma linha):
 | D7 | Rota interrompida (ponto destruído ou sem caminho) → a caravana fica ociosa e o dono humano recebe um aviso (no máximo 1 a cada 10 s). | Sem isso ela fica parada sem explicação. |
 | D8 | IA: fora de cenário, treina caravanas até `CARAVAN_TARGET_AI[Era]` (0, 2, 3, 4, 5, 6, 6, 6) se houver uma rota válida, e manda cada caravana ociosa para a rota mais longa (`bestRoute`). Dentro de cenário, nada. | Mesmo critério da E2 para o Mercador; a campanha e o harness ficam iguais. |
 | D9 | Mercador (E2): a E5 **não** cria "posto de raro" como edifício (ERAS §5): o próprio Mercador é o posto, como decidiu a E2. A E5 só confere a parte da E2 e impede a troca de papéis (caravana não ocupa raro; Mercador não faz rota). | A E2 já entregou a ocupação; um edifício novo repetiria a regra. |
-| D10 | Navio mercante: id `merchant_ship` (reservado pela E3), `trader: 'sea'`, Era III (`age: 2`), mesmo `updateRoute`; só com a E4 pronta (Fase F). | Navio sem água navegável nem Estaleiro não tem onde nascer. |
+| D10 | Navio mercante: id `merchant_ship` (reservado pela E3; números reservados pela E4), `trader: 'sea'`, Era III (`age: 2`), no `shipyard`, mesmo `updateRoute`; só com a E4 pronta (Fase F). | Navio sem água navegável nem Estaleiro não tem onde nascer. |
 | D11 | Maravilhas: ids `wonder_<nome>`, todas `limit: 'wonder'`, `hotkey: 'M'`, pegada **4×4**, `BARMOR`. As 3 de hoje mudam de Era (Zeus 3→1, Ártemis 3→1, Colosso 3→2, como a §9) e **guardam custo, vida e obra de hoje** (os da E2). | A pegada igual permite o alias de arte; mexer no custo das 3 mudaria a m6. |
 | D12 | Efeitos das maravilhas viram dado: `BuildingDef.wonderEffects?: Effect[]`, lido por `recomputeMods`. Os efeitos que um `Effect` não expressa ganham **PlayerStat novo** (efeito simples) ou **código em `src/core/sim/wonders.ts`** (Delfos, Mausoléu, Trono). | Tira os 3 `if` fixos de `modifiers.ts` e deixa as 20 iguais. |
 | D13 | PlayerStats novos: `tradeIncome` e `seaTradeIncome` (E5, mult 1); `enemySpeed` (mult 1), `territoryRegen` (add 0), `veteranRate` (mult 1), `studySlots` (add 0), `coastSight` (add 0) (E7). | Cada um é um número com padrão neutro: nada de estado novo nem campo serializado. |
@@ -97,7 +101,7 @@ Decisões deste guia (cada uma com o motivo em uma linha):
 | D22 | Painel de construção: a maravilha só aparece **na Era dela ou depois** e **enquanto ninguém a concluiu**; em cenário vale a regra antiga (Era + 1, só as 3 clássicas). O ciclo da tecla `M` usa o mesmo filtro (`wonderListed`). | 20 botões não cabem; as tomadas não servem para nada. |
 | D23 | IA (fora de cenário): escolhe entre as maravilhas disponíveis da Era mais alta (ordenadas por Era desc. e id), a `personalidade % min(3, n)`; ergue uma por vez quando tem 1,25× o custo em todos os recursos; ataca primeiro a maravilha pronta e alcançável de um inimigo em contagem. Dentro de cenário, a regra de hoje. | Disputa real sem travar a economia; o cenário fica igual. |
 | D24 | `SIM_VERSION` sobe **1 na E5** e **mais 1 na E7**. O formato do save **não** muda (só campos com padrão no `deserialize`). | A mesma semente dá outra partida; saves da etapa anterior carregam. |
-| D25 | Arte provisória: **alias** da E2 (unidade e edifícios); **nenhum** manifesto, bake ou `npm run art:hud` nesta etapa (não há tecnologia, poder, recurso nem Era nova). | Nenhuma página nova de VRAM; os testes de arte já filtram o alias (E2, passo 25). |
+| D25 | Arte provisória: **alias** da E2 (caravana e as 17 maravilhas); **nenhum** manifesto, bake ou `npm run art:hud` nesta etapa (não há tecnologia, poder, recurso nem Era nova). **Exceção:** o navio mercante (Fase F) segue os navios da E4 — procedural, sem alias — e ganha o ícone no `SHIP_ICONS` com `npm run art:hud`. | Nenhuma página nova de VRAM; os testes de arte já filtram o alias (E2, passo 25) e os navios (E4, F8). |
 
 ---
 
@@ -109,7 +113,7 @@ Decisões deste guia (cada uma com o motivo em uma linha):
 | `src/core/constants.ts` | E5: `TRADE_*`, `CARAVAN_TARGET_AI`, `MERCHANT_SHIP_TARGET_AI`; E7: `WONDER_*`, `DELPHI_*`, `MAUSOLEUM_RESPAWN_SECONDS`, `WonderVictory`, `WONDER_VICTORIES`; `SIM_VERSION` +1 em cada etapa |
 | `src/core/data/units.ts` | E5: `caravan` (e `merchant_ship` na Fase F) |
 | `src/core/data/buildings.ts` | E5: `tradeRoute` em `town_center`/`market`, `market.trains` + `caravan`. E7: 17 maravilhas novas, `wonderEffects` nas 20, Eras novas das 3 de hoje, `scenarioAge`, `BUILD_MENU`, `CLASSIC_WONDERS` |
-| `src/core/data/index.ts` | reexporta `CLASSIC_WONDERS` |
+| `src/core/data/index.ts` | reexporta `CLASSIC_WONDERS` e `WONDER_EFFECTS` |
 | `src/core/sim/trade.ts` (novo) | `tradeKindOf`, `isTradePost`, `nearestOwnPost`, `canRoute`, `routeGold`, `bestRoute`, `reachableFor` |
 | `src/core/sim/wonders.ts` (novo) | `wonderVictoryMode`, `wonderPoints`, `teamWonderPoints`, `wonderPointsTarget`, `wonderTakenBy`, `hasWonder`, `wonderListed`, `onWonderComplete`, `queueHeroRespawn`, `wonderSecond`, `wonderWinner` |
 | `src/core/sim/units.ts` | E5: `startOrder` case `'route'`, `updateUnit` case `'route'`, `updateRoute`/`endRoute` (privadas). E7: velocidade com `enemyTerritorySpeed` |
@@ -121,18 +125,21 @@ Decisões deste guia (cada uma com o motivo em uma linha):
 | `src/core/sim/economy.ts` | E7: sai o bloco do cronômetro da maravilha; entra a cura de `territoryRegen` |
 | `src/core/sim/combat.ts` | E7: `rankOf(...)` → `unitRank(...)`; `killUnit` chama `queueHeroRespawn`; `destroyBuilding` marca `territoryDirty` para maravilha |
 | `src/core/sim/victory.ts` | E7: `declareWinner` usa `wonderWinner` |
-| `src/core/sim/game.ts` | E7: `wonderHoldStart`/`respawns` no literal do jogador; `wonderSecond` no tick; `summarize` com caravanas e maravilhas (E5/E7) |
+| `src/core/sim/game.ts` | E7: `wonderHoldStart`/`respawns` no literal do jogador; `wonderSecond` no tick (o `summarize` do smoke **não** muda: as contagens novas vão só para `scripts/balance.ts`) |
 | `src/core/sim/restrictions.ts` | E7: `allWondersOn`, `buildingAgeOf` |
 | `src/core/sim/territory.ts` | E7: `enemyTerritorySpeed` |
 | `src/core/sim/fog.ts` | E7: litoral visível com `coastSight` |
+| `src/core/serialize.ts` (Fase M, só com a E4) | reabre a passagem naval do Canal ao carregar (`setNavalOpen`) |
 | `src/core/sim/powers.ts` | E7: `powerReady`, uso extra por `charges` |
 | `src/core/sim/ai.ts` | E5: `manageCaravans`. E7: `aiWonderChoice`, plano das maravilhas, prioridade de ataque, `powerReady` |
 | `src/core/serialize.ts` | padrões de `routeA/routeB/routeLeg` (E5) e `wonderHoldStart/respawns` (E7); `mods` (se ainda for literal) com os stats novos |
 | `src/core/net/desync.ts` | campos novos no relatório |
 | `src/render/art/alias.ts` (da E2) | `caravan: 'kataskopos'`; 17 maravilhas |
+| `scripts/bake/hud/catalog.mjs`, `public/art/hud-*` (só Fase F, com a E4) | `SHIP_ICONS.merchant_ship`; atlas regerado por `npm run art:hud` (nunca à mão) |
 | `src/render/renderer.ts` | E7: `rankOf(u.kills)` → `unitRank(state, u)` |
 | `src/ui/input.ts` | E5: clique direito de caravana; E7: ciclo do `M` por `wonderListed` |
-| `src/ui/hud.ts` | E5: `issueChecked` da rota, cartão da caravana. E7: lista de maravilhas, barra do topo, cartão da maravilha, poderes com `charges`, fila com N vagas, `powerReady` |
+| `src/ui/hud.ts` | E5: `issueChecked` da rota, cartão da caravana. E7: lista de maravilhas (e a chave de redesenho do painel), barra do topo, cartão da maravilha, poderes com `charges`, fila com N vagas, `powerReady` |
+| `src/ui/studytree.ts` (da E1) | E7: status `active` para os itens dentro de `studySlotsOf` (J4) |
 | `src/ui/gamepad.ts` | E7: `powerReady` |
 | `src/ui/menu.ts` | E7: seletor "Vitória por maravilha" na partida rápida e no lobby |
 | `src/net/client.ts` | E7: `LobbyState.settings.wonderVictory?` |
@@ -142,7 +149,8 @@ Decisões deste guia (cada uma com o motivo em uma linha):
 | `scripts/balance.ts` | colunas `caravanas=` e `maravilhas=` |
 | `scripts/playtest-trade.mjs` (novo), `scripts/playtest-wonders.mjs` (novo) | playtests no navegador |
 | `tests/trade-e5.test.ts` (novo), `tests/wonders-e7.test.ts` (novo) | testes novos |
-| `tests/command-fuzz.test.ts`, `tests/movement-ai.test.ts` | ver "Testes a escrever ou atualizar" |
+| `tests/command-fuzz.test.ts`, `tests/movement-ai.test.ts`, `tests/relay-anticheat.test.ts` | ver "Testes a escrever ou atualizar" |
+| `src/core/map/naval.ts` (da E4) | E7, Fase M: tiles abertos à navegação pelo Canal de Corinto (`setNavalOpen`) — só com a E4 |
 | `docs/eras/PROGRESSO.md`, `docs/ROADMAP.md`, `CLAUDE.md`, `docs/DESIGN.md` | documentação ("Ao terminar") |
 
 **Não mexa** em `art/manifest/*`, `scripts/bake/page/*`, `materials.js` (reassa a arte), em
@@ -202,14 +210,17 @@ de cidadão). Confira que nenhuma outra unidade de `market.trains` usa `C`.
 | Campo | Valor |
 |---|---|
 | id / PT / EN | `merchant_ship` · Navio Mercante / Navios Mercantes · Merchant Ship / Merchant Ships |
-| `cls`, `tags`, flag de navio | **os mesmos do `transport_ship` da E4**, sem `'military'`, mais `'merchant_ship'`; `trader: 'sea'` |
-| custo, vida, ataque | `{ wood: 120, gold: 40 }`, 300, 0 |
-| velocidade, raio, visão | a do `transport_ship` da E4, o raio dele, 8 |
-| treino, população | 30 s, 2 |
-| edifício, Era, atalho | o Estaleiro da E4, 2 (Era III), a 1ª letra livre de `M, C, V, B` no `trains` dele |
-| alias de arte e ícone | o alias que a E4 deu ao `transport_ship` |
+| `cls`, flag de navio, `tags`, `trader` | `'ship'`, `naval: true` (D5 da E4), `['ship', 'civilian', 'merchant_ship']`, `'sea'` |
+| custo, vida, ataque, armadura | `{ wood: 120, gold: 30 }`, 280, 0 (`attackType: 'hack'`), `{ hack: 0.15, pierce: 0.25, crush: 0.05 }` |
+| alcance, velocidade, raio, visão | 0, 3.4, 0.6, 8 |
+| treino, população | 25 s, 2 |
+| edifício, Era, atalho | `shipyard` (Estaleiro da E4), 2 (Era III), `M` (a E4 deixou `M`, `C`, `V` e `B` livres no Estaleiro para isto; confira que o `trains` dele não usa `M`, senão pegue a 1ª livre dessas quatro) |
+| arte e ícone | **sem alias**: a E4 desenha os navios no procedural (`drawShip`, D22 dela) e o mercante sai desenhado por ele; o ícone é uma entrada `merchant_ship: S({ kind: 'transport' })` no `SHIP_ICONS` de `scripts/bake/hud/catalog.mjs` + `npm run art:hud` |
 | desc PT | Navio de carga: faz rota entre dois Estaleiros (seus ou de aliados) a 16 tiles ou mais; cada chegada rende ouro pela distância. Clique com o botão direito no Estaleiro de destino. Não luta. |
 | desc EN | Cargo ship: runs a route between two Shipyards (yours or an ally's) 16 tiles or more apart; each arrival earns gold by distance. Right-click the destination Shipyard. Does not fight. |
+
+Os números são os da linha "Reservado para a E5" de `docs/eras/E4-naval.md` (tabela das unidades). Se a E4 executada
+tiver mudado essa linha, siga a E4.
 
 ### E5 — PlayerStats novos
 
@@ -623,10 +634,13 @@ passo. Testes podem ficar vermelhos entre passos da mesma fase, nunca no fim de 
   if (def.trader) {   // E5: ponto de encontro num ponto de comércio = rota automática
     const tx = Math.floor(b.rallyX), ty = Math.floor(b.rallyY);
     const bid = tx >= 0 && ty >= 0 && tx < state.map.w && ty < state.map.h ? state.map.buildingAt[ty * state.map.w + tx] : -1;
-    if (bid !== -1) { giveOrder(state, u, { type: 'route', targetId: bid }); break; }
+    const post = bid !== -1 ? state.buildings.get(bid) : undefined;
+    if (post && !post.dead && BUILDINGS[post.type].tradeRoute === def.trader) { giveOrder(state, u, { type: 'route', targetId: post.id }); break; }
   }
   ```
-  (Se a rota não for válida, `startOrder` a termina e a caravana fica ociosa ao lado do Mercado.)
+  (Só vira rota se o ponto de encontro estiver **num ponto de comércio do tipo certo**; em qualquer outro lugar — chão,
+  casa, fazenda — o código de baixo manda a caravana andar até lá, como hoje. Se a rota não for válida — curta, sem casa,
+  inimigo —, `startOrder` a termina e a caravana fica ociosa ao lado do Mercado. `BUILDINGS` já é importado no arquivo.)
 - [ ] **B8. Relatório de dessincronia (`src/core/net/desync.ts`).** No laço das unidades, depois de `h = step(h, u.inside);`,
   acrescente `h = step(h, u.routeA); h = step(h, u.routeB); h = step(h, u.routeLeg);`.
 - [ ] **B9. `SIM_VERSION`.** Some 1 ao valor anotado em 0.1 e acrescente ao comentário: `N = comércio (E5): caravanas
@@ -691,7 +705,9 @@ passo. Testes podem ficar vermelhos entre passos da mesma fase, nunca no fim de 
     if (ra && rb && kind) stats.push(`${t('sel.route')} <b>${esc(BUILDINGS[ra.type].name)} – ${esc(BUILDINGS[rb.type].name)}</b> · ${t('sel.routeGold', { g: routeGold(s.state, u.owner, ra, rb, kind) })}`);
   }
   ```
-  Use o travessão "–" (U+2013). **Não** use "↔" (é pictográfico: o teste de emoji de `hud.ts` acusa).
+  Use o travessão "–" (U+2013). **Não** use "↔" (U+2194 tem apresentação de emoji em várias fontes, e nenhuma das
+  regexes do projeto — `tests/hud-icons.test.ts`, `noEmoji` em `src/ui/html.ts`, `scripts/playtest-noemoji.mjs` — cobre a
+  faixa das setas U+2190–21FF: um emoji colorido no cartão passaria sem nenhum teste avisar).
 - [ ] **D4. Ajudas dos playtests.** **Não** crie nada em `src/main.ts`: `window.aoe.debugBuild(owner, type, tx, ty, frac = 1)`
   (põe um edifício pronto, ignora Era, território e limites; devolve `null` se o terreno/espaço não servir) e
   `window.aoe.debugSpawn(owner, type, x, y)` já existem.
@@ -710,8 +726,11 @@ passo. Testes podem ficar vermelhos entre passos da mesma fase, nunca no fim de 
 
 #### Fase E — Testes da E5
 
-- [ ] **T1. `tests/trade-e5.test.ts` (novo).** Estrutura (o `arena` é o de `tests/movement-ai.test.ts`, copie as 3 funções
-  `block/clearRect/arena`):
+- [ ] **T1. `tests/trade-e5.test.ts` (novo).** Estrutura (o `arena` é o de `tests/movement-ai.test.ts`: copie
+  `clearRect` e `arena` com os imports deles — `idx` de `'../src/core/map/grid'`, `invalidateComponents` de
+  `'../src/core/map/components'` e o tipo `GameState` —, e na cópia do `clearRect` **pule os tiles com
+  `s.map.buildingAt[i] !== -1`**: o retângulo daqui inclui o Centro Cívico, e zerar `blocked` debaixo dele deixaria as
+  unidades atravessarem o CC):
   ```ts
   import { describe, it, expect } from 'vitest';
   import { AGES, BUILDINGS, UNITS } from '../src/core/data';
@@ -721,8 +740,13 @@ passo. Testes podem ficar vermelhos entre passos da mesma fase, nunca no fim de 
   import { routeGold, canRoute } from '../src/core/sim/trade';
   import { destroyBuilding } from '../src/core/sim/combat';
   import { serialize, deserialize } from '../src/core/serialize';
+  import { addNode } from '../src/core/map/mapgen';
+  import { idx } from '../src/core/map/grid';
+  import { invalidateComponents } from '../src/core/map/components';
+  import type { GameState } from '../src/core/types';
+  import { t } from '../src/i18n';
   import { quickGame, run } from './helpers';
-  // block / clearRect / arena copiados de tests/movement-ai.test.ts
+  // clearRect / arena copiados de tests/movement-ai.test.ts (clearRect pulando os tiles com edifício)
   function setup(dx: number) {
     const s = quickGame(); const p = s.players[0]; p.age = 1;
     const tc = buildingsOf(s, 0).find((b) => b.type === 'town_center')!;
@@ -748,38 +772,52 @@ passo. Testes podem ficar vermelhos entre passos da mesma fase, nunca no fim de 
      Mercado do jogador 1 → `routeGold` = `round(base × 1.25)` onde `base` é o de um Mercado próprio na mesma posição.
   6. **Save:** com o caso 2 no meio da rota, `serialize(deserialize(serialize(s))) === serialize(s)`; apague
      `routeA/routeB/routeLeg` da unidade no JSON (`JSON.parse`, `delete`, `JSON.stringify`) e `deserialize` → `-1/-1/0`.
-  7. **Mercador × caravana (D9):** a caravana manda `gather` num raro → não fica em `'gather'`; o Mercador manda `route`
-     → `err.notTrader`.
+  7. **Mercador × caravana (D9):** ponha um raro com `addNode(s.map, 'wild_horses', x, y)` (de `'../src/core/map/mapgen'`;
+     num tile livre da arena, fora da linha da rota) e mande `gather` da caravana nele → `c.state !== 'gather'` (ela não tem
+     `canGather`); um Mercador (`spawnUnit(s, 0, 'merchant', …)`) manda `route` ao Mercado → `reason === t('err.notTrader')`.
   8. **IA (timeout 60 000):** `quickGame({}, true)`, os dois com `age = 1` e 5000 de **cada** recurso
      (`for (const r of RESOURCES) p.resources[r] = 5000`, senão `savingForAge` segura o treino); Mercado
-     pronto do jogador 0 a 24 tiles do seu CC (`arena` + `placeBuilding`); `run(s, 90 * TICK_RATE)` → o jogador 0 tem
-     pelo menos 1 `caravan` e pelo menos uma em `'route'`.
+     pronto do jogador 0 a 24 tiles do seu CC (`arena` + `placeBuilding`, como no `setup`); `run(s, 90 * TICK_RATE)` → o
+     jogador 0 tem pelo menos 1 `caravan` e pelo menos uma em `'route'`. (Sem o Mercado posto pelo teste a IA quase nunca
+     teria rota: ela ergue o Mercado a até ~16 tiles do CC — `maxR: 16` no `plan` —, e os centros raramente ficam a ≥ 16.)
 - [ ] **T2. `tests/command-fuzz.test.ts`:** acrescente `'route'` à lista `TYPES` (linha ~29).
   *Conferir:* `npx vitest run tests/trade-e5.test.ts tests/command-fuzz.test.ts`.
 
-#### Fase F — Navio mercante (**BLOQUEADO até a E4**)
+#### Fase F — Navio mercante (exige a E4 — na ordem oficial ela já está pronta)
 
-- [ ] **F0. Pré-condição.** `grep -n "transport_ship" src/core/data/units.ts` e `grep -rn "fishing_boat" src/core/data/buildings.ts`
-  precisam achar o transporte e o Estaleiro da E4. **Se não acharem, pule a Fase F inteira** e escreva no
+- [ ] **F0. Pré-condição.** `grep -n "transport_ship:" src/core/data/units.ts`, `grep -n "shipyard:" src/core/data/buildings.ts`
+  e `grep -n "layer: Layer" src/core/map/components.ts` precisam achar o transporte, o Estaleiro e o `rectReachable` por
+  camada da E4 (na ordem oficial, acham). **Se algum não achar, pule a Fase F inteira** e escreva no
   `docs/eras/PROGRESSO.md`: "E5: navio mercante pendente (depende da E4); `merchant_ship` reservado; `reachableFor('sea')`
   devolve false". Nada mais da E5 depende dela.
-- [ ] **F1. Dados.** `merchant_ship` pela tabela "E5 — Navio mercante" (copie `cls`, flag de navio, `speed` e `radius`
-  do `transport_ship`; `tags` dele sem `'military'` + `'merchant_ship'`). Estaleiro da E4: `tradeRoute: 'sea'` e
-  `merchant_ship` no `trains` (atalho: a 1ª letra livre de `M, C, V, B` no `trains` dele, nunca A/R/U nem `Q` se o
-  Estaleiro tiver filósofos). `UNIT_ART_ALIAS.merchant_ship` = o alias do `transport_ship`. EN em `EN_UNITS`.
-- [ ] **F2. Alcance no mar.** Em `src/core/sim/trade.ts`, `reachableFor`, troque `return false;` pela função de
-  alcançabilidade da camada de água da E4 (procure com `grep -n "export function" src/core/map/components.ts`; ela tem a
-  mesma forma de `rectReachable`). O movimento já funciona: `updateRoute` chama `moveTowards`, e a E4 pôs nele o ramo
-  naval (é o mesmo caminho que o barco de pesca usa para entregar no Estaleiro).
+- [ ] **F1. Dados.** `merchant_ship` pela tabela "E5 — Navio mercante" (no bloco dos navios da E4, depois do
+  `transport_ship`; **sem** `line`/`tier`: não é degrau de linha). Estaleiro (`shipyard`): `tradeRoute: 'sea'` e
+  `'merchant_ship'` no fim do `trains`. EN em `EN_UNITS` (`name`, `plural` e `desc` da tabela). **Arte e ícone** (a
+  única exceção desta etapa à regra "sem `art:hud`" do D25): nada em `alias.ts` — a E4 não deu alias a navio nenhum, o
+  procedural `drawShip` lê `UNITS[type]` e já desenha o mercante; no `SHIP_ICONS` de `scripts/bake/hud/catalog.mjs`
+  acrescente `merchant_ship: S({ kind: 'transport' })` e rode `npm run art:hud` (senão `tests/hud-icons.test.ts` acusa
+  `unit/merchant_ship`); o filtro por `naval` que a E4 pôs em `tests/art-etapa6.test.ts` já o exclui do "tudo assado".
+  `tests/unit-lines.test.ts` (o caso do Estaleiro que a E4 pôs): `trainChoices(…, 'shipyard')` passa a ter o
+  `merchant_ship` no fim (sem linha, tecla `M`) e o `trains` do elenco clássico passa a ter 4 navios; ajuste só a
+  asserção (a lista esperada), sem mudar a regra.
+  *Conferir:* `npx vitest run tests/data.test.ts tests/hud-icons.test.ts tests/art-etapa6.test.ts tests/unit-lines.test.ts` (atalho `M` único no
+  Estaleiro; as criaturas navais da E6, que vem depois, terão `god` e não contam na regra) e `npm run art:check`.
+- [ ] **F2. Alcance no mar.** Em `src/core/sim/trade.ts`, `reachableFor`, troque `return false;` por
+  `return rectReachable(state.map, sx, sy, b.tx, b.ty, b.w, b.h, true, 'naval');` (a E4 deu a `rectReachable` o parâmetro
+  `layer`; o anel em volta do Estaleiro tem água). O movimento já funciona: `updateRoute` chama `moveTowards`, e a E4 pôs
+  nele o ramo naval pela `layerOf(def)` (é o mesmo caminho que o barco de pesca usa para entregar no Estaleiro).
 - [ ] **F3. IA.** Em `manageCaravans`, repita o bloco de treino para `'sea'`: `UNITS[u.type].trader === 'sea'`, o
-  Estaleiro no lugar do Mercado, `MERCHANT_SHIP_TARGET_AI`, `bestRoute(state, player.id, 'sea', …)`. **Não** mande navios
-  para a rota de terra (filtre por `trader`).
+  Estaleiro (`snap.byType.get('shipyard')`) no lugar do Mercado, `MERCHANT_SHIP_TARGET_AI`,
+  `bestRoute(state, player.id, 'sea', …)`. **Não** mande navios para a rota de terra (filtre por `trader`). O `mine` da
+  rota de terra também precisa filtrar `trader === 'land'` (já filtra). Espere pouco uso: a IA da E4 ergue um Estaleiro
+  só quando há peixe ou em "modo ilha", e uma rota marítima pede **dois** Estaleiros do time a ≥ 16 tiles; a E5 **não**
+  manda a IA erguer um 2º Estaleiro (fica para a E10, registre no `PROGRESSO.md`).
 - [ ] **F4. Teste.** Em `tests/trade-e5.test.ts`, um caso com dois Estaleiros no mar de um mapa da E4 (copie a montagem
   do teste de pesca da E4): rota marítima rende `routeGold(..., 'sea')` e `seaTradeIncome` ×1,25 aumenta o valor.
 
 #### Fase G — Verificação, documentação e commit da E5
 
-- [ ] **G1.** Rode a seção "Verificação", itens 1–9 e 11 (parte E5).
+- [ ] **G1.** Rode a seção "Verificação", itens 1–9, 11 e 12 (parte E5; o 10 é só da E7).
 - [ ] **G2.** "Ao terminar", parte E5, e o commit da E5.
 
 ### Parte 2 — E7 (maravilhas)
@@ -789,8 +827,9 @@ passo. Testes podem ficar vermelhos entre passos da mesma fase, nunca no fim de 
 - [ ] **0'.1.** `git status` limpo e a E5 commitada. `grep -n "tradeIncome" src/core/sim/modifiers.ts` acha o stat
   (E5). Anote o `SIM_VERSION`. Guarde `npm run smoke 20 42 > /tmp/e7-smoke-antes.txt` e
   `npm run balance 35 1,2,3 > /tmp/e7-balance-antes.txt`.
-- [ ] **0'.2.** Confira se a E6 já criou usos extras de poder: `grep -n "charges" src/core/types.ts src/core/sim/powers.ts`.
-  Se achar, **use o campo dela** no passo J8 (com a mesma semântica: usos extras restantes); se não, o J8 cria.
+- [ ] **0'.2.** Confira se alguém já criou usos extras de poder: `grep -n "charges" src/core/types.ts src/core/sim/powers.ts`.
+  (A E6 decidiu **não** criar — D3 dela —, então o normal é não achar e o H1/J7 criarem.) Se achar, **use o campo
+  existente** no passo J7 (com a mesma semântica: usos extras restantes).
 
 #### Fase H — Dados e tipos
 
@@ -822,7 +861,8 @@ passo. Testes podem ficar vermelhos entre passos da mesma fase, nunca no fim de 
      No Canal, acrescente `passable: true, navalPassable: true`.
   5. `BUILD_MENU`: as 17 ids logo depois de `'wonder_colossus'`, na mesma ordem.
   6. No fim do arquivo: `export const CLASSIC_WONDERS: readonly string[] = ['wonder_zeus', 'wonder_artemis', 'wonder_colossus'];`
-     e, em `src/core/data/index.ts`, troque a linha de `buildings` por `export { BUILDINGS, BUILD_MENU, CLASSIC_WONDERS, WONDER_EFFECTS } from './buildings';`.
+     e, em `src/core/data/index.ts`, acrescente `CLASSIC_WONDERS, WONDER_EFFECTS` à linha `export { BUILDINGS, BUILD_MENU… } from './buildings';`
+     (sem tirar o que as etapas anteriores puseram nela).
   *Conferir:* `npx vitest run tests/data.test.ts` verde (o atalho `M` repetido só vale para `wonder_*`).
 - [ ] **H5. Arte provisória.** `src/render/art/alias.ts`, `BUILDING_ART_ALIAS`: as 17 entradas da coluna "alias de arte".
   *Conferir:* `npx vitest run tests/art-library.test.ts tests/art-manifest.test.ts tests/hud-icons.test.ts` verde (o
@@ -1135,19 +1175,35 @@ passo. Testes podem ficar vermelhos entre passos da mesma fase, nunca no fim de 
     for (const item of done) completeQueueItem(state, b, item);
   }
   ```
-  (Com 1 vaga é exatamente o comportamento de hoje.) `library` é a flag da E1 na Biblioteca. HUD: em `buildingCard`,
-  troque `i === 0 ?` (as duas ocorrências: barra e dica) por `i < slots ?`, com
-  `const slots = studySlotsOf(s.state, b);` antes do `forEach`.
+  (Com 1 vaga é exatamente o comportamento de hoje, e o teste "um por vez" da E1 continua valendo sem a maravilha.)
+  `library` é a flag da E1 na Biblioteca. HUD: em `buildingCard`, troque `i === 0 ?` (as duas ocorrências: barra e dica)
+  por `i < slots ?`, com `const slots = studySlotsOf(s.state, b);` antes do `forEach` (importe `studySlotsOf` de
+  `'../core/sim/buildings'`). Na árvore de estudos da E1 (`src/ui/studytree.ts`, `studyTreeModel`), o status `active`
+  (com `progress`) vale só para o item de **índice 0** da fila (`queuedIn`); troque por "índice < `studySlotsOf(state, b)`"
+  do edifício onde o item está (e o `progress` passa a ser o do próprio item, não o do item 0), senão o 2º estudo
+  simultâneo aparece como "na fila" na árvore. `tests/studytree.test.ts` (da E1) continua verde: sem a maravilha, 1 vaga.
 - [ ] **J5. Farol (`coastSight`).** `src/core/sim/fog.ts`: importe `TERRAIN` de `'../constants'` e o tipo `GameMap`;
   acrescente no topo `const coastCache = new WeakMap<GameMap, Int32Array>();` e a função
   ```ts
-  /** Tiles de água rasa (o anel de 1 tile junto à terra): o litoral que o Farol de Alexandria revela. */
+  const isWaterT = (t: number): boolean => t === TERRAIN.WATER || t === TERRAIN.DEEP;   // com a E4: isNavigableTerrain (src/core/map/naval.ts), que inclui o baixio
+  /** Litoral que o Farol de Alexandria revela: tiles de água com um vizinho (4 lados) de terra. O terreno não muda em
+   *  partida, então a lista vale para o mapa inteiro (cache por mapa, fora do save e do hash). */
   function coastTiles(map: GameMap): Int32Array {
     let c = coastCache.get(map);
-    if (!c) { const out: number[] = []; for (let i = 0; i < map.terrain.length; i++) if (map.terrain[i] === TERRAIN.WATER) out.push(i); c = Int32Array.from(out); coastCache.set(map, c); }
+    if (!c) {
+      const out: number[] = [];
+      for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) {
+        const i = y * map.w + x;
+        if (!isWaterT(map.terrain[i])) continue;
+        if ((x > 0 && !isWaterT(map.terrain[i - 1])) || (x < map.w - 1 && !isWaterT(map.terrain[i + 1])) || (y > 0 && !isWaterT(map.terrain[i - map.w])) || (y < map.h - 1 && !isWaterT(map.terrain[i + map.w]))) out.push(i);
+      }
+      c = Int32Array.from(out); coastCache.set(map, c);
+    }
     return c;
   }
   ```
+  (Não use só `TERRAIN.WATER`: o gerador não garante que a água rasa seja um anel de 1 tile — um lago raso inteiro
+  apareceria —, e com a E4 o mar aberto também é `WATER`.)
   Em `updateFog`, antes de `state.fogVersion++;` final:
   `if (state.players.some((q) => q.team === player.team && q.alive && q.mods.player.coastSight > 0)) for (const i of coastTiles(map)) vis[i] = 2;`.
 - [ ] **J6. Mausoléu no treino.** `src/core/sim/commands.ts`, `canTrain`, dentro de `if (def.unique) {`, acrescente
@@ -1175,8 +1231,8 @@ passo. Testes podem ficar vermelhos entre passos da mesma fase, nunca no fim de 
   `buildingLimitOk` de `'./entities'`, `buildingAgeOf` de `'./restrictions'`. Acrescente:
   ```ts
   /** E7 (D23): maravilha a erguer fora de cenário — entre as disponíveis da Era mais alta, pela personalidade. */
-  function aiWonderChoice(state: GameState, player: Player): string | null {
-    const cands = BUILD_MENU.filter((t) => BUILDINGS[t].wonder && BUILDINGS[t].age <= player.age && buildingLimitOk(state, player, t).ok)
+  export function aiWonderChoice(state: GameState, player: Player): string | null {
+    const cands = BUILD_MENU.filter((ty) => BUILDINGS[ty].wonder && BUILDINGS[ty].age <= player.age && buildingLimitOk(state, player, ty).ok)
       .sort((a, b) => BUILDINGS[b].age - BUILDINGS[a].age || (a < b ? -1 : a > b ? 1 : 0));   // nunca localeCompare
     return cands.length ? cands[player.ai!.personality % Math.min(3, cands.length)] : null;
   }
@@ -1193,8 +1249,9 @@ passo. Testes podem ficar vermelhos entre passos da mesma fase, nunca no fim de 
         return [{ type: w, anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 14, cond: age >= 1 && !snap.underConstruction.some((b) => !!BUILDINGS[b.type].wonder) && canAfford(player, rich) }];
       })()),
   ```
-  (A linha do cenário é a de hoje, sem mudança.) No laço `for (const p of plan)`, troque `def.age > age` por
-  `buildingAgeOf(state.config, p.type) > age`.
+  (A linha do cenário é a de hoje, sem mudança. `aiWonderChoice` é exportada só para o teste N1.18; o parâmetro do
+  `filter` chama `ty`, não `t`, para não esconder o `t` do i18n importado no arquivo.) No laço `for (const p of plan)`,
+  troque `def.age > age` por `buildingAgeOf(state.config, p.type) > age`.
 - [ ] **K2. Ataque à maravilha em contagem.** Em `chooseAttackTarget`, logo no início, acrescente:
   ```ts
   if (!state.scenario) {   // E7: quem está na contagem de vitória por maravilha vira o alvo
@@ -1215,12 +1272,29 @@ passo. Testes podem ficar vermelhos entre passos da mesma fase, nunca no fim de 
 #### Fase L — Interface
 
 - [ ] **L1. Painel e tecla `M`.** `src/ui/hud.ts`, `refreshCommands`, laço `for (const type of BUILD_MENU)`: como 1ª
-  linha do corpo, `if (!wonderListed(s.state, s.local, type)) continue;`; troque `def.age` por
-  `const reqAge = buildingAgeOf(s.state.config, type);` nas duas linhas que filtram e explicam a Era. Faça o mesmo em
-  `startPlacement` (linha ~608: `if (def.age > s.player.age) …`), senão o toast da Era fica errado em cenário. `src/ui/input.ts`,
-  no ciclo da tecla de construção: depois de `const cands = (BUILD_HOTKEYS[keyU] ?? '')…filter(Boolean)` (e do filtro de
-  Era da E2, se houver), acrescente `.filter((ty) => wonderListed(s.state, s.local, ty))`. Importe `wonderListed` de
-  `'../core/sim/wonders'` e `buildingAgeOf` de `'../core/sim/restrictions'`.
+  linha do corpo, `if (!wonderListed(s.state, s.local, type)) continue;`; logo depois de `const def = BUILDINGS[type];`,
+  `const reqAge = buildingAgeOf(s.state.config, type);` e troque **todas** as ocorrências de `def.age` do corpo do laço
+  por `reqAge` (são 3: as duas da linha `if (def.age > p.age && def.age > p.age + 1) continue;` e a do `AGES[def.age]`
+  da linha `cmd.requiresAge`). Faça o mesmo em `startPlacement` (`if (def.age > s.player.age) … AGES[def.age]`), senão o
+  toast da Era fica errado em cenário. Na mesma função `refreshCommands`, no fim do template da `const key = …` (a
+  chave de redesenho, que termina em `|${b?.scholars}`), acrescente
+  `|w${[...s.state.buildings.values()].filter((x) => x.complete && BUILDINGS[x.type].wonder).length}`: sem isso o painel
+  não se redesenha quando **outro** jogador conclui uma maravilha (a chave só olha o que é seu).
+  `src/ui/input.ts`, no ciclo da tecla de construção, o bloco que começa em `const cands = (BUILD_HOTKEYS[keyU] ?? '')…`
+  (com o filtro de Era que a E2 pôs: `const age = …; const avail = cands.filter(…); const pool = …`) passa a ser:
+  ```ts
+  const cands = (BUILD_HOTKEYS[keyU] ?? '').split(',').filter(Boolean).filter((ty) => wonderListed(s.state, s.local, ty));
+  if (cands.length > 0) {
+    // 'M' alterna entre maravilhas (só as listadas: da Era do jogador e ainda livres — D22); a Era vem de buildingAgeOf (cenário: scenarioAge)
+    const age = s.state.players[s.local].age;
+    const avail = cands.filter((c) => buildingAgeOf(s.state.config, c) <= age);
+    const pool = avail.length ? avail : cands;
+    const type = pool.length === 1 ? pool[0] : pool[(pool.indexOf(s.ui.placeType ?? '') + 1) % pool.length];
+    this.hud.startPlacement(type); return;
+  }
+  ```
+  (Se a E2 não tiver posto o filtro de Era, o bloco acima o traz.) Importe `wonderListed` de `'../core/sim/wonders'` e
+  `buildingAgeOf` de `'../core/sim/restrictions'` nos dois arquivos; em `hud.ts`, `BUILDINGS` já é importado.
 - [ ] **L2. Barra do topo.** `src/ui/hud.ts`, `refreshTop`: monte, antes de `this.modeEl.textContent = …`,
   ```ts
   let wonderTxt = '';
@@ -1232,8 +1306,9 @@ passo. Testes podem ficar vermelhos entre passos da mesma fase, nunca no fim de 
   ```
   acrescente `+ (wonderTxt ? ' ' + wonderTxt : '')` ao fim do `textContent`, e no `dataset.tip`:
   `relics > 0 ? t('top.relicsTip') : wonderTxt ? t('top.wondersTip', { target: wonderPointsTarget(s.state), hold: WONDER_POINTS_HOLD_SECONDS }) : ''`.
-  Imports: `wonderVictoryMode, wonderPointsTarget, teamWonderPoints` de `'../core/sim/wonders'`, `teamNames` de
-  `'../core/sim/modes'`, `WONDER_POINTS_HOLD_SECONDS` de `'../core/constants'`.
+  Imports: `wonderVictoryMode, wonderPointsTarget, teamWonderPoints` de `'../core/sim/wonders'` e
+  `WONDER_POINTS_HOLD_SECONDS` no import de `'../core/constants'` que já existe (linha 3). `teamNames` e `TICK_RATE` **já
+  são importados** em `hud.ts` — não repita o import (o tsc acusa "Duplicate identifier").
 - [ ] **L3. Cartão da maravilha.** `buildingCard`: troque a condição da linha `sel.victoryIn` por
   `def.wonder && b.complete && b.wonderStart >= 0 && !s.state.scenario && wonderVictoryMode(s.state.config) === 'hold'`,
   e acrescente depois `if (def.wonder && !s.state.scenario && wonderVictoryMode(s.state.config) === 'points') stats.push(\`${t('sel.wonderPoints')} <b>${wonderPoints(b.type)}</b>\`);`
@@ -1252,37 +1327,62 @@ passo. Testes podem ficar vermelhos entre passos da mesma fase, nunca no fim de 
   - `src/net/client.ts`: `wonderVictory?: string` em `LobbyState.settings`.
   - `server/relay.mjs`, `cleanSettings`: acrescente `'wonderVictory'` à lista de chaves string (o `WORD` aceita
     `points/hold/off`). **Sem isso o relay descarta a chave em silêncio** e os convidados não veem a mudança.
+  - `tests/relay-anticheat.test.ts`: um `it` novo no modelo do que a E1 pôs para `startAge`/`endAge` — o anfitrião manda
+    `settings` com `wonderVictory: 'hold'` → o `lobby` dos outros traz a chave; `wonderVictory: 'x y'` é ignorado. O
+    `toEqual` da linha ~252 não muda (não manda a chave nova).
 - [ ] **L5. Conquista.** Depois do H6, rode `npx tsx scripts/steam-achievements.ts` (regera
   `desktop/steam/achievements.{json,csv}`) e `npx tsx scripts/steam-achievements.ts --check` (ok).
 - [ ] **L6. `scripts/balance.ts`:** acrescente ` maravilhas=${[...state.buildings.values()].filter((b) => b.owner === p.id && !b.dead && b.complete && BUILDINGS[b.type].wonder).length}`
   na linha de cada IA (importe `BUILDINGS`).
 - [ ] **L7. `scripts/playtest-wonders.mjs` (novo).** Mesmo cabeçalho do `playtest-trade.mjs`. Roteiro:
-  1. Partida rápida semente 7; pausa; `p.age = 7`; recursos 20 000 de cada; `window.aoe.debugBuild(s.local, 'wonder_parthenon', tx, ty)`
-     e `window.aoe.debugBuild(s.local, 'wonder_great_library', tx2, ty2)` perto do CC (tente alguns deslocamentos até um não ser `null`).
+  1. Partida rápida semente 7 (Era final padrão, a VIII: meta 20); pausa; `p.age = 7`; recursos 20 000 de cada;
+     `window.aoe.debugBuild(s.local, 'wonder_parthenon', tx, ty)` e `window.aoe.debugBuild(s.local, 'wonder_great_library', tx2, ty2)`
+     perto do CC (tente alguns deslocamentos até um não ser `null`; o `debugBuild` ignora Era e limites, mas confere o terreno).
   2. Seleciona o Partenon: `#selection` contém "Pontos de maravilha".
   3. `#top` mostra "Maravilhas 5/20".
-  4. Seleciona cidadãos (duplo clique) e aperta `m` 3 vezes: `s.ui.placeType` muda entre maravilhas e **nunca** é
-     `wonder_parthenon` nem `wonder_great_library` (já tomadas). `Escape`.
+  4. Seleciona 3 cidadãos pelo `page.evaluate` (`s.select(ids)` com os ids dos `villager` do jogador local; duplo clique
+     depende de onde eles estão na tela) e aperta `m` 3 vezes (`page.keyboard.press('m')`, com 200 ms entre elas):
+     `s.ui.placeType` muda entre maravilhas e **nunca** é `wonder_parthenon` nem `wonder_great_library` (já tomadas). `Escape`.
   5. Captura `docs/art/eras-e7-maravilhas.png`; `errors: none`.
 
-#### Fase M — Ganchos navais (**só com a E4**)
+#### Fase M — Ganchos navais (exige a E4 — na ordem oficial ela já está pronta)
 
 - [ ] **M0.** Se a E4 não estiver pronta (`grep -rn "transport_ship" src/core/data/units.ts` vazio), pule e registre
   no `PROGRESSO.md`: "E7: Farol/Arsenal sem navios para afetar; Canal sem passagem naval (gancho `navalPassable`)".
 - [ ] **M1. Tag dos navios.** `grep -n "'ship'" src/core/data/units.ts`: todos os navios da E4 têm a tag `'ship'`? Se a
   E4 usou outra tag comum a todos, troque `SHIP` em `WONDER_EFFECTS` (D21).
-- [ ] **M2. Passagem do Canal.** Na função da E4 que monta/atualiza a camada naval a partir de terreno + nós +
-  edifícios (procure com `grep -rn "naval" src/core/map/*.ts src/core/sim/entities.ts`), trate o tile de um edifício
-  **pronto e vivo** com `BUILDINGS[b.type].navalPassable` como água navegável. Recalcule a camada nos mesmos pontos em
-  que a E4 já recalcula para edifícios (`onBuildingComplete`, `destroyBuilding`, `removeBuildingNow`, `deserialize`).
+- [ ] **M2. Passagem do Canal.** A camada naval da E4 é `navalBlocked(map)` em `src/core/map/naval.ts` (cache por
+  mapa: navegável = terreno de água **e** `nodeAt === -1` **e** `buildingAt === -1`). Ela só enxerga o `GameMap`, e o
+  Canal fica sobre **terra** (o istmo), então:
+  1. Em `naval.ts`, acrescente `const navalOpen = new WeakMap<GameMap, Set<number>>();` e
+     `export function setNavalOpen(map: GameMap, tiles: number[], open: boolean): void` (cria/atualiza o `Set` do mapa
+     com os índices `y * w + x` da pegada e chama `invalidateNaval(map)`); em `navalBlocked`, com
+     `const open = navalOpen.get(map)?.has(i) ?? false`, a regra passa a ser
+     `(isNavigableTerrain(t) || open) && map.nodeAt[i] === -1 && (map.buildingAt[i] === -1 || open) ? 0 : 1` (a mesma
+     fórmula que o gancho "E7" do fim do guia da E4 propõe; um `Set` num `WeakMap` em vez de um campo novo no `GameMap`
+     evita mexer nos literais de mapa, no editor e no save).
+  2. Chame `setNavalOpen(state.map, <tiles da pegada>, true)` em `onWonderComplete` quando
+     `BUILDINGS[b.type].navalPassable` — **antes** do `if (!allWondersOn(state.config)) return;` (um Canal pré-colocado
+     num cenário também abre a passagem) —, e com `false` em `destroyBuilding` e `removeBuildingNow` para o mesmo caso. É
+     obrigatório chamar `invalidateNaval` ali: edifício `passable` **não** passa por `invalidateComponents` (o
+     `if (!def.passable) invalidateComponents(...)` pula), e o cache naval ficaria velho. Invalide também as regiões
+     navais se a E4 as guardar à parte (o `invalidateComponents` da E4 apaga as duas; chame-o direto aqui).
+  3. `deserialize` (`src/core/serialize.ts`): depois de reconstruir `buildingAt`, para cada edifício pronto com
+     `navalPassable`, `setNavalOpen(map, …, true)`. Sem isso, um save carregado perde a passagem (o `Set` não vai para o
+     save: é derivado, como a própria camada).
   **Não** escreva em `map.terrain` (o terreno não muda em partida; o renderizador e o `stateHash` dependem dele).
-- [ ] **M3. Teste.** Num mapa da E4 com istmo de 4 tiles entre dois mares, um navio sem caminho passa a ter caminho
-  depois do Canal pronto sobre o istmo, e volta a não ter depois de `destroyBuilding`.
+- [ ] **M3. Teste.** Num mapa da E4 com istmo de 4 tiles entre dois mares, um navio sem caminho
+  (`rectReachable(…, 'naval')` falso até um alvo no outro mar) passa a ter caminho depois do Canal pronto sobre o istmo,
+  continua tendo depois de `deserialize(serialize(s))`, e volta a não ter depois de `destroyBuilding`. Uma unidade de
+  terra continua atravessando o istmo com o Canal de pé (`passable`).
 
 #### Fase N — Testes da E7, verificação e commit
 
 - [ ] **N1. `tests/wonders-e7.test.ts` (novo).** Use `quickGame`/`run` de `./helpers`. Para montar maravilhas, use
-  `placeBuilding(s, owner, type, tx, ty, complete)` direto (não confere território). Um `it` por item:
+  `placeBuilding(s, owner, type, tx, ty, complete)` direto (não confere território, Era nem limite), num canto achado
+  por `findFree` (copie-o de `tests/movement-ai.test.ts`: ele usa `canPlaceBuilding`, que confere o terreno —
+  `placeBuilding` sozinho põe a pegada em cima de água ou de nós sem reclamar). Quem testa `canPlaceBuilding`/`canTrain`
+  precisa pôr antes `p.age` na Era do item (senão o motivo é `err.requiresAge`, que vem primeiro). Um `it` por item:
   1. **Dados:** exatamente 20 `BUILDINGS` com `wonder`; ids = os da tabela; cada uma com `limit === 'wonder'`,
      `hotkey === 'M'`, `w === 4 && h === 4`, `wonderEffects` definido; contagem por Era = `[3, 4, 4, 3, 2, 1, 2, 1]`;
      todo `Effect` de unidade com `stat` em `{hp, attack, speed, range, los, trainTime, armor.hack, armor.pierce, armor.crush}`,
@@ -1290,26 +1390,31 @@ passo. Testes podem ficar vermelhos entre passos da mesma fase, nunca no fim de 
      ou `BUILDINGS`; as 17 novas estão em `BUILDING_ART_ALIAS` com um alias que é maravilha 4×4; as 20 estão em `BUILD_MENU`.
   2. **Meta:** para `maxAge` 0…7, `wonderPointsTarget(quickGame({ maxAge }))` = `[2, 5, 10, 14, 18, 20, 20, 20]`;
      com `wonderPointsToWin: 7` dá 7.
-  3. **Única no mapa:** jogador 0 conclui `wonder_parthenon` → `canPlaceBuilding` do jogador 1 para ela tem a `reason`
-     de `err.wonderTaken`; um 2º alicerce do mesmo jogador → `err.wonderBuilding`.
+  3. **Única no mapa:** `p.age = 1` nos dois; jogador 0 conclui `wonder_parthenon` → `canPlaceBuilding` do jogador 1 para
+     ela tem a `reason` de `err.wonderTaken`; o jogador 0 põe um alicerce **incompleto** de `wonder_epidaurus` → um 2º de
+     `wonder_epidaurus` dele dá `err.wonderBuilding` (com a maravilha pronta, o laço do I2 acha a pronta primeiro e o motivo
+     seria `err.wonderTaken`).
   4. **Corrida (D18):** alicerces incompletos de `wonder_parthenon` dos dois; conclua o do jogador 0
      (`onBuildingComplete`) → o do jogador 1 fica `dead` e os recursos dele sobem exatamente o custo.
   5. **Várias por jogador** fora de cenário: jogador 0 com Partenon e Epidauro prontos → os dois valem
      (`getBuildingStats`/`mods`).
   6. **Regras clássicas (D14):** `quickGame({ allWonders: false })` (o mesmo caminho que um cenário toma; não monte um
-     cenário de verdade) → `wonder_parthenon` recusada com `err.forbidden`; `buildingAgeOf(s.config, 'wonder_zeus') === 3`;
-     2ª maravilha do mesmo jogador → `err.oneWonder`; com `allWonders` ausente e sem cenário, `allWondersOn === true`.
-  7. **Efeitos simples:** Porta dos Leões → `getBuildingStats(s, p, 'wall').hp === Math.round(600 * 1.5)` e
-     `p.mods.player.territory === 2`; Muralhas de Teodósio → torre `range` +1; Biblioteca de Alexandria →
-     `techCost` × 0,75; Hagia Sophia → `p.mods.player.attrition === 0.4`.
-  8. **Labirinto:** unidade do jogador 1 dentro do território do jogador 0 com o Labirinto → `enemyTerritorySpeed === 0.75`;
-     fora → 1; Titã → 1.
+     cenário de verdade) e `p.age = 3` → `wonder_parthenon` recusada com `err.forbidden`; `buildingAgeOf(s.config, 'wonder_zeus') === 3`
+     e, com `p.age = 2`, `wonder_zeus` recusada com `err.requiresAge`; com uma `wonder_zeus` pronta, `wonder_artemis` →
+     `err.oneWonder`; com `allWonders` ausente e sem cenário, `allWondersOn(s.config) === true`.
+  7. **Efeitos simples:** Porta dos Leões → `getBuildingStats(s, p, 'wall').hp === Math.round(BUILDINGS.wall.hp * 1.5)` e
+     `p.mods.player.territory === 2`; Muralhas de Teodósio → torre `range` = `BUILDINGS.tower.range + 1`; Biblioteca de
+     Alexandria → `techCost(p, 'civic1')` = o de antes × 0,75 (arredondado); Hagia Sophia → `p.mods.player.attrition === 0.4`.
+  8. **Labirinto:** depois do `placeBuilding` do Labirinto, `recomputeTerritory(s)` (de `'../src/core/sim/territory'`; o
+     território só é recalculado no tick); unidade do jogador 1 dentro do território do jogador 0 →
+     `enemyTerritorySpeed === 0.75`; fora → 1; um `cronus` do jogador 1 no mesmo tile → 1.
   9. **Epidauro:** unidade do jogador 0 no próprio território com `hp = maxHp − 20` e `lastDamageTick` antigo →
      `run(s, 5 * TICK_RATE)` sobe ≈ 7,5 (±1,5).
   10. **Delfos:** pronto no tick T; `run` até T + 180 s + 1 s → `p.revealUntil > s.tick`; antes de 180 s, não.
-  11. **Mausoléu (timeout 30 000):** Templo e Mausoléu prontos; spawn de `heracles`; `killUnit(s, h, 1)` →
-      `p.respawns.length === 1`; `canTrain` de `heracles` → `err.alreadyRespawning`; `run(s, 31 * TICK_RATE)` → um
-      `heracles` vivo do jogador 0 e `respawns` vazio. Morte por `delete` (dono −1) **não** entra na fila.
+  11. **Mausoléu (timeout 30 000):** `p.age = 3`; Templo e Mausoléu prontos; spawn de `heracles`; `killUnit(s, h, 1)` →
+      `p.respawns.length === 1`; `canTrain(s, p, temple, 'heracles')` → `err.alreadyRespawning` (Héracles é da Era III:
+      sem o `p.age` o motivo seria `err.requiresAge`); `run(s, 31 * TICK_RATE)` → um `heracles` vivo do jogador 0 e
+      `respawns` vazio. Morte por `delete` (dono −1) **não** entra na fila.
   12. **Biblioteca de Alexandria (vagas):** Biblioteca (`academy`) pronta com 2 itens `tech` empurrados direto na fila
       (`b.queue.push({ kind: 'tech', id: 'civic1', elapsed: 0, total: 42 }, { kind: 'tech', id: 'science1', elapsed: 0, total: 35 })`); com a maravilha, os dois avançam
       juntos (`elapsed` dos dois > 0 depois de 1 s); sem ela, só o primeiro.
@@ -1320,12 +1425,14 @@ passo. Testes podem ficar vermelhos entre passos da mesma fase, nunca no fim de 
       com Partenon (2) + Biblioteca de Alexandria (3) prontos → `wonderHoldStart >= 0` no 1º segundo; `run(s, 121 * TICK_RATE)`
       → `s.gameOver` e `s.winner === 0`. Variante: destruir uma delas aos 60 s → sem vencedor aos 121 s e
       `wonderHoldStart === -1`.
-  16. **Modo `hold`:** uma maravilha pronta, `run(s, 361 * TICK_RATE)` → vencedor 0. **Modo `off`:** nenhum vencedor.
-  17. **Desempate (D17):** os dois times cumprem no mesmo tick com pontos iguais → `wonderWinner(s) === null` (nunca o
-      jogador 0 por ser o primeiro da lista); com pontos diferentes → o de mais pontos.
+  16. **Modo `hold` (timeout 30 000):** `quickGame({ wonderVictory: 'hold' })`, uma maravilha pronta no tick 0,
+      `run(s, 361 * TICK_RATE)` → vencedor 0. **Modo `off`:** `quickGame({ wonderVictory: 'off' })`, o mesmo → `!s.gameOver`.
+  17. **Desempate (D17):** `quickGame({ wonderPointsToWin: 2 })`; jogador 0 com `wonder_parthenon` (2) e jogador 1 com
+      `wonder_epidaurus` (2) prontos; `p.wonderHoldStart = 0` nos dois e `s.tick = 121 * TICK_RATE` → `wonderWinner(s) === null`
+      (nunca o jogador 0 por ser o primeiro da lista); troque a do jogador 1 por `wonder_colossus` (3) → `wonderWinner(s) === 1`.
   18. **IA (timeout 60 000):** `quickGame({}, true)`, jogador 0 com `age = 3` e 30 000 de cada recurso; `run(s, 120 * TICK_RATE)`
-      → o jogador 0 tem uma maravilha (pronta ou em obra) com `age ≤ 3`. `aiWonderChoice` muda com a personalidade
-      (teste indireto: personalidades 0 e 1 escolhem tipos diferentes quando há ≥ 2 candidatas).
+      → o jogador 0 tem uma maravilha (pronta ou em obra) com `age ≤ 3`. `aiWonderChoice` (exportada no K1) muda com a
+      personalidade: com `p.age = 3`, `p.ai!.personality = 0` e depois `= 1` dão tipos diferentes.
   19. **Save:** com `respawns` e `wonderHoldStart` preenchidos e um poder com `charges`, `serialize(deserialize(serialize(s))) === serialize(s)`;
       sem os campos no JSON → `-1` e `[]`.
 - [ ] **N2.** Rode a "Verificação" inteira (parte E7) e faça "Ao terminar", parte E7.
@@ -1345,6 +1452,7 @@ passo. Testes podem ficar vermelhos entre passos da mesma fase, nunca no fim de 
 | `tests/steam.test.ts` | continua verde com o texto novo de `win_wonder` (PT e EN); o `--check` do L5 confere a planilha |
 | `tests/m6_estatua.test.ts`, `tests/missions.test.ts`, `tests/scenario-gaps.test.ts` | sem mudança: provam que o cenário ficou com as regras clássicas |
 | `tests/position-fairness.test.ts` | sem mudança: as sondagens de simetria continuam 100 % |
+| `tests/relay-anticheat.test.ts` | E7 (L4): `wonderVictory` passa pelo `cleanSettings` do relay; valor fora do `WORD` é descartado |
 
 ---
 
@@ -1355,7 +1463,7 @@ Rode na ordem. Cada item diz o que esperar.
 1. `npm run -s typecheck`: sem saída, código 0.
 2. Testes novos e tocados:
    - E5: `npx vitest run tests/trade-e5.test.ts tests/command-fuzz.test.ts tests/data.test.ts tests/i18n.test.ts tests/art-etapa6.test.ts tests/hud-icons.test.ts tests/determinism.test.ts tests/position-fairness.test.ts`
-   - E7: `npx vitest run tests/wonders-e7.test.ts tests/movement-ai.test.ts tests/scenario-gaps.test.ts tests/m6_estatua.test.ts tests/sim.test.ts tests/economy-regressions.test.ts tests/art-library.test.ts tests/art-manifest.test.ts tests/steam.test.ts tests/command-fuzz.test.ts tests/determinism.test.ts`
+   - E7: `npx vitest run tests/wonders-e7.test.ts tests/movement-ai.test.ts tests/scenario-gaps.test.ts tests/m6_estatua.test.ts tests/sim.test.ts tests/economy-regressions.test.ts tests/art-library.test.ts tests/art-manifest.test.ts tests/steam.test.ts tests/command-fuzz.test.ts tests/determinism.test.ts tests/relay-anticheat.test.ts tests/i18n.test.ts tests/hud-icons.test.ts tests/data.test.ts tests/eras.test.ts tests/studytree.test.ts` (os dois últimos são da E1: a fila com N vagas não pode mudar o "um por vez" sem a maravilha)
 
    Esperado: tudo verde.
 3. `npm test`: todos verdes. Se sair `Timeout calling "onTaskUpdate"` com 100 % dos testes passando (código 1), o
@@ -1366,8 +1474,11 @@ Rode na ordem. Cada item diz o que esperar.
 6. `npm run balance 35 1,2,3`:
    - nenhuma `PARADA` aos 5 min;
    - E5: as Eras não ficam **mais lentas** que no "antes" em mais de 1 min; em pelo menos 2 das 3 sementes alguma IA tem
-     `caravanas=` ≥ 1 aos 35 min (se nenhuma tiver, a IA não acha rota ≥ 16: confira com um `console.log` temporário em
-     `manageCaravans` se `bestRoute` devolve null e, se for isso, baixe `TRADE_MIN_DISTANCE` para 14 e registre);
+     `caravanas=` ≥ 1 aos 35 min. Com um só Centro Cívico a IA quase nunca tem rota (ela põe o Mercado a até ~16 tiles do
+     CC); as rotas dela vêm do 2º CC (expansão). Se nenhuma tiver: confira com um `console.log` temporário em
+     `manageCaravans` se `bestRoute` devolve null; se for a distância, (1) no `plan` de `manageBuilding`, troque o `minR` do
+     `market` por `state.scenario ? 3 : 8` (cenário igual) e rode de novo o item 9; (2) só se ainda faltar, baixe
+     `TRADE_MIN_DISTANCE` para 14. Registre o que fez no `PROGRESSO.md`;
    - E7: pelo menos uma IA com `maravilhas=` ≥ 1 em alguma semente; nenhuma partida acaba por maravilha antes dos
      25 min (se acabar, suba `WONDER_POINTS_HOLD_SECONDS` para 180 e registre).
 
@@ -1446,15 +1557,23 @@ Rode na ordem. Cada item diz o que esperar.
   `modsMod`/`modsModule`. Nada de usar um import desses no nível do módulo.
 - **Regras novas vazando para cenário.** Toda regra da E7 passa por `allWondersOn`/`buildingAgeOf`, e toda IA nova
   checa `state.scenario`. Se `scripts/missions.ts` mudar de resultado, foi isso. **Não** edite os JSON de missão.
+- **Corrida de maravilhas entre IAs espelhadas.** Com `--mirror-ai` (ou duas IAs de personalidade igual) as duas podem
+  erguer a **mesma** maravilha; quem termina primeiro depende da ordem de atualização das unidades (alterna por tick), e a
+  outra perde a obra (com reembolso). Se o item 9 der "fora" só com `--mirror-ai`, confira essa corrida antes de mexer em
+  outra coisa (registre; a E10 decide se a IA evita a maravilha que um inimigo já começou).
+- **Cenário com maravilha nova pré-colocada.** O editor lista as 20 maravilhas na paleta. Num cenário, uma maravilha
+  nova posta pelo autor vale (os `wonderEffects` saem do `recomputeMods` sem olhar `allWondersOn`), mas ninguém pode
+  **construir** outra (regra clássica: `err.forbidden`). É o comportamento esperado; não "conserte".
 - **Efeito de edifício só por `types`.** `matches(..., [])` em `getBuildingStats` ignora tags: `match: { tags: [...] }`
   num `building` não pega nada, em silêncio. Edifício só aceita `hp/attack/range/los`.
 - **Atalhos.** Nada de `A`, `R`, `U` (nem `H`, `P`, dígitos, que o `input.ts` consome antes). A caravana usa `C` no
   Mercado (o Mercador da E2 já usa `M`). Todas as maravilhas dividem o `M` (o teste só permite repetição em `wonder_*`).
 - **Textos PT e EN.** Toda chave nova nas duas tabelas de `strings.ts`, com as mesmas `{variáveis}`; nomes e descs em
   `en-data.ts`. Nada de emoji nos textos de interface novos (senão é preciso `EMOJI_GLYPHS`); o "↔" conta como
-  pictográfico — use "–".
+  pictográfico (forma emoji em várias fontes) e nenhuma regex do projeto o pega — use "–".
 - **Ícone do HUD.** Esta etapa não cria tecnologia, poder, recurso nem Era, então **não precisa** de `npm run art:hud`:
-  caravana e maravilhas usam o ícone do alias. Se você acrescentar qualquer tecnologia ou poder, aí sim precisa de
+  caravana e maravilhas usam o ícone do alias. A exceção é o navio mercante (Fase F): navio não tem alias (E4, D22), e o
+  ícone sai do `SHIP_ICONS` + `npm run art:hud`. Se você acrescentar qualquer tecnologia ou poder, aí também precisa de
   entrada no catálogo do atlas `hud` e do `art:hud`.
 - **Arte provisória.** Só o alias da E2. **Não** crie manifesto (`art/manifest/*.json`) sem assar e fundir: o
   `tests/art-manifest.test.ts` falha com manifesto fora do índice. Não rode `npm run art:bake` sem `--out`.
@@ -1493,7 +1612,7 @@ Rode na ordem. Cada item diz o que esperar.
 
    <rodapé de atribuição da sessão>
    ```
-   Não faça `push` sem pedido do dono.
+   Faça push só para a branch da sessão (rotina do `docs/eras/LEIA-ME.md`); nunca para `main` sem pedido do dono.
 
 **Parte E7** (depois da Fase N):
 
@@ -1524,11 +1643,13 @@ Rode na ordem. Cada item diz o que esperar.
 
 Ganchos para as etapas seguintes (não implemente agora):
 
-- **E4 (se ainda não feita):** Fase F (navio mercante) e Fase M (tag `ship`, passagem do Canal).
-- **E6:** se a E6 vier depois, ela usa `PowerState.charges` e `powerReady` daqui; poderes novos entram no `switch` de
-  `usePower` sem tocar no consumo de `charges`.
-- **E8:** arte própria da caravana, do navio mercante e das 17 maravilhas (saem do `alias.ts`); ícones próprios; efeito
-  de "+N ouro" na chegada da caravana (tipo novo em `EFFECT_TYPES` + handler, `tests/fx-registry.test.ts`).
+- **E4:** na ordem oficial ela vem antes; se a Fase F (navio mercante) ou a M (tag `ship`, passagem do Canal) ficou
+  pendente por algum motivo, ela entra logo que a E4 estiver pronta.
+- **E6** (vem depois, na ordem oficial): ela usa `PowerState.charges` e `powerReady` daqui; poderes novos entram no
+  `switch` de `usePower` sem tocar no consumo de `charges`, e o Trono recarrega também os poderes dela.
+- **E8:** arte própria da caravana, do navio mercante e das 17 maravilhas (saem do `alias.ts`); ícones próprios; o
+  "+N ouro" na chegada da caravana é um **observador** do renderizador (troca de `routeLeg`, D31 e passo P6 da E8),
+  sem tipo novo de efeito no núcleo (a E8 não muda o núcleo).
 - **E9:** aba de maravilhas na enciclopédia (Era, pontos, efeito, dono atual); linha da rota no mapa.
 - **E10:** `TRADE_GOLD_PER_TILE`, `TRADE_MIN_DISTANCE`, `CARAVAN_TARGET_AI`, a escolta das caravanas e a renda delas no
   `budgetOf` da IA; custos das maravilhas, meta de pontos e `WONDER_POINTS_HOLD_SECONDS` com partidas de 60 min.

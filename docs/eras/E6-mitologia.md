@@ -1,6 +1,10 @@
 # E6 — Mitologia em todas as Eras (9 deuses menores novos, poderes que crescem com a Era, criaturas navais e voadoras, Bênçãos, Talos)
 
-- Estado: pendente · Pré-requisitos: **E1, E2, E3 e E4 concluídas** (E1: 8 Eras, `ERA_TITANS`, `ROMAN`, `grantStartingEras`, `isScenarioConfig`, Biblioteca; E2: `src/render/art/alias.ts`; E3: `src/core/sim/lines.ts`, `trainChoices`, efeito `evolve`, tag `fire`/`gunpowder`; E4: `src/core/map/naval.ts`, `src/core/sim/naval.ts`, `navalOn`, Estaleiro `shipyard`, `UnitDef.naval`, `Snapshot.ships`). A E5 e a E7 **não** são necessárias. · Estimativa: 7 dias de trabalho do agente (dados e textos 1, poderes e escala 1,5, criaturas, Talos e camada anfíbia 1,5, IA 1, efeitos, ícones e interface 1, verificação e documentação 1)
+- Estado: pendente · Pré-requisitos: **E1, E2, E3 e E4 concluídas** (E1: 8 Eras, `ERA_TITANS`, `ROMAN`, `grantStartingEras`, `isScenarioConfig`, Biblioteca; E2: `src/render/art/alias.ts`; E3: `src/core/sim/lines.ts`, `trainChoices`, efeito `evolve`, tag `fire`/`gunpowder`; E4: `src/core/map/naval.ts`, `src/core/sim/naval.ts`, `navalOn`, Estaleiro `shipyard`, `UnitDef.naval`, `Snapshot.ships`). Na ordem oficial (E1, E2, E3, E4, E5+E7, E6…) a **E5 e a E7 já estão prontas** quando a E6 começa: o código desta etapa não depende delas, mas convive com o que elas deixaram — `PowerState.charges`/`powerReady` (Trono do Olimpo, E7), o `merchant_ship` no `shipyard.trains` (E5) e o `setNavalOpen` do Canal em `src/core/map/naval.ts` (E7). · Estimativa: 7 dias de trabalho do agente (dados e textos 1, poderes e escala 1,5, criaturas, Talos e camada anfíbia 1,5, IA 1, efeitos, ícones e interface 1, verificação e documentação 1)
+
+> **Antes de começar:** leia `docs/eras/LEIA-ME.md` (rotina de cada sessão, regras, quando parar) e marque cada
+> passo em `docs/eras/PROGRESSO.md`. Ordem das etapas: E1, E2, E3, E4, E5+E7, E6, E8, E9+E10. Onde este guia falar de
+> commit ou de push, vale a rotina do LEIA-ME: um commit por passo e push só para a branch da sessão.
 
 > Guia de execução para um agente que não viu a conversa que o escreveu. Siga os blocos na ordem (0, A … J). Todo
 > número de jogo daqui é **valor inicial para o balanceamento** (a E10 ajusta): copie, não recalcule, não invente outro.
@@ -34,8 +38,11 @@ Ao fim da E6, numa **partida rápida, no multiplayer e em qualquer partida fora 
   (camada anfíbia). **Heróis nas Eras I–V** (já é assim desde a E1: Jasão I … Perseu V) e recebem as Bênçãos.
 - Os deuses maiores ganham um bônus de pólvora cada (o naval foi da E4).
 - A IA escolhe os deuses novos, usa os 9 poderes, treina as criaturas novas (as navais no Estaleiro) e estuda as Bênçãos.
-- **Na campanha, na Horda e nos cenários JSON nada muda** (`config.eraMyth` desligado em cenário: sem escala dos poderes,
-  sem Bênçãos, Titãs sem reforço, Oceano só em terra). As 12 missões vencem no harness estrito com os mesmos resultados.
+- **Na campanha e nos cenários JSON nada muda** (`config.eraMyth` desligado em cenário: sem escala dos poderes,
+  sem Bênçãos, Titãs sem reforço, Oceano só em terra). As 12 missões vencem no harness estrito com os mesmos resultados
+  (a campanha para na Era IV, `maxAge: 3` da E1). **Na Horda** (cenário sem teto de Era, D11 da E1) vale o mesmo, mas os
+  pares V–VII e o Talos são dados, não regra de Era: quem chegar à Era V na Horda escolhe um deus novo e, na VII, vê o
+  Colosso virar Talos. É esperado (`scripts/horde.ts` não chega lá); não "conserte" com guarda de `eraMyth`.
 - **Arte provisória**: criaturas com a arte assada de uma criatura de hoje (alias da E2); efeitos dos poderes por um
   handler provisório `divine` (anel, brilho e centelhas na cor do poder) e 3 handlers de duração; ícones de objetos que já
   existem; 9 retratos novos de deuses no atlas `hud`. Nenhum manifesto nem bake de unidade. A arte própria é da E8.
@@ -68,7 +75,7 @@ Decisões deste guia (cada uma com o motivo em uma linha):
 |---|---|---|
 | D1 | **Pares por Era** (tabela "Pares"): cada deus novo aparece em 2 dos 3 deuses maiores, como os de hoje. Hades fica com Hécate/Perséfone, Poseidon com Tritão/Éolo, Zeus com Nice/Hélio. | Mesmo padrão de hoje (cada menor em 2 pares por Era); as afinidades míticas mais óbvias. |
 | D2 | `MINOR_GODS[x].age` = 4 (Pã, Hécate, Perséfone), 5 (Éolo, Tritão, Deméter), 6 (Hélio, Nice, Nêmesis); `AGES[4..6].minorGod = true`. | É a regra que `canAdvanceAge`/`completeQueueItem` já leem (`minorGods[player.age]`); a E1 deixou `false` à espera da E6 (D8 da E1). |
-| D3 | Poder continua **de uso único** (`PowerState.used`). Os usos extras do Trono do Olimpo (`charges`) são da E7. | Não mexer no consumo que a E7 vai trocar por `powerReady`. |
+| D3 | Poder continua **de uso único** (`PowerState.used`). Os usos extras do Trono do Olimpo (`charges`) são da E7, que vem antes. | Não mexer no consumo que a E7 já trocou por `powerReady`/`charges`. |
 | D4 | **Escala**: `powerScale = 1 + 0,15 × max(0, Era do jogador − Era do poder)`, na hora do uso; a Era do poder é a `age` do deus menor que o traz (poder de deus maior = 0). Cada poder escala **uma** dimensão (tabela "Escala"). Os temporizados gravam a escala no `TimedEffect.mult`. | "+15 % de dano, área ou duração por Era"; os números de base valem na Era do poder; a Era pode mudar no meio do efeito. |
 | D5 | **`config.eraMyth`** (como o `unitLines` da E3 e o `naval` da E4): `eraMythOn(state) = config.eraMyth ?? !isScenarioConfig(config)`. Desligado: escala = 1, Bênçãos recusadas, Titãs sem reforço. | A campanha e o harness estão calibrados (o Raio da m12 vale "metade de um Titã"; a m8 tem Oceano). |
 | D6 | **Encruzilhada** = targeting novo `'group'`: as unidades **selecionadas** vão ao ponto clicado. `Command` `power` ganha `ids?: number[]`. Destino precisa estar explorado e ser terra passável; até 20 de população (escala); navios, Titãs, imóveis e transportes não vão. | Um clique só, sem segundo ponto no comando; a IA manda o próprio exército. |
@@ -88,7 +95,7 @@ Decisões deste guia (cada uma com o motivo em uma linha):
 | D20 | **Titãs**: ficam na Era VIII (E1); com `eraMythOn`, vida ×2 e ataque ×1,5 (`TITAN_ERA_HP`, `TITAN_ERA_ATTACK`, em `recomputeMods`); fora das Bênçãos; o Raio tira `min(0,75; 0,5 × escala)` da vida. | Na VIII os exércitos estão ~3,6× mais fortes (E3); o Titã continua o clímax. Campanha intacta (D5). |
 | D21 | **Deuses maiores, pólvora**: Zeus `gunpowder` +10 % de ataque; Poseidon `gunpowder` 10 % mais barata; Hades `gunpowder` +10 % de vida. | §6 "novos para naval e pólvora"; o naval foi feito na E4. Sem efeito na campanha (não há pólvora no elenco clássico). |
 | D22 | **Arte provisória**: 12 entradas em `UNIT_ART_ALIAS` (E2); um tipo de efeito novo `'divine'` (`data` = raio, `src` = id do poder) e 3 `TimedEffect` novos (`spring`, `gale`, `sun_chariot`) com handler; ícones de poder e de pesquisa com objetos que já existem; 9 bustos novos em `scripts/bake/page/hud-gods.js`. Sem manifesto nem bake de unidade. | Nenhuma página nova de VRAM; os testes de arte (35 unidades com manifesto) continuam valendo pelo filtro do alias. |
-| D23 | **Atalhos**: criaturas do Templo com `Z` (como hoje; Talos também `Z`); no Estaleiro, Hipocampo `Z`, Escila `X`, Ceto `C`. Com várias unidades na mesma tecla, a tecla treina a **de Era mais alta que o jogador pode treinar** (`pickTrainHotkey`). | `tests/data.test.ts` aceita tecla repetida só em unidade com `god`; hoje o `Z` sempre pegava o primeiro da lista (o Pégaso). |
+| D23 | **Atalhos**: criaturas do Templo com `Z` (como hoje; Talos também `Z`); no Estaleiro, Hipocampo `Z`, Escila `X`, Ceto `C` (letras que a E4 reservou para a E6, D11 de lá; o navio mercante da E5 fica com `M`, a 1ª livre de M, C, V, B). Com várias unidades na mesma tecla, a tecla treina a **de Era mais alta que o jogador pode treinar** (`pickTrainHotkey`; empate de Era: a primeira do `trains`). | `tests/data.test.ts` aceita tecla repetida só em unidade com `god`; hoje o `Z` sempre pegava o primeiro da lista (o Pégaso). |
 | D24 | `SIM_VERSION` +1. O formato do save **não** muda (campos novos opcionais, lidos com `?? 0`/`?? false`). | A mesma semente dá outra partida fora de cenário; a regra do núcleo para campos novos. |
 | D25 | **IA**: um `case` por poder novo (alvos pelo aglomerado inimigo de sempre ou por vetores, nunca deslocamento absoluto); criaturas do Templo pela ordem dos `trains` (Era crescente); criaturas do Estaleiro só com frota (≥ 2 navios de guerra) e Favor > 40; Bênçãos com ≥ 3 míticas/heróis vivos. | Mesmo estilo de `managePowers`/`manageTraining` de hoje; justiça de posição (CLAUDE.md). |
 
@@ -108,8 +115,8 @@ Decisões deste guia (cada uma com o motivo em uma linha):
 | `src/core/data/index.ts` | exporta `MYTH_UPGRADES`, `BLESSED_TYPES`, `BLESSING_IDS` |
 | `src/core/map/naval.ts` (da E4) | `Layer` + `'amphibious'`; `layerOf` com `amphibious`; `amphibBlocked`; `layerBlocked`; `invalidateNaval` apaga o cache anfíbio |
 | `src/core/map/grid.ts` | `isPassable`/`canPass` com a camada anfíbia |
-| `src/core/map/pathfinding.ts` | `findPathEx` (o `pass`) com a camada anfíbia |
-| `src/core/map/components.ts` | terceiro cache de regiões (`amphStore`), invalidado junto |
+| `src/core/map/pathfinding.ts` | `findPathEx` (o `pass`) com a camada anfíbia (importa `layerBlocked`) |
+| `src/core/map/components.ts` | terceiro cache de regiões (`amphStore`), invalidado junto (importa `amphibBlocked`) |
 | `src/core/sim/naval.ts` (da E4) | `unitLayer`, `mediumOf` (novas); `canBoard` recusa anfíbio |
 | `src/core/sim/divine.ts` (novo) | `POWER_TUNING`, `powerEraOf`, `powerScale`, `powerRadius`, `galeFactor`, `harvestMult`, `inStrip`, `homeOf` |
 | `src/core/sim/myth.ts` (novo) | `mythUpgradeOf`, `applyMythUpgrades`, `springRaise` |
@@ -123,13 +130,13 @@ Decisões deste guia (cada uma com o motivo em uma linha):
 | `src/core/sim/economy.ts` | Cornucópia × `powerScale` |
 | `src/core/sim/modifiers.ts` | reforço dos Titãs por Era (com `eraMythOn`) |
 | `src/core/sim/restrictions.ts` | `eraMythOn` |
-| `src/core/sim/ai.ts` | 9 casos em `managePowers` (e `ids` no `use`); Bênçãos em `manageResearch`; `trainSeaMyths` (nova) |
+| `src/core/sim/ai.ts` | 9 casos em `managePowers` (e `ids` no `use`); Bênçãos em `manageResearch`; `trainSeaMyths` (nova, chamada logo depois de `manageNavy` em `aiThink`); o `pick` de guerra do `manageNavy` (E4) sem criaturas |
 | `src/core/scenario/schema.ts`, `src/core/scenario/compile.ts` | `config.eraMyth?: boolean` (tipo, validação, cópia em `scenarioConfig`) |
 | `src/i18n/strings.ts` | 10 chaves novas (PT e EN) |
 | `src/i18n/en-data.ts` | EN de 12 unidades, 9 poderes, 9 deuses, 25 pesquisas e perks dos deuses maiores |
 | `src/ui/train-hotkey.ts` (novo) | `pickTrainHotkey` (pura) |
 | `src/ui/input.ts` | Encruzilhada (`'group'`), raio escalado na mira, tecla de treino por `pickTrainHotkey` |
-| `src/ui/hud.ts` | dica do poder com a força da Era, alvo `'group'`, Bênçãos escondidas em cenário, Colosso escondido na VII |
+| `src/ui/hud.ts` | dica do poder com a força da Era (e `p.age` na chave do painel), alvo `'group'`, Bênçãos escondidas em cenário, Colosso escondido na VII, filtro de deus dos botões de treino por `godAllows` (senão o Talos nunca aparece) |
 | `src/render/art/alias.ts` (da E2) | 12 entradas em `UNIT_ART_ALIAS` |
 | `src/render/fx/types.ts` | `'divine'` em `EFFECT_TYPES`; `'spring'`, `'gale'`, `'sun_chariot'` em `TIMED_TYPES` |
 | `src/render/fx/handlers/divine.ts` (novo) | `divine`, `springTimed`, `galeTimed`, `sunChariotTimed`, `DIVINE_TINT` |
@@ -139,16 +146,17 @@ Decisões deste guia (cada uma com o motivo em uma linha):
 | `src/ui/icons.ts` | `techIconName` com `blessing` (igual ao catálogo) |
 | `scripts/bake/page/hud-gods.js` | 9 bustos novos em `GODS` |
 | `public/art/hud-*.png`, `public/art/hud-*.json`, `public/art/manifest.json` | regerados por `npm run art:hud` (nunca à mão) |
+| `scripts/bake/check.ts` | **só se** o `art:check` acusar o atlas `hud` acima de 4 MB: `BUDGET.maxHudPngMB` 4 → 5 (ver Armadilhas) |
 | `scripts/playtest-myth.mjs` (novo) | playtest dos poderes, criaturas, Bênçãos e ícones (PT e EN) |
 | `tests/myth-eras.test.ts` (novo) | testes de dados, poderes, criaturas, Talos, Bênçãos, anfíbio, IA e save |
-| `tests/data.test.ts`, `tests/fx-registry.test.ts`, `tests/movement-ai.test.ts`, `tests/eras.test.ts` (da E1), `tests/naval.test.ts` (da E4) | atualizações da seção "Testes" |
+| `tests/data.test.ts`, `tests/fx-registry.test.ts`, `tests/movement-ai.test.ts`, `tests/eras.test.ts` (da E1), `tests/naval.test.ts` (da E4), `tests/unit-lines.test.ts` (da E3, com o caso do Estaleiro da E4) | atualizações da seção "Testes" |
 | `docs/EDITOR.md` | `eraMyth` na config do cenário |
 | `docs/eras/PROGRESSO.md` (novo, se faltar), `docs/ROADMAP.md`, `CLAUDE.md` | documentação (bloco J) |
 
 **Não mexa em:** `art/manifest/*`, `scripts/bake/page/rigs/*`, `scripts/bake/page/materials.js`, `scripts/bake/page/bake.js`
 (reassariam a arte inteira); `src/core/scenario/missions/*.json`, `src/core/scenario/campaign.ts` e
 `src/core/scenario/testing.ts` (a campanha fica igual pelo D5); os 35 `UnitDef` de hoje além de `oceanus.amphibious`; o
-consumo `ps.used = true` no fim de `usePower` (a E7 o troca).
+consumo do fim de `usePower` (a E7 já o trocou por `if (ps.used) ps.charges = …; else ps.used = true;` com `powerReady`: não mexa).
 
 ---
 
@@ -176,12 +184,18 @@ O primeiro de cada par é o que um humano recebe quando a partida começa acima 
 | `pan` | 4 | Pã / Deus dos Pastores e do Pânico | Pan / God of Shepherds and Panic | `panic` | `satyr` | `rustic_flute`, `wild_hooves` | 🦌 |
 | `hecate` | 4 | Hécate / Deusa das Encruzilhadas e da Magia | Hecate / Goddess of Crossroads and Magic | `crossroads` | `empusa` | `torch_of_hecate`, `crossroads_rites` | 🌙 |
 | `persephone` | 4 | Perséfone / Rainha do Submundo e da Primavera | Persephone / Queen of the Underworld and of Spring | `spring` | `lampad` | `pomegranate`, `eternal_spring` | 💚 |
-| `aeolus` | 5 | Éolo / Senhor dos Ventos | Aeolus / Keeper of the Winds | `gale` | `harpy` | `bag_of_winds`, `storm_lord` | 🕊️ |
+| `aeolus` | 5 | Éolo / Senhor dos Ventos | Aeolus / Keeper of the Winds | `gale` | `harpy` | `bag_of_winds`, `storm_lord` | 🌬️ |
 | `triton` | 5 | Tritão / Mensageiro do Mar | Triton / Herald of the Sea | `tidal_wave` | `hippocampus` | `conch_horn`, `tidal_lore` | 🔱 |
 | `demeter` | 5 | Deméter / Deusa das Colheitas | Demeter / Goddess of the Harvest | `divine_harvest` | `triptolemus_dragon` | `golden_harvest`, `eleusinian_mysteries` | 🌾 |
 | `helios` | 6 | Hélio / O Sol | Helios / The Sun | `sun_chariot` | `phoenix` | `solar_fire`, `all_seeing_sun` | ☀️ |
 | `nike` | 6 | Nice / Deusa da Vitória | Nike / Goddess of Victory | `winged_victory` | `griffin` | `laurels_of_victory`, `golden_wings` | 👑 |
 | `nemesis` | 6 | Nêmesis / Deusa da Retribuição | Nemesis / Goddess of Retribution | `retribution` | `erinys` | `balance_of_fate`, `wrath_of_nemesis` | 🗡️ |
+
+O `icon` é dado (o HUD usa o atlas) e não precisa de `EMOJI_GLYPHS`. Cuidado só com o `emojiIcon` de `src/ui/icons.ts`
+(emoji de fala dos roteiros → retrato): ele monta o mapa com os deuses maiores, depois os menores, depois as unidades, e o
+primeiro que chega fica. Um deus menor novo com o emoji de uma **unidade** "roubaria" o ícone de fala dela; por isso o Éolo
+usa 🌬️, e não 🕊️ (o 🕊️ continua sendo o Pégaso). Emoji repetido de outro **deus** (🌙, 🔱, ☀️, 👑, 🗡️) não muda nada: o
+deus de hoje vem antes. Os emoji das 12 criaturas também já têm dono antes delas (heróis, titãs, criaturas de hoje).
 
 Descrições (`desc`, sem emoji):
 
@@ -298,7 +312,9 @@ phoenix ☀️ · griffin 🦁 · erinys 🗡️ · scylla 🐍 · ceto 🌊 · 
 
 Ordem nos `trains` (a IA treina **a última** treinável do Templo): no fim de `temple.trains`, depois de `'cerberus'`:
 `'satyr', 'empusa', 'lampad', 'harpy', 'triptolemus_dragon', 'phoenix', 'griffin', 'erinys', 'talos'`. No fim de
-`shipyard.trains`: `'scylla', 'hippocampus', 'ceto'`.
+`shipyard.trains` (depois do que E4/E5 puseram, inclusive o `merchant_ship`): `'scylla', 'ceto', 'hippocampus'` — também
+em Era crescente (III, V, VI), porque `trainSeaMyths` treina a última treinável: com `'hippocampus'` antes do `'ceto'`, o
+Poseidon com Tritão nunca treinaria Hipocampos.
 
 ### Pesquisas dos 9 deuses novos (`src/core/data/techs.ts`, `building: 'temple'`, `god` = o deus)
 
@@ -398,7 +414,7 @@ Os ícones `unit/<criatura>` vêm do alias (`ic.unit` da E2 resolve `unit/<alias
 
 | Chave | PT | EN |
 |---|---|---|
-| `msg.powerTarget.group` | clique no destino: leva as unidades selecionadas | click the destination: takes the selected units |
+| `msg.powerTarget.group` | clique no destino das unidades selecionadas | click the destination of the selected units |
 | `msg.selectGroup` | Selecione as suas unidades que vão atravessar a Encruzilhada. | Select your units that will cross the Crossroads. |
 | `err.crossroadsDest` | Destino inexplorado ou bloqueado. | Destination unexplored or blocked. |
 | `err.crossroadsNoUnits` | Nenhuma unidade selecionada pode atravessar (navios, Titãs e imóveis não vão). | No selected unit can cross (ships, Titans and immobile units cannot). |
@@ -417,7 +433,7 @@ Antes de criar, confira com `grep -n "'err.noEnemiesHere'\|'power.scale'" src/i1
 |---|---|---|
 | `temple` | `Z` | todas as criaturas de deus menor (as de hoje e as 9 novas) e `talos` |
 | `temple` | `X` | `cerberus` (como hoje) |
-| `shipyard` | `Z` / `X` / `C` | `hippocampus` / `scylla` / `ceto` (o Estaleiro já usa Q, W, E e, com a E5, T) |
+| `shipyard` | `Z` / `X` / `C` | `hippocampus` / `scylla` / `ceto` (o Estaleiro da E4 usa Q, W, E; o navio mercante da E5 pega `M`, a 1ª livre de M, C, V, B — `C` nunca chega a ele) |
 
 ---
 
@@ -435,15 +451,22 @@ quais têm de estar verdes.
   grep -n "export const ROMAN" src/core/data/techs.ts                          # E1
   grep -n "UNIT_ART_ALIAS" src/render/art/alias.ts                             # E2
   grep -n "export function applyEvolution" src/core/sim/lines.ts               # E3
+  grep -n "export function trainChoices" src/core/sim/lines.ts                 # E3
   grep -n "'evolve'" src/render/fx/types.ts                                    # E3
   grep -n "export function navalOn" src/core/sim/restrictions.ts               # E4
   grep -n "export type Layer" src/core/map/naval.ts                            # E4
   grep -n "shipyard:" src/core/data/buildings.ts                               # E4
+  grep -n "export function canBoard" src/core/sim/naval.ts                     # E4
+  grep -n "ships:" src/core/sim/ai.ts                                          # E4 (campo Snapshot.ships)
+  grep -n "function manageNavy" src/core/sim/ai.ts                             # E4
   grep -c "minorGod: true" src/core/data/ages.ts                               # deve dar 3
+  grep -n "export function powerReady" src/core/sim/powers.ts                  # E7 (vem antes da E6)
+  grep -n "merchant_ship" src/core/data/buildings.ts                           # E5 (no shipyard.trains)
   ```
 - [ ] **0.2. O "antes"** (não commitar):
   ```sh
   npx tsx scripts/missions.ts > /tmp/e6-missions-antes.txt 2>&1
+  npm run balance 35 1,2,3 > /tmp/e6-balance35-antes.txt 2>&1
   npm run balance 60 1,2,3 > /tmp/e6-balance-antes.txt 2>&1
   npm run smoke 20 42 > /tmp/e6-smoke-antes.txt 2>&1
   ```
@@ -564,7 +587,7 @@ quais têm de estar verdes.
      ```
 - [ ] **A6. `src/core/data/buildings.ts`.** No fim de `temple.trains`, depois de `'cerberus'`:
   `'satyr', 'empusa', 'lampad', 'harpy', 'triptolemus_dragon', 'phoenix', 'griffin', 'erinys', 'talos'`. No fim de
-  `shipyard.trains` (da E4): `'scylla', 'hippocampus', 'ceto'`. Na desc do Templo (PT) nada muda.
+  `shipyard.trains` (da E4): `'scylla', 'ceto', 'hippocampus'` (nessa ordem: ver "Ordem nos `trains`"). Na desc do Templo (PT) nada muda.
 - [ ] **A7. `src/core/data/techs.ts`.**
   1. Se o arquivo ainda não importa `UNITS`, acrescente `import { UNITS } from './units';` (a E3 já pode ter posto).
   2. Antes de `const RAW`:
@@ -610,8 +633,9 @@ quais têm de estar verdes.
   - `EN_POWERS`: os 9 poderes (`name`, `desc`);
   - `EN_MINOR_GODS`: os 9 deuses (`name`, `title`, `desc`);
   - `EN_TECHS`: as 18 pesquisas (`name`, `desc`) e as Bênçãos geradas:
-    `...Object.fromEntries([2, 3, 4, 5, 6, 7, 8].map((n) => [`blessing${n}`, { name: `Blessing of Olympus ${ROMAN[n - 1]}`, desc: 'Mythic creatures and heroes +20% health and attack and +0.02 armor (Titans excluded).' }])),`
-    (importe `ROMAN` de `'../core/data'` se o arquivo ainda não importa);
+    `...Object.fromEntries(['II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'].map((r, i) => [`blessing${i + 2}`, { name: `Blessing of Olympus ${r}`, desc: 'Mythic creatures and heroes +20% health and attack and +0.02 armor (Titans excluded).' }])),`
+    (numerais literais, como a `line()` do EN que a E1 deixou: o `en-data.ts` não importa nada de `src/core` e deve continuar
+    assim — o `src/i18n/index.ts` importa os dois e os sobrepõe);
   - `EN_MAJOR_GODS`: os perks EN da tabela, na mesma posição dos PT.
 - [ ] **A10. `src/i18n/strings.ts`.** As 10 chaves da tabela, em `pt` e em `en` (o typecheck exige as duas).
 - [ ] **A11. `eraMyth` (`src/core/sim/restrictions.ts`, `src/core/scenario/schema.ts`, `src/core/scenario/compile.ts`).**
@@ -653,17 +677,21 @@ quais têm de estar verdes.
   export function layerBlocked(map: GameMap, layer: Layer): Uint8Array { return layer === 'naval' ? navalBlocked(map) : layer === 'amphibious' ? amphibBlocked(map) : map.blocked; }
   ```
   e troque `invalidateNaval` por `export function invalidateNaval(map: GameMap): void { cache.delete(map); amphCache.delete(map); }`.
+  A E7 (passo M2 do guia E5–E7) já pôs neste arquivo o `navalOpen`/`setNavalOpen` do Canal de Corinto e a regra
+  `open` no `navalBlocked`: não mexa neles. O `amphibBlocked` lê o `navalBlocked`, então herda a passagem do Canal, e o
+  `setNavalOpen` já chama o `invalidateNaval` (que agora apaga também o cache anfíbio).
 - [ ] **B2. `src/core/map/grid.ts`.** Importe `amphibBlocked` junto de `navalBlocked`. Em `isPassable`, troque o `return`
   por `return layer === 'land' ? map.blocked[i] === 0 : layerBlocked(map, layer)[i] === 0;` (importe `layerBlocked`). Em
   `canPass`, logo depois da linha `if (layer === 'naval') …`, acrescente
   `if (layer === 'amphibious') return amphibBlocked(map)[i] === 0 || (team >= 0 && map.gateTeam[i] === team);`.
-- [ ] **B3. `src/core/map/pathfinding.ts`.** Em `findPathEx`, troque as duas linhas do `nb`/`pass` da E4 por:
+- [ ] **B3. `src/core/map/pathfinding.ts`.** Troque o import `navalBlocked` de `'./naval'` (da E4) por `layerBlocked` (ou
+  acrescente-o, se o `navalBlocked` ainda for usado no arquivo). Em `findPathEx`, troque as duas linhas do `nb`/`pass` da E4 por:
   ```ts
   const nb = layer === 'land' ? null : layerBlocked(map, layer);
   const pass = !nb ? (i: number) => map.blocked[i] === 0 || (team >= 0 && map.gateTeam[i] === team)
     : layer === 'amphibious' ? (i: number) => nb[i] === 0 || (team >= 0 && map.gateTeam[i] === team) : (i: number) => nb[i] === 0;
   ```
-- [ ] **B4. `src/core/map/components.ts`.** Terceiro cache:
+- [ ] **B4. `src/core/map/components.ts`.** Acrescente `amphibBlocked` ao import de `'./naval'` (o da E4). Terceiro cache:
   ```ts
   const amphStore = new WeakMap<GameMap, Components>();   // E6: regiões da camada anfíbia
   ```
@@ -717,11 +745,12 @@ quais têm de estar verdes.
 
 ### Bloco C — Poderes e a escala por Era
 
-- [ ] **C1. `src/core/sim/divine.ts` (novo).** O arquivo inteiro:
+- [ ] **C1. `src/core/sim/divine.ts` (novo).** O arquivo inteiro (atenção: o `tests/determinism.test.ts` varre o **texto**
+  de `src/core`, comentários incluídos — nunca escreva `Math.random`, `Math.sin`, `Date.now` etc. nem num comentário):
   ```ts
   // Mitologia nas Eras (E6; docs/eras/E6-mitologia.md): números dos poderes novos, a escala dos poderes por Era e as leituras
   // que o combate, o movimento e a coleta fazem a cada tick (Vendaval, Colheita Divina). Determinístico: só o estado, aritmética e
-  // Math.sqrt; nada de Math.random/trigonometria. Valores iniciais para o balanceamento (E10).
+  // raiz quadrada; nada de sorteio nem trigonometria. Valores iniciais para o balanceamento (E10).
   import { MINOR_GODS, POWERS, UNITS } from '../data';
   import type { GameState, Player, Unit } from '../types';
   import { isEnemy } from './queries';
@@ -806,16 +835,22 @@ quais têm de estar verdes.
   | `pestilence` | `state.tick + 60 * TICK_RATE` | `state.tick + Math.round(60 * TICK_RATE * s)` |
   | `oracle` | `state.tick + 60 * TICK_RATE` | `state.tick + Math.round(60 * TICK_RATE * s)` |
   | `bronze` | `state.tick + 45 * TICK_RATE` | `state.tick + Math.round(45 * TICK_RATE * s)` |
-  | `curse` | `if (n >= 8) break;` | `if (n >= Math.round(8 * s)) break;` |
+  | `curse` | `let n = 0;` (a do `case 'curse'`) e `if (n >= 8) break;` | `let n = 0; const maxVictims = Math.round(8 * s);` e `if (n >= maxVictims) break;` |
   | `lightning_storm` | `data: def.radius ?? 6 });` (no `timed.push`) | `data: def.radius ?? 6, mult: s });` |
   | `earthquake` | `data: def.radius ?? 7 });` (no `timed.push`) | `data: def.radius ?? 7, mult: s });` |
 
-  Laço novo das Sentinelas (mesma busca por canto, agora em rodízio, sem duas no mesmo tile):
+  **Por que `maxVictims` fora do laço:** dentro do `for` da Maldição já existe um `const s = spiralSearchFrame(…)` (o lugar
+  do javali). Um `Math.round(8 * s)` dentro do mesmo bloco leria esse `s` antes da declaração (erro TS2448 / zona morta
+  temporal), e não a escala. Não renomeie a escala: só tire a conta do laço, como na tabela.
+
+  Laço novo das Sentinelas (mesma busca por canto, agora em rodízio; as estátuas extras não repetem tile). As 4 primeiras
+  têm de sair **exatamente** como hoje (a m9 joga como Hades e o `scripts/missions.ts` tem de dar o mesmo resultado): o
+  filtro de tile usado só vale a partir da 5ª.
   ```ts
   const n = Math.min(8, Math.round(4 * s)), used = new Set<number>();
   for (let k = 0; k < n; k++) {
     const [sx, sy] = spots[k % 4];
-    const sp = spiralSearchFrame(sx, sy, 4, (a, c) => isPassable(state.map, a, c) && !used.has(idx(state.map, a, c)), towardFrame(sx + 0.5 - b.x, sy + 0.5 - b.y));
+    const sp = spiralSearchFrame(sx, sy, 4, (a, c) => isPassable(state.map, a, c) && (k < 4 || !used.has(idx(state.map, a, c))), towardFrame(sx + 0.5 - b.x, sy + 0.5 - b.y));
     if (sp) { used.add(idx(state.map, sp.x, sp.y)); spawnUnit(state, player.id, 'sentinel', sp.x + 0.5, sp.y + 0.5); state.effects.push({ type: 'spawn', x: sp.x + 0.5, y: sp.y + 0.5, ttl: 20, total: 20 }); }
   }
   ```
@@ -823,8 +858,8 @@ quais têm de estar verdes.
   `applyDamage(state, v, 200, t.owner)` por `applyDamage(state, v, 200 * (t.mult ?? 1), t.owner)`,
   `applyDamage(state, b, 75, t.owner)` por `applyDamage(state, b, 75 * (t.mult ?? 1), t.owner)` e
   `applyDamage(state, u, 3, t.owner)` por `applyDamage(state, u, 3 * (t.mult ?? 1), t.owner)`.
-- [ ] **C4. `powers.ts`, os 9 `case` novos**, antes do `default:`. Todos terminam em `break` (o `ps.used = true` do fim
-  continua valendo; **não** marque `used` dentro do case):
+- [ ] **C4. `powers.ts`, os 9 `case` novos**, antes do `default:`. Todos terminam em `break` (o consumo do fim — `used`/`charges`
+  da E7 — continua valendo; **não** marque `used` dentro do case):
   ```ts
   // ---------------- E6: deuses menores das Eras V–VII (docs/eras/E6-mitologia.md) ----------------
   case 'panic': {
@@ -964,7 +999,9 @@ quais têm de estar verdes.
   - `isPassable(map, x, y, layer)` é a versão da E4 (com camada). `centerFrame`, `spiralSearchFrame`, `inBounds`, `idx` já
     são importados pelo arquivo.
   - `(a - b) * (a - b)` no lugar de `** 2` nos códigos novos (os `** 2` de hoje podem ficar).
-- [ ] **C5. `powers.ts`, `updateTimedEffects`, o Carro do Sol.** Depois do ramo `earthquake`:
+- [ ] **C5. `powers.ts`, `updateTimedEffects`, o Carro do Sol.** Encadeie um ramo novo depois do ramo `earthquake`: troque
+  o `}` que fecha o `else if (t.type === 'earthquake' …) {` pelo bloco abaixo (ele começa fechando o ramo do terremoto e
+  termina fechando o seu; o `}` do `for` continua depois dele):
   ```ts
   } else if (t.type === 'sun_chariot' && state.tick % 5 === 0 && t.x !== undefined && t.y !== undefined) {   // E6
     const half = t.data ?? P6.sun.half, w = P6.sun.width, m = t.mult ?? 1, dx = t.dx ?? 1, dy = t.dy ?? 0;
@@ -1103,7 +1140,7 @@ quais têm de estar verdes.
        return (!!major && major.mythUnit === unit) || def.god === player.god || player.minorGods.includes(def.god) || player.minorGods.some((g) => MINOR_GODS[g]?.mythUnit === unit);
      }
      ```
-  2. Em `canTrain`, troque o bloco `if (def.god) { … }` (as três linhas) por:
+  2. Em `canTrain`, troque o bloco inteiro `if (def.god) { const major = …; const allowed = …; if (!allowed) return …; }` (5 linhas) por:
      ```ts
      if (def.god && !godAllows(player, unit)) return { ok: false, reason: t('err.requiresGod') };
      const up = MYTH_UPGRADES[unit];   // E6: o Colosso vira Talos na Era VII
@@ -1153,13 +1190,14 @@ quais têm de estar verdes.
   ```
   e use `...godTechs, ...blessings,` na montagem. Importe `BLESSING_IDS` de `'../data'` e `eraMythOn` de `'./restrictions'`.
   As Bênçãos seguem a regra "o resto só com sobra" de hoje (não são linha).
-- [ ] **E3. Criaturas do Estaleiro.** Função nova, chamada no fim de `manageTraining` (depois do laço do exército humano)
-  ou onde a E4 chama `manageNavy` (uma vez por pensamento):
+- [ ] **E3. Criaturas do Estaleiro.** Função nova, logo acima de `manageNavy`, chamada em `aiThink` **logo depois** de
+  `manageNavy(state, player, snap);` (uma vez por pensamento; **não** no fim de `manageTraining`, que tem `return` no meio):
   ```ts
   /** E6: criaturas do Estaleiro (Escila, Hipocampo, Ceto) — só quem já tem frota (≥ 2 navios de guerra) e Favor. */
   function trainSeaMyths(state: GameState, player: Player, snap: Snapshot): void {
     if (player.resources.favor <= 40) return;
-    if (snap.ships.filter((u) => isMilitary(u)).length < 2) return;
+    // frota de verdade: Hipocampo e Escila também são `naval` (estão em snap.ships), mas não contam como navio de guerra
+    if (snap.ships.filter((u) => isMilitary(u) && !UNITS[u.type].tags.includes('myth')).length < 2) return;
     for (const b of snap.byType.get('shipyard') ?? []) {
       if (!b.complete || b.queue.length > 0) continue;
       const opts = (BUILDINGS.shipyard.trains ?? []).filter((u) => UNITS[u].tags.includes('myth') && canTrain(state, player, b, u).ok);
@@ -1167,8 +1205,11 @@ quais têm de estar verdes.
     }
   }
   ```
-  (`snap.ships` é o da E4.) Confira que o laço da frota da E4 escolhe o navio pela linha `warship` e não pelo último botão
-  do Estaleiro; se ele usa o último de `trainChoices`, filtre `!UNITS[c.show].tags.includes('myth')`.
+  (`snap.ships` é o da E4.) No `manageNavy` da E4, o treino de guerra é
+  `c = pick((d) => d.tags.includes('military'))` — o `pick` faz `choices.find(…)` sobre `trainChoices(…, 'shipyard')`, e
+  as criaturas (militares, sem linha) entram no fim dessa lista: com o navio de guerra sem recurso, o `find` cairia na
+  Escila. Troque esse predicado por `(d) => d.tags.includes('military') && !d.tags.includes('myth')` (e o do `queued`
+  logo antes, na mesma linha, também): as criaturas saem só pelo `trainSeaMyths`, com a regra de Favor e frota.
 - [ ] **E4. Temple.** Nada a mudar: a IA já treina a **última** criatura treinável de `BUILDINGS.temple.trains`, e o passo
   A6 pôs as novas em ordem de Era. A escolha do deus menor (`(personalidade + Era) % 2`) também já serve aos pares novos.
 
@@ -1417,14 +1458,21 @@ e `npm run smoke 20 42` duas vezes com o mesmo "hash final".
      const sc = powerScale(s.state, p, ps.id);   // E6: força da Era
      e.dataset.tip = `<b>${def.name}</b><div class="desc">${def.desc}</div>${sc > 1.001 ? `<div class="desc">${t('power.scale', { pct: Math.round((sc - 1) * 100) })}</div>` : ''}`;
      ```
-     (se a E7 já mexeu nessa linha para os usos extras, acrescente a linha da força **sem tirar** o que ela pôs). Importe
-     `powerScale` de `'../core/sim/divine'`.
+     (a E7 já mexeu nessa linha para os usos extras: acrescente a linha da força **sem tirar** o que ela pôs). Importe
+     `powerScale` de `'../core/sim/divine'`. O painel só se redesenha quando a `key` do `refreshGods` muda, e ela não tem a
+     Era: acrescente `+ '|' + p.age` no fim da `const key = …` (senão a "Força da Era" fica velha depois de avançar, por
+     exemplo para a VIII, que não traz deus menor).
   2. `activatePower`, no `t(...)` do alvo: `def.targeting === 'group' ? 'msg.powerTarget.group' : …` antes do
      `'msg.powerTarget.place'`.
   3. `refreshCommands`, no laço das pesquisas do edifício: `if (tech.blessing && !eraMythOn(s.state)) continue;   // E6`.
-  4. `refreshCommands`, no laço dos botões de treino (o de `trainChoices` da E3): logo no começo,
-     `if (mythUpgradeOf(c.show, p.age) !== c.show) continue;   // E6: o Colosso some na Era VII (sai o Talos)` (use o nome da
-     variável que a E3 usou para o tipo mostrado). Importe `eraMythOn` e `mythUpgradeOf`.
+  4. `refreshCommands`, no laço dos botões de treino (o `for (const ch of trainChoices(s.state, p, b.type))` da E3): logo no
+     começo, `if (mythUpgradeOf(ch.show, p.age) !== ch.show) continue;   // E6: o Colosso some na Era VII (sai o Talos)`.
+  5. No mesmo laço, troque a linha do filtro de deus que a E3 manteve
+     (`if (ud.god) { const major = MAJOR_GODS[p.god]; const ok = major.mythUnit === ut || p.minorGods.some(…) || ud.god === p.god; if (!ok) continue; }`)
+     por `if (ud.god && !godAllows(p, ut)) continue;   // E6: mesma regra do canTrain (o Talos é de Hefesto, não é mythUnit de ninguém)`.
+     Sem isto o botão do Talos nunca aparece (o atalho Z treinaria, mas o painel não mostra). Importe `godAllows` de
+     `'../core/sim/commands'` (o `hud.ts` já importa `canTrain` de lá), `eraMythOn` de `'../core/sim/restrictions'` e
+     `mythUpgradeOf` de `'../core/sim/myth'`.
   - Nenhum emoji em código (`tests/hud-icons.test.ts` varre `hud.ts`); textos só por `t(...)`.
 
 *Confira:* `npx vitest run tests/hud-icons.test.ts tests/hud-text.test.ts tests/i18n.test.ts` e `npm run -s typecheck`.
@@ -1438,11 +1486,13 @@ e `npm run smoke 20 42` duas vezes com o mesmo "hash final".
   import { createGame } from '../src/core/sim/game';
   import { AGES, BUILDINGS, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS, MYTH_UPGRADES, BLESSED_TYPES, BLESSING_IDS, ERA_TITANS } from '../src/core/data';
   import { RESOURCES, TICK_RATE } from '../src/core/constants';
-  import { spawnUnit, placeBuilding } from '../src/core/sim/entities';
+  import { spawnUnit, placeBuilding, recomputePop } from '../src/core/sim/entities';
   import { usePower } from '../src/core/sim/powers';
   import { powerScale, galeFactor, harvestMult } from '../src/core/sim/divine';
   import { applyMythUpgrades, mythUpgradeOf } from '../src/core/sim/myth';
-  import { unitLayer } from '../src/core/sim/naval';
+  import { unitLayer, canBoard } from '../src/core/sim/naval';
+  import { findPathEx } from '../src/core/map/pathfinding';
+  import { stateHash } from '../src/core/net/hash';
   import { canTarget, computeDamage, applyDamage, killUnit, performAttack } from '../src/core/sim/combat';
   import { applyCommand, canTrain, canResearch, canAdvanceAge } from '../src/core/sim/commands';
   import { recomputeMods, refreshMaxHp, getUnitStats } from '../src/core/sim/modifiers';
@@ -1458,7 +1508,10 @@ e `npm run smoke 20 42` duas vezes com o mesmo "hash final".
   const calm = (over = {}, ai = false) => { const s = quickGame(over, ai); s.ceasefireUntil = s.tick + 100000; s.players[0].visibility.fill(2); return s; };
   ```
   Escreva um `it` por caso, cada um com timeout explícito (`it('…', () => {…}, 30000)`) e **curto** (nenhum `run` maior
-  que ~3 min de jogo; ver Armadilhas sobre o vitest).
+  que ~3 min de jogo; ver Armadilhas sobre o vitest). Para terminar um item de fila sem esperar, faça como o
+  `tests/movement-ai.test.ts`: `b.queue[0].elapsed = b.queue[0].total - 0.01; run(s, 2);`. Treinar criatura pede população
+  livre: o Centro Cívico dá 20 e o kit já ocupa uma parte; ponha 2 Casas prontas (`placeBuilding(s, 0, 'house', …, true)`)
+  e chame `recomputePop(s, p)` antes de `canTrain`. Imports que não usar, apague (o typecheck não reclama, o leitor sim).
 - [ ] **I2. `scripts/playtest-myth.mjs` (novo).** Modelo: `scripts/playtest-noemoji.mjs` (mesmo `chromium.launch`, mesma
   função `scan` de emoji, `window.aoe.session`, `window.aoe.debugSpawn`, `window.aoe.debugBuild`). Roteiro, em PT e em EN:
   1. Partida rápida (`#m-seed` 2024, 1 IA); espere `window.aoe.session`.
@@ -1468,10 +1521,13 @@ e `npm run smoke 20 42` duas vezes com o mesmo "hash final".
      `hoplite`, `hoplite`).
   3. Templo pelo `window.__build('temple')` do modelo; selecione-o: o painel tem botões das criaturas novas e uma
      Bênção; nenhum `#hud .hic-ph`; capture `docs/art/e6-templo.png` (só PT).
-  4. Para cada poder: `s.issue({ type: 'power', player: s.local, power: id, x, y, ids })` (`ids` = as suas 6 unidades
-     só na Encruzilhada; `x, y` = o centro dos hoplitas inimigos, ou um tile explorado a 12 tiles do CC na
-     Encruzilhada); espere 600 ms; confira `p.powers.find((x) => x.id === id).used === true`; capture
-     `docs/art/e6-poder-<id>.png` (só PT); rode `scan`.
+  4. Para cada poder, **nesta ordem** (os que matam por último; o Maremoto sozinho já tira 120 de hoplitas de 110 de vida):
+     `crossroads`, `divine_harvest`, `winged_victory`, `retribution`, `spring`, `panic`, `gale`, `sun_chariot`, `tidal_wave` —
+     `s.issue({ type: 'power', player: s.local, power: id, x, y, ids })` (`ids` = as suas 6 unidades só na Encruzilhada;
+     `x, y` = o centro dos hoplitas inimigos **vivos**, recalculado antes de cada poder, ou um tile explorado a 12 tiles do CC
+     na Encruzilhada; se não sobrar hoplita inimigo vivo, crie mais 8 com `debugSpawn` antes do próximo poder de área);
+     espere 600 ms; confira `p.powers.find((x) => x.id === id).used === true`; capture `docs/art/e6-poder-<id>.png` (só PT);
+     rode `scan`.
   5. Passe o mouse em cada `.pw` do painel de poderes (dicas) e rode `scan`.
   6. Falhe (código de saída 1) com qualquer `pageerror`, poder não usado, `hic-ph` ou emoji.
 
@@ -1491,22 +1547,23 @@ e `npm run smoke 20 42` duas vezes com o mesmo "hash final".
 | Arquivo | O que verifica |
 |---|---|
 | `tests/myth-eras.test.ts` (novo) — dados | 9 deuses novos com `age` 4/5/6, `power` em `POWERS`, `UNITS[mythUnit].god === id`, 2 `techs` com `god === id` e `age === deus.age`; cada `MAJOR_GODS[g].minorGods` com 6 pares, par k com `age === k + 1`; nas Eras V–VII, cada deus novo aparece em exatamente 2 dos 3 deuses maiores; `AGES[1..6].minorGod === true` e `AGES[7].minorGod === false`; `Object.keys(POWERS).length === 21`; `MYTH_UPGRADES.colossus` = `{ to: 'talos', age: 6 }`; idades dos heróis (tag `hero` sem `king`) ordenadas = `[0, 1, 2, 3, 4]`; Titãs com `age === ERA_TITANS`; `BLESSED_TYPES` sem Titã e com todas as `myth`/`hero` não Titã; `BLESSING_IDS` = `blessing2…8`, `age` 1…7, cada um com `prereq` do anterior; `UNITS.oceanus.amphibious === true`; `UNITS.ceto.amphibious && !UNITS.ceto.naval` |
-| — escala | `quickGame()` (fora de cenário): jogador na Era 4 com `restoration` → `powerScale === 1.45`; Era 4 com `panic` → `1`; Era 7 com `bolt` → `2.05`; `createGame({ ...quickGame config, scenario: 'horde' })` ou `createGame(missionConfig(campaignMission('m8_oceano')!, 'normal'))` → `powerScale === 1` para qualquer poder |
-| — avanço à Era V | `calm()`, jogador 0 com `age = 3`, recursos ricos, os 7 estudos de linha que a Era 4 exige em `p.techs` + `recomputeMods`, Fortaleza e Biblioteca prontas (`placeBuilding(…, true)`): `canAdvanceAge(s, p, lib).minorOptions` = `['pan', 'hecate']`; `applyCommand` `advanceAge` com `minorGod: 'pan'` e `run(s, (AGES[4].time + 1) * TICK_RATE)` → `age === 4`, `minorGods` contém `pan`, `powers` contém `panic` |
+| — escala | `quickGame()` (fora de cenário): jogador na Era 4 com `restoration` → `powerScale === 1.45`; Era 4 com `panic` → `1`; Era 7 com `bolt` → `2.05`; `quickGame({ eraMyth: false })` e `createGame(missionConfig(campaignMission('m8_oceano')!, 'normal'))` (cenário) → `powerScale === 1` para qualquer poder, mesmo com `p.age = 7` |
+| — avanço à Era V | `calm()`, jogador 0 com `age = 3`, recursos ricos, os 7 estudos de linha que a Era 4 exige em `p.techs` + `recomputeMods`, Fortaleza e Biblioteca prontas (`placeBuilding(…, true)`): `canAdvanceAge(s, p, lib).minorOptions` = `['pan', 'hecate']`; `applyCommand` `advanceAge` (na Biblioteca) com `minorGod: 'pan'`, depois `lib.queue[0].elapsed = lib.queue[0].total - 0.01` e `run(s, 2)` (não espere os 120 s) → `age === 4`, `minorGods` contém `pan`, `powers` contém `panic` |
 | — Era inicial | `quickGame({ startingAge: 6 })`: jogador humano com `minorGods` = `['athena', 'apollo', 'hera', 'pan', 'aeolus', 'helios']` e 7 poderes |
-| — poderes | Um `it` por poder, com `calm()` e o jogador 0 na Era do poder: **Pânico** (3 hoplitas do jogador 1 perto do ponto: `fearUntil > tick`, ordem `move`, `canTarget(hoplita, cidadão 0) === false`; depois de `run` 9 s, `true`; sem inimigos: `reason === t('err.noEnemiesHere')` e o poder segue `used: false`); **Encruzilhada** (12 hoplitas selecionados → 10 vão para ≤ 7 tiles do destino; `visibility.fill(0)` → `t('err.crossroadsDest')`; só navios/Titã → `t('err.crossroadsNoUnits')`); **Primavera** (hoplita do jogador 1 morto na área por `killUnit(s, u, 0)` → existe uma `shade` do jogador 0 no ponto e `timed[…].count === 1`; morto fora da área: nada); **Vendaval** (hoplita a 2 tiles a leste do ponto fica ≥ 2 tiles; `galeFactor === 0.5`; edifício próprio com metade da vida recupera +20 %); **Maremoto** (Ciclope do jogador 1 perde exatamente 120; edifício perde 300); **Colheita** (`harvestMult === 1.5` até o fim e `1` depois); **Carro do Sol** (CC em `tc`, ponto `tc.x + 10`: Ciclope a `+3` no eixo perde vida depois de 1 s, um a `+4` de lado não); **Vitória Alada** (`computeDamage` de um hoplita ×1,3 ± 0,1); **Retribuição** (jogador 1 com `nemesisUntil`; `applyDamage(s, ciclope1, 100, 0, hoplita0)` → hoplita perde 50) |
+| — poderes | Um `it` por poder, com `calm()` e o jogador 0 na Era do poder: **Pânico** (3 hoplitas do jogador 1 perto do ponto: `fearUntil > tick`, ordem `move`, `canTarget(hoplita, cidadão 0) === false`; depois de `run` 9 s, `true`; sem inimigos: `reason === t('err.noEnemiesHere')` e o poder segue `used: false`); **Encruzilhada** (12 hoplitas selecionados → 10 vão para ≤ 7 tiles do destino; `visibility.fill(0)` → `t('err.crossroadsDest')`; só navios/Titã → `t('err.crossroadsNoUnits')`); **Primavera** (hoplita do jogador 1 morto na área por `killUnit(s, u, 0)` → existe uma `shade` do jogador 0 no ponto e `timed[…].count === 1`; morto fora da área: nada); **Vendaval** (num ponto com 6 tiles livres a leste: hoplita do jogador 1 a 2 tiles a leste do ponto termina a ≥ 4 tiles dele, ou seja, recuou ≥ 2; `galeFactor(s, hoplita) === 0.5` e, num navio inimigo da E4 na área, `0`; edifício próprio com metade da vida recupera +20 %); **Maremoto** (Ciclope do jogador 1 perde exatamente 120; edifício perde 300); **Colheita** (`harvestMult === 1.5` até o fim e `1` depois); **Carro do Sol** (CC em `tc`, ponto `tc.x + 10`: Ciclope a `+3` no eixo perde vida depois de 1 s, um a `+4` de lado não); **Vitória Alada** (`computeDamage` de um hoplita ×1,3 ± 0,1); **Retribuição** (jogador 1 com `nemesisUntil`; `applyDamage(s, ciclope1, 100, 0, hoplita0)` → hoplita perde 50) |
 | — criaturas | Empusa ferida ataca e recupera vida (`performAttack`); Fênix: `killUnit(s, f, 1)` → viva, `reborn`, metade da vida; segundo `killUnit` → morta; `canTarget(grifo, harpia) === true`, `canTarget(hoplita, harpia) === false`; `getUnitStats(...).range` do Sátiro = 5 e ele tem a tag `skirmisher` |
 | — Talos | jogador com `minorGods` incluindo `hephaestus`, `age = 6`, um `colossus` vivo com metade da vida → `applyMythUpgrades` + `refreshMaxHp` → tipo `talos`, fração 0,5 ± 0,02, efeito `evolve`; `canTrain(templo, 'colossus')` → `t('err.mythUpgraded', …)`; `canTrain(templo, 'talos').ok` com recursos; um item `colossus` na fila do Templo (`elapsed = total − 0,01`, 1 `tick`) nasce `talos`; `mythUpgradeOf('colossus', 5) === 'colossus'` |
-| — Bênçãos | `canResearch(templo, 'blessing2')` ok em `quickGame` (Era 1, recursos) e recusada com `t('err.classicMyth')` em cenário; depois de pôr `blessing2` em `p.techs` + `recomputeMods`: `getUnitStats(minotaur).hp === round(380 × 1,2)` e `getUnitStats(prometheus).hp` igual ao de antes (só o reforço da D20) |
-| — Titãs | `quickGame`: `getUnitStats(oceanus).hp === 6500 × 2`; em cenário (`m8`): `6500` |
+| — Bênçãos | `canResearch(templo, 'blessing2')` ok em `quickGame` com `p.age = 1` e recursos, e recusada com `t('err.classicMyth')` em `quickGame({ eraMyth: false })` (mesmo efeito de um cenário, sem montar roteiro); depois de pôr `blessing2` em `p.techs` + `recomputeMods`: `getUnitStats(minotaur).hp === round(380 × 1,2)` e `getUnitStats(prometheus).hp` igual ao de antes (só o reforço da D20) |
+| — Titãs | `quickGame()`: `getUnitStats(s, p0, 'oceanus').hp === 13000` (6500 × 2) e `.attack === 262.5` (175 × 1,5); `quickGame({ eraMyth: false })`: `6500` e `175`. (Não use a m8 aqui: os mods do jogador da missão podem ter outros efeitos em `myth`, e o Oceano tem a tag `myth`.) |
 | — anfíbio | `unitLayer(quickGame(), UNITS.oceanus) === 'amphibious'`; na `m8`: `'land'`; num mapa com uma faixa de água (como o de `tests/naval.test.ts` da E4): `findPathEx(…, 'land')` não atravessa e `findPathEx(…, 'amphibious')` atravessa; `canBoard` recusa o Ceto |
 | — tecla | `pickTrainHotkey(p, ['pegasus', 'minotaur', 'satyr'])`: Zeus com `athena` e `pan` na Era 4 → `'satyr'`; sem `pan` → `'minotaur'`; `['colossus', 'talos']` na Era 6 com Hefesto → `'talos'` |
 | — IA | `quickGame({}, true)`, jogador 0 só com o poder testado, `ai.nextThink = 0`, `ai.defending = tick`, 8 hoplitas do jogador 1 a 3 tiles do CC 0: depois de `aiThink(s, p)`, `panic` usado; o mesmo para `gale` e `retribution`; `divine_harvest` com 30 cidadãos; `winged_victory` com `ai.attackTarget` = o CC inimigo; Templo pronto, os 5 heróis vivos, `minorGods` `['athena', 'apollo', 'hera', 'pan']`, `age = 4`, recursos ricos → depois de `aiThink`, a fila do Templo tem `satyr`; Templo e 3 Minotauros na Era 1 com recursos → em `run` de 60 s, `blessing2` fica em `p.techs` ou na fila |
 | — save | depois de usar Primavera, Carro do Sol e Pânico: `const a = serialize(s); expect(serialize(deserialize(a))).toBe(a)`; 100 ticks depois de `deserialize`, `stateHash` igual ao da partida contínua |
 | `tests/data.test.ts` | `minorGods.length` = 6 (passo A12) |
 | `tests/fx-registry.test.ts` | `divine` e os 3 `TimedEffect` no teste do `FxSystem` (passo F6); o resto passa sozinho |
-| `tests/movement-ai.test.ts` | O `it` da E1 "avançar para uma Era sem deus menor (V) ignora o deus enviado" deixa de valer (a V agora tem deus). Troque-o por "avançar para a Era VIII ignora o deus enviado": `p.age = 6`; `p.techs` = os 16 estudos de nível 1–4 das 4 linhas (`civic1…4`, `commerce1…4`, `military1…4`, `science1…4`); recursos `99999` para todo `RESOURCES`; Biblioteca pronta; `advanceAge` com `minorGod: 'artemis'` → `lib.queue[0].id === 'age:'`, depois do tempo `age === 7` e `minorGods` sem mudança |
+| `tests/movement-ai.test.ts` | O `it` da E1 "avançar para uma Era sem deus menor (V) ignora o deus enviado" deixa de valer (a V agora tem deus). Troque-o por "avançar para a Era VIII ignora o deus enviado": `p.age = 6`; `p.minorGods = ['athena', 'apollo', 'hera', 'pan', 'aeolus', 'helios']`; `p.techs` = os 16 estudos de nível 1–4 das 4 linhas (`civic1…4`, `commerce1…4`, `military1…4`, `science1…4`); recursos `99999` para todo `RESOURCES`; Biblioteca pronta (como a E1 deixou o teste); `advanceAge` com `minorGod: 'artemis'` → `lib.queue[0].id === 'age:'`; `lib.queue[0].elapsed = lib.queue[0].total - 0.01; run(s, 2)` → `age === 7` e `minorGods` igual à lista de antes |
 | `tests/eras.test.ts` (da E1) | Deve passar sem mudança (a regra `minorGod` × pares acompanha). Se algum `it` espera `minorGods` de uma Era inicial ≥ 5 com 3 itens, troque pelo número certo (1 por Era pulada de II a VII) |
+| `tests/unit-lines.test.ts` (da E3; o caso do Estaleiro é da E4) | As conferências de `trainChoices(…, 'shipyard')` passam a ver as 3 criaturas no fim (sem linha, com `god`). Não mude a regra: filtre-as na asserção (`.filter((c) => !UNITS[c.show].tags.includes('myth'))`) — com linhas: ainda Q pesca, W transporte, E guerra (e o `M` do mercante, que a E5 pôs antes); no elenco clássico, os navios do `trains`. Se a asserção comparar com `BUILDINGS.shipyard.trains` inteiro, compare com ele filtrado do mesmo jeito |
 | `tests/naval.test.ts` (da E4) | Acrescente: Escila e Hipocampo treinados no Estaleiro nascem na água (`isNavigableTerrain` no tile); Ceto treinado no Estaleiro anda até um tile de terra a 10 tiles e volta para a água; `canTarget(hoplita, ceto)` é `false` com o Ceto na água aberta e `true` com ele em terra |
 | `tests/i18n.test.ts`, `tests/hud-icons.test.ts`, `tests/art-etapa6.test.ts`, `tests/audio.test.ts` | sem mudança de código: passam com os dados, o alias, o catálogo e o `npm run art:hud` |
 
@@ -1517,14 +1574,14 @@ e `npm run smoke 20 42` duas vezes com o mesmo "hash final".
 Na ordem; o que esperar de cada um:
 
 1. `npm run -s typecheck` — sem erro.
-2. `npx vitest run tests/myth-eras.test.ts tests/data.test.ts tests/i18n.test.ts tests/fx-registry.test.ts tests/hud-icons.test.ts tests/movement-ai.test.ts tests/eras.test.ts tests/naval.test.ts tests/determinism.test.ts tests/command-fuzz.test.ts tests/sim.test.ts`
+2. `npx vitest run tests/myth-eras.test.ts tests/data.test.ts tests/i18n.test.ts tests/fx-registry.test.ts tests/hud-icons.test.ts tests/movement-ai.test.ts tests/eras.test.ts tests/naval.test.ts tests/unit-lines.test.ts tests/determinism.test.ts tests/command-fuzz.test.ts tests/sim.test.ts`
    — tudo verde.
 3. `npm test` — tudo verde. Se sair `Timeout calling "onTaskUpdate"` com código 1 e **todos** os testes passando, é a
    falha conhecida do vitest numa máquina carregada (`docs/QA.md`): divida o `it` mais longo, ponha timeout explícito e rode
    de novo; não ignore um teste vermelho de verdade.
 4. `npm run smoke 20 42` duas vezes — o mesmo "hash final" nas duas (determinismo). Ele pode ser diferente do de
    `/tmp/e6-smoke-antes.txt` (escala dos poderes desde a Era II): é esperado.
-5. `npm run balance 35 1,2,3` — minutos das Eras II–IV a ±1 min do "antes" (a escala nessas Eras é pequena). Se uma Era
+5. `npm run balance 35 1,2,3` — minutos das Eras II–IV a ±1 min do "antes" (`/tmp/e6-balance35-antes.txt`; a escala nessas Eras é pequena). Se uma Era
    passar disso, confira primeiro se algum `case` velho de `usePower` ficou com a escala na dimensão errada.
 6. `npm run balance 60 1,2,3` — nenhuma `PARADA`; as IAs passam das Eras V–VII com deuses novos (o resumo do balance
    mostra os minutos). Anote os minutos no `docs/eras/PROGRESSO.md`.
@@ -1536,11 +1593,13 @@ Na ordem; o que esperar de cada um:
    `npx tsx scripts/maps/fairness.ts egeu 60 1-16 zeus --both --jobs 3`, depois o mesmo com `estreito` — critério de
    sempre (nenhum lado com > 65 % das decididas + à frente, por posição e por índice). Um "fora" isolado com 16 sementes
    pede confirmação em 32 (`101-132`). Registre no `PROGRESSO.md`.
-10. Criaturas navais na prática (sem teste automático): numa partida `coastal` de 2 IAs Poseidon começando na Era V,
+10. Criaturas navais na prática (sem teste automático): numa partida `coastal` de 2 IAs Poseidon começando na Era V
+    (na raiz do repositório; o `tsx -e` aceita `import`, conferido em 09/10/2026),
     ```sh
     npx tsx -e "import { createGame, tick } from './src/core/sim/game'; const s = createGame({ seed: 42, mapSize: 'small', mapType: 'coastal', startingAge: 4, players: [0, 1].map((i) => ({ name: 'IA' + i, god: 'poseidon', isAI: true, difficulty: 'hard' })) } as never); for (let i = 0; i < 15 * 60 * 20; i++) tick(s); console.log([...s.units.values()].filter((u) => !u.dead && ['scylla', 'hippocampus', 'ceto'].includes(u.type)).length)"
     ```
-    — espera-se ≥ 1 (se der 0, confira `trainSeaMyths` e o Favor das IAs; não é critério de pronto, é diagnóstico).
+    — espera-se ≥ 1 (se der 0, confira `trainSeaMyths`, o Favor das IAs e se alguma ergueu Estaleiro; não é critério de
+    pronto, é diagnóstico: anote no `PROGRESSO.md`).
 11. `npm run art:check` — sem erro (o atlas `hud` = catálogo).
 12. `npm run build`, `npm run preview` em segundo plano e:
     `node scripts/playtest-myth.mjs http://localhost:4173/` (sai 0; olhe as capturas `docs/art/e6-*.png` com Read),
@@ -1562,7 +1621,7 @@ Na ordem; o que esperar de cada um:
 - [ ] A IA usa os 9 poderes, treina as criaturas novas (as navais com frota) e estuda as Bênçãos.
 - [ ] Nenhum ícone vazio (`hic-ph`) nem emoji no HUD em PT e EN; 9 retratos novos no atlas `hud`.
 - [ ] `npm test`, `npm run -s typecheck`, `npm run art:check` e os playtests verdes; `scripts/missions.ts` idêntico ao "antes".
-- [ ] `SIM_VERSION` +1; saves da E5 carregam (campos novos opcionais).
+- [ ] `SIM_VERSION` +1; saves da E7 (a etapa anterior na ordem oficial) carregam (campos novos opcionais).
 - [ ] `docs/eras/PROGRESSO.md`, `docs/ROADMAP.md`, `CLAUDE.md` e `docs/EDITOR.md` atualizados; um commit em português.
 
 ---
@@ -1586,8 +1645,13 @@ Na ordem; o que esperar de cada um:
 - **Mexer em posições durante `rt.hash.each`**: o Vendaval e a Encruzilhada movem unidades; use `rt.hash.query` (devolve
   uma lista) antes de mexer, como no código dado. O hash é refeito a cada tick.
 - **Determinismo**: nada de `Math.random`, `Math.sin`/`cos`/`atan2`/`pow`/`exp`/`log`/`hypot`, `Date.now` ou
-  `performance.now` em `src/core` (direções por `Math.sqrt`, sorteio por `state.rng` — este guia não sorteia nada). No
-  render (`divine.ts` do fx) `Math.random` é permitido.
+  `performance.now` em `src/core` (direções por `Math.sqrt`, sorteio por `state.rng` — este guia não sorteia nada). O
+  `tests/determinism.test.ts` procura esses nomes no **texto** dos arquivos, comentários incluídos: um comentário "nada de
+  Math.random" em `src/core` derruba o teste. No render (`divine.ts` do fx) `Math.random` é permitido.
+- **Missões idênticas, de verdade**: com `eraMyth` desligado, `s = 1` em tudo, e cada troca do C3 dá o mesmo número de
+  antes (`x * 1`, `Math.round(600 * 1)`, `Math.min(0.75, 0.5)`). As duas armadilhas conhecidas: (1) o laço das Sentinelas
+  — as 4 primeiras estátuas não podem ganhar filtro novo (a m9 é do Hades); (2) a Maldição — `maxVictims` fora do laço.
+  Se o diff do `scripts/missions.ts` acusar só uma missão do Hades, comece pelas Sentinelas.
 - **Justiça de posição**: alvos e direções de poder só por vetores entre posições (aglomerado, CC mais perto, centro do
   mapa) ou `centerFrame`/`towardFrame`; nunca "ao norte", espiral do norte ou o primeiro do `Map` de edifícios de outro
   jogador. Desempate entre os seus próprios edifícios por id é aceitável (não cria viés de posição).
@@ -1597,21 +1661,31 @@ Na ordem; o que esperar de cada um:
   Primavera). É aceitável; não "conserte" tirando uma.
 - **Ceto com `naval: true`**: a E4 trata `naval` como "só mar" (separação, `canTarget`, `isForbidden`). O Ceto é
   `amphibious` e **não** `naval`.
-- **`layerOf` esquecido no núcleo**: depois do B6, `grep -n "layerOf(" src/core/sim/*.ts` só pode achar a definição de
-  `unitLayer`. Um `layerOf` que sobrou deixa Oceano anfíbio na campanha.
+- **`layerOf` esquecido no núcleo**: depois do B6, `grep -n "layerOf(" src/core/sim/*.ts` só pode achar a chamada
+  `return layerOf(def);` dentro de `unitLayer` (`src/core/sim/naval.ts`). Um `layerOf` que sobrou deixa Oceano anfíbio na
+  campanha. Fora de `src/core/sim` (editor, `src/main.ts`, `src/core/map/*`) o `layerOf` fica: lá não há `state` e o
+  editor deixa pôr Ceto/Oceano na água (aceito; em cenário sem navios o Oceano posto na água fica preso — não ponha).
+- **Cache anfíbio velho**: `amphibBlocked` deriva de `map.blocked`; ele só é descartado por `invalidateNaval`, que a E4 chama
+  de dentro de `invalidateComponents`. Toda mudança de `map.blocked` já chama `invalidateComponents` (edifício, nó cortado,
+  editor); se você escrever código que mexe em `map.blocked`, chame-o também.
 - **Tecla repetida**: `tests/data.test.ts` só aceita a mesma tecla em unidades com `god` — as 12 têm `god`. Nunca use `A`,
   `R`, `U` (nem `Q` num edifício com filósofos). `P`, `H`, dígitos, `Tab`, `.` e `,` são consumidos antes do contexto.
 - **Ícone obrigatório**: poder, deus e pesquisa novos sem entrada no catálogo + `npm run art:hud` derrubam o
   `tests/hud-icons.test.ts` (e a regex de `techIconKey`/`techIconName` tem de mudar nos **dois** lugares). Ícone de
   pesquisa que não corresponde a nenhum id vira "ícone órfão" e o teste também acusa. **Não** edite `public/art/hud-*` à mão.
+- **Atlas `hud` no teto**: o `art:check` recusa o grupo `hud` acima de `BUDGET.maxHudPngMB` (4 MB de PNG, em
+  `scripts/bake/check.ts`). Em 05/10/2026 ele tinha ~2,6 MB (1× + 2×), e E1–E5 acrescentam ícones (Eras, recursos,
+  evoluções, navios). Os 9 retratos (128 px, 256 px no 2×) pesam bem mais que um ícone. Se estourar: não apague ícone e
+  não mexa no catálogo dos outros; suba o teto para 5 com um comentário ("E6: 9 retratos novos; o atlas `hud` vai para o
+  DOM, não para a GPU") e registre a mudança nas pendências do `PROGRESSO.md` para o dono.
 - **`art:bake`**: não rode. Este guia não assa unidade; o alias da E2 cobre as 12 criaturas sem página nova de VRAM. Mexer
   em `scripts/bake/page/rigs/*` ou `materials.js` reassaria tudo (o cache local não tem todas as unidades).
 - **Textos PT e EN**: toda chave nova nas duas tabelas de `strings.ts` com as mesmas `{variáveis}`; todo id novo de dado
   com EN (`name` + `desc`; `plural` nas unidades, que o teste não cobra — não esqueça); nenhum emoji em texto de
   interface (o `EMOJI_GLYPHS` só cobre os de hoje). Emoji em `icon` de dado é permitido (o HUD usa o atlas).
 - **`showModal`/HUD**: a dica do poder é escrita em `dataset.tip`; passe só texto de `t(...)` e de dados (sem emoji).
-- **E7 depois**: a E7 troca `if (ps.used)` por `powerReady(ps)` e o consumo por `charges`. Os `case` novos não dependem
-  disso; não crie `charges` aqui (D3).
+- **E7 antes**: a E7 já trocou `if (ps.used)` por `powerReady(ps)` e o consumo por `charges` (em `powers.ts`, `ai.ts`,
+  `hud.ts` e `gamepad.ts`). Os `case` novos não dependem disso; não crie `charges` de novo nem volte a `!ps.used` (D3).
 - **vitest**: `it` com mais de ~20 s numa máquina carregada dá `Timeout calling "onTaskUpdate"` e código de saída 1 com
   tudo passando. Mantenha os testes de IA curtos (um `aiThink` ou ≤ 60 s de jogo) e com timeout explícito.
 - **`SIM_VERSION`**: suba **uma** vez (C9). O relay recusa clientes de outra versão sozinho; o de produção precisa do
@@ -1626,8 +1700,7 @@ Na ordem; o que esperar de cada um:
    com alias; camada anfíbia (Ceto, Oceano com navios ligados); Talos automático na VII; minutos do `balance 60`; resultado
    do fairness; `missions.ts` idêntico. Em "Pendências para o dono": **aprovar os deuses e poderes novos** (ROADMAP,
    semanas 9–10) e as decisões D6 (Encruzilhada pela seleção), D7 (direção do Carro do Sol), D14 (Escila e Ceto como
-   criaturas do Poseidon) e D20 (reforço dos Titãs). Em "Ganchos": E7 (`charges`/`powerReady` do Trono; o Labirinto
-   barateia Minotauros), E8 (arte própria das 12 criaturas — saem do `UNIT_ART_ALIAS` —, dos 9 poderes — sai o `divine` —
+   criaturas do Poseidon) e D20 (reforço dos Titãs). Em "Ganchos": E8 (arte própria das 12 criaturas — saem do `UNIT_ART_ALIAS` —, dos 9 poderes — sai o `divine` —
    e retratos definitivos), E10 (números de `POWER_TUNING`, criaturas, Bênçãos, `TITAN_ERA_*`).
 2. **`docs/ROADMAP.md`**, tabela "Cronograma a partir de 06/10/2026": marque a linha das semanas 9–10 com o mesmo sinal de
    concluído das etapas anteriores e a data; em "O que já existe hoje", acrescente uma frase: 18 deuses menores (6 escolhas
@@ -1652,4 +1725,4 @@ Na ordem; o que esperar de cada um:
 
    <rodapé de atribuição da sessão>
    ```
-   Não faça `push` sem pedido do dono.
+   Faça push só para a branch da sessão (rotina do `docs/eras/LEIA-ME.md`); nunca para `main` sem pedido do dono.

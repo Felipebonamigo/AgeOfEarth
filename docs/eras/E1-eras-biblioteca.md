@@ -2,6 +2,10 @@
 
 - Estado: pendente · Pré-requisitos: nenhum (parte do `main` de 06/10/2026: `SIM_VERSION = 3`, 5 Idades, save formato 1) · Estimativa: 7 dias de trabalho do agente (núcleo 2, IA e campanha 2, interface 2, verificação e documentação 1)
 
+> **Antes de começar:** leia `docs/eras/LEIA-ME.md` (rotina de cada sessão, regras, quando parar) e marque cada
+> passo em `docs/eras/PROGRESSO.md`. Ordem das etapas: E1, E2, E3, E4, E5+E7, E6, E8, E9+E10. Onde este guia falar de
+> commit ou de push, vale a rotina do LEIA-ME: um commit por passo e push só para a branch da sessão.
+
 Este guia foi escrito para ser seguido **na ordem**, sem o contexto da conversa que o gerou. Todo caminho, função e
 símbolo citado existe no código de 06/10/2026 (ou está marcado "(novo)"). Números de linha são aproximados: procure
 pelo trecho citado. Quando o guia diz "troque X por Y", X está escrito exatamente como aparece no arquivo hoje.
@@ -382,8 +386,8 @@ no JSON, porque o teste de paridade compara as falas:
 
 ## Passo a passo
 
-Faça um commit por bloco (A–J) ou um único no fim. Em qualquer caso, rode `npm run -s typecheck` no fim de cada passo
-(a partir do A4; antes dele o A2 ainda não compila).
+Um commit por passo (rotina do `docs/eras/LEIA-ME.md`); se um teste ficar vermelho de propósito (lista abaixo), diga
+qual na mensagem. Rode `npm run -s typecheck` no fim de cada passo (a partir do A4; antes dele o A2 ainda não compila).
 
 **Testes durante o trabalho:** rode só os do `Confira:` de cada passo; eles têm de passar ali. O `npm test` inteiro só
 precisa estar verde no bloco J. Antes disso, testes de blocos posteriores falham **de propósito** e não devem ser
@@ -1403,29 +1407,28 @@ Rode na ordem. Cada linha diz o que esperar.
 
 ## Ao terminar
 
-1. **`docs/eras/PROGRESSO.md`**: crie o arquivo se faltar, com este modelo, e preencha a linha da E1:
+1. **`docs/eras/PROGRESSO.md`** (já existe; o formato está no `docs/eras/LEIA-ME.md`): confira que todas as caixas da
+   E1 estão marcadas, preencha a linha "E1 + painel/árvore (E9)" do Resumo (estado `feito`, data, hash curto, notas
+   "SIM_VERSION 4, save v2; Prometeu por roteiro nas m3/m8/m12") e escreva em **Notas**:
    ```markdown
-   # Expansão das Eras — progresso
-   | Etapa | Estado | Data | Commit | Notas |
-   |---|---|---|---|---|
-   | E1 + painel/árvore (E9) | feito | dd/mm/aaaa | <hash curto> | SIM_VERSION 4, save v2; Prometeu por roteiro nas m3/m8/m12 |
-   ## Medições da E1
+   ### E1 — medições
    - balance 35 1,2,3: II …, III …, IV …, V … (min)
    - balance 60 1,2,3: V …, VI …, VII …, VIII …
    - fairness Egeu/Estreito 1–16 (--both): …
    - missions.ts: ok (… min)
-   ## Pendências para o dono
+   ### Pendências para o dono
    - Aprovar o Prometeu por roteiro (Fortaleza + 6 estudos + 500 de Favor, cobrados pelo gatilho) no lugar do Portal na
      campanha (D12).
    - Relay de produção: atualizar server/relay.mjs (chaves startAge/endAge do lobby).
-   ## Ganchos para as próximas etapas
+   ### E1 — ganchos para as próximas etapas
    - E2: somar pedra/petróleo aos custos das Eras (tabela do guia E1); `need` da IA (manageEconomy).
    - E3: evoluções como TechDef da Biblioteca; `rowOf` em src/ui/studytree.ts ganha as linhas de unidade; Eras de hipaspista/arqueiro cretense/mirmidão/helépole.
    - E6: pares de deuses menores das Eras V–VII e `minorGod: true` em AGES[4..6] (o teste de tests/eras.test.ts acompanha).
    - E8: kit de Era no lugar de ageTier; ícones definitivos age/4..6.
-   - E9: aba da árvore na enciclopédia.
+   - E9: botão "Abrir a árvore de estudos" na aba Eras da enciclopédia (a árvore não vira aba: D6 do guia E9-E10).
    - E10: ritmo das Eras (alvo II ~4, III ~9, IV ~14, V ~20, VI ~26, VII ~33, VIII ~40).
    ```
+   Se a seção "Pendências para o dono" já existir, só acrescente os itens nela.
 2. **`docs/ROADMAP.md`**:
    - na tabela "Cronograma a partir de 06/10/2026", marque a linha das semanas 1–2 com "✅ E1 (data)";
    - em "O que já existe hoje" (o parágrafo descreve o jogo antes da expansão), corrija "47 pesquisas" para
@@ -1462,4 +1465,4 @@ Rode na ordem. Cada linha diz o que esperar.
 
    <rodapé de atribuição da sessão>
    ```
-   Não faça `push` sem o pedido do dono.
+   Faça push só para a branch da sessão (rotina do `docs/eras/LEIA-ME.md`); nunca para `main` sem pedido do dono.

@@ -1,9 +1,13 @@
 # E9 + E10 — Interface final (enciclopédia, textos, configuração, controle) e balanceamento das 8 Eras
 
-- Estado: pendente · Pré-requisitos: **E9** — E1, E2, E3, E4, E5, E6 e E7 concluídas (a E8 pode vir antes ou depois; sem
-  ela os ícones e a arte continuam provisórios, o que não muda nada da E9). **E10** — E1 a E9 concluídas; os blocos de
-  desempenho do renderizador, `art:diff` e capturas da loja (N5, P1–P3) exigem a **E8** pronta · Estimativa: **E9 4 dias**,
+- Estado: pendente · Pré-requisitos: **E9** — E1, E2, E3, E4, E5, E6 e E7 concluídas (na ordem oficial a E8 vem antes; sem
+  ela os ícones e a arte continuariam provisórios, o que não muda nada da E9). **E10** — E1 a E9 concluídas; os blocos de
+  desempenho do renderizador, `art:diff` e capturas da loja (N3, P1–P3) exigem a **E8** pronta (na ordem oficial ela vem antes) · Estimativa: **E9 4 dias**,
   **E10 6 dias** de trabalho do agente (metade da E10 é espera de medições longas, sempre em segundo plano)
+
+> **Antes de começar:** leia `docs/eras/LEIA-ME.md` (rotina de cada sessão, regras, quando parar) e marque cada
+> passo em `docs/eras/PROGRESSO.md`. Ordem das etapas: E1, E2, E3, E4, E5+E7, E6, E8, E9+E10. Onde este guia falar de
+> commit ou de push, vale a rotina do LEIA-ME: um commit por passo e push só para a branch da sessão.
 
 > Guia para um agente que **não** viu a conversa que o escreveu. Siga os blocos na ordem: **Parte 1 = E9** (blocos 0, A–G,
 > um commit) e **Parte 2 = E10** (blocos H–P, um commit). Todo caminho citado existe no código de 06/10/2026 (commit
@@ -11,7 +15,9 @@
 > trecho não estiver exatamente como descrito, procure **pelo nome da função ou da chave** e aplique a mesma mudança sobre
 > o que elas deixaram; nunca desfaça nada delas. Números de linha são aproximados. **Se um arquivo ou símbolo marcado
 > "(da E<n>)" não existir, pare: a pré-condição não foi cumprida.** Todo número de jogo da E10 vem das tabelas daqui;
-> não invente outro.
+> não invente outro. Revisado em 09/10/2026 contra o código e os guias E1–E8 (nomes, assinaturas, ids e comandos).
+> Lembrete de shell: `npm run <script>` **engole** as opções `--x` que vêm antes de um `--`; passe-as depois dele
+> (`npm run balance 60 1-18 -- --jobs 3`) ou rode o script direto com `npx tsx`/`node`.
 
 ---
 
@@ -102,13 +108,13 @@ Decisões deste guia (cada uma com o motivo em uma linha):
 | D8 | Revisão de textos = **teste automático** `tests/i18n-eras.test.ts` + **planilha gerada** `docs/eras/textos-pt-en.md` (só o que é novo ou mudou desde o commit `00a3809`, pela base `docs/eras/E9-base-textos.json` que acompanha este guia). | Centenas de nomes: o teste pega os erros mecânicos; a planilha deixa a leitura humana viável. |
 | D9 | Configuração: Eras e regra de maravilha na lista de salas e no menu da partida; o relay troca a validação genérica `WORD` por listas fechadas (`startAge` `auto`/`0`–`7`, `endAge` `0`–`7`, `wonderVictory` `points`/`hold`/`off`). | O convidado precisa ver o que vai jogar; `WORD` aceita "banana". |
 | D10 | Controle na árvore: memória do foco por `data-study`, `padfocus` (evento disparado pelo controle) atualiza o detalhe, `data-scroll` diz o que rolar, LB/RB pulam de Era pela função pura `treeJump`, foco inicial por `data-autofocus` só no 1º desenho. | Hoje o foco do controle não dispara `focus` (o detalhe não muda), o analógico rola o modal errado e a memória cai no índice. |
-| D11 | Playtest novo `scripts/playtest-eras.mjs`: comandos reais para avançar (tecla E na Biblioteca, carta do deus menor) e **atalhos de teste só para requisitos** (estudos empurrados em `player.techs`, edifícios por `debugBuild`, cofres cheios, simulação por `scheduler.step`). Sai com código 1 em qualquer falha. | Jogar 40 min por Era no navegador é inviável; o que interessa é a interface em cada Era. |
+| D11 | Playtest novo `scripts/playtest-eras.mjs`: comandos reais para avançar (tecla E na Biblioteca, carta do deus menor) e **atalhos de teste só para requisitos** (estudos empurrados em `player.techs`, edifícios por `debugBuild`, cofres cheios, simulação por `scheduler.step` e a espera do avanço já na fila encurtada para ~1 s). Sai com código 1 em qualquer falha. | Jogar 40 min por Era no navegador é inviável; o que interessa é a interface em cada Era. |
 | D12 | Gancho de teste novo `window.aoe.debugNames()` (nomes, degraus, requisitos por Era), fora do lockstep, como `debugSpawn`. | Os playtests `.mjs` não importam TypeScript; nomes fixos no script quebrariam em EN. |
 | D13 | **Universidade e Fábrica** (§5) não estão em nenhum guia E1–E8: a E9 não as cita nos textos e registra a lacuna para o dono. | Texto não pode prometer o que o jogo não tem. |
 | D14 | A E9 **não muda a simulação**: só textos (inclusive `desc` em `src/core/data`, que não entra no hash), interface, relay e scripts. `SIM_VERSION` não sobe; o `smoke 20 42` dá o mesmo hash antes e depois. | A E10 sobe a versão uma vez. |
 | D15 | Ritmo medido pela **mediana dos minutos de chegada** de todas as IAs (3 IAs Normal, mapa médio continental, 18 sementes, 60 min), com tolerância e taxa mínima de chegada por Era (tabela E10-1). | Mediana resiste a uma IA destruída cedo; 18 sementes é a regra do ROADMAP 1.5. |
 | D16 | **Campanha intacta**: todo ajuste de ritmo da IA vai num objeto `AI_PACE` usado **só fora de cenário**; dentro de cenário a IA usa `AI_PACE_CLASSIC` (os valores de hoje). Os dados das Eras II–IV, dos níveis 1–4 das linhas e das 35 unidades clássicas **não mudam** (o teste novo congela). `missions.ts` tem de sair igual à base. | Mesmo padrão de E2–E7; o harness das 12 missões × 3 dificuldades é estrito e caro de recalibrar. |
-| D17 | Botões de ajuste permitidos, nesta ordem (escada E10-4): (1) `AI_PACE`; (2) dados das Eras V–VIII (`AGES[4..7]`: `techCount`, `time`, `cost`) e o multiplicador novo `LINE_LEVEL_COST_MULT` dos níveis 5–8 das linhas; (3) tabelas da IA que só rodam fora de cenário (E2 `MERCHANT_MAX_AI`, E4 `FISH_BOATS`/`WARSHIPS_*`, E5 `CARAVAN_TARGET_AI`). **Nunca** `DIFFICULTIES`/`thinkEvery`. | Cada botão mexe num ponto conhecido sem tocar na campanha; `thinkEvery` muda a dificuldade, não o ritmo. |
+| D17 | Botões de ajuste permitidos, nesta ordem (escada E10-4): (1) `AI_PACE`; (2) dados das Eras V–VIII (`AGES[4..7]`: `techCount`, `time`, `cost`) e o multiplicador novo `LINE_LEVEL_COST_MULT` dos níveis 5–7 das linhas (índices 4–6; o nível 8 só se estuda na Era VIII e não pesa em nenhum avanço); (3) tabelas da IA que só rodam fora de cenário (E2 `MERCHANT_MAX_AI`, E4 `FISH_BOATS`/`WARSHIPS_*`, E5 `CARAVAN_TARGET_AI`). **Nunca** `DIFFICULTIES`/`thinkEvery`. | Cada botão mexe num ponto conhecido sem tocar na campanha; `thinkEvery` muda a dificuldade, não o ritmo. |
 | D18 | Se II–IV não fecharem só com o `AI_PACE`: **pendência para o dono** com os números (mudar custo/tempo de II–IV muda a campanha). | Decisão de produto, não de agente. |
 | D19 | `scripts/balance.ts` é **estendido** (não um script novo): sementes por intervalo (`1-18`), `--jobs`, `--json`, `--targets`, `--stalls-only`, `--diff`, `--map-type`, `--size`, detectores a cada 10 min e marcos por IA. O uso de hoje (`npm run balance 35 1,2,3`) continua igual. | CLAUDE.md, QA.md e os guias E1–E7 já chamam `npm run balance`. |
 | D20 | Detectores (tabela E10-5): **PARADA** e **TRAVADA** (por motivo que não seja recurso) reprovam; **TRAVADA-RECURSO**, **ACUMULANDO** e **SEM-ONDAS** só se registram. | Uma IA sob ataque pode ficar sem recurso de verdade; uma IA que tem tudo e não avança é bug. |
@@ -170,7 +176,7 @@ Decisões deste guia (cada uma com o motivo em uma linha):
 | `tests/ai-pace.test.ts` (novo) | tabelas, limites, cenário clássico, II–IV e unidades clássicas congeladas |
 | `docs/perf/*.json` | resultados das medições (balance, perf, renderperf, rendercpu, loadtest) |
 | `docs/art/ref/*.png` | só se a diferença for intencional e olhada (passo P1) |
-| `docs/steam/screens/`, `docs/steam/screens-en/`, `docs/steam/LOJA.md` | screenshots refeitas e frases factuais |
+| `docs/steam/screens/`, `docs/steam/screens-en/`, `docs/steam/LOJA.md`, `docs/steam/PRESSKIT.md` | screenshots refeitas e frases factuais (E10-8) |
 | `docs/QA.md`, `docs/ART.md`, `docs/EDITOR.md`, `docs/eras/PROGRESSO.md`, `docs/ROADMAP.md`, `CLAUDE.md` | números de referência e memória (seção "Ao terminar") |
 
 **Não mexa em:** `src/core/scenario/testing.ts`, `src/core/scenario/missions/*.json` (números), `scripts/maps/*`,
@@ -230,6 +236,7 @@ números da E10 são os valores de partida do ajuste; a escada E10-4 diz como mu
 | `enc.choice` | Opção {n} | Option {n} |
 | `enc.titansNote` | Na {age}, o Portal dos Titãs liberta {titan}. | In the {age}, the Titan Gate frees {titan}. |
 | `enc.powerScales` | Fora dos cenários, cresce {pct}% por Era acima da {era}. | Outside scenarios, it grows {pct}% per Era above the {era}. |
+| `enc.matchRule` | Nesta partida: {rule}. | This match: {rule}. |
 | `enc.blessings` | Bênçãos do Templo | Temple Blessings |
 | `enc.minorGod` | Deus menor | Minor god |
 | `enc.yes` | sim | yes |
@@ -265,7 +272,7 @@ números da E10 são os valores de partida do ajuste; a escada E10-4 diz como mu
 | `enc.res.favor.src` | Cidadãos rezando no Templo, relíquias e maravilhas | Citizens praying at the Temple, relics and wonders |
 | `enc.res.favor.use` | Criaturas míticas, heróis, poderes e pesquisas divinas | Mythic creatures, heroes, powers and divine research |
 | `menu.matchInfo` | Partida: Eras {from}–{to} · {victory} | Match: Eras {from}–{to} · {victory} |
-| `menu.matchInfoScenario` | Missão: Eras {from}–{to} | Mission: Eras {from}–{to} |
+| `menu.matchInfoScenario` | Cenário: Eras {from}–{to} | Scenario: Eras {from}–{to} |
 | `mp.roomEras` | Eras {from}–{to} | Eras {from}–{to} |
 | `pad.hint.eras` | Era anterior/seguinte | Previous/next Era |
 | `help.erasTitle` | Eras e Biblioteca | Eras and the Library |
@@ -273,7 +280,7 @@ números da E10 são os valores de partida do ajuste; a escada E10-4 diz como mu
 | `help.resourcesTitle` | Recursos | Resources |
 | `help.resources` | Pedra vem dos afloramentos de calcário (Pedreira) e paga muralhas, torres, fortalezas, o Templo, maravilhas e Eras. Petróleo aparece na Era IV: cidadãos colhem nafta nas fontes e a levam ao Poço de Nafta; na Era VII, o Poço de Petróleo construído numa jazida extrai sozinho. Recursos raros (oliveiras, vinhedos, mármore, sal, cavalos, cobre, incenso; atum no mar) rendem ouro e um bônus para todo o império enquanto um Mercador (ou um barco de pesca, no atum) trabalhar neles. | Stone comes from limestone outcrops (Quarry) and pays for walls, towers, fortresses, the Temple, wonders and Eras. Oil appears in Era IV: citizens gather naphtha from seeps and bring it to the Naphtha Well; in Era VII, an Oil Well built on an oil field extracts it by itself. Rare resources (olives, vineyards, marble, salt, horses, copper, incense; tuna at sea) yield gold and an empire-wide bonus while a Merchant (or a fishing boat, for tuna) works them. |
 | `help.seaTitle` | Mar e comércio | Sea and trade |
-| `help.sea` | Construa o Estaleiro (tecla I) na margem: ele treina barcos de pesca (comida dos cardumes), transportes e a linha de navios de guerra, do Pentecôntero ao Encouraçado. Para atravessar o mar, selecione as tropas e clique com o botão direito num transporte; depois clique na costa (ou aperte U) para desembarcar. Caravanas (Mercado, tecla C) e navios mercantes fazem rotas entre os seus pontos de comércio e os de aliados: cada viagem rende ouro pela distância. São alvos fáceis: escolte-as. | Build the Shipyard (I key) on the shore: it trains fishing boats (food from fish shoals), transports and the warship line, from the Penteconter to the Battleship. To cross the sea, select your troops and right-click a transport; then click the coast (or press U) to unload. Caravans (Market, C key) and merchant ships run routes between your trading posts and your allies': each trip yields gold by distance. They are easy targets: escort them. |
+| `help.sea` | Construa o Estaleiro (tecla I) na margem: ele treina barcos de pesca (comida dos cardumes), transportes e a linha de navios de guerra, do Pentecôntero ao Encouraçado. Para atravessar o mar, selecione as tropas e clique com o botão direito num transporte; depois, com o transporte selecionado, clique com o botão direito na costa (ou aperte U) para desembarcar. Caravanas (Mercado, tecla C) e navios mercantes fazem rotas entre os seus pontos de comércio e os de aliados: cada viagem rende ouro pela distância. São alvos fáceis: escolte-as. | Build the Shipyard (I key) on the shore: it trains fishing boats (food from fish shoals), transports and the warship line, from the Penteconter to the Battleship. To cross the sea, select your troops and right-click a transport; then, with the transport selected, right-click the coast (or press U) to unload. Caravans (Market, C key) and merchant ships run routes between your trading posts and your allies': each trip yields gold by distance. They are easy targets: escort them. |
 | `help.wondersTitle` | Maravilhas | Wonders |
 | `help.wonders` | São 20 maravilhas, das Eras I a VIII, cada uma com um efeito próprio (veja a aba Maravilhas da enciclopédia). Cada uma é única no mapa: quem termina primeiro fica com ela, e as obras dos outros desabam devolvendo os recursos. Um jogador pode ter várias. | There are 20 wonders, from Era I to VIII, each with its own effect (see the Wonders tab of the encyclopedia). Each is unique on the map: whoever finishes it first keeps it, and the others' foundations collapse and refund their resources. A player can own several. |
 | `hk.unload` (só se `grep -n "'hk.unload'" src/i18n/strings.ts` vier vazio) | Desembarcar a carga (transporte selecionado) | Unload cargo (transport selected) |
@@ -287,7 +294,7 @@ Se a etapa anterior usou outra tecla, troque a letra **nos dois idiomas**.
 | Chave | PT novo | EN novo |
 |---|---|---|
 | `help.goal` | Destrua todos os edifícios e cidadãos inimigos (Conquista) ou vença por maravilhas: cada maravilha é única no mapa e vale o número da sua Era em pontos; o time que somar a meta e mantiver por {hold} minutos vence (nas opções da partida há também "manter uma maravilha por {min} minutos"). Avance pelas Eras na Biblioteca, escolha deuses menores, treine heróis e criaturas míticas e use poderes divinos. | Destroy every enemy building and citizen (Conquest) or win by wonders: each wonder is unique on the map and worth its Era number in points; the team that reaches the target and holds it for {hold} minutes wins (the match options also offer "hold one wonder for {min} minutes"). Advance through the Eras at the Library, choose minor gods, train heroes and mythic creatures and use god powers. |
-| `help.combat` | Infantaria pesada vence cavalaria, cavalaria vence tiro, tiro vence infantaria; escaramuça vence tiro. Cerco e artilharia derrubam edifícios. Da Era V em diante a pólvora atira de longe e devagar; na VIII, a infantaria tem dano dobrado contra tanques. Heróis causam dano triplo em criaturas míticas; criaturas míticas devastam humanos. Navios lutam com navios e com a costa; tropas atravessam o mar em transportes. Guarneça cidadãos e infantaria em Centros Cívicos, Fortalezas e Torres para protegê-los (e disparar mais flechas). | Heavy infantry beats cavalry, cavalry beats missile troops, missile troops beat infantry; skirmishers beat missile troops. Siege and artillery bring down buildings. From Era V on, gunpowder fires from afar and slowly; in Era VIII, infantry deals double damage to tanks. Heroes deal triple damage to mythic creatures; mythic creatures devastate humans. Ships fight ships and the coast; troops cross the sea in transports. Garrison citizens and infantry in Town Centers, Fortresses and Towers to protect them (and fire extra arrows). |
+| `help.combat` | Infantaria pesada vence cavalaria, cavalaria vence tiro, tiro vence infantaria; escaramuça vence tiro. Cerco e artilharia derrubam edifícios. Da Era V em diante a pólvora acerta forte e recarrega devagar; na VIII, a infantaria tem dano dobrado contra tanques. Heróis causam dano triplo em criaturas míticas; criaturas míticas devastam humanos. Navios lutam com navios e com a costa; tropas atravessam o mar em transportes. Guarneça cidadãos e infantaria em Centros Cívicos, Fortalezas e Torres para protegê-los (e disparar mais flechas). | Heavy infantry beats cavalry, cavalry beats missile troops, missile troops beat infantry; skirmishers beat missile troops. Siege and artillery bring down buildings. From Era V on, gunpowder hits hard but reloads slowly; in Era VIII, infantry deals double damage to tanks. Heroes deal triple damage to mythic creatures; mythic creatures devastate humans. Ships fight ships and the coast; troops cross the sea in transports. Garrison citizens and infantry in Town Centers, Fortresses and Towers to protect them (and fire extra arrows). |
 | `load.tip10` | Cada maravilha vale o número da sua Era em pontos: some a meta e mantenha-a para vencer (ou mantenha uma maravilha por {min} minutos, se a partida usar a regra clássica). | Each wonder is worth its Era number in points: reach the target and hold it to win (or hold one wonder for {min} minutes if the match uses the classic rule). |
 
 ### E9-4 — Dicas de carregamento novas (`LOADING_TIPS` 12 → 18)
@@ -323,7 +330,7 @@ da direita.
 | `Fortaleza` | `Fortress` |
 | `Conhecimento` | `Knowledge` |
 | `\bFavor\b` | `Favor` |
-| `Titãs?\b` | `Titans?` |
+| `Titã` | `Titan` |
 | `deus(es)? menor(es)?` (i) | `minor gods?` (i) |
 
 Termos proibidos (o teste acusa): no PT, `\bIdades?\b` (exceto "Idade de Ouro" e "Idade de Cronos") e `Academia`; no EN,
@@ -394,7 +401,7 @@ deixou. `AI_PACE` começa **igual** ao clássico.
 | III **RÁPIDA** | `scholarsEarly` −1 (até 2) → `armyFundCap` +0,1 (até 2,0) |
 | IV **LENTA** | `villagerTarget[2]` +2 (até 42) → `armyFundCap` −0,1 (até 1,2) → `minArmy[2]` −2 (até 8) |
 | IV **RÁPIDA** | `minArmy[2]` +2 (até 20) → `villagerTarget[2]` −2 (até 26) |
-| V–VIII (Era k) **LENTA** | `AGES[k].requires.techCount` −1 (nunca abaixo do da Era k−1 nem acima de 4·k) → `AGES[k].time` −10 s (piso 90 s) → todos os custos de `AGES[k].cost` × 0,9 (piso: 70 % do valor no início da E10) → `LINE_LEVEL_COST_MULT[k]` × 0,9 (piso 0,7) → `villagerTarget[k−1]` +2 |
+| V–VIII (Era k) **LENTA** | `AGES[k].requires.techCount` −1 (nunca abaixo do da Era k−1 nem acima de 4·k) → `AGES[k].time` −10 s (piso 90 s) → todos os custos de `AGES[k].cost` × 0,9 (piso: 70 % do valor no início da E10) → `LINE_LEVEL_COST_MULT[k − 1]` × 0,9 (piso 0,7; só k ≥ 5 — o índice k − 1 é o nível k, estudado na Era anterior e contado no requisito da Era k; os índices 0–3 são da campanha e ficam 1) → `villagerTarget[k−1]` +2 |
 | V–VIII (Era k) **RÁPIDA** | custos de `AGES[k].cost` × 1,1 (teto 130 %) → `AGES[k].time` +10 s (teto 180 s) → `techCount` +1 (respeitando ≤ 4·k) |
 | **POUCOS** (chegada abaixo do mínimo) numa Era sem LENTA | primeiro os detectores (E10-5); depois `armyAttack[k−1]` +2 (ondas maiores e menos frequentes deixam as IAs crescerem) |
 | > 25 % das partidas terminando antes de 30 min | `armyAttack[0]`, `[1]` e `[2]` +2 cada (até clássico +6) |
@@ -411,7 +418,7 @@ nem TRAVADA; senão, desfaça a mudança.
 | Rótulo | Condição | Reprova? | Onde olhar e o que fazer |
 |---|---|---|---|
 | `PARADA` | cidadãos > 0 e todos ociosos, **ou** nada treinado nem construído nos últimos 10 min com `pop < popCap − 5` | sim | ociosos: `assignGatherer` (`ai.ts`) não acha nó alcançável → `farSearch` +10 (até 120); nada feito: o pensamento sai cedo antes do treino → confira os `return` de `manageBuilding` (o `if (p.type === 'house') return;` sem madeira) e o `armyFundCap` |
-| `TRAVADA` | mesma Era há ≥ 12 min, abaixo da Era final, e `canAdvanceAge(state, p)` **ok** (pode e não avança) ou recusa por motivo que **não** é `err.noResources` | sim | o motivo vem impresso. "Requer N estudos": `manageResearch` não estuda as linhas (fila da Biblioteca cheia de evoluções ou filósofos) → confira `RESEARCH_PRIORITY` (todo nível das linhas) e a ordem "estudos exigidos antes das evoluções" da E3. "Biblioteca": Biblioteca destruída e não reposta → `findBuildSpot` sem lugar. "Fortaleza": `fortressWood` −50. Pode e não avança: `tryAdvanceAge` (E1) não acha Biblioteca com `queue.length <= 1` |
+| `TRAVADA` | mesma Era há ≥ 12 min, abaixo da Era final, e `canAdvanceAge(state, p)` **ok** (pode e não avança) ou recusa por motivo que **não** é `err.noResources` nem `err.advancing` (avanço já na fila: não é trava) | sim | o motivo vem impresso. "Requer N estudos": `manageResearch` não estuda as linhas (fila da Biblioteca cheia de evoluções ou filósofos) → confira `RESEARCH_PRIORITY` (todo nível das linhas) e a ordem "estudos exigidos antes das evoluções" da E3. "Biblioteca": Biblioteca destruída e não reposta → `findBuildSpot` sem lugar. "Fortaleza": `fortressWood` −50. Pode e não avança: `tryAdvanceAge` (E1) não acha Biblioteca com `queue.length <= 1` |
 | `TRAVADA-RECURSO` | como acima, mas o motivo é `err.noResources` | não (registre) | ouro esgotado depois dos 40 min: `CARAVAN_TARGET_AI[3..7]` +1 (até 8; E5), `MERCHANT_MAX_AI` +1 (até 5; E2), `sellLots` +1 |
 | `ACUMULANDO` | comida, madeira, pedra ou ouro > 6000 em duas checagens seguidas | não (registre) | a IA não gasta: `armyFundCap` +0,1 ou `armyAttack[k]` −2 da Era em que acumula |
 | `SEM-ONDAS` | aos 30 min, `ai.waves === 0` | não (registre) | `armyAttack[k]` −2 da Era em que está |
@@ -428,7 +435,9 @@ nem TRAVADA; senão, desfaça a mudança.
 | rede | `npm run loadtest -- --minutes 60 --bots 4 --drop-at 45 --drop-mode wait --spectator-at 50 --label e10-60min` | "Resultado: OK (sem dessincronização)"; todo "Instantâneo: … KB" < 4096 KB |
 
 Antes de mudar qualquer tipo em `--types`, confira que o id existe: `grep -n "fusilier\|machine_gunner\|tank:" src/core/data/units.ts`.
-Não use tipos navais em `--types` (o `debugSpawn` põe a unidade em terra se a E8 não deu camada a ele).
+Não use tipos navais em `--types`: os dois scripts põem as unidades em terra (em volta dos Centros Cívicos e no meio do
+mapa continental), e o `debugSpawn` da E4 procura tile pela camada da unidade (`layerOf`) — o navio não acha água a
+≤ 12 tiles e não nasce, e a medição sai com menos unidades do que o `--units` pediu.
 
 ### E10-7 — Justiça de posição
 
@@ -437,23 +446,36 @@ Não use tipos navais em `--types` (o `debugSpawn` põe a unidade em terra se a 
 | Egeu (oficial, navegável) | `npx tsx scripts/maps/fairness.ts egeu 60 1-16 zeus --both --jobs 3 --json docs/perf/<data>-e10-fair-egeu.json` | linha `critério … DENTRO` (posição **e** índice ≤ 65 %) |
 | Egeu, mesma personalidade | `npx tsx scripts/maps/fairness.ts egeu 60 1-16 zeus --both --mirror-ai --jobs 3` | DENTRO |
 | Estreito (oficial) | `npx tsx scripts/maps/fairness.ts estreito 60 1-16 zeus --both --jobs 3 --json docs/perf/<data>-e10-fair-estreito.json` | DENTRO |
-| Costeiro, Ilhas, Mediterrâneo (gerados) | `npm run map:export /tmp/e10/<tipo>.map.json --size small --seed 42 --type <tipo> --players 2` e `npx tsx scripts/maps/fairness.ts /tmp/e10/<tipo>.map.json 60 1-16 zeus --both --jobs 3` | só a linha **ÍNDICE** ≤ 65 %; a de POSIÇÃO se registra |
+| Costeiro, Ilhas, Mediterrâneo (gerados) | `npx tsx scripts/export-map.ts /tmp/e10/<tipo>.map.json --size small --seed 42 --type <tipo> --players 2` e `npx tsx scripts/maps/fairness.ts /tmp/e10/<tipo>.map.json 60 1-16 zeus --both --jobs 3` | só a linha **ÍNDICE**: (vitórias + à frente) do lado mais forte ≤ 65 % do total dessa linha, com total ≥ 8 (a mesma conta do `tally` do `fairness.ts`, que só imprime o veredito conjunto); a de POSIÇÃO se registra |
 | sondagens | `npx vitest run tests/position-fairness.test.ts` | verde |
 
 Um "fora" isolado em 16 sementes pede confirmação com `101-132` (32 sementes) antes de qualquer correção (CLAUDE.md).
 
-### E10-8 — Textos da loja (`docs/steam/LOJA.md`)
+O `map:export` vai direto pelo `npx tsx`: `npm run map:export … --size small` **não funciona** (o npm come as opções
+que vêm antes de um `--` e repassa só os valores; conferido em 09/10/2026 com o npm 10). Pelo `npm run`, só com
+`npm run map:export -- <arquivo> --size small …`.
+
+### E10-8 — Textos da loja (`docs/steam/LOJA.md` e `docs/steam/PRESSKIT.md`)
 
 Confira os números no código antes de colar:
 `npx tsx -e "import { POWERS, BUILDINGS, MINOR_GODS } from './src/core/data'; import { MAP_TYPES } from './src/core/constants'; import { ACHIEVEMENTS } from './src/game/achievements'; console.log(Object.keys(POWERS).length, Object.values(BUILDINGS).filter((b) => b.wonder).length, Object.keys(MINOR_GODS).length, MAP_TYPES.length, ACHIEVEMENTS.length)"`
-— o esperado é `21 20 18 8 40` (se der outro número, use o do código nos dois idiomas).
+— o esperado é `21 20 18 8 40` (se der outro número, use o do código nos dois idiomas; o 40 é o das "40 conquistas" do
+parágrafo "No PC e no Steam Deck", que fica como está se o número não mudou).
+
+Para o `PRESSKIT.md` (linhas de fatos 22–37 de hoje), os números saem de:
+`npx tsx -e "import { UNITS, BUILDINGS, MAJOR_GODS, MINOR_GODS, POWERS, LINES } from './src/core/data'; import { MAP_TYPES } from './src/core/constants'; const u = Object.values(UNITS); console.log({ unidades: u.length, miticas: u.filter((x) => x.tags.includes('myth') && !x.tags.includes('titan')).length, titas: u.filter((x) => x.tags.includes('titan')).length, navios: u.filter((x) => x.cls === 'ship').length, edificios: Object.keys(BUILDINGS).length, maravilhas: Object.values(BUILDINGS).filter((b) => b.wonder).length, linhas: Object.keys(LINES).length, menores: Object.keys(MINOR_GODS).length, poderes: Object.keys(POWERS).length, tiposDeMapa: MAP_TYPES.length, panteoes: Object.values(MAJOR_GODS).reduce((n, g) => n + 2 ** g.minorGods.length, 0) })"`
+(`edificios` = todos os tipos, maravilhas incluídas — o critério dos "21 edifícios" de hoje; `panteoes` = combinações de
+deus maior × uma escolha por Era: hoje 3 × 2³ = 24; com as 6 escolhas, 3 × 2⁶ = 192). Troque
+"5 Idades (Arcaica → Titãs)" por "8 Eras (Arcaica → Moderna)", "Escolhas divinas por Idade" por "Escolhas divinas por
+Era", "Idades de *Rise of Nations*" por "Eras de *Rise of Nations*" (PT) e "Ages of *Rise of Nations*" por "Eras of *Rise
+of Nations*" (EN), e cada número pelo do comando. Não invente número que o comando não imprime.
 
 | Trecho | PT novo | EN novo |
 |---|---|---|
 | Descrição curta (≤ 300 caracteres; esta tem 276 / 275) | Estratégia em tempo real com os deuses gregos ao longo da história: avance da Era Arcaica à Era Moderna, expanda fronteiras, estude na Biblioteca, domine o mar e desperte um Titã. Campanha da Titanomaquia em 12 missões, escaramuças, Horda e multiplayer online até 4 jogadores. | Real-time strategy with the Greek gods across history: rise from the Archaic Era to the Modern Era, push your borders, study at the Library, rule the sea and awaken a Titan. A 12-mission Titanomachy campaign, skirmishes, Horde mode and online multiplayer for up to 4 players. |
 | 1º parágrafo ("RTS clássico…") | troque "o território e as Idades de *Rise of Nations*" por "o território e as Eras de *Rise of Nations*" | troque "the territory and Ages of *Rise of Nations*" por "the territory and Eras of *Rise of Nations*" (o nome *Age of Mythology* fica) |
 | "Cinco Idades, escolhas divinas" (parágrafo inteiro) | **Oito Eras, escolhas divinas.** Da Grécia arcaica à Era Moderna, passando por Alexandre, Bizâncio, a pólvora, o Iluminismo e a indústria: escolha Zeus, Poseidon ou Hades e, a cada Era da II à VII, um deus menor entre dois. Cada escolha traz um poder divino, uma criatura mítica e pesquisas próprias — 21 poderes que crescem com a Era, do Raio de Zeus ao Carro do Sol. Tudo se estuda na Biblioteca, um estudo por vez: as Eras, a evolução de cada tipo de unidade e as quatro grandes linhas do império. | **Eight Eras, divine choices.** From archaic Greece to the Modern Era, through Alexander, Byzantium, gunpowder, the Enlightenment and industry: pick Zeus, Poseidon or Hades and, at every Era from II to VII, one of two minor gods. Each choice brings a god power, a mythic creature and its own technologies — 21 powers that grow with the Era, from Zeus's Bolt to the Sun Chariot. Everything is studied at the Library, one study at a time: the Eras, the evolution of each unit type and the empire's four great lines. |
-| "Heróis, monstros e Titãs" (parágrafo inteiro) | **Exércitos de todas as Eras, heróis e Titãs.** Onze linhas de unidade evoluem a cada Era — do hoplita ao fuzileiro, do arqueiro cretense ao metralhador, dos hetairos ao tanque, do pentecôntero ao encouraçado — e as tropas que você já tem se transformam ao estudar a evolução. Aquiles, Héracles, Perseu, Jasão e Odisseu lutam ao lado delas; Minotauros, hidras, Fênix e Grifos respondem ao Favor dos deuses. Na Era Moderna, o Portal dos Titãs desperta Prometeu, Oceano ou Cronos. | **Armies of every Era, heroes and Titans.** Eleven unit lines evolve with each Era — from hoplite to fusilier, from Cretan archer to machine gunner, from Companion cavalry to tank, from penteconter to battleship — and the troops you already have transform when you study the evolution. Achilles, Heracles, Perseus, Jason and Odysseus fight alongside them; Minotaurs, hydras, Phoenixes and Griffins answer to the gods' Favor. In the Modern Era, the Titan Gate awakens Prometheus, Oceanus or Cronus. |
+| "Heróis, monstros e Titãs" (parágrafo inteiro) | **Exércitos de todas as Eras, heróis e Titãs.** As linhas de unidade evoluem Era a Era — do hoplita ao fuzileiro, do arqueiro cretense ao metralhador, dos hetairos ao tanque, do pentecôntero ao encouraçado — e as tropas que você já tem se transformam ao estudar a evolução. Aquiles, Héracles, Perseu, Jasão e Odisseu lutam ao lado delas; Minotauros, hidras, Fênix e Grifos respondem ao Favor dos deuses. Na Era Moderna, o Portal dos Titãs desperta Prometeu, Oceano ou Cronos. | **Armies of every Era, heroes and Titans.** Unit lines evolve Era by Era — from hoplite to fusilier, from Cretan archer to machine gunner, from Companion cavalry to tank, from penteconter to battleship — and the troops you already have transform when you study the evolution. Achilles, Heracles, Perseus, Jason and Odysseus fight alongside them; Minotaurs, hydras, Phoenixes and Griffins answer to the gods' Favor. In the Modern Era, the Titan Gate awakens Prometheus, Oceanus or Cronus. |
 | "Do seu jeito" (parágrafo inteiro) | **Do seu jeito.** Escaramuças contra até três IAs (Fácil a Muito difícil) em oito tipos de mapa — do Continental às Ilhas e ao Mediterrâneo — ou em mapas fixos, com a Era inicial e a final à sua escolha; modos Conquista (com a vitória por pontos entre 20 maravilhas únicas), Deathmatch, Regicídio e Rei da Colina; o **Modo Horda**, sozinho ou em cooperação; e o **editor** de mapas e cenários com gatilhos. | **Your way.** Skirmishes against up to three AIs (Easy to Very Hard) on eight map types — from Continental to Islands and the Mediterranean — or on fixed maps, with the starting and final Era of your choice; Conquest (with the points victory among 20 unique wonders), Deathmatch, Regicide and King of the Hill modes; **Horde mode**, solo or co-op; and the map and scenario **editor** with triggers. |
 | linha "Números conferidos no código em …" | troque a data pela do dia em que você conferiu | — |
 
@@ -481,7 +503,14 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
   grep -n "export function wonderPoints\|export function wonderTakenBy\|export function wonderPointsTarget\|export function wonderVictoryMode" src/core/sim/wonders.ts   # E7
   grep -n "export function allWondersOn\|export function buildingAgeOf" src/core/sim/restrictions.ts   # E7
   grep -n "WONDER_POINTS_HOLD_SECONDS\|WONDER_POINTS_MAX_TARGET\|WONDER_VICTORIES" src/core/constants.ts   # E7
+  grep -n "export const CLASSIC_WONDERS" src/core/data/buildings.ts      # E7
+  grep -n "export function effectiveStartEra" src/ui/era-select.ts      # E1
+  grep -n "showStudyTree()\|private renderStudyTree" src/ui/hud.ts      # E1
+  grep -n "export const EN_LINES" src/i18n/en-data.ts                    # E3
+  grep -n "'hk.unload'" src/i18n/strings.ts                              # E4 (se vier vazio, o B1 cria)
+  grep -n "layerOf" src/main.ts                                         # E4 (debugSpawn pela camada)
   ```
+  Única exceção à regra de parar: `hk.unload` vazio só quer dizer que o B1/B4 entram (a E4 normalmente já criou a chave).
 - [ ] **0.2. Base.** `mkdir -p /tmp/e9`; `npm run smoke 20 42 > /tmp/e9/smoke-antes.txt` (anote o "hash final");
   `npm run build`, `npm run preview` em segundo plano e `node scripts/playtest.mjs http://localhost:4173/ /tmp/e9/antes`
   (guarde `/tmp/e9/antes-4-enc.png`, a enciclopédia de antes).
@@ -502,7 +531,7 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
   import type { GameState, TechDef, UnitDef } from '../core/types';
   import { unitLinesOn } from '../core/sim/lines';
   import { allWondersOn, buildingAgeOf } from '../core/sim/restrictions';
-  import { wonderPoints, wonderPointsTarget, wonderTakenBy } from '../core/sim/wonders';
+  import { wonderPoints, wonderPointsTarget, wonderTakenBy, wonderVictoryMode } from '../core/sim/wonders';
   import { POWER_TUNING, powerEraOf } from '../core/sim/divine';
   import { t } from '../i18n';
   import { esc, noEmoji } from './html';
@@ -527,6 +556,7 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
   const era = (n: number) => esc(AGES[Math.max(0, Math.min(AGES.length - 1, n))].short);
   const pass = (ctx: EncCtx, age: number) => ctx.era === 'all' || ctx.era === age;
   const note = (key: string) => `<p class="enc-note">${t(key)}</p>`;
+  const note2 = (key: string, vars: Record<string, string | number>) => `<p class="enc-note">${esc(t(key, vars))}</p>`;
   const table = (cols: string[], rows: string[]) => (rows.length ? `<table><tr>${cols.map((h) => `<th>${h}</th>`).join('')}</tr>${rows.join('')}</table>` : note('enc.empty'));
   /** Era de uma unidade nas linhas (tier) ou a de treino (age). */
   const unitEra = (u: UnitDef) => u.tier ?? u.age;
@@ -587,7 +617,8 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
     const ageOf = (id: string) => (s ? buildingAgeOf(s.config, id) : BUILDINGS[id].age);
     const list = Object.values(BUILDINGS).filter((b) => b.wonder && (modern || CLASSIC_WONDERS.includes(b.id)) && pass(ctx, ageOf(b.id))).sort((a, b) => ageOf(a.id) - ageOf(b.id));
     const owner = (id: string) => { if (!s) return '—'; const b = wonderTakenBy(s, id); return b ? esc(s.players[b.owner]?.name ?? '?') : t('enc.free'); };
-    const rule = modern ? `<p>${t('enc.wondersRule', { target: s ? wonderPointsTarget(s) : WONDER_POINTS_MAX_TARGET, hold: WONDER_POINTS_HOLD_SECONDS })}</p>` : note('enc.classicWonders');
+    const mode = s ? wonderVictoryMode(s.config) : 'points';   // numa partida com "manter por 6 min" ou sem vitória por maravilha, diga qual vale
+    const rule = modern ? `<p>${t('enc.wondersRule', { target: s ? wonderPointsTarget(s) : WONDER_POINTS_MAX_TARGET, hold: WONDER_POINTS_HOLD_SECONDS })}</p>${mode !== 'points' ? note2('enc.matchRule', { rule: t(`wv.${mode}`) }) : ''}` : note('enc.classicWonders');
     return rule + table(head(['enc.wonders', 'over.age', 'enc.points', 'enc.cost', 'enc.effect', 'enc.owner']), list.map((b) => `<tr><td>${ic.bld(b.id, undefined, 'sm')} ${esc(b.name)}</td><td>${era(ageOf(b.id))}</td><td>${wonderPoints(b.id)}</td><td>${costHtml(b.cost)}</td><td>${esc(b.desc)}</td><td>${owner(b.id)}</td></tr>`));
   }
 
@@ -618,7 +649,7 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
       return `<h3>${ic.god(g.id, 'md')} ${esc(g.name)} — ${esc(g.title)}</h3><p>${esc(g.desc)}</p><ul>${g.perks.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`
         + (rows.length ? `<h4>${t('enc.minorPairs')}</h4>` + table([esc(noEmoji(t('over.age'))), t('enc.choice', { n: 1 }), t('enc.choice', { n: 2 })], rows) : '') + titan;
     }).join('');
-    const minors = Object.values(MINOR_GODS).filter((m) => pass(ctx, m.age)).sort((a, b) => a.age - b.age).map((m) => `<tr><td>${ic.god(m.id, 'sm')} ${esc(m.name)}<br><small>${esc(m.title)}</small></td><td>${era(m.age)}</td><td>${ic.power(m.power, 'sm')} ${esc(POWERS[m.power]?.name ?? m.power)}<br><small>${esc(POWERS[m.power]?.desc ?? '')} ${t('enc.powerScales', { pct, era: era(powerEraOf(m.power)) })}</small></td><td>${ic.unit(m.mythUnit, undefined, 'sm')} ${esc(UNITS[m.mythUnit]?.name ?? m.mythUnit)}</td><td>${m.techs.map((x) => `${ic.tech(x, 'sm')} ${esc(TECHS[x]?.name ?? x)}`).join('<br>')}</td></tr>`);
+    const minors = Object.values(MINOR_GODS).filter((m) => pass(ctx, m.age)).sort((a, b) => a.age - b.age).map((m) => `<tr><td>${ic.god(m.id, 'sm')} ${esc(m.name)}<br><small>${esc(m.title)}</small></td><td>${era(m.age)}</td><td>${ic.power(m.power, 'sm')} ${esc(POWERS[m.power]?.name ?? m.power)}<br><small>${esc(POWERS[m.power]?.desc ?? '')} ${t('enc.powerScales', { pct, era: esc(AGES[powerEraOf(m.power)]?.name ?? '') })}</small></td><td>${ic.unit(m.mythUnit, undefined, 'sm')} ${esc(UNITS[m.mythUnit]?.name ?? m.mythUnit)}</td><td>${m.techs.map((x) => `${ic.tech(x, 'sm')} ${esc(TECHS[x]?.name ?? x)}`).join('<br>')}</td></tr>`);
     const bless = BLESSING_IDS.map((id) => TECHS[id]).filter((x) => x && pass(ctx, x.age)).map((x) => `<tr><td>${ic.tech(x.id, 'sm')} ${esc(x.name)}</td><td>${era(x.age)}</td><td>${costHtml(x.cost)}</td><td>${esc(x.desc)}</td></tr>`);
     return majors + `<h3>${esc(noEmoji(t('enc.minorGods')))}</h3>` + table(head(['enc.god', 'over.age', 'modal.power', 'modal.creature', 'enc.techs']), minors)
       + `<h3>${t('enc.blessings')}</h3>` + table(head(['modal.tech', 'over.age', 'enc.cost', 'enc.effect']), bless);
@@ -699,8 +730,9 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
        this.modal.querySelector('#m-close')!.addEventListener('click', () => this.hideModal());
      }
      ```
-  4. Apague os imports que ficaram sem uso (o typecheck com `noUnusedLocals` acusa; senão, confira com
-     `grep -n "ACADEMY_LINES" src/ui/hud.ts`).
+  4. Apague os imports que ficaram sem uso. O typecheck **não** acusa (o `tsconfig.json` não liga `noUnusedLocals`):
+     confira cada nome que só o corpo antigo usava, por exemplo `grep -n "ACADEMY_LINES\|MAJOR_GODS\|enc.gate" src/ui/hud.ts`
+     — só apague o import se o `grep` não achar outro uso no arquivo.
 - [ ] **A4. CSS (`src/ui/styles.css`)**, perto das regras de `#modal`:
   ```css
   #modal .enc-filter { display: inline-flex; gap: 6px; align-items: center; margin: 2px 0 6px; font-size: 13px; }
@@ -734,6 +766,7 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
   const matchInfo = isScenarioConfig(c) ? t('menu.matchInfoScenario', { from, to }) : t('menu.matchInfo', { from, to, victory: t(`wv.${wonderVictoryMode(c)}`) });
   ```
   e, no HTML, logo depois de `<h2>${t('menu.title')}</h2>`: `<div class="enc-note" id="m-matchinfo">${esc(matchInfo)}</div>`.
+  (Horda, campanha e cenário JSON caem no `isScenarioConfig`: por isso o texto diz "Cenário", não "Missão".)
   *Conferir:* `npx vitest run tests/i18n.test.ts tests/hud-text.test.ts`.
 
 ### Bloco C — Revisão dos textos PT/EN
@@ -773,7 +806,13 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
   fs.writeFileSync(file, out.join('\n'));
   console.log(`${file}: ${out.filter((l) => l.startsWith('| ') && !l.startsWith('| id')).length} linhas`);
   ```
-  Se a E3 criou `EN_LINES`, acrescente uma seção com `LINES` × `EN_LINES` (nome). Rode `npx tsx scripts/i18n-review.ts`.
+  A E3 criou `LINES` e `EN_LINES` (nomes das linhas): acrescente `LINES` ao import de `'../src/core/data'` e, antes de
+  `sec('Eras', …)`, a linha
+  ```ts
+  sec('Linhas', Object.values(LINES).map((l) => `| \`${l.id}\` | ${cell(l.name)} | ${cell((EN as unknown as { EN_LINES?: Record<string, { name?: string }> }).EN_LINES?.[l.id]?.name)} |`));
+  ```
+  (a base não tem linhas: todas aparecem). A planilha compara só o **PT** com a base: um EN que mudou sozinho não aparece
+  nela (o teste do C1 cobre os erros mecânicos do EN). Rode `npx tsx scripts/i18n-review.ts`.
 - [ ] **C3. Leitura da planilha.** Leia **inteira** `docs/eras/textos-pt-en.md` com a ferramenta Read (em partes de
   ~300 linhas). Em cada linha confira, nesta ordem:
   1. **Sentido**: o EN diz o mesmo que o PT (nada a mais, nada a menos);
@@ -803,17 +842,19 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
 - [ ] **D2. Cliente (`src/net/client.ts`).** Em `RoomSummary`, acrescente
   `startAge?: string | null; endAge?: string | null; wonderVictory?: string | null;`.
 - [ ] **D3. Lista de salas (`src/ui/menu.ts`, `roomListHTML`).** Importe `ROMAN`, `MAX_AGE`, `clampEra` de
-  `'../core/data'` (se ainda não estiverem) e, antes do `return`, defina
+  `'../core/data'` e `effectiveStartEra` de `'./era-select'` (da E1; se ainda não estiverem) e, antes do `return`, defina
   ```ts
   const erasOf = (r: RoomSummary) => {
-    const a = r.startAge && r.startAge !== 'auto' ? Number(r.startAge) : r.mode === 'deathmatch' ? 1 : 0;
-    const b = r.endAge != null ? Number(r.endAge) : MAX_AGE;
-    return t('mp.roomEras', { from: ROMAN[clampEra(a)], to: ROMAN[clampEra(b)] });
+    const a = effectiveStartEra(r.startAge ?? 'auto', r.mode as GameMode);   // 'auto' segue o modo (Deathmatch começa na II)
+    const b = r.endAge != null ? clampEra(Number(r.endAge)) : MAX_AGE;
+    return t('mp.roomEras', { from: ROMAN[a], to: ROMAN[b] });
   };
   ```
   e, no texto da sala, logo depois do `t('mp.roomInfo', {...})`, acrescente
-  `` ` · ${erasOf(r)}${r.wonderVictory && r.wonderVictory !== 'points' ? ` · ${t(`wv.${r.wonderVictory}`)}` : ''}` ``.
-  (Sala de Horda: o `mode` é `horde` e as Eras não valem; mostre só se `r.mode !== 'horde'`.)
+  `` `${r.mode !== 'horde' ? ` · ${erasOf(r)}` : ''}${r.wonderVictory && r.wonderVictory !== 'points' ? ` · ${esc(t(`wv.${r.wonderVictory}`))}` : ''}` ``
+  (sala de Horda: o `mode` é `horde` e as Eras não valem; o `esc` protege contra um relay antigo que repasse um valor
+  qualquer — `t()` devolve a própria chave quando ela não existe). `GameMode` vem de `'../core/constants'` (o menu já o
+  importa desde a E1; confira com `grep -n "GameMode" src/ui/menu.ts`).
 - [ ] **D4. Teste.** Em `tests/relay-anticheat.test.ts`, o `it` novo da seção "Testes". *Conferir:*
   `npx vitest run tests/relay-anticheat.test.ts tests/relay-version.test.ts`.
 
@@ -829,6 +870,11 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
 - [ ] **E2. `src/ui/hud.ts`, `renderStudyTree(first)` (da E1).** Troque `studyTreeHtml(m, fc)` por
   `studyTreeHtml(m, fc, { autofocus: first })`. No laço `querySelectorAll('[data-study]')`, junto de
   `el.addEventListener('focus', show)`, acrescente `el.addEventListener('padfocus', show);`.
+  Em `showMenu`, troque o bind do `#m-tree` (E1) por
+  `q('#m-tree').addEventListener('click', () => { this.menuOpen = false; s.paused = this.pausedBeforeMenu; this.showStudyTree(); });`.
+  Motivo: o menu pausa a partida e o `LocalScheduler` só aplica um comando no próximo tick; aberta pelo menu (o único
+  caminho do controle, que não tem F3), a árvore ficava pausada e o A "estudava" sem nada mudar na fila até o jogador
+  fechar o menu. Com isso a árvore aberta pelo menu se comporta como a aberta pelo F3 (que não pausa).
 - [ ] **E3. `src/ui/gamepad.ts`.**
   1. Função pura exportada, perto de `navPick`:
      ```ts
@@ -923,7 +969,8 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
       return null;
     };
     window.__ff = (sec) => { for (let i = 0; i < sec * 20; i++) s.scheduler.step(s.state); };
-    window.__rich = () => { for (const r of Object.keys(s.player.resources)) s.player.resources[r] = 99999; };
+    // cofres cheios; o petróleo só a partir da Era dele (a E2 esconde o petróleo do topo só com age < OIL_FROM_AGE **e** oil < 1)
+    window.__rich = (oil) => { for (const r of Object.keys(s.player.resources)) s.player.resources[r] = r === 'oil' && !oil ? 0 : 99999; };
   });
   const N = await page.evaluate(() => window.aoe.debugNames());
   check('8 Eras nos dados', N.ages.length === 8, N.ages.join(', '));
@@ -961,7 +1008,7 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
     // requisitos da próxima Era (atalhos de teste) e avanço pelo caminho do jogador
     const req = N.reqBuilding[k + 1];
     if (req) check(`Era ${k + 2}: requisito ${req}`, await page.evaluate((t) => !!window.__build(t), req));
-    await page.evaluate(([n, lines]) => { const p = window.aoe.session.player; window.__rich(); for (let i = 0; i < n; i++) { const id = `${lines[i % lines.length]}${Math.floor(i / lines.length) + 1}`; if (!p.techs.includes(id)) p.techs.push(id); } }, [N.techCount[k + 1], N.academyLines]);
+    await page.evaluate(([n, lines, oil]) => { const p = window.aoe.session.player; window.__rich(oil); for (let i = 0; i < n; i++) { const id = `${lines[i % lines.length]}${Math.floor(i / lines.length) + 1}`; if (!p.techs.includes(id)) p.techs.push(id); } }, [N.techCount[k + 1], N.academyLines, k + 1 >= N.oilFromAge]);
     await page.evaluate((id) => window.aoe.session.select([id]), lib); await page.waitForTimeout(400);
     await page.keyboard.press('e'); await page.waitForTimeout(500);
     if (N.minorGod[k + 1]) {
@@ -970,7 +1017,9 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
       if (cards.length) await cards[0].click();
       await page.waitForTimeout(300);
     }
-    const reached = await page.evaluate((target) => { const s = window.aoe.session; for (let i = 0; i < 40 && s.player.age < target; i++) window.__ff(10); return s.player.age; }, k + 1);
+    // o avanço entra na fila da Biblioteca pelo comando de verdade; aqui só se encurta a espera (o tempo da Era, 60–150 s):
+    // 8 Eras de espera inteira dariam ~15 min de jogo, e a IA adversária atacaria uma cidade sem exército
+    const reached = await page.evaluate((target) => { const s = window.aoe.session; window.__ff(0.2); for (const b of s.state.buildings.values()) if (b.owner === s.local) for (const q of b.queue) if (q.kind === 'age') q.elapsed = Math.max(q.elapsed, q.total - 0.5); for (let i = 0; i < 20 && s.player.age < target; i++) window.__ff(1); return s.player.age; }, k + 1);
     check(`avanço para a Era ${k + 2}`, reached === k + 1, `Era ${reached + 1}`);
   }
   // Era VIII: Portal dos Titãs no menu de construção do cidadão
@@ -986,26 +1035,35 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
   (`s.state.buildings.get(lib).queue.length = 0` no `evaluate`). Rode em PT e em EN; olhe as 8 capturas de cada idioma.
 - [ ] **F3. `scripts/playtest.mjs`.** Acrescente um vetor `fails` e, no fim, `process.exit(fails.length || errors.length ? 1 : 0)`.
   Depois do passo "enciclopédia e ajuda": `F3` → `#modal.tree` visível e 8 `.tree-era` (senão `fails.push`), `Escape`;
-  `F2` → 8 `#modal [data-tab]`, clique em cada aba (sem erro de página), `Escape`.
+  `F2` → 8 `#modal [data-tab]`, clique em cada aba (sem erro de página), `Escape`. Clique pelas ids, não por
+  `ElementHandle`: cada clique redesenha o modal e os handles antigos ficam soltos (o clique falha em silêncio com o
+  `.catch`). Modelo: `for (const id of await page.$$eval('#modal [data-tab]', (els) => els.map((e) => e.dataset.tab))) { await page.click('#modal [data-tab="' + id + '"]'); await page.waitForTimeout(250); … }`.
 - [ ] **F4. `scripts/playtest-noemoji.mjs`.** Na parte da partida:
   - troque `p.age = 3; Object.assign(p.resources, { food: 9000, … })` por `p.age = 7;` e
     `for (const r of Object.keys(p.resources)) p.resources[r] = 9000;`;
-  - novos `step`: `'arvore'` (`window.aoe.hud.showStudyTree()`), `'poco'` (`window.__build('naphtha_well')`),
+  - o `showMinorGodChoice` lê `AGES[p.age + 1]`: com `p.age = 7` ele quebra (`AGES[8]` não existe). No passo `'deus-menor'`
+    de hoje ponha `p.age = 0` antes da chamada (Atena/Hermes são da Era II) e, no novo `'deus-menor-v'`, `p.age = 3`
+    (Pã/Hécate são da Era V); depois de cada um, `hideModal()` e `p.age = 7` de novo;
+  - novos `step`: `'arvore'` (`window.aoe.hud.showStudyTree()`; depois do passo, `window.aoe.hud.hideModal()`), `'poco'` (`window.__build('naphtha_well')`),
     `'refinaria'` (`window.__build('refinery')`), `'estaleiro'` (`window.__build('shipyard')`; se voltar `null`, só
     `console.log` — o mapa da semente pode não ter costa perto), `'maravilha'` (`window.__build('wonder_parthenon')`),
     `'deus-menor-v'` (`window.aoe.hud.showMinorGodChoice(['pan', 'hecate'], () => {})`);
-  - no laço das abas da enciclopédia, depois de clicar cada aba, se houver `#enc-era`, selecione `'4'` e escaneie de novo.
+  - nos dois laços das abas (`#modal [data-tab]`: o da enciclopédia do menu principal e o da partida), troque o
+    `for (const tb of await page.$$(…))` pelo laço por ids do F3 (os handles ficam soltos depois do 1º clique: hoje só a
+    1ª aba é escaneada); depois de clicar cada aba, se houver `#enc-era`, `selectOption('#enc-era', '4')` e escaneie de novo.
   *Conferir:* sai com "nenhum emoji …" e código 0.
-- [ ] **F5. `scripts/playtest-i18n.mjs`.** Crie `fails` e `process.exit(...)` como no F3. Depois do bloco EN de hoje:
+- [ ] **F5. `scripts/playtest-i18n.mjs`.** Crie `fails` e `process.exit(...)` como no F3. Ainda em inglês, logo **antes**
+  de `// menu in-game: idioma de volta para PT`:
   - `F3`: `#modal h2` contém `Study tree`; `Escape`;
-  - `F2`: para cada `#modal [data-tab]`, clique e rode o detector de português no `#modal`:
+  - `F2`: para cada aba (laço por ids, como no F3), clique e rode o detector de português no `#modal`:
     ```js
     const PT_LEAK = /[ãõçÃÕÇ]|\b(Biblioteca|Pedra|Petróleo|Maravilha|Estudos?|Cidadãos?|Fortaleza|Templo|Comida|Madeira|Ouro|Conhecimento|Estaleiro|Caravana|Mercador|Idade|Linha)\b/;
     const leaks = await page.evaluate((src) => { const re = new RegExp(src); const out = []; const w = document.createTreeWalker(document.querySelector('#modal'), NodeFilter.SHOW_TEXT); for (let n = w.nextNode(); n; n = w.nextNode()) if (re.test(n.nodeValue ?? '') && !n.parentElement?.closest('[data-raw]')) out.push((n.nodeValue ?? '').trim().slice(0, 50)); return out; }, PT_LEAK.source);
     ```
     `leaks` vazio (senão `fails.push`, mostrando os 5 primeiros);
   - `F1` (ajuda): o mesmo detector; `#top .age` contém `Era`.
-- [ ] **F6. `scripts/playtest-gamepad.mjs`.** Depois da parte da partida, acrescente:
+- [ ] **F6. `scripts/playtest-gamepad.mjs`.** Na parte da partida, **antes** do bloco `// desconexão` (ele desliga o
+  controle e o resto do script não funcionaria), acrescente:
   1. Biblioteca pronta (`debugBuild` como no F2) e cofres cheios;
   2. `START` abre o menu; ande com `walkTo('m-tree', B.DOWN, B.RIGHT)` e `tap(B.A)`;
   3. `ok('árvore pelo controle: foco num estudo', …)` — o elemento `.pad-focus` é um `.tree-node` com `data-study`;
@@ -1013,8 +1071,9 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
   5. `tap(B.RB)`: o `data-era` do foco aumentou; `tap(B.LB)`: voltou;
   6. mexa o analógico de rolagem (`setAxes([0, 0, 0, 0.9])`, espere 10 quadros, zere): o `scrollTop` de
      `#modal .tree-body` aumentou;
-  7. com o foco num nó `st-available`, `tap(B.A)`: a fila (`#modal .tree-queue`) mudou e o foco continua num
-     `.tree-node` com o mesmo `data-study` ou no seguinte;
+  7. com o foco num nó `st-available`, `tap(B.A)` e espere ~1 s de jogo (`waitFrames(30)`; a partida tem de estar
+     rodando — o E2 tira a pausa do menu ao abrir a árvore; confira `window.aoe.session.paused === false`): a fila
+     (`#modal .tree-queue`) mudou e o foco continua num `.tree-node` com o mesmo `data-study` ou no seguinte;
   8. `tap(B.B)` fecha a árvore. Capture `docs/art/eras-e9-arvore-controle.png`.
 - [ ] **F7. `scripts/playtest-mp.mjs` e `scripts/playtest-rooms.mjs`.**
   - mp: antes de `#mp-start`, o anfitrião faz `selectOption('#mp-startage', '2')` e `selectOption('#mp-endage', '4')`;
@@ -1031,6 +1090,17 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
 
 ### Bloco H — Base (antes de qualquer ajuste)
 
+- [ ] **H0. Pré-condições** (vazio = pare):
+  ```sh
+  git log --oneline -1 | grep -i "E9"                                            # o commit da E9 é o último
+  grep -n "export const VILLAGER_TARGET\|export const FARM_LIMIT\|export const ARMY_ATTACK\|export const MIN_ARMY" src/core/sim/ai.ts   # E1
+  grep -n "EVO_USERS\|function evolutionAllowed" src/core/sim/ai.ts           # E3
+  grep -n "export const FISH_BOATS\|export const WARSHIPS_ISLAND" src/core/sim/ai.ts   # E4
+  grep -n "export const MERCHANT_MAX_AI\|export const CARAVAN_TARGET_AI" src/core/constants.ts   # E2, E5
+  grep -n "export function isScenarioConfig" src/core/sim/restrictions.ts     # E1
+  ```
+  Os blocos N3 e P1–P3 pedem também a E8 (linha "E8" com estado "feito" em `docs/eras/PROGRESSO.md` e
+  `grep -n "debugSetAge" src/main.ts` não vazio); sem ela, faça o resto e deixe os três como pendência no `PROGRESSO.md`.
 - [ ] **H1. Medições de base**, em segundo plano, uma de cada vez, com o log em `/tmp/e10/`:
   ```sh
   mkdir -p /tmp/e10
@@ -1039,7 +1109,7 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
   npx tsx scripts/perf.ts 60 > /tmp/e10/perf-base.txt
   ```
   (O `balance` de base roda depois do bloco I, com as flags novas.)
-- [ ] **H2. Valores congelados.** Imprima e guarde (vão para o teste do K0):
+- [ ] **H2. Valores congelados.** Imprima e guarde (vão para o teste do J4, `tests/ai-pace.test.ts`):
   ```sh
   npx tsx -e "import { AGES, UNITS, TECHS, ACADEMY_LINES } from './src/core/data'; const ids = ['villager','kataskopos','hoplite','toxotes','peltast','hippeus','hypaspist','cretan_archer','hetairoi','petrobolos','myrmidon','helepolis','basileus','militia','jason','odysseus','heracles','achilles','perseus','pegasus','minotaur','centaur','cyclops','manticore','hydra','nemean_lion','medusa','colossus','chimera','cerberus','sentinel','shade','prometheus','oceanus','cronus']; console.log(JSON.stringify({ ages: AGES.slice(0, 4).map((a) => ({ cost: a.cost, time: a.time, requires: a.requires })), units: Object.fromEntries(ids.map((id) => { const u = UNITS[id]; return [id, [u.cost, u.hp, u.attack, u.armor, u.range, u.speed, u.trainTime, u.bonus, u.age]]; })), lines: Object.fromEntries(ACADEMY_LINES.flatMap((l) => [1, 2, 3, 4].map((n) => [l + n, [TECHS[l + n].cost, TECHS[l + n].time]]))) }))" > /tmp/e10/frozen.json
   ```
@@ -1070,13 +1140,15 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
        `caravans` = unidades vivas do tipo `caravan`;
      - detectores a cada `600 * TICK_RATE` ticks, pela tabela E10-5 (PARADA com `p.pop < p.popCap - 5`; TRAVADA usa
        `canAdvanceAge(state, p)` de `src/core/sim/commands.ts`, `maxAgeOf(state, p.id)` de `restrictions.ts` e
-       `t('err.noResources')` de `src/i18n` para separar o caso de recurso; ACUMULANDO compara com a checagem anterior;
+       `t('err.noResources')`/`t('err.advancing')` de `src/i18n` para separar o caso de recurso e ignorar o avanço já em
+       andamento; ACUMULANDO compara com a checagem anterior;
        SEM-ONDAS só aos 30 min).
   3. Impressão por semente (na ordem das sementes, depois de todas terminarem): as linhas de hoje, mais
      `alertas: <lista>` (só se houver) e
      `marcos: <nome> evo=… bless=… mar=… tita=sim|não nav=… car=…` por IA.
-  4. Paralelismo: copie o esquema de `scripts/maps/fairness.ts` (`spawn` de `process.argv[1]` com os mesmos argumentos
-     sem `--jobs`/`--json` + `--worker k/of`; o filho imprime `@@<json>` por semente e sai). O resultado não depende
+  4. Paralelismo: copie o esquema de `scripts/maps/fairness.ts` (`spawn(process.execPath, [...process.execArgv,
+     process.argv[1], ...argsSemJobsNemJson, '--worker', k + '/' + of])` — sem o `process.execArgv` o filho roda sem o carregador do
+     `tsx` e não importa TypeScript; o filho imprime `@@<json>` por semente e sai). O resultado não depende
      de `--jobs`.
   5. `--targets` imprime no fim o resumo por Era (tabela E10-1; constantes no arquivo):
      ```ts
@@ -1106,6 +1178,7 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
   ```js
   // Resumo de um perfil de CPU do Node (.cpuprofile, de `node --cpu-prof`): as funções com mais tempo PRÓPRIO.
   // Uso: npx tsx --cpu-prof --cpu-prof-dir /tmp/e10/prof scripts/perf.ts 30 && node scripts/profsum.mjs /tmp/e10/prof/<arquivo>.cpuprofile [25]
+  // (o tsx grava 2 perfis, o do lançador e o do script: passe o maior, `ls -S /tmp/e10/prof | head -1`)
   import fs from 'node:fs';
   const [file, topArg] = process.argv.slice(2);
   const prof = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -1136,8 +1209,9 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
     advanceMinVillagers: 12, templeVillagers: 8, barracksVillagers: 10, libraryVillagers: 9,
     fortressWood: 500, scholarsEarly: 3, armyFundCap: 1.6, evoUsers: EVO_USERS, farSearch: 70, sellLots: 4,
   };
-  /** Partida fora de cenário: o que a E10 ajusta (começa igual ao clássico). */
-  export const AI_PACE: AiPace = { ...AI_PACE_CLASSIC };
+  /** Partida fora de cenário: o que a E10 ajusta (começa igual ao clássico). Arrays COPIADOS: ajuste escrevendo os
+   *  valores neste literal (ex.: `villagerTarget: [20, 26, …]`); nunca mexa em VILLAGER_TARGET & cia., que são da campanha. */
+  export const AI_PACE: AiPace = { ...AI_PACE_CLASSIC, villagerTarget: [...VILLAGER_TARGET], farmLimit: [...FARM_LIMIT], armyAttack: [...ARMY_ATTACK], minArmy: [...MIN_ARMY] };
   /** Limites de cada botão (tests/ai-pace.test.ts confere). */
   export const AI_PACE_LIMITS = {
     advanceMinVillagers: [8, 14], templeVillagers: [5, 10], barracksVillagers: [7, 14], libraryVillagers: [5, 12], fortressWood: [250, 600],
@@ -1148,7 +1222,10 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
   Use nos campos os valores que o H2 anotou (se a E1/E3 deixaram outro número, é ele que vale). Se `EVO_USERS` for
   `const` local, exporte-o ou declare-o antes deste bloco. Se `MIN_ARMY` vier depois no arquivo, mova a declaração para
   cima, junto das outras tabelas.
-- [ ] **J2. Troque cada leitura** pelo campo (cada função que precisa recebe `const pace = aiPace(state);` no começo):
+- [ ] **J2. Troque cada leitura** pelo campo (cada função que precisa recebe `const pace = aiPace(state);` no começo).
+  Liste antes **todas** as leituras — as etapas E2–E7 acrescentaram outras (a E4, por exemplo, lê `ARMY_ATTACK` em
+  `manageInvasion`): `grep -n "VILLAGER_TARGET\[\|FARM_LIMIT\[\|ARMY_ATTACK\[\|MIN_ARMY\[\|EVO_USERS" src/core/sim/*.ts`; depois da
+  troca, o mesmo `grep` só pode achar as declarações e o `AI_PACE_CLASSIC`/`AI_PACE`:
   `VILLAGER_TARGET[...]` → `pace.villagerTarget[...]` (as duas), `FARM_LIMIT[...]` → `pace.farmLimit[...]`,
   `ARMY_ATTACK[...]` → `pace.armyAttack[...]`, `MIN_ARMY[...]` → `pace.minArmy[...]`, `snap.villagers.length < 12` →
   `< pace.advanceMinVillagers`, Templo `>= 8` → `>= pace.templeVillagers`, 1º Quartel `>= 10` → `>= pace.barracksVillagers`,
@@ -1163,9 +1240,12 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
   /** E10: multiplicador do custo de cada nível das linhas da Biblioteca (índice = nível − 1). Os níveis 1–4 são da
    *  campanha e ficam 1 (tests/ai-pace.test.ts confere); o balanceamento das Eras V–VIII mexe nos níveis 5–8. */
   export const LINE_LEVEL_COST_MULT: readonly number[] = [1, 1, 1, 1, 1, 1, 1, 1];
-  const scaleCost = (c: Partial<Record<string, number>>, m: number) => (m === 1 ? c : Object.fromEntries(Object.entries(c).map(([k, v]) => [k, Math.round(((v ?? 0) * m) / 5) * 5])));
+  const scaleCost = (c: Cost, m: number): Cost => (m === 1 ? c : (Object.fromEntries(Object.entries(c).map(([k, v]) => [k, Math.round(((v ?? 0) * m) / 5) * 5])) as Cost));
   ```
-  e, dentro de `line()`, envolva o custo do nível: `cost: scaleCost(cost(lvl), LINE_LEVEL_COST_MULT[lvl - 1])`.
+  (`Cost` já é importado no topo de `techs.ts`). Dentro de `line()`, envolva o custo do nível: troque
+  `cost: opts.cost(lvl),` por `cost: scaleCost(opts.cost(lvl), LINE_LEVEL_COST_MULT[lvl - 1] ?? 1),`. As duas declarações
+  ficam **antes** de `line()` e de `RAW` (o `RAW` chama `line()` ao carregar o módulo: `const` declarado depois daria
+  `ReferenceError`).
   Reexporte em `src/core/data/index.ts` (na linha de `techs`). *Conferir:* smoke com o mesmo hash.
 - [ ] **J4. `tests/ai-pace.test.ts` (novo)** — seção "Testes" (com o `/tmp/e10/frozen.json` colado como constante).
   *Conferir:* `npx vitest run tests/ai-pace.test.ts`. Commit intermediário opcional: "E10: AI_PACE (sem mudança de
@@ -1223,7 +1303,9 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
 
 - [ ] **N1. Simulação.** As três linhas de simulação da E10-6, sozinhas na máquina. FORA: rode de novo (ruído de JIT);
   FORA duas vezes no mesmo trecho:
-  1. `npx tsx --cpu-prof --cpu-prof-dir /tmp/e10/prof scripts/perf.ts 40` e `node scripts/profsum.mjs /tmp/e10/prof/<arquivo>.cpuprofile`;
+  1. `npx tsx --cpu-prof --cpu-prof-dir /tmp/e10/prof scripts/perf.ts 40` e `node scripts/profsum.mjs /tmp/e10/prof/<arquivo>.cpuprofile`
+     (o `tsx` grava **dois** perfis — o do lançador, pequeno, e o do script: use o maior, `ls -S /tmp/e10/prof | head -1`;
+     esvazie a pasta antes de cada rodada);
   2. otimize **só** a função do topo, sem mudar o resultado (cache por tick, menos alocação, sair cedo de laço);
   3. prova: `npm run smoke 20 42` com o mesmo hash de antes da otimização e `missions.ts` igual à base;
   4. se não houver otimização sem mudar o resultado, registre como pendência (não reduza `PATH_BUDGET_PER_TICK` nem a
@@ -1249,7 +1331,9 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
   `npm run art:diff -- e10`. Para cada tomada acima de 2 %: olhe com a ferramenta Read `docs/art/e10-<nome>.png`,
   `docs/art/ref/<nome>.png` e `scratch/artdiff/<nome>*.png`. Se a diferença for só o que as etapas E1–E9 mudaram de
   propósito (nós de pedra, mar navegável, arte da E8), `node scripts/artdiff.mjs e10 --update` e diga no commit quais
-  tomadas e por quê; se houver diferença sem explicação, **não** atualize: registre e investigue.
+  tomadas e por quê; se houver diferença sem explicação, **não** atualize: registre e investigue. A tomada `cidade` é a
+  cidade da IA depois de 10 min simulados: o `AI_PACE` (bloco K) muda o que a IA constrói, então ela **vai** mudar — é
+  diferença esperada, mas olhe se a cidade continua cheia e sem nada procedural.
 - [ ] **P2. Cenas novas em `scripts/storeshots.mjs`.** `ORDER = ['cidade', 'moderna', 'batalha', 'mar', 'poder', 'tita', 'cerco', 'campanha', 'editor']`.
   - `moderna`: página nova (`newPage()`), `startGame` igual ao bloco de hoje mas com `startingAge: 6`; avance
     `Math.min(MINUTES, 14)` min como hoje (o jogador local como IA); escolha a cidade de IA com mais edifícios (o mesmo
@@ -1260,16 +1344,22 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
   - `mar`: página nova, `startGame` com `mapType: 'mediterranean'`, `startingAge: 4`, 2 jogadores (local + 1 IA
     Muito difícil), avance 3 min; ache o tile de água profunda mais perto do centro do mapa
     (`state.map.terrain[y * w + x] === 5`, varrendo anéis a partir do centro); ponha 6 `galleon` do jogador local a
-    6 tiles de um lado e 6 da IA do outro (pelo `debugSpawn`; se a E8 não deu camada ao `debugSpawn`, use o helper
-    naval da E4 para achar o tile — `grep -n "export function" src/core/sim/naval.ts`), `attackMove` de uns contra os
+    6 tiles de um lado e 6 da IA do outro (pelo `debugSpawn`, que desde a E4 procura tile pela camada da unidade —
+    `layerOf` — e põe o navio na água; confira com `grep -n "debugSpawn" src/main.ts`; um `null` = não achou água a
+    ≤ 12 tiles: escolha outro ponto do anel), `attackMove` de uns contra os
     outros, rode 8 s, `look` no ponto a zoom 1,2 e `shot(page, 'mar')`.
   - Os ids `fusilier`, `machine_gunner`, `tank`, `howitzer`, `galleon` são os da E3/E4: confira com `grep`.
   Rode `rm docs/steam/screens/*.jpg docs/steam/screens-en/*.jpg` e depois
   `npm run store:shots -- http://localhost:4173/ --out docs/steam/screens` e
   `npm run store:shots -- http://localhost:4173/ --lang en --out docs/steam/screens-en`. Olhe as 18 imagens com a
   ferramenta Read: HUD em PT/EN conforme a pasta, nenhuma cena vazia, nada procedural visível.
-- [ ] **P3. `docs/steam/LOJA.md`:** aplique a tabela E10-8 (confira os números antes) e conte os caracteres da descrição
-  curta: `node -e "console.log('<texto>'.length)"` ≤ 300.
+- [ ] **P3. `docs/steam/LOJA.md` e `docs/steam/PRESSKIT.md`:** aplique a tabela E10-8 (confira os números antes) e conte
+  os caracteres da descrição curta: `node -e "console.log('<texto>'.length)"` ≤ 300; troque também as contagens no
+  título de cada versão (`**PT-BR** (249):` → `(276)`, `**EN** (257):` → `(275)`, ou o que o `node` der). No mesmo
+  arquivo, em "Requisitos", refaça o tamanho com `npm run build && du -sh dist public/art` (a arte da E8 cresce) e
+  ajuste a frase "o `dist/` do jogo tem ~… MB" e o armazenamento (500 MB) se não couber mais com folga. No
+  `PRESSKIT.md`, as linhas de fatos ("5 Idades…", "12 poderes", "35 unidades…", "21 edifícios", "5 tipos de terreno",
+  "Escolhas divinas por Idade… 24 combinações", e as "Idades" do resumo PT/EN) saem dos números do comando da E10-8.
 - [ ] **P4.** Seção "Verificação" (itens da E10) e "Ao terminar".
 
 ---
@@ -1278,13 +1368,13 @@ Rode `npm run -s typecheck` no fim de **todo** passo. Testes podem ficar vermelh
 
 | Arquivo | O que verifica |
 |---|---|
-| `tests/encyclopedia.test.ts` (novo) | (1) para cada aba de `ENC_TABS`, `encyclopediaHtml(tab, { era: 'all' })` tem 8 `data-tab="`, a aba ativa, nenhum emoji (regex do `hud-icons.test.ts`), nenhum `>hack<`/`>pierce<`/`>crush<`/`>divine<`, nenhum `undefined`/`NaN`/`[object`; (2) aba `units`: todo `UNITS` com `building`, `line` ou tag `titan` aparece (procure `unit/<id>` no HTML); com `era: 4`, nenhuma unidade de outra Era (procure os ids e confira `unitEra`); (3) aba `lines`: `LINE_ORDER.length` linhas `<tr>` + 1 do cabeçalho, cada uma com 8 células de Era; (4) aba `wonders`: 20 maravilhas (`bld/wonder_` aparece 20 vezes) e, com `state` de `quickGame()`, a coluna Dono diz `t('enc.free')`; (5) aba `resources`: um `res/<r>` para cada `RESOURCES` e um `t('rare.<id>')` para cada `RARES`; (6) aba `ages`: 8 linhas; sem `state`, sem `#enc-tree`; com `state` e `local: 0`, `#enc-tree` e uma `enc-cur`; (7) `unitGroup`: `hoplite` → `lines`, `heracles` → `heroes`, `minotaur` → `myth`, `cronus` → `titans`; (8) com `setLocale('en')` (volte a `'pt'` no `finally`): os rótulos `Lines`, `Wonders`, `Resources` e nenhum `[ãõç]` fora de nomes de jogador |
+| `tests/encyclopedia.test.ts` (novo) | (1) para cada aba de `ENC_TABS`, `encyclopediaHtml(tab, { era: 'all' })` tem 8 `data-tab="`, a aba ativa, nenhum emoji (regex do `hud-icons.test.ts`), nenhum `>hack<`/`>pierce<`/`>crush<`/`>divine<`, nenhum `undefined`/`NaN`/`[object`. **Do item (2) em diante, conte no `encyclopediaBody(tab, ctx)`, não no `encyclopediaHtml`**: as abas do cabeçalho têm ícones (`unit/hoplite`, `bld/wonder_zeus`, `res/food`) que sujariam as contagens; (2) aba `units`: todo `UNITS` com `building`, `line` ou tag `titan` aparece (procure `data-ic="unit/<id>"`, com as aspas: `unit/hydra` não pode casar com outro id); com `era: 4`, nenhuma unidade de outra Era (procure os ids e confira `unitEra`); (3) aba `lines`: `LINE_ORDER.length` linhas `<tr>` + 1 do cabeçalho, cada uma com 8 células de Era; (4) aba `wonders`: 20 maravilhas (`bld/wonder_` aparece 20 vezes no corpo) e, com `state` de `quickGame()`, a coluna Dono diz `t('enc.free')`; com `s.config.wonderVictory = 'hold'`, o corpo contém `t('wv.hold')`; (5) aba `resources`: um `res/<r>` para cada `RESOURCES` e um `t('rare.<id>')` para cada `RARES`; (6) aba `ages`: 8 linhas; sem `state`, sem `#enc-tree`; com `state` e `local: 0`, `#enc-tree` e uma `enc-cur`; (7) `unitGroup`: `hoplite` → `lines`, `heracles` → `heroes`, `minotaur` → `myth`, `cronus` → `titans`; (8) com `setLocale('en')` (volte a `'pt'` no `finally`): os rótulos `Lines`, `Wonders`, `Resources` e nenhum `[ãõç]` fora de nomes de jogador |
 | `tests/i18n-eras.test.ts` (novo) | código abaixo |
 | `tests/gamepad.test.ts` | `treeJump`: nós `[{era:0,row:0},{era:1,row:0},{era:1,row:2},{era:3,row:2}]` → de 0 com +1 dá 1; de 2 com +1 dá 3; de 1 com −1 dá 0; de 0 com −1 dá 0; de 3 com +1 dá 3; de −1 com +1 dá 1; `[{era:0,row:5},{era:1,row:1},{era:1,row:4}]` de 0 com +1 dá 2; lista vazia dá −1; o texto `pad.hint.eras` existe em PT e EN |
 | `tests/studytree.test.ts` (da E1) | todo `<button class="tree-node` tem `data-era="` e `data-row="` (contagens iguais às de `data-study`); a `.tree-body` tem `data-scroll`; sem `opts`, nenhum `data-autofocus`; com `{ autofocus: true }` e uma Biblioteca pronta, exatamente um `data-autofocus`, num nó `st-available` |
 | `tests/relay-anticheat.test.ts` | `it` novo: o anfitrião manda `settings` `{ startAge: '2', endAge: '5', wonderVictory: 'hold' }` → o `lobby` dos outros traz os três; depois `{ startAge: 'banana', endAge: '9', wonderVictory: 'x' }` → o `lobby` continua com `'2'`, `'5'`, `'hold'`; `listRooms()` traz a sala com `startAge: '2', endAge: '5', wonderVictory: 'hold'`. O `toEqual` de hoje (linha ~252) não muda |
 | `tests/hud-icons.test.ts` | `'src/ui/encyclopedia.ts'` nas listas de "sem emoji" e de glifos usados |
-| `tests/ai-pace.test.ts` (novo) | (1) `AI_PACE` e `AI_PACE_CLASSIC`: as 4 tabelas com `AGES.length` posições; `AI_PACE_CLASSIC.villagerTarget` igual a `VILLAGER_TARGET` (idem as outras 3); (2) cada campo numérico de `AI_PACE` dentro de `AI_PACE_LIMITS`; cada posição de `AI_PACE.villagerTarget` a no máximo 12 do clássico, `farmLimit` e `minArmy` a 6, `armyAttack` a 8; (3) `aiPace(quickGame())` é `AI_PACE`; com `s.config = { ...s.config, scenario: 'm1_despertar' }`, é `AI_PACE_CLASSIC`; (4) `LINE_LEVEL_COST_MULT.slice(0, 4)` é `[1, 1, 1, 1]`, todo valor em [0,7; 1,3]; (5) congelados: `const FROZEN = <conteúdo de /tmp/e10/frozen.json>` e o mesmo `JSON.stringify(...)` do H2 dá igual; (6) `AGES[k].requires.techCount` não decresce e é ≤ 4·k |
+| `tests/ai-pace.test.ts` (novo) | (1) `AI_PACE` e `AI_PACE_CLASSIC`: as 4 tabelas com `AGES.length` posições; `AI_PACE_CLASSIC.villagerTarget` igual a `VILLAGER_TARGET` (idem as outras 3); `AI_PACE.villagerTarget !== VILLAGER_TARGET` (cópia, não o mesmo array; idem as outras 3); (1b) `AI_PACE_CLASSIC` inteiro igual (`toEqual`) a um literal com os valores anotados no H2 (`/tmp/e10/pace-classico.txt`) — sem isso, "ajustar" `VILLAGER_TARGET` em vez de `AI_PACE` mudaria a campanha e o (1) continuaria verde; (2) cada campo numérico de `AI_PACE` dentro de `AI_PACE_LIMITS`; cada posição de `AI_PACE.villagerTarget` a no máximo 12 do clássico, `farmLimit` e `minArmy` a 6, `armyAttack` a 8; (3) `aiPace(quickGame())` é `AI_PACE`; com `s.config = { ...s.config, scenario: 'm1_despertar' }`, é `AI_PACE_CLASSIC`; (4) `LINE_LEVEL_COST_MULT.slice(0, 4)` é `[1, 1, 1, 1]`, todo valor em [0,7; 1,3]; (5) congelados: `const FROZEN = <conteúdo de /tmp/e10/frozen.json>` e o mesmo `JSON.stringify(...)` do H2 dá igual; (6) `AGES[k].requires.techCount` não decresce e é ≤ 4·k |
 | `tests/eras.test.ts` (da E1) | sem mudança de lógica; se a E10 mudou `techCount` das Eras 4–7, o teste da E1 (não decresce, ≤ 4·k) continua valendo |
 
 Código de `tests/i18n-eras.test.ts`:
@@ -1312,7 +1402,7 @@ const GLOSSARY: [RegExp, RegExp][] = [
   [/\bEras?\b/, /\bEras?\b/], [/Biblioteca/, /Librar(y|ies)/], [/\bPedra\b/, /Stone/i], [/Petróleo/, /\bOil\b/i],
   [/Maravilha/i, /Wonder/i], [/Estaleiro/, /Shipyard/], [/Caravana/i, /Caravan/i], [/Mercador/, /Merchant/],
   [/\bestudos?\b/i, /stud(y|ies)/i], [/Bênçãos?/, /Blessing/], [/Centros? Cívicos?/, /Town Centers?/], [/Templo/, /Temple/],
-  [/Fortaleza/, /Fortress/], [/Conhecimento/, /Knowledge/], [/\bFavor\b/, /Favor/], [/Titãs?\b/, /Titans?/],
+  [/Fortaleza/, /Fortress/], [/Conhecimento/, /Knowledge/], [/\bFavor\b/, /Favor/], [/Titã/, /Titan/],   // sem \b depois do "ã": no JS sem a flag u o \b não vê o ã como letra e o singular escaparia
   [/deus(es)? menor(es)?/i, /minor gods?/i],
 ];
 /** Nomes próprios iguais nos dois idiomas (acrescente só nome próprio, com comentário). */
@@ -1411,7 +1501,10 @@ Rode na ordem. Cada linha diz o que esperar. Comandos longos vão em segundo pla
    considere verde se cada um passar. Um `expect` vermelho é falha de verdade.
 4. `npm run smoke 20 42` → o **mesmo** "hash final" do 0.2 (a E9 não muda a simulação).
 5. `npx tsx scripts/i18n-review.ts` → grava a planilha; ela foi lida inteira (C3).
-6. `npm run build` e `npm run preview` (porta 4173, em segundo plano). Depois, cada um com `errors: none` e código 0:
+6. `npm run build` e `npm run preview` (porta 4173, em segundo plano). Depois, cada um com `errors: none`, código 0
+   **e nenhuma linha com `FALHOU`/`DIVERGENTES`** (o `playtest-gamepad`, o `playtest-mp`, o `playtest-rooms` e o
+   `playtest-spectate` só imprimem o veredito e saem com 0 mesmo falhando: rode cada um com `> /tmp/e9/<nome>.txt 2>&1`
+   e confira `grep -c "FALHOU\|DIVERGENTES" /tmp/e9/<nome>.txt` = 0):
    `node scripts/playtest.mjs http://localhost:4173/ /tmp/e9/pt`, `node scripts/playtest-eras.mjs http://localhost:4173/`,
    `node scripts/playtest-eras.mjs http://localhost:4173/ --lang en`, `node scripts/playtest-i18n.mjs http://localhost:4173/`,
    `node scripts/playtest-noemoji.mjs http://localhost:4173/`, `node scripts/playtest-gamepad.mjs http://localhost:4173/`,
@@ -1510,11 +1603,26 @@ Rode na ordem. Cada linha diz o que esperar. Comandos longos vão em segundo pla
   `tests/hud-icons.test.ts` e o atlas quebram. Só textos mudam.
 - **`storeSet`:** a E9 não grava nada novo do jogador (o filtro da enciclopédia fica na memória). Se gravar algo, use
   `storeSet`/`storeRemove`, nunca `localStorage.setItem` (`tests/steam.test.ts`).
-- **VRAM e cenas de render:** `--types` com tipo naval põe o navio em terra (sem a camada da E8) e distorce a medição;
-  `renderperf` com Eras altas carrega mais páginas — compare com a base da E8, não com a de antes da expansão.
+- **VRAM e cenas de render:** `--types` com tipo naval não nasce (as cenas são em terra e o `debugSpawn` da E4 só põe
+  navio na água) e a medição sai com menos unidades; `renderperf` com Eras altas carrega mais páginas — compare com a base
+  da E8, não com a de antes da expansão.
 - **Bake:** a E10 não roda `npm run art:bake` (sem `--out` ele reempacota `public/art` só com o cache e apaga unidades).
 - **vitest:** `it` com mais de ~20 s numa máquina carregada dá `Timeout calling "onTaskUpdate"` e código 1 com tudo
   passando (`docs/QA.md`). Os testes novos não simulam minutos de jogo; mantenha assim.
+- **JSON das missões (C1):** corrija texto com a ferramenta Edit, trecho a trecho. **Nunca** reformate o arquivo
+  (`JSON.stringify(…, null, 2)`, formatador do editor): os `scripts/maps/m*.ts --write` só acham o mapa se a linha
+  `  "map": { "data": … },` continuar sendo uma linha só, e os testes `m4_caucaso`/`m5_itaca`/… comparam o mapa.
+- **Horda sem teto de Era:** a Horda é cenário (IA no `AI_PACE_CLASSIC`, conteúdo clássico), mas não tem `maxAge` (E1 D11):
+  o jogador da Horda alcança as Eras V–VIII, então os degraus da escada nos dados de `AGES[4..7]` chegam até ela. O
+  `scripts/horde.ts` (sem jogador) não percebe; registre no `PROGRESSO.md` quais custos/tempos de V–VIII mudaram.
+- **Testes com números da IA:** `tests/economy-regressions.test.ts`, `tests/movement-ai.test.ts`, `tests/sim.test.ts`,
+  `tests/eras.test.ts` e as sondagens de `tests/position-fairness.test.ts` rodam partidas **fora** de cenário, então veem o
+  `AI_PACE`. Se um degrau derrubar um deles, o degrau não serve: desfaça (não afrouxe o teste) e tente o próximo da escada.
+- **Efeitos (`tests/fx-registry.test.ts`):** a E9 e a E10 não criam `VisualEffect`/`TimedEffect`; se uma correção do L2
+  emitir um evento novo do núcleo, o registro exige handler (`src/render/fx/`), como nas etapas anteriores.
+- **Árvore aberta pelo menu:** o menu pausa a partida e o comando só entra no próximo tick. O E2 tira a pausa ao abrir a
+  árvore pelo `#m-tree`; se um playtest abrir a árvore com o jogo pausado de outro jeito, o A/clique só muda a fila depois
+  que a partida voltar a rodar.
 
 ---
 
@@ -1561,7 +1669,9 @@ Rode na ordem. Cada linha diz o que esperar. Comandos longos vão em segundo pla
    que já existe hoje", "partida de 8 Eras no ritmo II ~4 … VIII ~40".
 6. **`CLAUDE.md`**: em "Comandos", troque `npm run balance 35 1,2,3` por
    `npm run balance 60 1-18 -- --jobs 3 --targets` (ritmo das Eras; `--stalls-only`, `--diff`, `--map-type`) e
-   acrescente `node scripts/profsum.mjs <perfil>`; em "Convenções": "ritmo da IA fora de cenário em `AI_PACE`
+   acrescente `node scripts/profsum.mjs <perfil>`; em "Convenções", troque a linha "Ao mudar balanceamento, rode
+   `npm run balance` e observe minutos das idades (Clássica ~5, Heroica ~15-20, Mítica ~20-28)" pelo ritmo novo medido
+   (II ~4 … VIII ~40, com o comando de aceitação) e acrescente "ritmo da IA fora de cenário em `AI_PACE`
    (`src/core/sim/ai.ts`); dados das Eras II–IV, níveis 1–4 das linhas e as 35 unidades clássicas congelados
    (`tests/ai-pace.test.ts`, campanha)"; na "Memória do projeto", um item curto "E10 (data): ritmo medido …".
 7. **Commit** em português com o rodapé da sua sessão, por exemplo:
@@ -1576,4 +1686,4 @@ Rode na ordem. Cada linha diz o que esperar. Comandos longos vão em segundo pla
 
    <rodapé de atribuição da sessão>
    ```
-   Não faça `push` sem pedido do dono.
+   Faça push só para a branch da sessão (rotina do `docs/eras/LEIA-ME.md`); nunca para `main` sem pedido do dono.

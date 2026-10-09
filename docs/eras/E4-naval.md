@@ -2,12 +2,22 @@
 
 - Estado: pendente · Pré-requisitos: **E1, E2 e E3 concluídas** (8 Eras e `isScenarioConfig` da E1; `stone`/`oil`, `RARE_NODES`, `RARE_SET`, `NOT_GATHERED`, `canWorkNode`, `src/core/data/rares.ts` e `src/render/art/alias.ts` da E2; `src/core/data/lines.ts`, `src/core/sim/lines.ts`, `trainChoices`, `evolutions()` e `UnitDef.line/tier/lineOnly/attackInterval` da E3) · Estimativa: 9 dias de trabalho do agente (camada naval e núcleo 3, mapas e editor 2, IA 2, renderização/interface/ícones 1, verificação e documentação 1)
 
+> **Antes de começar:** leia `docs/eras/LEIA-ME.md` (rotina de cada sessão, regras, quando parar) e marque cada
+> passo em `docs/eras/PROGRESSO.md`. Ordem das etapas: E1, E2, E3, E4, E5+E7, E6, E8, E9+E10. Onde este guia falar de
+> commit ou de push, vale a rotina do LEIA-ME: um commit por passo e push só para a branch da sessão.
+
 > Guia de execução para um agente sem o contexto da conversa que o escreveu. Siga os blocos na ordem (0, A … H), um
 > commit por bloco ou um só no fim. Todo número de jogo daqui é **valor inicial para o balanceamento** (a E10 ajusta):
 > copie, não recalcule. O código citado foi conferido em 06/10/2026, **antes** de E1–E3; elas mexem em volta (por exemplo
 > a E3 troca o laço de treino da IA por `trainChoices`). Se um trecho não estiver exatamente como descrito, procure pelo
 > nome da função e aplique a mesma mudança sobre o que E1–E3 deixaram; nunca desfaça nada delas. Números de linha são
 > aproximados. **Se algum arquivo marcado "(da E1/E2/E3)" não existir, pare: a pré-condição não foi cumprida.**
+>
+> Revisão adversarial contra o código (09/10/2026): caminhos, funções e testes citados conferidos; corrigidos o custo do
+> Dromon (teste de custo crescente da E3), os comandos `map:export` (o npm engole as opções sem `--`), o laço de tentativa
+> do Estaleiro da IA (só o jogador 0 construía), a IA estudando evoluções navais em mapa terrestre (quebraria o diff do
+> smoke), o aviso `seasApart` no Estreito, a pesca nas Ilhas pequenas e uma dúzia de pontos em que o navio caía em terra
+> (`createGame`, `debugSpawn`, guarnição, oração). Os trechos de código continuam sem compilar: o typecheck é o juiz.
 
 ---
 
@@ -70,16 +80,16 @@ Decisões deste guia (cada uma com o motivo em uma linha):
 | D8 | `rare_fish` entra em `RARE_SET` e `NOT_GATHERED`, **não** em `RARE_NODES`. | A E2 sorteia `rng.int(0, RARE_NODES.length - 1)` no gerador: aumentar a lista mudaria todos os mapas da E2 e poria peixe em terra. |
 | D9 | **Transporte**: comandos novos `embark` (tropas → transporte) e `unload` (transporte → ponto). Passageiro fica com `inside = id do navio` (como a guarnição) e o navio guarda `Unit.cargo`. Capacidade 20 de população; titãs, voadoras, imóveis e navios não embarcam; cavalaria e cerco embarcam. Navio morto mata a carga. | Reaproveita tudo o que já ignora unidade guarnecida (render, névoa, colisão, IA, seleção). |
 | D10 | **Combate entre meios**: corpo a corpo (alcance < 1,6) não ataca o outro meio, exceto titãs; tiro e edifícios atacam. Quem ataca anda até o tile **do próprio meio** de onde alcança o alvo (`approachTile`). | "Atacam outros navios e a costa" (§8) sem anfíbios nesta etapa. |
-| D11 | Linhas (E3): `warship` (8 degraus), `fishing` e `transport` (tipo fixo, um estudo "A vapor" na Era VII, como os cidadãos), todas no Estaleiro, teclas `Q` pesca, `W` transporte, `E` guerra. Elenco clássico: `shipyard.trains = ['fishing_boat', 'transport_ship', 'penteconter']`. | Mesmo mecanismo da E3 (D3/D6/D7 de lá); `T` fica para o mercante da E5. |
+| D11 | Linhas (E3): `warship` (8 degraus), `fishing` e `transport` (tipo fixo, um estudo "A vapor" na Era VII, como os cidadãos), todas no Estaleiro, teclas `Q` pesca, `W` transporte, `E` guerra. Elenco clássico: `shipyard.trains = ['fishing_boat', 'transport_ship', 'penteconter']`. | Mesmo mecanismo da E3 (D3/D6/D7 de lá). Letras **reservadas** no Estaleiro, que a E4 não usa: `T` e `M`/`C`/`V`/`B` (mercante da E5: o guia dela pega a 1ª livre de M, C, V, B) e `Z`/`X`/`C` (criaturas navais da E6). |
 | D12 | Números dos navios de guerra pela **regra de escala da E3** a partir do Pentecôntero (vida e DPS ×1,2 por Era, armadura +0,02, custo ×1,1, treino +1 s); exceções na tabela. | Sem chute; consistente com as linhas terrestres. |
 | D13 | **Navio mercante** só reservado (linha de dados de referência); a E5 cria a unidade e as rotas. | Rotas entre portos são da E5 (§7, §11). |
 | D14 | **Navios desligados em cenário**: `navalOn(state) = state.config.naval ?? !isScenarioConfig(state.config)`. Desligado, `isForbidden` proíbe edifício `shore` e unidade `naval` (o HUD mostra o motivo como qualquer proibido). Cenário JSON liga com `"naval": true`. | As 12 missões e a Horda não foram calibradas com frota (a m8 tem Oceano na costa); mesma forma do `unitLines` da E3. |
 | D15 | Tipos novos `coastal`, `islands`, `mediterranean` **no fim** de `MAP_TYPES`. Para os 5 tipos de hoje o gerador não muda (os hashes de `tests/fixedmap.test.ts` ficam iguais). Peixe só nos 3 tipos novos e no Egeu (`placeNavalResources`, RNG próprio `seed ^ 0x6a09e667`, depois de `placeEraResources` da E2). Lagos dos mapas de hoje ficam navegáveis, sem peixe. | Nenhum mapa gerado de hoje muda (campanha m9 em `lakes` 9909, roteiros, hashes). |
-| D16 | Ilhas: **sem** `ensureConnectivity` (inícios separados por mar). Ilhas com Rei da Colina: a ilhota central liga-se às ilhas por **baixios** (`carveCorridor` com `SHALLOWS`). | O tipo existe para forçar o mar; o modo KotH precisa de rota a pé. |
+| D16 | Ilhas: **sem** `ensureConnectivity` (inícios separados por mar). Ilhas com Rei da Colina: o `ensureConnectivity` do `if (clearCenter)` roda com `SHALLOWS` — ele liga cada ilha **e** a ilhota central à região do início 1 por corredores de baixio (não necessariamente pela ilhota), e o mar continua um só. Nesse modo as ilhas ficam ligadas a pé e a IA não entra em "modo ilha". | O tipo existe para forçar o mar; o modo KotH precisa de rota a pé. |
 | D17 | **Egeu**: os baixios de areia viram `SHALLOWS` (o mar fica um só), com 6 cardumes por início e 1 atum por quadrante, simétricos. O **Estreito não muda**. | §8 pede o Egeu; o Estreito fica de controle da justiça (sem peixe a IA não monta frota lá). |
 | D18 | **Visão no mar** igual à de hoje (sem bloqueio de linha de visão): navio vê pelo `los`, passageiro não vê, edifício na margem vê o mar. | `fog.ts` já marca por círculo e ignora quem está dentro. |
 | D19 | **Poseidon**: navios −10 % de custo e +10 % de velocidade, pesca +15 %. **Oceano**: bônus ×3 contra `ship` e, como todo titã, golpeia navio a partir da margem; andar no mar (anfíbio) fica para a **E6**. | §8 e §6; o anfíbio vem junto com Hipocampos/Escila/Ceto na E6 e não mexe na m8 agora. |
-| D20 | **IA**: Estaleiro só com peixe perto (≥ 2 cardumes) **ou** em "modo ilha" (nenhum Centro Cívico inimigo alcançável por terra). Barcos, frota e transportes por tabelas de 8 posições; desembarque por máquina de estados em `ai.navy`; nada de rng; escolhas por `findBuildSpot`, `approachTile` e `shoreTileNear` (desempate pelo centro do mapa e `frameCompare`). | Justiça de posição (CLAUDE.md) e partidas terrestres idênticas. |
+| D20 | **IA**: Estaleiro só com peixe perto (≥ 2 cardumes) **ou** em "modo ilha" (nenhum Centro Cívico inimigo alcançável por terra **e** o meu e o dele no mesmo mar grande — `seaOfStart`). Uma tentativa por janela de 10 s de jogo, igual para todos os jogadores. Barcos, frota e transportes por tabelas de 8 posições; um barco ocioso ocupa o atum livre; desembarque por máquina de estados em `ai.navy`; nada de rng; escolhas por `findBuildSpot`, `approachTile` e `shoreTileNear` (desempate pelo centro do mapa e `frameCompare`). As evoluções das linhas navais (E3, `evolutionPriority`) só entram na lista de estudos de quem tem Estaleiro pronto. | Justiça de posição (CLAUDE.md) e partidas terrestres idênticas (sem a última regra, a IA estudaria `evo_warship_*` num mapa sem mar e o diff do smoke não ficaria vazio). |
 | D21 | Pesquisas do Estaleiro (4) ficam **fora** da Biblioteca. | §2: as de economia ficam fora; estas são do edifício. |
 | D22 | Arte provisória: navio **procedural** (`drawShip` em `textures.ts`) e esteira (`unitFx.ts`); ícones `unit/<navio>` de um objeto novo `ship` (`hud-objects.js`); Estaleiro pelo alias `siege_workshop`. Sem bake. | Nenhuma página nova de VRAM; a E8 faz os rigs. |
 | D23 | `SIM_VERSION` +1. O formato do save **não** sobe (o `deserialize` dá `cargo: []`; `ai.navy` é opcional). | Novos campos com padrão (regra do núcleo). |
@@ -111,7 +121,7 @@ Decisões deste guia (cada uma com o motivo em uma linha):
 | `src/core/sim/units.ts` | movimento, separação, coleta, entrega e ataque pela camada; ordens `embark`/`unload` |
 | `src/core/sim/queries.ts` | `nodeAccessTiles` pela camada do nó; `canWorkNode` (da E2) com barcos |
 | `src/core/sim/combat.ts` | `ATTACK_INTERVAL.ship`; `canTarget` entre meios; `killUnit` afunda a carga e sai do navio |
-| `src/core/sim/entities.ts` | `canPlaceBuilding` (terreno, margem, território); `openTile`/`findSpawnTile` com `layer`; empurrões ignoram navios; `removeUnitNow` com carga |
+| `src/core/sim/entities.ts` | `canPlaceBuilding` (terreno, margem, território); `openTile`/`findSpawnTile` com `layer`; empurrões ignoram navios; `removeUnitNow` com carga; `canGarrison` recusa navio |
 | `src/core/sim/buildings.ts` | navio nasce na água |
 | `src/core/sim/commands.ts` | `move` pela camada; casos `embark` e `unload` |
 | `src/core/sim/validate.ts` | `embark` e `unload` no `sanitizeCommand` |
@@ -119,24 +129,25 @@ Decisões deste guia (cada uma com o motivo em uma linha):
 | `src/core/sim/modifiers.ts` | `defaultMods().gather.fish` |
 | `src/core/sim/economy.ts` | ocupação de raro (da E2) aceita barco de pesca |
 | `src/core/sim/powers.ts` | Isca, Maldição e Cornucópia não caem em água/baixio |
-| `src/core/sim/game.ts` | `summarize` com `nav=` (só quando > 0) |
-| `src/core/sim/ai.ts` | `Snapshot.ships`; `manageNavy`, `manageInvasion`, `islandMode`, `invasionTarget`; tabelas navais; guardas em `manageTraining`/`manageArmy`; `RESEARCH_PRIORITY` |
-| `src/core/scenario/schema.ts`, `src/core/scenario/compile.ts` | `config.naval?: boolean` (como o `unitLines` da E3); guarda de guarnição em navio |
+| `src/core/sim/game.ts` | `summarize` com `nav=` (só quando > 0); `createGame` põe as unidades do mapa fixo pela camada delas |
+| `src/core/sim/ai.ts` | `Snapshot.ships`; `manageNavy`, `manageInvasion`, `islandMode`, `invasionTarget`; tabelas navais; guardas em `manageTraining`/`manageArmy`; `RESEARCH_PRIORITY`; `evolutionPriority` (da E3) sem linhas navais para quem não tem Estaleiro; `manageMerchants` (da E2) sem o atum |
+| `src/main.ts` | `debugSpawn` pela camada da unidade (o playtest põe navios na água) |
+| `src/core/scenario/schema.ts`, `src/core/scenario/compile.ts` | `config.naval?: boolean` (como o `unitLines` da E3) |
 | `src/i18n/strings.ts`, `src/i18n/en-data.ts` | textos PT e EN (tabelas abaixo) |
-| `src/editor/editor.ts`, `src/editor/ops.ts`, `src/editor/panel.ts`, `src/editor/types.ts` | baixio, peixes, navios, sobreposição do mar, regras de terreno pela camada |
+| `src/editor/editor.ts`, `src/editor/ops.ts`, `src/editor/panel.ts`, `src/editor/types.ts` | baixio, peixes, navios, sobreposição do mar, regras de terreno pela camada (inclusive `runMapFix` e `moveEntity`); coluna `fish` na tabela por início |
 | `src/render/textures.ts` | `drawShip`; desenho de `fish`/`rare_fish`; `NODE_TYPES` |
 | `src/render/renderer.ts` | balanço do navio; sobreposição `showNaval` |
 | `src/render/palette.ts`, `src/render/terrain/materials.ts`, `src/render/minimap.ts`, `src/render/props.ts` | cor e material do baixio; cor dos peixes; água inclui baixio |
 | `src/render/fx/logic.ts`, `src/render/fx/rules.ts`, `src/render/fx/unitFx.ts`, `src/render/fx/handlers/projectile.ts` | navio sem poeira; esteira; água inclui baixio |
 | `src/render/art/alias.ts` (da E2) | `shipyard: 'siege_workshop'` |
 | `src/audio/audio.ts`, `src/audio/events.ts`, `src/audio/ambience.ts` | `ACKS.ship`; morte de navio; água inclui baixio |
-| `src/ui/hud.ts`, `src/ui/input.ts` | carga no cartão; botão e tecla de desembarque; clique direito embarca/desembarca |
+| `src/ui/hud.ts`, `src/ui/input.ts` | carga no cartão; botão e tecla de desembarque; clique direito embarca/desembarca; Estaleiro fora do menu de construção com navios desligados; navio fora de "guarnecer" |
 | `scripts/bake/hud/catalog.mjs`, `scripts/bake/page/hud-objects.js` | `SHIP_ICONS`; `OBJ.ship`, `OBJ.fish`; ícones das pesquisas e das 3 linhas |
 | `public/art/hud-*.png`, `public/art/hud-*.json`, `public/art/manifest.json` | regerados por `npm run art:hud` (nunca à mão) |
 | `scripts/export-map.ts`, `scripts/mapcheck.ts` | texto de uso com os tipos novos; peixe e Estaleiro por início |
 | `scripts/maps/lib.ts`, `scripts/maps/egeu.ts`, `src/core/data/maps/egeu.map.json` | `fish` na igualdade por início; Egeu navegável com peixe (arquivo regerado pelo script) |
 | `scripts/playtest-naval.mjs` (novo), `scripts/playtest-editor.mjs` | playtest naval; chips de terreno e de nós |
-| `tests/naval.test.ts` (novo) e os da seção "Testes" | — |
+| `tests/naval.test.ts` (novo) e os da seção "Testes" (inclusive `tests/unit-lines.test.ts` e `tests/studytree.test.ts` da E3, que contam linhas, degraus e estudos) | — |
 | `docs/EDITOR.md`, `docs/eras/PROGRESSO.md`, `docs/ROADMAP.md`, `CLAUDE.md` | documentação (bloco H) |
 
 **Não mexa em:** `scripts/maps/estreito.ts` e o seu `.map.json`; os mapas de missão (`scripts/maps/m*.ts`,
@@ -206,7 +217,7 @@ hack/pierce/crush · alcance · velocidade · visão · treino (s) · pop · rai
 | `penteconter` | Pentecôntero / Pentecônteros | Penteconter / Penteconters | I (0) · warship/0 | wood 120, gold 40 | 300 | 12 pierce | 2.0 | .15/.25/.05 | 6 | 3.2 | 10 | 30 | 3 | 0.6 | ship, military, ranged | ship ×1.5 | — |
 | `trireme` | Trirreme / Trirremes | Trireme / Triremes | II (1) · warship/1 | wood 130, gold 45 | 360 | 14 pierce | 2.0 | .17/.27/.07 | 6 | 3.6 | 10 | 31 | 3 | 0.6 | ship, military, ranged | ship ×1.5 | — |
 | `quinquereme` | Quinquerreme / Quinquerremes | Quinquereme / Quinqueremes | III (2) · warship/2 | wood 145, gold 50 | 430 | 19 pierce | 2.2* | .19/.29/.09 | 6.5 | 3.0 | 10 | 32 | 3 | 0.65 | ship, military, ranged | ship ×1.5 | — |
-| `dromon` | Dromon / Dromons | Dromon / Dromons | IV (3) · warship/3 | wood 160, gold 55, oil 30 | 520 | 26 crush | 2.0 | .21/.31/.11 | 3.5 | 3.2 | 10 | 33 | 3 | 0.65 | ship, military, ranged, fire | ship ×1.5, building ×1.5 | 1.0 |
+| `dromon` | Dromon / Dromons | Dromon / Dromons | IV (3) · warship/3 | wood 160, gold 55, oil 15 | 520 | 26 crush | 2.0 | .21/.31/.11 | 3.5 | 3.2 | 10 | 33 | 3 | 0.65 | ship, military, ranged, fire | ship ×1.5, building ×1.5 | 1.0 |
 | `galleon` | Galeão / Galeões | Galleon / Galleons | V (4) · warship/4 | wood 175, gold 60 | 620 | 37 crush | 3.0* | .23/.33/.13 | 7 | 2.8 | 11 | 34 | 3 | 0.7 | ship, military, ranged, gunpowder | ship ×1.5, building ×2 | 0.6 |
 | `ship_of_the_line` | Navio de Linha / Navios de Linha | Ship of the Line / Ships of the Line | VI (5) · warship/5 | wood 195, gold 65 | 745 | 45 crush | 3.0* | .25/.35/.15 | 7.5 | 2.7 | 11 | 35 | 3 | 0.7 | ship, military, ranged, gunpowder | ship ×1.5, building ×2 | 0.8 |
 | `ironclad` | Couraçado / Couraçados | Ironclad / Ironclads | VII (6) · warship/6 | wood 215, gold 70, oil 40 | 1075 | 54 crush | 3.0* | .37/.47/.27 | 8 | 3.0 | 12 | 36 | 3 | 0.7 | ship, military, ranged, gunpowder, mechanical | ship ×1.5, building ×2 | 0.8 |
@@ -221,8 +232,11 @@ escreva `attackInterval` só onde há `*`.
 Como os números saíram (não recalcule): âncora `penteconter` (vida 300, DPS 6); degrau `n` Eras acima: vida ×1,2ⁿ
 (múltiplo de 5), DPS ×1,2ⁿ e ataque = DPS × intervalo, armadura +0,02·n, custo ×1,1ⁿ (múltiplo de 5), treino +n.
 Exceções: trirreme velocidade 3,6; quinquerreme alcance 6,5 e intervalo 2,2; dromon alcance 3,5, DPS ×1,25 (fogo de
-curto alcance), `crush`, área 1,0, petróleo 30; pólvora (V+) `crush`, intervalo 3,0 (3,5 no VIII), área e bônus contra
+curto alcance), `crush`, área 1,0, petróleo 15; pólvora (V+) `crush`, intervalo 3,0 (3,5 no VIII), área e bônus contra
 edifício; couraçado e encouraçado vida ×1,2 extra e armadura +0,1 (ferro), petróleo 40/100.
+O petróleo do Dromon é 15 (e não 30) porque o teste da E3 "dentro de cada linha, vida e custo crescem com o degrau"
+(`tests/unit-lines.test.ts`) soma todos os recursos do custo: com 30, o Dromon (245) passaria do Galeão (235). Totais da
+linha: 160, 175, 195, 230, 235, 260, 325, 415 — estritamente crescentes; não mexa em um sem refazer a soma.
 
 Descrições (`desc`, PT e EN):
 
@@ -241,7 +255,8 @@ Descrições (`desc`, PT e EN):
 
 Reservado para a **E5** (não crie agora): `merchant_ship` · Navio Mercante / Navios Mercantes · Merchant Ship / Merchant
 Ships · III (2) · wood 120, gold 30 · vida 280 · ataque 0 · .15/.25/.05 · vel. 3.4 · visão 8 · treino 25 · pop 2 · raio
-0.6 · tags ship, civilian · tecla `T` no Estaleiro (linha `merchant`).
+0.6 · tags ship, civilian. A tecla e a forma de treino são decisão do guia da E5 (lá: no `trains` do Estaleiro, a 1ª letra
+livre de M, C, V, B); por isso a E4 não usa nenhuma dessas letras, nem `T`, `Z` e `X`, no Estaleiro.
 
 Também em `units.ts`: `UNIT_TAGS` com `'ship'` no fim; `oceanus.bonus = { building: 4, ship: 3 }`.
 
@@ -340,8 +355,11 @@ deixa de ser sorteado e aponta para a terra (Costeiro e Ilhas: para o centro do 
 `CIRCLE32`); medido: razão mín/máx por início 0,98–1,00 em média.
 
 Peixe (`placeNavalResources`): por início, na direção do mar (Costeiro e Ilhas: oposta ao centro; Mediterrâneo: para o
-centro), 3 cardumes de 3 peixes a `r0 + 2,5` e `r0 + 3` (ângulos 0, +4, −4), onde `r0` é o primeiro tile de mar grande
-nessa direção, e 1 atum a `r0 + 8`; mais 1 cardume de alto-mar a cada 450 tiles de mar, longe ≥ 20 de todo início.
+centro), 3 cardumes de 3 peixes a `r0 + 2,5` e `r0 + 3` (ângulos 0, +4, −4), onde `r0` (≤ 20) é o primeiro tile de mar
+grande nessa direção, e 1 atum a `r0 + 8`; se essa direção não comportar os 9 peixes, as direções +8, −8 e +16 (o lado
+oposto) completam. Mais 1 cardume de alto-mar a cada 450 tiles de mar, longe ≥ 20 de todo início. **Isto não foi medido
+no protótipo** (ele mediu formas, recursos iniciais e lugar de Estaleiro): o fallback existe porque, nas Ilhas do mapa
+pequeno (80×80), a faixa de mar atrás de uma ilha alinhada a um eixo tem ~1,7 tile e não cabe cardume nenhum.
 
 ### Textos novos (`src/i18n/strings.ts`, PT e EN; sem emoji)
 
@@ -367,6 +385,7 @@ nessa direção, e 1 atum a `r0 + 8`; mais 1 cardume de alto-mar a cada 450 tile
 | `sel.cargo` | Carga | Cargo |
 | `cmd.unload` | Desembarcar | Unload |
 | `cmd.unloadTip` | `<b>Desembarcar</b><div class="desc">A carga desce na margem mais perto. Clique direito em terra desembarca lá. Atalho: U.</div>` | `<b>Unload</b><div class="desc">The cargo goes ashore on the nearest bank. Right-click on land to unload there. Hotkey: U.</div>` |
+| `hk.unload` | Desembarcar a carga do transporte selecionado | Unload the selected transport's cargo |
 | `map.issue.fishOnLand` | Peixe fora de água aberta | Fish outside open water |
 | `map.issue.shipOnLand` | Navio fora da água | Ship outside water |
 | `map.issue.shoreNoWater` | Estaleiro sem mar aberto encostado | Shipyard without open sea alongside |
@@ -428,7 +447,7 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
 
 ### Bloco 0 — Preparação
 
-- [ ] **01. Pré-voo.** `git status` limpo; `docs/eras/PROGRESSO.md` marca E1, E2 e E3 como prontas; existem
+- [ ] **01. Pré-voo.** `git status` limpo; `docs/eras/PROGRESSO.md` marca E1, E2 e E3 como `feito`; existem
   `src/core/data/lines.ts`, `src/core/sim/lines.ts`, `src/core/data/rares.ts`, `src/render/art/alias.ts`;
   `npx tsx -e "import { LINES } from './src/core/data'; console.log(Object.keys(LINES).length)"` imprime 10. Leia os
   guias `docs/eras/E2-recursos.md` (passos 7, 8, 11, 17, 25) e `docs/eras/E3-linhas-de-unidade.md` (blocos A, B e C).
@@ -438,7 +457,7 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
   npx vitest run 2>&1 | tail -5 > /tmp/e4-base/vitest.txt
   npm run smoke 20 42 | grep -v "reais\|tempo real\|ms/tick\|hash final" > /tmp/e4-base/smoke.txt
   npm run balance 35 1,2,3 | grep -v "reais\|ms/tick" > /tmp/e4-base/balance.txt
-  npx tsx scripts/missions.ts > /tmp/e4-base/missions.txt 2>&1
+  npx tsx scripts/missions.ts 2>&1 | sed -E 's/ \([0-9.]+s\)$//' > /tmp/e4-base/missions.txt   # tira o "(12.3s)" do fim das linhas
   npx tsx scripts/maps/fairness.ts estreito 45 1-16 zeus --both --jobs 3 > /tmp/e4-base/fair-estreito.txt
   npx tsx scripts/maps/fairness.ts egeu 45 1-16 zeus --both --jobs 3 > /tmp/e4-base/fair-egeu.txt
   ```
@@ -471,7 +490,12 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
   `modifiers.ts` `defaultMods().gather`: acrescente `fish: 1` **no fim** do literal. `entities.ts` `spawnUnit`:
   `cargo: []` no literal da unidade (depois de `inside: -1`). `serialize.ts` `deserialize`, no objeto da unidade:
   `cargo: Array.isArray(u.cargo) ? u.cargo : []`. O typecheck acusa os `Record<NodeType, …>` sem as linhas novas
-  (`NODE_AMOUNT` em `mapgen.ts`: `fish: 450, rare_fish: 99999`; `NODE_ICONS` em `panel.ts`: preencha já como no passo D7).
+  (`NODE_AMOUNT` em `mapgen.ts`: `fish: 450, rare_fish: 99999`; `NODE_ICONS` em `panel.ts`: preencha já como no passo D7)
+  e o `Record<MapType, …>` de `MAP_PRESETS` em `mapgen.ts`: acrescente **já** `coastal`, `islands` e `mediterranean` com
+  os números de `continental` (o passo D1.1 só confere). Se o `deserialize` ainda montar o `mods` com um literal
+  `gather: { food: 1, … farm: 1 }` (a E2 o troca por `mods.defaultMods()`), acrescente `fish: 1` nele também.
+  Confira também que `isNodeType` de `src/editor/ops.ts` já é a versão da E2 (`hasOwnProperty.call(NODE_AMOUNT, t)`):
+  com a lista fixa de antes, `b.nodes('fish', …)` do `egeu.ts` é recusado **em silêncio** e o Egeu sai sem peixe.
 - [ ] **A2. `src/core/map/naval.ts` (novo).** O arquivo inteiro:
   ```ts
   // Camada naval (E4; docs/eras/E4-naval.md): onde um navio pode estar. Derivada do terreno, dos nós e dos edifícios —
@@ -606,9 +630,19 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
   imprime `59 Barcos de pesca: A vapor Navios de guerra: Dromon`.
 - [ ] **B4. Edifício, Poseidon e raro:** `shipyard` + `BUILD_MENU`; `gods.ts`; `rares.ts` com `rare_fish`.
 - [ ] **B5. Textos:** tabela "Textos novos" (PT na tabela `pt`, EN na tabela `en`) e o inglês dos dados.
-  *Confira:* `npx vitest run tests/data.test.ts tests/i18n.test.ts tests/unit-lines.test.ts` (o de dados ainda falha nos
-  atalhos e edifícios se algo da tabela ficou de fora: corrija até passar; o "unidades referenciam edifícios" da E3 cobre os
-  degraus `lineOnly`).
+- [ ] **B6. Testes da E3 que contam linhas, degraus e estudos** (sem isto o `unit-lines` e o `studytree` ficam vermelhos):
+  - `tests/unit-lines.test.ts`, `it` dos dados das linhas: troque `if (id !== 'citizen') l.steps.forEach(…)` por
+    `if (!LINES[id].studyNames) l.steps.forEach(…)` (as linhas que não trocam de tipo — cidadãos, `fishing`, `transport` —
+    repetem o tipo da base no degrau do estudo, com `tier` 0).
+  - `it('50 estudos de evolução…')`: `50` → `59` (no título, em `expect(n)` e no `toHaveLength`).
+  - `it('as 41 novas…')`: `41` → `48` (os 7 degraus `lineOnly` da linha `warship`).
+  - `it('dentro de cada linha, vida e custo crescem…')`: troque `if (id === 'citizen') continue;` por
+    `if (LINES[id].studyNames) continue;`.
+  - `tests/studytree.test.ts` (o `it` da E3): `toHaveLength(9)` → `toHaveLength(12)` (as linhas `evo:` ganham `fishing`,
+    `transport` e `warship`).
+  *Confira:* `npx vitest run tests/data.test.ts tests/i18n.test.ts tests/unit-lines.test.ts tests/studytree.test.ts` (o de
+  dados ainda falha nos atalhos e edifícios se algo da tabela ficou de fora: corrija até passar; o "unidades referenciam
+  edifícios" da E3 cobre os degraus `lineOnly`).
 
 ### Bloco C — Núcleo: movimento, coleta, combate, transporte e comandos
 
@@ -671,18 +705,23 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
     return best;
   }
 
-  /** População a bordo. */
+  /** Lugar que a unidade ocupa a bordo: a população dela, no mínimo 1 (milícia, rei e Sombras têm pop 0 e não podem
+   *  lotar um transporte infinito). */
+  export const seatsOf = (type: string): number => Math.max(1, UNITS[type].pop);
+  /** Lugares ocupados a bordo. */
   export function cargoPop(state: GameState, ship: Unit): number {
     let n = 0;
-    for (const id of ship.cargo) { const u = state.units.get(id); if (u && !u.dead) n += UNITS[u.type].pop; }
+    for (const id of ship.cargo) { const u = state.units.get(id); if (u && !u.dead) n += seatsOf(u.type); }
     return n;
   }
-  /** A unidade pode embarcar neste transporte agora (dono, tipo e lugar)? */
+  /** A unidade pode embarcar neste transporte agora (dono, tipo e lugar)? Quem carrega relíquia não embarca (afundando,
+   *  a relíquia cairia no mar, onde ninguém a recolhe). */
   export function canBoard(state: GameState, u: Unit, ship: Unit): boolean {
     const d = UNITS[u.type], sd = UNITS[ship.type];
     if (!sd.capacity || ship.dead || u.dead || u.id === ship.id || ship.owner !== u.owner || u.inside !== -1 || ship.inside !== -1) return false;
     if (d.naval || d.flying || d.immobile || d.tags.includes('titan')) return false;
-    return cargoPop(state, ship) + d.pop <= sd.capacity;
+    if (state.relics.some((r) => r.carrier === u.id)) return false;
+    return cargoPop(state, ship) + seatsOf(u.type) <= sd.capacity;
   }
   /** Sobe a bordo (como enterGarrison: some do mapa e para de pensar). */
   export function boardShip(state: GameState, u: Unit, ship: Unit): boolean {
@@ -752,6 +791,9 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
     e `if (type === 'town_center') {` por `if (type === 'town_center' || def.shore) {`. Depois do laço, **antes** do
     `return { ok: true }` (vale também com `force`, para o editor e os cenários):
     `if (def.shore && !shoreOk(map, tx, ty, def.w, def.h)) return { ok: false, reason: t('err.needsShore') };`.
+  - `canGarrison`: na linha das tags, acrescente `|| def.naval` ao `if` que devolve `false` (o barco de pesca tem a tag
+    `civilian`, que está em `GARRISON_TAGS`: sem isto ele entraria num Centro Cívico da costa e, ao sair, `ejectGarrison`
+    o poria em terra).
   - `removeUnitNow`: troque a linha do `inside` por
     ```ts
     if (u.inside !== -1) { const g = state.buildings.get(u.inside); if (g) g.garrison = g.garrison.filter((id) => id !== u.id); const sh = state.units.get(u.inside); if (sh) sh.cargo = sh.cargo.filter((id) => id !== u.id); u.inside = -1; }
@@ -777,21 +819,33 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
     if (an !== tn) return false;
   }
   ```
-  Em `killUnit`, troque a linha do `inside` por a mesma de `removeUnitNow` (sai do edifício **ou** do navio) e, logo
-  depois de `recomputePop(state, victim);` no fim, afunde a carga:
-  ```ts
-  if (u.cargo.length) {   // E4: o navio afundou com a tropa
-    for (const id of u.cargo) { const p = state.units.get(id); if (p && !p.dead) { p.inside = -1; p.x = u.x; p.y = u.y; p.px = p.x; p.py = p.y; killUnit(state, p, killerOwner, killer); } }
-    u.cargo = [];
-  }
-  ```
-  (Um passageiro com `hpFloor` de cenário sobrevive ao `killUnit`: ele fica na água; aceitável, cenários têm navios
-  desligados por padrão.)
+  Em `killUnit`:
+  1. Logo antes de `u.dead = true; u.hp = 0;`:
+     `const drowned = u.inside !== -1 && state.units.has(u.inside);   // E4: passageiro de um navio que afundou`.
+  2. Troque a linha do `inside` pela mesma de `removeUnitNow` (sai do edifício **ou** do navio: só a primeira linha do
+     bloco de C3, a que filtra `g.garrison` e `sh.cargo`).
+  3. Na condição das Sombras de Hades, acrescente `!drowned &&` **antes** de `state.rng.chance(0.25)` (senão a Sombra
+     nasce na água, presa; em partida terrestre `drowned` é sempre falso e o rng é consumido como antes).
+  4. Logo depois de `recomputePop(state, victim);` no fim, afunde a carga:
+     ```ts
+     if (u.cargo.length) {   // E4: o navio afundou com a tropa
+       for (const id of u.cargo) {
+         const p = state.units.get(id);
+         if (!p || p.dead) continue;
+         p.x = u.x; p.y = u.y; p.px = p.x; p.py = p.y;
+         killUnit(state, p, killerOwner, killer);           // ainda com inside = navio: sai da carga e não vira Sombra (drowned)
+         if (!p.dead) { p.inside = -1; p.state = 'idle'; }  // hpFloor de cenário: sobrevive na água (aceito; navios desligados em cenário)
+       }
+       u.cargo = [];
+     }
+     ```
+     O `for…of` percorre o array antigo do navio: o `filter` dentro do `killUnit` do passageiro troca `u.cargo` por um
+     array novo e não atrapalha o laço.
 - [ ] **C7. `units.ts` — ataque entre meios.** No `case 'attack'` de `updateUnit`, logo antes de `const goal: PathGoal = …`:
   ```ts
   // E4: alvo no outro meio: vai ao tile do SEU meio de onde o alcança (o fim do caminho guarda esse tile entre repaths)
   const layer = layerOf(def), tLayer = t.kind === 'unit' ? layerOf(UNITS[t.type]) : 'land';
-  if (layer !== tLayer) {
+  if (layer !== tLayer && !def.flying) {   // voador vai em linha reta pelo caminho de sempre (a E6 cuida de voador × navio)
     let ax: number, ay: number;
     if (u.path && u.path.length >= 2 && state.tick < u.repathAt) { ax = u.path[u.path.length - 2]; ay = u.path[u.path.length - 1]; }
     else {
@@ -846,6 +900,12 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
     finishOrder(state, u); return;
   }
   ```
+- [ ] **C9b. Barco de pesca não reza nem vai à fazenda** (ele tem `canGather`, que é o que essas ordens conferem hoje):
+  - `units.ts` `startOrder`: no `case 'pray'`, `if (!def.canGather || def.tags.includes('merchant') || def.naval)`; no
+    `case 'gather'`, na primeira linha do ramo da fazenda (onde a E2 pôs o Mercador), `|| def.naval` no mesmo `if`.
+  - `commands.ts`: no `case 'pray'`, o filtro das unidades ganha `&& !UNITS[u.type].naval`; no `case 'gather'`, onde a E2
+    recusa o Mercador em fazenda (`node ? canWorkNode(…) : merchant ? { ok: false, … } : { ok: true }`), recuse também o
+    navio (`(merchant || UNITS[u.type].naval)`, motivo `t('err.fishOnly')`).
 - [ ] **C10. `commands.ts`.**
   - `case 'move'/'attackMove'`: no laço `units.forEach`, use a camada de cada unidade:
     `const lay = layerOf(UNITS[u.type]);` e `canPass(state.map, tx, ty, player.team, lay)` nas duas chamadas (a do
@@ -880,7 +940,8 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
       return { type: 'unload', player, ids, x, y, queue };
     }
     ```
-- [ ] **C11. `restrictions.ts`** (importe `BUILDINGS`, `UNITS` de `../data` e `isScenarioConfig` de onde a E1 o pôs):
+- [ ] **C11. `restrictions.ts`** (acrescente `BUILDINGS`, `UNITS` ao import de `../data`; `isScenarioConfig` a E1 pôs
+  neste mesmo arquivo — `grep -n "export function isScenarioConfig" src/core/sim/restrictions.ts`):
   ```ts
   /** E4: navios ligados? Fora de cenário sempre; em cenário (campanha, Horda, JSON) só com config.naval === true. */
   export function navalOn(state: GameState): boolean { return state.config.naval ?? !isScenarioConfig(state.config); }
@@ -889,8 +950,9 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
   `if (!navalOn(state) && ((kind === 'buildings' && BUILDINGS[id]?.shore) || (kind === 'units' && UNITS[id]?.naval))) return true;`.
   Em `forbiddenReason`: `if (!navalOn(state) && ((kind === 'buildings' && BUILDINGS[id]?.shore) || (kind === 'units' && UNITS[id]?.naval))) return t('err.navalOff');`
   antes da linha de hoje. `schema.ts`/`compile.ts`: `config.naval?: boolean` exatamente como o `unitLines` da E3 (tipo,
-  validação booleana, cópia em `scenarioConfig`). `compile.ts` (~linha 337, agrupamento por guarnição): pule quem está
-  num navio (`if (!state.buildings.has(u.inside)) continue;`).
+  validação booleana, cópia em `scenarioConfig`). `compile.ts` (~linha 337, ação `order` com `ungarrison`): nada a mudar
+  — o laço seguinte já faz `const b = s.buildings.get(bid); if (b && !b.dead)`, que pula o id de um navio (a variável do
+  estado ali é `s`, não `state`).
 - [ ] **C12. Resto do núcleo.**
   - `economy.ts`, ocupação dos raros (da E2): troque `!UNITS[u.type].tags.includes('merchant')` por
     `!(UNITS[u.type].tags.includes('merchant') || (UNITS[u.type].naval && UNITS[u.type].canGather))`.
@@ -901,6 +963,11 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
     `h = step(h, u.cargo.length);`.
   - `game.ts` `summarize`: conte `nav` (unidades `naval` do jogador) e acrescente `${nav ? ` nav=${nav}` : ''}` depois de
     `mil=${m}` (só aparece com navio: o resumo terrestre fica idêntico).
+  - `game.ts` `createGame`, no laço das entidades do mapa fixo (ramo `e.kind === 'unit'`): com
+    `const lay = layerOf(UNITS[e.type]);`, use `openTile(state, a, b, lay)` na espiral e
+    `nearestFreeTile(map, e.x, e.y, 6, f, lay)` no fallback. Sem isso um navio posto pelo editor nasce em terra.
+  - `src/main.ts` `debugSpawn` (o `window.aoe` dos playtests): `nearestFreeTile(session.state.map, x, y, 12, IDENTITY_FRAME, layerOf(UNITS[type] ?? {}))`
+    (importe `UNITS`, `IDENTITY_FRAME` e `layerOf`); sem isso o transporte do `playtest-naval` nasce na praia.
   - `constants.ts`: `SIM_VERSION` +1, com a linha do histórico:
     `N = naval (E4): camada naval, Estaleiro, pesca, transporte, navios I–VIII, mapas com mar; a mesma semente em mapa terrestre dá a mesma partida, mas o hash agora inclui inside/cargo.`
   *Confira:* `npx vitest run tests/sim.test.ts tests/determinism.test.ts tests/command-fuzz.test.ts tests/economy-regressions.test.ts`
@@ -952,7 +1019,9 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
      ```
   7. Conectividade: troque `ensureConnectivity(map);` (o de fora do `if (clearCenter)`) por
      `if (mapType !== 'islands') ensureConnectivity(map);` e, dentro do `if (clearCenter)`, use
-     `ensureConnectivity(map, mapType === 'islands' ? TERRAIN.SHALLOWS : TERRAIN.SAND);` (D16).
+     `ensureConnectivity(map, mapType === 'islands' ? TERRAIN.SHALLOWS : TERRAIN.SAND);` (D16). Lembre que
+     `ensureConnectivity` liga cada início desconexo à região do **início 1** (não à colina): com Ilhas + KotH saem
+     corredores de baixio entre as ilhas; o baixio é navegável, então o mar continua um só.
   8. Última linha de `generateMap`, depois do `placeEraResources` da E2: `placeNavalResources(map, seed, mapType);`.
 - [ ] **D2. `placeNavalResources` (`mapgen.ts`).**
   ```ts
@@ -977,19 +1046,28 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
       return placed;
     };
     const at = (s: { x: number; y: number }, a: number, r: number): [number, number] => { const k = ((a % 32) + 32) % 32; return [s.x + Math.round(CIRCLE32[k][0] * r), s.y + Math.round(CIRCLE32[k][1] * r)]; };
-    const around = (s: { x: number; y: number }, type: NodeType, a: number, r: number, radius: number, count: number): void => {
+    const around = (s: { x: number; y: number }, type: NodeType, a: number, r: number, radius: number, count: number): number => {
       let placed = 0;
       for (const k of [0, 1, -1, 2, -2, 3, -3]) { if (placed >= count) break; placed += cluster(type, ...at(s, a + k, r), radius, count - placed); }
+      return placed;
     };
+    const FISH_PER_START = 9;
     for (const s of map.starts) {
       const sea = seawardIndex(map, s, mapType);
-      let r0 = -1;
-      for (let r = 6; r <= 24; r++) { const [x, y] = at(s, sea, r); if (bigSea(x, y)) { r0 = r; break; } }
-      if (r0 < 0) continue;
-      around(s, 'fish', sea, r0 + 2.5, 1.6, 3);
-      around(s, 'fish', sea + 4, r0 + 3, 1.6, 3);
-      around(s, 'fish', sea - 4, r0 + 3, 1.6, 3);
-      around(s, 'rare_fish', sea, r0 + 8, 2.0, 1);
+      let placed = 0, tuna = false;
+      // direção do mar; se ela não comportar os 9 peixes (Ilhas 80×80: atrás de uma ilha alinhada a um eixo sobra ~1,7
+      // tile de mar), os lados e o lado oposto completam — r0 ≤ 20, para os cardumes caberem em FISH_RADIUS (24)
+      for (const dir of [sea, sea + 8, sea - 8, sea + 16]) {
+        if (placed >= FISH_PER_START) break;
+        let r0 = -1;
+        for (let r = 6; r <= 20; r++) { const [x, y] = at(s, dir, r); if (bigSea(x, y)) { r0 = r; break; } }
+        if (r0 < 0) continue;
+        for (const [k, dr] of [[0, 2.5], [4, 3], [-4, 3]] as const) {
+          if (placed >= FISH_PER_START) break;
+          placed += around(s, 'fish', dir + k, r0 + dr, 1.6, Math.min(3, FISH_PER_START - placed));
+        }
+        if (!tuna) tuna = around(s, 'rare_fish', dir, r0 + 8, 2.0, 1) > 0;
+      }
     }
     let seaTiles = 0;
     for (let i = 0; i < map.w * map.h; i++) if (isOpenWater(map.terrain[i])) seaTiles++;
@@ -1001,14 +1079,18 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
     }
   }
   ```
-  *Confira:* `npm run map:export /tmp/e4/ilhas.map.json --size medium --seed 42 --type islands --players 4` (crie
-  `/tmp/e4`) imprime 0 erros; repita com `coastal` e `mediterranean` e com `--size small`/`large`.
+  *Confira:* `npx tsx scripts/export-map.ts /tmp/e4/ilhas.map.json --size medium --seed 42 --type islands --players 4`
+  (crie `/tmp/e4`) imprime 0 erros; repita com `coastal` e `mediterranean` e com `--size small`/`large`. **Não** use
+  `npm run map:export … --size …` sem `--`: o npm 10 engole as opções (`--size small` vira o posicional `small`) e o
+  script responde só com o "Uso:". Se for pelo npm, `npm run map:export -- /tmp/e4/ilhas.map.json --size medium …`.
 - [ ] **D3. `fixed.ts` (validação e tabela).**
   - Troque o `isSolid` local por imports de `./naval` e use, em cada ponto: nó →
     `if (!nodeFitsTerrain(type, terrain[i])) { err(SHIP_NODES.has(type) ? 'fishOnLand' : 'nodeOnBlocked', x, y); continue; }`;
     CC do kit e pegada de edifício → `isUnbuildableTerrain(terrain[i])`; unidade →
     `UNITS[e.type].naval ? (!isNavigableTerrain(t) && err('shipOnLand', e.x, e.y)) : (isLandBlockedTerrain(t) && err('entityOverlap', …))`
-    (escreva com `if`); `blocked` do mapa temporário → `isLandBlockedTerrain(terrain[i]) || nodeAt[i] !== -1`.
+    (escreva com `if`); `blocked` do mapa temporário → `isLandBlockedTerrain(terrain[i]) || nodeAt[i] !== -1`;
+    `pocketBoundedByTerrain` (o `isSolid(map.terrain[ni])`, ~linha 684) → `isLandBlockedTerrain(map.terrain[ni])`. Depois
+    disso apague a constante local `isSolid`: `grep -n "isSolid" src/core/map/fixed.ts` tem de sair vazio.
   - Edifício pré-colocado com `shore` sem `shoreOk(map, e.x, e.y, bw, bh)` (no mapa temporário, depois do `blocked`) →
     `err('shoreNoWater', e.x, e.y)`.
   - `accessTiles` para peixe: conte tiles com `isNavigableTerrain(terrain)` e `nodeAt === -1` (o `nodeNoAccess` vale para
@@ -1040,17 +1122,27 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
       return best;
     }
     ```
-  - Na análise espacial, depois de `startComp`:
+  - Na análise espacial, troque a linha do `startsDisconnected` por:
     ```ts
+    // E4: início sem caminho por terra até o 1 — avisa só se também não houver o mesmo mar grande (Ilhas são válidas);
+    // lagos diferentes entre inícios ligados por terra não importam (o Estreito tem um lago de 190 tiles perto de cada início)
     const seaComp = starts.map(([sx, sy]) => seaOfStart(map, sx, sy));
-    const bySea = seaComp.every((c) => c >= 0 && c === seaComp[0]);
+    for (let p = 1; p < starts.length; p++) {
+      if (startComp[p] === startComp[0]) continue;
+      if (seaComp[p] >= 0 && seaComp[p] === seaComp[0]) continue;
+      if (seaComp[p] >= 0 && seaComp[0] >= 0) warn('seasApart', starts[p][0], starts[p][1], { start: p + 1 });
+      else warn('startsDisconnected', starts[p][0], starts[p][1], { start: p + 1 });
+    }
+    const sites = starts.map(([sx, sy]) => hasShipyardSite(map, sx, sy));
+    if (sites.some(Boolean)) starts.forEach(([sx, sy], p) => { if (!sites[p]) warn('noShipyardSite', sx, sy, { start: p + 1 }); });
     ```
-    o aviso `startsDisconnected` só sai se `!bySea`; acrescente `seasApart` para cada `p` com `seaComp[p] >= 0`,
-    `seaComp[0] >= 0` e `seaComp[p] !== seaComp[0]`; e
-    `const sites = starts.map(([sx, sy]) => hasShipyardSite(map, sx, sy)); if (sites.some(Boolean)) starts.forEach(([sx, sy], p) => { if (!sites[p]) warn('noShipyardSite', sx, sy, { start: p + 1 }); });`.
-    O `kothUnreachable` e as relíquias continuam pela camada terrestre.
-  - `StartResources` e `startResourceTable`: coluna `fish` (soma das quantidades de `fish` a até `FISH_RADIUS`; o resto
-    no raio de sempre), no mesmo estilo das colunas que a E2 acrescentou.
+    O `kothUnreachable` e as relíquias continuam pela camada terrestre. (Medido no Estreito de hoje: os dois inícios têm
+    cada um o seu lago de 190 tiles a ~25 tiles — um `seasApart` "por mar diferente", sem a condição de terra, quebraria o
+    "0 aviso(s)" do `map:check` dos embutidos.)
+  - `StartResources` e `startResourceTable`: campos `fish` (soma das quantidades de `fish`) e `fishNodes` (contagem) —
+    os dois, porque a tabela do editor lê `` r[`${k}Nodes`] `` —, contados a até `Math.max(radius, FISH_RADIUS)` (o resto
+    no raio de sempre), no mesmo estilo das colunas que a E2 acrescentou. O atum (`rare_fish`) entra na contagem `rare`
+    da E2 (ele está no `RARE_SET`), não em `fish`.
   *Confira:* `npx vitest run tests/fixedmap.test.ts tests/editor.test.ts` (ajuste só o formato de `StartResources`
   esperado nos testes; nenhum hash).
 - [ ] **D4. Egeu** (`scripts/maps/egeu.ts`).
@@ -1060,31 +1152,47 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
      outros):
      ```ts
      // ---- E4: peixes diante do início 1 (6 cardumes na água aberta mais perto, espaçados) e um atum entre as ilhas ----
-     const sea = (x: number, y: number) => { const t = b.ed.map.terrain[y * W + x]; return (t === T.WATER || t === T.DEEP) && b.ed.map.nodeAt[y * W + x] === -1; };
+     const water = (x: number, y: number) => { const t = b.ed.map.terrain[y * W + x]; return t === T.WATER || t === T.DEEP; };
+     // tile de mar sem nó e sem terra nos 8 vizinhos: o cardume fica a 1+ tile da praia (não ocupa a margem dos Estaleiros
+     // e o barco tem por onde encostar)
+     const sea = (x: number, y: number) => {
+       if (!water(x, y) || b.ed.map.nodeAt[y * W + x] !== -1) return false;
+       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (!water(x + dx, y + dy)) return false;
+       return true;
+     };
      const byDist = (p: Pt, q: Pt, cx: number, cy: number) => d2(p[0], p[1], cx, cy) - d2(q[0], q[1], cx, cy) || p[1] - q[1] || p[0] - q[0];
      const cand: Pt[] = [];
      for (let y = 36; y <= CY - 3; y++) for (let x = 6; x <= CX - 6; x++) if (sea(x, y)) cand.push([x, y]);
      cand.sort((p, q) => byDist(p, q, sx, sy));
      const fish: Pt[] = [];
      for (const p of cand) { if (fish.length >= 6) break; if (fish.every((f) => d2(f[0], f[1], p[0], p[1]) >= 4)) fish.push(p); }
-     b.nodes('fish', fish);
-     const tuna = cand.filter(([x, y]) => x >= 30 && y <= CY - 2).sort((p, q) => byDist(p, q, 40, 50))[0];
-     if (tuna) b.nodes('rare_fish', [tuna]);
+     if (b.nodes('fish', fish) !== 6) throw new Error(`egeu: só ${fish.length} cardumes couberam`);
+     // o atum: candidato ainda livre (sea() de novo, depois dos peixes) e longe deles
+     const tuna = cand.filter(([x, y]) => x >= 30 && y <= CY - 2 && sea(x, y) && fish.every((f) => d2(f[0], f[1], x, y) >= 9)).sort((p, q) => byDist(p, q, 40, 50))[0];
+     if (!tuna || b.nodes('rare_fish', [tuna]) !== 1) throw new Error('egeu: atum não coube');
      ```
-     (A ordem `(y, x)` aqui só desempata o desenho do representante; a simetria do `MapBuilder` copia para os 4 inícios.)
+     (A ordem `(y, x)` aqui só desempata o desenho do representante; a simetria do `MapBuilder` copia para os 4 inícios.
+     `b.nodes` devolve quantos pontos entraram — o `MapBuilder` engole a recusa do editor e só conta em `skippedNodes`;
+     por isso os `throw`: um peixe que não entrou não pode passar calado.)
   3. `scripts/maps/lib.ts` `finish()`: acrescente `'fish'` à lista de colunas que precisam ser iguais em todos os inícios
      (a que a E2 estendeu com pedra/petróleo/raros).
-  4. Gere: `npx tsx scripts/maps/egeu.ts` (grava `src/core/data/maps/egeu.map.json`). Atualize a `description` do Egeu
-     (PT; e `descriptionEn` se existir) acrescentando "O mar é navegável de ponta a ponta (os baixios também) e tem
-     cardumes diante de cada início."
-  *Confira:* o script termina sem lançar; `npm run map:check src/core/data/maps/egeu.map.json` mostra `fish` igual nos 4
+  4. Atualize a `description` do Egeu no `b.finish({ … })` (só PT: `FixedMapData` não tem `descriptionEn`) acrescentando
+     "O mar é navegável de ponta a ponta (os baixios também) e tem cardumes diante de cada início." e gere:
+     `npx tsx scripts/maps/egeu.ts` (grava `src/core/data/maps/egeu.map.json`). Se a E2 tinha posto algum nó terrestre
+     sobre a areia dos baixios, ele agora é recusado (`nodeFitsTerrain`): o script continua, mas `b.skippedNodes` sobe —
+     confira a contagem de nós impressa antes e depois e mova esse nó para fora do baixio.
+  *Confira:* o script termina sem lançar; `npm run map:check src/core/data/maps/egeu.map.json` mostra `peixe` igual nos 4
   inícios e "estaleiro: sim" em todos; `npx vitest run tests/data.test.ts` ("mapas embutidos").
-- [ ] **D5. `scripts/mapcheck.ts` e `scripts/export-map.ts`.** `mapcheck`: imprima a coluna `fish` e, por início,
-  `estaleiro: sim|não` (`hasShipyardSite` sobre o mapa carregado). `export-map`: o texto de uso lista os 8 tipos.
+- [ ] **D5. `scripts/mapcheck.ts` e `scripts/export-map.ts`.** `mapcheck`: na linha de cada início, acrescente
+  `· peixe ${row.fish} (${row.fishNodes})` e `· estaleiro: sim|não` — `hasShipyardSite(gm, x, y)` sobre
+  `const gm = mapFromData(map)` (`hasShipyardSite` recebe um `GameMap`, não o `FixedMapData` que o script carrega;
+  `mapFromData` vem de `src/core/map/fixed.ts`). `export-map`: o texto de uso (o comentário `// Uso:` da linha 2 e o `console.error('Uso: …')`) lista os 8 tipos; a
+  validação já usa `MAP_TYPES` e aceita os novos sem mudança.
 - [ ] **D6. Editor — terreno.** `src/editor/editor.ts`:
   - `TERRAIN_KEYS` com `'7': TERRAIN.SHALLOWS` (comentário: teclas 1..7); `brushTerrain()`:
     `return Math.max(0, Math.min(TERRAIN.SHALLOWS, this.ui.terrain | 0));` (sai o caso `t === 6`).
-  - Troque `SOLID` por funções de `naval.ts`: em `filterPaint`, `const solid = isUnbuildableTerrain(terrain);`; em
+  - Troque `SOLID` por funções de `naval.ts` (são 3 usos; no fim apague a constante e `grep -n "SOLID" src/editor/editor.ts` tem
+    de sair vazio): em `runMapFix`, `if (isUnbuildableTerrain(t) && map.buildingAt[i] !== -1) continue;`; em `filterPaint`, `const solid = isUnbuildableTerrain(terrain);`; em
     `nodeFits(tx, ty, type: string = this.ui.nodeType)`, `return nodeFitsTerrain(type, map.terrain[i]) && map.nodeAt[i] === -1 && map.buildingAt[i] === -1;`
     e passe o tipo nas chamadas (o do nó que se move; `'tree'` no pincel de árvores).
   - `removeNodeOf`: `m.blocked[i] = isLandBlockedTerrain(m.terrain[i]) ? 1 : 0;`.
@@ -1096,16 +1204,25 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
   - `applyPaint`: o teste do edifício vira `if (isUnbuildableTerrain(t) && map.buildingAt[i] !== -1) throw …`; o laço que
     remove nós passa a remover o nó cujo tipo não cabe no terreno novo
     (`const n = map.nodes.get(map.nodeAt[i]); if (n && !nodeFitsTerrain(n.type, terrainAt(k))) { removedNodes.push({ ...n }); removeNode(map, n.id); }`).
-  - `pushUnitsFrom`: depois do laço de hoje, empurre os navios que ficaram fora da água:
+  - `pushUnitsFrom`: **entre** o laço `for (const i of tiles)` (o que chama `pushUnitsOutOfTile`) e o laço que monta
+    `moved`, empurre os navios que ficaram fora da água:
     `for (const u of state.units.values()) { if (u.dead || !UNITS[u.type].naval) continue; if (isPassable(map, Math.floor(u.x), Math.floor(u.y), 'naval')) continue; const f = nearestFreeTile(map, u.x, u.y, 8, centerFrame(map, u.x, u.y), 'naval'); if (f) { u.x = f.x + 0.5; u.y = f.y + 0.5; u.px = u.x; u.py = u.y; u.path = null; } }`
-    (a detecção de "moved" que já existe gera as inversas).
+    (o laço de "moved" que vem depois compara com `posBefore` e gera as inversas; importe `centerFrame` de `grid`,
+    `nearestFreeTile` de `pathfinding` e `UNITS`).
   - `applyPlace`, unidade: `if (!isPassable(map, ent.x, ent.y, layerOf(UNITS[ent.type]))) throw new EditError('noRoom', ent.x, ent.y);`.
+  - `case 'moveEntity'`, ramo da unidade: `if (!isPassable(state.map, op.x, op.y, layerOf(UNITS[e.type]))) throw …` (sem
+    isso não se arrasta navio no editor, e a inversa de uma pintura que empurrou um navio falha). Depois, apague a
+    constante `isSolid` de `ops.ts`: `grep -n "isSolid" src/editor/ops.ts` tem de sair vazio.
 - [ ] **D7. Editor — painel e tipos.** `src/editor/types.ts`: `showNaval: boolean` em `EditorUI` e `showNaval: false` em
   `defaultEditorUI`. `src/editor/panel.ts`: `TERRAIN_ORDER` com `TERRAIN.SHALLOWS` no fim; tire
   `|| (ui.terrain === 6 && tr === TERRAIN.DEEP)` do chip; `NODE_TYPES` com `'fish', 'rare_fish'` no fim; `NODE_ICONS`
   `fish: 'tech/fishing_nets', rare_fish: 'tech/fishing_nets'`; `UNIT_CLASSES` com `'ship'` no fim; no laço das
   sobreposições, `['naval', 'J', 'showNaval']` depois de `regions`; `renderOverlays` com `showNaval` na chave e no tipo do
-  `dataset.ov`; a lista de atalhos do editor ganha "J" (Mar). Colunas da tabela por início: `fish`.
+  `dataset.ov`; a lista de atalhos do editor ganha "J" (Mar). Tabela por início (`renderResources`, que a E2 passou a
+  gerar de `kinds`): acrescente `'fish'` ao fim de `kinds` e trate-o como a E2 tratou o `'rare'` no cabeçalho — título
+  `t('node.fish')` (não existe `res.fish`) e ícone `iconHtml('tech/fishing_nets', { cls: 'hic-res' })` (não existe
+  `res/fish` no atlas; `ic.res('fish')` sairia vazio e o `playtest-noemoji` acusa ícone vazio). A célula usa
+  `` r[`${k}Nodes`] `` → `fishNodes` (passo D3).
 - [ ] **D8. Renderizador do editor** (`renderer.ts`, sobreposições): `this.regSprite.visible = ed.showRegions || ed.showNaval;`,
   a chave da textura ganha `${ed.showNaval}` e o laço usa `componentAt(map, x, y, ed.showNaval ? 'naval' : 'land')`
   (dê outro nome à variável, `layer` já existe ali).
@@ -1117,6 +1234,15 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
 
 - [ ] **E1. Snapshot.** `Snapshot.ships: Unit[]` = `units.filter((u) => UNITS[u.type].naval && u.inside === -1)`;
   `military` passa a excluir navios (`&& !UNITS[u.type].naval`). Na `lineUsers` da E3, some `...snap.ships` à lista.
+  Na `evolutionPriority` da E3, logo no começo do `forEach` das linhas, pule as linhas navais de quem não tem Estaleiro:
+  ```ts
+  // E4: sem Estaleiro pronto, a IA não estuda evoluções de navio (num mapa sem mar o estudo seria gasto à toa — e a
+  // partida terrestre deixaria de ser idêntica: o diff do smoke da Verificação 4 acusa)
+  if (LINES[line].buildings.every((b) => BUILDINGS[b]?.shore) && countBuildings(state, player.id, (b) => b.type === 'shipyard' && b.complete) === 0) return;
+  ```
+  (`countBuildings` já é importado de `./entities` no `ai.ts`.) Em `manageMerchants` da E2, os dois `nearestRareNode`
+  ganham `!SHIP_NODES.has(n.type) &&` no começo do predicado: o atum é do barco de pesca, e sem isso a IA treina Mercador
+  "para" um atum que ele não pode ocupar.
 - [ ] **E2. Guardas.** `manageTraining` (laço do "Exército humano"): `if (BUILDINGS[b.type].shore) continue;` no começo
   do corpo do laço. `manageArmy`: na varredura de ameaças, `if (ud.naval) return;` logo depois de pegar `ud` (navio é com a
   frota); logo antes de `// 2) Ataque em ondas`, `if (islandMode(state, player, snap)) return;`. `RESEARCH_PRIORITY`:
@@ -1126,17 +1252,21 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
 - [ ] **E3. Funções.** Acrescente acima de `manageScouts`:
   ```ts
   // ---------------- Naval (E4) ----------------
-  /** Nenhum Centro Cívico inimigo vivo é alcançável por terra a partir do meu (Ilhas): só o mar leva ao inimigo. */
+  /** Nenhum Centro Cívico inimigo vivo é alcançável por terra a partir do meu (Ilhas), e o meu e algum deles estão no
+   *  mesmo mar grande: só o mar leva ao inimigo. A condição do mar evita o "modo ilha" num mapa terrestre em que um humano
+   *  se murou por inteiro (sem portão): sem ela a IA pararia de atacar por terra. */
   function islandMode(state: GameState, player: Player, snap: Snapshot): boolean {
     const tc = snap.tc; if (!tc) return false;
+    const mySea = seaOfStart(state.map, Math.floor(tc.x), Math.floor(tc.y));
+    if (mySea < 0) return false;
     const from = findSpawnTile(state, tc);
-    let any = false;
+    let sameSea = false;
     for (const b of state.buildings.values()) {
       if (b.dead || b.type !== 'town_center' || !isEnemy(state, player.id, b.owner) || !state.players[b.owner].alive) continue;
-      any = true;
       if (rectReachable(state.map, Math.floor(from.x), Math.floor(from.y), b.tx, b.ty, b.w, b.h, true)) return false;
+      if (seaOfStart(state.map, Math.floor(b.x), Math.floor(b.y)) === mySea) sameSea = true;
     }
-    return any;
+    return sameSea;
   }
   /** Centro Cívico inimigo mais perto do meu (desempate justo). */
   function invasionTarget(state: GameState, player: Player, snap: Snapshot): Building | null {
@@ -1155,9 +1285,12 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
     const yards = snap.byType.get('shipyard') ?? [];
     const yard = yards.find((b) => b.complete) ?? null;
     const island = islandMode(state, player, snap);
-    // 1) Estaleiro: só com peixe perto ou no modo ilha (mapas terrestres: nada muda); procura a cada 10 s
+    // 1) Estaleiro: só com peixe perto ou no modo ilha (mapas terrestres: nada muda); uma tentativa por janela de 10 s.
+    //    A IA só pensa a cada round(thinkEvery·20) ticks a partir do tick 40, então um `(tick + id) % 200 === 0` nunca
+    //    bateria para os jogadores 1–3 (o 0 seria o único com Estaleiro): conta-se a passagem da janela desde o último pensamento.
     if (yards.length === 0) {
-      if (snap.villagers.length < SHIPYARD_MIN_VILLAGERS || (state.tick + player.id) % (10 * TICK_RATE) !== 0) return;
+      const period = Math.round(DIFFICULTIES[player.ai!.difficulty].thinkEvery * TICK_RATE), every = 10 * TICK_RATE;
+      if (snap.villagers.length < SHIPYARD_MIN_VILLAGERS || Math.floor(state.tick / every) === Math.floor((state.tick - period) / every)) return;
       if (!island && fishNear(state, tc.x, tc.y, 30) < 2) return;
       const spot = findBuildSpot(state, player, 'shipyard', tc.x, tc.y, 4, SHIPYARD_SITE_RADIUS);
       if (!spot || !canAfford(player, getBuildingStats(state, player, 'shipyard').cost)) return;
@@ -1181,6 +1314,12 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
       else if (island && trans.length + queued((d) => !!d.capacity) < TRANSPORTS) c = pick((d) => !!d.capacity);
       else if (war.length + queued((d) => d.tags.includes('military')) < warTarget && !savingForAge(state, player)) c = pick((d) => d.tags.includes('military'));
       if (c) applyCommand(state, { type: 'train', player: player.id, buildingId: yard.id, unit: c.send });
+    }
+    // 3a) Atum (raro do mar, D7): se nenhum barco meu está nele, o primeiro barco ocioso ocupa o atum livre mais perto do Estaleiro
+    if (!boats.some((b) => b.nodeId > 0 && state.map.nodes.get(b.nodeId)?.type === 'rare_fish')) {
+      const idleBoat = boats.find((b) => b.state === 'idle' && !b.order);
+      const tuna = idleBoat ? nearestRareNode(state, yard.x, yard.y, 30, (n) => n.type === 'rare_fish' && nodeHasRoom(state, n)) : null;
+      if (idleBoat && tuna) applyCommand(state, { type: 'gather', player: player.id, ids: [idleBoat.id], targetId: tuna.id });
     }
     // 3) Pesca: barco ocioso vai ao cardume com vaga mais perto
     for (const b of boats) if (b.state === 'idle' && !b.order) {
@@ -1221,9 +1360,12 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
       const target = invasionTarget(state, player, snap);
       if (!target) return;
       const cap = UNITS[t.type].capacity ?? 0;
-      const riders = snap.military.filter((u) => !UNITS[u.type].tags.includes('titan')).sort((a, b) => dist2(a.x, a.y, t.x, t.y) - dist2(b.x, b.y, t.x, t.y) || (fairer(state.map, t, { x: Math.floor(a.x), y: Math.floor(a.y) }, { x: Math.floor(b.x), y: Math.floor(b.y) }) ? -1 : 1));
+      // comparador consistente (sort exige: a<b ⇒ não b<a): distância, depois fairer nos dois sentidos, depois o id
+      const tileOf = (u: Unit) => ({ x: Math.floor(u.x), y: Math.floor(u.y) });
+      const riders = snap.military.filter((u) => !UNITS[u.type].tags.includes('titan') && !UNITS[u.type].flying).sort((a, b) =>
+        dist2(a.x, a.y, t.x, t.y) - dist2(b.x, b.y, t.x, t.y) || (fairer(state.map, t, tileOf(a), tileOf(b)) ? -1 : fairer(state.map, t, tileOf(b), tileOf(a)) ? 1 : a.id - b.id));
       let pop = 0; const ids: number[] = [];
-      for (const u of riders) { const p = UNITS[u.type].pop; if (pop + p > cap) continue; pop += p; ids.push(u.id); }
+      for (const u of riders) { const p = seatsOf(u.type); if (pop + p > cap) continue; pop += p; ids.push(u.id); }
       if (ids.length === 0 || !applyCommand(state, { type: 'embark', player: player.id, ids, targetId: t.id }).ok) return;
       nv.phase = 1; nv.ship = t.id; nv.x = target.x; nv.y = target.y; nv.since = state.tick;
       return;
@@ -1251,8 +1393,10 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
   }
   ```
   Chame `manageNavy(state, player, snap);` em `aiThink`, logo depois de `manageTraining(state, player, snap);`. Importe o
-  que faltar (`navalOn`, `fairer`, `fishNear`, `approachTile`, `shoreTileNear`, `cargoPop`, `SHIPYARD_SITE_RADIUS`,
-  `rectReachable`, `findSpawnTile`, `getUnitStats`, `dist2`, `type UnitDef`, `type TrainChoice`).
+  que faltar (`navalOn`, `fairer`, `fishNear`, `approachTile`, `shoreTileNear`, `cargoPop`, `seatsOf`,
+  `SHIPYARD_SITE_RADIUS` e `seaOfStart` de `../map/fixed`, `SHIP_NODES`, `nearestRareNode` (da E2), `findSpawnTile`,
+  `getUnitStats`, `dist2`, `trainChoices` e `type TrainChoice` de `./lines`, `type UnitDef`; `rectReachable`, `DIFFICULTIES`,
+  `TICK_RATE`, `nodeHasRoom` e `countBuildings` o `ai.ts` já importa).
   *Confira:* `npx vitest run tests/movement-ai.test.ts tests/position-fairness.test.ts tests/determinism.test.ts tests/unit-lines.test.ts`
   e `npm run smoke 20 42 | grep -v "reais\|tempo real\|ms/tick\|hash final" | diff /tmp/e4-base/smoke.txt -` **vazio**
   (a partida terrestre não mudou).
@@ -1318,7 +1462,11 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
 - [ ] **F6. Interface.** `hud.ts` `unitCard`: com `def.capacity`, `stats.push(\`${t('sel.cargo')} <b>${cargoPop(s.state, u)}/${def.capacity}</b>\`)`.
   Nos comandos das unidades, se alguma selecionada tiver `capacity` e carga:
   `add(glyph('release'), t('cmd.unload'), t('cmd.unloadTip'), 'U', () => { for (const sh of units.filter((x) => UNITS[x.type].capacity && x.cargo.length)) s.issue({ type: 'unload', player: s.local, ids: [sh.id], x: sh.x, y: sh.y }); });`.
-  Na tela de atalhos, a linha "U: desembarcar (transporte)". `input.ts`:
+  Na tela de atalhos (`showHotkeys`), na lista das unidades, a linha `[k('U'), t('hk.unload')]`. No menu de construção
+  (o laço `for (const type of BUILD_MENU)` dos cidadãos), primeira linha: `if (def.shore && !navalOn(s.state)) continue;`
+  — na campanha e na Horda o Estaleiro some do menu em vez de aparecer desabilitado (a interface da campanha fica igual à
+  de antes, inclusive nas capturas do `art:shot`). O botão "Guarnecer" das unidades (`units.some((u) => [...].some(…))`)
+  ganha `!UNITS[u.type].naval &&` no começo do predicado. `input.ts`:
   - `contextCommand`, **antes** do ramo `else if (nid !== -1)`:
     ```ts
     } else if (target && target.kind === 'unit' && target.owner === s.local && UNITS[target.type].capacity) {
@@ -1331,7 +1479,8 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
       cmd = rest.length ? { type: 'move', player: s.local, ids: rest.map((u) => u.id), x, y, queue } : null;
     ```
     (o primeiro `if` continua sendo o do inimigo; o resto da cadeia não muda; com `cmd = null` o bloco final não roda —
-    toque o som com `this.audio.ack('move', this.dominantClass(s))` no ramo do desembarque).
+    toque o som com `this.audio.ack('move', this.dominantClass(s))` no ramo do desembarque; importe `isPassable` de
+    `../core/map/grid`). Nos dois `canEnter` (guarnecer em edifício próprio e aliado), acrescente `!UNITS[u.type].naval &&`.
   - Teclas, no ramo `units.length > 0`, antes de `const villagersOnly`:
     `if (k === 'u') { const sh = units.filter((u) => UNITS[u.type].capacity && u.cargo.length); if (sh.length) { for (const x of sh) s.issue({ type: 'unload', player: s.local, ids: [x.id], x: x.x, y: x.y }); return; } }`.
   - Dica do nó (E2): peixe com `node.remaining`; atum com `t('rare.rare_fish')`.
@@ -1370,8 +1519,10 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
   Rode `npm run art:hud -- --contact docs/art` e olhe a folha de contato com a ferramenta Read: os 10 navios distintos a
   34 px (galés com remos, veleiros com 2 mastros, ferro com chaminé), `tech/fishing_nets` lendo como peixe. Ajuste só
   proporções dentro desses dois objetos. Depois `npm run art:check` sem erro.
-- [ ] **F8. Testes de arte.** `tests/art-etapa6.test.ts`: o filtro das unidades assadas exclui também `UNITS[t].naval`
-  (navios são procedurais de propósito). `tests/hud-icons.test.ts`: nada além do que a E2 já fez (os `unit/<navio>`
+- [ ] **F8. Testes de arte.** `tests/art-etapa6.test.ts`: os navios são procedurais de propósito — exclua `UNITS[t].naval`
+  nos **dois** laços que exigem arte assada: o `types` do `it` "os 35 tipos…" (onde a E2 já filtra o `UNIT_ART_ALIAS`) e o
+  `for (const type of Object.keys(UNITS))` do `it` "as 35 unidades e as 5 hidras saem assadas" (o `procedural` tem de
+  continuar `[]`); o terceiro laço (arte desligada → tudo `null`) fica como está. `tests/hud-icons.test.ts`: nada além do que a E2 já fez (os `unit/<navio>`
   existem pelo `SHIP_ICONS`; `bld/shipyard` resolve pelo alias). `tests/audio.test.ts` passa com `ACKS.ship`.
   *Confira:* `npx vitest run tests/hud-icons.test.ts tests/art-etapa6.test.ts tests/art-library.test.ts tests/art-manifest.test.ts tests/audio.test.ts tests/fx-logic.test.ts tests/fx-registry.test.ts tests/terrain-shader.test.ts`.
 
@@ -1388,11 +1539,16 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
   `mapType: 'islands'`.
 - [ ] **G3. Testes que mudam:** `tests/modes.test.ts` ("tipos de mapa…"): para `islands`, exija inícios em regiões
   terrestres **diferentes** e o mesmo `seaOfStart` em todos; para os outros 7, o teste de hoje. `tests/editor.test.ts`:
-  tecla `'7'` → `TERRAIN.SHALLOWS`; formato de `StartResources` com `fish`. `tests/data.test.ts`: nada se a regra dos
-  atalhos já passou (confira `I` sem duplicata e as teclas do Estaleiro). `tests/position-fairness.test.ts`: nenhuma
-  mudança de código — as sondagens do Egeu (30/30) e do Estreito (10/10) têm de continuar passando com o Egeu novo.
-- [ ] **G4. `scripts/playtest-editor.mjs`:** chips de terreno 7 (com "Baixio") e de nós +2 (`fish`, `rare_fish`); tecla `J`
-  liga a sobreposição do mar.
+  tecla `'7'` → `TERRAIN.SHALLOWS`; formato de `StartResources` com `fish`/`fishNodes`. `tests/data.test.ts`: nada se a
+  regra dos atalhos já passou (confira `I` sem duplicata e as teclas do Estaleiro). `tests/position-fairness.test.ts`: as
+  sondagens do Egeu e do Estreito têm de continuar passando com o Egeu novo e com os `ok` que a E1 e a E2 deixaram
+  (36 no Egeu e 12 no Estreito: 30/10 de hoje, +3/+1 da Biblioteca na E1 e +3/+1 da pedra na E2; o `EXTRA_TYPES` só
+  entra na lista `bad`, não no `ok`), e acrescente
+  `['shipyard', 4, 24]` ao `EXTRA_TYPES` (a sondagem do Egeu com `EXTRA_TYPES` passa a conferir que o Estaleiro do
+  parceiro é o espelho exato do do jogador 0 — é a justiça de posição da IA naval nascendo no estado inicial).
+- [ ] **G4. `scripts/playtest-editor.mjs`:** a conferência `'subpaleta de terreno com cor'` passa de `=== 6` para `=== 7`
+  (com "Baixio") e a `'paleta de nós'` de `=== 16` (valor da E2) para `=== 18` (`fish`, `rare_fish`); acrescente um `ok`
+  para a tecla `J` ligar `ui.showNaval`.
 - [ ] **G5. `scripts/playtest-naval.mjs` (novo)** (modelo: `scripts/playtest-modes.mjs`; Chromium do Playwright do
   CLAUDE.md, `LANG: 'pt_BR.UTF-8'`). Roteiro, cada linha imprime `ok` ou `FALHOU`:
   1. O seletor `#m-maptype` tem `coastal`, `islands`, `mediterranean`.
@@ -1401,7 +1557,8 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
      `window.aoe.debugBuild(local, 'shipyard', tx, ty)` não devolve `null` (ele já confere `canPlaceBuilding`, margem
      incluída): o Estaleiro aparece; `s.issue({ type: 'train', … unit: 'fishing_boat' })` e, depois de ~25 s de jogo
      acelerado, existe um `fishing_boat` num tile de água.
-  4. `debugSpawn` de 1 `transport_ship` num tile de água do anel do Estaleiro e 4 `hoplite` em terra ao lado; `embark` →
+  4. `debugSpawn` (com a camada da unidade, passo C12) de 1 `transport_ship` num tile de água do anel do Estaleiro e 4
+     `hoplite` em terra ao lado; confira que o transporte ficou num tile `isNavigableTerrain`; `embark` →
      em ≤ 15 s `cargo.length === 4`; `unload` num ponto de terra da mesma ilha → em ≤ 20 s `cargo.length === 0` e os 4 em
      terra.
   5. Seleção do transporte mostra "Carga" no `#selection` e o botão "Desembarcar" no `#commands`.
@@ -1424,7 +1581,7 @@ rode o "Confira" dele. Em cada passo, importe os nomes novos que o código usar 
 
 | Arquivo | O que verifica |
 |---|---|
-| `tests/naval.test.ts` (novo) | (1) **Camadas**: baixio passa nas duas camadas; água rasa e profunda só na naval; peixe bloqueia navio; `removeNode` de peixe deixa `blocked = 1`; pintar terra no mar (`applyEditOp` paint) muda `componentAt(..., 'naval')` na hora (cache invalidado). (2) **Caminho**: `findPathEx(..., 'naval')` contorna uma ilha num mapa 64×64; infantaria atravessa um baixio de 3 tiles; 600 ticks de navio com ordem de `move` para trás de uma ilha: todas as posições `isNavigableTerrain`; hoplita mandado para o mar fica em terra. (3) **Estaleiro**: `canPlaceBuilding` recusa no interior (`err.needsShore`), recusa com só baixio encostado, aceita na praia com 2 tiles de água de um mar ≥ 60, aceita em território neutro, recusa em território inimigo; com `config.scenario` definido recusa (`err.navalOff`) e com `config.naval: true` aceita. (4) **Pesca**: barco colhe `fish` e entrega no Estaleiro (comida sobe); cidadão em `fish` recusado (`err.boatOnly`); barco em `berry` recusado (`err.fishOnly`); cardume esgotado → o barco vai ao próximo; barco num `rare_fish` rende ~0,5 ouro/s e `p.rares` inclui `rare_fish` em ≤ 1 s; `fishing_nets` e Poseidon multiplicam a pesca. (5) **Transporte**: 5 hoplitas embarcam (`inside` = id do navio, `cargo.length` 5); 11 hoplitas → só 10 sobem (pop 20); titã e navio não embarcam; `unload` na outra margem → todos em terra na região do ponto, `cargo` vazio; navio morto com carga → passageiros mortos e `losses` contadas; `serialize`/`deserialize` no meio da travessia e 200 ticks depois o `stateHash` é igual ao da partida contínua. (6) **Combate**: `canTarget(hoplita, navio)` falso; toxota na praia fere navio a 4 tiles; pentecôntero fere torre e hoplita na margem; titã (Oceano) alcança navio encostado; torre atira em navio. (7) **Gerador**: 3 tipos navais × 3 tamanhos × sementes 1–5 × 2–4 jogadores: `hasShipyardSite` em todo início, `seaOfStart` igual em todos, ≥ 6 peixes a até 24 de cada início; Ilhas com regiões terrestres distintas; Costeiro e Mediterrâneo com terra ligada; duas gerações iguais. (8) **IA**: partida 2 IAs em `coastal` semente 42 (mapa pequeno), 10 min: as duas têm Estaleiro e ≥ 1 barco de pesca; partida 2 IAs em `islands`, 25 min: alguma IA com `ai.waves > 0` e algum desembarque (unidade dela na ilha do outro); duas execuções com o mesmo `stateHash`. (9) **Justiça**: num mapa espelhado em x com mar dos dois lados, `approachTile`, `shoreTileNear` e `findBuildSpot('shipyard')` dão resultados espelhados para os dois inícios. |
+| `tests/naval.test.ts` (novo) | (1) **Camadas**: baixio passa nas duas camadas; água rasa e profunda só na naval; peixe bloqueia navio; `removeNode` de peixe deixa `blocked = 1`; pintar terra no mar (`applyEditOp` paint) muda `componentAt(..., 'naval')` na hora (cache invalidado). (2) **Caminho**: `findPathEx(..., 'naval')` contorna uma ilha num mapa 64×64; infantaria atravessa um baixio de 3 tiles; 600 ticks de navio com ordem de `move` para trás de uma ilha: todas as posições `isNavigableTerrain`; hoplita mandado para o mar fica em terra. (3) **Estaleiro**: `canPlaceBuilding` recusa no interior (`err.needsShore`), recusa com só baixio encostado, aceita na praia com 2 tiles de água de um mar ≥ 60, aceita em território neutro, recusa em território inimigo; com `s.config.scenario = 'horde'` atribuído **depois** do `createGame` (criar já com cenário monta o roteiro da Horda) recusa com o motivo `t('err.navalOff')` (o `canPlaceBuilding` sem `force` passa por `buildingLimitOk` → `forbiddenReason`), e com `s.config.naval = true` em seguida aceita. (4) **Pesca**: barco colhe `fish` e entrega no Estaleiro (comida sobe); cidadão em `fish` recusado (`err.boatOnly`); barco em `berry` recusado (`err.fishOnly`); cardume esgotado → o barco vai ao próximo; barco num `rare_fish` rende ~0,5 ouro/s e `p.rares` inclui `rare_fish` em ≤ 1 s; `fishing_nets` e Poseidon multiplicam a pesca. (5) **Transporte**: 5 hoplitas embarcam (`inside` = id do navio, `cargo.length` 5); 11 hoplitas → só 10 sobem (pop 20); titã e navio não embarcam; `unload` na outra margem → todos em terra na região do ponto, `cargo` vazio; navio morto com carga → passageiros mortos e `losses` contadas; `serialize`/`deserialize` no meio da travessia e 200 ticks depois o `stateHash` é igual ao da partida contínua. (6) **Combate**: `canTarget(hoplita, navio)` falso; toxota na praia fere navio a 4 tiles; pentecôntero fere torre e hoplita na margem; titã (Oceano) alcança navio encostado; torre atira em navio. (7) **Gerador**: 3 tipos navais × 3 tamanhos × sementes 1–5 × 2–4 jogadores: `hasShipyardSite` em todo início, `seaOfStart` igual em todos, ≥ 6 peixes a até 24 de cada início; Ilhas com regiões terrestres distintas; Costeiro e Mediterrâneo com terra ligada; duas gerações iguais. (8) **IA**: partida 2 IAs em `coastal` semente 42 (mapa pequeno), 10 min: as duas têm Estaleiro e ≥ 1 barco de pesca; partida 2 IAs em `islands`, 25 min: alguma IA com `ai.waves > 0` e algum desembarque (unidade dela na ilha do outro); a partida de `coastal` rodada duas vezes dá o mesmo `stateHash`. O `testTimeout` do `vite.config.ts` é 30 s: dê timeout explícito a esses casos (`}, 240_000);`; 25 min = 30 000 ticks) e não repita a de 25 min. (9) **Justiça**: num mapa espelhado em x com mar dos dois lados, `approachTile`, `shoreTileNear` e `findBuildSpot('shipyard')` dão resultados espelhados para os dois inícios. |
 | `tests/command-fuzz.test.ts` | tipos `embark`/`unload`; invariantes de carga e de camada; rodada em `islands` |
 | `tests/modes.test.ts` | Ilhas: inícios separados por terra e ligados pelo mar |
 | `tests/editor.test.ts` | tecla `7`; `StartResources.fish`; pintar baixio sob edifício → `underBuilding` |
@@ -1449,18 +1606,26 @@ Na ordem; não passe para o próximo com o anterior vermelho.
 5. Mapas navais exportados e smoke neles:
    ```bash
    mkdir -p /tmp/e4
-   for t in coastal islands mediterranean; do npm run map:export /tmp/e4/$t.map.json --size small --seed 42 --type $t --players 2; done
-   for t in coastal islands mediterranean; do npm run smoke 20 42 -- --map /tmp/e4/$t.map.json > /tmp/e4/smoke-$t.txt; grep -m1 "nav=" /tmp/e4/smoke-$t.txt; tail -3 /tmp/e4/smoke-$t.txt; done
+   for t in coastal islands mediterranean; do npx tsx scripts/export-map.ts /tmp/e4/$t.map.json --size small --seed 42 --type $t --players 2 || break; done
+   for run in a b; do for t in coastal islands mediterranean; do npm run -s smoke 20 42 -- --map /tmp/e4/$t.map.json > /tmp/e4/smoke-$t-$run.txt; done; done
+   for t in coastal islands mediterranean; do
+     echo "== $t"; grep -h "hash final" /tmp/e4/smoke-$t-a.txt /tmp/e4/smoke-$t-b.txt
+     awk '/^--- minuto/{m=$3} /nav=/{print "nav= no minuto " m ": " $0; exit}' /tmp/e4/smoke-$t-a.txt
+     grep "ondas de ataque" /tmp/e4/smoke-$t-a.txt
+   done
    ```
-   Hash igual em duas execuções de cada; `nav=` aparece nas IAs até o minuto 10 (Costeiro e Ilhas; o `grep` mostra a
-   primeira linha); nas Ilhas, `ondas de ataque` > 0 em pelo menos uma IA.
+   (Use `npx tsx scripts/export-map.ts` direto: `npm run map:export … --size …` sem `--` perde as opções.) As duas
+   linhas `hash final` de cada tipo são iguais; a primeira linha com `nav=` sai até o minuto 10 no Costeiro e nas Ilhas
+   (no Mediterrâneo pode sair mais tarde ou não sair: registre); nas Ilhas, `ondas de ataque` > 0 em pelo menos uma IA.
 6. `npm run balance 35 1,2,3 | grep -v "reais\|ms/tick" | diff /tmp/e4-base/balance.txt -` — **sem diferença**. Depois
    `npm run balance 35 1,2,3 -- --map /tmp/e4/<tipo>.map.json` para os 3 tipos: nenhuma `PARADA`; Eras no máximo ~2 min
    mais tarde que no balance terrestre (alvo do ERAS: II ~4, III ~9, IV ~14, V ~20, VI ~26). Se falhar, passo G6.
-7. `npm run map:check` (embutidos: sem erro nem aviso; Egeu com `fish` igual e "estaleiro: sim" nos 4) e
+7. `npm run map:check` (embutidos: sem erro nem aviso; Egeu com `peixe` igual e "estaleiro: sim" nos 4) e
    `npm run map:check /tmp/e4/islands.map.json` (sem erro; nenhum `seasApart`/`noShipyardSite`).
-8. `npx tsx scripts/missions.ts` (~12 min): o mesmo resultado de `/tmp/e4-base/missions.txt` (vitórias e minutos; tempos
-   de execução podem variar). `npx tsx scripts/horde.ts` sem erro.
+8. `npx tsx scripts/missions.ts 2>&1 | sed -E 's/ \([0-9.]+s\)$//' | diff /tmp/e4-base/missions.txt -` (~12 min) —
+   **sem diferença** (o `sed` tira o tempo de execução do fim das linhas; vitórias, minutos e objetivos têm de ser
+   iguais, porque cenário tem `navalOn` falso). `npx tsx scripts/horde.ts` sem erro e com a mesma linha "Horda: …" de
+   antes da E4 (rode-o também no passo 02 se quiser comparar).
 9. Justiça de posição:
    - `npx tsx scripts/maps/fairness.ts estreito 45 1-16 zeus --both --jobs 3` — igual a `/tmp/e4-base/fair-estreito.txt`
      (o Estreito não tem peixe: nada naval acontece);
@@ -1468,8 +1633,10 @@ Na ordem; não passe para o próximo com o anterior vermelho.
      `npx tsx scripts/maps/fairness.ts /tmp/e4/islands.map.json 45 1-16 zeus --both --jobs 3` — critério de sempre:
      nenhum lado com > 65 % das decididas + à frente no fim, por posição e por índice; um "fora" isolado pede confirmação
      nas sementes 101–132. (Mapa gerado não é perfeitamente simétrico: se só as Ilhas saírem do critério, registre no
-     `PROGRESSO.md` com os números; o Egeu tem de passar.)
-10. Navegador: `npm run build && npm run preview` (porta 4173); depois `node scripts/playtest.mjs`,
+     `PROGRESSO.md` com os números.) O Egeu tem de dar `critério … DENTRO`; se a **base** (`/tmp/e4-base/fair-egeu.txt`)
+     já dava `FORA` (o CLAUDE.md registra um resíduo de índice no Egeu 1–16), a exigência passa a ser "não piorar": o
+     `máx.` de cada eixo no máximo 5 pontos acima do da base, e a confirmação em `101-132` dentro.
+10. Navegador: `npm run build`, depois `npm run preview` em segundo plano (porta 4173; ele não termina sozinho); depois `node scripts/playtest.mjs`,
     `node scripts/playtest-modes.mjs`, `node scripts/playtest-editor.mjs`, `node scripts/playtest-naval.mjs`,
     `node scripts/playtest-noemoji.mjs http://localhost:4173/` e `node scripts/playtest-i18n.mjs` — todos verdes.
     `npm run art:shot && npm run art:diff` — dentro da tolerância (nenhuma referência tem mar navegável novo; se o Egeu
@@ -1514,8 +1681,8 @@ Na ordem; não passe para o próximo com o anterior vermelho.
   mora no `killUnit`). `map/naval.ts` não importa `components.ts` (o contrário sim).
 - **Determinismo**: nada de `Math.random`, `Math.sin/cos/atan2/pow/hypot`, `Date.now` em `src/core`; `Math.sqrt` e `x * x`.
   O `Math.sin` do balanço do navio fica no renderizador (permitido).
-- **Atalhos**: `I` só no Estaleiro (o `I` do editor é outro contexto); nenhum treino com `R`/`U`; `T` reservado para o
-  mercante da E5.
+- **Atalhos**: `I` só no Estaleiro (o `I` do editor é outro contexto); nenhum treino com `A`/`R`/`U`; no Estaleiro,
+  `T`, `M`, `C`, `V`, `B`, `Z` e `X` ficam livres (reservados para a E5 e a E6, D11).
 - **Textos**: toda chave nova PT e EN com as mesmas `{variáveis}`, sem emoji em `strings.ts`; o `icon` dos dados copia um
   caractere que já existe (nada de emoji novo, que exigiria `EMOJI_GLYPHS`).
 - **Ícone do HUD obrigatório**: `unit/<navio>` faltando quebra `hud-icons.test.ts` e o `playtest-noemoji`; só o
@@ -1525,15 +1692,47 @@ Na ordem; não passe para o próximo com o anterior vermelho.
 - **Campanha**: não ponha `"naval": true` em missão nenhuma; nenhuma missão nem `testing.ts` muda nesta etapa.
 - **Passageiro com `hpFloor`** (só cenário) sobrevive ao naufrágio e fica na água: aceito (navios desligados em cenário).
 - **storeSet**: a E4 não grava nada do jogador; se acrescentar algo (um filtro do editor), use `storeSet`/`storeRemove`.
+- **O npm engole opções**: `npm run map:export saida --size small` vira o posicional `small` e o script só imprime o
+  "Uso:". Rode `npx tsx scripts/export-map.ts …` direto ou ponha `--` (`npm run map:export -- saida --size small`); o
+  mesmo vale para `npm run smoke 20 42 -- --map …` e `npm run balance 35 1,2,3 -- --map …`.
+- **Evoluções navais em mapa de terra**: a `evolutionPriority` da E3 percorre todas as linhas; sem o filtro do passo E1
+  (linha só de Estaleiro e nenhum Estaleiro pronto → pula), a IA estuda `evo_warship_*` no Continental, o balance muda e o
+  diff da Verificação 4/6 deixa de ser vazio.
+- **Ritmo da IA naval**: nunca `(state.tick + player.id) % N === 0` — a IA só pensa a cada `thinkEvery` ticks e o resto
+  bate só para alguns jogadores (viés de posição). Use a janela de 10 s do passo E3 (`Math.floor(tick / every)`).
+- **Navio nascendo em terra**: `createGame` (entidades do mapa fixo), `findSpawnTile`, `debugSpawn` do `main.ts` e o
+  `moveEntity`/`pushUnitsFrom` do editor procuram tile livre na camada terrestre; sem a camada (C12, D6), o navio nasce
+  na praia e o invariante do fuzz (G2) falha. A recíproca também: hoplita de cenário não pode cair num tile de água rasa.
+- **Afogados**: sem o `drowned` do C6 o naufrágio vira Sombras de Hades presas na água; sem o `p.x = u.x` antes do
+  `killUnit` do passageiro, o cadáver e a queda saem na posição velha (o cais).
+- **Embarque sem fim**: unidade de `pop: 0` (herói, criatura de poder) teria assento grátis; por isso `seatsOf` =
+  `Math.max(1, pop)` (C1). Portador de relíquia não embarca (C1): a relíquia sumiria no naufrágio.
+- **Barco não é cidadão**: o barco de pesca tem `gather`, mas não guarnece (C3), não reza nem cultiva (C9b); sem isso o
+  `startOrder` o manda para o templo ou para uma fazenda em terra e ele fica parado com `blocked`.
+- **Estreito tem lagos**: dois lagos de ~190 tiles (≥ `MIN_DOCK_WATER`) a ~25 tiles um do outro. O `seasApart` do
+  `validateMap` (D3) só é conferido entre inícios em regiões terrestres **diferentes** — feito na ordem do D3, o Estreito
+  continua com zero avisos. Também não há peixe nele: a IA não faz Estaleiro e o fairness fica igual (Verificação 9).
+- **Teto do atlas `hud`**: o `art:check` limita o PNG do grupo a `BUDGET.maxHudPngMB` (4 MB, `scripts/bake/check.ts`);
+  hoje ~2,6 MB, e a E2, a E3 e a E4 somam ícones (~17 KB cada, 1× + 2×). Se estourar, suba o teto para 5 com o
+  comentário "E2–E4: recursos, evoluções e navios" e registre no `PROGRESSO.md`; não baixe a resolução dos ícones.
+- **`isNodeType` do editor**: se ainda for a lista fixa de antes da E2, `fish`/`rare_fish` somem em silêncio das ops do
+  editor (sem erro). Confira no A1 (ele tem de consultar `NODE_AMOUNT`).
+- **Voador × navio** fica para a E6: com o `canTarget` do C6, voador corpo a corpo (Pégaso) não ataca navio e navio corpo
+  a corpo não ataca voador. Não "corrija" agora (muda o combate das míticas).
+- **Modo ilha por acidente**: o jogador humano que se emparedar ao lado de um lago grande (muralha fechando a única rota)
+  deixa a IA sem Centro Cívico inimigo alcançável por terra; com o mesmo `seaOfStart`, ela entra em modo ilha e tenta
+  desembarcar. É aceito (é o comportamento certo para essa geometria), mas não conte isso como bug do Continental.
 
 ## Ao terminar
 
-1. **`docs/eras/PROGRESSO.md`**: linha da E4 "pronta", data e commit, com as notas: baixio = terreno 6; camada naval
+1. **`docs/eras/PROGRESSO.md`** (formato no `docs/eras/LEIA-ME.md`): caixas da E4 marcadas e linha da E4 do Resumo
+   com o estado `feito`, data e commit, com as notas: baixio = terreno 6; camada naval
    derivada (`src/core/map/naval.ts`); navios desligados em cenário (`config.naval`); `rare_fish` fora de `RARE_NODES`;
    Estreito sem mudança; números do balance nos 3 tipos navais; resultado do fairness do Egeu e das Ilhas; o que o G6
    mudou.
 2. **`docs/ROADMAP.md`**, tabela "Cronograma a partir de 06/10/2026", linha das semanas 5–7: marque a E4 como feita, com o mesmo sinal de concluído que a E2 e a E3 usaram nessa tabela, e a data;
-   na linha do passo 5.3 (Naval), "feito (E4)".
+   na linha do passo 5.3 (Naval), `✅` no início da descrição e "feito (E4, <data>)"; na linha do passo 5.1, troque
+   "Pendente: ilhas (depende do naval, 5.3)" por "Ilhas, Costeiro e Mediterrâneo com a E4".
 3. **`CLAUDE.md`**:
    - em "Estado atual", uma frase: E4 concluída (água navegável com baixio, camada naval derivada em
      `src/core/map/naval.ts`, Estaleiro, pesca e atum, transporte com `embark`/`unload`, linha `warship` I–VIII e barcos a
@@ -1541,22 +1740,34 @@ Na ordem; não passe para o próximo com o anterior vermelho.
      até a E8);
    - em "Regras do núcleo" ou "Convenções": "movimento por camada: toda busca, caminho e região de navio passa
      `layer = 'naval'` (`Layer`/`layerOf` de `src/core/map/naval.ts`); terreno por `isNavigableTerrain`/`isUnbuildableTerrain`/`nodeFitsTerrain`, nunca `WATER || DEEP` literal";
-   - em "Comandos": `node scripts/playtest-naval.mjs` na lista dos playtests e os tipos novos no `map:export`.
+   - em "Comandos": `node scripts/playtest-naval.mjs` na lista dos playtests; e corrija o exemplo do `map:export`, que
+     hoje não funciona (o npm engole as opções): `npm run map:export -- saida.map.json --size small --seed 42
+     [--type continental|…|coastal|islands|mediterranean]`.
 4. **Commit** em português, por exemplo
    `E4: guerra no mar (baixio e camada naval, Estaleiro, pesca, transporte, navios I–VIII, IA naval, mapas Costeiro/Ilhas/Mediterrâneo, Egeu navegável)`,
-   com o rodapé de atribuição exigido pela sua sessão. Não faça push sem pedido.
+   com o rodapé de atribuição exigido pela sua sessão. Faça push só para a branch da sessão (rotina do `docs/eras/LEIA-ME.md`); nunca para `main` sem pedido do dono.
 
 Ganchos para as etapas seguintes (não implemente agora):
 
-- **E5 (comércio):** `merchant_ship` (dados reservados acima), linha `merchant` no Estaleiro com tecla `T`; rotas entre
-  Estaleiros (portos) com `nearestNavalDropoff`/`shoreTileNear`/`rectReachable(..., 'naval')`; Canal de Corinto da E7 e
-  Farol aumentam a renda.
+- **E5 (comércio):** `merchant_ship` (dados reservados acima) no `trains` do Estaleiro, com a tecla que o guia da E5
+  escolhe entre as reservadas no D11 (a 1ª livre de `M`, `C`, `V`, `B`); rotas entre Estaleiros (portos) com
+  `nearestNavalDropoff`/`shoreTileNear`/`rectReachable(..., 'naval')`; Canal de Corinto da E7 e Farol aumentam a renda.
+  A E4 **não** dá alias de arte a navio nenhum (D22: procedurais), e o guia da E5 já segue isso (Fase F, D25 de lá). O mercante já sai desenhado pelo `drawShip` (F3: genérico, lê `UNITS[type]`) e precisa de uma entrada `merchant_ship: S({ kind: 'transport' })` no `SHIP_ICONS` de `scripts/bake/hud/catalog.mjs` +
+  `npm run art:hud` (senão `tests/hud-icons.test.ts` falha) e o filtro do `tests/art-etapa6.test.ts` (F8) já o exclui
+  por `naval`.
 - **E6 (mitologia):** camada `'amphibious'` (passável se terra **ou** mar) para Oceano, Ceto e Escila; Hipocampos como
   `cls: 'myth'` com `naval: true` (o núcleo já aceita mítico naval); Vendaval (empurra e para navios) e Maremoto (Tritão).
 - **E7 (maravilhas):** Farol (`{ type: 'unit', match: { tags: ['ship'] }, stat: 'speed', mult: 1.15 }` e `los`, revela a
-  costa), Arsenal de Cândia (custo ×0,7 e treino mais rápido de `ship`), Canal de Corinto (pinta `SHALLOWS` no istmo: a
-  camada naval se refaz sozinha por `invalidateComponents`).
+  costa), Arsenal de Cândia (custo ×0,7 e treino mais rápido de `ship`), Canal de Corinto (`navalPassable`, passo M2
+  do guia E5–E7). O Canal **não** pinta terreno (o guia da E7 proíbe escrever em `map.terrain`): o `navalBlocked` desta
+  etapa só olha `map` (terreno, `nodeAt`, `buildingAt`), então a E7 guarda os tiles abertos fora do `GameMap` — um
+  `Set` por mapa num `WeakMap` (`setNavalOpen` em `src/core/map/naval.ts`, passo M2 da E7), refeito em
+  `onWonderComplete`, `destroyBuilding`, `removeBuildingNow` e no `deserialize` a partir dos edifícios — e o
+  `navalBlocked` passa a ler `(isNavigableTerrain(t) || open) && nodeAt === -1 && (buildingAt === -1 || open)`, com
+  `invalidateNaval`/`invalidateComponents(map)` a cada mudança. Não crie campo novo no `GameMap` (save, editor e
+  literais de mapa ficariam diferentes).
 - **E8 (arte):** rigs de navio (remos, velas, vapor) e Estaleiro por Era; os navios saem do procedural e do
-  `SHIP_ICONS`; som próprio de navio.
+  `SHIP_ICONS`; som próprio de navio. O `SHIP_ICONS` mora em `scripts/bake/hud/catalog.mjs` (passo F7): é de lá que a
+  E8 o tira (D28 dela), quando os navios ganham manifesto.
 - **E10:** números das 10 unidades, das tabelas navais da IA e das pesquisas do Estaleiro com partidas de 60 min nos
   mapas com mar.

@@ -2,6 +2,10 @@
 
 - Estado: pendente · Pré-requisitos: **E1 e E2 concluídas** (8 Eras em `AGES`, Biblioteca com `library`/`queueMax`, `queueMaxOf`, `isScenarioConfig`, árvore de estudos em `src/ui/studytree.ts`; recursos `stone` e `oil` em `RESOURCES`, alias de arte em `src/render/art/alias.ts`) · Estimativa: 5 dias de trabalho do agente (dados 1, núcleo 1, IA e balanceamento 1, renderização, ícones e interface 1, verificação e documentação 1)
 
+> **Antes de começar:** leia `docs/eras/LEIA-ME.md` (rotina de cada sessão, regras, quando parar) e marque cada
+> passo em `docs/eras/PROGRESSO.md`. Ordem das etapas: E1, E2, E3, E4, E5+E7, E6, E8, E9+E10. Onde este guia falar de
+> commit ou de push, vale a rotina do LEIA-ME: um commit por passo e push só para a branch da sessão.
+
 > Guia de execução para um agente que não viu a conversa que o escreveu. Siga os blocos na ordem (0, A … H), com um
 > commit por bloco ou um único no fim. Todo número de jogo daqui é **valor inicial para o balanceamento** (a E10 ajusta):
 > não invente outros e não recalcule os que já vêm prontos. O código citado foi conferido em 06/10/2026, **antes** da E1
@@ -82,7 +86,7 @@ Decisões deste guia (cada uma com o motivo em uma linha):
 | D11 | O **cidadão não troca de tipo**: a linha `citizen` tem `villager` nos 8 degraus e 7 estudos com efeitos (vida, coleta, construção). | Há dezenas de comparações com `'villager'` em `src/core` (`grep -rn "'villager'" src/core` acha ~40: eliminação, kit, IA, harness). |
 | D12 | **Regra de escala por Era** (seção "Regra de escala"): ×1,20 na vida e no dano por segundo, +0,02 em cada armadura, ×1,10 no custo, +1 s no treino; o resto vem da âncora, e as exceções estão numa tabela. | Os números saem de uma fórmula, sem chute, e o pedra-papel-tesoura de hoje continua (os bônus por tag vêm da âncora). |
 | D13 | **Pólvora:** `attackType: 'pierce'` (granadas `crush` com área), cadência própria no campo novo `attackInterval` e o mesmo bônus da linha. Tag nova `'gunpowder'` (gancho dos efeitos de tiro da E8). | Mosquete forte e lento; o RPS fica igual; a E8 escolhe bala × flecha pela tag. |
-| D14 | **Tanque** = degrau VIII da Cavalaria: `cls: 'cavalry'`, tag `'mechanical'` e **sem** `'human'`. Alcance 5, `crush`, vida ×1,5 e petróleo. A Infantaria VIII tem bônus ×2 contra `cavalry`. | ERAS §4. Sem `human`, a Medusa não petrifica e as míticas não ganham o ×1,3 dela; a infantaria antitanque fecha o RPS. |
+| D14 | **Tanque** = degrau VIII da Cavalaria: `cls: 'cavalry'`, tag `'mechanical'` e **sem** `'human'`. Alcance 5, `crush`, vida ×1,5 e petróleo. A Infantaria VIII tem bônus ×2 contra `cavalry`. | ERAS §4. Sem `human`, a Medusa não petrifica o tanque e as míticas não ganham contra ele o bônus ×1,3 que têm contra `human`; a infantaria antitanque fecha o RPS. |
 | D15 | **Petróleo nos custos:** sifão 50, obus 40, autopropulsada 100, tanque 120, motociclista 30. Nenhuma unidade custa pedra. | ERAS §3. A pedra é dos edifícios (E2). |
 | D16 | Partida que começa numa Era acima da I, fora de cenário, ganha **todos os estudos de evolução até essa Era**, e o batedor do kit nasce no degrau atual. | Começar na V com Hoplitas não faz sentido; é o mesmo espírito da D9 da E1. |
 | D17 | Arte provisória = alias da E2: as 41 entradas em `UNIT_ART_ALIAS`, o procedural desenhando o alias e `ic.unit` pelo alias. Ícone de estudo = **um por linha** (`tech/evo_<linha>`), com o modelo da âncora. **Sem manifesto nem bake.** | Nenhuma página nova de VRAM; os testes de arte passam; a E8 troca. |
@@ -139,7 +143,7 @@ Os marcados "(da E1)"/"(da E2)" foram criados por essas etapas. **Se não existi
 **Não mexa em:**
 - `art/manifest/*`, `scripts/bake/page/*`, `materials.js`: mudar qualquer um deles reassa a arte;
 - `src/core/scenario/missions/*.json` e `src/core/scenario/testing.ts`: a campanha fica no elenco clássico sem tocar neles;
-- os 35 `UnitDef` de hoje, além do `line`/`tier` das 12 da tabela;
+- os `UnitDef` de antes da E3 (os 35 de hoje mais o `merchant` da E2), além do `line`/`tier` das 12 da tabela;
 - as listas `trains` dos edifícios.
 
 ---
@@ -193,11 +197,13 @@ Ids e nomes reservados para a E4 (não entram em `UNITS` nem em `LINES` na E3):
 | `warship` | `ship_of_the_line` | Navio de linha / Ship of the Line | VI |
 | `warship` | `ironclad` | Couraçado / Ironclad | VII |
 | `warship` | `battleship` | Encouraçado / Battleship | VIII |
-| barcos | `fishing_boat` | Barco de pesca / Fishing Boat | I |
-| barcos | `transport_ship` | Transporte / Transport Ship | I |
-| barcos | `merchant_ship` | Navio mercante / Merchant Ship | III (E5) |
+| `fishing` | `fishing_boat` | Barco de pesca / Fishing Boat | I |
+| `transport` | `transport_ship` | Transporte / Transport Ship | I |
+| (a E5 decide) | `merchant_ship` | Navio mercante / Merchant Ship | III (E5) |
 
-Os barcos evoluem "a vapor" na VII sem trocar de tipo, como os cidadãos. A E4 cria essas linhas e o Estaleiro.
+Os barcos de pesca e de transporte são duas linhas de tipo fixo (`fishing`, `transport`; D11 da E4) que evoluem
+"a vapor" na VII sem trocar de tipo, como os cidadãos. A E4 cria essas linhas, a `warship` e o Estaleiro; o navio
+mercante é da E5.
 
 ### Regra de escala por Era (como os números foram calculados)
 
@@ -222,13 +228,14 @@ Exceções (todas já aplicadas na tabela e no código):
 | `mounted_scout`, `motorcyclist` | à distância (alcance 3, `pierce`), intervalo 1,6 / 1,2; o motociclista tem velocidade 5,0 e petróleo 30 |
 | `grenadier`, `guard_grenadier` | alcance 3, `crush`, intervalo 2,2, área 0,8 |
 | `fusilier`, `modern_infantry`, `evzone`, `sacred_band` | à distância (`pierce`), alcance 4,5–5; a Infantaria VIII tem bônus ×2 contra `cavalry` |
-| `byzantine_archer`, gunpowder do Tiro | alcance 7 / 6 / 6 / 7,5 / 6; intervalos 2,4 / 2,2 / 2,0 / 0,7; o metralhador tem bônus ×1,75 e velocidade 2,0 |
-| `akritas`, `chasseur`, `light_infantry`, `commando` | alcance 4 / 5 / 5 / 4,5; intervalos (pólvora) 2,0 / 1,8 / 1,4 |
+| `byzantine_archer`, gunpowder do Tiro | alcance 7 / 6 / 6 / 7,5 / 6; intervalos 2,4 / 2,2 / 2,0 / 0,7; o atirador (`sharpshooter`) tem visão 11; o metralhador tem bônus ×1,75 e velocidade 2,0 |
+| `akritas`, `chasseur`, `light_infantry`, `commando` | alcance 4 / 5 / 5 / 4,5; intervalos (pólvora) 2,0 / 1,8 / 1,4; o comando tem velocidade 2,8 |
+| `evzone`, `sacred_band` | velocidade 2,6 (a do Mirmidão é 2,4), além do que está na linha da infantaria de fuzil acima |
 | `rodelero` | **corpo a corpo** (alcance 0,6, `hack`, intervalo 1,0, velocidade 2,8, sem a tag `ranged`): espada e rodela contra os atiradores |
 | `dragoon` | alcance 3,5, `pierce`, intervalo 2,0 |
 | `tank` | vida ×1,5, armadura 0,5/0,7/0,35, alcance 5, `crush`, intervalo 2,5, velocidade 3,0, visão 9, raio 0,45, custo ×1,5 + petróleo 120; tags sem `human`, com `mechanical`; bônus também ×1,5 contra `building` |
 | `trebuchet` | alcance 9, velocidade 1,1 |
-| `bombard`, `field_gun`, `howitzer` | alcance 8 / 9 / 11; intervalo 4,0 / 3,5 / 4,0; área — / 1,0 / 1,4; bônus `building` ×6 / ×3 / ×3; o obus tem petróleo 40 |
+| `bombard`, `field_gun`, `howitzer` | alcance 8 / 9 / 11; intervalo 4,0 / 3,5 / 4,0; área — / 1,0 / 1,4; velocidade 1,2 / 1,6 / 1,6; bônus `building` ×6 / ×3 / ×3; o obus tem petróleo 40 |
 | `self_propelled_gun` | vida ×1,5, armadura 0,4/0,6/0,25, alcance 11, intervalo 3,5, área 1,4, velocidade 2,4, raio 0,45, `building` ×3, petróleo 100 |
 | `covered_ram` | **corpo a corpo** (alcance 0,8, sem `ranged`), armadura 0,3/0,75/0,15, velocidade 1,3 |
 | `greek_fire_siphon` | sem âncora (degrau único): números próprios da tabela |
@@ -784,6 +791,8 @@ que o bloco manda conferir ficam verdes. O `npm test` **inteiro** só fica verde
 - do passo A4 até o D1, `tests/art-etapa6.test.ts` (os 35 tipos com manifesto) e `tests/hud-icons.test.ts` (`unit/<id>`)
   acusam as 41 unidades novas, que só entram no alias no D1;
 - do passo A5 até o E3, `tests/hud-icons.test.ts` acusa os 50 estudos sem ícone (`tech/evo_*`);
+- do passo B1 até o D3, `tests/fx-registry.test.ts` acusa o tipo `'evolve'` (o núcleo já o emite em
+  `src/core/sim/lines.ts`, mas ele só entra em `EFFECT_TYPES`/`FX_HANDLERS` no D3);
 - do passo A4 até o C3, o `it` da IA de `tests/unit-lines.test.ts` não roda (o arquivo é criado no B9 e o `it` da IA
   só é conferido no C4).
 
@@ -1496,8 +1505,9 @@ Se fizer um commit por bloco, escreva na mensagem quais desses testes ainda est�
   // 2) acelera até o estudo terminar (33 s de jogo); os hoplitas viram hipaspistas
   await pause(false); await page.evaluate(() => { window.aoe.session.speed = 3; });
   const done = () => page.evaluate(() => window.aoe.session.player.techs.includes('evo_heavy_infantry_2'));
-  for (let i = 0; i < 60 && !(await done()); i++) await page.waitForTimeout(500);
+  for (let i = 0; i < 120 && !(await done()); i++) await page.waitForTimeout(500);   // até 60 s reais: com o swiftshader o quadro é lento e o jogo anda abaixo de 3×
   await pause(true); await page.evaluate(() => { window.aoe.session.speed = 1; });
+  ok('estudo terminou', await done());
   const types = await page.evaluate((hs) => hs.map((h) => window.aoe.session.state.units.get(h)?.type), ids.hops);
   ok('hoplitas transformados', types.every((x) => x === 'hypaspist'), types.join(','));
   // 3) o Quartel treina o degrau novo pela tecla Q
@@ -1526,7 +1536,9 @@ Se fizer um commit por bloco, escreva na mensagem quais desses testes ainda est�
 
 - [ ] **H1.** Rode a seção "Verificação" inteira, na ordem.
 - [ ] **H2. `docs/EDITOR.md`:**
-  - na linha 182 (a config do formato de cenário), acrescente `unitLines?: boolean` depois de `forbid?: …`;
+  - no bloco `config: { … }` do formato de cenário (§2.3; hoje nas linhas ~181–182, a linha que começa com
+    `maxAge?: number; forbid?: { buildings?: …` — a E1 pode ter posto `visualEraMax?` nela), acrescente
+    `unitLines?: boolean;` logo depois do `forbid?: { … }`, antes do `};` que fecha a `config`;
   - no parágrafo do G6, acrescente uma frase: "`config.unitLines` (E3): `true` liga as linhas de unidade no cenário;
     sem ele, o cenário usa o elenco clássico (as unidades de antes da E3, sem evolução)".
 - [ ] **H3.** Faça o "Ao terminar".
@@ -1539,7 +1551,7 @@ Se fizer um commit por bloco, escreva na mensagem quais desses testes ainda est�
 |---|---|
 | `tests/unit-lines.test.ts` (novo) — dados | (1) `LINES` tem exatamente os ids de `LINE_ORDER`; cada linha tem `steps.length === AGES.length`, `lineStart ≥ 0`, edifícios com `trains`, **uma só** `cls` e **um só** `pop` entre os degraus e a mesma regra de guarnição (tem tag de `GARRISON_TAGS` e não tem `myth`/`siege`/`cavalry`); fora a linha `citizen`, todo degrau não nulo tem `UNITS[s].line === id` e `UNITS[s].tier === k`. (2) Toda unidade com `line` está nos `steps` da linha (cidadão incluso). (3) Os 50 estudos: `TECHS[evoTechId(id, k)]` existe com `building: 'academy'`, `age: k`, `evolve: { line, to }`, `prereq` = o anterior (ou `[]`), `line: undefined`; total 50. (4) As 41 com `lineOnly` não estão em nenhum `trains`, e o `building` delas está em `LINES[line].buildings`. (5) As 12 de hoje mantêm vida/ataque/`age`/`building`/`hotkey`: `villager [60,3,0,town_center,Q]`, `kataskopos [70,4,0,town_center,W]`, `hoplite [110,9,0,barracks,Q]`, `toxotes [75,7,0,barracks,W]`, `peltast [85,6,1,barracks,E]`, `hippeus [140,10,1,stable,Q]`, `hypaspist [150,13,2,barracks,F]`, `cretan_archer [90,11,2,barracks,T]`, `hetairoi [190,14,2,stable,E]`, `petrobolos [120,30,2,siege_workshop,Q]`, `myrmidon [200,17,3,barracks,Y]`, `helepolis [400,45,3,siege_workshop,W]`; e os `trains` continuam os de hoje: `barracks` = `['hoplite','toxotes','peltast','hypaspist','cretan_archer','myrmidon']`, `stable` = `['kataskopos','hippeus','hetairoi']`, `fortress` = `['hoplite','toxotes','hypaspist','hetairoi','myrmidon']`, `siege_workshop` = `['petrobolos','helepolis']`. (6) Teclas por edifício: as das linhas que treinam ali mais as das unidades sem linha e sem `god` do `trains` são únicas; teclas de linha nunca A, R ou U; nenhuma linha usa Q num edifício com `scholars`. (7) Dentro de cada linha (menos `citizen`), vida e custo total crescem estritamente com o degrau. |
 | `tests/unit-lines.test.ts` — núcleo | Use `quickGame` (`tests/helpers.ts`) e um `setup()`: Era 1, 5000 de cada recurso, Biblioteca e Quartel prontos por `placeBuilding(…, true)` num tile achado por um `findFree` igual ao de `tests/economy-regressions.test.ts`. Use também `studyNow(s, lib, tech)`: manda o `research`, põe `elapsed = total − 0,01` no item e roda 1 `tick`. Casos: **(a)** hoplita com `kills = 3` e vida pela metade, outro hoplita guarnecido no CC (`enterGarrison`) e um toxota; depois de uma ordem `move` e de `studyNow(…, 'evo_heavy_infantry_2')`: os dois hoplitas viram `hypaspist`, o toxota não muda, `kills` continua 3, `maxHp === round(getUnitStats(hypaspist).hp × 1,1)`, a fração de vida fica 0,5 ± 0,02, o estado continua `'move'`, o guarnecido segue com `inside === tc.id`, a pop não muda e há um efeito `evolve` com `src: 'hypaspist'`. **(b)** `trainChoices(s, p, 'barracks')` dá `[[heavy_infantry, hoplite, Q], [ranged, toxotes, W], [skirmisher, peltast, E]]` (linha, `show`, tecla); um `hoplite` posto na fila antes do estudo nasce `hypaspist`; depois do estudo, `train` com `unit: 'hoplite'` enfileira `hypaspist`. **(c)** Era 2: `canTrain(Quartel, 'myrmidon').ok === false`; numa Fortaleza, `true`; as teclas da Fortaleza são `['Q','W','E','Y']`; numa Oficina a helépole treina; na Era 4, `canTrain(Oficina, 'helepolis')` dá `{ ok: false, reason: t('err.lineRetired', { line: LINES.assault.name, age: AGES[4].name }) }` e `trainChoices(…, 'siege_workshop')` só tem `artillery`. **(d)** Elenco clássico (`setup({ unitLines: false })`): `unitLinesOn` é `false`; `canResearch(lib, 'evo_heavy_infantry_2')` e `canTrain(Quartel, 'phalangite')` dão `{ ok: false, reason: t('err.legacyRoster') }`; na Era 2, `canTrain(Quartel, 'hypaspist').ok`; `trainChoices(…, 'barracks').map((c) => c.send)` = `BUILDINGS.barracks.trains`; `unitLinesOn(createGame(missionConfig(campaignMission('m1_despertar')!, 'normal')))` é `false`. **(e)** `quickGame({ startingAge: 4 })`: o jogador 0 tem `evo_heavy_infantry_5` e não tem `evo_heavy_infantry_6`, e o batedor do kit é `stradiot`. **(f)** Cidadãos: depois de `evo_citizen_2`, o tipo continua `villager`, `maxHp` = `round(60 × 1,1)` e `mods.gather.food` ≈ antes × 1,04. **(g)** Depois de uma transformação, `serialize(deserialize(serialize(s))) === serialize(s)`. |
-| `tests/unit-lines.test.ts` — IA (dois `it`) | `quickGame({ seed: 21, startingAge: 1, maxAge: 2, startingResources: { food: 20000, wood: 20000, stone: 20000, gold: 20000, knowledge: 5000, favor: 300 } }, true)` (2 IAs que começam na Era II e têm a III como Era final). **(1)** timeout 120 000, 10 min de jogo: pelo menos uma IA viva chegou à Era III (`age === 2`), e cada IA viva na Era III tem pelo menos um estudo `evolve` da Era III (`age === 2`) que não é de `citizen` e pelo menos uma unidade viva `lineOnly` ou `hetairoi` (os dois só existem depois de uma evolução da Era III; o hipaspista e o arqueiro cretense não contam, porque a D16 já os dá na Era II). **(2)** timeout 60 000: a mesma config rodada duas vezes por 4 min dá o mesmo `stateHash` (`src/core/net/hash.ts`). O `maxAge` é de propósito: na Era final a Biblioteca fica livre (D19), e o teste não depende do ritmo das Eras. |
+| `tests/unit-lines.test.ts` — IA (dois `it`) | `quickGame({ seed: 21, startingAge: 1, maxAge: 2, startingResources: { food: 20000, wood: 20000, stone: 20000, gold: 20000, knowledge: 5000, favor: 300 } }, true)` (2 IAs que começam na Era II e têm a III como Era final). **(1)** timeout 150 000, 12 min de jogo: pelo menos uma IA viva chegou à Era III (`age === 2`), e cada IA viva na Era III tem pelo menos um estudo `evolve` da Era III (`age === 2`) que não é de `citizen` e pelo menos uma unidade viva `lineOnly` ou `hetairoi` (os dois só existem depois de uma evolução da Era III; o hipaspista e o arqueiro cretense não contam, porque a D16 já os dá na Era II). **(2)** timeout 60 000: a mesma config rodada duas vezes por 4 min dá o mesmo `stateHash` (`src/core/net/hash.ts`). O `maxAge` é de propósito: na Era final a Biblioteca fica livre (D19), e o teste não depende do ritmo das Eras. |
 | `tests/data.test.ts` | degrau `lineOnly` confere `LINES[line].buildings` no lugar do `trains` (passo A9) |
 | `tests/i18n.test.ts` | `check('line', LINES, EN_LINES)` (passo A9). Os 41 `EN_UNITS` e os 50 `EN_TECHS` já são cobertos pelo `check` de hoje. |
 | `tests/fx-registry.test.ts` | `'evolve'` na lista do teste dos tipos (passo D5) |
@@ -1758,14 +1770,14 @@ describe('linhas de unidade: IA', () => {
   const cfg: Partial<GameConfig> = { seed: 21, startingAge: 1, maxAge: 2, startingResources: { food: 20000, wood: 20000, stone: 20000, gold: 20000, knowledge: 5000, favor: 300 } };
   it('na Era final a IA estuda evoluções da Era e o exército passa ao degrau novo', () => {
     const s = quickGame(cfg, true);
-    run(s, 10 * 60 * TICK_RATE);
+    run(s, 12 * 60 * TICK_RATE);   // Era III (~4 min) + filósofos e estudos de nível 1 que vêm antes na lista da IA + 2 evoluções
     const final = s.players.filter((p) => p.alive && p.age === 2);
     expect(final.map((p) => p.name), 'alguma IA viva chegou à Era III (a final)').not.toEqual([]);
     for (const p of final) {
       expect(p.techs.some((x) => TECHS[x]?.evolve && TECHS[x].age === 2 && TECHS[x].evolve!.line !== 'citizen'), `${p.name}: ${p.techs.join(',')}`).toBe(true);
       expect(unitsOf(s, p.id).some((u) => UNITS[u.type].lineOnly || u.type === 'hetairoi'), p.name).toBe(true);
     }
-  }, 120_000);
+  }, 150_000);
   it('a mesma config dá o mesmo estado (determinismo com as linhas)', () => {
     const a = quickGame(cfg, true), b = quickGame(cfg, true);
     run(a, 4 * 60 * TICK_RATE); run(b, 4 * 60 * TICK_RATE);
@@ -1775,7 +1787,7 @@ describe('linhas de unidade: IA', () => {
 ```
 
 Se o primeiro `it` da IA falhar, **não** afrouxe o teste. Descubra qual `expect` falhou e siga o caso:
-- **nenhuma IA chegou à Era III** em 10 min: o problema é do avanço na Biblioteca (E1), não das linhas. Rode o `it` da
+- **nenhuma IA chegou à Era III** em 12 min: o problema é do avanço na Biblioteca (E1), não das linhas. Rode o `it` da
   IA de `tests/eras.test.ts` (da E1); se ele passa e este não, imprima `canAdvanceAge(s, p, lib)` de cada IA aos 5 min
   e procure a trava (Biblioteca, Templo, `techCount`).
 - **nenhum estudo `evolve` da Era III**:
@@ -1785,7 +1797,9 @@ Se o primeiro `it` da IA falhar, **não** afrouxe o teste. Descubra qual `expect
     Biblioteca dela) e `lib.queue.map((q) => q.id)`;
   - se o `canResearch` recusa, o motivo diz o que falta. Se a fila nunca esvazia por causa dos filósofos (`scholar`) ou
     de estudos de linha, o ajuste é na IA (por exemplo, `manageResearch` aceitar uma Biblioteca com `queue.length <= 1`
-    **só** para os estudos `evolve`), não no teste.
+    **só** para os estudos `evolve`), não no teste. Lembre a ordem real: no `aiThink`, `manageTraining` (que contrata
+    filósofos com a fila **vazia**, até 5, 15 s cada) roda **antes** de `manageResearch`, e na `list` os estudos de
+    nível 1 das 4 linhas (`RESEARCH_PRIORITY.slice(0, 12)`) vêm antes das evoluções; os dois passam na frente.
 - **nenhuma unidade `lineOnly`/`hetairoi`**: confira o B3 (`trainTypeOf` no nascimento) e o `applyEvolution` do B1
   (`u.type = evo.to`).
 
@@ -1844,11 +1858,17 @@ Na ordem. O que esperar de cada comando:
    - Depois de qualquer ajuste, rode de novo o C4 (o teste da IA usa Era final e passa com os três).
    - Registre no `PROGRESSO.md` as médias por Era antes × depois e o ajuste final (nenhum, 1, 2 ou 3).
 6. `npx tsx scripts/missions.ts` → os mesmos veredictos (todos OK) e os mesmos minutos de vitória por missão e
-   dificuldade de `/tmp/e3-missions-antes.txt`. Só os tempos de execução podem mudar.
+   dificuldade de `/tmp/e3-missions-antes.txt`. Só os tempos de execução (o `(12.3s)` no fim de cada linha) podem
+   mudar. Compare assim (a saída vazia do `diff` é o esperado):
+   ```sh
+   npx tsx scripts/missions.ts > /tmp/e3-missions-depois.txt 2>&1
+   diff <(sed -E 's/\([0-9.]+s\)//g' /tmp/e3-missions-antes.txt) <(sed -E 's/\([0-9.]+s\)//g' /tmp/e3-missions-depois.txt)
+   ```
    - Qualquer diferença em veredicto ou minuto é **bug** (o elenco clássico vazou): procure um `unitLinesOn` faltando
      ou um `tier` usado no lugar de `age`.
    - Não ajuste roteiro nem janela.
-   - Rode também `npx tsx scripts/horde.ts`: a saída tem de ser igual à de `/tmp/e3-horde-antes.txt`.
+   - Rode também `npx tsx scripts/horde.ts | diff /tmp/e3-horde-antes.txt -`: a saída tem de ser igual (o `diff` não
+     imprime nada).
 7. `npx vitest run tests/position-fairness.test.ts` → verde. Depois rode a justiça nos dois mapas oficiais. Leva
    tempo; deixe em segundo plano:
    ```sh
@@ -1870,7 +1890,8 @@ Na ordem. O que esperar de cada comando:
    node scripts/playtest-i18n.mjs http://localhost:4173/
    ```
    - `playtest-lines` termina com "tudo OK".
-   - `playtest` mostra a fila do CC com `villager` (tecla Q) e as cartas de deus menor.
+   - `playtest` imprime `fila TC:` com `villager` (a tecla Q do Centro Cívico agora é a linha dos Cidadãos),
+     `cartas de deus menor: 2` e `errors: none`.
    - `playtest-noemoji` não acha emoji nem `.hic-ph` (ícone vazio). Se achar `.hic-ph` num botão de evolução, o
      passo E3 não foi feito ou o `art:hud` não rodou.
    - Olhe `/tmp/e3-1-biblioteca.png`, `/tmp/e3-2-quartel.png` e `/tmp/e3-3-arvore.png` com a ferramenta Read.
@@ -1879,8 +1900,8 @@ Na ordem. O que esperar de cada comando:
 
 ## Critérios de pronto
 
-- [ ] `UNITS` tem 41 unidades novas, `TECHS` tem 50 estudos `evolve` e `LINES` tem 10 linhas. Os 35 tipos de antes
-  estão com os mesmos números (só `line`/`tier` nas 12).
+- [ ] `UNITS` tem 41 unidades novas, `TECHS` tem 50 estudos `evolve` e `LINES` tem 10 linhas. Os 36 tipos de antes
+  (os 35 de hoje e o `merchant` da E2) estão com os mesmos números (só `line`/`tier` nas 12).
 - [ ] Na partida rápida:
   - o Quartel tem 3 botões de linha (Q, W, E);
   - a Fortaleza tem 4 (Q, W, E, Y);
@@ -1929,6 +1950,16 @@ Na ordem. O que esperar de cada comando:
 - **`SIM_VERSION`.** Suba 1 (passo B8). Sem isso, replays e o relay misturam partidas de regras diferentes.
 - **Save.** Não há campo novo de estado, então nada muda no `deserialize`. Se você precisar de um campo (não deveria),
   ele exige valor padrão no `deserialize` e entrada no `serialize` (CLAUDE.md, "Regras do núcleo").
+- **Unidades que não passam pelo treino ficam no tipo que receberam.** O kit inicial passa por `trainTypeOf` (B6),
+  mas as unidades pré-colocadas de um mapa fixo (`config.map.entities`), o `spawn`/`place` de um cenário com
+  `unitLines: true` e o `debugSpawn` nascem com o tipo pedido e só mudam na **próxima** evolução da linha (a milícia,
+  a Sombra e a sentinela não têm linha e nunca mudam). É o esperado: os dois mapas oficiais não têm unidades pré-colocadas e os cenários usam o elenco
+  clássico. Não "corrija" isso no `spawnUnit` (ele é usado pela campanha, pela Horda e pelos poderes).
+- **Linha aposentada ainda mostra o estudo pendente.** Um jogador que chega à Era V sem ter estudado
+  `evo_assault_4` ainda o vê na Biblioteca: estudar transforma as helépoles que ele já tem, o que é coerente com "as
+  unidades que existem ficam". A IA não o estuda (`evolutionPriority` pula as linhas aposentadas). Não esconda.
+- **`CITIZEN_EVO_EFFECTS` é um vetor só**, compartilhado pelos 7 estudos dos cidadãos. `recomputeMods` só o lê; nada
+  pode alterá-lo (nem `push` nem troca de `mult`), senão os 7 mudam juntos.
 - **Atalhos.**
   - Teclas de linha nunca A, R ou U. P, H, dígitos, Tab, `.` e `,` também não funcionam: o `input.ts` os consome
     antes do contexto.
@@ -1963,26 +1994,33 @@ Na ordem. O que esperar de cada comando:
   Nos cenários (campanha, Horda, `game(mk())` de `tests/scenario-gaps.test.ts`) nada muda.
 - **Comandos pausados no navegador.** O HUD e os atalhos mandam o comando para o agendador, que só o aplica no próximo
   tick. Com `session.paused = true`, a fila não muda até despausar: por isso o `playtest-lines.mjs` usa `flush()`.
-- **Nomes que as etapas seguintes usam.** A E4, a E6 e a E8 citam `LINES`, `LINE_ORDER`, `LineDef.studyNames`,
-  `lineStart`, `evoTechId`, `lineUnitOf`, `trainChoices` (`send`/`show`/`hotkey`/`era`/`line`), `applyEvolution`,
-  `evolutions()`, `EN_LINES`, `unitLinesOn`, `config.unitLines`, o efeito `'evolve'` e as tags `fire`/`gunpowder`/
-  `mechanical`. Não renomeie nada disso.
+- **Nomes que as etapas seguintes usam.** A E4, a E6, a E8 e a E9/E10 citam `LINES`, `LINE_ORDER`,
+  `LineDef.studyNames`/`retireAt`, `lineStart`, `evoTechId`, `lineUnitOf`, `trainTypeOf`, `trainChoices` e o tipo
+  `TrainChoice` (`send`/`show`/`hotkey`/`era`/`line`), `applyEvolution`, `evolutions()`, `CITIZEN_EVO_EFFECTS`,
+  `EN_LINES`, `unitLinesOn`, `config.unitLines`, `UnitDef.line`/`tier`/`lineOnly`/`attackInterval`, `lineUsers`,
+  `evolutionAllowed` e `EVO_USERS` (`ai.ts`), o efeito `'evolve'` e as tags `fire`/`gunpowder`/`mechanical`. Não
+  renomeie nada disso. Duas linhas são trocadas **literalmente** depois: `const citizen = id === 'citizen';` em
+  `evolutions()` (E4, passo B3) e `const type = trainTypeOf(state, player, item.id); const def = UNITS[type];` em
+  `completeQueueItem` (E6): escreva-as exatamente assim.
 - **Editor e enciclopédia.** A paleta de unidades do editor (`src/editor/panel.ts`, por `cls`) e a aba Unidades da
   enciclopédia passam a listar as 41 novas: é esperado (a E9 organiza por linha).
+- **Painel da Biblioteca cheio.** Com as linhas, a Biblioteca mostra até ~7 botões de evolução a mais (o próximo de
+  cada linha, inclusive os da Era seguinte, desabilitados) e passa de 3 fileiras: o `#commands` já rola
+  (`overflow-y: auto` em `src/ui/styles.css`), e o `playtest-lines.mjs` acha o botão pelo texto mesmo fora da vista.
+  Não esconda botões para caber; a E9 reorganiza o painel.
 
 ---
 
 ## Ao terminar
 
-1. **`docs/eras/PROGRESSO.md`.** Crie o arquivo se faltar, com o modelo da E1 (título `# Expansão das Eras — progresso`
-   e a tabela `| Etapa | Estado | Data | Commit | Notas |`). Acrescente a linha da E3 com o estado `feito` (a mesma
-   palavra da E1), a data, o hash curto do commit e as notas:
+1. **`docs/eras/PROGRESSO.md`** (formato no `docs/eras/LEIA-ME.md`). Confira as caixas da E3 e preencha a linha da E3
+   do Resumo com o estado `feito`, a data, o hash curto do commit e as notas:
    - 10 linhas terrestres, 41 degraus novos e 50 estudos `evo_*`;
    - elenco clássico nos cenários (`config.unitLines`);
    - Sifão como linha técnica `greek_fire`;
    - navios reservados para a E4.
 
-   Depois da tabela, uma seção `## Medições da E3` com: as médias por Era do `balance 60 1,2,3` antes × depois (a saída
+   Em **Notas**, uma subseção `### E3 — medições` com: as médias por Era do `balance 60 1,2,3` antes × depois (a saída
    do script do item 5 da "Verificação"), o ajuste usado (nenhum, 1, 2 ou 3) e o valor final de `EVO_USERS`, o `evo=`
    das IAs no minuto 20 do smoke, o resultado do `fairness` e "missions.ts: igual ao antes".
 2. **`docs/ROADMAP.md`**, tabela "Cronograma a partir de 06/10/2026", linha das semanas 3–4: marque a E3 como feita
@@ -1992,10 +2030,12 @@ Na ordem. O que esperar de cada comando:
      `src/core/sim/lines.ts`; degrau atual derivado dos estudos `evo_<linha>_<n>` da Biblioteca; transformação em
      `applyEvolution`; elenco clássico nos cenários por `config.unitLines`; arte provisória pelo alias);
    - em "Convenções", acrescente: "treino sempre por `trainChoices` + `canTrain` (HUD, atalhos e IA); teclas de linha
-     em `LINES[...].hotkey`, únicas por edifício e nunca A/R/U".
+     em `LINES[...].hotkey`, únicas por edifício e nunca A/R/U";
+   - em "Comandos", na lista dos `node scripts/playtest-*.mjs`, acrescente `playtest-lines.mjs [url] [saída]`
+     (Biblioteca, transformação, Quartel e árvore das linhas de unidade; capturas em `<saída>-{1-biblioteca,2-quartel,3-arvore}.png`).
 4. **Commit** em português, por exemplo
    `E3: linhas de unidade I–VIII com evolução na Biblioteca (41 degraus, transformação, IA, elenco clássico na campanha)`,
-   com o rodapé de atribuição exigido pela sua sessão. Não faça push sem pedido.
+   com o rodapé de atribuição exigido pela sua sessão. Faça push só para a branch da sessão (rotina do `docs/eras/LEIA-ME.md`); nunca para `main` sem pedido do dono.
 
 Ganchos para as etapas seguintes (não implemente agora):
 
@@ -2011,8 +2051,8 @@ Ganchos para as etapas seguintes (não implemente agora):
   - `warmUnitTypes` passa a pré-carregar só `lineUnitOf` das linhas do jogador local (e os presentes);
   - projétil `bullet`/`shell` pela tag `gunpowder`;
   - fumaça de motor pela tag `mechanical`;
-  - `deathRecipe` e `gaitOf` (áudio, `src/audio/events.ts`) do tanque e do motociclista sem relincho nem casco: hoje
-    saem pela `cls` (`cavalry`/`scout`);
+  - `deathRecipe` e `gaitOf` (áudio, `src/audio/events.ts`) e as respostas `ACKS` (`src/audio/audio.ts`, por `cls`)
+    do tanque e do motociclista sem relincho nem casco: hoje saem pela `cls` (`cavalry`/`scout`);
   - ícone por degrau nos estudos.
 - **E9:** aba "Linhas" na enciclopédia (linha × Era).
 - **E10:** números das 41 unidades, `EVO_USERS` e custos dos estudos com as partidas de 60 min.

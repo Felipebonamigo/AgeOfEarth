@@ -2,6 +2,10 @@
 
 - Estado: pendente · Pré-requisitos: **E1 concluída** (8 Eras em `AGES`, Biblioteca, avanço de Era, `SIM_VERSION` já subido uma vez) · Estimativa: 5 dias de trabalho do agente
 
+> **Antes de começar:** leia `docs/eras/LEIA-ME.md` (rotina de cada sessão, regras, quando parar) e marque cada
+> passo em `docs/eras/PROGRESSO.md`. Ordem das etapas: E1, E2, E3, E4, E5+E7, E6, E8, E9+E10. Onde este guia falar de
+> commit ou de push, vale a rotina do LEIA-ME: um commit por passo e push só para a branch da sessão.
+
 > Guia de execução para um agente sem o contexto da conversa que o escreveu. Siga os passos na ordem, um commit por
 > fase (A–E). Cada número de jogo daqui é **valor inicial para o balanceamento** (E10 ajusta); não invente outros. Onde
 > o guia diz "como hoje", o código citado foi conferido em 06/10/2026, antes da E1: a E1 pode ter mexido em volta (por
@@ -69,7 +73,8 @@ Decisões deste guia (tomadas ao escrevê-lo; cada uma em uma linha, não reabri
    tipo existente com a mesma pegada (edifício) ou classe (unidade). Não há bake de edifício/unidade na E2; só o
    `npm run art:hud` (ícones de recurso). Nós novos: procedural (`textures.ts`).
 8. **Atalhos**: Pedreira = `Y`; os 3 edifícios de petróleo dividem `O` num **grupo de atalho** (`hotkeyGroup: 'oil'`,
-   apertar de novo alterna, como `M` nas maravilhas). Sobram `I` e `L` para a E4 (Estaleiro, Universidade).
+   apertar de novo alterna, como `M` nas maravilhas). Sobram `I` e `L`: o `I` é do Estaleiro da E4; o `L` fica livre (a
+   Universidade do ERAS §5 ainda não tem etapa: D13 do guia E9-E10).
 9. **Gerador**: uma passada nova (`placeEraResources`) com **RNG próprio**, rodando **depois** de toda a geração antiga:
    nenhum nó antigo muda de lugar (os roteiros da campanha com mapa gerado continuam valendo; só um edifício de roteiro
    posto por `placeNear` pode andar um tile se um nó novo ocupar o lugar — passo 30). O algoritmo abaixo foi
@@ -466,7 +471,7 @@ for f in m4_caucaso m5_itaca m8_oceano m10_otris m11_chamas m12_titanomaquia; do
 ### Fase A — núcleo dos recursos (commit "E2-A: pedra, petróleo e raros no núcleo")
 
 - [ ] **1. Pré-voo.** Confira: `npx tsx -e "import {AGES} from './src/core/data'; console.log(AGES.length)"` imprime 8;
-  `docs/eras/PROGRESSO.md` (se existir) marca a E1 como pronta; `git status` limpo. Leia o guia da E1 em
+  `docs/eras/PROGRESSO.md` marca a E1 como `feito`; `git status` limpo. Leia o guia da E1 em
   `docs/eras/E1-*.md` para saber o que ela mudou em `ai.ts`, `ages.ts` e nos testes.
   *Conferir:* `AGES[3].name` é a Bizantina e `AGES[6].name` a Industrial.
 
@@ -1279,10 +1284,10 @@ Na ordem; não passe para o próximo com o anterior vermelho.
 
 ## Ao terminar
 
-1. `docs/eras/PROGRESSO.md` (crie se faltar, com a tabela `| Etapa | Estado | Data | Commit | Notas |`): linha da E2
-   "pronta", com as notas: Mercador mínimo antecipado da E5 (um Mercador rende por nó, renda em `economySecond`);
+1. `docs/eras/PROGRESSO.md` (formato no `docs/eras/LEIA-ME.md`): caixas da E2 marcadas e linha da E2 do Resumo com o
+   estado `feito`, com as notas: Mercador mínimo antecipado da E5 (um Mercador rende por nó, renda em `economySecond`);
    o Centro Cívico recebe pedra mas não petróleo (a IA só põe cidadão na nafta com poço pronto); peixes raros para a
-   E4; letras `I` e `L` livres; alias de arte em `src/render/art/alias.ts` (a E8 tira os tipos de lá); números do
+   E4; letras `I` (Estaleiro da E4) e `L` livres; alias de arte em `src/render/art/alias.ts` (a E8 tira os tipos de lá); números do
    `balance 60` depois da E2; o que mudou no harness (passo 30).
 2. `docs/ROADMAP.md`, tabela "Cronograma a partir de 06/10/2026", linha das semanas 3–4: marque a E2 como feita
    (`✅ E2 …`) com a data.
@@ -1298,7 +1303,7 @@ Ganchos para as etapas seguintes (não implemente agora):
   petróleo, repita o passo 19 com `'naphtha'` nos mapas de missão e libere o petróleo da IA em cenário.
 - **E4**: `rare_fish` (peixes raros) como nó de água; ele entra em `RARE_SET` e `NOT_GATHERED`, **não** em
   `RARE_NODES` (o gerador da E2 sorteia `rng.int(0, RARE_NODES.length - 1)`: aumentar a lista mudaria todos os mapas e
-  poria peixe em terra — decisão D8 do guia da E4); atalhos `I`/`L` para Estaleiro e Universidade. A E4 também troca
+  poria peixe em terra — decisão D8 do guia da E4); atalho `I` para o Estaleiro (o `L` continua livre). A E4 também troca
   o filtro `!UNITS[u.type].tags.includes('merchant')` da ocupação dos raros (passo 11) para aceitar o barco de pesca, e
   acrescenta linhas no começo de `canWorkNode` e de `pickNewSource`: mantenha esses três trechos como o guia os escreve.
 - **E5**: caravana no `market.trains` (atalho ≠ `M`); regras extras do Mercador (território, escolta) se o dono pedir.
