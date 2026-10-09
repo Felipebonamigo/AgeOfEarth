@@ -4,6 +4,7 @@ RTS (Rise of Nations + Age of Mythology, panteão grego) em TypeScript + PixiJS,
 Idioma da interface e dos comentários: português (Brasil). Código em inglês.
 
 ## Comandos
+- `npm run demo` — **demo local com um comando** (`scripts/demo.mjs`: `--update` faz git pull, instala e compila só o que faltar, serve `dist/` em http://localhost:4173 e abre o navegador; `--dev`, `--port N`, `--no-open`, `--rebuild`)
 - `npm run dev` — Vite em http://localhost:5173 · `npm run build` — typecheck + bundle em `dist/` · `npm run preview` — serve `dist/` na porta 4173
 - `npm test` — vitest · `npm run typecheck`
 - `npm run smoke 20 42` — IA x IA por 20 min de jogo (semente 42) sem interface · `npm run balance 35 1,2,3`
