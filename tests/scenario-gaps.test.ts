@@ -19,7 +19,7 @@ import { stateHash } from '../src/core/net/hash';
 import { entityDisplayName, playerDisplayName } from '../src/core/scenario/text';
 import { scenarioHudHtml } from '../src/ui/scenario-hud';
 import { setLocale } from '../src/i18n';
-import { ABILITIES, AGES, MAJOR_GODS, MAX_AGE, UNITS } from '../src/core/data';
+import { ABILITIES, AGES, ERA_TITANS, MAJOR_GODS, MAX_AGE, UNITS } from '../src/core/data';
 import { clearScenarioCache, compileScenario, gameConfigFor } from '../src/core/scenario/compile';
 import { CAMPAIGN, PROLOGUE, SCENARIOS, campaignMission, campaignMissions, isCampaignMission, missionConfig, nextCampaignMission } from '../src/core/scenario/campaign';
 import { CAMPAIGN_PLAN } from '../src/core/scenario/official';
@@ -443,10 +443,11 @@ describe('G6: remove, guarnição por roteiro, maxAge e forbid', () => {
     expect(p.resources.food).toBe(5000); expect(p.resources.gold).toBe(5000);
     // avanço de Idade em andamento no Centro Cívico
     const req = AGES[1].requires.building; if (req) placeBuilding(s, 0, req, tc.tx - 7, tc.ty + 7, true);
+    const lib = placeBuilding(s, 0, 'academy', tc.tx + 7, tc.ty, true); s.scenario!.vars['#lib'] = lib.id;
     const age = { food: p.resources.food, gold: p.resources.gold };
-    expect(applyCommand(s, { type: 'advanceAge', player: 0, buildingId: tc.id, minorGod: MAJOR_GODS.zeus.minorGods[0][0] }).ok).toBe(true);
-    expect(tc.queue.some((q) => q.kind === 'age')).toBe(true); expect(p.resources.food).toBeLessThan(age.food);
-    act(s, [{ do: 'remove', entity: { tc: 0 } }]);
+    expect(applyCommand(s, { type: 'advanceAge', player: 0, buildingId: lib.id, minorGod: MAJOR_GODS.zeus.minorGods[0][0] }).ok).toBe(true);
+    expect(lib.queue.some((q) => q.kind === 'age')).toBe(true); expect(p.resources.food).toBeLessThan(age.food);
+    act(s, [{ do: 'remove', entity: { var: '#lib' } }]);
     expect(p.resources.food).toBe(age.food); expect(p.resources.gold).toBe(age.gold);
   });
   it('order garrison / ungarrison (com alvo ou de onde estiver); guarnição em edifício inimigo não entra', () => {
@@ -556,7 +557,7 @@ describe('G6: remove, guarnição por roteiro, maxAge e forbid', () => {
       expect(old.config.forbid).toEqual(cfg.forbid); expect(old.config.players.map((p) => p.forbid)).toEqual(cfg.players.map((p) => p.forbid));
       const gated = cfg.players.findIndex((_, i) => isForbidden(s, i, 'buildings', 'titan_gate'));
       expect(gated).toBeGreaterThanOrEqual(0);
-      old.players[gated].age = 4;
+      old.players[gated].age = ERA_TITANS;
       expect(buildingLimitOk(old, old.players[gated], 'titan_gate')).toEqual(forbidden);
       expect(migrateScenarioLocks(o.config).forbid).toEqual(cfg.forbid);   // o replay (Session.replay) usa a mesma migração
     }
@@ -569,7 +570,7 @@ describe('G6: remove, guarnição por roteiro, maxAge e forbid', () => {
   });
   it('validação de maxAge e forbid', () => {
     const cfg = mk().config;
-    expect(paths(mk({ config: { ...cfg, maxAge: 7 } }))).toEqual(['config.maxAge']);
+    expect(paths(mk({ config: { ...cfg, maxAge: 8 } }))).toEqual(['config.maxAge']);
     expect(paths(mk({ config: { ...cfg, maxAge: 1.5 } }))).toEqual(['config.maxAge']);
     expect(paths(mk({ config: { ...cfg, startingAge: 3, maxAge: 2 } }))).toEqual(['config.maxAge']);
     expect(paths(mk({ config: { ...cfg, forbid: { buildings: ['castelo'], units: 'hoplite', magia: [] } as unknown as Forbid } }))).toEqual(['config.forbid.buildings[0]', 'config.forbid.units', 'config.forbid.magia']);

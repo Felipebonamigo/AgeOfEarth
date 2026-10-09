@@ -20,6 +20,7 @@ describe('modos de jogo', () => {
     expect(s.players[0].age).toBe(1);
     expect(s.players[0].resources.food).toBe(DEATHMATCH_RESOURCES.food);
     expect(s.players[1].resources.gold).toBe(DEATHMATCH_RESOURCES.gold);
+    expect(s.players[0].minorGods.length).toBe(1);
   });
 
   it('Regicídio: cada jogador tem um rei; quando o rei morre o reino cai e o outro vence', () => {

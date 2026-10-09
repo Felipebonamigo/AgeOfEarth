@@ -9,7 +9,7 @@ import { giveOrder } from '../sim/units';
 import { killUnit, destroyBuilding } from '../sim/combat';
 import { canGarrison, ejectGarrison, removeBuildingNow, removeUnitNow } from '../sim/entities';
 import { queueItemCost, refund } from '../sim/economy';
-import { useAbility } from '../sim/commands';
+import { academyTechCount, useAbility } from '../sim/commands';
 import { relicsOf } from '../sim/relics';
 import { isEnemy } from '../sim/queries';
 import { getLocale } from '../../i18n';
@@ -103,6 +103,7 @@ function value(env: Env, v: Value): number {
       case 'age': return p.age; case 'pop': return p.pop; case 'popCap': return p.popCap; case 'alive': return scenarioAlive(env.state, p.id) ? 1 : 0;
       case 'relics': return relicsOf(env.state, p.id);   // G10: relíquias guardadas nos Templos do jogador
       case 'food': case 'wood': case 'gold': case 'favor': case 'knowledge': return p.resources[v.stat];
+      case 'studies': return academyTechCount(p);   // estudos das 4 linhas da Biblioteca (requisito das Eras)
       default: return 0;
     }
   }
@@ -447,6 +448,7 @@ export function scenarioConfig(file: ScenarioFile): ScenarioDef['config'] {
   if (c.mode) cfg.mode = c.mode;
   if (c.campaignDifficulty) cfg.campaignDifficulty = c.campaignDifficulty;
   if (c.maxAge !== undefined) cfg.maxAge = c.maxAge;   // G6
+  if (c.visualEraMax !== undefined) cfg.visualEraMax = c.visualEraMax;
   if (c.forbid) cfg.forbid = copyForbid(c.forbid);
   return cfg as ScenarioDef['config'];
 }

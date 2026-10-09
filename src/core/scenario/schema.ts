@@ -25,7 +25,7 @@ export type EntityRef =
 export type Point =
   | { at: [number, number] } | { start: number; dx?: number; dy?: number }
   | { tc: PlayerSel; dx?: number; dy?: number } | { entity: EntityRef; dx?: number; dy?: number };
-export type StatName = 'age' | 'pop' | 'popCap' | 'food' | 'wood' | 'gold' | 'favor' | 'knowledge' | 'alive' | 'difficulty' | 'relics';
+export type StatName = 'age' | 'pop' | 'popCap' | 'food' | 'wood' | 'gold' | 'favor' | 'knowledge' | 'alive' | 'difficulty' | 'relics' | 'studies';
 /**
  * { stat: 'difficulty' } dispensa player: 0 = Fácil, 1 = Normal, 2 = Difícil (config.campaignDifficulty).
  * { stat: 'relics', player } (G10) = relíquias guardadas nos Templos do jogador agora (relicsOf).
@@ -111,7 +111,7 @@ export interface ScenarioFile {
   config: {
     seed?: number; players: ScenarioPlayer[]; startingAge?: number; startingResources?: Partial<Record<ResourceType, number>>;
     revealMap?: boolean; startKit?: boolean | boolean[]; mode?: GameMode; campaignDifficulty?: 'easy' | 'normal' | 'hard';
-    maxAge?: number; forbid?: Forbid;             // G6: travas globais (players[i].maxAge substitui; players[i].forbid soma)
+    maxAge?: number; forbid?: Forbid; visualEraMax?: number;             // G6: travas globais (players[i].maxAge substitui; players[i].forbid soma)
   };
   vars?: Record<string, number>;
   setup?: Action[];                              // após as entidades do mapa; tags → vars['#tag'] = id
@@ -142,7 +142,7 @@ export const MAX_LINE_CHARS = 200;
 // ---------------------------------------------------------------------------------------------------------------
 
 const CMP_KEYS = ['gte', 'lte', 'eq', 'gt', 'lt'] as const;
-const STATS: readonly string[] = ['age', 'pop', 'popCap', 'food', 'wood', 'gold', 'favor', 'knowledge', 'alive', 'difficulty', 'relics'];
+const STATS: readonly string[] = ['age', 'pop', 'popCap', 'food', 'wood', 'gold', 'favor', 'knowledge', 'alive', 'difficulty', 'relics', 'studies'];
 const CAMPAIGN_DIFFS: readonly string[] = ['easy', 'normal', 'hard'];
 const UNIT_STATES: readonly string[] = ['idle', 'move', 'attackMove', 'attack', 'gather', 'return', 'build', 'pray', 'hold', 'garrison'];
 const OBJ_STATUS: readonly string[] = ['pending', 'done', 'failed'];
@@ -211,6 +211,7 @@ export function validateScenario(file: unknown, opts: ValidateScenarioOpts = {})
     if (c.forbid !== undefined) checkForbid(c.forbid, 'config.forbid', err);
     if (c.seed !== undefined && !isInt(c.seed)) err('config.seed', 'esperado um inteiro');
     if (c.startingAge !== undefined && (!isInt(c.startingAge) || c.startingAge < 0 || c.startingAge > MAX_AGE)) err('config.startingAge', `esperado um inteiro entre 0 e ${MAX_AGE}`);
+    if (c.visualEraMax !== undefined && (!isInt(c.visualEraMax) || c.visualEraMax < 0 || c.visualEraMax > MAX_AGE)) err('config.visualEraMax', `esperado um inteiro entre 0 e ${MAX_AGE}`);
     if (c.startingResources !== undefined) checkResources(c.startingResources, 'config.startingResources', err);
     if (c.revealMap !== undefined && typeof c.revealMap !== 'boolean') err('config.revealMap', 'esperado true/false');
     if (c.startKit !== undefined && typeof c.startKit !== 'boolean' && !(Array.isArray(c.startKit) && c.startKit.every((b) => typeof b === 'boolean'))) err('config.startKit', 'esperado true/false ou lista de true/false');

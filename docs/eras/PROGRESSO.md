@@ -52,10 +52,10 @@ Bloco B — Biblioteca no núcleo
 - [x] B7 Testes do núcleo que avançavam no Centro Cívico
 
 Bloco C — Era inicial, Era final e `visualEraMax`
-- [ ] C1 `game.ts`: `grantStartingEras` e Era inicial
-- [ ] C2 `schema.ts`: `visualEraMax` e stat `studies`
-- [ ] C3 `compile.ts`: `studies` e `visualEraMax`
-- [ ] C4 Testes de Era inicial/final e de cenário
+- [x] C1 `game.ts`: `grantStartingEras` e Era inicial
+- [x] C2 `schema.ts`: `visualEraMax` e stat `studies`
+- [x] C3 `compile.ts`: `studies` e `visualEraMax`
+- [x] C4 Testes de Era inicial/final e de cenário
 
 Bloco D — IA
 - [ ] D1 Tabelas da IA com 8 posições (exportadas)

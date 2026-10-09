@@ -1,6 +1,6 @@
 // Criação da partida e laço principal da simulação (passo fixo, determinístico).
 import { DT, MAP_SIZES, RESOURCES, TICK_RATE, MARKET_BASE_PRICE, PLAYER_COLORS, type ResourceType, DEATHMATCH_RESOURCES } from '../constants';
-import { BUILDINGS, MAJOR_GODS, UNITS } from '../data';
+import { ACADEMY_LINES, AGES, BUILDINGS, MAJOR_GODS, MINOR_GODS, TECHS, UNITS, clampEra } from '../data';
 import { RNG } from '../rng';
 import type { Command, GameConfig, GameState, Player } from '../types';
 import { generateMap, resetNodeSeq } from '../map/mapgen';
@@ -16,6 +16,7 @@ import { updateBuilding } from './buildings';
 import { economySecond } from './economy';
 import { updateTimedEffects } from './powers';
 import { aiThink } from './ai';
+import { isScenarioConfig } from './restrictions';
 import { checkVictory } from './victory';
 import { spiralSearch, spiralSearchFrame, centerFrame, frameOffset, frameTile, isPassable } from '../map/grid';
 import { nearestFreeTile } from '../map/pathfinding';
@@ -42,9 +43,34 @@ export function aiThinkOrder(round: number, n: number): number[] {
   return out;
 }
 
+/**
+ * Era inicial acima da I numa partida sem cenário (docs/eras/E1, D9): o deus menor e o poder de cada Era pulada (humano: o 1º
+ * do par; IA: (personalidade + Era − 1) % 2, a conta de tryAdvanceAge) e os estudos das linhas que a Era inicial exigiu (nível 1
+ * de cada linha em rodízio, na ordem de ACADEMY_LINES). Determinístico: só config e personalidade.
+ */
+export function grantStartingEras(p: Player, startAge: number): void {
+  const major = MAJOR_GODS[p.god];
+  for (let k = 1; k <= startAge; k++) {
+    if (!AGES[k].minorGod) continue;
+    const pair = major?.minorGods[k - 1] ?? [];
+    if (pair.length === 0) continue;
+    const pick = p.ai ? pair[(p.ai.personality + (k - 1)) % pair.length] : pair[0];
+    if (!MINOR_GODS[pick] || p.minorGods.includes(pick)) continue;
+    p.minorGods.push(pick);
+    const power = MINOR_GODS[pick].power;
+    if (!p.powers.some((x) => x.id === power)) p.powers.push({ id: power, used: false });
+  }
+  const n = AGES[startAge].requires.techCount ?? 0;
+  for (let i = 0; i < n; i++) {
+    const id = `${ACADEMY_LINES[i % ACADEMY_LINES.length]}${Math.floor(i / ACADEMY_LINES.length) + 1}`;
+    if (TECHS[id] && !p.techs.includes(id)) p.techs.push(id);
+  }
+}
+
 export function createGame(config: GameConfig): GameState {
   resetNodeSeq();
   const mode = config.mode ?? 'conquest';
+  const startAge = clampEra(config.startingAge ?? (mode === 'deathmatch' ? 1 : 0));
   // Mapa fixo (editor/arquivo) ou gerado pelo seed
   const map = config.map ? mapFromData(config.map) : generateMap(MAP_SIZES[config.mapSize].w, MAP_SIZES[config.mapSize].h, config.seed, config.players.length, config.mapType ?? 'continental', mode === 'koth');
   const size = { w: map.w, h: map.h };
@@ -64,7 +90,7 @@ export function createGame(config: GameConfig): GameState {
     const god = ownKey(MAJOR_GODS, pc.god) ? pc.god : 'zeus';
     const p: Player = {
       id: i, name: pc.name, color: PLAYER_COLORS[i % PLAYER_COLORS.length].num, isAI: pc.isAI, difficulty: pc.difficulty, team: pc.team ?? i,
-      god, minorGods: [], age: config.startingAge ?? (mode === 'deathmatch' ? 1 : 0), resources, techs: [], powers: [{ id: MAJOR_GODS[god].power, used: false }],
+      god, minorGods: [], age: startAge, resources, techs: [], powers: [{ id: MAJOR_GODS[god].power, used: false }],
       pop: 0, popCap: 0, alive: true, defeatedTick: -1, mods: defaultMods(),
       stats: { kills: 0, losses: 0, unitsTrained: 0, buildingsBuilt: 0, buildingsLost: 0, razed: 0, gathered: { food: 0, wood: 0, gold: 0, knowledge: 0, favor: 0 } },
       prices: { food: MARKET_BASE_PRICE, wood: MARKET_BASE_PRICE, gold: MARKET_BASE_PRICE, knowledge: MARKET_BASE_PRICE, favor: MARKET_BASE_PRICE },
@@ -73,6 +99,7 @@ export function createGame(config: GameConfig): GameState {
       ai: pc.isAI ? { difficulty: pc.difficulty, nextThink: TICK_RATE * 2, lastAttack: 0, attackTarget: -1, waves: 0, rallyX: 0, rallyY: 0, defending: -1000, builderIds: [], lastExpand: 0, personality: Number.isInteger(pc.personality) && pc.personality! >= 0 ? pc.personality! % 97 : (config.seed + i * 7) % 97 } : null,
       revealUntil: 0, bronzeUntil: 0, wonderVictoryAt: -1, titanSpawned: false,
     };
+    if (!isScenarioConfig(config)) grantStartingEras(p, startAge);
     state.players.push(p);
     recomputeMods(state, p);
   });
