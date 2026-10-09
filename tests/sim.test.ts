@@ -99,11 +99,13 @@ describe('produção, tecnologias e idades', () => {
     const p = s.players[0]; const tc = buildingsOf(s, 0)[0];
     expect(canAdvanceAge(s, p, tc).ok).toBe(false);
     placeBuilding(s, 0, 'temple', tc.tx + 5, tc.ty, true);
+    const lib = placeBuilding(s, 0, 'academy', tc.tx - 5, tc.ty, true);
     p.resources.food = 1000; p.resources.gold = 1000;
-    const c = canAdvanceAge(s, p, tc);
+    expect(canAdvanceAge(s, p, tc).ok).toBe(false);   // a Era só avança na Biblioteca
+    const c = canAdvanceAge(s, p, lib);
     expect(c.ok).toBe(true);
     expect(c.minorOptions).toEqual(['athena', 'hermes']);
-    expect(applyCommand(s, { type: 'advanceAge', player: 0, buildingId: tc.id, minorGod: 'athena' }).ok).toBe(true);
+    expect(applyCommand(s, { type: 'advanceAge', player: 0, buildingId: lib.id, minorGod: 'athena' }).ok).toBe(true);
     run(s, 62 * TICK_RATE);
     expect(p.age).toBe(1);
     expect(p.minorGods).toEqual(['athena']);

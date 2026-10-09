@@ -161,13 +161,14 @@ describe('regressões de economia', () => {
     const p = s.players[0];
     const tc = buildingsOf(s, 0)[0];
     placeBuilding(s, 0, 'temple', tc.tx + 5, tc.ty, true);
+    const lib = placeBuilding(s, 0, 'academy', tc.tx - 5, tc.ty, true);
     p.resources.food = 1500; p.resources.gold = 1700; p.resources.wood = 500; p.resources.knowledge = 500;
     applyCommand(s, { type: 'train', player: 0, buildingId: tc.id, unit: 'villager' });
     applyCommand(s, { type: 'train', player: 0, buildingId: tc.id, unit: 'villager' });
     const minor = MAJOR_GODS.zeus.minorGods[0][0];
-    expect(applyCommand(s, { type: 'advanceAge', player: 0, buildingId: tc.id, minorGod: minor }).ok).toBe(true);
+    expect(applyCommand(s, { type: 'advanceAge', player: 0, buildingId: lib.id, minorGod: minor }).ok).toBe(true);
     expect(p.resources.food).toBeLessThan(1500);
-    applyCommand(s, { type: 'delete', player: 0, ids: [tc.id] });
+    applyCommand(s, { type: 'delete', player: 0, ids: [lib.id, tc.id] });
     expect(p.resources.food).toBe(1500);
     expect(p.resources.gold).toBe(1700);
     // cancelamento: tecnologia paga antes de um desconto é devolvida pelo valor pago

@@ -620,7 +620,7 @@ export class HUD {
   tryAdvanceAge(tcArg?: Building) {
     const s = this.session!; const p = s.player;
     const tc = tcArg ?? [...s.state.buildings.values()].find((b) => b.owner === p.id && b.type === 'town_center' && b.complete && b.queue.length === 0) ?? [...s.state.buildings.values()].find((b) => b.owner === p.id && b.type === 'town_center' && b.complete);
-    if (!tc) { this.toast(t('msg.needTC'), 'warn'); return; }
+    if (!tc) { this.toast(t('msg.needLibrary'), 'warn'); return; }
     const adv = canAdvanceAge(s.state, p, tc);
     if (!adv.ok) { this.toast(adv.reason ?? t('msg.cantAdvance'), 'warn'); this.audio.play('error'); return; }
     if (!adv.minorOptions || adv.minorOptions.length === 0) { s.issue({ type: 'advanceAge', player: s.local, buildingId: tc.id }); this.toast(t('msg.advanceStarted', { age: AGES[p.age + 1].name }), 'gold'); return; }

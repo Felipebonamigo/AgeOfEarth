@@ -125,7 +125,12 @@ export function buildingLimitOk(state: GameState, player: Player, type: string):
   } else if (def.limit === 'wonder') {
     if (countBuildings(state, player.id, (b) => !!BUILDINGS[b.type].wonder) >= 1) return { ok: false, reason: t('err.oneWonder') };
   } else if (typeof def.limit === 'number') {
-    if (countBuildings(state, player.id, (b) => b.type === type) >= def.limit) return { ok: false, reason: t('err.limit', { name: def.name, n: def.limit }) };
+    const have = countBuildings(state, player.id, (b) => b.type === type);
+    if (have >= def.limit) return { ok: false, reason: t('err.limit', { name: def.name, n: def.limit }) };
+    if (def.perCity) {
+      const cities = countBuildings(state, player.id, (b) => b.type === 'town_center');
+      if (have >= cities) return { ok: false, reason: t('err.limitPerCity', { name: def.name, n: cities, max: def.limit }) };
+    }
   }
   return { ok: true };
 }

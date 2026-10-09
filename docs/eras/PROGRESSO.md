@@ -45,11 +45,11 @@ Bloco A — Dados das Eras
 Bloco B — Biblioteca no núcleo
 - [x] B1 `types.ts`: `library`, `queueMax`, `perCity`, `visualEraMax`
 - [x] B2 `constants.ts`: `DEFAULT_QUEUE_MAX`
-- [ ] B3 `commands.ts`: fila por edifício, `canHireScholar`, avanço de Era na Biblioteca
-- [ ] B4 `restrictions.ts`: `isScenarioConfig` e `endAgeReason`
-- [ ] B5 `entities.ts`: limite de uma Biblioteca por cidade
-- [ ] B6 `strings.ts`: chaves renomeadas e novas
-- [ ] B7 Testes do núcleo que avançavam no Centro Cívico
+- [x] B3 `commands.ts`: fila por edifício, `canHireScholar`, avanço de Era na Biblioteca
+- [x] B4 `restrictions.ts`: `isScenarioConfig` e `endAgeReason`
+- [x] B5 `entities.ts`: limite de uma Biblioteca por cidade
+- [x] B6 `strings.ts`: chaves renomeadas e novas
+- [x] B7 Testes do núcleo que avançavam no Centro Cívico
 
 Bloco C — Era inicial, Era final e `visualEraMax`
 - [ ] C1 `game.ts`: `grantStartingEras` e Era inicial

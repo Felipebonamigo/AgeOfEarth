@@ -1,6 +1,6 @@
 // Comandos: validação e aplicação. Toda mudança de estado originada do jogador/IA/rede passa por aqui,
 // o que torna a simulação reproduzível (lockstep, replays, saves).
-import { MAX_SCHOLARS, SCHOLAR_COST, TICK_RATE, type Stance, type Formation } from '../constants';
+import { DEFAULT_QUEUE_MAX, MAX_SCHOLARS, SCHOLAR_COST, TICK_RATE, type Stance, type Formation } from '../constants';
 import { ACADEMY_LINES, AGES, BUILDINGS, MAX_AGE, MINOR_GODS, MAJOR_GODS, TECHS, UNITS } from '../data';
 import type { Building, Command, GameState, Player, Unit } from '../types';
 import { spiralSearchFrame, towardFrame, centerFrame, canPass, inBounds } from '../map/grid';
@@ -15,7 +15,7 @@ import { ABILITIES } from '../data';
 import { usePower } from './powers';
 import { killUnit, destroyBuilding } from './combat';
 import { t } from '../../i18n';
-import { forbiddenReason, maxAgeOf } from './restrictions';
+import { endAgeReason, forbiddenReason, maxAgeOf } from './restrictions';
 import { sanitizeCommand } from './validate';
 
 export interface CommandResult { ok: boolean; reason?: string }
@@ -235,10 +235,9 @@ export function applyCommand(state: GameState, raw: Command): CommandResult {
     case 'research': return research(state, player, cmd.buildingId, cmd.tech);
     case 'hireScholar': {
       const b = ownedBuilding(state, cmd.player, cmd.buildingId);
-      if (!b || !b.complete || !BUILDINGS[b.type].scholars) return { ok: false };
-      const queued = b.queue.filter((q) => q.kind === 'scholar').length;
-      if (b.scholars + queued >= MAX_SCHOLARS) return { ok: false, reason: t('err.maxScholars', { n: MAX_SCHOLARS }) };
-      if (!canAfford(player, SCHOLAR_COST)) return { ok: false, reason: t('err.noResources') };
+      if (!b) return { ok: false };
+      const c = canHireScholar(state, player, b);
+      if (!c.ok) return c;
       const paid = { ...SCHOLAR_COST } as Record<string, number>;
       pay(player, paid);
       b.queue.push({ kind: 'scholar', id: 'scholar', elapsed: 0, total: queueTotalFor(state, player, 'scholar', 'scholar'), paid, uid: state.nextId++ });
@@ -301,6 +300,19 @@ export function applyCommand(state: GameState, raw: Command): CommandResult {
   return { ok: false, reason: t('err.unknown') };
 }
 
+/** Itens que cabem na fila do edifício (Biblioteca: 5; os outros: 10). */
+export function queueMaxOf(type: string): number { return BUILDINGS[type]?.queueMax ?? DEFAULT_QUEUE_MAX; }
+/** Contratar filósofo: Biblioteca pronta, teto de filósofos, fila com vaga e recursos (a mesma regra no HUD e na IA). */
+export function canHireScholar(state: GameState, player: Player, b: Building): CommandResult {
+  void state;
+  if (!b.complete || !BUILDINGS[b.type].scholars) return { ok: false };
+  const queued = b.queue.filter((q) => q.kind === 'scholar').length;
+  if (b.scholars + queued >= MAX_SCHOLARS) return { ok: false, reason: t('err.maxScholars', { n: MAX_SCHOLARS }) };
+  if (b.queue.length >= queueMaxOf(b.type)) return { ok: false, reason: t('err.queueFull') };
+  if (!canAfford(player, SCHOLAR_COST)) return { ok: false, reason: t('err.noResources') };
+  return { ok: true };
+}
+
 export function canTrain(state: GameState, player: Player, b: Building, unit: string): CommandResult {
   const def = UNITS[unit];
   if (!def || !b.complete) return { ok: false };
@@ -317,7 +329,7 @@ export function canTrain(state: GameState, player: Player, b: Building, unit: st
     for (const u of state.units.values()) if (u.owner === player.id && !u.dead && u.type === unit) return { ok: false, reason: t('err.alreadyAlive', { name: def.name }) };
     for (const ob of state.buildings.values()) if (ob.owner === player.id && !ob.dead && ob.queue.some((q) => q.kind === 'unit' && q.id === unit)) return { ok: false, reason: t('err.alreadyTraining', { name: def.name }) };
   }
-  if (b.queue.length >= 10) return { ok: false, reason: t('err.queueFull') };
+  if (b.queue.length >= queueMaxOf(b.type)) return { ok: false, reason: t('err.queueFull') };
   if (player.pop + def.pop > player.popCap) return { ok: false, reason: t('err.popCap') };
   const cost = getUnitStats(state, player, unit).cost;
   if (!canAfford(player, cost)) return { ok: false, reason: t('err.noResources') };
@@ -346,7 +358,7 @@ export function canResearch(state: GameState, player: Player, b: Building, tech:
   if (def.god && !player.minorGods.includes(def.god) && player.god !== def.god) return { ok: false, reason: t('err.requiresBlessing', { god: MINOR_GODS[def.god]?.name ?? def.god }) };
   for (const p of def.prereq) if (!player.techs.includes(p)) return { ok: false, reason: t('err.requiresTech', { name: TECHS[p].name }) };
   for (const ob of state.buildings.values()) if (ob.owner === player.id && !ob.dead && ob.queue.some((q) => q.kind === 'tech' && q.id === tech)) return { ok: false, reason: t('err.researching') };
-  if (b.queue.length >= 10) return { ok: false, reason: t('err.queueFull') };
+  if (b.queue.length >= queueMaxOf(b.type)) return { ok: false, reason: t('err.queueFull') };
   if (!canAfford(player, techCost(player, tech))) return { ok: false, reason: t('err.noResources') };
   return { ok: true };
 }
@@ -370,9 +382,12 @@ export function academyTechCount(player: Player): number {
 
 export function canAdvanceAge(state: GameState, player: Player, b?: Building): CommandResult & { minorOptions?: string[] } {
   if (player.age >= MAX_AGE) return { ok: false, reason: t('err.maxAge') };
-  if (player.age >= maxAgeOf(state, player.id)) return { ok: false, reason: t('err.forbidden') };   // G6: config.maxAge
+  if (player.age >= maxAgeOf(state, player.id)) return { ok: false, reason: endAgeReason(state, player.id) };   // G6: config.maxAge
   const next = AGES[player.age + 1];
-  if (b && (b.type !== 'town_center' || !b.complete)) return { ok: false, reason: t('err.advanceAtTC') };
+  if (b) {
+    if (!BUILDINGS[b.type]?.library || !b.complete) return { ok: false, reason: t('err.advanceAtLibrary') };
+    if (b.queue.length >= queueMaxOf(b.type)) return { ok: false, reason: t('err.queueFull') };
+  } else if (countBuildings(state, player.id, (x) => x.complete && !!BUILDINGS[x.type]?.library) === 0) return { ok: false, reason: t('msg.needLibrary') };
   for (const ob of state.buildings.values()) if (ob.owner === player.id && !ob.dead && ob.queue.some((q) => q.kind === 'age')) return { ok: false, reason: t('err.advancing') };
   if (next.requires.building && countBuildings(state, player.id, (x) => x.type === next.requires.building && x.complete) === 0) return { ok: false, reason: t('err.requiresBuilding', { name: BUILDINGS[next.requires.building].name }) };
   if (next.requires.techCount && academyTechCount(player) < next.requires.techCount) return { ok: false, reason: t('err.requiresTechCount', { n: next.requires.techCount, have: academyTechCount(player) }) };
