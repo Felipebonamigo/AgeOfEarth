@@ -705,6 +705,86 @@
       "baixadoEm": "2026-10-05",
       "notas": "estábulo de madeira com telha e varanda; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024; retorno da nuvem (0004): idem quartel",
       "status": "avaliado, perdeu para o procedural"
+    },
+    {
+      "arquivo": "edificios/wonder_colossus__classical-apollo.glb",
+      "idJogo": "wonder_colossus",
+      "titulo": "a classical marble sculpture of Apollo",
+      "url": "https://www.meshy.ai/3d-models/x-0195d9a6-6a80-745f-bd70-4a3ae4a8f649",
+      "autor": "Albert",
+      "autorUrl": "https://www.meshy.ai/@s17427578764aa9c",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 103373,
+      "triangulos": 90000,
+      "textura": 1024,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Apolo de mármore de pé, sem tridente, sobre pedestal preto; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024"
+    },
+    {
+      "arquivo": "edificios/wonder_colossus__marble-apollo.glb",
+      "idJogo": "wonder_colossus",
+      "titulo": "Marble Apollo",
+      "url": "https://www.meshy.ai/3d-models/x-01a092ee-e952-757b-b570-99595272a449",
+      "autor": "tylerbarrypop",
+      "autorUrl": "https://www.meshy.ai/@s1731272782d30b8",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 102066,
+      "triangulos": 89998,
+      "textura": 1024,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Apolo de mármore de pé com manto, sobre base de mármore; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024"
+    },
+    {
+      "arquivo": "edificios/wonder_colossus__apollo-sun-god.glb",
+      "idJogo": "wonder_colossus",
+      "titulo": "Apollo the Sun God",
+      "url": "https://www.meshy.ai/3d-models/x-019d31b3-44a4-7fdf-9639-5bd26e1a6f76",
+      "autor": "lumenchan2",
+      "autorUrl": "https://www.meshy.ai/@s177325704530de4",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 269764,
+      "triangulos": 90000,
+      "textura": 1024,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Apolo com coroa de raios (o mais Hélio), pintado em ouro e pele; pose em voo, SEM base; menos realista; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024"
+    },
+    {
+      "arquivo": "edificios/statue__athena-spear-shield.glb",
+      "idJogo": "statue",
+      "titulo": "Athena with spear and shield",
+      "url": "https://www.meshy.ai/3d-models/x-019d8c4f-26e9-71f4-905c-d991c807412b",
+      "autor": "baris.01.bz",
+      "autorUrl": "https://www.meshy.ai/@s17335911047e406",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 354904,
+      "triangulos": 89998,
+      "textura": 1024,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Atena de pé com lança e escudo, sobre pedestal com inscrição; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024"
+    },
+    {
+      "arquivo": "edificios/statue__artemis-huntress.glb",
+      "idJogo": "statue",
+      "titulo": "Artemis the Huntress",
+      "url": "https://www.meshy.ai/3d-models/x-019d1b93-800e-7018-9e56-85b65bef0650",
+      "autor": "Ganda",
+      "autorUrl": "https://www.meshy.ai/@s17639753605c254",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 339378,
+      "triangulos": 89998,
+      "textura": 1024,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Ártemis com arco e a corça, sobre base redonda; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024"
     }
   ],
   "recusados": [
@@ -739,6 +819,26 @@
     {
       "url": "https://www.meshy.ai/tags/cottage",
       "motivo": "casas medievais de enxaimel"
+    },
+    {
+      "url": "https://www.meshy.ai/tags/ionic",
+      "motivo": "só colunas soltas, nenhum templo jônico inteiro"
+    },
+    {
+      "url": "https://www.meshy.ai/tags/stoa",
+      "motivo": "só uma colunata em ruína"
+    },
+    {
+      "url": "https://www.meshy.ai/tags/gymnasium",
+      "motivo": "academias de musculação modernas"
+    },
+    {
+      "url": "https://www.meshy.ai/tags/santorini",
+      "motivo": "igrejas ortodoxas com cruz"
+    },
+    {
+      "url": "https://www.meshy.ai/tags/domus",
+      "motivo": "só um santuário de pedra"
     }
   ],
   "faltando": [
