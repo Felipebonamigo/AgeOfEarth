@@ -12,7 +12,7 @@ Estados: `pendente` · `em andamento` · `feito` · `feito com pendências` · `
 
 | Etapa | Estado | Data | Commit | Notas |
 |---|---|---|---|---|
-| E1 + painel/árvore (E9) | pendente | | | |
+| E1 + painel/árvore (E9) | em andamento | | | |
 | E2 | pendente | | | |
 | E3 | pendente | | | |
 | E4 | pendente | | | |
@@ -30,21 +30,21 @@ Estados: `pendente` · `em andamento` · `feito` · `feito com pendências` · `
 Guia: `docs/eras/E1-eras-biblioteca.md`
 
 Bloco 0 — Preparação
-- [ ] 0.1 Conferir o ponto de partida (`SIM_VERSION = 3`, 5 Idades)
-- [ ] 0.2 Registrar o "antes" (balance 35, build, playtest)
+- [x] 0.1 Conferir o ponto de partida (`SIM_VERSION = 3`, 5 Idades)
+- [x] 0.2 Registrar o "antes" (balance 35, build, playtest)
 
 Bloco A — Dados das Eras
-- [ ] A1 `ages.ts`: as 8 Eras e as constantes `ERA`, `ERA_TITANS`, `clampEra`…
-- [ ] A2 `data/index.ts`: reexportar as constantes novas
-- [ ] A3 Titãs e Portal dos Titãs na Era 7
-- [ ] A4 `techs.ts`: `ROMAN`, `LINE_LEVELS` e linhas com 8 níveis
-- [ ] A5 Biblioteca (`academy`) e descrições nos dados (faça antes o B1)
-- [ ] A6 `en-data.ts`: Eras, linhas, Biblioteca e perks em inglês
-- [ ] A7 `data.test.ts`: 8 Eras
+- [x] A1 `ages.ts`: as 8 Eras e as constantes `ERA`, `ERA_TITANS`, `clampEra`…
+- [x] A2 `data/index.ts`: reexportar as constantes novas
+- [x] A3 Titãs e Portal dos Titãs na Era 7
+- [x] A4 `techs.ts`: `ROMAN`, `LINE_LEVELS` e linhas com 8 níveis
+- [x] A5 Biblioteca (`academy`) e descrições nos dados (faça antes o B1)
+- [x] A6 `en-data.ts`: Eras, linhas, Biblioteca e perks em inglês
+- [x] A7 `data.test.ts`: 8 Eras
 
 Bloco B — Biblioteca no núcleo
-- [ ] B1 `types.ts`: `library`, `queueMax`, `perCity`, `visualEraMax`
-- [ ] B2 `constants.ts`: `DEFAULT_QUEUE_MAX`
+- [x] B1 `types.ts`: `library`, `queueMax`, `perCity`, `visualEraMax`
+- [x] B2 `constants.ts`: `DEFAULT_QUEUE_MAX`
 - [ ] B3 `commands.ts`: fila por edifício, `canHireScholar`, avanço de Era na Biblioteca
 - [ ] B4 `restrictions.ts`: `isScenarioConfig` e `endAgeReason`
 - [ ] B5 `entities.ts`: limite de uma Biblioteca por cidade
@@ -732,3 +732,10 @@ Bloco P — Capturas, loja e documentos
 
 ## Notas
 
+## Notas
+
+### Sessões
+- 2026-10-09 · branch claude/ecstatic-albattani-atz7h5 · E1: feitos 0.1–0.2, A1–A7, B1–B2 (dados das Eras, tipos e constante); próximo: B3 (fila por edifício e avanço de Era na Biblioteca).
+
+### E1 — medições
+- Antes (balance 35 1,2,3, 09/10/2026): Clássica 5–7 min, Heroica 13–17, Mítica 19–23, Titãs 23–27 (semente 2: [0,5,17,20,27]; semente 3 chega só à Mítica/Heroica).

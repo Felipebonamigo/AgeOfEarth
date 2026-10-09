@@ -13,6 +13,7 @@ export const MAX_PLAYERS = 4;
  * modificado dá outro resultado, e todos os clientes da sala precisam validar igual. O relay recusa na sala quem tiver outra versão.
  */
 export const SIM_VERSION = 3;
+export const DEFAULT_QUEUE_MAX = 10;   // itens na fila de um edifício sem queueMax
 
 export const RESOURCES = ['food', 'wood', 'gold', 'knowledge', 'favor'] as const;
 export type ResourceType = (typeof RESOURCES)[number];

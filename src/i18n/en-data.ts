@@ -41,18 +41,18 @@ export const EN_UNITS: Record<string, TextOverlay> = {
 };
 
 export const EN_BUILDINGS: Record<string, TextOverlay> = {
-  town_center: { name: 'Town Center', desc: 'Heart of the city. Trains citizens, receives resources, projects borders and advances the Ages. Shelters up to 15 units, which reinforce its arrows.' },
+  town_center: { name: 'Town Center', desc: 'Heart of the city. Trains citizens, receives resources and projects borders. Shelters up to 15 units, which reinforce its arrows.' },
   house: { name: 'House', desc: 'Supports 10 population.' },
   farm: { name: 'Farm', desc: 'Infinite food source for 1 citizen. Slower than hunting and berries.' },
   granary: { name: 'Granary', desc: 'Food drop-off point and farming research.' },
   lumber_camp: { name: 'Lumber Camp', desc: 'Wood drop-off point and woodcutting research.' },
   mine: { name: 'Mine', desc: 'Gold drop-off point and mining research.' },
   market: { name: 'Market', desc: 'Buy and sell resources for gold. Prices shift with use.' },
-  temple: { name: 'Temple', desc: 'Citizens pray here to generate Favor. Trains heroes and mythic creatures. Required for the Classical Age.' },
+  temple: { name: 'Temple', desc: 'Citizens pray here to generate Favor. Trains heroes and mythic creatures. Required for the Classical Era.' },
   barracks: { name: 'Barracks', desc: 'Trains infantry and archers.' },
   stable: { name: 'Stable', desc: 'Trains cavalry.' },
   siege_workshop: { name: 'Siege Workshop', desc: 'Builds siege engines.' },
-  academy: { name: 'Academy', desc: 'Hire philosophers to generate Knowledge and research the Civic, Commerce, Military and Science lines.' },
+  academy: { name: 'Library', desc: 'Library: advance the Eras and study the Civic, Commerce, Military and Science lines, one study at a time (queue of up to 5). Philosophers generate Knowledge. One per Town Center, up to 3.' },
   tower: { name: 'Watchtower', desc: 'Ranged defense that also slightly extends your borders.' },
   wall: { name: 'Wall', desc: 'Blocks passage. Click and drag to build in a line.' },
   gate: { name: 'Gate', desc: 'Wall segment that lets your units and allies through but blocks enemies.' },
@@ -67,7 +67,7 @@ export const EN_BUILDINGS: Record<string, TextOverlay> = {
 const line = (name: string, desc: string): Record<string, TextOverlay> => {
   const out: Record<string, TextOverlay> = {};
   const key = { Civics: 'civic', Commerce: 'commerce', Military: 'military', Science: 'science' }[name]!;
-  ['I', 'II', 'III', 'IV', 'V'].forEach((r, i) => { out[`${key}${i + 1}`] = { name: `${name} ${r}`, desc }; });
+  ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'].forEach((r, i) => { out[`${key}${i + 1}`] = { name: `${name} ${r}`, desc }; });
   return out;
 };
 
@@ -147,17 +147,20 @@ export const EN_MINOR_GODS: Record<string, TextOverlay> = {
 };
 
 export const EN_MAJOR_GODS: Record<string, TextOverlay> = {
-  zeus: { name: 'Zeus', title: 'King of the Gods', desc: 'The lord of Olympus favors armies of devout hoplites and legendary heroes.', perks: ['Favor +25%', 'Infantry +10% attack', 'Heroes 20% cheaper', 'Pegasi at the Temple from the Archaic Age', 'Power: Bolt'] },
+  zeus: { name: 'Zeus', title: 'King of the Gods', desc: 'The lord of Olympus favors armies of devout hoplites and legendary heroes.', perks: ['Favor +25%', 'Infantry +10% attack', 'Heroes 20% cheaper', 'Pegasi at the Temple from the Archaic Era', 'Power: Bolt'] },
   poseidon: { name: 'Poseidon', title: 'God of the Seas and Horses', desc: 'The earth-shaker commands swift cavalry and a trading economy.', perks: ['Cavalry 15% cheaper and 10% faster', 'Resource gathering +8% (the bounty of the seas)', 'Market with lower fees', 'Militia rises when one of your buildings is destroyed', 'Power: Lure'] },
-  hades: { name: 'Hades', title: 'Lord of the Underworld', desc: 'The king of the dead raises impregnable walls and an army that returns from Tartarus.', perks: ['Buildings +25% health', 'Archers +10% attack', 'Attrition +0.3/s in your territory', 'Fallen warriors may return as Shades', 'Cerberus at the Temple from the Heroic Age', 'Power: Sentinels'] },
+  hades: { name: 'Hades', title: 'Lord of the Underworld', desc: 'The king of the dead raises impregnable walls and an army that returns from Tartarus.', perks: ['Buildings +25% health', 'Archers +10% attack', 'Attrition +0.3/s in your territory', 'Fallen warriors may return as Shades', 'Cerberus at the Temple from the Hellenistic Era', 'Power: Sentinels'] },
 };
 
 export const EN_AGES: Record<string, TextOverlay> = {
-  '0': { name: 'Archaic Age', short: 'Archaic', desc: 'The dawn of civilization: villages, hunting and the first hoplites.' },
-  '1': { name: 'Classical Age', short: 'Classical', desc: 'Philosophy, cavalry and the first minor gods. Requires a Temple.' },
-  '2': { name: 'Heroic Age', short: 'Heroic', desc: 'Legendary heroes, siege engines and fortresses. Requires an Academy and 2 Academy line researches.' },
-  '3': { name: 'Mythic Age', short: 'Mythic', desc: 'Colossal creatures, wonders of the world and divine power. Requires 4 Academy line researches.' },
-  '4': { name: 'Age of Titans', short: 'Titans', desc: 'The apex: open the Titan Gate and free a Titan. Requires a Fortress and 6 Academy line researches.' },
+  '0': { name: 'Archaic Era', short: 'Archaic', desc: 'The dawn of civilization: villages, hunting and the first hoplites. Raise a Library to study and advance Eras.' },
+  '1': { name: 'Classical Era', short: 'Classical', desc: 'Philosophy, cavalry and the first minor god. Requires a Temple; advance at the Library.' },
+  '2': { name: 'Hellenistic Era', short: 'Hellenistic', desc: "Alexander's world: legendary heroes, siege engines and fortresses. Requires 2 Library line studies." },
+  '3': { name: 'Byzantine Era', short: 'Byzantine', desc: 'Constantinople: colossal creatures, wonders of the world and divine power. Requires 4 Library line studies.' },
+  '4': { name: 'Gunpowder Era', short: 'Gunpowder', desc: 'Gunpowder reaches Crete: star forts and steel cuirasses. Requires a Fortress and 7 Library line studies.' },
+  '5': { name: 'Enlightenment Era', short: 'Enlightenment', desc: 'Reason and the Greek revival in neoclassical stone. Requires 10 Library line studies.' },
+  '6': { name: 'Industrial Era', short: 'Industrial', desc: 'Steam, iron and chimneys. Requires 13 Library line studies.' },
+  '7': { name: 'Modern Era', short: 'Modern', desc: 'Concrete and steel, and the climax: open the Titan Gate and free a Titan. Requires 16 Library line studies.' },
 };
 
 export const EN_ABILITIES: Record<string, TextOverlay> = {

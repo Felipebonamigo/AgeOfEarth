@@ -28,6 +28,9 @@ export interface BuildingDef {
   wall?: boolean; wonder?: boolean; titanGate?: boolean; plenty?: boolean; notBuildable?: boolean;
   garrison?: number;          // capacidade de guarnição
   gate?: boolean;             // portão: bloqueia inimigos, deixa aliados passarem
+  library?: boolean;          // Biblioteca (id 'academy'): o avanço de Era sai daqui (canAdvanceAge)
+  queueMax?: number;          // itens que cabem na fila (padrão DEFAULT_QUEUE_MAX = 10; a Biblioteca: 5)
+  perCity?: boolean;          // com limit numérico: no máximo um por Centro Cívico (a Biblioteca: uma por cidade, até 3)
 }
 
 export type EffectMatch = 'all' | 'buildings' | { tags?: string[]; types?: string[] };
@@ -171,7 +174,8 @@ export interface GameConfig {
   scenario?: string;
   // puppet: facção roteirizada de cenário (sem IA, só gatilhos); nameText (G8); maxAge/forbid (G6); personality: personalidade da IA
   players: { name: string; god: string; isAI: boolean; difficulty: Difficulty; team?: number; puppet?: boolean; nameText?: LocalText; maxAge?: number; forbid?: Forbid; personality?: number }[];
-  maxAge?: number;                                      // G6: Idade máxima de todos (0–4; padrão a última); config.players[i].maxAge a substitui
+  maxAge?: number;                                      // G6: Era máxima de todos (0–7; padrão a última); config.players[i].maxAge a substitui
+  visualEraMax?: number;                                // aparência por Era limitada a esta Era (só o renderizador lê; campanha: 2 = Helenística)
   forbid?: Forbid;                                      // G6: proibidos para todos; somam-se aos de config.players[i].forbid
   revealMap?: boolean; startingAge?: number; startingResources?: Partial<Record<ResourceType, number>>;
   mode?: GameMode; mapType?: MapType;

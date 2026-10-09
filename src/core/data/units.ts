@@ -4,6 +4,7 @@
 // bonus: multiplicador de dano contra alvos com determinada tag.
 
 import type { UnitDef } from "../types";
+import { ERA_TITANS } from './ages';
 const H = { hack: 0.1, pierce: 0.1, crush: 0.05 };
 
 export const UNITS: Record<string, UnitDef> = {
@@ -245,21 +246,21 @@ export const UNITS: Record<string, UnitDef> = {
     name: 'Prometeu', plural: 'Prometeu', icon: '🔥', cls: 'titan', unique: true,
     cost: {}, hp: 6000, attack: 190, attackType: 'crush', armor: { hack: 0.6, pierce: 0.7, crush: 0.5 },
     range: 1.5, speed: 2.0, los: 12, trainTime: 0, pop: 0, radius: 1.1, splash: 2.2,
-    tags: ['myth', 'titan', 'military'], bonus: { building: 4 }, building: null, age: 4,
+    tags: ['myth', 'titan', 'military'], bonus: { building: 4 }, building: null, age: ERA_TITANS,
     desc: 'Titã do fogo, libertado por Zeus. Sua passagem incendeia exércitos e cidades.',
   },
   oceanus: { id: 'oceanus',
     name: 'Oceano', plural: 'Oceano', icon: '🌊', cls: 'titan', unique: true,
     cost: {}, hp: 6500, attack: 175, attackType: 'crush', armor: { hack: 0.6, pierce: 0.75, crush: 0.5 },
     range: 1.5, speed: 2.2, los: 12, trainTime: 0, pop: 0, radius: 1.1, splash: 2.2,
-    tags: ['myth', 'titan', 'military'], bonus: { building: 4 }, building: null, age: 4,
+    tags: ['myth', 'titan', 'military'], bonus: { building: 4 }, building: null, age: ERA_TITANS,
     desc: 'Titã das águas primordiais, invocado por Poseidon.',
   },
   cronus: { id: 'cronus',
     name: 'Cronos', plural: 'Cronos', icon: '⏳', cls: 'titan', unique: true,
     cost: {}, hp: 6000, attack: 210, attackType: 'crush', armor: { hack: 0.65, pierce: 0.7, crush: 0.5 },
     range: 1.5, speed: 1.9, los: 12, trainTime: 0, pop: 0, radius: 1.1, splash: 2.2,
-    tags: ['myth', 'titan', 'military'], bonus: { building: 4 }, building: null, age: 4,
+    tags: ['myth', 'titan', 'military'], bonus: { building: 4 }, building: null, age: ERA_TITANS,
     desc: 'O rei dos Titãs, arrancado do Tártaro por Hades.',
   },
 };

@@ -1,6 +1,7 @@
 // Definições de edifícios. size = largura/altura em tiles; buildTime em segundos de trabalho de 1 cidadão.
 // territory = raio de influência de fronteira (estilo Rise of Nations).
 import type { BuildingDef } from "../types";
+import { ERA_TITANS } from './ages';
 const BARMOR = { hack: 0.5, pierce: 0.85, crush: 0 };
 
 export const BUILDINGS: Record<string, BuildingDef> = {
@@ -8,7 +9,7 @@ export const BUILDINGS: Record<string, BuildingDef> = {
     name: 'Centro Cívico', icon: '🏛️', cost: { wood: 300, gold: 150 }, hp: 2400, w: 3, h: 3, buildTime: 90,
     territory: 12, popCap: 20, los: 10, attack: 8, attackType: 'pierce', range: 7, armor: BARMOR,
     trains: ['villager', 'kataskopos'], dropoff: ['food', 'wood', 'gold'], age: 0, limit: 'city', hotkey: 'N', garrison: 15,
-    desc: 'Coração da cidade. Treina cidadãos, recebe recursos, projeta fronteiras e avança as Idades. Abriga até 15 unidades, que reforçam suas flechas.',
+    desc: 'Coração da cidade. Treina cidadãos, recebe recursos e projeta fronteiras. Abriga até 15 unidades, que reforçam suas flechas.',
   },
   house: { id: 'house',
     name: 'Casa', icon: '🏠', cost: { wood: 40 }, hp: 300, w: 2, h: 2, buildTime: 20, popCap: 10, armor: BARMOR,
@@ -37,7 +38,7 @@ export const BUILDINGS: Record<string, BuildingDef> = {
   temple: { id: 'temple',
     name: 'Templo', icon: '⚡', cost: { wood: 200, gold: 50 }, hp: 1200, w: 3, h: 3, buildTime: 60, armor: BARMOR,
     territory: 5, los: 8, trains: ['jason', 'odysseus', 'heracles', 'achilles', 'perseus', 'pegasus', 'minotaur', 'centaur', 'cyclops', 'manticore', 'hydra', 'nemean_lion', 'medusa', 'colossus', 'chimera', 'cerberus'],
-    age: 0, hotkey: 'S', worship: true, desc: 'Cidadãos rezam aqui para gerar Favor. Treina heróis e criaturas míticas. Necessário para a Idade Clássica.',
+    age: 0, hotkey: 'S', worship: true, desc: 'Cidadãos rezam aqui para gerar Favor. Treina heróis e criaturas míticas. Necessário para a Era Clássica.',
   },
   barracks: { id: 'barracks',
     name: 'Quartel', icon: '⚔️', cost: { wood: 150 }, hp: 1000, w: 3, h: 3, buildTime: 45, armor: BARMOR,
@@ -53,9 +54,9 @@ export const BUILDINGS: Record<string, BuildingDef> = {
     trains: ['petrobolos', 'helepolis'], age: 2, hotkey: 'G', military: true, desc: 'Constrói máquinas de cerco.',
   },
   academy: { id: 'academy',
-    name: 'Academia', icon: '📚', cost: { wood: 200, gold: 100 }, hp: 1000, w: 3, h: 3, buildTime: 60, armor: BARMOR,
-    age: 1, hotkey: 'Z', scholars: true, limit: 3,
-    desc: 'Contrate filósofos para gerar Conhecimento e pesquise as linhas Cívica, Comercial, Militar e Científica.',
+    name: 'Biblioteca', icon: '📚', cost: { wood: 200, gold: 100 }, hp: 1000, w: 3, h: 3, buildTime: 60, armor: BARMOR,
+    age: 0, hotkey: 'Z', scholars: true, limit: 3, library: true, queueMax: 5, perCity: true,
+    desc: 'Biblioteca: avance as Eras e estude as linhas Cívica, Comercial, Militar e Científica, um estudo por vez (fila de até 5). Filósofos geram Conhecimento. Uma por Centro Cívico, até 3.',
   },
   tower: { id: 'tower',
     name: 'Torre de Vigia', icon: '🗼', cost: { wood: 100, gold: 50 }, hp: 700, w: 1, h: 1, buildTime: 35, armor: BARMOR,
@@ -90,7 +91,7 @@ export const BUILDINGS: Record<string, BuildingDef> = {
   },
   titan_gate: { id: 'titan_gate',
     name: 'Portal dos Titãs', icon: '🌋', cost: { wood: 600, gold: 600, food: 600, favor: 200 }, hp: 3000, w: 5, h: 5, buildTime: 180, armor: BARMOR,
-    age: 4, limit: 1, hotkey: 'B', titanGate: true, desc: 'Quando concluído, liberta o Titã do seu deus maior. Só pode ser construído uma vez.',
+    age: ERA_TITANS, limit: 1, hotkey: 'B', titanGate: true, desc: 'Quando concluído, liberta o Titã do seu deus maior. Só pode ser construído uma vez.',
   },
   cornucopia: { id: 'cornucopia',
     name: 'Cornucópia', icon: '🌽', cost: {}, hp: 800, w: 2, h: 2, buildTime: 1, armor: BARMOR,

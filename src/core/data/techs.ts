@@ -11,11 +11,16 @@ import type { TechDef, Effect, Cost } from '../types';
 type TechInput = Omit<TechDef, 'id' | 'prereq'> & { prereq?: string[] };
 interface LineOpts { cost: (l: number) => Cost; time: (l: number) => number; effects: (l: number) => Effect[]; icon: string; desc: string }
 
+/** Numerais dos níveis das linhas (I–VIII: um nível por Era). */
+export const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'] as const;
+/** Níveis de cada linha da Biblioteca (= número de Eras; tests/eras.test.ts confere). */
+export const LINE_LEVELS = 8;
+
 const line = (key: string, name: string, count: number, opts: LineOpts): Record<string, TechInput> => {
   const out: Record<string, TechInput> = {};
   for (let lvl = 1; lvl <= count; lvl++) {
     out[`${key}${lvl}`] = {
-      name: `${name} ${['I', 'II', 'III', 'IV', 'V'][lvl - 1]}`,
+      name: `${name} ${ROMAN[lvl - 1]}`,
       building: 'academy', age: Math.max(0, lvl - 1), line: key, level: lvl,
       prereq: lvl > 1 ? [`${key}${lvl - 1}`] : [],
       cost: opts.cost(lvl), time: opts.time(lvl), effects: opts.effects(lvl), icon: opts.icon, desc: opts.desc,
@@ -26,7 +31,7 @@ const line = (key: string, name: string, count: number, opts: LineOpts): Record<
 
 const RAW: Record<string, TechInput> = {
   // ---------- Linhas da Academia (estilo Biblioteca do Rise of Nations) ----------
-  ...line('civic', 'Civismo', 5, {
+  ...line('civic', 'Civismo', LINE_LEVELS, {
     icon: '🏛️', cost: (l) => ({ knowledge: 60 + 90 * l, gold: 40 + 60 * l }), time: (l) => 30 + 12 * l,
     effects: () => [
       { type: 'player', stat: 'territory', add: 2 }, { type: 'player', stat: 'cityLimit', add: 1 },
@@ -34,12 +39,12 @@ const RAW: Record<string, TechInput> = {
     ],
     desc: 'Fronteiras +2, +1 Centro Cívico permitido, atrito +0.25/s, população +10.',
   }),
-  ...line('commerce', 'Comércio', 5, {
+  ...line('commerce', 'Comércio', LINE_LEVELS, {
     icon: '⚖️', cost: (l) => ({ knowledge: 50 + 70 * l, gold: 30 + 50 * l }), time: (l) => 30 + 10 * l,
     effects: () => [{ type: 'gather', resource: 'all', mult: 1.08 }, { type: 'player', stat: 'tradeTax', mult: 0.85 }],
     desc: 'Coleta de todos os recursos +8% e taxas do Mercado menores.',
   }),
-  ...line('military', 'Militar', 5, {
+  ...line('military', 'Militar', LINE_LEVELS, {
     icon: '⚔️', cost: (l) => ({ knowledge: 60 + 80 * l, gold: 60 + 70 * l }), time: (l) => 30 + 12 * l,
     effects: () => [
       { type: 'unit', match: { tags: ['military'] }, stat: 'hp', mult: 1.06 },
@@ -47,7 +52,7 @@ const RAW: Record<string, TechInput> = {
     ],
     desc: 'Todas as unidades militares +6% de vida e ataque.',
   }),
-  ...line('science', 'Ciência', 5, {
+  ...line('science', 'Ciência', LINE_LEVELS, {
     icon: '🔬', cost: (l) => ({ knowledge: 40 + 60 * l, gold: 40 + 60 * l }), time: (l) => 25 + 10 * l,
     effects: () => [
       { type: 'player', stat: 'knowledgeRate', mult: 1.15 }, { type: 'player', stat: 'researchCost', mult: 0.92 },

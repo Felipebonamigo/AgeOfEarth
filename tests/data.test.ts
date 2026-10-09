@@ -57,7 +57,7 @@ describe('integridade dos dados', () => {
     expect(new Set(edKeys).size, `atalhos do editor repetidos: ${edKeys}`).toBe(edKeys.length);
     for (const k of ['A', 'R', 'U', 'W', 'S', 'D']) expect(edKeys, `atalho ${k} no editor`).not.toContain(k);
     expect(hotkeys.has('A'), 'A é atacar-mover: nenhum edifício pode usá-lo').toBe(false);
-    expect(AGES.length).toBe(5);
+    expect(AGES.length).toBe(8);
     for (const a of AGES) if (a.requires.building) expect(BUILDINGS[a.requires.building]).toBeDefined();
     // atalhos de treino únicos por edifício
     for (const b of Object.values(BUILDINGS)) {

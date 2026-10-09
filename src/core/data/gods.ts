@@ -46,7 +46,7 @@ export const MAJOR_GODS: Record<string, MajorGodDef> = {
       { type: 'unit', match: { tags: ['infantry'] }, stat: 'attack', mult: 1.1 },
       { type: 'cost', match: { tags: ['hero'] }, mult: 0.8 },
     ],
-    perks: ['Favor +25%', 'Infantaria +10% de ataque', 'Heróis 20% mais baratos', 'Pégasos no Templo desde a Idade Arcaica', 'Poder: Raio'],
+    perks: ['Favor +25%', 'Infantaria +10% de ataque', 'Heróis 20% mais baratos', 'Pégasos no Templo desde a Era Arcaica', 'Poder: Raio'],
     desc: 'O senhor do Olimpo favorece exércitos de hoplitas devotos e heróis lendários.',
   },
   poseidon: {
@@ -69,7 +69,7 @@ export const MAJOR_GODS: Record<string, MajorGodDef> = {
       { type: 'unit', match: { tags: ['archer'] }, stat: 'attack', mult: 1.1 },
       { type: 'player', stat: 'attrition', add: 0.3 },
     ],
-    perks: ['Edifícios +25% de vida', 'Arqueiros +10% de ataque', 'Atrito +0,3/s em seu território', 'Guerreiros mortos podem voltar como Sombras', 'Cérbero no Templo a partir da Idade Heroica', 'Poder: Sentinelas'],
+    perks: ['Edifícios +25% de vida', 'Arqueiros +10% de ataque', 'Atrito +0,3/s em seu território', 'Guerreiros mortos podem voltar como Sombras', 'Cérbero no Templo a partir da Era Helenística', 'Poder: Sentinelas'],
     desc: 'O rei dos mortos ergue muralhas inexpugnáveis e um exército que retorna do Tártaro.',
   },
 };
