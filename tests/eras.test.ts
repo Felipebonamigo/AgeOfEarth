@@ -5,6 +5,7 @@ import { AGES, ACADEMY_LINES, BUILDINGS, ERA_TITANS, LEGACY_AGE_TO_ERA, LINE_LEV
 import { applyCommand, canAdvanceAge } from '../src/core/sim/commands';
 import { buildingLimitOk, buildingsOf, placeBuilding } from '../src/core/sim/entities';
 import { setLocale, t } from '../src/i18n';
+import { SAVE_VERSION, deserialize, saveVersionOf, serialize } from '../src/core/serialize';
 import { createGame, tick } from '../src/core/sim/game';
 import { ARMY_ATTACK, FARM_LIMIT, MIN_ARMY, RESEARCH_PRIORITY, VILLAGER_TARGET } from '../src/core/sim/ai';
 import { academyTechCount } from '../src/core/sim/commands';
@@ -203,4 +204,16 @@ describe('E1 — IA', () => {
     }
     expect(best).toBeGreaterThanOrEqual(2);
   }, 60000);
+});
+
+describe('E1 — save', () => {
+  it('versão do formato; save de outra versão não carrega e avisa', () => {
+    const json = serialize(quickGame());
+    expect(saveVersionOf(json)).toBe(SAVE_VERSION);
+    expect(saveVersionOf('lixo')).toBeNull();
+    const old = JSON.stringify({ ...JSON.parse(json), version: 1 });
+    expect(saveVersionOf(old)).toBe(1);
+    expect(() => deserialize(old)).toThrow(/v1/);
+    expect(deserialize(json).tick).toBe(0);
+  });
 });

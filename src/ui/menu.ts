@@ -40,7 +40,7 @@ export function defaultRelayUrl(loc: { protocol: string; hostname: string } = lo
   return `${loc.protocol === 'https:' ? 'wss' : 'ws'}://${loc.hostname || 'localhost'}:8787`;
 }
 
-export interface MenuCallbacks { onStart: (config: GameConfig) => void; onLoad: () => void; hasSave: () => boolean; onHelp: () => void; onEncyclopedia: () => void; onMission: (id: string, difficulty: 'easy' | 'normal' | 'hard') => void; onScenarioFile: (map: FixedMapData) => void; onNetworkStart: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onNetworkRejoin: (client: NetClient, config: GameConfig, slots: number[], delay: number, dropped?: number[]) => void; onHorde: (god: string, difficulty: Difficulty) => void; onReplay: () => void; hasReplay: () => boolean; onEditor: (file: FixedMapData) => void; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onHotkeys?: () => void; onCredits?: () => void }
+export interface MenuCallbacks { onStart: (config: GameConfig) => void; onLoad: () => void; hasSave: () => boolean; hasOldSave?: () => boolean; onDeleteOldSave?: () => void; onHelp: () => void; onEncyclopedia: () => void; onMission: (id: string, difficulty: 'easy' | 'normal' | 'hard') => void; onScenarioFile: (map: FixedMapData) => void; onNetworkStart: (client: NetClient, config: GameConfig, slots: number[], delay: number) => void; onNetworkRejoin: (client: NetClient, config: GameConfig, slots: number[], delay: number, dropped?: number[]) => void; onHorde: (god: string, difficulty: Difficulty) => void; onReplay: () => void; hasReplay: () => boolean; onEditor: (file: FixedMapData) => void; onLocaleChanged?: () => void; getOptions?: () => OptionsContext; onHotkeys?: () => void; onCredits?: () => void }
 
 export class MainMenu {
   root: HTMLElement; el: HTMLElement;
@@ -255,11 +255,13 @@ export class MainMenu {
         <button class="btn ${this.tab === 'skirmish' ? '' : 'hidden'}" id="m-horde" title="${t('main.hordeTip')}">${t('main.horde')}</button>
         <button class="btn ${this.tab === 'skirmish' ? '' : 'hidden'}" id="m-replay" ${this.cb.hasReplay() ? '' : 'disabled'}>${t('main.replay')}</button>
         <button class="btn" id="m-load" ${this.cb.hasSave() ? '' : 'disabled'}>${t('main.load')}</button>
+        ${this.cb.hasOldSave?.() ? `<button class="btn danger" id="m-oldsave" title="${t('main.oldSave')}">${t('main.oldSaveDelete')}</button>` : ''}
         <button class="btn" id="m-help">${t('main.help')}</button>
         <button class="btn" id="m-enc">${t('main.enc')}</button>
         <button class="btn" id="m-credits">${t('main.creditsBtn')}</button>
         <button class="btn" id="m-options">${this.showOptions ? t('menu.optionsHide') : t('menu.options')}</button>
       </div>
+      ${this.cb.hasOldSave?.() ? `<div id="m-oldsave-note" style="color:#f2c14e;font-size:12px;margin-top:6px">${t('main.oldSave')}</div>` : ''}
       <div id="m-options-panel" class="${this.showOptions ? '' : 'hidden'}" style="margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--panel)">${opts ? optionsHTML(opts) : ''}</div>
       <div class="credits">${t('main.credits')}</div>
     </div>`;
@@ -308,6 +310,7 @@ export class MainMenu {
       this.cb.onStart({ seed, mapSize: map, players, revealMap: q('#m-reveal').checked, mode, mapType, map: fixed, mapHash: fixed ? mapHash(fixed) : undefined, startOrder: fixed && teams !== 'ffa' ? startOrderFor(fixed, players.map((p) => p.team ?? 0)) : undefined });
     });
     q('#m-load').addEventListener('click', () => this.cb.onLoad());
+    this.el.querySelector('#m-oldsave')?.addEventListener('click', () => { if (!confirm(t('main.oldSaveConfirm'))) return; this.cb.onDeleteOldSave?.(); this.render(); });
     q('#m-fixed-load').addEventListener('click', () => void this.loadFixedMap());
     this.el.querySelector('#m-fixed-clear')?.addEventListener('click', () => this.setFixedMap(null));
     this.bindMapSelect('m-fixed-sel');

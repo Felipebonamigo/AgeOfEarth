@@ -37,11 +37,11 @@ import { loadSettings, saveSettings } from './game/settings';
 import { AutoQuality, isSoftwareRenderer, levelOf, resolveQuality } from './render/quality';
 import { PerfMonitor } from './render/perf';
 import { exportText, importText } from './game/files';
-import { initCloud, storeSet } from './game/cloud';
+import { initCloud, storeSet, storeRemove } from './game/cloud';
 import { applyUiScale, initDisplay, isFullscreen, setFullscreen, desktop, setPresence } from './game/display';
 import type { OptionsContext } from './ui/options';
 import { MAJOR_GODS, MAJOR_GOD_LIST, AGES } from './core/data';
-import { serialize, deserialize } from './core/serialize';
+import { serialize, deserialize, SAVE_VERSION, saveVersionOf } from './core/serialize';
 import { mapToData } from './core/map/fixed';
 import { photosSettled } from './render/terrain/photos';
 
@@ -98,7 +98,9 @@ async function boot() {
   let session: Session | null = null;
   const achievements = new Achievements();
   achievements.syncToSteam();   // conquistas destravadas fora da Steam (ou vindas do Steam Cloud) chegam à conta
-  const hasSave = () => { try { return !!localStorage.getItem(SAVE_KEY); } catch { return false; } };
+  const savedJson = () => { try { return localStorage.getItem(SAVE_KEY); } catch { return null; } };
+  const hasSave = () => { const j = savedJson(); return !!j && saveVersionOf(j) === SAVE_VERSION; };
+  const hasOldSave = () => { const j = savedJson(); return !!j && saveVersionOf(j) !== SAVE_VERSION; };
   const hasReplay = () => { try { return !!localStorage.getItem(REPLAY_KEY); } catch { return false; } };
   let replaySaved = false;
   // Editor de mapas: a instância vive enquanto o editor estiver aberto ou uma partida de teste estiver rodando (reaproveitada ao voltar)
@@ -477,7 +479,7 @@ async function boot() {
     showEditor(ed, editorCam);
   };
 
-  const menu = new MainMenu(root, { onStart: (cfg) => { replaySaved = false; startGame(cfg); }, onLoad: loadGame, hasSave, onEditor: startEditor, onHelp: () => hud.showHelp(), onEncyclopedia: () => hud.showEncyclopedia(), onCredits: () => hud.showCredits(), onMission: startMission, onScenarioFile: startScenarioFile, onNetworkStart: startNetworkGame, onNetworkRejoin: rejoinNetworkGame, onHorde: startHorde, onReplay: watchReplay, hasReplay, onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); }, getOptions: () => options, onHotkeys: () => hud.showHotkeys() });
+  const menu = new MainMenu(root, { onStart: (cfg) => { replaySaved = false; startGame(cfg); }, onLoad: loadGame, hasSave, hasOldSave, onDeleteOldSave: () => { try { storeRemove(SAVE_KEY); } catch { /* ignore */ } }, onEditor: startEditor, onHelp: () => hud.showHelp(), onEncyclopedia: () => hud.showEncyclopedia(), onCredits: () => hud.showCredits(), onMission: startMission, onScenarioFile: startScenarioFile, onNetworkStart: startNetworkGame, onNetworkRejoin: rejoinNetworkGame, onHorde: startHorde, onReplay: watchReplay, hasReplay, onLocaleChanged: () => { settings.locale = (localStorage.getItem('aoe_locale') as 'pt' | 'en') ?? 'pt'; saveSettings(settings); }, getOptions: () => options, onHotkeys: () => hud.showHotkeys() });
   input.edgeScroll = settings.edgeScroll;
   // Controle (Steam Deck/Xbox): lido a cada quadro no laço; gera as mesmas ações do Input (src/ui/gamepad.ts)
   const pad = new GamepadController({ input, hud, renderer, menu, settings, getSession: () => session, inEditor: () => inEditor() });

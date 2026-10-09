@@ -2,14 +2,22 @@
 import { RNG } from './rng';
 import type { GameState, Unit, Building, ResourceNode, Player } from './types';
 import { NODE_ID_BASE, getNodeSeq, resetNodeSeq } from './map/mapgen';
+import { t } from '../i18n';
 
 export interface SavedGame { version: number; state: unknown }
-const VERSION = 1;
+/** Formato do save: 2 = Eras (E1). Save de outro formato não carrega (o menu avisa por saveVersionOf). */
+export const SAVE_VERSION = 2;
+/** Versão do formato de um save sem interpretar o JSON inteiro (null: não é um save). */
+export function saveVersionOf(json: string): number | null {
+  const m = /^\s*\{\s*"version"\s*:\s*(\d+)/.exec(json.slice(0, 64));
+  if (m) return Number(m[1]);
+  try { const o = JSON.parse(json) as { version?: unknown }; return typeof o?.version === 'number' ? o.version : null; } catch { return null; }
+}
 
 export function serialize(state: GameState): string {
   const s = state;
   const out = {
-    version: VERSION,
+    version: SAVE_VERSION,
     config: s.config, seed: s.seed, tick: s.tick, time: s.time, nextId: s.nextId, nodeSeq: getNodeSeq(),
     map: { w: s.map.w, h: s.map.h, terrain: Array.from(s.map.terrain), decor: Array.from(s.map.decor), starts: s.map.starts, nodes: [...s.map.nodes.values()] },
     players: s.players.map((p) => ({ ...p, visibility: Array.from(p.visibility), mods: undefined })),
@@ -22,7 +30,7 @@ export function serialize(state: GameState): string {
 
 export function deserialize(json: string): GameState {
   const o = JSON.parse(json);
-  if (o.version !== VERSION) throw new Error('Versão de save incompatível.');
+  if (o.version !== SAVE_VERSION) throw new Error(t('err.saveVersion', { v: String(o.version ?? '?'), cur: SAVE_VERSION }));
   const w: number = o.map.w, h: number = o.map.h;
   const nodes = new Map<number, ResourceNode>();
   const nodeAt = new Int32Array(w * h).fill(-1);

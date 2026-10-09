@@ -68,9 +68,9 @@ Bloco D — IA
 - [x] D8 `position-fairness`: 33/11 e testes da IA
 
 Bloco E — Save de versão antiga
-- [ ] E1 `serialize.ts`: `SAVE_VERSION = 2` e `saveVersionOf`
-- [ ] E2 `main.ts`: `hasSave`/`hasOldSave`/apagar save antigo
-- [ ] E3 `menu.ts`: aviso e botão do save antigo
+- [x] E1 `serialize.ts`: `SAVE_VERSION = 2` e `saveVersionOf`
+- [x] E2 `main.ts`: `hasSave`/`hasOldSave`/apagar save antigo
+- [x] E3 `menu.ts`: aviso e botão do save antigo
 
 Bloco F — Campanha
 - [ ] F1 Configs `maxAge 3`/`visualEraMax 2` nas missões
