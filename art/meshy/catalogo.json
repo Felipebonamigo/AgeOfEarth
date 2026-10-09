@@ -414,7 +414,8 @@
       "textura": 1024,
       "rig": false,
       "baixadoEm": "2026-10-05",
-      "notas": "quartel romano de pedra com arcadas e telhado de telha; malha original leve, sem redução de triângulos (normais recalculadas suaves); textura 1024"
+      "notas": "quartel romano de pedra com arcadas e telhado de telha; malha original leve, sem redução de triângulos (normais recalculadas suaves); textura 1024; retorno da nuvem (0004): no zoom do jogo vira galpão escuro e genérico; o procedural mostra a função",
+      "status": "avaliado, perdeu para o procedural"
     },
     {
       "arquivo": "edificios/town_center__pantheon.glb",
@@ -430,7 +431,8 @@
       "textura": 1024,
       "rig": false,
       "baixadoEm": "2026-10-05",
-      "notas": "Panteão romano (cúpula + pórtico); pode servir também de maravilha; malha original leve, sem redução de triângulos (normais recalculadas suaves); textura 1024"
+      "notas": "Panteão romano (cúpula + pórtico); pode servir também de maravilha; malha original leve, sem redução de triângulos (normais recalculadas suaves); textura 1024; retorno da nuvem (0004): o CC muda a cada Idade e um modelo só perderia isso (Panteão ainda é romano, de cúpula)",
+      "status": "avaliado, perdeu para o procedural"
     },
     {
       "arquivo": "edificios/town_center__stone-basilica.glb",
@@ -446,7 +448,8 @@
       "textura": 1024,
       "rig": false,
       "baixadoEm": "2026-10-05",
-      "notas": "basílica de pedra com absides e telha; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024"
+      "notas": "basílica de pedra com absides e telha; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024; retorno da nuvem (0004): o CC muda a cada Idade e um modelo só perderia isso (Panteão ainda é romano, de cúpula)",
+      "status": "avaliado, perdeu para o procedural"
     },
     {
       "arquivo": "edificios/granary__desert-oasis.glb",
@@ -462,7 +465,8 @@
       "textura": 1024,
       "rig": false,
       "baixadoEm": "2026-10-05",
-      "notas": "celeiro de adobe com palmeiras e base de areia; ESTILIZADO (menos realista que o resto), avaliar no bake; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024"
+      "notas": "celeiro de adobe com palmeiras e base de areia; ESTILIZADO (menos realista que o resto), avaliar no bake; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024; retorno da nuvem (0004): estilizado demais",
+      "status": "avaliado, perdeu para o procedural"
     },
     {
       "arquivo": "edificios/lumber_camp__thatchwood-sawmill.glb",
@@ -478,7 +482,8 @@
       "textura": 1024,
       "rig": false,
       "baixadoEm": "2026-10-05",
-      "notas": "serraria de madeira e palha com cerca e toras; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024"
+      "notas": "serraria de madeira e palha com cerca e toras; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024; retorno da nuvem (0004): idem quartel",
+      "status": "avaliado, perdeu para o procedural"
     },
     {
       "arquivo": "edificios/lumber_camp__sawmill-serenity.glb",
@@ -494,7 +499,8 @@
       "textura": 1024,
       "rig": false,
       "baixadoEm": "2026-10-05",
-      "notas": "galpão de serraria de madeira; o telhado ficou esfarrapado na redução; reduzido com simplifySloppy (o simplify topológico travava); normais recalculadas suaves; textura 1024"
+      "notas": "galpão de serraria de madeira; o telhado ficou esfarrapado na redução; reduzido com simplifySloppy (o simplify topológico travava); normais recalculadas suaves; textura 1024; retorno da nuvem (0004): idem quartel",
+      "status": "avaliado, perdeu para o procedural"
     },
     {
       "arquivo": "edificios/market__stall-toldo-vermelho.glb",
@@ -510,7 +516,8 @@
       "textura": 1024,
       "rig": false,
       "baixadoEm": "2026-10-05",
-      "notas": "barraca com toldo de tecido vermelho, potes e barris; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024"
+      "notas": "barraca com toldo de tecido vermelho, potes e barris; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024; retorno da nuvem (0004): idem quartel",
+      "status": "avaliado, perdeu para o procedural"
     },
     {
       "arquivo": "edificios/market__stall-lona.glb",
@@ -526,7 +533,8 @@
       "textura": 1024,
       "rig": false,
       "baixadoEm": "2026-10-05",
-      "notas": "banca de madeira com toldo de lona crua; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024"
+      "notas": "banca de madeira com toldo de lona crua; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024; retorno da nuvem (0004): idem quartel",
+      "status": "avaliado, perdeu para o procedural"
     },
     {
       "arquivo": "edificios/tower__thatched-timber-watchtower.glb",
@@ -542,7 +550,8 @@
       "textura": 1024,
       "rig": false,
       "baixadoEm": "2026-10-05",
-      "notas": "torre de vigia de madeira com cobertura de palha; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024"
+      "notas": "torre de vigia de madeira com cobertura de palha; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024; retorno da nuvem (0004): torre se emenda por bitmask (regra do jogo)",
+      "status": "avaliado, perdeu para o procedural"
     },
     {
       "arquivo": "edificios/tower__stone-watchtower.glb",
@@ -558,7 +567,8 @@
       "textura": 1024,
       "rig": false,
       "baixadoEm": "2026-10-05",
-      "notas": "torre cilíndrica de pedra com telhado cônico de telha (prompt 'Age of Empires style', meio estilizada); malha original leve, sem redução de triângulos (normais recalculadas suaves); textura 1024"
+      "notas": "torre cilíndrica de pedra com telhado cônico de telha (prompt 'Age of Empires style', meio estilizada); malha original leve, sem redução de triângulos (normais recalculadas suaves); textura 1024; retorno da nuvem (0004): torre se emenda por bitmask (regra do jogo)",
+      "status": "avaliado, perdeu para o procedural"
     },
     {
       "arquivo": "edificios/wall__stone-wall.glb",
@@ -574,7 +584,8 @@
       "textura": 1024,
       "rig": false,
       "baixadoEm": "2026-10-05",
-      "notas": "trecho de muro de pedra seca claro; malha original leve, sem redução de triângulos (normais recalculadas suaves); textura 1024"
+      "notas": "trecho de muro de pedra seca claro; malha original leve, sem redução de triângulos (normais recalculadas suaves); textura 1024; retorno da nuvem (0004): muralha se emenda por bitmask (regra do jogo)",
+      "status": "avaliado, perdeu para o procedural"
     },
     {
       "arquivo": "edificios/wall__mossy-old-bricks.glb",
@@ -590,7 +601,8 @@
       "textura": 1024,
       "rig": false,
       "baixadoEm": "2026-10-05",
-      "notas": "trecho de muro de pedra cinza com musgo; malha original leve, sem redução de triângulos (normais recalculadas suaves); textura 1024"
+      "notas": "trecho de muro de pedra cinza com musgo; malha original leve, sem redução de triângulos (normais recalculadas suaves); textura 1024; retorno da nuvem (0004): muralha se emenda por bitmask (regra do jogo)",
+      "status": "avaliado, perdeu para o procedural"
     },
     {
       "arquivo": "edificios/wonder_zeus__zeus-throne.glb",
@@ -606,7 +618,8 @@
       "textura": 1024,
       "rig": false,
       "baixadoEm": "2026-10-05",
-      "notas": "Zeus de mármore sentado no trono, sobre base; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024"
+      "notas": "Zeus de mármore sentado no trono, sobre base; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024",
+      "status": "em uso"
     },
     {
       "arquivo": "edificios/wonder_colossus__zeus-king-of-gods.glb",
@@ -622,7 +635,8 @@
       "textura": 1024,
       "rig": false,
       "baixadoEm": "2026-10-05",
-      "notas": "estátua de deus de pé sobre coluna (mármore, não bronze); substituto do Colosso até achar um Hélio de bronze; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024"
+      "notas": "estátua de deus de pé sobre coluna (mármore, não bronze); substituto do Colosso até achar um Hélio de bronze; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024; retorno da nuvem (0004): segura um tridente e o Colosso é Hélio",
+      "status": "avaliado, perdeu para o procedural"
     },
     {
       "arquivo": "edificios/siege_workshop__rustic-shelter.glb",
@@ -638,7 +652,8 @@
       "textura": 1024,
       "rig": false,
       "baixadoEm": "2026-10-05",
-      "notas": "telheiro aberto de madeira; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024"
+      "notas": "telheiro aberto de madeira; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024; retorno da nuvem (0004): idem quartel",
+      "status": "avaliado, perdeu para o procedural"
     },
     {
       "arquivo": "edificios/farm__hut.glb",
@@ -654,7 +669,8 @@
       "textura": 1024,
       "rig": false,
       "baixadoEm": "2026-10-05",
-      "notas": "cabana de palha sobre estacas; original pesadíssimo (9,3 mi faces, 409 MB); o telhado ficou esfarrapado na redução; reduzido com simplifySloppy (o simplify topológico travava); normais recalculadas suaves; textura 1024"
+      "notas": "cabana de palha sobre estacas; original pesadíssimo (9,3 mi faces, 409 MB); o telhado ficou esfarrapado na redução; reduzido com simplifySloppy (o simplify topológico travava); normais recalculadas suaves; textura 1024; retorno da nuvem (0004): a fazenda é uma plantação (regra do jogo)",
+      "status": "avaliado, perdeu para o procedural"
     },
     {
       "arquivo": "edificios/farm__thatched-stone-cottage.glb",
@@ -670,7 +686,8 @@
       "textura": 1024,
       "rig": false,
       "baixadoEm": "2026-10-05",
-      "notas": "casinha de pedra com telhado de palha; ESTILIZADA (cartoon); malha original leve, sem redução de triângulos (normais recalculadas suaves); textura 1024"
+      "notas": "casinha de pedra com telhado de palha; ESTILIZADA (cartoon); malha original leve, sem redução de triângulos (normais recalculadas suaves); textura 1024; retorno da nuvem (0004): a fazenda é uma plantação (regra do jogo)",
+      "status": "avaliado, perdeu para o procedural"
     },
     {
       "arquivo": "edificios/stable__horse-stable.glb",
@@ -686,7 +703,8 @@
       "textura": 1024,
       "rig": false,
       "baixadoEm": "2026-10-05",
-      "notas": "estábulo de madeira com telha e varanda; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024"
+      "notas": "estábulo de madeira com telha e varanda; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024; retorno da nuvem (0004): idem quartel",
+      "status": "avaliado, perdeu para o procedural"
     }
   ],
   "recusados": [
