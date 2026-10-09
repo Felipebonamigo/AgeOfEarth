@@ -3,6 +3,10 @@
 Plano geral: `docs/UNREAL.md`. Este arquivo é o guia prático de quem monta o projeto no Unreal (a sessão local do dono).
 O projeto Unreal em si (`unreal/AgeOfEarthUE/`) fica só no PC do dono; aqui entram scripts, exportações pequenas e capturas.
 
+## 0. Primeira vez no PC (Windows)
+
+Cole o prompt de `unreal/PROMPT-SESSAO-LOCAL.md` na sessão local, ou rode direto `powershell -ExecutionPolicy Bypass -File unreal\scripts\setup-windows.ps1` (instala Git, Node e o Epic Games Launcher; o Unreal Engine em si o dono instala pelo Launcher).
+
 ## 1. Rodar a simulação e a ponte
 
 ```bash
