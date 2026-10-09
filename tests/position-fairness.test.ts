@@ -358,7 +358,7 @@ describe('sondagem de simetria nos mapas oficiais (estado inicial)', () => {
     const tf: Record<number, (x: number, y: number) => [number, number]> = { 1: (x, y) => [W - x, y], 2: (x, y) => [W - x, H - y], 3: (x, y) => [x, H - y] };
     const r = probe('egeu', tf);
     expect(r.bad).toEqual([]);
-    expect(r.ok).toBe(30);
+    expect(r.ok).toBe(33);
     expect(probe('egeu', tf, EXTRA_TYPES).bad).toEqual([]);
   });
   it('Estreito (rotação de 180°; inícios na diagonal do mapa): 10/10', () => {
@@ -366,7 +366,7 @@ describe('sondagem de simetria nos mapas oficiais (estado inicial)', () => {
     const tf: Record<number, (x: number, y: number) => [number, number]> = { 1: (x, y) => [W - x, H - y] };
     const r = probe('estreito', tf);
     expect(r.bad).toEqual([]);
-    expect(r.ok).toBe(10);
+    expect(r.ok).toBe(11);
     expect(probe('estreito', tf, EXTRA_TYPES).bad).toEqual([]);
   });
 });

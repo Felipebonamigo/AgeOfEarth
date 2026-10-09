@@ -58,14 +58,14 @@ Bloco C — Era inicial, Era final e `visualEraMax`
 - [x] C4 Testes de Era inicial/final e de cenário
 
 Bloco D — IA
-- [ ] D1 Tabelas da IA com 8 posições (exportadas)
-- [ ] D2 `RESEARCH_PRIORITY` exportada, níveis 6–8 no fim
-- [ ] D3 Plano de construção: Biblioteca na Era I, Portal, 2ª Biblioteca
-- [ ] D4 `tryAdvanceAge` na Biblioteca
-- [ ] D5 `budgetOf` genérico (todos os recursos)
-- [ ] D6 `scripts/loadtest.ts`: Biblioteca e avanço nela
-- [ ] D7 `SIM_VERSION = 4`
-- [ ] D8 `position-fairness`: 33/11 e testes da IA
+- [x] D1 Tabelas da IA com 8 posições (exportadas)
+- [x] D2 `RESEARCH_PRIORITY` exportada, níveis 6–8 no fim
+- [x] D3 Plano de construção: Biblioteca na Era I, Portal, 2ª Biblioteca
+- [x] D4 `tryAdvanceAge` na Biblioteca
+- [x] D5 `budgetOf` genérico (todos os recursos)
+- [x] D6 `scripts/loadtest.ts`: Biblioteca e avanço nela
+- [x] D7 `SIM_VERSION = 4` (smoke 20 42: hash 6bad7445 nas duas rodadas)
+- [x] D8 `position-fairness`: 33/11 e testes da IA
 
 Bloco E — Save de versão antiga
 - [ ] E1 `serialize.ts`: `SAVE_VERSION = 2` e `saveVersionOf`

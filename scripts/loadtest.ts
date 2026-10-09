@@ -165,7 +165,7 @@ export class Brain {
     if (!buildingHouse && p.popCap - p.pop <= 5 && has('house') < 25) tryBuild('house', anchor.x, anchor.y, 3, 16, 1);
 
     // 4) Edifícios por idade (um de cada vez), pontos de entrega perto de recursos distantes
-    const plan: [string, number, number][] = [['barracks', 1, 0], ['temple', 1, 0], ['academy', 1, 1], ['barracks', 2, 1], ['stable', 1, 1], ['market', 1, 1], ['tower', 2, 1], ['siege_workshop', 1, 2], ['fortress', 1, 2], ['academy', 2, 2], ['barracks', 3, 2], ['stable', 2, 2], ['tower', 6, 2], ['fortress', 2, 3]];
+    const plan: [string, number, number][] = [['barracks', 1, 0], ['temple', 1, 0], ['academy', 1, 0], ['barracks', 2, 1], ['stable', 1, 1], ['market', 1, 1], ['tower', 2, 1], ['siege_workshop', 1, 2], ['fortress', 1, 2], ['academy', 2, 2], ['barracks', 3, 2], ['stable', 2, 2], ['tower', 6, 2], ['fortress', 2, 3]];
     // obras abandonadas (construtor morto ou realocado) recebem um cidadão
     for (const b of buildings) {
       if (b.complete || vills.some((v) => v.state === 'build' && v.targetId === b.id)) continue;
@@ -221,9 +221,10 @@ export class Brain {
       if (academyOpts.length && this.rng.chance(0.7)) { const [bid, tech] = this.rng.pick(academyOpts); out.push({ type: 'research', player: me, buildingId: bid, tech }); }
       else if (opts.length) { const [bid, tech] = this.rng.pick(opts); out.push({ type: 'research', player: me, buildingId: bid, tech }); }
     }
-    if (tc) {
-      const adv = canAdvanceAge(state, p, tc);
-      if (adv.ok) out.push({ type: 'advanceAge', player: me, buildingId: tc.id, minorGod: adv.minorOptions && adv.minorOptions.length ? this.rng.pick(adv.minorOptions) : undefined });
+    const lib = buildings.filter((b) => b.type === 'academy' && b.complete).sort((a, b) => a.queue.length - b.queue.length || a.id - b.id)[0];
+    if (lib) {
+      const adv = canAdvanceAge(state, p, lib);
+      if (adv.ok) out.push({ type: 'advanceAge', player: me, buildingId: lib.id, minorGod: adv.minorOptions && adv.minorOptions.length ? this.rng.pick(adv.minorOptions) : undefined });
     }
 
     // 7) Batedores exploram; exército ataca o CC inimigo mais próximo a cada ~3 min

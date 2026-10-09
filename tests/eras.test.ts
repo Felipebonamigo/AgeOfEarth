@@ -5,7 +5,8 @@ import { AGES, ACADEMY_LINES, BUILDINGS, ERA_TITANS, LEGACY_AGE_TO_ERA, LINE_LEV
 import { applyCommand, canAdvanceAge } from '../src/core/sim/commands';
 import { buildingLimitOk, buildingsOf, placeBuilding } from '../src/core/sim/entities';
 import { setLocale, t } from '../src/i18n';
-import { createGame } from '../src/core/sim/game';
+import { createGame, tick } from '../src/core/sim/game';
+import { ARMY_ATTACK, FARM_LIMIT, MIN_ARMY, RESEARCH_PRIORITY, VILLAGER_TARGET } from '../src/core/sim/ai';
 import { academyTechCount } from '../src/core/sim/commands';
 import { gameConfigFor } from '../src/core/scenario/compile';
 import { validateScenario, type ScenarioFile } from '../src/core/scenario/schema';
@@ -174,4 +175,32 @@ describe('E1 — cenário', () => {
     f.triggers = [{ id: 'x', when: { value: { stat: 'studies', player: 0 }, gte: 2 }, then: [] }] as ScenarioFile['triggers'];
     expect(validateScenario(f)).toEqual([]);
   });
+});
+
+describe('E1 — IA', () => {
+  it('tabelas com uma posição por Era; prioridade de estudos cobre as linhas', () => {
+    for (const tab of [VILLAGER_TARGET, FARM_LIMIT, ARMY_ATTACK, MIN_ARMY]) expect(tab.length).toBe(AGES.length);
+    for (const id of RESEARCH_PRIORITY) expect(TECHS[id], id).toBeTruthy();
+    for (const [id, tech] of Object.entries(TECHS)) if (tech.line) expect(RESEARCH_PRIORITY, id).toContain(id);
+  });
+
+  it('IA difícil: só avança em Biblioteca e chega à Era III em 9 min', () => {
+    const s = createGame({
+      seed: 21, mapSize: 'small',
+      players: [{ name: 'A', god: 'zeus', isAI: true, difficulty: 'hard' }, { name: 'B', god: 'hades', isAI: true, difficulty: 'hard' }],
+      startingResources: { food: 20000, wood: 20000, gold: 20000, knowledge: 5000, favor: 300 },
+    });
+    let best = 0;
+    for (let i = 0; i < 9 * 60 * TICK_RATE; i++) {
+      tick(s);
+      if (i % TICK_RATE === 0) {
+        for (const b of s.buildings.values()) {
+          if (b.dead || !b.queue.some((q) => q.kind === 'age')) continue;
+          expect(BUILDINGS[b.type].library, `Era na fila de ${b.type}`).toBe(true);
+        }
+        best = Math.max(best, ...s.players.map((p) => p.age));
+      }
+    }
+    expect(best).toBeGreaterThanOrEqual(2);
+  }, 60000);
 });

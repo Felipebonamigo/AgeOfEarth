@@ -14,14 +14,16 @@ import { canAfford } from './economy';
 import { t } from '../../i18n';
 import { isForbidden, maxAgeOf } from './restrictions';
 
-const VILLAGER_TARGET = [18, 26, 34, 40, 44];
-const FARM_LIMIT = [4, 8, 12, 16, 18];
-const ARMY_ATTACK = [7, 12, 16, 20, 24];
-const RESEARCH_PRIORITY = [
+// uma posição por Era (tests/eras.test.ts confere)
+export const VILLAGER_TARGET = [18, 26, 34, 40, 44, 48, 52, 56];
+export const FARM_LIMIT = [4, 8, 12, 16, 18, 20, 22, 24];
+export const ARMY_ATTACK = [7, 12, 16, 20, 24, 28, 32, 36];
+export const RESEARCH_PRIORITY = [
   'harvest1', 'axes1', 'hunting_dogs', 'picks1', 'oracles', 'wheel', 'civic1', 'commerce1', 'science1', 'phalanx', 'military1',
   'harvest2', 'axes2', 'picks2', 'bronze_armor', 'horse_breeding', 'masonry', 'civic2', 'commerce2', 'science2', 'military2', 'census',
   'irrigation', 'fortified_towns', 'iron_weapons', 'composite_bows', 'harvest3', 'axes3', 'picks3', 'barding', 'civic3', 'commerce3', 'science3', 'military3',
   'mythic_blood', 'divine_arms', 'sacred_rites', 'ballista_towers', 'logistics', 'civic4', 'military4', 'science4', 'commerce4', 'ballistics', 'civic5', 'military5', 'science5', 'commerce5', 'coinage',
+  ...[6, 7, 8].flatMap((l) => ['civic', 'military', 'science', 'commerce'].map((k) => `${k}${l}`)),
 ];
 
 interface Snapshot {
@@ -261,16 +263,16 @@ function manageBuilding(state: GameState, player: Player, snap: Snapshot): void 
     { type: 'house', anchorX: houseAnchor.x, anchorY: houseAnchor.y, minR: 0, maxR: 14, cond: player.popCap - player.pop <= 6 && has('house') < 25 },
     { type: 'temple', anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 12, cond: snap.villagers.length >= 8 && has('temple') === 0 },
     { type: 'barracks', anchorX: tc.x + enemyDir.x * 6, anchorY: tc.y + enemyDir.y * 6, minR: 1, maxR: 10, cond: snap.villagers.length >= 10 && has('barracks') === 0 },
-    { type: 'academy', anchorX: tc.x, anchorY: tc.y, minR: 3, maxR: 16, cond: age >= 1 && has('academy') === 0 },
+    { type: 'academy', anchorX: tc.x, anchorY: tc.y, minR: 3, maxR: 16, cond: has('academy') === 0 && (age >= 1 || snap.villagers.length >= 9) },
     { type: 'stable', anchorX: tc.x + enemyDir.x * 6, anchorY: tc.y + enemyDir.y * 6, minR: 1, maxR: 10, cond: age >= 1 && has('stable') === 0 && snap.villagers.length >= 16 },
     { type: 'market', anchorX: tc.x, anchorY: tc.y, minR: 3, maxR: 16, cond: age >= 1 && has('market') === 0 && snap.villagers.length >= 14 },
     { type: 'tower', anchorX: tc.x + enemyDir.x * 8, anchorY: tc.y + enemyDir.y * 8, minR: 0, maxR: 6, cond: has('tower') < 1 + age && snap.villagers.length >= 12 && player.resources.wood > 250 },
     { type: 'barracks', anchorX: tc.x + enemyDir.x * 7, anchorY: tc.y + enemyDir.y * 7, minR: 1, maxR: 10, cond: age >= 2 && has('barracks') < 2 },
     { type: 'siege_workshop', anchorX: tc.x + enemyDir.x * 5, anchorY: tc.y + enemyDir.y * 5, minR: 1, maxR: 10, cond: age >= 2 && has('siege_workshop') === 0 },
     { type: 'fortress', anchorX: tc.x + enemyDir.x * 9, anchorY: tc.y + enemyDir.y * 9, minR: 0, maxR: 8, cond: age >= 2 && has('fortress') === 0 && player.resources.wood > 500 },
-    { type: 'academy', anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 12, cond: age >= 2 && has('academy') < 2 && player.resources.gold > 400 },
+    { type: 'academy', anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 12, cond: age >= 2 && has('academy') < Math.min(2, has('town_center')) && player.resources.gold > 400 },
     { type: 'wonder_' + wonderChoice(player), anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 14, cond: age >= 3 && countBuildings(state, player.id, (b) => !!BUILDINGS[b.type].wonder) === 0 && player.resources.gold > 1500 && player.resources.wood > 1500 },
-    { type: 'titan_gate', anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 14, cond: age >= 4 && has('titan_gate') === 0 },
+    { type: 'titan_gate', anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 14, cond: age >= BUILDINGS.titan_gate.age && has('titan_gate') === 0 },
   ];
   for (const d of neededDropoffs(state, player, snap)) {
     if (countBuildings(state, player.id, (b) => b.type === d.type) >= 4) continue;
@@ -549,7 +551,8 @@ function armyMix(state: GameState, player: Player, snap: Snapshot): Record<strin
 }
 
 // ---------------- Orçamento ----------------
-const MIN_ARMY = [6, 10, 14, 18, 22];
+// uma posição por Era (tests/eras.test.ts confere)
+export const MIN_ARMY = [6, 10, 14, 18, 22, 26, 30, 34];
 interface Budget { surplus: Record<string, number>; fundMet: boolean; minArmy: number; reserveGold: number; reserveFood: number }
 /** Fundo para a próxima idade: sobra de recursos além do custo do avanço (com pequena reserva). */
 function budgetOf(state: GameState, player: Player): Budget {
@@ -557,8 +560,8 @@ function budgetOf(state: GameState, player: Player): Budget {
   const next = AGES[Math.min(AGES.length - 1, player.age + 1)];
   const done = player.age >= maxAgeOf(state, player.id);   // G6: na Idade máxima da missão não junta fundo para avançar
   const surplus: Record<string, number> = {};
-  for (const r of ['food', 'wood', 'gold', 'knowledge', 'favor']) surplus[r] = player.resources[r as ResourceType] - (done ? 0 : ((next.cost as Record<string, number>)[r] ?? 0));
-  const fundMet = done || (surplus.food >= 0 && surplus.gold >= 0 && surplus.knowledge >= 0 && surplus.favor >= 0);
+  for (const r of RESOURCES) surplus[r] = player.resources[r as ResourceType] - (done ? 0 : ((next.cost as Record<string, number>)[r] ?? 0));
+  const fundMet = done || RESOURCES.every((r) => surplus[r] >= 0);
   // Reserva intocável para o avanço de idade (a partir do momento em que o Templo existe)
   let hasTemple = false;
   for (const b of state.buildings.values()) if (b.owner === player.id && !b.dead && b.complete && b.type === 'temple') { hasTemple = true; break; }
@@ -577,14 +580,16 @@ function savingForAge(state: GameState, player: Player): boolean {
 }
 
 function tryAdvanceAge(state: GameState, player: Player, snap: Snapshot): void {
-  const tc = (snap.byType.get('town_center') ?? []).find((b) => b.complete && b.queue.length === 0);
-  if (!tc) return;
   if (player.age === 0 && snap.villagers.length < 12) return;
-  const c = canAdvanceAge(state, player, tc);
+  // Biblioteca pronta com a menor fila (empate: menor id — são edifícios do próprio jogador, sem viés de posição);
+  // o avanço pode entrar atrás de no máximo 1 estudo
+  const lib = (snap.byType.get('academy') ?? []).filter((b) => b.complete && b.queue.length <= 1).sort((a, b) => a.queue.length - b.queue.length || a.id - b.id)[0];
+  if (!lib) return;
+  const c = canAdvanceAge(state, player, lib);
   if (!c.ok) return;
   let minor: string | undefined;
   if (c.minorOptions && c.minorOptions.length > 0) minor = c.minorOptions[(player.ai!.personality + player.age) % c.minorOptions.length];
-  applyCommand(state, { type: 'advanceAge', player: player.id, buildingId: tc.id, minorGod: minor });
+  applyCommand(state, { type: 'advanceAge', player: player.id, buildingId: lib.id, minorGod: minor });
 }
 
 function manageResearch(state: GameState, player: Player, snap: Snapshot): void {

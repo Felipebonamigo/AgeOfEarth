@@ -11,8 +11,10 @@ export const MAX_PLAYERS = 4;
  * applyCommand (sanitizeCommand; alvo de ataque/coleta/oração conferido no comando) — partidas de IA e roteiros não mudam (smoke
  * `8783483f` igual), mas um comando que ficou inválido no caminho (nó esgotado antes de a ordem chegar) ou de um cliente
  * modificado dá outro resultado, e todos os clientes da sala precisam validar igual. O relay recusa na sala quem tiver outra versão.
+ * 4 = Eras (E1): 8 Eras, Biblioteca (avanço de Era e fila de 5, uma por cidade), linhas × 8, Era inicial/final; a IA
+ * avança na Biblioteca.
  */
-export const SIM_VERSION = 3;
+export const SIM_VERSION = 4;
 export const DEFAULT_QUEUE_MAX = 10;   // itens na fila de um edifício sem queueMax
 
 export const RESOURCES = ['food', 'wood', 'gold', 'knowledge', 'favor'] as const;
