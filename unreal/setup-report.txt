@@ -1,0 +1,28 @@
+== Age of Earth: preparação do PC para o Unreal (2026-10-09T18:55:14) ==
+Windows: Microsoft Windows NT 10.0.26300.0
+GPU: NVIDIA GeForce RTX 4070 Ti
+nvidia-smi: NVIDIA GeForce RTX 4070 Ti, 617.42, 12282 MiB
+Disco livre em C: 128 GB (o Unreal + projeto pedem ~150 GB)
+AVISO: pouco espaço livre
+RAM: 32 GB
+OK  Git já instalado (git version 2.55.0.windows.3)
+OK  Node.js LTS já instalado (v24.19.0)
+...instalando Epic Games Launcher
+    Epic Games Launcher instalado: ABRA-O, entre na sua conta e instale o Unreal Engine 5.5 ou mais novo (aba 'Unreal Engine' > 'Instalar Engine').
+OK  Unreal Engine: UE_5.8  (editor: C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe)
+OK  Visual Studio Community 2026 (C++)
+...npm ci
+    npm warn allow-scripts   esbuild@0.25.12 (postinstall: node install.js)
+    npm warn allow-scripts
+    npm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.
+...exportando um terreno de teste
+    
+    seed42-small: 80�80 tiles ? Landscape 1009� (15.873 uu por quad), relevo -7.35 m � 19.9 m
+      C:\Users\Felip\source\repos\AgeOfEarth\unreal\exports\teste: heightmap.r16, heightmap.png, layer-grass.png, layer-dirt.png, layer-sand.png, layer-rock.png, water.png, terrain.json
+...teste rápido da ponte
+    
+     Test Files  1 passed (1)
+          Tests  5 passed (5)
+       Start at  18:55:53
+       Duration  2.94s (transform 670ms, setup 0ms, collect 1.21s, tests 571ms, environment 0ms, prepare 633ms)
+    

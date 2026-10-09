@@ -25,13 +25,13 @@ function Ensure($cmd, $id, $nome) {
   if (Has $cmd) { Say "OK  $nome já instalado ($(& $cmd --version 2>&1 | Select-Object -First 1))"; return }
   Say "...instalando $nome ($id)"
   winget install -e --id $id --accept-package-agreements --accept-source-agreements --silent
-  Say "    $nome: instalado (abra um novo PowerShell se o comando '$cmd' não aparecer ainda)"
+  Say "    ${nome}: instalado (abra um novo PowerShell se o comando '$cmd' não aparecer ainda)"
 }
 Ensure 'git'  'Git.Git' 'Git'
 Ensure 'node' 'OpenJS.NodeJS.LTS' 'Node.js LTS'
 
 # Epic Games Launcher e Unreal Engine
-$launcher = @("$env:ProgramFiles(x86)\Epic Games\Launcher\Portal\Binaries\Win64\EpicGamesLauncher.exe", "$env:ProgramFiles\Epic Games\Launcher\Portal\Binaries\Win64\EpicGamesLauncher.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+$launcher = @("${env:ProgramFiles(x86)}\Epic Games\Launcher\Portal\Binaries\Win64\EpicGamesLauncher.exe", "$env:ProgramFiles\Epic Games\Launcher\Portal\Binaries\Win64\EpicGamesLauncher.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
 if ($launcher) { Say "OK  Epic Games Launcher: $launcher" } else {
   Say "...instalando Epic Games Launcher"
   winget install -e --id EpicGames.EpicGamesLauncher --accept-package-agreements --accept-source-agreements --silent
@@ -53,5 +53,5 @@ if (Test-Path 'package.json') {
 } else { Say "AVISO: rode este script na raiz do repositório (onde está o package.json)" }
 
 New-Item -ItemType Directory -Force unreal | Out-Null
-$report | Set-Content unreal\setup-report.txt
+$report | Set-Content -Encoding utf8 unreal\setup-report.txt
 Say "Relatório gravado em unreal\setup-report.txt (faça commit e push para a nuvem ler)."
