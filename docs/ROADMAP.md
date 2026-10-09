@@ -32,6 +32,8 @@ paralelo com o visual.
 | fim de 2027 | **M5: Early Access** | | Preço |
 | 2028 | **M6: 1.0**, segunda campanha | | DLC de panteão |
 
+**Na lista para depois (a pedido do dono, 09/10/2026): áudio A1** — música orquestral épica, efeitos e vozes por IA e bibliotecas livres (`docs/AUDIO.md`; pedido 0007 adiado no canal). Entra no cronograma quando o dono liberar; o encaixe natural é junto do U1/U2.
+
 Datas da Valve que correm do seu lado: 30 dias entre pagar a taxa e lançar; página no ar ≥ 2 semanas antes.
 
 ## Fase 0 — Fundação (concluída)

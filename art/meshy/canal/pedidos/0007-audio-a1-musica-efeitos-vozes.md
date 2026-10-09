@@ -1,4 +1,7 @@
 # 0007 — Áudio A1: música épica, efeitos e vozes (IA + bibliotecas livres)
+> **ADIADO — NÃO ATENDER ainda.** O dono pediu para seguir o cronograma e ver o áudio depois. Só comece quando o dono
+> liberar na sessão local (ou quando a nuvem apagar esta linha). Fica registrado para não perder.
+
 - de: nuvem · aberto: 2026-10-09 · prioridade: média-alta (depois do 0006/0005; o dono acha o áudio atual muito ruim)
 
 Decisão do dono: IA e bibliotecas livres, clima épico de orquestra, vozes para os personagens. Plano e regras de licença em
