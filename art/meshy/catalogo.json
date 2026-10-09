@@ -785,6 +785,134 @@
       "rig": false,
       "baixadoEm": "2026-10-09",
       "notas": "Ártemis com arco e a corça, sobre base redonda; reduzido soldando sem normais + simplify do meshoptimizer; normais recalculadas suaves; textura 1024"
+    },
+    {
+      "arquivo": "unidades/hoplite__athenian-hoplite.glb",
+      "idJogo": "hoplite",
+      "titulo": "Athenian Hoplite",
+      "url": "https://www.meshy.ai/3d-models/x-019e8dcb-65cd-7af7-bab3-6bb1758621e4",
+      "autor": "kagan.pala",
+      "autorUrl": "https://www.meshy.ai/@s176648359872096",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 238091,
+      "triangulos": 89995,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Hoplita ateniense: elmo coríntio com crista, couraça de bronze, saia vermelha, lança e escudo redondo nas costas; pose A, sem base; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "unidades/hoplite__red-crested-hoplite.glb",
+      "idJogo": "hoplite",
+      "titulo": "Red-Crested Hoplite",
+      "url": "https://www.meshy.ai/3d-models/x-019e4b9f-3541-78a2-8f0e-b665b4280a96",
+      "autor": "pedrolulopes",
+      "autorUrl": "https://www.meshy.ai/@s1779100708aa6df",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 227414,
+      "triangulos": 90000,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Hoplita com crista vermelha transversal, couraça de couro e bronze, lança; sem escudo; pose A; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "unidades/myrmidon__spartan-ultrarealistic.glb",
+      "idJogo": "myrmidon",
+      "titulo": "A Spartan Warrior, Full…",
+      "url": "https://www.meshy.ai/3d-models/x-0193db97-042b-7488-94ce-80d7ad72bedc",
+      "autor": "lordarchiebaldthethird",
+      "autorUrl": "https://www.meshy.ai/@g105007055691835448388",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 69297,
+      "triangulos": 90000,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Guerreiro de couraça musculada de bronze, capa e elmo coríntio, sem arma; pose de pé neutra; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "unidades/hypaspist__spartan-red-cape.glb",
+      "idJogo": "hypaspist",
+      "titulo": "Spartan Warrior,…",
+      "url": "https://www.meshy.ai/3d-models/x-019a2129-0dbe-72c8-94c2-78d638c76c61",
+      "autor": "bitstyler",
+      "autorUrl": "https://www.meshy.ai/@Bitstyler",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 530448,
+      "triangulos": 89992,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Espartano com capa vermelha esvoaçante e elmo de crista, braços abertos; sem lança nem escudo (armas entram no rig); reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "unidades/militia__spear-infantry.glb",
+      "idJogo": "militia",
+      "titulo": "Spear-Wielding Hoplite",
+      "url": "https://www.meshy.ai/3d-models/x-019e55b9-4948-73ed-9ca2-c2b18baa7dd0",
+      "autor": "bureauofsabotage",
+      "autorUrl": "https://www.meshy.ai/@s17267738805e9d1",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 201464,
+      "triangulos": 89998,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Infante de túnica branca, gorro e escudo retangular de vime/madeira, lança curta; visual mais persa/oriental que grego (arquivo original se chama \"Persian Infantry\") — serve como milícia até haver um grego; rosto levemente estilizado; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "unidades/villager__peasant-maiden.glb",
+      "idJogo": "villager",
+      "titulo": "Peasant Maiden with a…",
+      "url": "https://www.meshy.ai/3d-models/x-019e5066-4e9d-7e06-beb3-57f0d335f56c",
+      "autor": "athalwolf7",
+      "autorUrl": "https://www.meshy.ai/@s176686296886cb7",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 260678,
+      "triangulos": 90000,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Camponesa com balde e lenço; vestido de corte medieval (não é quíton) — serve como cidadã até haver uma grega; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "unidades/villager__peasant-girl.glb",
+      "idJogo": "villager",
+      "titulo": "Peasant Girl with Wooden…",
+      "url": "https://www.meshy.ai/3d-models/x-019e399b-c16d-7f35-b465-380966e977a9",
+      "autor": "athalwolf7",
+      "autorUrl": "https://www.meshy.ai/@s176686296886cb7",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 313355,
+      "triangulos": 89999,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Camponesa com balde de madeira, avental e túnica longa; corte medieval; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "unidades/heracles__lion-warrior.glb",
+      "idJogo": "heracles",
+      "titulo": "The Lion Warrior",
+      "url": "https://www.meshy.ai/3d-models/x-019e5a14-492e-76a5-9814-e014afd4cf46",
+      "autor": "lumenchan2",
+      "autorUrl": "https://www.meshy.ai/@s177325704530de4",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 470790,
+      "triangulos": 89991,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Héracles: pele do leão de Nemeia na cabeça e nas costas, clava, tanga; braço direito levantado (não é pose A); reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
     }
   ],
   "recusados": [
@@ -839,6 +967,30 @@
     {
       "url": "https://www.meshy.ai/tags/domus",
       "motivo": "só um santuário de pedra"
+    },
+    {
+      "url": "https://www.meshy.ai/3d-models/x-019d98a4-595a-7691-a4ff-2b964852e3cf",
+      "motivo": "heracles: \"hercules\" (anomrak6) — o Meshy bloqueia o download (\"Conteúdo restrito\"); o visual lembra o Hércules da Disney"
+    },
+    {
+      "url": null,
+      "motivo": "hoplite: \"Spartan Hoplite\" (Bronze_Anvil) mistura arco e aljava com escudo e lança (galeria, busca \"spartan\")"
+    },
+    {
+      "url": null,
+      "motivo": "perseus: Perseu com a cabeça da Medusa (Jinsoil) é estátua de mármore, não personagem (galeria, busca \"perseus\")"
+    },
+    {
+      "url": null,
+      "motivo": "achilles: \"aquiles\" (anomrak6) parece retrato de um ator real (galeria, busca \"achilles\")"
+    },
+    {
+      "url": null,
+      "motivo": "\"Spartan Female Warrior\" (eromaxi, CC0, pose T): bom, mas não há unidade feminina armada no jogo — anotado para o futuro (galeria, busca \"spartan\")"
+    },
+    {
+      "url": null,
+      "motivo": "basileus: \"King Leonidas\" (ProteinPenguin) é cartoon (galeria, busca \"leonidas\")"
     }
   ],
   "faltando": [
@@ -846,6 +998,18 @@
     "crag/rock de calcário cinza-claro (os baixados são granito/cinza genérico)",
     "wonder_artemis",
     "academy",
-    "house (mais casas gregas)"
+    "house (mais casas gregas)",
+    "toxotes",
+    "cretan_archer",
+    "peltast",
+    "kataskopos",
+    "hippeus",
+    "hetairoi",
+    "basileus",
+    "jason",
+    "odysseus",
+    "achilles",
+    "perseus",
+    "villager (homem de quíton)"
   ]
 }

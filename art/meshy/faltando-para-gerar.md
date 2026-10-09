@@ -1,0 +1,25 @@
+# Faltando para gerar no Meshy
+
+O que o pedido 0005 procurou pronto na galeria comunitária (CC0 / CC BY 4.0) e **não achou**, ou achou só ruim. Uma
+linha por item. É a lista para o dono decidir o que vale gerar com créditos — **nada aqui foi gerado**.
+
+Todos os prompts seguem o mesmo padrão: realista, PBR, corpo inteiro, pose A, sem base, para animar depois. Ao gerar,
+use "Text to 3D", textura PBR ligada e, se houver a opção, rig automático de humanoide.
+
+## Grupo 1 — unidades humanas
+
+| id do jogo | o que é | por que o que havia não serviu | prompt sugerido (inglês) |
+|---|---|---|---|
+| `villager` (homem) | cidadão grego de túnica | só há camponeses de roupa medieval; os 2 baixados são mulheres de vestido medieval | `ancient greek male peasant villager, plain undyed wool chiton tunic belted at the waist, leather sandals, short beard, realistic, PBR, game asset, full body, A-pose, no base, no weapon` |
+| `toxotes` | arqueiro grego | nenhum arqueiro grego antigo; os arqueiros da galeria são medievais ou de fantasia | `ancient greek archer toxotes, linen tunic, light leather cap, recurve composite bow in left hand, quiver of arrows on back, realistic, PBR, game asset, full body, A-pose, no base` |
+| `cretan_archer` | arqueiro cretense (mercenário de elite) | nada específico; mesmos arqueiros medievais | `ancient cretan mercenary archer, short red tunic, bronze-studded leather corselet, small round bronze shield on back, recurve bow, quiver, realistic, PBR, game asset, full body, A-pose, no base` |
+| `peltast` | peltasta (dardos, escudo em meia-lua) | nenhum modelo com pelta; achados só lanceiros de escudo redondo | `ancient thracian greek peltast skirmisher, crescent-shaped wicker pelta shield, bundle of javelins, alopekis fox-fur cap, knee-length tunic, cloak, realistic, PBR, game asset, full body, A-pose, no base` |
+| `kataskopos` | batedor a cavalo | nenhum batedor grego montado | `ancient greek light cavalry scout on a horse, rider in travel cloak and petasos wide-brimmed hat, two javelins, no armor, slim horse with simple saddle cloth, realistic, PBR, game asset, full body, neutral standing pose, no base` |
+| `hippeus` | cavaleiro grego | cavaleiros da galeria são medievais (armadura de placas, sela alta) | `ancient greek cavalryman hippeus on horseback, boeotian bronze helmet, linen cuirass, xyston lance, horse with saddle cloth and no stirrups, realistic, PBR, game asset, full body, neutral standing pose, no base` |
+| `hetairoi` | hetairo (cavalaria macedônica) | idem; nenhum macedônio montado | `macedonian companion cavalry hetairos on horseback, boeotian helmet with plume, muscled cuirass, purple cloak, long xyston lance, horse with leopard-skin saddle cloth, no stirrups, realistic, PBR, game asset, full body, neutral standing pose, no base` |
+| `basileus` | rei grego | "King Leonidas" é cartoon; os reis da galeria são medievais | `ancient greek king basileus, gold laurel diadem, embroidered purple himation over bronze muscled cuirass, sceptre in right hand, sword at hip, realistic, PBR, game asset, full body, A-pose, no base` |
+| `jason` | herói Jasão | nada achado | `greek hero Jason of the Argonauts, golden fleece draped over shoulders, bronze cuirass, short sword and round shield, curly dark hair, realistic, PBR, game asset, full body, A-pose, no base` |
+| `odysseus` | herói Odisseu | nada achado | `greek hero Odysseus, weathered bearded man, pilos conical cap, travel cloak over leather armor, recurve bow and short sword, realistic, PBR, game asset, full body, A-pose, no base` |
+| `achilles` | herói Aquiles | o único "aquiles" parece retrato de um ator real | `greek hero Achilles, bronze attic helmet with tall horsehair crest, ornate bronze cuirass, large round aspis shield, long spear, original face, realistic, PBR, game asset, full body, A-pose, no base` |
+| `perseus` | herói Perseu | o achado é estátua de mármore com a cabeça da Medusa | `greek hero Perseus, winged sandals, petasos helmet, polished mirror bronze shield, curved harpe sword, short tunic and cloak, realistic, PBR, game asset, full body, A-pose, no base` |
+| `heracles` (pose A) | Héracles | o baixado ("The Lion Warrior") é bom, mas tem o braço levantado; o "hercules" é bloqueado pelo Meshy (lembra o da Disney) | `greek hero Heracles, nemean lion pelt worn as hood and cloak, massive wooden club, muscular bearded man, leather loincloth, sandals, realistic, PBR, game asset, full body, A-pose, no base` |
