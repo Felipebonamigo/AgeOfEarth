@@ -17,3 +17,12 @@ art/src/
 
 # capturas de trabalho do art:shot (comparadas por art:diff com docs/art/ref/; nunca versionadas)
 docs/art/atual-*.png
+
+# Unreal (o projeto mora no PC do dono; entram só Config/, Source/, scripts e capturas)
+unreal/AgeOfEarthUE/Binaries/
+unreal/AgeOfEarthUE/Intermediate/
+unreal/AgeOfEarthUE/Saved/
+unreal/AgeOfEarthUE/DerivedDataCache/
+unreal/AgeOfEarthUE/Content/
+unreal/exports/*
+!unreal/exports/.gitkeep

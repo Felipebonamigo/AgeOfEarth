@@ -14,6 +14,8 @@
     "smoke": "tsx scripts/headless.ts",
     "balance": "tsx scripts/balance.ts",
     "map:export": "tsx scripts/export-map.ts",
+    "unreal:sim": "tsx scripts/unreal/sim-server.ts",
+    "unreal:terrain": "tsx scripts/unreal/export-terrain.ts",
     "map:check": "tsx scripts/mapcheck.ts",
     "relay": "node server/relay.mjs",
     "loadtest": "tsx scripts/loadtest.ts",

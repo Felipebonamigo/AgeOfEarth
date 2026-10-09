@@ -12,8 +12,7 @@ seguindo as Eras. O jogo passa a ser desenhado no Unreal Engine 5. Cronograma em
  cliente Unreal 5 (C++ + Blueprints): terreno, unidades, edifícios por Era, efeitos, câmera, interface, som
 ```
 
-- **Primeiro (U0–U1): a simulação roda num processo Node ao lado do jogo** (`scripts/unreal/sim-server.ts`, a escrever
-  na nuvem) e o Unreal conecta por WebSocket em `localhost`. É o caminho mais curto e o servidor já pode ser testado
+- **Primeiro (U0–U1): a simulação roda num processo Node ao lado do jogo** (`scripts/unreal/sim-server.ts`, pronto) e o Unreal conecta por WebSocket em `localhost`. É o caminho mais curto e o servidor já pode ser testado
   aqui com um cliente falso.
 - **Depois (U2–U4): a simulação vai para dentro do jogo**, pelo plugin Puerts (V8/TypeScript no Unreal) ou como
   processo filho empacotado. O multiplayer lockstep e os replays continuam funcionando, porque a simulação é a mesma.
@@ -32,7 +31,7 @@ seguindo as Eras. O jogo passa a ser desenhado no Unreal Engine 5. Cronograma em
 
 ## Terreno
 
-- O exportador (`scripts/unreal/export-terrain.ts`, a escrever na nuvem) gera, de um mapa (semente ou `.map.json`): um
+- O exportador (`scripts/unreal/export-terrain.ts`, pronto) gera, de um mapa (semente ou `.map.json`): um
   heightmap 16 bits `.r16` no tamanho que o Landscape aceita (ex.: 1009 × 1009), máscaras de camada (grama, terra,
   areia, rocha, água rasa, água funda) e a lista de nós e inícios. O Unreal importa como Landscape com materiais
   Megascans; a água é o plugin Water do próprio Unreal.
@@ -70,3 +69,8 @@ seguindo as Eras. O jogo passa a ser desenhado no Unreal Engine 5. Cronograma em
 - **U1** fatia bonita: capturas e vídeo de um pedaço de mapa realista com uma cidade grega e hoplitas/cidadãos
   animados, comparados com o jogo web de hoje. **O dono decide aqui se segue tudo no Unreal.**
 - **U2** cliente completo das Eras I–IV · **U3** Eras V–VIII · **U4** desempenho, Steam e Early Access.
+
+## Estado (09/10/2026)
+
+- **Pronto e testado** (`tests/unreal-bridge.test.ts`, `tests/unreal-terrain.test.ts`): ponte (`npm run unreal:sim`, protocolo em `scripts/unreal/protocol.ts`) e exportador de terreno (`npm run unreal:terrain`). Guia prático em `unreal/README.md`.
+- **Próximo**: U0 no PC do dono, pelo pedido `art/meshy/canal/pedidos/0006-unreal-u0-ponte-e-terreno.md`.
