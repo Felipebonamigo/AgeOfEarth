@@ -6,39 +6,33 @@ Durações são estimativas de calendário; fases em paralelo compartilham seman
 
 Legenda de responsável: **V** = você · **A** = agente (eu) · **T** = terceiros (artista, compositor, Valve).
 
-## Cronograma a partir de 06/10/2026
+## Cronograma a partir de 09/10/2026 — foco: um jogo bonito
 
-**Decisão do dono (06/10/2026): o jogo cobre a história inteira, como o Rise of Nations** — 8 Eras, da Grécia arcaica à
-Era Moderna do petróleo, com os deuses gregos, os poderes, as criaturas e os Titãs em todas elas; tudo se estuda na
-Biblioteca, um estudo por vez; pedra, petróleo e recursos raros; naval antes do lançamento; caravanas; 20 maravilhas.
-O plano completo (Eras, Biblioteca, recursos, linhas de unidade, edifícios por Era, deuses menores novos, naval,
-comércio, maravilhas e etapas E1–E10) está em **`docs/ERAS.md`**.
+**Decisões do dono:** (06/10) o jogo cobre a história inteira, como o Rise of Nations — 8 Eras, Biblioteca, pedra,
+petróleo, naval, caravanas, 20 maravilhas (plano em `docs/ERAS.md`, guias de execução em `docs/eras/`); (09/10) **a
+qualidade gráfica é o ponto principal: visual moderno e realista**, com a arquitetura seguindo as Eras. O teste de
+09/10 (`docs/art/etapa9-teste-cycles.png`) mostrou que sprites pré-renderizados não chegam a isso, então **o jogo
+passa a ser desenhado no Unreal Engine 5** (Lumen, Nanite, Megascans) num PC com RTX 4070 Ti. A simulação, a IA, as
+regras, as Eras, a campanha e os mapas continuam os de hoje (TypeScript); o Unreal só desenha e recebe os comandos do
+jogador. Plano técnico e divisão do trabalho em **`docs/UNREAL.md`**.
 
-O que já existe hoje: panteão grego (3 deuses maiores, 9 menores, 12 poderes, 3 Titãs), 35 unidades, 47 pesquisas
-(4 linhas da Academia × 5 níveis + economia, militares, templo e deuses menores), 21 edifícios com 3 maravilhas e o
-Portal dos Titãs, 5 recursos e 5 Idades. Falta a evolução por Era: hoje avançar não melhora as unidades existentes e
-só o Centro Cívico muda de aparência.
+O que muda nos planos anteriores: a arte por sprites (Etapas 0–9 do `docs/ART.md` e a E8 de `docs/eras/`) para — o
+cliente web atual fica como ferramenta de desenvolvimento e teste (IA × IA, playtests rápidos), não como o jogo
+vendido; a interface da E9 passa a ser feita no Unreal; as etapas de simulação E1–E7 e E10 continuam, na nuvem, em
+paralelo com o visual.
 
-| Semanas | Datas | Agente (A) | Você (V) / terceiros (T) |
+| Quando | Visual — Unreal (sessão local no seu PC + nuvem) | Simulação — nuvem (`docs/eras/`) | Você |
 |---|---|---|---|
-| 1–2 | 06/10–19/10 | **E1** 8 Eras e Biblioteca (fila, um estudo por vez, avanço de Era na Biblioteca, linhas × 8 níveis, Era inicial/final) + painel da Biblioteca (E9) | Jogar a versão atual 2–3 vezes por semana e mandar a lista curta (1.1); abrir a empresa/CNPJ (6.1) |
-| 3–4 | 20/10–02/11 | **E2** pedra, petróleo e recursos raros · **E3** as 11 linhas de unidade I–VIII com evolução na Biblioteca (arte provisória) | Jogar uma partida de 8 Eras e dizer o que achou do ritmo |
-| 5–7 | 03/11–23/11 | **E4** naval: água navegável, Estaleiro, pesca, transporte, navios I–VIII, IA naval, mapas Costeiro/Ilhas/Mediterrâneo | Conta Steamworks + US$ 100 + App ID (6.2; a Valve exige 30 dias entre o pagamento e o lançamento) |
-| 8 | 24/11–30/11 | **E5** caravanas, navios mercantes, Mercador nos raros | **M1**: mandar para 3–5 amigos testarem |
-| 9–10 | 01/12–14/12 | **E6** 9 deuses menores novos, poderes, criaturas navais e voadoras, Bênçãos, poderes que crescem com a Era | Aprovar os deuses e poderes novos |
-| 11–12 | 15/12–28/12 | **E7** as 17 maravilhas novas e a vitória por pontos de maravilha | — |
-| 13–18 | 04/01–14/02/2027 | **E8** arte por Era em 2 lotes (I–IV, depois V–VIII): kit de Era nos edifícios, cidadão por Era, unidades novas, navios, tanque, efeitos de pólvora e vapor | Aprovar as capturas de cada Era |
-| 19–20 | 15/02–28/02 | **E10** balanceamento e IA em partidas de 60 min, justiça de posição, desempenho · **4.3** lobbies, convites e rede da Steam | Cadastro das conquistas e do Cloud (6.4); dados legais (`docs/LEGAL.md` §7) |
-| 21–22 | mar/2027 | Trailer gravado do jogo, screenshots e textos da loja refeitos | Publicar a página **"Em breve"** (6.3; precisa de ≥ 2 semanas no ar antes do lançamento) |
-| — | abr–mai/2027 | Demo, Steam Playtest público (6.9), correções, telemetria opcional (6.6) | Steam Deck real e matriz de QA (6.5, 6.8); inscrição no Next Fest |
-| — | jun/2027 | Demo no Steam Next Fest (confirmar as datas no Steamworks) | Divulgação (7.2) |
-| — | jul/2027 | **M5: Early Access** + 2 semanas de correções (7.4) | Preço e regiões (7.3) |
-| — | 2º sem./2027 | Segunda campanha pela história, ajustes do Early Access, **M6: versão 1.0** | DLC de panteão (5.4) |
+| out/2026, semanas 1–2 | **U0** ambiente: Unreal 5 instalado, projeto, plugins, biblioteca Fab/Megascans; **ponte** simulação ↔ Unreal (servidor local + protocolo) e exportador de terreno | E1 (8 Eras e Biblioteca) | Instalar o Unreal (Epic Games Launcher) e ligar a sessão local |
+| out–nov, semanas 3–8 | **U1 — fatia bonita**: um pedaço de mapa realista (terreno, vegetação mediterrânea, água, céu, luz), uma cidade grega Arcaica e Clássica, hoplitas e cidadãos animados (Meshy + Mixamo), câmera de RTS, selecionar e mover pela ponte | E2 (pedra, petróleo, raros), E3 (linhas de unidade) | Aprovar a fatia (capturas e vídeo); orçamento de créditos do Meshy |
+| — | **Marco: decisão final.** Se a fatia agradar, segue tudo no Unreal | | Abrir a empresa e a conta Steamworks |
+| dez/2026–mar/2027 | **U2 — cliente completo das Eras I–IV**: as 35 unidades, todos os edifícios por Era, poderes e efeitos (Niagara), névoa, minimapa, interface, som; campanha jogável | E4 (naval), E5+E7 (caravanas e maravilhas), E6 (mitologia) | Página **"Em breve"** na Steam com as imagens da fatia (wishlists cedo) |
+| abr–jul/2027 | **U3 — arte das Eras V–VIII** (pólvora, Iluminismo, indústria, Moderna), navios, tanques, maravilhas novas | E10 (balanceamento, IA em partidas longas) | Playtests semanais |
+| ago–out/2027 | **U4** desempenho (4070 Ti a 60 fps em 1440p; preset para PCs médios e Steam Deck), multiplayer, conquistas e Cloud da Steam | correções | Next Fest de outubro (demo) |
+| fim de 2027 | **M5: Early Access** | | Preço |
+| 2028 | **M6: 1.0**, segunda campanha | | DLC de panteão |
 
-Cada etapa sai jogável (com arte provisória até a E8), com testes, balanceamento automático, capturas e commit; os seus
-relatos semanais entram como correções em qualquer semana.
-
----
+Datas da Valve que correm do seu lado: 30 dias entre pagar a taxa e lançar; página no ar ≥ 2 semanas antes.
 
 ## Fase 0 — Fundação (concluída)
 Núcleo determinístico, IA, renderização, HUD, campanha (3 missões), Horda, multiplayer lockstep, replays,

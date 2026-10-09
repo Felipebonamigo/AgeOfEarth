@@ -1,5 +1,9 @@
 # Expansão das Eras — manual de operação
 
+> **Atualização de 09/10/2026:** o visual do jogo passa a ser feito no Unreal 5 (`docs/UNREAL.md`). Execute as etapas de
+> simulação (E1–E7, E10) normalmente; **não execute a E8** (arte por Era em sprites) nem a parte de interface da E9 no
+> cliente web além do mínimo para testar — elas passam a ser feitas no Unreal (U2/U3).
+
 Este arquivo é para o agente que vai **executar** a expansão sozinho, sessão após sessão, sem o contexto das conversas
 que escreveram os guias. Leia-o inteiro no começo de toda sessão. Ele manda sobre o que um guia disser de commit, push,
 progresso e paradas. O conteúdo técnico (o que mudar e como) está nos guias.
