@@ -754,6 +754,17 @@ contrato, com a escala calibrada pela altura de tela dos sprites atuais (`docs/a
   `art/meshy/canal/respostas/`, a sessão local num `/loop` de 10 min. 0001 e 0003 respondidos em 05/10 (o javali da conta: no pior caso CC BY 4.0, uso comercial com crédito ao Meshy; não
   está no jogo).
 
+- **Teste de render offline no Blender/Cycles** (09/10/2026, pedido do dono: "vou querer realismo"): o Blender roda no
+  contêiner como módulo Python (`bpy` 4.5 numa venv). `node scripts/bake/export-glb.mjs <manifesto> --anim idle --dir 2
+  --out x.glb` exporta o modelo de um quadro (metros, materiais com nome, time com prefixo `team_`; função
+  `exportFrameGlb` da página do bake) e `scripts/bake/cycles-render.py` o renderiza com a câmera e o sol do contrato
+  (ortográfica a 50°, sombras para SE), céu físico, chão com a foto de grama do jogo e realce de materiais (ruído na
+  rugosidade e no relevo, sujeira, pele com subsuperfície). Resultado em `docs/art/etapa9-teste-cycles.png`: a luz fica
+  mais suave e natural, mas o ganho é pequeno — **o limite do realismo é o modelo**, não o renderizador. A casa (modelo
+  do Meshy) já lê realista nos dois; o hoplita (rig procedural de blocos) continua com cara de boneco. Próximo passo
+  recomendado: um hoplita de modelo detalhado (Meshy ou banco CC0) renderizado pelo mesmo caminho e importado como
+  quadros 2D (`scripts/bake/frames2d.mjs`).
+
 ## Apêndice A — Evidências dos protótipos (não estão no repositório; `scratchpad/` desta sessão)
 
 - `bake/index.html` + `run.mjs`: hoplita, cavaleiro, templo, oliveiras e rochas paramétricos em three.js r0.186, câmera ortográfica 50° com estiramento 1/sin 50°, sol NO com PCF 2048², ACES; 191 quadros em 3 passes, atlas 2048² (64 %), JSON Spritesheet com âncora por quadro; `out_preview.png` (composição a 32 px/tile), `out_zoom.png`, `out_atlas.png`, `out_shadows.png`. Benchmark Pixi 8.21 (`perf-small.html`): 926 sprites → 0,45 ms de CPU por `render()` (p95 0,90).

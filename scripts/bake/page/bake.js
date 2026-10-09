@@ -309,6 +309,35 @@ export async function exportTestGlb() {
   return toB64(new Uint8Array(buf));
 }
 
+/**
+ * Exporta o modelo de UM quadro de um manifesto como .glb (metros, materiais com nome; os de time com prefixo `team_`),
+ * para renderizar fora do bake (Blender/Cycles, Unreal) e voltar como quadros 2D (`scripts/bake/frames2d.mjs`).
+ * `frame` = { anim, dir, frame, frames, loop, variant? } como em `expandFrames`.
+ */
+export async function exportFrameGlb({ manifest, poses, frame }) {
+  const { model, pose } = await sourceFor(manifest, poses, {}, frame);
+  pose(frame);
+  const root = new THREE.Group();
+  const holder = model.clone(true);
+  holder.scale.multiplyScalar(1 / M2T);
+  holder.position.multiplyScalar(1 / M2T);
+  root.add(holder);
+  forEachMesh(holder, (o) => {
+    if (o.userData.context) { o.visible = false; return; }
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    const named = mats.map((m) => {
+      const c = m.clone();
+      const n = Object.entries(M).find(([, v]) => v === m)?.[0] ?? (m.name || 'mat');
+      c.name = isTeam(m) ? `team_${n}` : n;
+      return c;
+    });
+    o.material = Array.isArray(o.material) ? named : named[0];
+  });
+  root.updateMatrixWorld(true);
+  const buf = await new GLTFExporter().parseAsync(root, { binary: true, onlyVisible: true });
+  return toB64(new Uint8Array(buf));
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Folha de contato (grade para o dono aprovar): sombra (alfa 0,45) + cor + máscara tingida com a cor do time.
 
@@ -357,5 +386,5 @@ export async function contactSheet({ title, rows, cellW, cellH, zoom = 2, tint =
   return cv.toDataURL('image/png').split(',')[1];
 }
 
-window.__bake = { bakeBatch, contactSheet, exportTestGlb, gl: gl.getParameter(gl.RENDERER), three: THREE.REVISION };
+window.__bake = { bakeBatch, contactSheet, exportTestGlb, exportFrameGlb, gl: gl.getParameter(gl.RENDERER), three: THREE.REVISION };
 window.__ready = true;
