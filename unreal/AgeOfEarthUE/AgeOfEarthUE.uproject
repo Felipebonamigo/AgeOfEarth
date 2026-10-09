@@ -1,0 +1,21 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "5.8",
+	"Category": "",
+	"Description": "Age of Earth — cliente Unreal (ponte com a simulação TypeScript)",
+	"Modules": [
+		{
+			"Name": "AgeOfEarthUE",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [ "Engine", "CoreUObject" ]
+		}
+	],
+	"Plugins": [
+		{ "Name": "Water", "Enabled": true },
+		{ "Name": "PythonScriptPlugin", "Enabled": true },
+		{ "Name": "EditorScriptingUtilities", "Enabled": true },
+		{ "Name": "Niagara", "Enabled": true }
+	],
+	"TargetPlatforms": [ "Windows" ]
+}

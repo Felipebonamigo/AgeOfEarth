@@ -65,3 +65,40 @@ que o terreno andável continue o mesmo** (a navegação é a grade de tiles do 
    edifícios, caixas coloridas pelo dono, andando e se atualizando.
 3. Clicar com o botão direito mandando `move` (raycast no Landscape → tile → comando) e ver a caixa andar.
 4. Captura (`HighResShot`) de um terreno bonito com céu e luz (SkyAtmosphere, DirectionalLight, Lumen) em `unreal/capturas/`.
+
+## 5. Projeto Unreal (U0, sessão local — Unreal Engine 5.8.3)
+
+`unreal/AgeOfEarthUE/` é um projeto C++ (só `Config/`, `Source/` e o `.uproject` vão para o git; `Content/` e os binários
+ficam no PC). Classes:
+
+- `AAoEBridgeActor` — conecta em `ws://127.0.0.1:8790` (`-AoEUrl=` troca), lê `hello`/`state`, desenha cada unidade e
+  edifício como caixa colorida pelo dono, interpola entre dois `state` (o chão sai de um raio vertical no Landscape) e
+  manda `move`. Reconecta sozinho a cada 2 s.
+- `AAoEPlayerController` + `AAoECameraPawn` — câmera de RTS a 50° (WASD/setas, roda do mouse), clique esquerdo seleciona
+  uma unidade nossa (Shift soma), **Q** seleciona todas, **clique direito** = `move` no ponto do chão; console `AoEMove X Y`.
+- `AAoEGameMode` — junta tudo (é o modo padrão do projeto). `UAoEMapTools::ImportLandscape` — importa o `.r16` e as
+  camadas (o Python do editor não expõe isso).
+
+Montar e rodar (Git Bash; `MSYS_NO_PATHCONV=1` evita que `/Game/...` vire caminho do Windows; feche o editor antes de
+compilar, o Live Coding bloqueia):
+
+```bash
+UE="/c/Program Files/Epic Games/UE_5.8/Engine"
+"$UE/Build/BatchFiles/Build.bat" AgeOfEarthUEEditor Win64 Development -Project="$(cygpath -w unreal/AgeOfEarthUE/AgeOfEarthUE.uproject)" -WaitMutex
+rm -rf unreal/AgeOfEarthUE/Content/Maps      # o script recria o mapa do zero (recriar por cima derruba o editor)
+"$UE/Binaries/Win64/UnrealEditor-Cmd.exe" "$(cygpath -w unreal/AgeOfEarthUE/AgeOfEarthUE.uproject)" -ExecutePythonScript="$(cygpath -w unreal/scripts/build_u0_map.py)" -unattended -nopause -nosplash
+npm run unreal:sim -- --seed 42 --size small --reveal &      # o mesmo mapa exportado em unreal/exports/teste
+MSYS_NO_PATHCONV=1 "$UE/Binaries/Win64/UnrealEditor.exe" "$(cygpath -w unreal/AgeOfEarthUE/AgeOfEarthUE.uproject)" /Game/Maps/U0 -game -windowed -ResX=1920 -ResY=1080
+```
+
+`build_u0_map.py` cria `/Game/Maps/U0`: material do terreno (4 camadas em cor lisa por enquanto), Landscape 1009²,
+SkyAtmosphere + sol + SkyLight em tempo real + névoa + nuvens volumétricas, pós-processamento com Lumen, água
+(`WaterBodyCustom`: um plano em Z = 0 com o material do plugin Water — o `WaterBodyOcean` com `WaterZone` deixava
+retângulos de céu e borda preta em volta da ilha, porque a zona não gera a textura de informação para um Landscape
+importado por código; variante em `AOE_WATER_OCEAN=1`) e um PlayerStart. Depuração: `AOE_SKIP=water,post…` pula
+passos, `AOE_MAP=/Game/Maps/X` muda o nome, `inspect_map.py` lista atores e luzes. Cuidado: `unreal.Rotator(roll,
+pitch, yaw)` — o script usa argumentos nomeados (com a ordem trocada o sol fica abaixo do horizonte e tudo sai preto).
+
+Teste automático com capturas: `-AoEAutoTest -AoEShotDir=<pasta> [-AoEDelay=30]` — tira `u0-caixas-1.png`, manda as
+unidades andarem pelo mesmo caminho do clique direito, tira `u0-caixas-2.png` e sai. Câmera:
+`-AoEArm=<uu> -AoEPitch=<graus> -AoETileX=<x> -AoETileY=<y>`. Capturas do U0 em `unreal/capturas/`.
