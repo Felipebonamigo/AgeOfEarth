@@ -1153,6 +1153,54 @@
       "rig": false,
       "baixadoEm": "2026-10-09",
       "notas": "Titã de pele de pedra pálida com capa azul de capuz, faixa de couro e tiras nos pés; pose neutra de pé, sem base; serve de Cronos (ou outro titã) até haver um mais grego; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "unidades/cataphract__armored-rider.glb",
+      "idJogo": "cataphract",
+      "titulo": "Cataphract",
+      "url": "https://www.meshy.ai/3d-models/x-019be805-20ea-7201-9359-e1aa2b2f0463",
+      "autor": "Daneryx",
+      "autorUrl": "https://www.meshy.ai/@s1769098760eb00f",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 460665,
+      "triangulos": 89995,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Catafracto: cavaleiro de armadura escura de escamas com lança e flâmula, cavalo com barda de malha; sem base; serve de Catafracto bizantino (Era IV, cavalaria); reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "unidades/field_gun__cannon-on-cart.glb",
+      "idJogo": "field_gun",
+      "titulo": "Cannon on a Wooden Cart",
+      "url": "https://www.meshy.ai/3d-models/x-019ca9e1-39bf-710d-8d0e-0ffaf0688f37",
+      "autor": "axx.s",
+      "autorUrl": "https://www.meshy.ai/@e65d5dd68fa9b3f71fa207942",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 10565,
+      "triangulos": 11766,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Canhão de ferro com aros dourados em carroça de madeira de 2 rodas, com balas e cordas; sem base; estilo um pouco estilizado, malha leve (não foi reduzida); serve de Bombarda/Canhão de campanha (Eras V e VI); soldado e com normais recalculadas, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "unidades/galleon__timber-galleon.glb",
+      "idJogo": "galleon",
+      "titulo": "Timber Galleon",
+      "url": "https://www.meshy.ai/3d-models/x-019ca96b-d896-7dfb-86d7-c30516e08149",
+      "autor": "oogimsch2016oo",
+      "autorUrl": "https://www.meshy.ai/@s17668299470b8da",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 790966,
+      "triangulos": 108673,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Galeão de madeira escura de 3 mastros e castelo de proa, velas recolhidas; sem base; 109 mil triângulos (o cordame fino impede ir mais baixo sem perder os mastros); reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
     }
   ],
   "recusados": [
@@ -1283,6 +1331,18 @@
     {
       "url": "https://www.meshy.ai/pt-BR/tags/talos",
       "motivo": "talos: \"Bronze Guardian\" (Rikomortis) é verde cobreado e fino demais; \"Kaplantalos\" é um jogo de blocos"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/musketeer",
+      "motivo": "musketeer: todos estilizados ou de brinquedo (raposa, gato, \"Crimson Corsair\", mosqueteiro sobre base)"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/cannon",
+      "motivo": "cannon: o resto é de ficção científica, goblin ou steampunk; \"Pirate Artillery\" (cptjacktinker) é dourado e exagerado"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/galleon",
+      "motivo": "galleon: os outros são piratas coloridos, de fantasia ou trazem base/caneca"
     }
   ],
   "faltando": [
