@@ -105,13 +105,25 @@ function manageKing(state: GameState, player: Player, snap: Snapshot): void {
   if (shelter) applyCommand(state, { type: 'garrison', player: player.id, ids: [king.id], targetId: shelter.id });
 }
 
+// ---------------- Madeira da 1ª Biblioteca ----------------
+/**
+ * Madeira que a IA da Era I guarda para a 1ª Biblioteca (E1: a Era II exige Templo + Biblioteca). Com o Templo de pé e ≥ 9 cidadãos,
+ * minas, celeiros, fazendas e tecnologias de 100 de madeira cobriam os 200 da Biblioteca por minutos (a Era II saía aos 14 min numa
+ * semente do balance, contra 7 antes da E1). Zero quando a Biblioteca existe, ainda não há Templo ou a IA já passou da Era I.
+ */
+function libraryWoodHold(player: Player, snap: Snapshot): number {
+  if (player.age !== 0 || snap.villagers.length < 9) return 0;
+  if ((snap.byType.get('academy') ?? []).length > 0 || (snap.byType.get('temple') ?? []).length === 0) return 0;
+  return (BUILDINGS.academy.cost as Record<string, number>).wood ?? 0;
+}
+
 // ---------------- Economia ----------------
 function manageEconomy(state: GameState, player: Player, snap: Snapshot): void {
   const age = player.age;
   const target = VILLAGER_TARGET[age];
   const n = Math.max(snap.villagers.length, 1);
   let ratio: Record<string, number>;
-  if (age === 0) ratio = { food: 0.42, wood: 0.38, gold: 0.2, favor: 0 };
+  if (age === 0) ratio = { food: 0.4, wood: 0.34, gold: 0.26, favor: 0 };
   else if (age === 1) ratio = { food: 0.36, wood: 0.26, gold: 0.32, favor: 0.06 };
   else ratio = { food: 0.32, wood: 0.22, gold: 0.36, favor: 0.1 };
   const hasTemple = (snap.byType.get('temple') ?? []).some((b) => b.complete);
@@ -173,7 +185,7 @@ function assignGatherer(state: GameState, player: Player, v: Unit, r: string, sn
     if (farm) { applyCommand(state, { type: 'gather', player: player.id, ids: [v.id], targetId: farm.id }); return true; }
     // constrói fazenda perto do ponto de entrega
     const farms = countBuildings(state, player.id, (b) => b.type === 'farm');
-    if (farms < FARM_LIMIT[player.age] && canAfford(player, BUILDINGS.farm.cost as Record<string, number>)) {
+    if (farms < FARM_LIMIT[player.age] && canAfford(player, BUILDINGS.farm.cost as Record<string, number>) && player.resources.wood - ((BUILDINGS.farm.cost as Record<string, number>).wood ?? 0) >= libraryWoodHold(player, snap)) {
       const near = (snap.byType.get('granary') ?? []).find((b) => b.complete) ?? snap.tc;
       if (near) {
         const spot = findBuildSpot(state, player, 'farm', near.x, near.y, 2, 9);
@@ -284,6 +296,7 @@ function manageBuilding(state: GameState, player: Player, snap: Snapshot): void 
     if (!def || def.age > age || isForbidden(state, player.id, 'buildings', p.type)) continue;   // G6: config.forbid
     const bcost = getBuildingStats(state, player, p.type).cost;
     if (!canAfford(player, bcost)) { if (p.type === 'house') return; continue; }
+    if (p.type !== 'house' && p.type !== 'temple' && p.type !== 'academy' && (bcost.wood ?? 0) > 0 && player.resources.wood - (bcost.wood ?? 0) < libraryWoodHold(player, snap)) continue;   // madeira da 1ª Biblioteca
     // (o mercado é essencial: é a válvula de escape quando o ouro acaba e a comida sobra)
     const essential = ['house', 'temple', 'academy', 'granary', 'lumber_camp', 'mine', 'farm', 'barracks', 'fortress', 'market'].includes(p.type) || p.type.startsWith('wonder') || p.type === 'titan_gate';
     if (!essential && (bcost.gold ?? 0) > player.resources.gold - budgetOf(state, player).reserveGold) continue;
@@ -489,7 +502,8 @@ function manageTraining(state: GameState, player: Player, snap: Snapshot): void 
   // Filósofos
   for (const ac of snap.byType.get('academy') ?? []) {
     if (!ac.complete || ac.queue.length > 0) continue;
-    if ((ac.scholars < 3 && player.resources.gold >= 100) || (ac.scholars < 5 && player.resources.gold > budget.reserveGold + 150)) applyCommand(state, { type: 'hireScholar', player: player.id, buildingId: ac.id });
+    // na Era I a Biblioteca já existe (E1) e os primeiros filósofos não podem comer o ouro da Era II (300)
+    if ((ac.scholars < 3 && player.resources.gold >= 100 + (player.age === 0 ? budget.reserveGold : 0)) || (ac.scholars < 5 && player.resources.gold > budget.reserveGold + 150)) applyCommand(state, { type: 'hireScholar', player: player.id, buildingId: ac.id });
   }
   const defending = state.tick - player.ai!.defending < 15 * TICK_RATE;
   const armyOk = snap.military.length >= budget.minArmy;
@@ -606,8 +620,12 @@ function manageResearch(state: GameState, player: Player, snap: Snapshot): void 
     if (!b) continue;
     if (!canResearch(state, player, b, t).ok) continue;
     const cost = techCost(player, t);
+    if ((cost.wood ?? 0) > 0 && player.resources.wood - (cost.wood ?? 0) < libraryWoodHold(player, snap)) continue;   // madeira da 1ª Biblioteca
     const isLine = !!def.line;
     const cheap = ((cost.gold ?? 0) + (cost.food ?? 0) * 0.5) < 160;
+    // Exigência de estudos da próxima Era já cumprida: o Conhecimento que ela cobra não é gasto em mais estudos (a Era III saía aos
+    // 22 min numa semente do balance: os estudos comiam os 200 de Conhecimento que os filósofos juntavam)
+    if (!budget.fundMet && (cost.knowledge ?? 0) > 0 && budget.surplus.knowledge < (cost.knowledge ?? 0) && player.age < maxAgeOf(state, player.id) && academyTechCount(player) >= (AGES[player.age + 1]?.requires.techCount ?? 0)) continue;
     // Linhas da Academia além do exigido pela próxima Idade só depois de juntar o fundo (senão o ouro nunca fecha)
     if (isLine && !budget.fundMet && (cost.gold ?? 0) > 0 && academyTechCount(player) >= (AGES[player.age + 1]?.requires.techCount ?? 0) + 1) continue;
     // Linhas da Academia (necessárias para avançar) sempre; o resto só com sobra sobre o fundo da idade

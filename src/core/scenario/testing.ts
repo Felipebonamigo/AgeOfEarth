@@ -37,6 +37,8 @@ export interface MissionRunOpts {
   deterministic?: boolean;
   /** Dificuldade da IA que joga pelo jogador 0 em runScripted (padrão: 'hard'). */
   playerAi?: Difficulty;
+  /** Era máxima da IA que joga pelo jogador 0 em runScripted (padrão: a da missão); ver MissionScript.playerMaxAge. */
+  playerMaxAge?: number;
   /** Objetivos que, por desenho, podem se cumprir antes de 60 s (fora da checagem d); ver MissionScript.earlyOk. */
   earlyOk?: string[];
 }
@@ -135,6 +137,7 @@ function runOnce(src: MissionSource, opts: MissionRunOpts & { hold?: Condition; 
   setRaidObserver((r) => raids.push(r));
   try {
     const run = missionRunConfig(src, difficulty); id = run.id;
+    if (steps && opts.playerMaxAge !== undefined) run.config = { ...run.config, players: run.config.players.map((p, i) => (i === 0 ? { ...p, maxAge: opts.playerMaxAge } : p)) };
     state = createGame(run.config);
     const me = state.players[0];
     if (steps) me.ai = { difficulty: opts.playerAi ?? 'hard', nextThink: TICK_RATE * 2, lastAttack: 0, attackTarget: -1, waves: 0, rallyX: 0, rallyY: 0, defending: -1000, builderIds: [], lastExpand: 0, personality: (run.config.seed + 3) % 97 };
@@ -381,6 +384,12 @@ export interface MissionScript {
   expect: [number, number];
   /** Nível da IA que joga pelo jogador 0 (padrão: 'hard'). */
   playerAi?: Difficulty;
+  /**
+   * Era máxima da IA que joga pelo jogador 0 (padrão: a da missão). Para missões em que o avanço de Era não faz parte do roteiro e
+   * custaria o exército na hora errada (a IA agora avança na Biblioteca, que quase nunca está ocupada; antes o Centro Cívico,
+   * sempre treinando cidadãos, segurava o avanço): o jogador do roteiro fica na Era em que a missão o põe.
+   */
+  playerMaxAge?: number;
   /** Enquanto valer, a IA do jogador não lança ondas de ataque (defesa); os passos continuam valendo. */
   hold?: Condition;
   /** Cofre: parte do estoque que a IA do jogador não gasta enquanto a condição valer (ScriptReserve; uma lista soma os que valem). */
@@ -440,7 +449,7 @@ export function runMissionScript(id: string, difficulty: CampaignDifficulty, det
   const main = MISSION_SCRIPTS[id];
   const sc: MissionScript | undefined = variant === undefined ? main : main?.variants?.find((v) => v.label === variant);
   if (variant !== undefined && !sc) throw new Error(`variante desconhecida: ${id}/${variant}`);
-  return runScripted(id, { minutes: sc?.minutes ?? 30, difficulty, steps: sc?.steps ?? [], deterministic, playerAi: sc?.playerAi, hold: sc?.hold, earlyOk: sc?.earlyOk, reserve: sc?.reserve, detach: sc?.detach, keepPowers: sc?.keepPowers, atEnd: sc?.atEnd });
+  return runScripted(id, { minutes: sc?.minutes ?? 30, difficulty, steps: sc?.steps ?? [], deterministic, playerAi: sc?.playerAi, playerMaxAge: sc?.playerMaxAge, hold: sc?.hold, earlyOk: sc?.earlyOk, reserve: sc?.reserve, detach: sc?.detach, keepPowers: sc?.keepPowers, atEnd: sc?.atEnd });
 }
 
 /**
@@ -2115,6 +2124,7 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
   },
   m9_tenaro: {
     minutes: 40, expect: [17.5, 39],
+    playerMaxAge: 7,   // a Era não faz parte do roteiro: com a IA avançando na Biblioteca (E1) o jogador gastava 2500 de recursos antes das ondas e perdia no Difícil
     // a IA do jogador (Hades) nunca sai em ondas: quem ataca as jaulas e as fendas é o roteiro, um alvo por vez
     hold: { time: { gte: 0 } },
     steps: [

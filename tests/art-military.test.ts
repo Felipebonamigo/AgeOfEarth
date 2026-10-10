@@ -25,7 +25,8 @@ describe('lote militar: manifestos e construtores', () => {
       expect(m.footprint, id).toEqual([BUILDINGS[id].w, BUILDINGS[id].h]);
       expect(m.icon, id).toEqual({ anim: 'complete' });
       expect([m.team, m.shadow], id).toEqual([true, true]);
-      expect(m.source).toMatchObject({ type: 'param', rig: 'building', params: { style: id } });
+      // a maravilha de Zeus usa o núcleo .glb do Meshy sobre o rig de edifício (style 'glb'); os outros, o estilo próprio
+      expect(m.source).toMatchObject({ type: 'param', rig: 'building', params: { style: id === 'wonder_zeus' ? 'glb' : id } });
     }
   });
   it('caixa de render dentro do orçamento (≤ 256 px a 1×) e com a pegada inteira dentro dela', () => {
@@ -33,7 +34,7 @@ describe('lote militar: manifestos e construtores', () => {
       const m = manifests.get(id)!;
       const [w, h] = m.size.tiles, [ax, ay] = m.anchor, [fw, fh] = m.footprint!;
       expect(w * 32, id).toBeLessThanOrEqual(256);
-      expect(h * 32, id).toBeLessThanOrEqual(256);
+      expect(h * 32, id).toBeLessThanOrEqual(id === 'wonder_zeus' ? 288 : 256);   // a estátua do trono sobre o soco pede mais altura
       // centro da área na caixa: sobra ≥ meia pegada para cada lado (mais o telhado acima e a sombra a leste/sul)
       expect(ax * w, id).toBeGreaterThanOrEqual(fw / 2);
       expect((1 - ax) * w, id).toBeGreaterThanOrEqual(fw / 2 + 0.5);

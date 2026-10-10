@@ -29,7 +29,7 @@
   "config": {
     "players": [
       { "name": "Argos", "god": "zeus", "isAI": false, "difficulty": "normal", "team": 0 },
-      { "name": { "pt": "Liga do Istmo", "en": "Isthmian League" }, "god": "poseidon", "isAI": true, "difficulty": "normal", "team": 1 },
+      { "name": { "pt": "Liga do Istmo", "en": "Isthmian League" }, "god": "poseidon", "isAI": true, "difficulty": "normal", "team": 1, "maxAge": 4 },
       { "name": { "pt": "Mirmidões de Aquiles", "en": "Achilles' Myrmidons" }, "god": "poseidon", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
     ],
     "startingAge": 2,

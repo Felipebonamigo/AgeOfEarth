@@ -8,6 +8,8 @@ import { compileScenarioCached } from './compile';
 import { CAMPAIGN_PLAN, PROLOGUE_IDS, type CampaignAct } from './official';
 import { getLocale } from '../../i18n';
 import { CAMPAIGN_MAX_ERA, CAMPAIGN_VISUAL_ERA_MAX } from '../data';
+/** Era máxima da IA inimiga das missões m3, m5 e m7: uma acima da do jogador, para ela seguir guardando o fundo da Era seguinte (na Era final a IA gasta tudo no exército e o Difícil perde; docs/STORY.md §4). */
+const ENEMY_MAX_ERA = CAMPAIGN_MAX_ERA + 1;
 import m4 from './missions/m4_caucaso.scenario.json';
 import { count, countBuildings, military, townCenter, raid, give, grantTech, placeNear, spawnGroup, localHumanIndex } from './helpers';
 import { onBuildingComplete } from '../sim/entities';
@@ -169,7 +171,7 @@ export const PROLOGUE: ScenarioDef[] = [
       'Você tem a liberdade de escolher o caminho: destrua o Portal antes que se conclua, ou erga uma Fortaleza, complete 6 estudos das linhas da Biblioteca, junte 500 de Favor e chame Prometeu para enfrentá-lo.',
     ],
     outro: ['O Portal caiu e o mundo respira. Por enquanto. As guerras dos deuses estão apenas começando... (Fim do prólogo)'],
-    config: { seed: 3303, mapSize: 'medium', players: [{ name: 'Argos', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 }, { name: 'Culto de Cronos', god: 'hades', isAI: true, difficulty: 'normal', team: 1 }, { name: 'Aliados de Poseidon', god: 'poseidon', isAI: true, difficulty: 'normal', team: 0 }], startingAge: 2, startingResources: { food: 1200, wood: 1000, gold: 800, favor: 80, knowledge: 200 }, maxAge: CAMPAIGN_MAX_ERA, visualEraMax: CAMPAIGN_VISUAL_ERA_MAX },
+    config: { seed: 3303, mapSize: 'medium', players: [{ name: 'Argos', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 }, { name: 'Culto de Cronos', god: 'hades', isAI: true, difficulty: 'normal', team: 1, maxAge: ENEMY_MAX_ERA }, { name: 'Aliados de Poseidon', god: 'poseidon', isAI: true, difficulty: 'normal', team: 0 }], startingAge: 2, startingResources: { food: 1200, wood: 1000, gold: 800, favor: 80, knowledge: 200 }, maxAge: CAMPAIGN_MAX_ERA, visualEraMax: CAMPAIGN_VISUAL_ERA_MAX },
     setup: (state) => {
       const p = state.players[ME]; p.minorGods.push('athena', 'apollo'); p.powers.push({ id: 'restoration', used: false }, { id: 'oracle', used: false });
       grantTech(state, ME, 'civic1'); grantTech(state, ME, 'civic2'); grantTech(state, ME, 'science1');
