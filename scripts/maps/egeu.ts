@@ -73,6 +73,12 @@ export function buildEgeu(): { file: FixedMapData; warnings: MapIssue[]; routes:
   placeStartLayout(b, sx, sy);
   // ---- além dos 12 tiles, definidos para o início 1 (os espelhos dão os dos outros) ----
   const far = (x: number, y: number) => !nearStart(x, y, LOCAL_RADIUS + 0.5);
+  // E2: pedra de reserva, nafta, jazida de petróleo e raros
+  b.nodes('limestone', MapBuilder.rect(sx + 10, sy + 11, sx + 11, sy + 12));
+  b.nodes('naphtha', MapBuilder.rect(sx + 14, sy + 2, sx + 15, sy + 3));
+  b.nodes('oil_field', [[sx - 12, sy + 14], [sx - 11, sy + 14], [sx - 12, sy + 15]]);
+  b.nodes('salt', [[sx + 18, sy + 8]]);
+  b.nodes('paros_marble', [[53, 53]]);
   b.nodes('gold', MapBuilder.rect(sx - 15, sy + 8, sx - 14, sy + 9));          // ouro de reserva (~17), a oeste
   b.nodes('deer', MapBuilder.rect(sx + 15, sy - 12, sx + 16, sy - 11));        // cervos (~19)
   b.forest(sx - 12, sy - 11, 6.5, 0.85, far, 11);                               // bosque grande às costas (serra do canto)

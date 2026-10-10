@@ -2,7 +2,7 @@
 // e carregamento de volta. Terreno e decoração vão em base64 de bytes (sem depender de btoa/Buffer); nós como listas.
 // Também: forma canônica, hash de identificação, validação (erros/avisos), mapa em branco, migração e saveMap.
 // Tudo determinístico (só state.rng/makeNoise): o arquivo é a única fonte da verdade; blocked/nodeAt/ids são derivados.
-import { MAX_FIXED_RELICS, MAX_PLAYERS, TERRAIN, type GameMode, type NodeType } from '../constants';
+import { MAX_FIXED_RELICS, MAX_PLAYERS, RARE_SET, TERRAIN, type GameMode, type NodeType } from '../constants';
 import { BUILDINGS, UNITS } from '../data';
 import { RNG, makeNoise } from '../rng';
 import type { GameMap, GameState } from '../types';
@@ -520,7 +520,7 @@ export function validateMap(input: FixedMapData, opts: ValidateOpts = {}): MapIs
 
 /** Raio padrão da tabela de recursos por início (o mesmo da madeira nas ordens iniciais de createGame). */
 export const START_RESOURCE_RADIUS = 16;
-export interface StartResources { food: number; wood: number; gold: number; foodNodes: number; woodNodes: number; goldNodes: number }
+export interface StartResources { food: number; wood: number; gold: number; stone: number; oil: number; rare: number; foodNodes: number; woodNodes: number; goldNodes: number; stoneNodes: number; oilNodes: number }
 type NodeLike = { type: string; x: number; y: number; amount: number };
 
 /**
@@ -528,10 +528,11 @@ type NodeLike = { type: string; x: number; y: number; amount: number };
  * até `radius` tiles (distância euclidiana entre tiles, como validateMap). Aceita os nós de um GameMap ou de um arquivo.
  */
 export function startResourceTable(starts: readonly { x: number; y: number }[], nodes: Iterable<NodeLike>, radius = START_RESOURCE_RADIUS): StartResources[] {
-  const out = starts.map((): StartResources => ({ food: 0, wood: 0, gold: 0, foodNodes: 0, woodNodes: 0, goldNodes: 0 }));
+  const out = starts.map((): StartResources => ({ food: 0, wood: 0, gold: 0, stone: 0, oil: 0, rare: 0, foodNodes: 0, woodNodes: 0, goldNodes: 0, stoneNodes: 0, oilNodes: 0 }));
   const r2 = radius * radius;
   for (const n of nodes) {
-    const kind = n.type === 'tree' ? 'wood' : n.type === 'gold' ? 'gold' : FOOD_NODES.has(n.type) ? 'food' : null;
+    if (RARE_SET.has(n.type)) { starts.forEach((s, i) => { const dx = n.x - s.x, dy = n.y - s.y; if (dx * dx + dy * dy <= r2) out[i].rare++; }); continue; }
+    const kind = n.type === 'tree' ? 'wood' : n.type === 'gold' ? 'gold' : n.type === 'limestone' ? 'stone' : n.type === 'naphtha' || n.type === 'oil_field' ? 'oil' : FOOD_NODES.has(n.type) ? 'food' : null;
     if (!kind) continue;
     const amount = Math.round(n.amount);
     starts.forEach((s, i) => {

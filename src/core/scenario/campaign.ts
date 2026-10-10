@@ -46,7 +46,7 @@ export const HORDE: ScenarioDef = {
   id: 'horde', title: 'Modo Horda', subtitle: 'Sobreviva a 20 ondas do Tártaro (solo ou cooperativo)', icon: '💀',
   intro: ['As portas do Tártaro se abriram. A cada 100 segundos uma onda maior e mais monstruosa marcha contra sua cidade. Fortifique-se, avance de Era e sobreviva a 20 ondas. Em cooperativo, cada jogador defende sua própria cidade e pode socorrer o aliado.'],
   outro: ['Vinte ondas do Tártaro quebraram contra suas muralhas. Os deuses aplaudem.'],
-  config: { seed: 4404, mapSize: 'medium', players: [{ name: 'Defensor', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 }, { name: 'Tártaro', god: 'hades', isAI: false, difficulty: 'normal', team: 9, puppet: true }], startingResources: { food: 600, wood: 500, gold: 300, favor: 20 } },
+  config: { seed: 4404, mapSize: 'medium', players: [{ name: 'Defensor', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 }, { name: 'Tártaro', god: 'hades', isAI: false, difficulty: 'normal', team: 9, puppet: true }], startingResources: { food: 600, wood: 500, stone: 250, gold: 300, favor: 20 } },
   setup: (state) => {
     // O Tártaro não tem cidade: remove o que o gerador criou para ele
     const t = state.players.findIndex((p) => p.team === 9);
@@ -92,7 +92,7 @@ export const PROLOGUE: ScenarioDef[] = [
       'Zeus exige provas de que sua cidade merece proteção: cresça, honre-o com um Templo e alcance a Era Clássica. Bandos de saqueadores rondam as colinas.',
     ],
     outro: ['Argos prospera e o Olimpo tomou nota. Mas os batedores relatam um exército de Hades marchando do sul...'],
-    config: { seed: 1101, mapSize: 'small', players: [{ name: 'Argos', god: 'zeus', isAI: false, difficulty: 'easy', team: 0 }, { name: 'Saqueadores', god: 'hades', isAI: false, difficulty: 'easy', team: 1, puppet: true }], startingResources: { food: 400, wood: 300, gold: 150 }, maxAge: CAMPAIGN_MAX_ERA, visualEraMax: CAMPAIGN_VISUAL_ERA_MAX },
+    config: { seed: 1101, mapSize: 'small', players: [{ name: 'Argos', god: 'zeus', isAI: false, difficulty: 'easy', team: 0 }, { name: 'Saqueadores', god: 'hades', isAI: false, difficulty: 'easy', team: 1, puppet: true }], startingResources: { food: 400, wood: 300, stone: 150, gold: 150 }, maxAge: CAMPAIGN_MAX_ERA, visualEraMax: CAMPAIGN_VISUAL_ERA_MAX },
     setup: (state) => {
       // Os saqueadores não têm cidade: só um acampamento distante com uma torre e alguns hoplitas
       const tc = townCenter(state, 1);
@@ -130,7 +130,7 @@ export const PROLOGUE: ScenarioDef[] = [
       'Resista por 12 minutos até que os reforços de Esparta cheguem. Torres, muralhas e a Fortaleza serão suas melhores amigas. Depois, contra-ataque.',
     ],
     outro: ['Os espartanos chegaram, e Argos resistiu. Mas os sacerdotes de Hades falam de um Portal... e do que dorme atrás dele.'],
-    config: { seed: 2202, mapSize: 'medium', players: [{ name: 'Argos', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 }, { name: 'Legião de Hades', god: 'hades', isAI: true, difficulty: 'normal', team: 1 }], startingAge: 1, startingResources: { food: 900, wood: 800, gold: 500, favor: 40 }, maxAge: CAMPAIGN_MAX_ERA, visualEraMax: CAMPAIGN_VISUAL_ERA_MAX },
+    config: { seed: 2202, mapSize: 'medium', players: [{ name: 'Argos', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 }, { name: 'Legião de Hades', god: 'hades', isAI: true, difficulty: 'normal', team: 1 }], startingAge: 1, startingResources: { food: 900, wood: 800, stone: 400, gold: 500, favor: 40 }, maxAge: CAMPAIGN_MAX_ERA, visualEraMax: CAMPAIGN_VISUAL_ERA_MAX },
     setup: (state) => {
       const tc = townCenter(state, ME);
       if (tc) {
@@ -171,7 +171,7 @@ export const PROLOGUE: ScenarioDef[] = [
       'Você tem a liberdade de escolher o caminho: destrua o Portal antes que se conclua, ou erga uma Fortaleza, complete 6 estudos das linhas da Biblioteca, junte 500 de Favor e chame Prometeu para enfrentá-lo.',
     ],
     outro: ['O Portal caiu e o mundo respira. Por enquanto. As guerras dos deuses estão apenas começando... (Fim do prólogo)'],
-    config: { seed: 3303, mapSize: 'medium', players: [{ name: 'Argos', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 }, { name: 'Culto de Cronos', god: 'hades', isAI: true, difficulty: 'normal', team: 1, maxAge: ENEMY_MAX_ERA }, { name: 'Aliados de Poseidon', god: 'poseidon', isAI: true, difficulty: 'normal', team: 0 }], startingAge: 2, startingResources: { food: 1200, wood: 1000, gold: 800, favor: 80, knowledge: 200 }, maxAge: CAMPAIGN_MAX_ERA, visualEraMax: CAMPAIGN_VISUAL_ERA_MAX },
+    config: { seed: 3303, mapSize: 'medium', players: [{ name: 'Argos', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 }, { name: 'Culto de Cronos', god: 'hades', isAI: true, difficulty: 'normal', team: 1, maxAge: ENEMY_MAX_ERA }, { name: 'Aliados de Poseidon', god: 'poseidon', isAI: true, difficulty: 'normal', team: 0 }], startingAge: 2, startingResources: { food: 1200, wood: 1000, stone: 500, gold: 800, favor: 80, knowledge: 200 }, maxAge: CAMPAIGN_MAX_ERA, visualEraMax: CAMPAIGN_VISUAL_ERA_MAX },
     setup: (state) => {
       const p = state.players[ME]; p.minorGods.push('athena', 'apollo'); p.powers.push({ id: 'restoration', used: false }, { id: 'oracle', used: false });
       grantTech(state, ME, 'civic1'); grantTech(state, ME, 'civic2'); grantTech(state, ME, 'science1');

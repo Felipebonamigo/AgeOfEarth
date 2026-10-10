@@ -35,7 +35,7 @@
     ],
     "startingAge": 2,
     "maxAge": 3, "visualEraMax": 2,
-    "startingResources": { "food": 1000, "wood": 1000, "gold": 800, "favor": 100, "knowledge": 300 },
+    "startingResources": { "food": 1000, "wood": 1000, "stone": 600, "gold": 800, "favor": 100, "knowledge": 300 },
     "startKit": [true, true, true, false],
     "forbid": { "buildings": ["titan_gate"] }
   },

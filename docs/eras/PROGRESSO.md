@@ -112,27 +112,27 @@ Bloco J — Verificação e documentação
 Guia: `docs/eras/E2-recursos.md`
 
 Fase A — núcleo dos recursos
-- [ ] 1 Pré-voo (E1 pronta) e linha de base
-- [ ] 2 Recursos e constantes (`stone`, `oil`)
-- [ ] 3 Save, hash e relatório de dessincronia
-- [ ] 4 Cenários (stats e `give`)
-- [ ] 5 Fuzz (`'marble'` como recurso inválido)
-- [ ] 6 Nós novos (10 tipos)
-- [ ] 7 Buscas e regra de quem trabalha cada nó (`canWorkNode`)
-- [ ] 8 Coleta com a regra nova (Mercador)
-- [ ] 9 Edifícios, unidade `merchant` e atalhos (`hotkeyGroup`)
-- [ ] 10 Poço de Petróleo: colocação e extração
-- [ ] 11 Raros e Mercador (`rares.ts`, renda por nó)
-- [ ] 12 Pesquisas novas e custos de Era
-- [ ] 13 Mercado (petróleo só da Era IV)
-- [ ] 14 `SIM_VERSION` +1
+- [x] 1 Pré-voo (E1 pronta) e linha de base
+- [x] 2 Recursos e constantes (`stone`, `oil`)
+- [x] 3 Save, hash e relatório de dessincronia
+- [x] 4 Cenários (stats e `give`)
+- [x] 5 Fuzz (`'marble'` como recurso inválido)
+- [x] 6 Nós novos (10 tipos)
+- [x] 7 Buscas e regra de quem trabalha cada nó (`canWorkNode`)
+- [x] 8 Coleta com a regra nova (Mercador)
+- [x] 9 Edifícios, unidade `merchant` e atalhos (`hotkeyGroup`)
+- [x] 10 Poço de Petróleo: colocação e extração
+- [x] 11 Raros e Mercador (`rares.ts`, renda por nó)
+- [x] 12 Pesquisas novas e custos de Era
+- [x] 13 Mercado (petróleo só da Era IV)
+- [x] 14 `SIM_VERSION` +1
 
 Fase B — mapas e editor
-- [ ] 15 Tabela de recursos por início
-- [ ] 16 Editor (`isNodeType`, paleta, tabela) — antes do 18 e do 19
-- [ ] 17 Gerador aleatório (`placeEraResources`)
-- [ ] 18 Mapas oficiais (Estreito e Egeu)
-- [ ] 19 Mapas fixos da campanha (pedra) e pedra inicial das missões
+- [x] 15 Tabela de recursos por início
+- [x] 16 Editor (`isNodeType`, paleta, tabela) — antes do 18 e do 19
+- [x] 17 Gerador aleatório (`placeEraResources`)
+- [x] 18 Mapas oficiais (Estreito e Egeu)
+- [x] 19 Mapas fixos da campanha (pedra) e pedra inicial das missões
 
 Fase C — IA
 - [ ] 20 Economia da IA (pedra, petróleo, loadtest)

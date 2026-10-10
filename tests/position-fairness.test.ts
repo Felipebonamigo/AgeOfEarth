@@ -324,7 +324,7 @@ describe('sondagem de simetria nos mapas oficiais (estado inicial)', () => {
   // correção: Egeu 3/30 e Estreito 0/10; na 1ª correção, Egeu 30/30 e Estreito 4/10 (desempates em (y, x) absolutos com os
   // inícios na diagonal do mapa). `extra` acrescenta os outros edifícios (celeiro, serraria, mina, estábulo, oficina, fortaleza).
   const PROBE_TYPES: [string, number, number][] = [['temple', 4, 12], ['academy', 3, 16], ['market', 3, 16], ['house', 0, 14], ['barracks', 1, 10], ['tower', 0, 6], ['farm', 1, 18]];
-  const EXTRA_TYPES: [string, number, number][] = [['granary', 2, 12], ['lumber_camp', 2, 14], ['mine', 2, 14], ['stable', 1, 10], ['siege_workshop', 2, 12], ['fortress', 3, 14]];
+  const EXTRA_TYPES: [string, number, number][] = [['granary', 2, 12], ['lumber_camp', 2, 14], ['mine', 2, 14], ['quarry', 2, 14], ['stable', 1, 10], ['siege_workshop', 2, 12], ['fortress', 3, 14]];
   function probe(id: string, tf: Record<number, (x: number, y: number) => [number, number]>, types = PROBE_TYPES) {
     const map = migrateMap(JSON.parse(fs.readFileSync(`src/core/data/maps/${id}.map.json`, 'utf8')));
     const s = createGame({ seed: 7, mapSize: 'medium', map, players: map.starts.map((_, i) => ({ name: `P${i}`, god: 'zeus', isAI: true, difficulty: 'normal' as const, team: map.startTeams ? map.startTeams[i] : i })) });
@@ -345,7 +345,7 @@ describe('sondagem de simetria nos mapas oficiais (estado inicial)', () => {
       const spot = (p: number): [number, number] | null => { const tc = tcOf(s, p); const r = findBuildSpot(s, s.players[p], type, tc.x, tc.y, minR, maxR, true); return r ? [r.x + def.w / 2, r.y + def.h / 2] : null; };
       for (const k of partners) cmp(`findBuildSpot ${type}`, spot(0), spot(k), k);
     }
-    for (const want of ['food', 'wood', 'gold'] as const) {
+    for (const want of ['food', 'wood', 'gold', 'stone'] as const) {
       const nn = (p: number): [number, number] | null => { const tc = tcOf(s, p); const r = nearestNode(s, tc.x, tc.y, want, 18); return r ? [r.x + 0.5, r.y + 0.5] : null; };
       for (const k of partners) cmp(`nearestNode ${want}`, nn(0), nn(k), k);
     }
@@ -358,7 +358,7 @@ describe('sondagem de simetria nos mapas oficiais (estado inicial)', () => {
     const tf: Record<number, (x: number, y: number) => [number, number]> = { 1: (x, y) => [W - x, y], 2: (x, y) => [W - x, H - y], 3: (x, y) => [x, H - y] };
     const r = probe('egeu', tf);
     expect(r.bad).toEqual([]);
-    expect(r.ok).toBe(33);
+    expect(r.ok).toBe(36);
     expect(probe('egeu', tf, EXTRA_TYPES).bad).toEqual([]);
   });
   it('Estreito (rotação de 180°; inícios na diagonal do mapa): 10/10', () => {
@@ -366,7 +366,7 @@ describe('sondagem de simetria nos mapas oficiais (estado inicial)', () => {
     const tf: Record<number, (x: number, y: number) => [number, number]> = { 1: (x, y) => [W - x, H - y] };
     const r = probe('estreito', tf);
     expect(r.bad).toEqual([]);
-    expect(r.ok).toBe(11);
+    expect(r.ok).toBe(12);
     expect(probe('estreito', tf, EXTRA_TYPES).bad).toEqual([]);
   });
 });

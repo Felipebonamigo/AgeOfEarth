@@ -1,10 +1,10 @@
 // Geração procedural de mapas: lagos, montanhas, florestas, veios de ouro, frutas e caça,
 // com áreas iniciais justas e garantia de conectividade entre todos os jogadores.
-import { TERRAIN, type NodeType, type MapType } from '../constants';
+import { RARE_NODES, TERRAIN, type NodeType, type MapType } from '../constants';
 import { RNG, makeNoise } from '../rng';
 import type { GameMap, ResourceNode } from '../types';
 import { idx, inBounds, dist } from './grid';
-import { articulationPoints, invalidateComponents } from './components';
+import { articulationPoints, invalidateComponents, wouldSeal } from './components';
 
 /** Quantidade padrão de recurso por tipo de nó (editor: valor inicial ao colocar um nó). */
 export const NODE_AMOUNT: Record<NodeType, number> = {
@@ -107,6 +107,7 @@ export function generateMap(w: number, h: number, seed: number, playerCount: num
   ensureConnectivity(map);
   rebuildBlocked(map);
   widenChokepoints(map);
+  placeEraResources(map, seed, clearCenter);
   return map;
 }
 
@@ -179,6 +180,85 @@ function nearStart(map: GameMap, x: number, y: number, r: number): boolean {
   for (const s of map.starts) if (dist(s.x, s.y, x, y) < r) return true;
   return false;
 }
+
+/**
+ * E2: pedra, nafta, jazidas e raros, numa passada própria (RNG separado) DEPOIS de toda a geração antiga: nenhum nó
+ * antigo muda de lugar. Mesma receita por início (como placeStartResources): calcário a ~8 e ~14, nafta a ~13, jazida a
+ * ~17, um raro do tipo A a ~19 e um do tipo B a 60% do caminho até o centro; extras longe dos inícios. Um nó novo só
+ * entra em terra livre sem obstáculo antigo nos 8 vizinhos, com ≥ 3 vizinhos livres e sem selar a passagem local; no
+ * fim, os nós novos que criaram ponto de articulação saem (os antigos nunca).
+ */
+export function placeEraResources(map: GameMap, seed: number, clearCenter: boolean): void {
+  const rng = new RNG((seed ^ 0x2c1b3c6d) >>> 0);
+  const oldBlocked = map.blocked.slice();
+  const apBefore = articulationPoints(map);
+  const near = (x: number, y: number, r: number) => map.starts.some((s) => dist(s.x, s.y, x, y) < r);
+  const ok = (x: number, y: number): boolean => {
+    if (x < 2 || y < 2 || x > map.w - 3 || y > map.h - 3) return false;
+    const i = idx(map, x, y), t = map.terrain[i];
+    if (t === TERRAIN.WATER || t === TERRAIN.DEEP || t === TERRAIN.MOUNTAIN || map.blocked[i] !== 0) return false;
+    if (near(x, y, 4.5)) return false;
+    if (clearCenter && dist(x, y, map.w / 2, map.h / 2) < 7) return false;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inBounds(map, x + dx, y + dy) && oldBlocked[idx(map, x + dx, y + dy)] !== 0) return false;
+    let free = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && inBounds(map, x + dx, y + dy) && map.blocked[idx(map, x + dx, y + dy)] === 0) free++;
+    if (free < 3) return false;
+    return !wouldSeal(map, x, y, 1, 1);
+  };
+  const added = new Set<number>();
+  const cluster = (type: NodeType, cx: number, cy: number, radius: number, count: number): number => {
+    let placed = 0, tries = 0;
+    while (placed < count && tries++ < count * 12) {
+      const x = Math.round(cx + rng.range(-radius, radius)), y = Math.round(cy + rng.range(-radius, radius));
+      if ((x - cx) * (x - cx) + (y - cy) * (y - cy) > radius * radius + 1) continue;
+      if (!ok(x, y)) continue;
+      const nd = addNode(map, type, x, y);
+      if (nd) { placed++; added.add(nd.id); }
+    }
+    return placed;
+  };
+  const at = (s: { x: number; y: number }, a: number, r: number): [number, number] => { const k = ((a % 32) + 32) % 32; return [s.x + Math.round(CIRCLE32[k][0] * r), s.y + Math.round(CIRCLE32[k][1] * r)]; };
+  // grupo num ângulo; se não couber, tenta os ângulos vizinhos e os raios r−2 e r+2 até completar
+  const around = (s: { x: number; y: number }, type: NodeType, a: number, r: number, radius: number, count: number): number => {
+    let placed = 0;
+    for (const dr of [0, -2, 2]) for (const k of [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6]) { if (placed >= count) break; placed += cluster(type, ...at(s, a + k, r + dr), radius, count - placed); }
+    return placed;
+  };
+  const ra = rng.int(0, RARE_NODES.length - 1); let rb = rng.int(0, RARE_NODES.length - 2); if (rb >= ra) rb++;
+  for (const s of map.starts) {
+    const ang = rng.int(0, 31);
+    around(s, 'limestone', ang, 8, 1.3, 5);
+    around(s, 'limestone', ang + 16 + rng.int(-3, 3), 14, 1.5, 6);
+    around(s, 'naphtha', ang + 8 + rng.int(-3, 3), 13, 1.2, 4);
+    around(s, 'oil_field', ang + 24 + rng.int(-3, 3), 17, 1.0, 3);
+    around(s, RARE_NODES[ra], ang + 4 + rng.int(-2, 2), 19, 2.5, 1);
+    cluster(RARE_NODES[rb], Math.round(s.x + (map.w / 2 - s.x) * 0.6), Math.round(s.y + (map.h / 2 - s.y) * 0.6), 2.5, 1);
+  }
+  const extra = Math.round((map.w * map.h) / 2500);
+  for (let k = 0; k < extra; k++) {
+    const x = rng.int(4, map.w - 5), y = rng.int(4, map.h - 5);
+    if (near(x, y, 18)) continue;
+    const roll = rng.float();
+    if (roll < 0.5) cluster('limestone', x, y, 1.4, 5);
+    else if (roll < 0.8) cluster('naphtha', x, y, 1.2, 4);
+    else cluster('oil_field', x, y, 1.0, 3);
+  }
+  for (let pass = 0; pass < 3; pass++) {
+    const ap = articulationPoints(map);
+    let removed = 0;
+    for (let i = 0; i < ap.length; i++) {
+      if (!ap[i] || apBefore[i]) continue;
+      const x = i % map.w, y = (i - x) / map.w;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        if (!inBounds(map, x + dx, y + dy)) continue;
+        const id = map.nodeAt[idx(map, x + dx, y + dy)];
+        if (id !== -1 && added.has(id)) { removeNode(map, id); added.delete(id); removed++; }
+      }
+    }
+    if (removed === 0) break;
+  }
+}
+
 
 export function addNode(map: GameMap, type: NodeType, x: number, y: number, amount?: number): ResourceNode | null {
   if (!inBounds(map, x, y)) return null;

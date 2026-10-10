@@ -34,7 +34,7 @@
     ],
     "startingAge": 2,
     "maxAge": 3, "visualEraMax": 2,
-    "startingResources": { "food": 1000, "wood": 800, "gold": 800, "favor": 120, "knowledge": 300 },
+    "startingResources": { "food": 1000, "wood": 800, "stone": 400, "gold": 800, "favor": 120, "knowledge": 300 },
     "startKit": [true, true, false]
   },
   "vars": { "rota2_t": 330, "rota3_t": 510, "rota4_t": 690, "teto": 26, "liga_t": 600 },

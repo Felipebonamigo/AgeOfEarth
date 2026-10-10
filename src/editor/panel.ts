@@ -318,10 +318,11 @@ export class EditorPanel {
   private renderResources(): void {
     const rows = this.editor.startResources();
     if (rows.length === 0) { this.resEl.innerHTML = ''; return; }
-    const kinds = ['food', 'wood', 'gold'] as const;
+    const kinds = ['food', 'wood', 'stone', 'gold', 'oil', 'rare'] as const;
     const max = Object.fromEntries(kinds.map((k) => [k, Math.max(...rows.map((r) => r[k]))])) as Record<typeof kinds[number], number>;
-    const cell = (r: (typeof rows)[number], k: typeof kinds[number]) => `<td class="${max[k] > 0 && r[k] < max[k] * 0.8 ? 'low' : ''}" title="${t('editor.resNodes', { n: r[`${k}Nodes`] })}">${r[k]}</td>`;
-    this.resEl.innerHTML = `<div class="ttl">${t('editor.resTitle', { r: 16 })}</div><table><tr><th></th><th title="${t('res.food')}">${ic.res('food')}</th><th title="${t('res.wood')}">${ic.res('wood')}</th><th title="${t('res.gold')}">${ic.res('gold')}</th></tr>${rows.map((r, i) => `<tr data-start="${i}"><th style="color:${PLAYER_COLORS[i % PLAYER_COLORS.length].hex}">${glyph('rally')} ${i + 1}</th>${kinds.map((k) => cell(r, k)).join('')}</tr>`).join('')}</table>`;
+    const cell = (r: (typeof rows)[number], k: typeof kinds[number]) => `<td class="${max[k] > 0 && r[k] < max[k] * 0.8 ? 'low' : ''}" title="${t('editor.resNodes', { n: k === 'rare' ? r.rare : r[`${k}Nodes` as 'foodNodes'] })}">${r[k]}</td>`;
+    const head = kinds.map((k) => `<th title="${k === 'rare' ? t('editor.resRare') : t(`res.${k}`)}">${k === 'rare' ? iconHtml('tech/masonry', { cls: 'hic-res' }) : ic.res(k)}</th>`).join('');
+    this.resEl.innerHTML = `<div class="ttl">${t('editor.resTitle', { r: 16 })}</div><table><tr><th></th>${head}</tr>${rows.map((r, i) => `<tr data-start="${i}"><th style="color:${PLAYER_COLORS[i % PLAYER_COLORS.length].hex}">${glyph('rally')} ${i + 1}</th>${kinds.map((k) => cell(r, k)).join('')}</tr>`).join('')}</table>`;
   }
   /** "Corrigir" quando cabe (docs/EDITOR.md §4.4): cada aviso/erro com uma correção automática desfazível (um passo de Ctrl+Z). */
   private fixFor(it: MapIssue): { label: string; run: () => boolean } | null {

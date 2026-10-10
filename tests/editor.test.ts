@@ -773,7 +773,7 @@ describe('editor: Etapa 4 (balde, conta-gotas, correções, recursos por início
   });
   it('tabela de recursos por início (raio 16): cache até a próxima op e igual à do arquivo', () => {
     const ed = editorOf(twoStarts());
-    const zero = { food: 0, wood: 0, gold: 0, foodNodes: 0, woodNodes: 0, goldNodes: 0 };
+    const zero = { food: 0, wood: 0, gold: 0, stone: 0, oil: 0, rare: 0, foodNodes: 0, woodNodes: 0, goldNodes: 0, stoneNodes: 0, oilNodes: 0 };
     expect(ed.startResources()).toEqual([zero, zero]);
     const first = ed.startResources();
     expect(ed.startResources()).toBe(first);
@@ -783,8 +783,8 @@ describe('editor: Etapa 4 (balde, conta-gotas, correções, recursos por início
     ed.apply({ kind: 'addNode', type: 'deer', x: 65, y: 56 });   // exatamente a 16 do início 2
     const rows = ed.startResources();
     expect(rows).not.toBe(first);
-    expect(rows[0]).toEqual({ food: 100, wood: 0, gold: 900, foodNodes: 1, woodNodes: 0, goldNodes: 1 });
-    expect(rows[1]).toEqual({ food: 140, wood: 0, gold: 0, foodNodes: 1, woodNodes: 0, goldNodes: 0 });
+    expect(rows[0]).toEqual({ ...zero, food: 100, gold: 900, foodNodes: 1, goldNodes: 1 });
+    expect(rows[1]).toEqual({ ...zero, food: 140, foodNodes: 1 });
     expect(startResourcesOf(ed.toFile())).toEqual(rows);
   });
   it('resizeMapData: cresce e encolhe pela âncora, corta o que sai, traz inícios para dentro, recoloca a colina e nunca deixa água profunda na borda', () => {

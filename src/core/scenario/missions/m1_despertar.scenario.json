@@ -26,7 +26,7 @@
       { "name": "Saqueadores", "god": "hades", "isAI": false, "difficulty": "easy", "team": 1, "puppet": true }
     ],
     "maxAge": 3, "visualEraMax": 2,
-    "startingResources": { "food": 400, "wood": 300, "gold": 150 }
+    "startingResources": { "food": 400, "wood": 300, "stone": 150, "gold": 150 }
   },
   "setup": [
     { "do": "removeAll", "player": 1 },

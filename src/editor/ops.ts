@@ -13,7 +13,7 @@ import { MAX_PLAYERS, TERRAIN, type NodeType } from '../core/constants';
 import { BUILDINGS, UNITS } from '../core/data';
 import type { Building, GameMap, GameState, ResourceNode, Unit } from '../core/types';
 import { idx, inBounds, isPassable } from '../core/map/grid';
-import { addNode, deriveDeepWater, rebuildBlocked, removeNode, resetNodeSeq, getNodeSeq, NODE_ID_BASE } from '../core/map/mapgen';
+import { addNode, deriveDeepWater, rebuildBlocked, removeNode, resetNodeSeq, getNodeSeq, NODE_AMOUNT, NODE_ID_BASE } from '../core/map/mapgen';
 import { invalidateComponents } from '../core/map/components';
 import { canPlaceBuilding, onBuildingComplete, placeBuilding, pushUnitsOutOfTile, recomputePop, removeBuildingNow, removeUnitNow, spawnUnit } from '../core/sim/entities';
 import { recomputeMods, refreshMaxHp } from '../core/sim/modifiers';
@@ -353,7 +353,7 @@ function applyEditOpInner(state: GameState, op: EditOp, tags?: TagMap, meta?: Me
   }
 }
 
-function isNodeType(t: string): t is NodeType { return t === 'tree' || t === 'berry' || t === 'gold' || t === 'deer' || t === 'boar' || t === 'lure'; }
+function isNodeType(t: string): t is NodeType { return Object.prototype.hasOwnProperty.call(NODE_AMOUNT, t); }
 
 /** Empurra as unidades terrestres que estejam sobre os tiles (já bloqueados) e devolve, para cada uma que saiu, o tile de origem. */
 function pushUnitsFrom(state: GameState, tiles: number[]): { id: number; x: number; y: number }[] {

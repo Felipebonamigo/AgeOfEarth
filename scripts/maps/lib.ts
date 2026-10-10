@@ -140,7 +140,7 @@ export class MapBuilder {
     const nodeKey = new Map<number, string>(file.nodes.map(([t, x, y, a]) => [y * file.w + x, `${t}:${a}`]));
     for (const [t, x, y, a] of file.nodes) for (const [p, q] of this.sym(x, y)) if (nodeKey.get(q * file.w + p) !== `${t}:${a}`) throw new Error(`${meta.id}: nó ${t} em (${x}, ${y}) sem imagem em (${p}, ${q})`);
     const res = startResourcesOf(file);
-    for (const r of res) for (const k of ['food', 'wood', 'gold'] as const) if (r[k] !== res[0][k]) throw new Error(`${meta.id}: recursos desiguais entre inícios: ${JSON.stringify(res)}`);
+    for (const r of res) for (const k of ['food', 'wood', 'gold', 'stone', 'oil', 'rare'] as const) if (r[k] !== res[0][k]) throw new Error(`${meta.id}: recursos desiguais entre inícios: ${JSON.stringify(res)}`);
     // vizinhança de cada início idêntica também na orientação absoluta (terreno e nós a até LOCAL_RADIUS)
     const local = (sx: number, sy: number) => {
       const parts: string[] = [];
@@ -180,6 +180,7 @@ export function placeStartLayout(b: MapBuilder, sx: number, sy: number): void {
   b.nodes('deer', at([[4, 6]]));
   b.nodes('boar', at([[11, 0]]));
   b.nodes('tree', at([[7, 7], [8, 7], [7, 8], [8, 8], [9, 6], [6, 9]]));
+  b.nodes('limestone', at([[10, 3], [10, 4]]));
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -299,7 +300,7 @@ export function writeMap(file: FixedMapData, warnings: MapIssue[], out: string, 
   const res = startResourcesOf(file);
   console.log(`${out}: ${file.w}x${file.h} · ${file.starts.length} inícios · ${file.nodes.length} nós · ${json.length} bytes · hash #${mapHash(file).toString(16)} · ${warnings.length} aviso(s)`);
   for (const w of warnings) console.log(`  aviso ${w.code}${w.x !== undefined ? ` (${w.x}, ${w.y})` : ''}${w.params ? ' ' + JSON.stringify(w.params) : ''}`);
-  console.log(`  por início (raio 16): comida ${res[0].food} · madeira ${res[0].wood} · ouro ${res[0].gold} (iguais em todos)`);
+  console.log(`  por início (raio 16): comida ${res[0].food} · madeira ${res[0].wood} · ouro ${res[0].gold} · pedra ${res[0].stone} · petróleo ${res[0].oil} · raros ${res[0].rare} (iguais em todos)`);
   for (const r of routes) console.log(`  rota ${r.route} (início 1 → ${r.to + 1}, as outras fechadas): corte mínimo ${r.cut.length} tiles; nenhum edifício de até ${SEAL_MAX_SIDE}×${SEAL_MAX_SIDE} a sela`);
 }
 

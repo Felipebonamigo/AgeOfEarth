@@ -98,6 +98,7 @@ describe('mapas embutidos', () => {
       const res = startResourcesOf(m);
       for (const r of res) expect(r, `${key}: ${JSON.stringify(res)}`).toEqual(res[0]);
       expect(res[0].food, key).toBeGreaterThan(2000); expect(res[0].wood, key).toBeGreaterThan(8000); expect(res[0].gold, key).toBeGreaterThan(5000);
+      expect(res[0].stone, key).toBeGreaterThan(3000); expect(res[0].oil, key).toBeGreaterThan(5000);
       if (m.startTeams) { expect(m.startTeams.length, key).toBe(m.starts.length); expect(new Set(m.startTeams).size, key).toBeGreaterThan(1); }
     }
     expect(BUILTIN_MAPS.estreito.starts.length).toBe(2); expect([BUILTIN_MAPS.estreito.w, BUILTIN_MAPS.estreito.h]).toEqual([80, 80]);

@@ -35,7 +35,7 @@ await ed(() => { window.aoe.editor.__mark = 'instancia-1'; });
 // 2) lago com o mouse real: ferramenta Terreno (T), água (4), raio 3, arraste horizontal
 await page.keyboard.press('t'); await page.keyboard.press('4'); await page.waitForTimeout(100);
 await ed(() => { window.aoe.editor.ui.brushRadius = 3; });
-ok('subpaleta de terreno com cor', await page.$$eval('#editor .chip .sw', (l) => l.length) === 6 && await ed(() => window.aoe.editor.ui.terrain) === 1);
+ok('subpaleta de terreno com cor', await page.$$eval('#editor .chip .sw', (l) => l.length) === 16 && await ed(() => window.aoe.editor.ui.terrain) === 1);
 const lake = { x0: 20, y0: 24, x1: 32, y1: 24 };
 const wasWater = await terrainAt(26, 24);
 await look(26, 24);
@@ -46,7 +46,7 @@ st = await info();
 ok('lago pintado com o mouse', waterRow.every((t) => t === 1 || t === 5) && st.undo >= 1, `| terreno antes=${wasWater} linha=${waterRow.join('')} undo=${st.undo}`);
 // 3) bosque: ferramenta Recursos (N), árvore, arraste
 await page.keyboard.press('n'); await page.waitForTimeout(100);
-ok('paleta de nós', await page.$$eval('#editor .chip[data-node]', (l) => l.length) === 6);
+ok('paleta de nós', await page.$$eval('#editor .chip[data-node]', (l) => l.length) === 16);
 const nodesBefore = st.nodes;
 await look(26, 40);
 a = await screenOf(18, 40); b = await screenOf(34, 40);

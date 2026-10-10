@@ -195,6 +195,12 @@ const CLUSTERS: Cluster[] = [
   { type: 'deer', x: 60, y: 104, n: 4, r: 2 }, { type: 'deer', x: 84, y: 104, n: 4, r: 2 },
   { type: 'boar', x: 38, y: 94, n: 2, r: 1.2 }, { type: 'boar', x: 106, y: 94, n: 2, r: 1.2 },
 ];
+// E2 (docs/eras/E2-recursos.md): pedra de calcário perto de cada base, depois de todos os outros nós
+const STONE_CLUSTERS: Cluster[] = [
+  { type: 'limestone', x: 24, y: 111, n: 5, r: 1.4 },
+  { type: 'limestone', x: 120, y: 111, n: 5, r: 1.4 },
+  { type: 'limestone', x: 63, y: 32, n: 5, r: 1.4 },
+];
 
 // Zonas sem recursos: os acampamentos, a cidadela (edifícios, rampa, abertura), a clareira do altar e a Via dos Titãs.
 const KEEP_OUT: { x: number; y: number; r: number }[] = [
@@ -327,6 +333,15 @@ export function buildOthrysMap(): FixedMapData {
     const at = e.kind === 'unit' ? nearestFreeTile(map, e.x, e.y, 6) : { x: e.x, y: e.y };
     if (!at) throw new Error(`sem espaço para ${e.type} em (${e.x}, ${e.y})`);
     applyEditOp(state, { kind: 'placeEntity', entity: { ...e, x: at.x, y: at.y } }, tags);
+  }
+  // 4b) E2 (docs/eras/E2-recursos.md): pedra depois de todos os outros nós, com RNG próprio — os nós antigos não mudam
+  const rngStone = new RNG(SEED ^ 0x570e);
+  for (const c of STONE_CLUSTERS) {
+    let placed = 0;
+    for (let tries = 0; tries < c.n * 30 && placed < c.n; tries++) {
+      const x = Math.round(c.x + (rngStone.float() * 2 - 1) * c.r), y = Math.round(c.y + (rngStone.float() * 2 - 1) * c.r);
+      if (tryNode(c.type, x, y, c.amount)) placed++;
+    }
   }
   // 5) inícios (a partida em branco já tem os quatro; setStart grava as posições exatas)
   STARTS.forEach(([x, y], index) => applyEditOp(state, { kind: 'setStart', index, x, y }));

@@ -69,6 +69,12 @@ export function buildEstreito(): { file: FixedMapData; warnings: MapIssue[]; rou
   placeStartLayout(b, sx, sy);
   // ---- além dos 12 tiles, definidos para o início 1 (a rotação dá os do início 2) ----
   const far = (x: number, y: number) => !nearStart(x, y, LOCAL_RADIUS + 0.5);
+  // E2: pedra de reserva, nafta, jazida de petróleo e raros
+  b.nodes('limestone', MapBuilder.rect(sx + 1, sy - 15, sx + 2, sy - 14));
+  b.nodes('naphtha', MapBuilder.rect(sx + 12, sy - 7, sx + 13, sy - 6));
+  b.nodes('oil_field', [[sx - 6, sy - 16], [sx - 5, sy - 16], [sx - 6, sy - 17]]);
+  b.nodes('olive', [[sx + 16, sy + 4]]);
+  b.nodes('copper', [xy(mid(79) - 7, 79)]);
   b.nodes('gold', MapBuilder.rect(sx + 13, sy + 10, sx + 14, sy + 11));       // ouro de reserva (~17)
   b.nodes('deer', MapBuilder.rect(sx - 14, sy - 13, sx - 13, sy - 12));       // cervos (~19)
   // bosques: o grande às costas (entre o Centro Cívico e a serra), um a oeste e um ao sul

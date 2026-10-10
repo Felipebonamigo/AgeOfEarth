@@ -205,6 +205,11 @@ const CLUSTERS: Cluster[] = [
   // Náuplia: pinheiros atrás do cais e frutas na baía
   { type: 'tree', x: 28, y: 109, n: 6, r: 1.8 }, { type: 'berry', x: 12, y: 103, n: 4, r: 1.2 },
 ];
+// E2 (docs/eras/E2-recursos.md): pedra de calcário perto de cada base, depois de todos os outros nós
+const STONE_CLUSTERS: Cluster[] = [
+  { type: 'limestone', x: 66, y: 50, n: 5, r: 1.4 },
+  { type: 'limestone', x: 107, y: 12, n: 5, r: 1.4 },
+];
 
 // Zonas sem recursos (espaço de construção e passagem livre): a cidade e a porta norte, a Descida, o início do Culto,
 // Tirinto, os vaus, o cais.
@@ -326,6 +331,15 @@ export function buildFlamesMap(): FixedMapData {
     let byOther = false;   // árvore colada em ouro/frutas/caça pode cercá-los (nó sem acesso)
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const id = map.nodeAt[(y + dy) * W + x + dx]; if (id !== -1 && map.nodes.get(id)?.type !== 'tree') byOther = true; }
     if (!byOther) tryNode('tree', x, y);
+  }
+  // 4b) E2 (docs/eras/E2-recursos.md): pedra depois de todos os outros nós, com RNG próprio — os nós antigos não mudam
+  const rngStone = new RNG(SEED ^ 0x570e);
+  for (const c of STONE_CLUSTERS) {
+    let placed = 0;
+    for (let tries = 0; tries < c.n * 30 && placed < c.n; tries++) {
+      const x = Math.round(c.x + (rngStone.float() * 2 - 1) * c.r), y = Math.round(c.y + (rngStone.float() * 2 - 1) * c.r);
+      if (tryNode(c.type, x, y, c.amount)) placed++;
+    }
   }
   // 5) inícios (a partida em branco já tem os três; setStart grava as posições exatas)
   STARTS.forEach(([x, y], index) => applyEditOp(state, { kind: 'setStart', index, x, y }));

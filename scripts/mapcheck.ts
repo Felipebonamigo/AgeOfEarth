@@ -26,7 +26,7 @@ for (const input of inputs) {
   const ms = Date.now() - t0;
   for (const i of r.issues) console.log(fmt(i));
   console.log(`  ${map.name ?? map.id ?? '(sem nome)'} ${map.w}x${map.h} · ${map.starts.length} inícios · ${map.nodes.length} nós · hash ${r.hash !== null ? '#' + r.hash.toString(16) : '—'} · ${r.errors} erro(s), ${r.warnings} aviso(s)`);
-  r.resources.forEach((row, i) => console.log(`  início ${i + 1} (raio 16): comida ${row.food} (${row.foodNodes} nós) · madeira ${row.wood} (${row.woodNodes}) · ouro ${row.gold} (${row.goldNodes})`));
+  r.resources.forEach((row, i) => console.log(`  início ${i + 1} (raio 16): comida ${row.food} (${row.foodNodes} nós) · madeira ${row.wood} (${row.woodNodes}) · ouro ${row.gold} (${row.goldNodes}) · pedra ${row.stone} (${row.stoneNodes}) · petróleo ${row.oil} (${row.oilNodes}) · raros ${row.rare}`));
   if (r.state) {
     console.log(`  ${r.minutes.toFixed(1)} min simulados em ${(ms / 1000).toFixed(1)}s reais (${(ms / Math.max(1, r.ticks)).toFixed(2)} ms/tick) · unidades ${r.units} · edifícios ${r.buildings}${r.gameOver ? ` · PARTIDA TERMINOU no tick ${r.ticks}` : ''}`);
     for (const p of r.players) console.log(`  ${p.name.padEnd(6)} ${p.alive ? 'vivo ' : 'morto'} idade=${AGES[p.age].short.padEnd(8)} cidadãos=${p.villagers} (ociosos ${p.idle}) militares=${p.military} treinados=${p.trained} construídos=${p.built} pop=${p.pop}/${p.popCap}${p.stalled ? '  <-- IA PARADA' : ''}`);

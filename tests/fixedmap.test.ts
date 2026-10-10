@@ -80,14 +80,15 @@ const BLANK = blankMap(48, 48, 2, 1);
 
 describe('gerador de mapas (regressão após as extrações)', () => {
   it('generateMap produz exatamente o mesmo terreno, decor, nós e inícios de antes do refactor', () => {
+    // E2: + placeEraResources (pedra, nafta, jazidas e raros; os hashes mudaram de propósito).
     // Hashes gravados com o código anterior à extração de deriveDeepWater/placeStartResources/circleStarts.
     // Para regenerar após uma mudança INTENCIONAL do gerador: rode este teste e copie os valores da mensagem de falha
     // (ou `npx tsx -e` com hashGenerated(generateMap(w, h, seed, players, type, clearCenter))) — e rode `npm run balance` depois.
     const expected: [number, number, number, number, 'continental' | 'lakes' | 'mountains' | 'desert', boolean, number, number][] = [
-      [80, 80, 42, 2, 'continental', false, 1842007216, 959],
-      [112, 112, 7, 4, 'lakes', false, 4023986883, 1337],
-      [144, 144, 99, 3, 'mountains', false, 17240322, 3307],
-      [80, 80, 5, 2, 'desert', true, 2984615489, 237],
+      [80, 80, 42, 2, 'continental', false, 3625703368, 995],
+      [112, 112, 7, 4, 'lakes', false, 3367152841, 1416],
+      [144, 144, 99, 3, 'mountains', false, 1777911223, 3369],
+      [80, 80, 5, 2, 'desert', true, 337209012, 285],
     ];
     for (const [w, h, seed, p, type, clear, hash, nodes] of expected) {
       resetNodeSeq();

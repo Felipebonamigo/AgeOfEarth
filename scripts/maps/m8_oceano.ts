@@ -199,6 +199,12 @@ const CLUSTERS: Cluster[] = [
   // pinheiros costeiros nas pontas da praia (longe de onde Oceano sobe)
   { type: 'tree', x: 16, y: 114, n: 6, r: 2 }, { type: 'tree', x: 112, y: 114, n: 6, r: 2 },
 ];
+// E2 (docs/eras/E2-recursos.md): pedra de calcário perto de cada base, depois de todos os outros nós
+const STONE_CLUSTERS: Cluster[] = [
+  { type: 'limestone', x: 62, y: 7, n: 5, r: 1.4 },
+  { type: 'limestone', x: 116, y: 57, n: 5, r: 1.4 },
+  { type: 'limestone', x: 20, y: 15, n: 5, r: 1.4 },
+];
 
 // Zonas sem recursos (espaço de construção e passagem livre): a cidade de Argos, os inícios, as passagens da crista e o pé
 // delas, a subida de Oceano na praia e o covil da Hidra.
@@ -315,6 +321,15 @@ export function buildGulfMap(): FixedMapData {
     let byOther = false;   // árvore colada em ouro/frutas/caça pode cercá-los (nó sem acesso)
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const id = map.nodeAt[(y + dy) * W + x + dx]; if (id !== -1 && map.nodes.get(id)?.type !== 'tree') byOther = true; }
     if (!byOther) tryNode('tree', x, y);
+  }
+  // 4b) E2 (docs/eras/E2-recursos.md): pedra depois de todos os outros nós, com RNG próprio — os nós antigos não mudam
+  const rngStone = new RNG(SEED ^ 0x570e);
+  for (const c of STONE_CLUSTERS) {
+    let placed = 0;
+    for (let tries = 0; tries < c.n * 30 && placed < c.n; tries++) {
+      const x = Math.round(c.x + (rngStone.float() * 2 - 1) * c.r), y = Math.round(c.y + (rngStone.float() * 2 - 1) * c.r);
+      if (tryNode(c.type, x, y, c.amount)) placed++;
+    }
   }
   // 5) inícios (a partida em branco já tem os quatro; setStart grava as posições exatas)
   STARTS.forEach(([x, y], index) => applyEditOp(state, { kind: 'setStart', index, x, y }));

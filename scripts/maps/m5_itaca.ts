@@ -193,6 +193,11 @@ const CLUSTERS: Cluster[] = [
   { type: 'deer', x: 99, y: 22, n: 4, r: 1.8 }, { type: 'boar', x: 112, y: 27, n: 2, r: 1.2 },
   { type: 'tree', x: 100, y: 5, n: 10, r: 2.6 }, { type: 'tree', x: 120, y: 15, n: 10, r: 2.6 },
 ];
+// E2 (docs/eras/E2-recursos.md): pedra de calcário perto de cada base, depois de todos os outros nós
+const STONE_CLUSTERS: Cluster[] = [
+  { type: 'limestone', x: 18, y: 12, n: 5, r: 1.4 },
+  { type: 'limestone', x: 108, y: 7, n: 5, r: 1.4 },
+];
 
 // Zonas sem recursos (espaço de construção e passagem livre): Argos, inícios, Heraion, torres, vaus, praia do desembarque.
 const KEEP_OUT: { x: number; y: number; r: number }[] = [
@@ -307,6 +312,15 @@ export function buildArgolisMap(): FixedMapData {
     let byOther = false;   // árvore colada em ouro/frutas/caça pode cercá-los (nó sem acesso)
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const id = map.nodeAt[(y + dy) * W + x + dx]; if (id !== -1 && map.nodes.get(id)?.type !== 'tree') byOther = true; }
     if (!byOther) tryNode('tree', x, y);
+  }
+  // 4b) E2 (docs/eras/E2-recursos.md): pedra depois de todos os outros nós, com RNG próprio — os nós antigos não mudam
+  const rngStone = new RNG(SEED ^ 0x570e);
+  for (const c of STONE_CLUSTERS) {
+    let placed = 0;
+    for (let tries = 0; tries < c.n * 30 && placed < c.n; tries++) {
+      const x = Math.round(c.x + (rngStone.float() * 2 - 1) * c.r), y = Math.round(c.y + (rngStone.float() * 2 - 1) * c.r);
+      if (tryNode(c.type, x, y, c.amount)) placed++;
+    }
   }
   // 5) inícios (a partida em branco já tem os três; setStart grava as posições exatas)
   STARTS.forEach(([x, y], index) => applyEditOp(state, { kind: 'setStart', index, x, y }));
