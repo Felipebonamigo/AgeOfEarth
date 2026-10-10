@@ -81,20 +81,20 @@ Bloco F — Campanha
 - [ ] F6 Testes de campanha e `scripts/missions.ts`
 
 Bloco G — Renderização, ícones e conquistas
-- [ ] G1 `ageTier`/`visualEra` no renderizador
-- [ ] G2 Ícones das 8 Eras (`AGE_ICONS` + `npm run art:hud`)
+- [x] G1 `ageTier`/`visualEra` no renderizador
+- [x] G2 Ícones das 8 Eras (`AGE_ICONS` + `npm run art:hud`)
 - [ ] G3 Conquistas (`titans` = Era 7) e planilha da Steam
 
 Bloco H — Interface
-- [ ] H1 Textos que mudam em `strings.ts`
-- [ ] H2 `src/ui/studytree.ts` (novo)
-- [ ] H3 CSS da árvore
-- [ ] H4 `hud.ts`: painel da Biblioteca, árvore, menu, atalhos
-- [ ] H5 `input.ts`: F3 e E
-- [ ] H6 `src/ui/era-select.ts` (novo)
-- [ ] H7 Partida rápida: seletores de Era
-- [ ] H8 Lobby e relay: Era inicial/final
-- [ ] H9 Editor (Testar): seletores de Era
+- [x] H1 Textos que mudam em `strings.ts`
+- [x] H2 `src/ui/studytree.ts` (novo)
+- [x] H3 CSS da árvore
+- [x] H4 `hud.ts`: painel da Biblioteca, árvore, menu, atalhos
+- [x] H5 `input.ts`: F3 e E
+- [x] H6 `src/ui/era-select.ts` (novo)
+- [x] H7 Partida rápida: seletores de Era
+- [x] H8 Lobby e relay: Era inicial/final
+- [x] H9 Editor (Testar): seletores de Era
 - [ ] H10 Testes de interface
 - [ ] H11 Playtests (`playtest.mjs` e `playtest-library.mjs`)
 

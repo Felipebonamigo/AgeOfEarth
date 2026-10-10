@@ -256,8 +256,10 @@ export const WALL_FLAG_PROBE = '10f';
 export function wallFlagAt(x: number, y: number): boolean { return (((x + y) % 3) + 3) % 3 === 0; }
 /** Eixo do portão: 'ns' se liga só ao norte/sul (muralha norte-sul); senão 'ew' (padrão, inclusive isolado). */
 export function gateAxis(mask: number): 'ew' | 'ns' { return (mask & 5) !== 0 && (mask & 10) === 0 ? 'ns' : 'ew'; }
-/** Variante por Idade do Centro Cívico: a0 = Arcaica, a1 = Clássica/Heroica, a2 = Mítica/Titãs. */
-export function ageTier(age: number): 'a0' | 'a1' | 'a2' { return age <= 0 ? 'a0' : age <= 2 ? 'a1' : 'a2'; }
+/** Variante por Era do Centro Cívico até a E8: a0 = Arcaica, a1 = Clássica, a2 = da Helenística em diante (mármore). */
+export function ageTier(age: number): 'a0' | 'a1' | 'a2' { return age <= 0 ? 'a0' : age === 1 ? 'a1' : 'a2'; }
+/** Era que a arte mostra: a do dono, limitada por config.visualEraMax (campanha: 2 = Helenística). Só aparência. */
+export function visualEra(age: number, cap?: number): number { return typeof cap === 'number' && Number.isFinite(cap) ? Math.max(0, Math.min(age, Math.floor(cap))) : age; }
 /**
  * Plantação da fazenda (variante `farmCrop`): 'sown' (semeado), 'growing' (crescendo), 'ripe' (maduro). No núcleo a
  * fazenda não tem estoque (fonte infinita para 1 cidadão), então o campo segue um ciclo de colheita de FARM_CYCLE s de

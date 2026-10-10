@@ -182,9 +182,9 @@
    "page": 0,
    "w": 2048,
    "h": 448,
-   "frames": 144,
-   "bytes": 618158,
-   "sha256": "7096c8ecb732160ad63e447df91a4fc15fca8b4d9b218c16dfeb6b1ea71fbc23"
+   "frames": 147,
+   "bytes": 623605,
+   "sha256": "38aa6b1454d9fd646d3e7ca7692db9e480149a0f28cf074fbf68e015cf3361d8"
   },
   {
    "json": "hud-1x-team-0.json",
@@ -207,10 +207,10 @@
    "scale": 2,
    "page": 0,
    "w": 2048,
-   "h": 1344,
-   "frames": 144,
-   "bytes": 1801792,
-   "sha256": "cd5fd5eafe65cbc93a22ec7427284039dfbff46473c252be04513a936942a53a"
+   "h": 1440,
+   "frames": 147,
+   "bytes": 1817757,
+   "sha256": "ca2d870c7771a7d957e99680c4969864d2bde522509f71e376f52b52f2350bab"
   },
   {
    "json": "hud-2x-team-0.json",
@@ -220,10 +220,10 @@
    "scale": 2,
    "page": 0,
    "w": 2048,
-   "h": 1344,
+   "h": 1440,
    "frames": 60,
-   "bytes": 125538,
-   "sha256": "fb14272a24f7bbc779091d5c1abdac2cf2fd4480fb86b7f2ee01902ecdbf5111"
+   "bytes": 126300,
+   "sha256": "c567cb6d41fabf0d8772783f6558d291f3afa831f6f6f337450eeba0166e50f5"
   },
   {
    "json": "icons-1x-0.json",
@@ -4190,12 +4190,12 @@
   "hud": {
    "kind": "hud",
    "group": "hud",
-   "sourceHash": "4740ff93e585fbf4",
+   "sourceHash": "20144d480b62717f",
    "dirs": 1,
    "mirror": false,
    "team": true,
    "shadow": false,
-   "frames": 144,
+   "frames": 147,
    "items": [
     "ability/cunning",
     "ability/fury",
@@ -4207,6 +4207,9 @@
     "age/2",
     "age/3",
     "age/4",
+    "age/5",
+    "age/6",
+    "age/7",
     "bld/academy",
     "bld/barracks",
     "bld/cornucopia",
@@ -8285,8 +8288,8 @@
   }
  },
  "totals": {
-  "pngBytes": 116887458,
-  "vramBytes": 722825216,
+  "pngBytes": 116909632,
+  "vramBytes": 724398080,
   "atlases": 148
  }
 }

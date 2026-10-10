@@ -7,7 +7,8 @@ import { relicsOf } from '../core/sim/relics';
 import { AGES, BUILDINGS, BUILD_MENU, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS, ACADEMY_LINES, ABILITIES } from '../core/data';
 import type { Building, GameEvent, Unit } from '../core/types';
 import { getUnitStats, getBuildingStats, techCost } from '../core/sim/modifiers';
-import { canTrain, canResearch, canAdvanceAge, academyTechCount } from '../core/sim/commands';
+import { canTrain, canResearch, canAdvanceAge, canHireScholar, academyTechCount } from '../core/sim/commands';
+import { studyTreeModel, studyTreeHtml, studyTreeKey, studyNodeDetail, pickLibrary, librariesOf, type StudyNode } from './studytree';
 import { canPlaceBuilding, buildingLimitOk } from '../core/sim/entities';
 import { farmGatherers, isMilitary } from '../core/sim/queries';
 import { canAfford, missingResources } from '../core/sim/economy';
@@ -228,7 +229,7 @@ export class HUD {
     if (this.dlg.update(performance.now())) this.renderDialogue();   // fila de falas: a próxima entra quando a atual vence
     if (this.mmAcc > 0.15) { this.mmAcc = 0; this.minimap.draw(s.state, this.renderer.cam, s.local, { editor: this.editorMode }); }
     if (this.editorMode) return;   // editor: nada de recursos, seleção, poderes, objetivos ou fim de jogo
-    if (this.acc > 0.12) { this.acc = 0; this.refreshTop(); this.refreshSelection(false); this.refreshGods(); this.refreshObjectives(false); }
+    if (this.acc > 0.12) { this.acc = 0; this.refreshTop(); this.refreshSelection(false); this.refreshGods(); this.refreshObjectives(false); this.refreshStudyTree(); }
     if (s.state.gameOver && !this.gameOverShown) { this.gameOverShown = true; this.showGameOver(); }
   }
 
@@ -447,6 +448,7 @@ export class HUD {
     if (def.popCap) stats.push(`${t('sel.popCap')} <b>+${def.popCap}</b>`);
     if (def.worship) { let n = 0; for (const u of s.state.units.values()) if (u.state === 'pray' && u.nodeId === -b.id) n++; stats.push(`${t('sel.worshippers')} <b>${n}</b>`); }
     if (def.scholars) stats.push(`${t('sel.scholars')} <b>${b.scholars}/${MAX_SCHOLARS}</b>`);
+    if (def.queueMax) stats.push(`${t('sel.queue')} <b>${b.queue.length}/${def.queueMax}</b>`);
     if (def.farm) stats.push(`${t('sel.farmers')} <b>${farmGatherers(s.state, b.id)}/1</b>`);
     if (def.garrison) stats.push(`${t('sel.garrison')} <b>${b.garrison.length}/${def.garrison}</b>${b.garrison.length >= 3 ? ` (${t('sel.extraArrows', { n: Math.min(4, Math.floor(b.garrison.length / 3)) })})` : ''}`);
     // em cenário a vitória nativa por Maravilha não roda (G2): a guarda, se houver, é do roteiro, e este cronômetro enganaria
@@ -533,6 +535,11 @@ export class HUD {
     if (b) {
       const def = BUILDINGS[b.type];
       if (!b.complete) { add(glyph('cancel'), t('cmd.cancelBuild'), t('cmd.cancelBuildTip'), null, () => { s.issue({ type: 'cancel', player: s.local, buildingId: b.id, index: -1 }); s.select([]); }); return; }
+      if (def.library) {
+        const adv = canAdvanceAge(s.state, p, b);
+        add(ic.age(Math.min(p.age + 1, AGES.length - 1)), p.age < AGES.length - 1 ? AGES[p.age + 1].short : t('cmd.ageMax'), this.ageBtn.dataset.tip ?? '', 'E', () => this.tryAdvanceAge(b), { disabled: !adv.ok });
+        add(glyph('scroll'), t('cmd.studyTree'), t('cmd.studyTreeTip'), 'F3', () => this.showStudyTree());
+      }
       if (def.trains) for (const ut of def.trains) {
         const ud = UNITS[ut];
         if (ud.age > p.age + 1) continue;
@@ -543,7 +550,7 @@ export class HUD {
         add(ic.unit(ut, p.color), ud.name, tip, ud.hotkey ?? null, () => { const r = this.issueChecked({ type: 'train', player: s.local, buildingId: b.id, unit: ut }); if (r) this.audio.play('command'); }, { disabled: !c.ok });
       }
       if (def.scholars) {
-        const c = b.scholars >= MAX_SCHOLARS ? t('cmd.maxReached') : !canAfford(p, SCHOLAR_COST) ? t('cmd.noResources') : '';
+        const ch = canHireScholar(s.state, p, b); const c = ch.ok ? '' : (ch.reason ?? t('cmd.noResources'));
         add(glyph('scholar'), t('cmd.scholar'), `${t('cmd.scholarTip', { cost: fmtCost(SCHOLAR_COST, p), max: MAX_SCHOLARS })}${c ? `<div style="color:#ef4444">${c}</div>` : ''}`, 'Q', () => this.issueChecked({ type: 'hireScholar', player: s.local, buildingId: b.id }), { disabled: !!c });
       }
       for (const tech of Object.values(TECHS)) {
@@ -555,10 +562,6 @@ export class HUD {
         const c = canResearch(s.state, p, b, tech.id);
         const tip = `${t('cmd.techTip', { name: tech.name, cost: fmtCost(cost, p), time: tech.time, desc: tech.desc })}${c.ok ? '' : `<div style="color:#ef4444;margin-top:4px">${c.reason ?? (tech.age > p.age ? t('cmd.requiresAge', { age: AGES[tech.age].name }) : '')}</div>`}`;
         add(ic.tech(tech.id), tech.name, tip, null, () => { if (this.issueChecked({ type: 'research', player: s.local, buildingId: b.id, tech: tech.id })) this.audio.play('command'); }, { disabled: !c.ok });
-      }
-      if (b.type === 'town_center') {
-        const adv = canAdvanceAge(s.state, p, b);
-        add(ic.age(Math.min(p.age + 1, AGES.length - 1)), p.age < AGES.length - 1 ? AGES[p.age + 1].short : t('cmd.ageMax'), this.ageBtn.dataset.tip ?? '', null, () => this.tryAdvanceAge(b), { disabled: !adv.ok });
       }
       if (def.trade) {
         for (const r of ['food', 'wood'] as ResourceType[]) {
@@ -596,7 +599,7 @@ export class HUD {
     let check: { ok: boolean; reason?: string } = { ok: true };
     if (cmd.type === 'train') { const b = s.state.buildings.get(cmd.buildingId); if (b) check = canTrain(s.state, p, b, cmd.unit); }
     else if (cmd.type === 'research') { const b = s.state.buildings.get(cmd.buildingId); if (b) check = canResearch(s.state, p, b, cmd.tech); }
-    else if (cmd.type === 'hireScholar') { if (!canAfford(p, SCHOLAR_COST)) check = { ok: false, reason: t('err.noResources') }; }
+    else if (cmd.type === 'hireScholar') { const b = s.state.buildings.get(cmd.buildingId); if (b) check = canHireScholar(s.state, p, b); }
     if (!check.ok) { this.toast(check.reason ?? t('msg.cannot'), 'warn'); this.audio.play('error'); return false; }
     s.issue(cmd);
     return true;
@@ -617,14 +620,54 @@ export class HUD {
 
   canPlaceHere(type: string, tx: number, ty: number): boolean { const s = this.session!; return canPlaceBuilding(s.state, s.player, type, tx, ty).ok; }
 
-  tryAdvanceAge(tcArg?: Building) {
+  private treeKey = '';
+  showStudyTree() { if (!this.session) return; this.renderStudyTree(true); }
+  private renderStudyTree(first: boolean) {
+    const s = this.session!;
+    const m = studyTreeModel(s.state, s.local, !!s.spectator);
+    const fc = (c: Record<string, number>) => fmtCost(c, s.player);
+    const old = this.modal.querySelector('.tree-body') as HTMLElement | null;
+    const scroll = !first && old ? [old.scrollLeft, old.scrollTop] : null;
+    const focus = !first ? ((document.activeElement as HTMLElement | null)?.dataset?.study ?? null) : null;
+    const html = studyTreeHtml(m, fc);
+    if (first) this.showModal(html); else this.modal.innerHTML = html;
+    this.modal.classList.add('tree');   // depois do showModal, que zera className
+    this.treeKey = studyTreeKey(s.state, s.local);
+    const body = this.modal.querySelector('.tree-body') as HTMLElement;
+    if (scroll) { body.scrollLeft = scroll[0]; body.scrollTop = scroll[1]; }
+    const nodes = new Map<string, StudyNode>(m.rows.flatMap((r) => r.cells.flat()).map((x) => [x.id, x]));
+    const detail = this.modal.querySelector('#tree-detail') as HTMLElement;
+    this.modal.querySelectorAll<HTMLElement>('[data-study]').forEach((el) => {
+      const x = nodes.get(el.dataset.study!); if (!x) return;
+      const show = () => { detail.innerHTML = studyNodeDetail(x, fc); };
+      el.addEventListener('mouseenter', show); el.addEventListener('focus', show);
+      el.addEventListener('click', () => this.studyClick(x, m.readOnly));
+      if (focus && el.dataset.study === focus) el.focus();
+    });
+    this.modal.querySelector('#m-close')!.addEventListener('click', () => this.hideModal());
+  }
+  private studyClick(x: StudyNode, readOnly: boolean) {
+    if (readOnly || x.status !== 'available') { this.audio.play('error'); return; }
+    const s = this.session!;
+    const lib = pickLibrary(s.state, s.local);
+    if (!lib) { this.toast(t('tree.noLibrary'), 'warn'); return; }
+    if (x.kind === 'age') { this.tryAdvanceAge(lib); return; }
+    if (this.issueChecked({ type: 'research', player: s.local, buildingId: lib.id, tech: x.id })) { this.audio.play('command'); this.treeKey = ''; }
+  }
+  private refreshStudyTree() {
+    const s = this.session;
+    if (!s || !this.modalOpen || !this.modal.classList.contains('tree')) return;
+    if (studyTreeKey(s.state, s.local) !== this.treeKey) this.renderStudyTree(false);
+  }
+
+  tryAdvanceAge(libArg?: Building) {
     const s = this.session!; const p = s.player;
-    const tc = tcArg ?? [...s.state.buildings.values()].find((b) => b.owner === p.id && b.type === 'town_center' && b.complete && b.queue.length === 0) ?? [...s.state.buildings.values()].find((b) => b.owner === p.id && b.type === 'town_center' && b.complete);
-    if (!tc) { this.toast(t('msg.needLibrary'), 'warn'); return; }
-    const adv = canAdvanceAge(s.state, p, tc);
+    const lib = libArg ?? pickLibrary(s.state, s.local);
+    if (!lib) { this.toast(librariesOf(s.state, s.local).length ? t('err.queueFull') : t('msg.needLibrary'), 'warn'); this.audio.play('error'); return; }
+    const adv = canAdvanceAge(s.state, p, lib);
     if (!adv.ok) { this.toast(adv.reason ?? t('msg.cantAdvance'), 'warn'); this.audio.play('error'); return; }
-    if (!adv.minorOptions || adv.minorOptions.length === 0) { s.issue({ type: 'advanceAge', player: s.local, buildingId: tc.id }); this.toast(t('msg.advanceStarted', { age: AGES[p.age + 1].name }), 'gold'); return; }
-    this.showMinorGodChoice(adv.minorOptions, (god) => { s.issue({ type: 'advanceAge', player: s.local, buildingId: tc.id, minorGod: god }); this.toast(t('msg.advanceStartedGod', { age: AGES[p.age + 1].name, god: MINOR_GODS[god].name }), 'gold'); });
+    if (!adv.minorOptions || adv.minorOptions.length === 0) { s.issue({ type: 'advanceAge', player: s.local, buildingId: lib.id }); this.toast(t('msg.advanceStarted', { age: AGES[p.age + 1].name }), 'gold'); return; }
+    this.showMinorGodChoice(adv.minorOptions, (god) => { s.issue({ type: 'advanceAge', player: s.local, buildingId: lib.id, minorGod: god }); this.toast(t('msg.advanceStartedGod', { age: AGES[p.age + 1].name, god: MINOR_GODS[god].name }), 'gold'); });
   }
 
   // ---------------- Controle (src/ui/gamepad.ts) ----------------
@@ -691,6 +734,7 @@ export class HUD {
         <div style="display:flex;gap:8px"><button class="btn" id="m-export" style="flex:1">${glyph('export')} arquivo / file</button><button class="btn" id="m-import" style="flex:1">${glyph('import')} arquivo / file</button></div>
         <button class="btn" id="m-help">${t('menu.help')}</button>
         <button class="btn" id="m-enc">${t('menu.enc')}</button>
+        <button class="btn" id="m-tree">${t('menu.tree')}</button>
         <div style="margin-top:8px">${opts ? optionsHTML(opts) : ''}</div>
         <label style="font-size:12px;color:#9aa5b8"><input type="checkbox" id="m-ranges" ${s.ui.showRanges ? 'checked' : ''}> ${t('menu.ranges')}</label>
         <button class="btn" id="m-exportmap">${t('menu.exportMap')}</button>
@@ -704,6 +748,7 @@ export class HUD {
     q('#m-load')?.addEventListener('click', () => { this.hideModal(); this.cb.onLoad(); });
     q('#m-help').addEventListener('click', () => this.showHelp());
     q('#m-enc').addEventListener('click', () => this.showEncyclopedia());
+    q('#m-tree').addEventListener('click', () => this.showStudyTree());
     if (opts) bindOptions(this.modal, opts, () => this.showMenu());
     q('#m-ranges').addEventListener('change', (e) => { s.ui.showRanges = (e.target as HTMLInputElement).checked; });
     q('#m-diag').addEventListener('click', () => { this.cb.onDiagnostic?.(); });
@@ -746,9 +791,9 @@ export class HUD {
       [`${k('W A S D')} · ${k(t('hk.k.arrows'))} · ${t('hk.k.edge')} · ${k(t('hk.k.middle'))}`, t('hk.camera')], [k(t('hk.k.wheel')), t('hk.zoom')],
       [k('H'), t('hk.home')], [k(t('hk.k.space')), t('hk.lastEvent')], [k('.'), t('hk.idle')],
       [`${k('P')} · ${k('+')} ${k('-')}`, t('hk.speed')], [`${k('Ctrl')}+${k('M')}`, t('hk.mute')],
-      [`${k('F1')} ${k('F2')} ${k('F5')} ${k('F9')} ${k('F11')}`, t('hk.fkeys')], [k('Esc'), t('hk.esc')],
+      [`${k('F1')} ${k('F2')} ${k('F3')} ${k('F5')} ${k('F9')} ${k('F11')}`, t('hk.fkeys')], [k('Esc'), t('hk.esc')],
     ];
-    const buildingSel: [string, string][] = [[k('R'), t('hk.rally')], [k('U'), t('hk.release')], [k('Q'), t('hk.scholar')]];
+    const buildingSel: [string, string][] = [[k('R'), t('hk.rally')], [k('U'), t('hk.release')], [k('Q'), t('hk.scholar')], [k('E'), t('hk.advance')]];
     const builds = Object.entries(BUILDINGS).filter(([, b]) => b.hotkey && !b.notBuildable).sort((a, b) => a[1].age - b[1].age || a[1].hotkey!.localeCompare(b[1].hotkey!));
     const byKey = new Map<string, string[]>();
     for (const [id, b] of builds) byKey.set(b.hotkey!, [...(byKey.get(b.hotkey!) ?? []), id]);
@@ -772,7 +817,7 @@ export class HUD {
     else if (tab === 'buildings') body = `<table><tr><th>${t('enc.buildings')}</th><th>${t('enc.cost')}</th><th>${t('sel.hp')}</th><th>${t('enc.size')}</th><th>${t('over.age')}</th><th>${t('enc.description')}</th></tr>${Object.values(BUILDINGS).filter((b) => !b.notBuildable).map((b) => `<tr><td>${ic.bld(b.id, undefined, 'sm')} ${b.name}</td><td>${fmtCost(b.cost as Record<string, number>)}</td><td>${b.hp}</td><td>${b.w}×${b.h}</td><td>${AGES[b.age].short}</td><td>${b.desc}</td></tr>`).join('')}</table>`;
     else if (tab === 'techs') body = `<table><tr><th>${t('modal.tech')}</th><th>${t('enc.buildings')}</th><th>${t('enc.cost')}</th><th>${t('over.age')}</th><th>${t('enc.effect')}</th></tr>${Object.values(TECHS).map((x) => `<tr><td>${ic.tech(x.id, 'sm')} ${x.name}${x.god ? ` <small>(${MINOR_GODS[x.god].name})</small>` : ''}</td><td>${BUILDINGS[x.building].name}</td><td>${fmtCost(x.cost as Record<string, number>)}</td><td>${AGES[x.age].short}</td><td>${x.desc}</td></tr>`).join('')}</table>`;
     else if (tab === 'gods') body = Object.values(MAJOR_GODS).map((g) => `<h3>${ic.god(g.id, 'md')} ${g.name} — ${g.title}</h3><p>${g.desc}</p><ul>${g.perks.map((x) => `<li>${x}</li>`).join('')}</ul><p><b>${t('enc.minorGods')}:</b> ${g.minorGods.map((pair, i) => `${AGES[i + 1].short}: ${pair.map((m) => `${ic.god(m, 'sm')} ${MINOR_GODS[m].name}`).join(` ${t('enc.or')} `)}`).join(' · ')}</p>`).join('') + `<h3>${t('enc.minorGods')}</h3><table><tr><th>${t('enc.god')}</th><th>${t('over.age')}</th><th>${t('modal.power')}</th><th>${t('modal.creature')}</th><th>${t('enc.techs')}</th></tr>${Object.values(MINOR_GODS).map((m) => `<tr><td>${m.icon} ${m.name}<br><small>${m.title}</small></td><td>${AGES[m.age].short}</td><td>${POWERS[m.power].icon} ${POWERS[m.power].name}<br><small>${POWERS[m.power].desc}</small></td><td>${UNITS[m.mythUnit].icon} ${UNITS[m.mythUnit].name}</td><td>${m.techs.map((x) => `${TECHS[x].icon} ${TECHS[x].name}`).join('<br>')}</td></tr>`).join('')}</table>`;
-    else body = `<table><tr><th>${t('over.age')}</th><th>${t('enc.cost')}</th><th>${t('enc.requirements')}</th><th>${t('enc.description')}</th></tr>${AGES.map((a, n) => `<tr><td>${ic.age(n, 'sm')} ${a.name}</td><td>${fmtCost(a.cost as Record<string, number>) || '—'}</td><td>${a.requires.building ? BUILDINGS[a.requires.building].name : ''} ${a.requires.techCount ? t('enc.academyLines', { n: a.requires.techCount, lines: ACADEMY_LINES.join(', ') }) : ''}</td><td>${a.desc}</td></tr>`).join('')}</table>`;
+    else body = `<table><tr><th>${t('over.age')}</th><th>${t('enc.cost')}</th><th>${t('enc.requirements')}</th><th>${t('enc.description')}</th></tr>${AGES.map((a, n) => `<tr><td>${ic.age(n, 'sm')} ${a.name}</td><td>${fmtCost(a.cost as Record<string, number>) || '—'}</td><td>${a.requires.building ? BUILDINGS[a.requires.building].name : ''} ${a.requires.techCount ? t('enc.academyLines', { n: a.requires.techCount, lines: ACADEMY_LINES.map((l) => t(`line.${l}`)).join(', ') }) : ''}</td><td>${a.desc}</td></tr>`).join('')}</table>`;
     this.showModal(`<h2>${t('enc.title')}</h2><div class="tabs">${tabs.map(([k, l]) => `<button class="btn ${k === tab ? 'active' : ''}" data-tab="${k}">${l}</button>`).join('')}</div><div style="max-height:60vh;overflow:auto">${body}</div><div class="actions"><button class="btn primary" id="m-close">${t('modal.close')}</button></div>`);
     this.modal.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => this.showEncyclopedia((b as HTMLElement).dataset.tab!)));
     this.modal.querySelector('#m-close')!.addEventListener('click', () => this.hideModal());

@@ -21,7 +21,7 @@ import { spawn } from 'node:child_process';
 import { createGame, tick } from '../../src/core/sim/game';
 import { TICK_RATE } from '../../src/core/constants';
 import { migrateMap, base64ToBytes, bytesToBase64, type FixedMapData } from '../../src/core/map/fixed';
-import { BUILDINGS } from '../../src/core/data';
+import { AGES, BUILDINGS } from '../../src/core/data';
 
 const USAGE = 'Uso: npx tsx scripts/maps/fairness.ts <arquivo.map.json | id> [minutos=45] [sementes=1-16] [deuses=zeus] [--swap | --both | --order 2,3,0,1] [--mirror-ai] [--transpose] [--jobs N] [--json saida.json]';
 
@@ -149,7 +149,7 @@ for (const r of results) {
 // idades e vitórias por INÍCIO (posição), somando as ordens
 const avg = (a: number[]) => (a.length ? fmt(a.reduce((x, y) => x + y, 0) / a.length) : '—');
 for (let s = 0; s < n; s++) {
-  const ages: number[][] = [[], [], [], []];
+  const ages: number[][] = AGES.slice(1).map(() => []);
   let wins = 0, ahead = 0;
   for (const r of results) {
     const q = r.players.find((p) => p.start === s)!;
@@ -157,7 +157,7 @@ for (let s = 0; s < n; s++) {
     if (r.winSide === q.side) wins++;
     if (r.ahead === q.side) ahead++;
   }
-  console.log(`início ${s + 1}: vitórias ${wins}/${results.length} · à frente ${ahead} · Clássica ${avg(ages[0])} · Heroica ${avg(ages[1])} · Mítica ${avg(ages[2])} · Titãs ${avg(ages[3])}`);
+  console.log(`início ${s + 1}: vitórias ${wins}/${results.length} · à frente ${ahead} · ${AGES.slice(1).map((a, k) => `${a.short} ${avg(ages[k])}`).join(' · ')}`);
 }
 
 /** Aplica o critério a um eixo (posição ou índice): vitórias + à frente, nenhum lado com > 65 %. */

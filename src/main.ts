@@ -40,7 +40,8 @@ import { exportText, importText } from './game/files';
 import { initCloud, storeSet, storeRemove } from './game/cloud';
 import { applyUiScale, initDisplay, isFullscreen, setFullscreen, desktop, setPresence } from './game/display';
 import type { OptionsContext } from './ui/options';
-import { MAJOR_GODS, MAJOR_GOD_LIST, AGES } from './core/data';
+import { MAJOR_GODS, MAJOR_GOD_LIST, AGES, MAX_AGE } from './core/data';
+import { eraConfig } from './ui/era-select';
 import { serialize, deserialize, SAVE_VERSION, saveVersionOf } from './core/serialize';
 import { mapToData } from './core/map/fixed';
 import { photosSettled } from './render/terrain/photos';
@@ -468,7 +469,7 @@ async function boot() {
     editorCam = { x: renderer.cam.x, y: renderer.cam.y, zoom: renderer.cam.zoom };
     leaveEditorView();
     returnToEditor = true; replaySaved = true;
-    startGame({ seed: (Math.floor(Math.random() * 1e9)) >>> 0, mapSize: 'medium', players, mode: opts.mode, revealMap: opts.reveal, map: file, mapHash: mapHash(file), startOrder: order });
+    startGame({ seed: (Math.floor(Math.random() * 1e9)) >>> 0, mapSize: 'medium', players, mode: opts.mode, revealMap: opts.reveal, map: file, mapHash: mapHash(file), startOrder: order, ...eraConfig(opts.startAge ?? 'auto', opts.endAge ?? MAX_AGE) });
     hud.setTestMode(() => returnFromTest());
   };
   /** Volta ao editor após o teste (menu → sair ou fim de partida): documento, câmera e pilha de desfazer intactos. */

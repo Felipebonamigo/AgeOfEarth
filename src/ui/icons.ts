@@ -5,6 +5,7 @@
 // guardado como data URL por nome e cor. Enquanto o atlas não chega (ou se faltar), o HUD mostra um marcador neutro,
 // nunca um emoji; quem desenha o HUD escuta `onIconsReady` para redesenhar.
 import { UNITS } from '../core/data/units';
+import { AGES } from '../core/data/ages';
 import { TECHS } from '../core/data/techs';
 import { MAJOR_GODS, MINOR_GODS } from '../core/data/gods';
 import { glyph } from './glyphs';
@@ -131,7 +132,7 @@ export const ic = {
   tech: (id: string, cls?: string): string => iconHtml(techIconName(id), { cls, label: TECHS[id]?.name }),
   power: (id: string, cls?: string): string => iconHtml(`power/${id}`, { cls }),
   god: (id: string, cls?: string): string => iconHtml(`god/${id}`, { cls: `hic-god${cls ? ' ' + cls : ''}` }),
-  age: (n: number, cls?: string): string => iconHtml(`age/${Math.max(0, Math.min(4, n))}`, { cls }),
+  age: (n: number, cls?: string): string => iconHtml(`age/${Math.max(0, Math.min(AGES.length - 1, n))}`, { cls }),
   ability: (id: string, cls?: string): string => iconHtml(`ability/${id}`, { cls }),
   res: (r: string, cls?: string): string => iconHtml(`res/${r}`, { cls: `hic-res${cls ? ' ' + cls : ''}` }),
 };

@@ -340,6 +340,30 @@ html.pad-active, html.pad-active * { cursor: none !important; }
 #modal { max-height: calc(88vh / var(--uiz, 1)); }
 html.pad-active #menu .box { max-height: calc(86vh / var(--uiz, 1)); }
 html.pad-active #modal { max-height: calc(82vh / var(--uiz, 1)); }
+/* Árvore de estudos da Biblioteca (E1, F3 na partida) */
+#modal.tree { max-width: none; width: calc(96vw / var(--uiz, 1)); height: calc(92vh / var(--uiz, 1)); max-height: none; display: flex; flex-direction: column; }
+#modal.tree .tree-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+#modal.tree .tree-body { flex: 1; overflow: auto; }
+#modal.tree .tree-grid { display: grid; gap: 6px; align-items: start; }
+#modal.tree .tree-era { position: sticky; top: 0; z-index: 1; background: var(--panel2); padding: 4px 6px; border-radius: 6px; text-align: center; }
+#modal.tree .tree-era.cur { outline: 1px solid var(--gold); }
+#modal.tree .tree-label { position: sticky; left: 0; background: var(--panel2); padding: 6px; border-radius: 6px; color: var(--marble); font-weight: bold; }
+#modal.tree .tree-cell { display: flex; flex-direction: column; gap: 4px; }
+#modal.tree .tree-node { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); color: var(--text); text-align: left; cursor: pointer; position: relative; }
+#modal.tree .tree-node .hic { width: 22px; height: 22px; flex: none; }
+#modal.tree .tree-node .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(0,0,0,.4); }
+#modal.tree .tree-node .bar i { display: block; height: 100%; background: var(--gold); }
+#modal.tree .st-done { border-color: #3f7d4a; background: #1d3324; }
+#modal.tree .st-active { border-color: var(--gold); }
+#modal.tree .st-queued { border-style: dashed; border-color: var(--gold); }
+#modal.tree .st-available { border-color: #5b8bd6; }
+#modal.tree .st-locked { opacity: .55; cursor: default; }
+#modal.tree .tree-detail { min-height: 56px; margin-top: 8px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); font-size: 13px; }
+#modal.tree .tree-detail .why { color: #ef4444; margin-top: 4px; }
+#modal.tree .tree-legend { display: flex; gap: 8px; margin-top: 6px; font-size: 12px; }
+#modal.tree .tree-chip { padding: 2px 8px; border: 1px solid var(--border); border-radius: 10px; }
+html.pad-active #modal.tree { max-height: none; height: calc(86vh / var(--uiz, 1)); }
+
 /* títulos em Cinzel (capitulares romanas): menu principal, campanha, modais, cartões dos deuses */
 #menu h1, #menu h3, #menu .act-head, #menu .god b, #menu .mission b, #modal h2, #modal h3, #gods .pw b { font-family: var(--font-title); letter-spacing: 0.02em; }
 #menu h1 { font-weight: 700; letter-spacing: 0.08em; }

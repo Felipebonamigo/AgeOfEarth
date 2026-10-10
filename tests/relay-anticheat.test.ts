@@ -238,6 +238,20 @@ describe('relay: anti-trapaça básico', () => {
     a.close(); back.close();
   });
 
+  it('Era inicial e final do lobby: o anfitrião manda startAge/endAge e os outros veem; texto inválido é ignorado', async () => {
+    const a = new Peer(), b = new Peer();
+    await a.open(); await b.open();
+    a.send({ t: 'join', room: 'ERAS', name: 'Ana', sim: SIM_VERSION }); await a.wait((m) => m.t === 'joined');
+    b.send({ t: 'join', room: 'ERAS', name: 'Beto', sim: SIM_VERSION }); await b.wait((m) => m.t === 'joined');
+    a.send({ t: 'settings', settings: { startAge: '2', endAge: '5' } });
+    const lobby = await b.wait((m) => m.t === 'lobby' && (m.settings as { startAge?: string }).startAge === '2');
+    expect(lobby.settings).toMatchObject({ startAge: '2', endAge: '5' });
+    a.send({ t: 'settings', settings: { startAge: 'x y', endAge: '6' } });
+    const l2 = await b.wait((m) => m.t === 'lobby' && (m.settings as { endAge?: string }).endAge === '6');
+    expect((l2.settings as { startAge?: string }).startAge).toBe('2');   // 'x y' não passa na regex: fica o valor anterior
+    a.close(); b.close();
+  });
+
   it('anfitrião também tem limites (tamanho e balde de bytes); configurações do lobby saneadas; `list` não amplifica', async () => {
     const a = new Peer(), b = new Peer();
     await a.open(); await b.open();

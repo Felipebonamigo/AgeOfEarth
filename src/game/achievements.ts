@@ -1,5 +1,5 @@
 // Conquistas: avaliadas no cliente a partir do estado; persistidas localmente e enviadas à Steam quando disponível.
-import { AGES, UNITS } from '../core/data';
+import { AGES, ERA_TITANS, UNITS } from '../core/data';
 import type { GameState } from '../core/types';
 import { desktop } from './files';
 import { storeSet } from './cloud';
@@ -42,10 +42,10 @@ export const STEAM_API_NAME_RE = /^[A-Za-z0-9_]{1,64}$/;
 /** Nome e descrição em inglês das conquistas fixas (as geradas trazem nameEn/descEn). */
 const EN: Record<string, [string, string]> = {
   first_temple: ['First Offering', 'Complete a Temple.'],
-  classical: ['Philosopher', 'Reach the Classical Age.'],
-  heroic: ['Song of Heroes', 'Reach the Heroic Age.'],
-  mythic: ['Touch of the Gods', 'Reach the Mythic Age.'],
-  titans: ['Titanomachy', 'Reach the Age of Titans.'],
+  classical: ['Philosopher', 'Reach the Classical Era.'],
+  heroic: ['Song of Heroes', 'Reach the Hellenistic Era.'],
+  mythic: ['Touch of the Gods', 'Reach the Byzantine Era.'],
+  titans: ['Titanomachy', 'Reach the Modern Era.'],
   titan_summoned: ['Broken Chains', 'Unleash a Titan.'],
   hero_trio: ['Argonauts', 'Have three heroes alive at the same time.'],
   menagerie: ['Bestiary', 'Have five different mythic creatures alive at the same time.'],
@@ -94,10 +94,10 @@ const wonBy = (s: GameState, l: number) => s.gameOver && s.winner >= 0 && s.play
 
 export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'first_temple', name: 'Primeira Oferenda', desc: 'Conclua um Templo.', icon: '⚡', check: (s, l) => [...s.buildings.values()].some((b) => b.owner === l && b.complete && b.type === 'temple') },
-  { id: 'classical', name: 'Filósofo', desc: 'Alcance a Idade Clássica.', icon: '🏛️', check: (s, l) => advancedTo(s, l, 1) },
-  { id: 'heroic', name: 'Canção dos Heróis', desc: 'Alcance a Idade Heroica.', icon: '⚔️', check: (s, l) => advancedTo(s, l, 2) },
-  { id: 'mythic', name: 'Toque dos Deuses', desc: 'Alcance a Idade Mítica.', icon: '🔱', check: (s, l) => advancedTo(s, l, 3) },
-  { id: 'titans', name: 'Titanomaquia', desc: 'Alcance a Idade dos Titãs.', icon: '🌋', check: (s, l) => advancedTo(s, l, 4) },
+  { id: 'classical', name: 'Filósofo', desc: 'Alcance a Era Clássica.', icon: '🏛️', check: (s, l) => advancedTo(s, l, 1) },
+  { id: 'heroic', name: 'Canção dos Heróis', desc: 'Alcance a Era Helenística.', icon: '⚔️', check: (s, l) => advancedTo(s, l, 2) },
+  { id: 'mythic', name: 'Toque dos Deuses', desc: 'Alcance a Era Bizantina.', icon: '🔱', check: (s, l) => advancedTo(s, l, 3) },
+  { id: 'titans', name: 'Titanomaquia', desc: 'Alcance a Era Moderna.', icon: '🌋', check: (s, l) => advancedTo(s, l, ERA_TITANS) },
   { id: 'titan_summoned', name: 'Correntes Rompidas', desc: 'Liberte um Titã.', icon: '⛓️', check: (s, l) => [...s.units.values()].some((u) => u.owner === l && UNITS[u.type].tags.includes('titan')) },
   { id: 'hero_trio', name: 'Argonautas', desc: 'Tenha três heróis vivos ao mesmo tempo.', icon: '🦁', check: (s, l) => [...s.units.values()].filter((u) => u.owner === l && UNITS[u.type].tags.includes('hero')).length >= 3 },
   { id: 'menagerie', name: 'Bestiário', desc: 'Tenha cinco criaturas míticas diferentes vivas ao mesmo tempo.', icon: '🐉', check: (s, l) => new Set([...s.units.values()].filter((u) => u.owner === l && UNITS[u.type].tags.includes('myth')).map((u) => u.type)).size >= 5 },

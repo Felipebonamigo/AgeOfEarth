@@ -295,6 +295,7 @@ export class Input {
     if (k === 'f1') { e.preventDefault(); this.hud.showHelp(); return; }
     if (k === 'f11') { e.preventDefault(); toggleFullscreen(); return; }
     if (k === 'f2') { e.preventDefault(); this.hud.showEncyclopedia(); return; }
+    if (k === 'f3') { e.preventDefault(); this.hud.showStudyTree(); return; }
     if (k === 'p' || k === 'pause') { s.paused = !s.paused; this.hud.refreshTop(); return; }
     if (k === '+' || k === '=') { s.speed = Math.min(3, s.speed + 0.5); this.hud.refreshTop(); return; }
     if (k === '-' || k === '_') { s.speed = Math.max(0.5, s.speed - 0.5); this.hud.refreshTop(); return; }
@@ -329,6 +330,7 @@ export class Input {
       if (keyU === 'R') { s.ui.mode = 'rally'; document.body.className = 'cur-rally'; return; }
       if (keyU === 'U' && (BUILDINGS[b.type].garrison || BUILDINGS[b.type].worship)) { s.issue({ type: 'ungarrison', player: s.local, buildingId: b.id }); return; }
       if (def.scholars && keyU === 'Q') { this.hud.issueChecked({ type: 'hireScholar', player: s.local, buildingId: b.id }); return; }
+      if (def.library && keyU === 'E') { this.hud.tryAdvanceAge(b); return; }
       if (def.trains) for (const ut of def.trains) if (UNITS[ut].hotkey === keyU) { this.hud.issueChecked({ type: 'train', player: s.local, buildingId: b.id, unit: ut }); return; }
     }
   }

@@ -28,7 +28,7 @@ import { vignetteTexture } from './fx/screen';
 import { bronzeTint } from './fx/handlers/bronze';
 import {
   abilityUseTick, animDuration, buildingState, chooseAnim, riseElapsed, corpseAlpha, CORPSE_TTL, MAX_CORPSES, dirWithHysteresis, freshHit, isWalking, isRunning, isMoveAnim, warmUnitTypes, unitLook, mulColor, type UnitAnim, type AnimInput,
-  WALL_LINK_TYPES, wallMask, buildingVariant, ageTier, farmCrop, pickVariant, damageLevel, gateNear, smokeRate, rubbleAlpha, GLOW_ANIM, glowVariant,
+  WALL_LINK_TYPES, wallMask, buildingVariant, ageTier, visualEra, farmCrop, pickVariant, damageLevel, gateNear, smokeRate, rubbleAlpha, GLOW_ANIM, glowVariant,
   ghostTint, placementMasks, wallFlagAt, WALL_FLAG_PROBE,
 } from './art/logic';
 
@@ -644,7 +644,7 @@ export class Renderer {
           hpFrac = b.hp / Math.max(1, b.maxHp);
           open = !!art?.states.has('open') && b.complete && this.gatesOpen.has(b.id);
           let variant: string | null = null;
-          if (art?.variantBy === 'ageTier') variant = ageTier(state.players[b.owner].age);
+          if (art?.variantBy === 'ageTier') variant = ageTier(visualEra(state.players[b.owner].age, state.config.visualEraMax));
           else if (art?.variantBy === 'farmCrop') variant = farmCrop((state.tick - b.builtTick) / TICK_RATE, b.id);
           else if (art?.variantBy === 'pick') variant = pickVariant(art.variants ?? [], b.tx, b.ty);
           else if (art?.variantBy) {
@@ -1026,7 +1026,7 @@ export class Renderer {
       const masks = art.variantBy === 'wallMask' || art.variantBy === 'gateAxis' ? placementMasks(tiles, linked) : null;
       for (let i = 0; i < tiles.length; i++) {
         const t = tiles[i];
-        const variant = art.variantBy === 'ageTier' ? ageTier(state.players[local]?.age ?? 0) : art.variantBy === 'pick' ? pickVariant(art.variants ?? [], t.x, t.y) : art.variantBy ? buildingVariant(art.variantBy, { mask: masks?.[i] ?? 0, age: 0, flag: !!art.variants?.includes(WALL_FLAG_PROBE) && wallFlagAt(t.x, t.y) }) : null;
+        const variant = art.variantBy === 'ageTier' ? ageTier(visualEra(state.players[local]?.age ?? 0, state.config.visualEraMax)) : art.variantBy === 'pick' ? pickVariant(art.variants ?? [], t.x, t.y) : art.variantBy ? buildingVariant(art.variantBy, { mask: masks?.[i] ?? 0, age: 0, flag: !!art.variants?.includes(WALL_FLAG_PROBE) && wallFlagAt(t.x, t.y) }) : null;
         const f = this.art.building(p.type, 'complete', variant);
         if (!f) continue;
         let s = this.ghostSprites[used];

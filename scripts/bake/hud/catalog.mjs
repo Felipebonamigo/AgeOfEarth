@@ -45,7 +45,9 @@ export const POWER_ICONS = {
   lightning_storm: O('storm_cloud'), plenty: O('cornucopia'), earthquake: O('quake'),
 };
 export const GODS = ['zeus', 'poseidon', 'hades', 'athena', 'hermes', 'ares', 'apollo', 'dionysus', 'aphrodite', 'hera', 'hephaestus', 'artemis'];
-export const AGE_ICONS = [O('amphora'), O('column', { order: 'doric' }), O('helm', { crest: 'red' }), O('trident'), O('volcano')];
+// uma por Era (docs/ERAS.md §1); 4–6 são provisórias até o U3 do Unreal (o 4 é o elmo do 2 em bronze escuro, o 6 repete a bigorna da forja divina)
+export const AGE_ICONS = [O('amphora'), O('column', { order: 'doric' }), O('helm', { crest: 'red' }), O('trident'),
+  O('helm', { metal: 'dark', crest: 'dark' }), O('column', { order: 'corinthian' }), O('anvil'), O('volcano')];
 export const ABILITY_ICONS = { war_cry: O('salpinx'), cunning: O('wooden_horse'), titanic_blow: O('club_impact'), fury: O('flaming_spear'), mirror_shield: O('mirror_shield') };
 export const RESOURCE_ICONS = { food: O('food'), wood: O('wood'), gold: O('gold'), knowledge: O('knowledge'), favor: O('favor') };
 

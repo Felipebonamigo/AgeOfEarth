@@ -47,7 +47,7 @@ const WORD = /^[A-Za-z0-9_-]{1,24}$/;
  */
 function cleanSettings(s) {
   const out = {};
-  for (const k of ['mapSize', 'difficulty', 'mode', 'mapType', 'teams']) if (typeof s[k] === 'string' && WORD.test(s[k])) out[k] = s[k];
+  for (const k of ['mapSize', 'difficulty', 'mode', 'mapType', 'teams', 'startAge', 'endAge']) if (typeof s[k] === 'string' && WORD.test(s[k])) out[k] = s[k];
   if (Number.isInteger(s.ais) && s.ais >= 0 && s.ais <= 8) out.ais = s.ais;
   if (Number.isSafeInteger(s.seed) && s.seed >= 0) out.seed = s.seed;
   for (const k of ['horde', 'public']) if (typeof s[k] === 'boolean') out[k] = s[k];

@@ -16,7 +16,7 @@ export const EMOJI_GLYPHS: Record<string, string> = {
   '🧪': 'flask', '🩺': 'pulse', '👁': 'eye', '⭐': 'star', '📌': 'pin', '🗣': 'chat', '💬': 'chat', '🚩': 'rally',
   '🏛': 'temple', '🌲': 'tree', '🖌': 'brush', '🖱': 'pointer', '🧽': 'eraser', '💧': 'pipette', '🪣': 'bucket', '⚡': 'bolt',
   '🏺': 'relic', '🛡': 'defensive', '▶': 'play', '⏸': 'pause', '🔇': 'mute', '🔊': 'sound',
-  '🪙': '@res/gold', '🍖': '@res/food', '🪵': '@res/wood', '🌋': '@age/4',
+  '🪙': '@res/gold', '🍖': '@res/food', '🪵': '@res/wood', '🌋': '@age/7',
 };
 
 const ONE = /([\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2300}-\u{23FF}\u{25B6}])\u{FE0F}?|[\u{FE0F}\u{200D}]/gu;

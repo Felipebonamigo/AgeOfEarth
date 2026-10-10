@@ -3,7 +3,8 @@
 // inspetor do selecionado, lista de validação (Ir até / Corrigir), modais (Testar, Propriedades, menu por Esc, atalhos),
 // salvar/exportar e autosave. Nunca muta o estado diretamente: tudo passa pela MapEditor (apply/setMeta/fix*).
 import { MAX_PLAYERS, PLAYER_COLORS, TERRAIN, type Difficulty, type GameMode, type NodeType } from '../core/constants';
-import { BUILDINGS, BUILD_MENU, MAJOR_GODS, MAJOR_GOD_LIST, UNITS } from '../core/data';
+import { BUILDINGS, BUILD_MENU, MAJOR_GODS, MAJOR_GOD_LIST, MAX_AGE, UNITS } from '../core/data';
+import { eraSelectsHtml, eraChoiceValid } from '../ui/era-select';
 import { GAME_MODES, DIFFICULTIES } from '../core/constants';
 import type { UnitClass } from '../core/types';
 import { NODE_AMOUNT } from '../core/map/mapgen';
@@ -31,7 +32,7 @@ const AUTOSAVE_MS = 5000;
 const VALIDATE_MS = 300;
 
 /** Opções do modal Testar (§4.6). scenario: testar com o cenário embutido (jogadores do cenário prevalecem). */
-export interface TestOpts { as: number; slots: (Difficulty | 'empty')[]; god: string; mode: GameMode; reveal: boolean; scenario?: boolean }
+export interface TestOpts { as: number; slots: (Difficulty | 'empty')[]; god: string; mode: GameMode; reveal: boolean; scenario?: boolean; startAge?: string; endAge?: number }
 
 /** Modelos do modal Gatilhos (docs/EDITOR.md §5 Etapa 5): cada um acrescenta objetivos/gatilhos/HUD ao cenário atual. */
 type ScenarioTemplateId = 'dialogue' | 'raid' | 'count' | 'countdown' | 'wave';
@@ -416,6 +417,7 @@ export class EditorPanel {
         <div id="et-slots" style="display:flex;flex-direction:column;gap:4px">${starts.map((_, i) => slotSel(i)).join('')}</div>
         <label>${t('editor.testGod')} <select id="et-god">${MAJOR_GOD_LIST.map((g) => `<option value="${g}" ${(saved.god ?? 'zeus') === g ? 'selected' : ''}>${MAJOR_GODS[g].name}</option>`).join('')}</select></label>
         <label>${t('editor.testMode')} <select id="et-mode">${GAME_MODES.map((m) => `<option value="${m}" ${(saved.mode ?? 'conquest') === m ? 'selected' : ''}>${t(`mode.${m}`)}</option>`).join('')}</select></label>
+        <div id="et-eras">${eraSelectsHtml({ start: 'et-startage', end: 'et-endage' }, { start: saved.startAge ?? 'auto', end: saved.endAge ?? MAX_AGE })}</div>
         <label><input type="checkbox" id="et-reveal" ${saved.reveal ? 'checked' : ''}> ${t('editor.testReveal')}</label>
         ${ed.meta.scenario ? `<label><input type="checkbox" id="et-scenario" ${saved.scenario === false ? '' : 'checked'}> ${t('editor.testScenario')}</label>` : ''}
         <label><input type="checkbox" id="et-remember" ${saved.remember !== false ? 'checked' : ''}> ${t('editor.testRemember')}</label>
@@ -423,11 +425,13 @@ export class EditorPanel {
       <div class="actions"><button class="btn" id="m-cancel">${t('modal.cancel')}</button><button class="btn primary" id="et-go">${t('editor.testGo')}</button></div>`);
     const m = this.hud.modal; const q = (id: string) => m.querySelector(id) as HTMLInputElement;
     // com o cenário embutido, jogadores/times/modo vêm do cenário: os seletores de início, deus e modo ficam apagados
-    const syncSlots = () => { const a = Number(q('#et-as').value); const sc = !!q('#et-scenario')?.checked; m.querySelectorAll('[data-slot]').forEach((s) => { const i = Number((s as HTMLElement).dataset.slot); (s as HTMLSelectElement).disabled = i === a || sc; (s.parentElement as HTMLElement).style.opacity = i === a || sc ? '0.45' : '1'; }); for (const id of ['#et-as', '#et-god', '#et-mode']) { q(id).disabled = sc; (q(id).parentElement as HTMLElement).style.opacity = sc ? '0.45' : '1'; } };
+    const syncSlots = () => { const a = Number(q('#et-as').value); const sc = !!q('#et-scenario')?.checked; m.querySelectorAll('[data-slot]').forEach((s) => { const i = Number((s as HTMLElement).dataset.slot); (s as HTMLSelectElement).disabled = i === a || sc; (s.parentElement as HTMLElement).style.opacity = i === a || sc ? '0.45' : '1'; }); for (const id of ['#et-as', '#et-god', '#et-mode', '#et-startage', '#et-endage']) { q(id).disabled = sc; (q(id).parentElement as HTMLElement).style.opacity = sc ? '0.45' : '1'; } };
     q('#et-as').addEventListener('change', syncSlots); q('#et-scenario')?.addEventListener('change', syncSlots); syncSlots();
     q('#m-cancel').addEventListener('click', () => this.hud.hideModal());
     q('#et-go').addEventListener('click', () => {
       const opts: TestOpts = { as: Number(q('#et-as').value), slots: starts.map((_, i) => (m.querySelector(`[data-slot="${i}"]`) as HTMLSelectElement).value as Difficulty | 'empty'), god: q('#et-god').value, mode: q('#et-mode').value as GameMode, reveal: q('#et-reveal').checked, scenario: !!ed.meta.scenario && !!q('#et-scenario')?.checked };
+      opts.startAge = q('#et-startage').value; opts.endAge = Number(q('#et-endage').value);
+      if (!opts.scenario && !eraChoiceValid(opts.startAge, opts.endAge, opts.mode)) { alert(t('main.endBeforeStart')); return; }
       const remember = q('#et-remember').checked;
       try { if (remember) storeSet(TEST_OPTS_KEY, JSON.stringify({ ...opts, remember })); else storeRemove(TEST_OPTS_KEY); } catch { /* ignore */ }
       const warns = this.issues.filter((i) => i.level === 'warn').length;

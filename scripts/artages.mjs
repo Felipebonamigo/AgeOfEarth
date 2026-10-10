@@ -29,7 +29,7 @@ mkdirSync(outDir, { recursive: true });
 
 /** Idade mínima de cada tipo (src/core/data/buildings.ts); a cornucópia (poder "Fartura") entra na cidade Mítica. */
 const AGE_OF = { market: 1, stable: 1, academy: 1, siege_workshop: 2, fortress: 2, wonder_zeus: 3, wonder_artemis: 3, wonder_colossus: 3, cornucopia: 3, titan_gate: 4 };
-const TC_TIER = ['a0', 'a1', 'a1', 'a2', 'a2'];
+const TC_TIER = ['a0', 'a1', 'a2', 'a2', 'a2'];   // Era → variante do Centro Cívico (a Helenística em diante é mármore)
 
 /**
  * Quadras da cidade, uma lista por fileira: { t: tipo, frac: obra 0–1, hp: fração da vida, crop: segundos de plantação,

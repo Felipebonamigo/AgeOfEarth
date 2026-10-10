@@ -4,7 +4,7 @@ import { SIM_VERSION } from '../core/constants';
 
 export interface RoomSummary { code: string; players: number; host: string; mode: string; mapSize: string; fixedMap: string | null; started?: boolean; spectators?: number; sim?: number }   // sim: versão da simulação da sala (relay antigo: ausente)
 export interface LobbyPlayer { slot: number; name: string; god: string; team: number; ready: boolean; ping?: number }
-export interface LobbyState { host: number; settings: { mapSize: string; ais: number; difficulty: string; seed: number; teams?: string; horde?: boolean; mode?: string; mapType?: string; public?: boolean; fixedMap?: { id?: string; name?: string; w: number; h: number; starts: number; hash?: number; scenario?: string } | null }; players: LobbyPlayer[]; spectators?: { slot: number; name: string }[] }   // fixedMap.scenario: título do cenário embutido (só metadado; o arquivo vai em `start`)
+export interface LobbyState { host: number; settings: { mapSize: string; ais: number; difficulty: string; seed: number; teams?: string; horde?: boolean; mode?: string; mapType?: string; startAge?: string; endAge?: string; public?: boolean; fixedMap?: { id?: string; name?: string; w: number; h: number; starts: number; hash?: number; scenario?: string } | null }; players: LobbyPlayer[]; spectators?: { slot: number; name: string }[] }   // fixedMap.scenario: título do cenário embutido (só metadado; o arquivo vai em `start`)
 type Handler = (msg: Record<string, unknown>) => void;
 
 /**

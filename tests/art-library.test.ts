@@ -238,7 +238,7 @@ describe('edifícios (Etapa 3): dano, variantes, muralha, portão, escombros, fu
     expect(gateAxis(wallMask(true, true, false, false))).toBe('ew');
   });
   it('Idade → variante do Centro Cívico e critério genérico de variante', () => {
-    expect([0, 1, 2, 3, 4].map(ageTier)).toEqual(['a0', 'a1', 'a1', 'a2', 'a2']);
+    expect([0, 1, 2, 3, 4, 5, 6, 7].map(ageTier)).toEqual(['a0', 'a1', 'a2', 'a2', 'a2', 'a2', 'a2', 'a2']);
     expect(buildingVariant('wallMask', { mask: 10, age: 0 })).toBe('10');
     expect(buildingVariant('gateAxis', { mask: 5, age: 0 })).toBe('ns');
     expect(buildingVariant('ageTier', { mask: 0, age: 3 })).toBe('a2');
