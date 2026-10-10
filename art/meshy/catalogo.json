@@ -945,6 +945,102 @@
       "rig": false,
       "baixadoEm": "2026-10-09",
       "notas": "Máquina de cerco com braço em guindaste e corrente, carroça de 4 rodas; mais rústica e menos reconhecível como catapulta; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "criaturas/minotaur__tribal-attire.glb",
+      "idJogo": "minotaur",
+      "titulo": "A minotaur, dressed with tribal attire. Realistic, base pose",
+      "url": "https://www.meshy.ai/3d-models/x-01941dd2-2deb-7ae8-ba26-832febdf8cbe",
+      "autor": "Karrades",
+      "autorUrl": "https://www.meshy.ai/@s1720900476a2076",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 32982,
+      "triangulos": 40102,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Minotauro de pé, tronco humano musculoso, tanga e braçadeiras tribais, chifres grandes; realista, sem base; malha original já leve (40 mil triângulos, não foi reduzida); reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "criaturas/centaur__bearded-archer.glb",
+      "idJogo": "centaur",
+      "titulo": "Centaur",
+      "url": "https://www.meshy.ai/3d-models/x-019cdc34-893b-746d-99a3-f0084d9912cc",
+      "autor": "cyber_fox",
+      "autorUrl": "https://www.meshy.ai/@s17335902935f9ff",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 487484,
+      "triangulos": 89999,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Centauro barbudo de cabelo longo com arco e aljava, corpo de cavalo alazão; visual grego e sem base; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "criaturas/cyclops__cyclopean-guardian.glb",
+      "idJogo": "cyclops",
+      "titulo": "Cyclopean Guardian",
+      "url": "https://www.meshy.ai/3d-models/x-019ae6ed-3e5b-7b59-9188-c418cbcd0f62",
+      "autor": "PICKTURA",
+      "autorUrl": "https://www.meshy.ai/@PICKTURA",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 674348,
+      "triangulos": 89990,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Ciclope roxo-acinzentado de pé, tanga e braçadeiras com tachas, olho único; pose neutra, sem base; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "criaturas/cyclops__cyclopean-sentinel.glb",
+      "idJogo": "cyclops",
+      "titulo": "Cyclopean Sentinel",
+      "url": "https://www.meshy.ai/3d-models/x-019bd2a6-f22c-72d7-b08d-10ce9e6b0868",
+      "autor": "PICKTURA",
+      "autorUrl": "https://www.meshy.ai/@PICKTURA",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 650678,
+      "triangulos": 89996,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Ciclope pálido, olho amarelo, cicatriz no peito e cintos de couro; pose neutra, sem base; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "criaturas/hydra__three-headed-emberwyrm.glb",
+      "idJogo": "hydra",
+      "titulo": "Three-Headed Emberwyrm",
+      "url": "https://www.meshy.ai/3d-models/x-019c5d06-d82e-7dd4-b2c9-201a989c19d3",
+      "autor": "Xenozoid",
+      "autorUrl": "https://www.meshy.ai/@s1769784432de47c",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 790462,
+      "triangulos": 89999,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Dragão de 3 cabeças em escamas verdes e cinza, quadrúpede; lê mais como dragão do que como hidra, sem base; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "criaturas/hydra__snake-hydra.glb",
+      "idJogo": "hydra",
+      "titulo": "Snake Hydra",
+      "url": "https://www.meshy.ai/3d-models/x-019bf1f5-b1a8-7f29-bdb0-5fa0b5f56410",
+      "autor": "Lissner",
+      "autorUrl": "https://www.meshy.ai/@e6595b097d0cd986e300e4435",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 1010717,
+      "triangulos": 89984,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Hidra de 3 cabeças de serpente verde enroladas; vem sobre uma base redonda com rochas e musgo (de miniatura) que precisa ser cortada no plano de corte; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
     }
   ],
   "recusados": [
@@ -1031,6 +1127,26 @@
     {
       "url": "https://www.meshy.ai/pt-BR/tags/siege",
       "motivo": "helepolis: o único resultado de cerco em \"siege\" é um mamute de guerra rúnico (ProteinPenguin), cartoon"
+    },
+    {
+      "url": "https://www.meshy.ai/3d-models/x-019efbb5-0a58-7830-ba40-491ff8f533a9",
+      "motivo": "minotaur: \"Minotaur Warrior\" (EdoCromo, CC0) é pintado à mão estilo cartoon de jogo de celular; baixado, visto e descartado"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/minotaur",
+      "motivo": "minotaur: os modelos de jurafjvs são roxos/azuis de fantasia, os de pedestal (ZIMBO, Recuperation) trazem base de escultura"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/cyclops",
+      "motivo": "cyclops: os outros ciclopes são robôs, caveiras ou monstros de terror"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/centaur",
+      "motivo": "centaur: os demais são estilizados (League of Legends, Halloween, cyber) ou vêm com base de diorama"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/medusa",
+      "motivo": "medusa: só bustos e máscaras (emrework, EXALM), nenhuma de corpo inteiro"
     }
   ],
   "faltando": [
@@ -1052,6 +1168,8 @@
     "perseus",
     "villager (homem de quíton)",
     "helepolis",
-    "aríete (novo, Eras novas)"
+    "aríete (novo, Eras novas)",
+    "medusa (corpo inteiro)",
+    "hydra (de serpente, sem base, para 1–5 cabeças)"
   ]
 }
