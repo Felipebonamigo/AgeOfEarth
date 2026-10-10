@@ -68,3 +68,29 @@ seguem o mesmo padrão (realista, PBR, corpo inteiro, pose A, sem base); cavalei
 | `ceto` (monstro marinho) | Ceto: serpente marinha gigante | não olhei a fundo (tags `sea-monster` e `kraken` ficaram por rever) | `Ceto greek sea monster, huge serpent-like whale with a long eel body, fin crests, rows of sharp teeth, barnacles on the skin, realistic, PBR, game asset, three-quarter view, no base, no water` |
 | `erinyes` (fúrias) | Erínias: três fúrias aladas com chicote | só há harpias de ficção científica | `greek erinys fury, gaunt winged woman in a tattered black chiton, bat-like wings, bloodshot eyes, serpents in her hair, bronze-studded whip, realistic, PBR, game asset, full body, A-pose, no base` |
 | `satyr` (versão realista) | sátiro de pelo e corpo realistas | o baixado é pintado/estilizado | `satyr of greek myth, bearded muscular man with goat legs, curled horns and pointed ears, pan flute at his belt, realistic fur and skin, PBR, game asset, full body, A-pose, no base` |
+
+## Grupo 6 — maravilhas (`docs/ERAS.md` §9)
+
+Já existem no catálogo: Partenon, Erechtheion, Zeus em Olímpia, Colosso (3 Apolos + Zeus) e a Acrópole. Faltam estas, todas
+**construções de pedra/mármore grandes, vistas de cima a 3/4, sem chão** (prompt-base: `... realistic, PBR, game asset,
+three-quarter aerial view, no ground, no base, no people`).
+
+| id do jogo | o que é | por que não serviu o que havia | prompt sugerido (inglês) |
+|---|---|---|---|
+| `wonder_lion_gate` | Porta dos Leões de Micenas | não achei | `Lion Gate of Mycenae, cyclopean stone wall with a triangular relief of two lionesses flanking a central column, huge megalithic lintel` |
+| `wonder_knossos` | palácio/labirinto de Cnossos | não achei | `Minoan palace of Knossos, multi-level terraces with red tapered columns, painted frescoes, flat roofs, light wells` |
+| `wonder_delphi` | santuário de Delfos | não achei | `sanctuary of Apollo at Delphi, small doric temple on a stone terrace with a retaining wall and a treasury building, mountain slope base` |
+| `wonder_theater` | Teatro de Epidauro | o "Ancient Stone Amphitheater" é só um muro baixo; os outros são o Coliseu | `ancient greek theatre of Epidaurus, semicircular stone seating in a hillside, round orchestra and a low stage building` |
+| `wonder_mausoleum` | Mausoléu de Halicarnasso | o achado é um altar de mármore; os demais, criptas góticas | `Mausoleum at Halicarnassus, tall marble tomb with a podium, ionic colonnade and a stepped pyramid roof topped by a chariot sculpture` |
+| `wonder_pharos` (versão grega) | Farol de Alexandria | o baixado é um farol medieval com ameias | `Pharos of Alexandria lighthouse, three-tier tower: square base, octagonal middle and round top, with a statue and a fire at the summit, white limestone` |
+| `wonder_library_alexandria` | Biblioteca de Alexandria | não achei | `Great Library of Alexandria, hellenistic hall with a long colonnade, scroll storerooms and a courtyard, white marble and red tiled roof` |
+| `wonder_hagia_sophia` | Hagia Sophia | não achei | `Hagia Sophia, huge central dome with semi-domes, buttresses and four slim minaret-free corners, byzantine brick and stone` |
+| `wonder_theodosian_walls` | Muralhas de Teodósio | só há muralhas de castelo/fantasia | `Theodosian Walls of Constantinople, triple line of walls with square towers and a fosse in front, stone and brick bands` |
+| `wonder_meteora` | Mosteiros de Meteora | não achei (a tag nem existe) | `Meteora monastery on a tall sandstone rock pillar, stone buildings clinging to the top, cliff base included` |
+| `wonder_candia_arsenal` | Arsenal de Cândia | não achei | `Venetian arsenal of Candia, row of arched vaulted ship sheds opening to a harbor quay, stone` |
+| `wonder_rhodes_fortress` | Fortaleza dos Cavaleiros de Rodes | só há castelos de fantasia | `Palace of the Grand Master of the Knights of Rhodes, massive crenellated medieval fortress with round corner towers and a gatehouse` |
+| `wonder_palamidi` | Forte de Palamidi | só há ruínas e fortes de jogo | `Palamidi fortress above Nafplio, series of star-shaped bastions on a hilltop with stone ramparts and a gate` |
+| `wonder_corinth_canal` | Canal de Corinto | não achei | `Corinth canal, straight narrow water channel cut between two tall limestone cliffs with a bridge over it` |
+| `wonder_panathenaic_stadium` | Estádio Panatenaico | só há estádios de futebol | `Panathenaic Stadium of Athens, horseshoe-shaped marble stadium with white tiered seats and a curved end` |
+| `wonder_olympus_throne` | Trono do Olimpo | não achei | `throne of the gods on Mount Olympus, giant marble throne with golden decoration at the center of a cloud-wreathed rocky summit` |
+| `wonder_artemis` | Templo de Ártemis em Éfeso (já era pedido do 0001) | só há templos dóricos; o jônico de Éfeso é maior e tem mais colunas | `Temple of Artemis at Ephesus, giant ionic marble temple with a double row of 100 columns on a tall stepped platform` |

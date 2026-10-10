@@ -1297,6 +1297,22 @@
       "rig": false,
       "baixadoEm": "2026-10-09",
       "notas": "Dragão verde de asas abertas, de pé em duas patas e cauda enrolada, sem base; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "edificios/wonder_pharos__stormwatch-lighthouse.glb",
+      "idJogo": "wonder_pharos",
+      "titulo": "Stormwatch Lighthouse",
+      "url": "https://www.meshy.ai/3d-models/x-019b0627-7d02-7df3-b09e-06a3d84bbe99",
+      "autor": "Asset_Generator_Inc",
+      "autorUrl": "https://www.meshy.ai/@Ck87",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 740215,
+      "triangulos": 89993,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Torre de farol de pedra clara em dois andares com ameias, lanterna de cúpula vermelha; mais medieval do que helenístico; serve de Farol de Alexandria provisório (maravilha da Era III); sem base; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
     }
   ],
   "recusados": [
@@ -1455,6 +1471,26 @@
     {
       "url": "https://www.meshy.ai/pt-BR/tags/scylla",
       "motivo": "scylla: só um modelo (demônia sobre base, para impressão 3D)"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/amphitheater",
+      "motivo": "wonder_theater: \"Ancient Stone Amphitheater\" (slifer87, CC0) baixado e descartado; é só um muro baixo de pedra em círculo, sem arquibancada reconhecível. Os outros anfiteatros são o Coliseu romano ou ruínas"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/mausoleum",
+      "motivo": "wonder_mausoleum: \"Marble Colonnade Mausoleum\" (krishnaprasadum28) parece altar/mesa de mármore, não o monumento de Halicarnasso; os demais são criptas góticas"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/fortress",
+      "motivo": "wonder (fortaleza de Rodes/forte): só há castelos de fantasia, ruínas e torres de jogo"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/lighthouse",
+      "motivo": "wonder_pharos: os demais faróis são de fantasia, de praia (listrados) ou de pixel art"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/stadium",
+      "motivo": "wonder_stadium: só há estádios de futebol, e a \"Ruined Circular Arena\" é uma arena circular pequena"
     }
   ],
   "faltando": [
@@ -1483,6 +1519,21 @@
     "oceanus",
     "scylla",
     "ceto (monstro marinho)",
-    "erinias (fúrias)"
+    "erinias (fúrias)",
+    "wonder_lion_gate",
+    "wonder_knossos",
+    "wonder_delphi",
+    "wonder_theater",
+    "wonder_mausoleum",
+    "wonder_library_alexandria",
+    "wonder_hagia_sophia",
+    "wonder_theodosian_walls",
+    "wonder_meteora",
+    "wonder_candia_arsenal",
+    "wonder_rhodes_fortress",
+    "wonder_palamidi",
+    "wonder_corinth_canal",
+    "wonder_panathenaic_stadium",
+    "wonder_olympus_throne"
   ]
 }
