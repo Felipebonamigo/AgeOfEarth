@@ -1,13 +1,13 @@
 // Entrada do jogador: mouse (seleção, ordens contextuais, colocação de edifícios, poderes) e teclado.
-import { TILE } from '../core/constants';
-import { BUILDINGS, UNITS, POWERS } from '../core/data';
-import type { Building, Command, Unit } from '../core/types';
+import { TILE, OIL_FROM_AGE, RARE_GOLD_RATE, RARE_SET, WELL_NODES } from '../core/constants';
+import { AGES, BUILDINGS, UNITS, POWERS } from '../core/data';
+import type { Building, Command, ResourceNode, Unit } from '../core/types';
 import type { Session } from '../game/session';
 import type { Renderer, RenderUI } from '../render/renderer';
 import type { HUD } from './hud';
 import type { Audio } from '../audio/audio';
-import { isMilitary, isEnemy } from '../core/sim/queries';
-import { t } from '../i18n';
+import { isMilitary, isEnemy, canWorkNode } from '../core/sim/queries';
+import { t, getLocale } from '../i18n';
 import { toggleFullscreen } from '../game/display';
 import type { MapEditor } from '../editor/editor';
 
@@ -104,6 +104,15 @@ export class Input {
   }
 
   /** Ponteiro moveu: arrastar (caixa de seleção, muralha, câmera pelo botão do meio), editor e dica sob o cursor. */
+  /** Descrição do nó na dica: restante, ou a regra dele (raro, jazida, nafta antes/depois da Era IV). */
+  private nodeTip(n: ResourceNode): string {
+    const remaining = t('node.remaining', { n: Math.round(n.amount) });
+    if (RARE_SET.has(n.type)) return `${t(`rare.${n.type}`)}<br>${t('rare.hint', { g: String(RARE_GOLD_RATE).replace('.', getLocale() === 'pt' ? ',' : '.') })}`;
+    if (WELL_NODES.has(n.type)) return `${t('err.wellOnly')}<br>${remaining}`;
+    if (n.type === 'naphtha') return this.getSession()!.player.age < OIL_FROM_AGE ? `${t('err.oilEra', { age: AGES[OIL_FROM_AGE].name })}<br>${remaining}` : `${remaining}<br>${t('node.oilDrop')}`;
+    return remaining;
+  }
+
   pointerMoveTo(x: number, y: number, m: PointerMods = NO_MODS) {
     this.mouse.x = x; this.mouse.y = y; this.mouse.inside = true;
     const s = this.getSession(); if (!s) return;
@@ -134,7 +143,7 @@ export class Input {
         const tx = Math.floor(w.x), ty = Math.floor(w.y);
         const nid = tx >= 0 && ty >= 0 && tx < s.state.map.w && ty < s.state.map.h ? s.state.map.nodeAt[ty * s.state.map.w + tx] : -1;
         const vis = s.state.players[s.local].visibility;
-        if (nid !== -1 && (s.state.config.revealMap || vis[ty * s.state.map.w + tx] >= 1)) { const n = s.state.map.nodes.get(nid)!; this.hud.showTooltip(`<b>${t(`node.${n.type}`)}</b><div class="desc">${t('node.remaining', { n: Math.round(n.amount) })}</div>`, x, y); }
+        if (nid !== -1 && (s.state.config.revealMap || vis[ty * s.state.map.w + tx] >= 1)) { const n = s.state.map.nodes.get(nid)!; this.hud.showTooltip(`<b>${t(`node.${n.type}`)}</b><div class="desc">${this.nodeTip(n)}</div>`, x, y); }
         else this.hud.hideTooltip();
       }
     }
@@ -199,7 +208,15 @@ export class Input {
     if (target && isEnemy(s.state, s.local, target.owner)) {
       cmd = { type: 'attack', player: s.local, ids, targetId: target.id, queue };
     } else if (nid !== -1) {
-      const gatherers = units.filter((u) => UNITS[u.type].canGather);
+      const node = map.nodes.get(nid)!;
+      const refused: string[] = [];   // E2: quem não pode trabalhar este nó (Mercador só em raro; jazida só com Poço; nafta só da Era IV)
+      const gatherers = units.filter((u) => {
+        if (!UNITS[u.type].canGather) return false;
+        const c = canWorkNode(s.player, u.type, node);
+        if (!c.ok && c.reason) refused.push(c.reason);
+        return c.ok;
+      });
+      if (gatherers.length === 0 && refused.length > 0) this.hud.toast(refused[0], 'warn');
       if (gatherers.length > 0) cmd = { type: 'gather', player: s.local, ids: gatherers.map((u) => u.id), targetId: nid, queue };
       else cmd = { type: 'move', player: s.local, ids, x, y, queue };
     } else if (target && target.kind === 'building' && target.owner === s.local) {

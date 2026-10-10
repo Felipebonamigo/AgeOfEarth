@@ -73,7 +73,7 @@ export function cuesForEffect(fx: VisualEffect): Cue[] {
     case 'pestilence': return [{ recipe: 'pestilence', x: fx.x, y: fx.y }];
     case 'petrify': return [{ recipe: 'petrify', x: fx.x, y: fx.y }];
     case 'bronze': return [{ recipe: 'bronzeRing', x: 0, y: 0, global: true }];
-    case 'nodeGone': return fx.data === 'tree' ? [{ recipe: 'treeFall', x: fx.x, y: fx.y, gain: 0.7 }] : fx.data === 'gold' ? [{ recipe: 'rockCrumble', x: fx.x, y: fx.y }] : [];
+    case 'nodeGone': return fx.data === 'tree' ? [{ recipe: 'treeFall', x: fx.x, y: fx.y, gain: 0.7 }] : fx.data === 'gold' || fx.data === 'limestone' ? [{ recipe: 'rockCrumble', x: fx.x, y: fx.y }] : [];
     default: return [];
   }
 }
@@ -103,6 +103,7 @@ export function workRecipe(state: 'gather' | 'build', nodeType: string | null): 
   if (state === 'build') return { recipe: 'hammer', period: 0.9 };
   if (nodeType === 'tree') return { recipe: 'axe', period: 1.3 };
   if (nodeType === 'gold') return { recipe: 'pick', period: 1.15 };
+  if (nodeType === 'limestone') return { recipe: 'pick', period: 1.15 };
   if (nodeType === 'berry' || nodeType === 'farm') return { recipe: 'rustle', period: nodeType === 'farm' ? 2.2 : 1.7 };
   if (nodeType === 'deer' || nodeType === 'boar' || nodeType === 'lure') return { recipe: 'rustle', period: 2.4 };
   return null;

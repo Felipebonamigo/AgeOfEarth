@@ -2,7 +2,7 @@
 // aqui só LÊ o estado — de onde veio um golpe em área, qual herói usou a Q, quem está coletando/construindo no posto,
 // quem pisa na margem da água, quanto do chão à vista é árido e onde sai a fumaça de trabalho de cada edifício.
 import { ABILITIES, UNITS } from '../../core/data';
-import { TERRAIN, TICK_RATE } from '../../core/constants';
+import { TERRAIN, TICK_RATE, RARE_SET } from '../../core/constants';
 import type { Building, GameMap, GameState, Unit, VisualEffect } from '../../core/types';
 import { abilityUseTick } from '../art/logic';
 
@@ -85,7 +85,7 @@ export function healGain(prev: number | undefined, hp: number): number {
 }
 
 // ---------------- Trabalho no posto (coleta e obra) ----------------
-export type WorkKind = 'tree' | 'gold' | 'berry' | 'hunt' | 'farm' | 'build';
+export type WorkKind = 'tree' | 'gold' | 'stone' | 'berry' | 'hunt' | 'farm' | 'build';
 export interface Work { kind: WorkKind; /** ponto do alvo (tiles): tronco, veio, obra */ x: number; y: number }
 /** Folga (tiles) sobre as distâncias de trabalho do núcleo (a mesma POST_SLACK do renderizador). */
 const SLACK = 0.15;
@@ -99,7 +99,8 @@ export function workOf(state: GameState, u: Unit): Work | null {
     if (u.nodeId > 0) {
       const n = state.map.nodes.get(u.nodeId);
       if (!n || rectDist(u.x, u.y, n.x, n.y, 1, 1) > 1 + SLACK) return null;
-      const kind: WorkKind = n.type === 'tree' || n.type === 'gold' || n.type === 'berry' ? n.type : 'hunt';
+      if (n.type === 'naphtha' || n.type === 'oil_field' || RARE_SET.has(n.type)) return null;   // E2: sem efeito de trabalho (petróleo e raros)
+      const kind: WorkKind = n.type === 'limestone' ? 'stone' : n.type === 'tree' || n.type === 'gold' || n.type === 'berry' ? n.type : 'hunt';
       return { kind, x: n.x + 0.5, y: n.y + 0.5 };
     }
     const f = u.nodeId < 0 ? state.buildings.get(-u.nodeId) : undefined;

@@ -111,8 +111,8 @@ export class Brain {
     // Poupança para a próxima Idade: requisitos (edifício/techs) cumpridos, falta só recurso → sem tropas novas, coleta o que falta
     const next = p.age < MAX_AGE ? AGES[p.age + 1] : null;
     const reqOk = !!next && (!next.requires.building || has(next.requires.building, true) > 0) && (!next.requires.techCount || academyTechCount(p) >= next.requires.techCount);
-    const deficit = (r: 'food' | 'wood' | 'gold') => (reqOk && next ? ((next.cost as Record<string, number>)[r] ?? 0) - p.resources[r] : 0);
-    const saving = reqOk && (['food', 'gold'] as const).some((r) => deficit(r) > 0);
+    const deficit = (r: 'food' | 'wood' | 'stone' | 'gold') => (reqOk && next ? ((next.cost as Record<string, number>)[r] ?? 0) - p.resources[r] : 0);
+    const saving = reqOk && (['food', 'stone', 'gold'] as const).some((r) => deficit(r) > 0);
     // Defesa: inimigo armado perto da base → exército ataca-move até ele
     let threat: Unit | null = null, threatD = 18 * 18;
     for (const u of state.units.values()) {
@@ -136,8 +136,8 @@ export class Brain {
       busy.add(v.id); assigned++;
       if (temple && praying + assigned <= 3 && this.rng.chance(0.3)) { out.push({ type: 'pray', player: me, ids: [v.id], targetId: temple.id }); continue; }
       const r = this.rng.float();
-      const lacking = (['food', 'gold'] as const).filter((x) => deficit(x) > 0);
-      const res = lacking.length && this.rng.chance(0.6) ? this.rng.pick(lacking) : r < 0.4 ? 'food' : r < 0.7 ? 'wood' : 'gold';
+      const lacking = (['food', 'stone', 'gold'] as const).filter((x) => deficit(x) > 0);
+      const res = lacking.length && this.rng.chance(0.6) ? this.rng.pick(lacking) : r < 0.35 ? 'food' : r < 0.6 ? 'wood' : r < 0.75 ? 'stone' : 'gold';
       const fx = Math.floor(v.x), fy = Math.floor(v.y);
       const reach = (n: { x: number; y: number }) => rectReachable(state.map, fx, fy, n.x, n.y, 1, 1, true);
       if (res === 'food') {

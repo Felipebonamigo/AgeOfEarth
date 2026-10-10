@@ -32,6 +32,8 @@ export const TECH_ICONS = {
   ambrosia: O('ambrosia'), royalty: O('diadem'), crown: O('crown'), divine_forge: O('anvil'),
   automatons: { kind: 'unit', unit: 'colossus', frame: { mode: 'bust', frac: 0.3, margin: 0.04 } },
   moon_arrows: O('bow', { mat: 'silver', moon: true }), great_hunt: O('antlers'),
+  // E2: pedra e petróleo
+  stone_wedges: O('blocks'), stone_saws: O('saw'), stone_cranes: O('blocks'), bitumen_jars: O('hydria'), distillation: O('crucible'), cracking: O('crucible'),
 };
 /** Tecnologia → chave do ícone (as de nível usam o ramo). */
 export function techIconKey(id) {
@@ -49,7 +51,7 @@ export const GODS = ['zeus', 'poseidon', 'hades', 'athena', 'hermes', 'ares', 'a
 export const AGE_ICONS = [O('amphora'), O('column', { order: 'doric' }), O('helm', { crest: 'red' }), O('trident'),
   O('helm', { metal: 'dark', crest: 'dark' }), O('column', { order: 'corinthian' }), O('anvil'), O('volcano')];
 export const ABILITY_ICONS = { war_cry: O('salpinx'), cunning: O('wooden_horse'), titanic_blow: O('club_impact'), fury: O('flaming_spear'), mirror_shield: O('mirror_shield') };
-export const RESOURCE_ICONS = { food: O('food'), wood: O('wood'), gold: O('gold'), knowledge: O('knowledge'), favor: O('favor') };
+export const RESOURCE_ICONS = { food: O('food'), wood: O('wood'), stone: O('stone'), gold: O('gold'), oil: O('oil'), knowledge: O('knowledge'), favor: O('favor') };
 
 /** Enquadramento dos ícones de unidade: humanos da coxa para cima (3/4 da altura sem as armas finas: o equipamento é o
  *  que distingue, e a cabeça simples do rig não lê num busto curto a 34 px); gigantes e titãs em busto; montados, cerco e

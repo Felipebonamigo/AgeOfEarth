@@ -1,6 +1,6 @@
 // Interface em DOM: barra de recursos, painel de seleção, grade de comandos, poderes divinos,
 // minimapa, mensagens, tooltips e modais (deuses menores, menu, ajuda, enciclopédia, fim de jogo).
-import { RESOURCES, RESOURCE_ICONS, STANCES, TICK_RATE, MAX_SCHOLARS, SCHOLAR_COST, WONDER_VICTORY_SECONDS, KOTH_SECONDS, FORMATIONS, PLAYER_COLORS, rankOf, type ResourceType, type Stance, type Formation } from '../core/constants';
+import { RESOURCES, RESOURCE_ICONS, OIL_FROM_AGE, STANCES, TICK_RATE, MAX_SCHOLARS, SCHOLAR_COST, WONDER_VICTORY_SECONDS, KOTH_SECONDS, FORMATIONS, PLAYER_COLORS, rankOf, type ResourceType, type Stance, type Formation } from '../core/constants';
 const FORMATION_GLYPHS: Record<Formation, string> = { line: 'fLine', box: 'fBox', column: 'fColumn', wedge: 'fWedge' };
 import { teamNames } from '../core/sim/modes';
 import { relicsOf } from '../core/sim/relics';
@@ -269,7 +269,8 @@ export class HUD {
     const s = this.session; if (!s) return;
     if (this.muteBtn && this.muteBtn.dataset.muted !== String(this.audio.muted)) { this.muteBtn.innerHTML = glyph(this.audio.muted ? 'mute' : 'sound'); this.muteBtn.dataset.muted = String(this.audio.muted); }   // mudo pelas opções ou Ctrl+M
     const p = s.player;
-    for (const r of RESOURCES) { const e = this.resEls[r]; e.querySelector('b')!.textContent = String(Math.floor(p.resources[r])); e.classList.toggle('low', p.resources[r] < 50 && r !== 'knowledge' && r !== 'favor'); }
+    for (const r of RESOURCES) { const e = this.resEls[r]; e.querySelector('b')!.textContent = String(Math.floor(p.resources[r])); e.classList.toggle('low', p.resources[r] < 50 && r !== 'knowledge' && r !== 'favor' && r !== 'oil'); }
+    this.resEls.oil.classList.toggle('hidden', p.age < OIL_FROM_AGE && p.resources.oil < 1);   // esconde com a classe: redrawIcons indexa resEls[r]
     this.popEl.querySelector('b')!.textContent = `${p.pop}/${p.popCap}`; this.popEl.classList.toggle('low', p.pop >= p.popCap);
     const age = AGES[p.age];
     // (só redesenha quando muda: o innerHTML com <img> a cada 0,12 s faria os retratos piscarem)
@@ -291,8 +292,9 @@ export class HUD {
     const relics = relicsOf(s.state, p.id);
     // em cenário (m10) a vitória nativa do Rei da Colina não roda e a conta que vale é a do roteiro (barra do painel, G4): a barra
     // do topo não mostra a posse do modo, que conta o time inteiro (na m10, Hades sozinho não conta)
-    this.modeEl.textContent = (s.spectator ? t('top.spectator') + ' ' : '') + (k && !s.state.scenario ? (k.team === -1 ? t('top.kothNone') : t('top.koth', { who: teamNames(s.state, k.team), s: k.seconds, total: KOTH_SECONDS })) : '') + (relics > 0 ? ' ' + t('top.relics', { n: relics }) : '');
-    this.modeEl.dataset.tip = relics > 0 ? t('top.relicsTip') : '';
+    this.modeEl.textContent = (s.spectator ? t('top.spectator') + ' ' : '') + (k && !s.state.scenario ? (k.team === -1 ? t('top.kothNone') : t('top.koth', { who: teamNames(s.state, k.team), s: k.seconds, total: KOTH_SECONDS })) : '') + (relics > 0 ? ' ' + t('top.relics', { n: relics }) : '') + (p.rares.length ? ' ' + t('top.rares', { n: p.rares.length }) : '');
+    const raresTip = p.rares.map((r) => `${t(`node.${r}`)}: ${t(`rare.${r}`)}`).join('<br>');
+    this.modeEl.dataset.tip = [relics > 0 ? t('top.relicsTip') : '', raresTip].filter(Boolean).join('<br>');
     const waiting = (s.scheduler as { waiting?: number }).waiting ?? 0;
     this.clockEl.textContent = fmtTime(s.state.time) + (s.paused ? ' ‖' : s.speed !== 1 ? ` ${s.speed}×` : '') + (waiting > 10 ? ' ' + noEmoji(t('top.waiting')) : '');
     let idle = 0;
@@ -565,7 +567,7 @@ export class HUD {
         add(ic.tech(tech.id), tech.name, tip, null, () => { if (this.issueChecked({ type: 'research', player: s.local, buildingId: b.id, tech: tech.id })) this.audio.play('command'); }, { disabled: !c.ok });
       }
       if (def.trade) {
-        for (const r of ['food', 'wood'] as ResourceType[]) {
+        for (const r of ['food', 'wood', 'stone', ...(p.age >= OIL_FROM_AGE ? ['oil'] : [])] as ResourceType[]) {
           const tax = 0.3 * p.mods.player.tradeTax;
           const buy = Math.round(p.prices[r] * (1 + tax)), sell = Math.round(p.prices[r] * (1 - tax));
           add(glyph('buy'), t('cmd.buy', { res: t(`res.${r}`) }), t('cmd.buyTip', { res: t(`res.${r}`), price: buy }), null, () => { if (this.issueChecked({ type: 'trade', player: s.local, action: 'buy', resource: r })) this.audio.play('coin'); }, { disabled: p.resources.gold < buy });
@@ -829,7 +831,7 @@ export class HUD {
     if (st.scenario) { this.showScenarioEnd(); return; }
     const won = st.winner >= 0 && st.players[st.winner].team === s.player.team;
     this.audio.play(won ? 'victory' : 'defeat');
-    const rows = st.players.map((p) => `<tr><td style="color:#${p.color.toString(16).padStart(6, '0')}">${MAJOR_GODS[p.god] ? ic.god(p.god, 'sm') + ' ' : ''}${esc(playerDisplayName(st, p.id))}${st.winner >= 0 && st.players[st.winner].team === p.team ? ` ${glyph('trophy')}` : ''}</td><td>${p.team + 1}</td><td>${AGES[p.age].short}</td><td>${p.stats.kills}</td><td>${p.stats.losses}</td><td>${p.stats.razed}</td><td>${p.stats.buildingsBuilt}</td><td>${p.stats.unitsTrained}</td><td>${Math.round(p.stats.gathered.food + p.stats.gathered.wood + p.stats.gathered.gold)}</td><td>${p.techs.length}</td><td>${p.territoryTiles}</td></tr>`).join('');
+    const rows = st.players.map((p) => `<tr><td style="color:#${p.color.toString(16).padStart(6, '0')}">${MAJOR_GODS[p.god] ? ic.god(p.god, 'sm') + ' ' : ''}${esc(playerDisplayName(st, p.id))}${st.winner >= 0 && st.players[st.winner].team === p.team ? ` ${glyph('trophy')}` : ''}</td><td>${p.team + 1}</td><td>${AGES[p.age].short}</td><td>${p.stats.kills}</td><td>${p.stats.losses}</td><td>${p.stats.razed}</td><td>${p.stats.buildingsBuilt}</td><td>${p.stats.unitsTrained}</td><td>${Math.round(p.stats.gathered.food + p.stats.gathered.wood + p.stats.gathered.stone + p.stats.gathered.gold + p.stats.gathered.oil)}</td><td>${p.techs.length}</td><td>${p.territoryTiles}</td></tr>`).join('');
     const kind = won ? 'won' : st.winner === -1 ? 'draw' : 'lost';
     this.showModal(`${overBanner(kind, won ? t('over.victory') : st.winner === -1 ? t('over.draw') : t('over.defeat'), `${st.events.filter((e) => e.type === 'victory').map((e) => esc(e.text ?? '')).join(' ')} ${t('over.time', { time: fmtTime(st.time) })}`)}
       <table><tr><th>${t('over.player')}</th><th>${t('over.team')}</th><th>${t('over.age')}</th><th>${t('over.kills')}</th><th>${t('over.losses')}</th><th>${t('over.razed')}</th><th>${t('over.built')}</th><th>${t('over.trained')}</th><th>${t('over.gathered')}</th><th>${t('over.techs')}</th><th>${t('over.territory')}</th></tr>${rows}</table>

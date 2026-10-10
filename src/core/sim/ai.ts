@@ -1,6 +1,6 @@
 // Inteligência artificial dos oponentes: economia, construção, pesquisa, avanço de idade,
 // exército (defesa, ondas de ataque, recuo) e uso de poderes divinos. Pensa a cada N segundos.
-import { DIFFICULTIES, TICK_RATE, NODE_RESOURCE, RESOURCES, MARKET_TRADE_LOT, type ResourceType } from '../constants';
+import { DIFFICULTIES, TICK_RATE, NODE_RESOURCE, NOT_GATHERED, WELL_NODES, RESOURCES, MARKET_TRADE_LOT, OIL_FROM_AGE, MERCHANT_MAX_AI, type ResourceType } from '../constants';
 import { rectReachable, wouldSeal } from '../map/components';
 import { AGES, BUILDINGS, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS } from '../data';
 import type { Building, GameState, Player, ResourceNode, Unit } from '../types';
@@ -8,7 +8,7 @@ import { idx, inBounds, isPassable, dist, centerFrame, frameOffset, frameCompare
 import { applyCommand, canAdvanceAge, canResearch, canTrain, academyTechCount } from './commands';
 import { canPlaceBuilding, countBuildings, buildingsOf, unitsOf } from './entities';
 import { getRuntime } from './runtime';
-import { isMilitary, isEnemy, nearestEnemyBuilding, nearestNode, nearestNodeWithRoom, nearestFreeFarm, countUnits, nodeHasRoom, centerDist2 } from './queries';
+import { isMilitary, isEnemy, nearestEnemyBuilding, nearestNode, nearestNodeBy, nearestRareNode, nearestNodeWithRoom, nearestFreeFarm, countUnits, nodeHasRoom, centerDist2 } from './queries';
 import { getBuildingStats, getUnitStats, techCost } from './modifiers';
 import { canAfford } from './economy';
 import { t } from '../../i18n';
@@ -18,18 +18,21 @@ import { isForbidden, maxAgeOf } from './restrictions';
 export const VILLAGER_TARGET = [18, 26, 34, 40, 44, 48, 52, 56];
 export const FARM_LIMIT = [4, 8, 12, 16, 18, 20, 22, 24];
 export const ARMY_ATTACK = [7, 12, 16, 20, 24, 28, 32, 36];
+/** Recursos que os cidadãos da IA coletam (a ordem é a das proporções em manageEconomy). */
+const AI_RES = ['food', 'wood', 'stone', 'gold', 'oil', 'favor'] as const;
 export const RESEARCH_PRIORITY = [
-  'harvest1', 'axes1', 'hunting_dogs', 'picks1', 'oracles', 'wheel', 'civic1', 'commerce1', 'science1', 'phalanx', 'military1',
-  'harvest2', 'axes2', 'picks2', 'bronze_armor', 'horse_breeding', 'masonry', 'civic2', 'commerce2', 'science2', 'military2', 'census',
-  'irrigation', 'fortified_towns', 'iron_weapons', 'composite_bows', 'harvest3', 'axes3', 'picks3', 'barding', 'civic3', 'commerce3', 'science3', 'military3',
-  'mythic_blood', 'divine_arms', 'sacred_rites', 'ballista_towers', 'logistics', 'civic4', 'military4', 'science4', 'commerce4', 'ballistics', 'civic5', 'military5', 'science5', 'commerce5', 'coinage',
+  'harvest1', 'axes1', 'hunting_dogs', 'picks1', 'stone_wedges', 'oracles', 'wheel', 'civic1', 'commerce1', 'science1', 'phalanx', 'military1',
+  'harvest2', 'axes2', 'picks2', 'stone_saws', 'bronze_armor', 'horse_breeding', 'masonry', 'civic2', 'commerce2', 'science2', 'military2', 'census',
+  'irrigation', 'fortified_towns', 'iron_weapons', 'composite_bows', 'harvest3', 'axes3', 'picks3', 'stone_cranes', 'barding', 'civic3', 'commerce3', 'science3', 'military3',
+  'mythic_blood', 'divine_arms', 'sacred_rites', 'ballista_towers', 'logistics', 'civic4', 'military4', 'science4', 'commerce4', 'bitumen_jars', 'ballistics', 'civic5', 'military5', 'science5', 'commerce5', 'coinage',
   ...[6, 7, 8].flatMap((l) => ['civic', 'military', 'science', 'commerce'].map((k) => `${k}${l}`)),
+  'distillation', 'cracking',
 ];
 
 interface Snapshot {
   villagers: Unit[]; idleVillagers: Unit[]; military: Unit[]; scouts: Unit[]; heroes: Unit[];
   buildings: Building[]; byType: Map<string, Building[]>; tc: Building | null; underConstruction: Building[];
-  gatherers: Record<string, number>; enemies: Player[];
+  gatherers: Record<string, number>; enemies: Player[]; merchants: Unit[];
 }
 
 export function aiThink(state: GameState, player: Player): void {
@@ -61,6 +64,7 @@ export function aiThink(state: GameState, player: Player): void {
     }
   }
   manageEconomy(state, player, snap);
+  manageMerchants(state, player, snap);
   manageBuilding(state, player, snap);
   manageTraining(state, player, snap);
   manageResearch(state, player, snap);
@@ -76,7 +80,7 @@ function snapshot(state: GameState, player: Player): Snapshot {
   const byType = new Map<string, Building[]>();
   for (const b of buildings) { const arr = byType.get(b.type) ?? []; arr.push(b); byType.set(b.type, arr); }
   const villagers = units.filter((u) => u.type === 'villager' && u.inside === -1 && !(u.state === 'pray' && u.nodeId < 0 && BUILDINGS[state.buildings.get(-u.nodeId)?.type ?? '']?.titanGate));   // sacerdotes do ritual (cenários) não são realocados
-  const gatherers: Record<string, number> = { food: 0, wood: 0, gold: 0, favor: 0 };
+  const gatherers: Record<string, number> = { food: 0, wood: 0, stone: 0, gold: 0, oil: 0, favor: 0 };
   for (const v of villagers) {
     if (v.state === 'pray') gatherers.favor++;
     else if (v.state === 'gather' || v.state === 'return') {
@@ -92,6 +96,7 @@ function snapshot(state: GameState, player: Player): Snapshot {
     heroes: units.filter((u) => UNITS[u.type].tags.includes('hero')),
     buildings, byType, tc: tcs.find((b) => b.complete) ?? tcs[0] ?? null, underConstruction: buildings.filter((b) => !b.complete),
     gatherers, enemies: state.players.filter((p) => isEnemy(state, player.id, p.id) && p.alive),
+    merchants: units.filter((u) => u.type === 'merchant' && u.inside === -1),
   };
 }
 
@@ -117,32 +122,55 @@ function libraryWoodHold(player: Player, snap: Snapshot): number {
   return (BUILDINGS.academy.cost as Record<string, number>).wood ?? 0;
 }
 
+// ---------------- Mercadores (E2) ----------------
+/** Mercadores nos raros livres e alcançáveis (até MERCHANT_MAX_AI), treinados no Mercado. Fora de cenário. */
+function manageMerchants(state: GameState, player: Player, snap: Snapshot): void {
+  if (state.scenario || !snap.tc) return;
+  for (const m of snap.merchants) {
+    if (m.state !== 'idle' || m.order) continue;
+    const mx = Math.floor(m.x), my = Math.floor(m.y);
+    const node = nearestRareNode(state, m.x, m.y, 40, (n) => nodeHasRoom(state, n) && rectReachable(state.map, mx, my, n.x, n.y, 1, 1, true));
+    if (node) { applyCommand(state, { type: 'gather', player: player.id, ids: [m.id], targetId: node.id }); break; }   // um por pensamento: a vaga só é recontada no próximo tick
+  }
+  const queued = snap.buildings.reduce((n, b) => n + b.queue.filter((q) => q.kind === 'unit' && q.id === 'merchant').length, 0);
+  if (snap.merchants.length + queued >= MERCHANT_MAX_AI) return;
+  const market = (snap.byType.get('market') ?? []).find((b) => b.complete && b.queue.length === 0);
+  if (!market || !nearestRareNode(state, snap.tc.x, snap.tc.y, 40, (n) => nodeHasRoom(state, n))) return;
+  if (player.resources.gold < budgetOf(state, player).reserveGold + 150) return;
+  if (canTrain(state, player, market, 'merchant').ok) applyCommand(state, { type: 'train', player: player.id, buildingId: market.id, unit: 'merchant' });
+}
+
 // ---------------- Economia ----------------
 function manageEconomy(state: GameState, player: Player, snap: Snapshot): void {
   const age = player.age;
   const target = VILLAGER_TARGET[age];
   const n = Math.max(snap.villagers.length, 1);
   let ratio: Record<string, number>;
-  if (age === 0) ratio = { food: 0.4, wood: 0.34, gold: 0.26, favor: 0 };
-  else if (age === 1) ratio = { food: 0.36, wood: 0.26, gold: 0.32, favor: 0.06 };
-  else ratio = { food: 0.32, wood: 0.22, gold: 0.36, favor: 0.1 };
+  // E2: pedra desde a Era I (Biblioteca, torres, Eras); petróleo só a partir da Era IV e fora de cenário
+  if (age === 0) ratio = { food: 0.4, wood: 0.34, stone: 0.1, gold: 0.16, oil: 0, favor: 0 };
+  else if (age === 1) ratio = { food: 0.34, wood: 0.24, stone: 0.1, gold: 0.26, oil: 0, favor: 0.06 };
+  else if (age === 2) ratio = { food: 0.3, wood: 0.2, stone: 0.1, gold: 0.3, oil: 0, favor: 0.1 };
+  else ratio = { food: 0.28, wood: 0.18, stone: 0.1, gold: 0.28, oil: age >= OIL_FROM_AGE && !state.scenario ? 0.06 : 0, favor: 0.1 };
   const hasTemple = (snap.byType.get('temple') ?? []).some((b) => b.complete);
   if (!hasTemple) { ratio.food += ratio.favor; ratio.favor = 0; }
   // Pondera pela escassez em relação ao próximo objetivo (próxima idade + reserva para construções)
   const next = AGES[Math.min(AGES.length - 1, age + 1)];
-  const need: Record<string, number> = { food: (next.cost.food ?? 0) + 200, wood: (next.cost.wood ?? 0) + 350, gold: (next.cost.gold ?? 0) + 150, favor: 0 };
+  const need: Record<string, number> = {
+    food: (next.cost.food ?? 0) + 200, wood: (next.cost.wood ?? 0) + 350, stone: (next.cost.stone ?? 0) + 150, gold: (next.cost.gold ?? 0) + 150,
+    oil: age >= OIL_FROM_AGE && !state.scenario ? (next.cost.oil ?? 0) : 0, favor: 0,
+  };
   let sum = 0;
-  for (const r of ['food', 'wood', 'gold', 'favor']) {
+  for (const r of AI_RES) {
     const shortage = Math.max(0, need[r] - (player.resources[r as ResourceType] ?? 0));
     ratio[r] = ratio[r] * (1 + shortage / 350);
     sum += ratio[r];
   }
   const want: Record<string, number> = {};
-  for (const r of ['food', 'wood', 'gold', 'favor']) want[r] = Math.round((ratio[r] / sum) * Math.min(n, target));
+  for (const r of AI_RES) want[r] = Math.round((ratio[r] / sum) * Math.min(n, target));
   const idle = snap.idleVillagers.slice();
   // Rebalanceamento suave: se um recurso está muito acima do desejado, libera um coletor
   if (idle.length === 0 && state.tick % (TICK_RATE * 8) < TICK_RATE * 2) {
-    for (const r of ['food', 'wood', 'gold', 'favor']) {
+    for (const r of AI_RES) {
       if (snap.gatherers[r] > want[r] + 2) {
         const v = snap.villagers.find((u) => gatherResourceOf(state, u) === r);
         if (v) { applyCommand(state, { type: 'stop', player: player.id, ids: [v.id] }); idle.push(v); break; }
@@ -152,7 +180,7 @@ function manageEconomy(state: GameState, player: Player, snap: Snapshot): void {
   const counts = { ...snap.gatherers };
   for (const v of idle) {
     let bestR = 'food', bestDef = -Infinity;
-    for (const r of ['food', 'wood', 'gold', 'favor']) { const d = want[r] - counts[r]; if (d > bestDef) { bestDef = d; bestR = r; } }
+    for (const r of AI_RES) { const d = want[r] - counts[r]; if (d > bestDef) { bestDef = d; bestR = r; } }
     if (assignGatherer(state, player, v, bestR, snap)) counts[bestR]++;
     else if (bestR !== 'food' && assignGatherer(state, player, v, 'food', snap)) counts.food++;
     else if (assignGatherer(state, player, v, 'wood', snap)) counts.wood++;
@@ -177,6 +205,7 @@ function assignGatherer(state: GameState, player: Player, v: Unit, r: string, sn
   }
   const res = r as ResourceType;
   const drop = nearestDropoffFor(state, player, res, anchor.x, anchor.y);
+  if (res === 'oil' && !drop) return false;   // E2: nada de cidadão na nafta sem Poço de Nafta/Refinaria pronto
   if (res === 'food') {
     const node = nearestNodeWithRoom(state, v.x, v.y, 'food', 22) ?? nearestNodeWithRoom(state, anchor.x, anchor.y, 'food', 30);
     const farm = nearestFreeFarm(state, player.id, v.x, v.y, 30);
@@ -223,8 +252,8 @@ function distToDrop(x: number, y: number, drop: Building | null): number { retur
 /** Agrupamentos de recursos sendo coletados por ≥3 cidadãos e longe (>7) de qualquer ponto de entrega. */
 function neededDropoffs(state: GameState, player: Player, snap: Snapshot): { type: string; x: number; y: number }[] {
   const out: { type: string; x: number; y: number }[] = [];
-  const dropType: Record<string, string> = { food: 'granary', wood: 'lumber_camp', gold: 'mine' };
-  for (const res of ['food', 'wood', 'gold'] as ResourceType[]) {
+  const dropType: Record<string, string> = { food: 'granary', wood: 'lumber_camp', stone: 'quarry', gold: 'mine', oil: 'naphtha_well' };
+  for (const res of ['food', 'wood', 'stone', 'gold', 'oil'] as ResourceType[]) {
     const pts: { x: number; y: number }[] = [];
     for (const v of snap.villagers) {
       if (v.nodeId <= 0 || (v.state !== 'gather' && v.state !== 'return')) continue;
@@ -278,18 +307,29 @@ function manageBuilding(state: GameState, player: Player, snap: Snapshot): void 
     { type: 'academy', anchorX: tc.x, anchorY: tc.y, minR: 3, maxR: 16, cond: has('academy') === 0 && (age >= 1 || snap.villagers.length >= 9) },
     { type: 'stable', anchorX: tc.x + enemyDir.x * 6, anchorY: tc.y + enemyDir.y * 6, minR: 1, maxR: 10, cond: age >= 1 && has('stable') === 0 && snap.villagers.length >= 16 },
     { type: 'market', anchorX: tc.x, anchorY: tc.y, minR: 3, maxR: 16, cond: age >= 1 && has('market') === 0 && snap.villagers.length >= 14 },
-    { type: 'tower', anchorX: tc.x + enemyDir.x * 8, anchorY: tc.y + enemyDir.y * 8, minR: 0, maxR: 6, cond: has('tower') < 1 + age && snap.villagers.length >= 12 && player.resources.wood > 250 },
+    { type: 'tower', anchorX: tc.x + enemyDir.x * 8, anchorY: tc.y + enemyDir.y * 8, minR: 0, maxR: 6, cond: has('tower') < 1 + age && snap.villagers.length >= 12 && player.resources.stone > 150 },
     { type: 'barracks', anchorX: tc.x + enemyDir.x * 7, anchorY: tc.y + enemyDir.y * 7, minR: 1, maxR: 10, cond: age >= 2 && has('barracks') < 2 },
     { type: 'siege_workshop', anchorX: tc.x + enemyDir.x * 5, anchorY: tc.y + enemyDir.y * 5, minR: 1, maxR: 10, cond: age >= 2 && has('siege_workshop') === 0 },
-    { type: 'fortress', anchorX: tc.x + enemyDir.x * 9, anchorY: tc.y + enemyDir.y * 9, minR: 0, maxR: 8, cond: age >= 2 && has('fortress') === 0 && player.resources.wood > 500 },
+    { type: 'fortress', anchorX: tc.x + enemyDir.x * 9, anchorY: tc.y + enemyDir.y * 9, minR: 0, maxR: 8, cond: age >= 2 && has('fortress') === 0 && player.resources.wood > 300 && player.resources.stone > 400 },
     { type: 'academy', anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 12, cond: age >= 2 && has('academy') < Math.min(2, has('town_center')) && player.resources.gold > 400 },
-    { type: 'wonder_' + wonderChoice(player), anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 14, cond: age >= 3 && countBuildings(state, player.id, (b) => !!BUILDINGS[b.type].wonder) === 0 && player.resources.gold > 1500 && player.resources.wood > 1500 },
+    { type: 'wonder_' + wonderChoice(player), anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 14, cond: age >= 3 && countBuildings(state, player.id, (b) => !!BUILDINGS[b.type].wonder) === 0 && player.resources.gold > 1500 && player.resources.wood > 1500 && player.resources.stone > 700 },
     { type: 'titan_gate', anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 14, cond: age >= BUILDINGS.titan_gate.age && has('titan_gate') === 0 },
   ];
   for (const d of neededDropoffs(state, player, snap)) {
     if (countBuildings(state, player.id, (b) => b.type === d.type) >= 4) continue;
     plan.splice(1, 0, { type: d.type, anchorX: d.x, anchorY: d.y, minR: 1, maxR: 5, cond: true });
   }
+  // E2: o 1º Poço de Nafta (o neededDropoffs só pede ponto de entrega com ≥ 3 cidadãos na fonte, e ninguém vai à nafta sem poço)
+  if (!state.scenario && age >= BUILDINGS.naphtha_well.age && has('naphtha_well') === 0) {
+    const seep = nearestNodeBy(state, tc.x, tc.y, (n) => n.type === 'naphtha' && state.territory[idx(state.map, n.x, n.y)] === player.id, 40);
+    if (seep) plan.splice(1, 0, { type: 'naphtha_well', anchorX: seep.x + 0.5, anchorY: seep.y + 0.5, minR: 1, maxR: 5, cond: true });
+  }
+  // E2: Poços de Petróleo encostados nas jazidas do território e a Refinaria
+  if (!state.scenario && age >= BUILDINGS.oil_well.age && has('oil_well') < 6) {
+    const field = nearestNodeBy(state, tc.x, tc.y, (n) => n.type === 'oil_field' && state.territory[idx(state.map, n.x, n.y)] === player.id && !wellTouching(state, n), 40);
+    if (field) plan.splice(1, 0, { type: 'oil_well', anchorX: field.x + 0.5, anchorY: field.y + 0.5, minR: 0, maxR: 3, cond: true });
+  }
+  if (!state.scenario && age >= BUILDINGS.refinery.age) plan.push({ type: 'refinery', anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 14, cond: has('refinery') === 0 && has('oil_well') >= 1 });
   for (const p of plan) {
     if (!p.cond) continue;
     const def = BUILDINGS[p.type];
@@ -298,7 +338,7 @@ function manageBuilding(state: GameState, player: Player, snap: Snapshot): void 
     if (!canAfford(player, bcost)) { if (p.type === 'house') return; continue; }
     if (p.type !== 'house' && p.type !== 'temple' && p.type !== 'academy' && (bcost.wood ?? 0) > 0 && player.resources.wood - (bcost.wood ?? 0) < libraryWoodHold(player, snap)) continue;   // madeira da 1ª Biblioteca
     // (o mercado é essencial: é a válvula de escape quando o ouro acaba e a comida sobra)
-    const essential = ['house', 'temple', 'academy', 'granary', 'lumber_camp', 'mine', 'farm', 'barracks', 'fortress', 'market'].includes(p.type) || p.type.startsWith('wonder') || p.type === 'titan_gate';
+    const essential = ['house', 'temple', 'academy', 'granary', 'lumber_camp', 'mine', 'quarry', 'naphtha_well', 'oil_well', 'refinery', 'farm', 'barracks', 'fortress', 'market'].includes(p.type) || p.type.startsWith('wonder') || p.type === 'titan_gate';
     if (!essential && (bcost.gold ?? 0) > player.resources.gold - budgetOf(state, player).reserveGold) continue;
     let spot = findBuildSpot(state, player, p.type, p.anchorX, p.anchorY, p.minR, p.maxR);
     if (!spot) {
@@ -332,13 +372,24 @@ function manageBuilding(state: GameState, player: Player, snap: Snapshot): void 
   }
 }
 
+/** Já há um Poço de Petróleo encostado neste nó? */
+function wellTouching(state: GameState, n: ResourceNode): boolean {
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    const x = n.x + dx, y = n.y + dy;
+    if (!inBounds(state.map, x, y)) continue;
+    const b = state.buildings.get(state.map.buildingAt[idx(state.map, x, y)]);
+    if (b && !b.dead && b.type === 'oil_well') return true;
+  }
+  return false;
+}
+
 function wonderChoice(player: Player): string { return ['zeus', 'artemis', 'colossus'][player.ai!.personality % 3]; }
 
 
 function nearestUnclaimedNode(state: GameState, player: Player, from: Building, res: ResourceType) {
   let best: { x: number; y: number } | null = null, bestD = Infinity;
   for (const n of state.map.nodes.values()) {
-    if (NODE_RESOURCE[n.type] !== res) continue;
+    if (NODE_RESOURCE[n.type] !== res || NOT_GATHERED.has(n.type)) continue;
     const owner = state.territory[idx(state.map, n.x, n.y)];
     if (owner !== -1 && owner !== player.id) continue;
     // centro do nó (o canto deixava o ouro do norte 1 tile "mais perto" que o do sul); empate → mais longe do centro do mapa,
@@ -419,6 +470,7 @@ export function sealsNode(map: GameState['map'], x: number, y: number, w: number
   const inside = (xx: number, yy: number) => xx >= x && xx < x + w && yy >= y && yy < y + h;
   for (let ny = y - 1; ny <= y + h; ny++) for (let nx = x - 1; nx <= x + w; nx++) {
     if (inside(nx, ny) || !inBounds(map, nx, ny) || map.nodeAt[idx(map, nx, ny)] === -1) continue;
+    if (WELL_NODES.has(map.nodes.get(map.nodeAt[idx(map, nx, ny)])?.type ?? '')) continue;   // a jazida não precisa de tile livre (só o Poço de Petróleo a explora)
     let before = 0, after = 0;
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
       if (dx === 0 && dy === 0) continue;
@@ -610,7 +662,7 @@ function manageResearch(state: GameState, player: Player, snap: Snapshot): void 
   const budget = budgetOf(state, player);
   const godTechs: string[] = [];
   for (const g of player.minorGods) godTechs.push(...(MINOR_GODS[g]?.techs ?? []));
-  const list = [...RESEARCH_PRIORITY.slice(0, 12), ...godTechs, ...RESEARCH_PRIORITY.slice(12)];
+  const list = [...RESEARCH_PRIORITY.slice(0, 13), ...godTechs, ...RESEARCH_PRIORITY.slice(13)];
   let researchedThisThink = 0;
   for (const t of list) {
     if (researchedThisThink >= 2) break;
@@ -662,7 +714,8 @@ function manageTrade(state: GameState, player: Player, snap: Snapshot): void {
     }
   }
   // Recurso que trava a Idade com ouro sobrando: compra
-  if (!budget.fundMet) for (const k of tradeable) {
+  const buyable = ['food', 'wood', 'stone', ...(player.age >= OIL_FROM_AGE ? ['oil'] : [])] as ResourceType[];
+  if (!budget.fundMet) for (const k of buyable) {
     if (budget.surplus[k] < 0 && r.gold > budget.reserveGold + player.prices[k] * 1.5 + 100) { applyCommand(state, { type: 'trade', player: player.id, action: 'buy', resource: k }); break; }
   }
 }

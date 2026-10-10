@@ -9,6 +9,7 @@ import { AGES } from '../core/data/ages';
 import { TECHS } from '../core/data/techs';
 import { MAJOR_GODS, MINOR_GODS } from '../core/data/gods';
 import { glyph } from './glyphs';
+import { buildingArtType, unitArtType } from '../render/art/alias';
 
 interface Frame { img: HTMLImageElement; x: number; y: number; w: number; h: number; tx: number; ty: number; sw: number; sh: number }
 interface SheetJson { frames: Record<string, { frame: { x: number; y: number; w: number; h: number }; spriteSourceSize: { x: number; y: number }; sourceSize: { w: number; h: number } }>; meta: { image: string } }
@@ -127,8 +128,8 @@ export function iconHtml(name: string, opts: { team?: number; cls?: string; labe
 
 /** Atalhos por tipo de conteúdo. */
 export const ic = {
-  unit: (type: string, team?: number, cls?: string): string => iconHtml(`unit/${type}`, { team, cls, label: UNITS[type]?.name }),
-  bld: (type: string, team?: number, cls?: string): string => iconHtml(`bld/${type}`, { team, cls }),
+  unit: (type: string, team?: number, cls?: string): string => iconHtml(`unit/${unitArtType(type)}`, { team, cls, label: UNITS[type]?.name }),
+  bld: (type: string, team?: number, cls?: string): string => iconHtml(`bld/${buildingArtType(type)}`, { team, cls }),
   tech: (id: string, cls?: string): string => iconHtml(techIconName(id), { cls, label: TECHS[id]?.name }),
   power: (id: string, cls?: string): string => iconHtml(`power/${id}`, { cls }),
   god: (id: string, cls?: string): string => iconHtml(`god/${id}`, { cls: `hic-god${cls ? ' ' + cls : ''}` }),

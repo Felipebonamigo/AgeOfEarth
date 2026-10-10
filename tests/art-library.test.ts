@@ -2,6 +2,7 @@
 // contrato com os artefatos da parte A — toda chave que o renderizador vai pedir para hoplita, cidadão, templo e props
 // existe nos três passes (cor, time, sombra) e nas duas escalas, e os atlas passam na checagem de meta.aoe.
 import { describe, it, expect } from 'vitest';
+import { BUILDING_ART_ALIAS } from '../src/render/art/alias';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
@@ -505,7 +506,7 @@ describe.skipIf(!hasArt)('artefatos do bake: toda chave pedida pelo renderizador
 
   it('edifícios assados (os 21 do jogo, Etapa 3): todo estado × variante na cor, sombra e (com time) máscara, nas duas escalas; ícones; escombros', () => {
     // nenhum tipo de BUILDINGS cai no ProceduralSource numa partida com a arte assada ligada (critério da Etapa 3)
-    const lot = Object.keys(BUILDINGS);
+    const lot = Object.keys(BUILDINGS).filter((id) => !(id in BUILDING_ART_ALIAS));
     expect(lot).toHaveLength(21);
     for (const id of lot) {
       const a = manifest.assets[id];

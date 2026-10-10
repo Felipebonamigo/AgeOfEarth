@@ -158,6 +158,10 @@ export class UnitFx {
         }
         break;
       }
+      case 'stone':
+        chips(fx.particles, fx.tex, hx, hy + 1, 5, 1 + (R() < 0.5 ? 1 : 0), 'stone', PRIO.ambient, 0.6);
+        if (R() < 0.5) dust(fx.particles, fx.tex, hx, hy, { n: 1, tint: 0xb8b0a0, spread: 2, speed: 8, scale: 0.3, grow: 2, alpha: 0.4, life: 0.8, prio: PRIO.ambient });
+        break;
       case 'gold':
         chips(fx.particles, fx.tex, hx, hy + 1, 5, 1 + (R() < 0.5 ? 1 : 0), 'stone', PRIO.ambient, 0.6);
         if (R() < 0.5) dust(fx.particles, fx.tex, hx, hy, { n: 1, tint: 0xb8b0a0, spread: 2, speed: 8, scale: 0.3, grow: 2, alpha: 0.4, life: 0.8, prio: PRIO.ambient });

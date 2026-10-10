@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { buildingArtType } from '../src/render/art/alias';
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadManifests, validateManifest, validateAll, expandFrames, animationsOf, posesOf, FRAME_NAME_RE, GROUP_OF, BUILDING_STATES, UNIT_ANIMS, REQUIRED_UNIT_ANIMS, type ArtManifest } from '../scripts/bake/manifest.mjs';
@@ -24,7 +25,7 @@ describe('manifestos de arte (docs/ART.md §3.4)', () => {
   });
   it('Etapa 3 completa: todo tipo de BUILDINGS tem manifesto de edifício com a pegada do jogo', () => {
     for (const b of Object.values(BUILDINGS)) {
-      const m = manifests.find((x) => x.id === b.id);
+      const m = manifests.find((x) => x.id === buildingArtType(b.id));   // alias: o tipo novo usa o manifesto de um edifício de mesma pegada
       expect(m?.kind, b.id).toBe('building');
       expect(m!.footprint, b.id).toEqual([b.w, b.h]);
     }

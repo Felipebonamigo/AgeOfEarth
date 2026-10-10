@@ -4,6 +4,7 @@
 // 1×). O teste passa pela ArtLibrary DE VERDADE (a mesma decisão `unit()` do renderizador: asset no índice, animações ×
 // 8 direções no passe de cor, moldura) com um AtlasSource falso que serve os JSON do bake (public/art), sem Pixi nem GPU.
 import { describe, it, expect, vi } from 'vitest';
+import { UNIT_ART_ALIAS } from '../src/render/art/alias';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -52,7 +53,7 @@ const headsOf = (type: string): number[] => (UNITS[type].special === 'heads' ? [
 describe('Etapa 6: todo tipo de unidade do jogo tem manifesto de arte (nenhum fica no ProceduralSource)', () => {
   it('os 35 tipos de UNITS — humanos, montados, cerco, as 13 míticas e os 3 titãs — têm art/manifest/<tipo>.json de unidade', () => {
     const ids = new Set(loadManifests(path.join(ROOT, 'art', 'manifest')).map((l: { manifest: { id: string; kind: string } }) => l.manifest).filter((m: { kind: string }) => m.kind === 'unit').map((m: { id: string }) => m.id));
-    const types = Object.keys(UNITS);
+    const types = Object.keys(UNITS).filter((t) => !(t in UNIT_ART_ALIAS));
     expect(types).toHaveLength(35);
     expect(types.filter((t) => !ids.has(t))).toEqual([]);
     expect(types.filter((t) => UNITS[t].tags.includes('myth') && !UNITS[t].tags.includes('titan'))).toHaveLength(13);

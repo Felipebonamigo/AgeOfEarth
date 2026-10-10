@@ -1,5 +1,6 @@
 // Etapa 7 do visual (docs/ART.md §1.10, §5 e Apêndice H): ícones do HUD e glifos no lugar dos emoji.
 import { describe, it, expect } from 'vitest';
+import { buildingArtType, unitArtType } from '../src/render/art/alias';
 import fs from 'node:fs';
 import path from 'node:path';
 import { UNITS, TECHS, POWERS, MAJOR_GODS, MINOR_GODS, AGES, ABILITIES, BUILDINGS } from '../src/core/data';
@@ -21,8 +22,8 @@ const names = new Set(hudNames(unitIds, buildingIds));
 describe('atlas hud: todo conteúdo do jogo tem ícone no catálogo', () => {
   it('unidades, edifícios, tecnologias, poderes, deuses, Idades, habilidades e recursos', () => {
     const missing: string[] = [];
-    for (const id of Object.keys(UNITS)) if (!names.has(`unit/${id}`)) missing.push(`unit/${id}`);
-    for (const [id, b] of Object.entries(BUILDINGS)) if (!b.notBuildable && !names.has(`bld/${id}`)) missing.push(`bld/${id}`);
+    for (const id of Object.keys(UNITS)) if (!names.has(`unit/${unitArtType(id)}`)) missing.push(`unit/${id}`);
+    for (const [id, b] of Object.entries(BUILDINGS)) if (!b.notBuildable && !names.has(`bld/${buildingArtType(id)}`)) missing.push(`bld/${id}`);
     for (const id of Object.keys(TECHS)) if (!names.has(`tech/${techIconKey(id)}`)) missing.push(`tech/${id}`);
     for (const id of Object.keys(POWERS)) if (!names.has(`power/${id}`)) missing.push(`power/${id}`);
     for (const id of [...Object.keys(MAJOR_GODS), ...Object.keys(MINOR_GODS)]) if (!names.has(`god/${id}`)) missing.push(`god/${id}`);

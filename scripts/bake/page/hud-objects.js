@@ -177,6 +177,22 @@ OBJ.favor = (THREE, M, T) => {
   for (let k = 0; k < 3; k++) { const a = (k / 3) * TAU + 0.3; T.add(T.cyl(0.018, 0.022, 0.58, 8), M.bronzeDark, Math.cos(a) * 0.17, 0.28, Math.sin(a) * 0.17, Math.sin(a) * 0.25, 0, -Math.cos(a) * 0.25); }
   flame(THREE, M, T, T.root, { h: 0.42, r: 0.15, y: 0.6, seed: 3 });
 };
+OBJ.stone = (THREE, M, T) => {
+  // blocos brutos de calcário recém-cortados, empilhados, e lascas no chão
+  const b = (x, y, z, w, h, d, ry, mat) => T.add(T.box(w, h, d), mat, x, y, z, 0, ry, 0);
+  b(-0.18, 0.11, 0.02, 0.36, 0.22, 0.3, 0.12, M.limestone);
+  b(0.2, 0.1, -0.04, 0.32, 0.2, 0.28, -0.2, M.stone);
+  b(0.02, 0.31, -0.01, 0.34, 0.2, 0.26, 0.35, M.limestone);
+  for (let i = 0; i < 5; i++) { const r = T.add(new THREE.DodecahedronGeometry(0.035 + 0.02 * hash(i + 40), 0), M.stoneDark, -0.3 + 0.15 * i, 0.03, 0.24 + 0.04 * hash(i + 50)); r.rotation.set(hash(i) * 3, hash(i + 7) * 3, 0); }
+};
+OBJ.oil = (THREE, M, T) => {
+  const x = X(THREE, M);
+  // ânfora de nafta selada, com betume escorrendo do gargalo até uma poça preta
+  amphoraShape(T, M.terracotta, T.root, { h: 0.82, r: 0.22 });
+  T.add(T.cyl(0.075, 0.075, 0.04, 20), x.wax, 0, 0.82, 0);
+  T.add(T.tube([[0.06, 0.8, 0.05], [0.1, 0.6, 0.18], [0.12, 0.3, 0.2], [0.16, 0.04, 0.22]], 0.02, 20, 8), x.wax, 0, 0, 0);
+  T.add(T.cyl(0.16, 0.16, 0.008, 28), x.wax, 0.2, 0.004, 0.24);
+};
 
 // ---- tecnologias ----
 OBJ.column = (THREE, M, T, p) => {

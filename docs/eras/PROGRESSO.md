@@ -135,9 +135,9 @@ Fase B — mapas e editor
 - [x] 19 Mapas fixos da campanha (pedra) e pedra inicial das missões
 
 Fase C — IA
-- [ ] 20 Economia da IA (pedra, petróleo, loadtest)
-- [ ] 21 Construção da IA (Pedreira, poços, Refinaria)
-- [ ] 22 Mercadores da IA (`manageMerchants`)
+- [x] 20 Economia da IA (pedra, petróleo, loadtest)
+- [x] 21 Construção da IA (Pedreira, poços, Refinaria)
+- [x] 22 Mercadores da IA (`manageMerchants`)
 
 Fase D — interface, textos e arte provisória
 - [ ] 23 Textos PT/EN

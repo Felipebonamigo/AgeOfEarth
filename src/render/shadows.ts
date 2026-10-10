@@ -49,7 +49,7 @@ export function nodeShadow(type: string, scale = 1): EllipseShadow | null {
   switch (type) {
     case 'tree': { const o = shadowOffset(24 * scale); return { rx: 12 * scale, ry: 7 * scale, dx: o.x, dy: o.y + 2 }; }
     case 'berry': { const o = shadowOffset(14); return { rx: 10, ry: 5.5, dx: o.x, dy: o.y + 1 }; }
-    case 'gold': { const o = shadowOffset(12); return { rx: 12, ry: 5, dx: o.x, dy: o.y + 3 }; }
+    case 'gold': case 'limestone': case 'naphtha': case 'oil_field': { const o = shadowOffset(12); return { rx: 12, ry: 5, dx: o.x, dy: o.y + 3 }; }
     case 'deer': { const o = shadowOffset(8); return { rx: 9, ry: 4, dx: o.x, dy: o.y + 3 }; }
     case 'boar': { const o = shadowOffset(7); return { rx: 8, ry: 3.5, dx: o.x, dy: o.y + 2 }; }
     case 'lure': { const o = shadowOffset(16); return { rx: 10, ry: 4.5, dx: o.x, dy: o.y + 4 }; }

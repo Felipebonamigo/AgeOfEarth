@@ -522,7 +522,7 @@ describe('G6: remove, guarnição por roteiro, maxAge e forbid', () => {
   });
   it('a IA respeita maxAge e forbid: não avança, não constrói, não treina e não pesquisa o proibido (e segue jogando)', () => {
     const base = (players: ScenarioFile['config']['players']) => mk({ map: { gen: { mapSize: 'small', seed: 777 } }, config: { ...mk().config, startingAge: 1,
-      startingResources: { food: 6000, wood: 6000, gold: 6000, favor: 400, knowledge: 3000 }, players } });
+      startingResources: { food: 6000, wood: 6000, stone: 6000, gold: 6000, favor: 400, knowledge: 3000 }, players } });
     const ai = { isAI: true, difficulty: 'hard' as const, team: 1 };
     const control = game(base(P2([{}, ai])));
     const locked = game(base(P2([{}, { ...ai, maxAge: 1, forbid: { buildings: ['stable', 'academy'], units: ['hoplite'], techs: ['phalanx', 'wheel'] } }])));

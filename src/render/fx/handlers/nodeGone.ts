@@ -18,7 +18,7 @@ export const nodeGone: FxHandler<null> = {
     const rot = Math.random() * 6.28;
     // o resto fica mesmo sem ninguém olhando agora (o decalque só aparece quando o tile for visto)
     if (e.data === 'tree') fx.decal('decal/debris', e.x, e.y, { rot, size: 0.85 * TILE, alpha: 0.75, life: 40, tint: 0xc9a878 });
-    else if (e.data === 'gold') fx.decal('decal/debris', e.x, e.y, { rot, size: 0.9 * TILE, alpha: 0.9, life: 40, tint: 0xcfc2a0 });
+    else if (e.data === 'gold' || e.data === 'limestone') fx.decal('decal/debris', e.x, e.y, { rot, size: 0.9 * TILE, alpha: 0.9, life: 40, tint: 0xcfc2a0 });
     if (!seenNow(fx, e.x, e.y)) return null;
     const x = e.x * TILE, y = e.y * TILE, tint = dustAt(fx, e.x, e.y);
     switch (e.data) {
@@ -35,6 +35,10 @@ export const nodeGone: FxHandler<null> = {
         dust(fx.particles, fx.tex, cx, cy, { n: 6, tint, spread: 10, speed: 20, scale: 0.55, grow: 2.4, alpha: 0.5, life: 1.3 });
         break;
       }
+      case 'limestone':
+        chips(fx.particles, fx.tex, x, y, 6, 7, 'stone', undefined, 1.1);
+        dust(fx.particles, fx.tex, x, y, { n: 4, tint: 0xb4ada0, spread: 6, speed: 18, scale: 0.5, alpha: 0.5, life: 1.2 });
+        break;
       case 'gold':
         chips(fx.particles, fx.tex, x, y, 6, 7, 'stone', undefined, 1.1);
         dust(fx.particles, fx.tex, x, y, { n: 4, tint: 0xb4ada0, spread: 6, speed: 18, scale: 0.5, alpha: 0.5, life: 1.2 });

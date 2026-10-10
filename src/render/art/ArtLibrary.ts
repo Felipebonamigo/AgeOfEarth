@@ -9,6 +9,7 @@
 // `generation` muda quando o conjunto de quadros SERVIDOS dos grupos muda (carregou, falhou, trocou a escala,
 // ligou/desligou): o renderizador refaz vistas e props. A chegada das páginas de um tipo de unidade muda só `unitGen`:
 // o renderizador troca as vistas procedurais daquele tipo, sem reconstruir o resto.
+import { buildingArtType, unitArtType } from './alias';
 import type { Texture } from 'pixi.js';
 import type { TextureCache } from '../textures';
 import { UNITS } from '../../core/data';
@@ -136,7 +137,7 @@ export class ArtLibrary {
   }
   /** Pré-carrega as páginas destes tipos de unidade (os treináveis na Idade do jogador local, os da partida), sem esperar. */
   prewarmUnits(types: Iterable<string>): void {
-    for (const id of types) { if (this.warm.has(id)) continue; this.warm.add(id); this.requestUnit(id); }
+    for (const raw of types) { const id = unitArtType(raw); if (this.warm.has(id)) continue; this.warm.add(id); this.requestUnit(id); }
   }
   /** Pede as páginas de um tipo na escala desejada (nada se desligada, sem manifesto ou sem arte). */
   private requestUnit(id: string): void {
@@ -250,7 +251,8 @@ export class ArtLibrary {
    * uma por número de cabeças). Sem manifesto (ou desligada), o próprio tipo — `unit()` responde null e fica procedural.
    */
   unitId(type: string, heads = 1): string {
-    return this.enabled ? unitArtId(type, this.atlas.manifest?.assets[type], heads) : type;
+    const t = unitArtType(type);
+    return this.enabled ? unitArtId(t, this.atlas.manifest?.assets[t], heads) : type;
   }
   /** Arte de uma unidade (null = procedural). A primeira chamada de um tipo dispara o carregamento do grupo. */
   unit(id: string): UnitArt | null {
@@ -318,6 +320,7 @@ export class ArtLibrary {
    * variantes — sem isso a obra ou o dano ficariam sem quadro em algum momento. O conjunto de escombros não conta.
    */
   buildingArt(id: string): BuildingArt | null {
+    id = buildingArtType(id);
     if (!this.enabled) return null;
     const hit = this.buildingsArt.get(id);
     if (hit !== undefined) return hit;
@@ -342,6 +345,7 @@ export class ArtLibrary {
   }
   /** Edifício `<id>/<estado>[/<variante>]` (build0/1/2, complete, damage1/2, open); null = procedural. */
   building(id: string, stage: string, variant?: string | null): BakedFrame | null {
+    id = buildingArtType(id);
     if (!this.enabled) return null;
     const a = this.atlas.manifest?.assets[id];
     if (!a || a.kind !== 'building') { if (!this.atlas.manifest && this.atlas.manifestStatus === 'idle') void this.atlas.loadManifest(); return null; }
@@ -356,6 +360,7 @@ export class ArtLibrary {
   }
   /** Ícone do HUD (atlas `icons`, quadro = id): cor + máscara de time; null = emoji. */
   icon(id: string): BakedFrame | null {
+    id = buildingArtType(id);
     if (!this.enabled) return null;
     const a = this.atlas.manifest?.assets[id];
     if (!a || !a.icon) return null;

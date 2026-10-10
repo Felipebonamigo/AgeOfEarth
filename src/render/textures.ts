@@ -14,7 +14,9 @@ const DARK = 0x2a2622;
 export const darken = scaleColor;
 
 /** Tipos de nó no atlas (linhas) e variantes por tipo (colunas). */
-const NODE_TYPES: readonly NodeType[] = ['tree', 'berry', 'gold', 'deer', 'boar', 'lure'];
+const NODE_TYPES: readonly NodeType[] = ['tree', 'berry', 'gold', 'deer', 'boar', 'lure', 'limestone', 'naphtha', 'oil_field', 'olive', 'vineyard', 'paros_marble', 'salt', 'wild_horses', 'copper', 'incense'];
+// E2: cor do disco dos recursos raros (arte provisória até a E8)
+const RARE_COLORS: Record<string, number> = { olive: 0x7a8a5a, vineyard: 0x5a2a6a, paros_marble: 0xf2efe6, salt: 0xf6f6f2, wild_horses: 0x8a6238, copper: 0xb87333, incense: 0xc9b27a };
 export const NODE_VARIANTS = 8;
 /** Lado (px) da célula do atlas de nós: cabe a copa (± 16 px) e a sombra SE deslocada (até ≈ 24 px do centro). */
 const NODE_CELL = 56;
@@ -164,6 +166,24 @@ function drawNode(g: Graphics, type: string, variant: number) {
     }
     case 'boar': { g.ellipse(0, 0, 8, 4.5).fill(0x4a3320); g.circle(7, 0, 3).fill(0x3d2a1a); g.moveTo(9, 1).lineTo(11, -1).stroke({ width: 1.2, color: 0xe8dcc0 }); break; }
     case 'lure': { g.poly([-9, 7, -5, -8, 5, -9, 10, 7]).fill(0x3d7ea6).poly([-5, -8, 5, -9, 2, 0]).fill(0x7fc3e8); g.circle(0, -1, 2).fill(0xdff6ff); break; }
+    case 'limestone': {
+      g.poly([-12, 7, -9, -4, -2, -8, 5, -6, 12, 7]).fill(0xd8d2c2).poly([-2, -8, 5, -6, 3, 7, -6, 7]).fill(0xb9b2a0);
+      g.poly([5, -6, 12, 7, 3, 7]).fill(0xa49c8a); g.rect(-10, 3, 6, 3).fill(0xece6d6);   // bloco já cortado
+      break;
+    }
+    case 'naphtha': {
+      g.ellipse(0, 3, 11, 5).fill(0x1a1612); g.ellipse(-2, 2, 6, 2.5).fill({ color: 0x4a3f6a, alpha: 0.5 });
+      g.poly([-11, 4, -8, -2, -4, 1]).fill(0x8a7a5c).poly([8, 5, 10, -1, 12, 4]).fill(0x8a7a5c);
+      break;
+    }
+    case 'oil_field': {
+      g.ellipse(0, 4, 12, 5).fill(0x2a2018); g.ellipse(0, 3, 7, 3).fill(0x0c0a08); g.circle(-3, 1, 1.5).fill({ color: 0x6a5a8a, alpha: 0.6 });
+      break;
+    }
+    default: {
+      const c = RARE_COLORS[type];
+      if (c !== undefined) { g.ellipse(0, 4, 11, 5).fill({ color: 0x3a3226, alpha: 0.35 }); g.circle(0, -2, 7).fill(c); g.circle(0, -2, 9).stroke({ width: 1.5, color: GOLD }); }
+    }
   }
 }
 

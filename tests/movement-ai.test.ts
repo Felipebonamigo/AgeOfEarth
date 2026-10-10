@@ -171,7 +171,7 @@ describe('IA', () => {
     placeBuilding(s, 0, 'temple', tc.tx + 5, tc.ty, true);
     const spot = findFree(s, 0, 'market', tc.tx + 5, tc.ty + 5, 8);
     placeBuilding(s, 0, 'market', spot.x, spot.y, true);
-    p.resources.food = 6000; p.resources.wood = 6000; p.resources.gold = 50;
+    p.resources.food = 6000; p.resources.wood = 6000; p.resources.stone = 6000; p.resources.gold = 50;
     p.ai!.nextThink = 0;
     aiThink(s, p);
     expect(p.resources.gold).toBeGreaterThan(200);
@@ -223,7 +223,7 @@ describe('produção, poderes e estado', () => {
     p.techs = ['civic1', 'commerce1', 'military1', 'science1', 'civic2', 'commerce2', 'military2'];
     placeBuilding(s, 0, 'fortress', tc.tx + 6, tc.ty, true);
     const lib = placeBuilding(s, 0, 'academy', tc.tx - 6, tc.ty, true);
-    p.resources.food = 9999; p.resources.gold = 9999; p.resources.knowledge = 9999; p.resources.favor = 9999;
+    p.resources.food = 9999; p.resources.stone = 9999; p.resources.oil = 9999; p.resources.gold = 9999; p.resources.knowledge = 9999; p.resources.favor = 9999;
     const r = applyCommand(s, { type: 'advanceAge', player: 0, buildingId: lib.id, minorGod: 'artemis' });
     expect(r.ok).toBe(true);
     expect(lib.queue[0].id).toBe('age:');

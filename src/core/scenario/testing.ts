@@ -722,7 +722,8 @@ function m6Statue(state: GameState, builders: number, minArmy: number): Command 
   if (militaryCount(state, 0) < minArmy) return null;
   const tc = [...state.buildings.values()].find((b) => b.owner === 0 && !b.dead && b.complete && b.type === 'town_center'); if (!tc) return null;
   if (!canAfford(p, getBuildingStats(state, p, 'wonder_zeus').cost)) return null;
-  const spot = findBuildSpot(state, p, 'wonder_zeus', tc.x, tc.y, 4, 14); if (!spot) return null;
+  // (a IA enche o entorno do Centro Cívico — com a pedra, Pedreira e mais torres —: se não há chão a até 14 tiles, procura até 24)
+  const spot = findBuildSpot(state, p, 'wonder_zeus', tc.x, tc.y, 4, 14) ?? findBuildSpot(state, p, 'wonder_zeus', tc.x, tc.y, 14, 24); if (!spot) return null;
   const ids = villagersNear(state, spot.x + 2, spot.y + 2).slice(0, builders).map((u) => u.id);
   return ids.length ? { type: 'build', player: 0, ids, building: 'wonder_zeus', tx: spot.x, ty: spot.y } : null;
 }
@@ -965,7 +966,9 @@ function m5Travel(state: GameState): Command[] {
 }
 
 /** m5 (variante "escolta"): militares junto de Odisseu (a até 10 tiles) com que ele deixa a praia sem trégua comprada, por dificuldade. */
-const M5_CONVOY: Record<CampaignDifficulty, number> = { easy: 16, normal: 20, hard: 24 };
+/** m5: no máximo esta quantidade de militares na coluna do comboio (a mais próxima de Odisseu). */
+const M5_GUARD_MAX = 30;
+const M5_CONVOY: Record<CampaignDifficulty, number> = { easy: 16, normal: 20, hard: 30 };
 /** m5 (variante "escolta"): comboios que já partiram (a partida é uma decisão só; depois, dispersa, a escolta se reagrupa na estrada). */
 const m5Departed = new WeakMap<GameState, true>();
 /** m5 (variante "escolta"): na praia, com a escolta completa, o comboio parte; antes disso, o posto (como no roteiro principal). */
@@ -997,7 +1000,8 @@ function m5Convoy(state: GameState): Command[] {
     else if (m5D2(u, o) > 9) out.push({ type: 'move', player: 0, ids: [u.id], x: o.x, y: o.y });
   }
   const army = armyOf(state).map((id) => state.units.get(id)!).filter((u) => u.id !== o.id);
-  const guard = army.filter((u) => m5D2(u, o) <= 196);
+  // a escolta é a coluna mais próxima dele (no máximo M5_GUARD_MAX): com o exército inteiro em volta (80+ com a IA acumulando), o centro do grupo nunca chegava a 4 tiles dele e o comboio parava
+  const guard = army.filter((u) => m5D2(u, o) <= 196).sort((a, b) => m5D2(a, o) - m5D2(b, o) || a.id - b.id).slice(0, M5_GUARD_MAX);
   const late = army.filter((u) => m5D2(u, o) > 196 && m5D2(u, o) <= 900 && (u.state === 'idle' || u.state === 'move')).map((u) => u.id);
   if (late.length) out.push({ type: 'attackMove', player: 0, ids: late, x: o.x, y: o.y });
   const stop = () => { if (o.state === 'move') out.push({ type: 'stop', player: 0, ids: [o.id] }); };
@@ -2057,7 +2061,7 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
     // guarda da Maravilha: a IA do jogador nunca sai em ondas (o exército defende a Estátua e o Centro Cívico)
     hold: { time: { gte: 0 } },
     // na Mítica, junta o custo da Estátua antes de gastar em outra coisa (a IA sozinha gastaria tudo na Idade dos Titãs)
-    reserve: { when: { all: [{ value: { stat: 'age', player: 0 }, gte: 3 }, { buildings: { player: 0, type: 'wonder_zeus' }, eq: 0 }] }, resources: { wood: 800, gold: 800, food: 600, favor: 100 } },
+    reserve: { when: { all: [{ value: { stat: 'age', player: 0 }, gte: 3 }, { buildings: { player: 0, type: 'wonder_zeus' }, eq: 0 }] }, resources: { wood: 800, stone: 650, gold: 800, food: 600, favor: 100 } },
     steps: [
       // Idade Mítica (a IA pesquisa a 4ª linha da Academia e avança sozinha); com o custo guardado e 28 militares, a Estátua perto
       // do Centro Cívico com 6 cidadãos na obra; depois, torres ao redor e 6 cidadãos reparando sempre que ela sofrer dano
@@ -2065,7 +2069,7 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
       { label: 'torres', when: { buildings: { player: 0, type: 'wonder_zeus' }, gte: 1 }, every: 10, command: (s) => m6Towers(s, 4) },
       { label: 'reparo', when: { buildings: { player: 0, type: 'wonder_zeus' }, gte: 1 }, every: 5, command: (s) => m6Repair(s, 6) },
       // na Mítica, filas militares cheias só com a sobra acima do custo da Estátua (e, com ela de pé, acima de uma reserva pequena)
-      { label: 'treino', when: { value: { stat: 'age', player: 0 }, gte: 3 }, every: 5, command: (s) => trainArmy(s, 0, { reserve: firstBuilding(s, 'wonder_zeus') ? { food: 200, wood: 150, gold: 100 } : { food: 800, wood: 950, gold: 950, favor: 100 } }) },
+      { label: 'treino', when: { value: { stat: 'age', player: 0 }, gte: 3 }, every: 5, command: (s) => trainArmy(s, 0, { reserve: firstBuilding(s, 'wonder_zeus') ? { food: 200, wood: 150, gold: 100 } : { food: 800, wood: 950, stone: 650, gold: 950, favor: 100 } }) },
       // o exército não se afasta da Estátua (ou do Centro Cívico, antes dela): quem passou de 28 tiles volta atacando pelo caminho
       { label: 'casa', when: { time: { gte: 10 } }, every: 5, command: (s) => m6Home(s, 28) },
       { label: 'tempestade', when: { time: { gte: 1 } }, every: 1, command: (s) => dodgeStorms(s) },

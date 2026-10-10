@@ -1,5 +1,5 @@
 // Minimapa em canvas 2D: terreno, fronteiras, edifícios, unidades, névoa e retângulo da câmera.
-import { TILE, PLAYER_COLORS } from '../core/constants';
+import { TILE, PLAYER_COLORS, RARE_SET } from '../core/constants';
 import type { GameState } from '../core/types';
 import type { Camera } from './camera';
 import { tileColor } from './palette';
@@ -27,7 +27,7 @@ export class Minimap {
       const col = tileColor(state.map.terrain[i], x, y, state.map.decor[i]);
       let r = (col >> 16) & 255, g = (col >> 8) & 255, b = col & 255;
       const nid = state.map.nodeAt[i];
-      if (nid !== -1) { const n = state.map.nodes.get(nid); if (n) { if (n.type === 'tree') { r = 0x3a; g = 0x55; b = 0x22; } else if (n.type === 'gold') { r = 0xd0; g = 0xa1; b = 0x2e; } else if (n.type === 'berry') { r = 0xb8; g = 0x30; b = 0x3a; } else { r = 0x8a; g = 0x62; b = 0x38; } } }
+      if (nid !== -1) { const n = state.map.nodes.get(nid); if (n) { if (n.type === 'tree') { r = 0x3a; g = 0x55; b = 0x22; } else if (n.type === 'gold') { r = 0xd0; g = 0xa1; b = 0x2e; } else if (n.type === 'berry') { r = 0xb8; g = 0x30; b = 0x3a; } else if (n.type === 'limestone') { r = 0xc8; g = 0xc4; b = 0xb8; } else if (n.type === 'naphtha' || n.type === 'oil_field') { r = 0x1e; g = 0x1a; b = 0x16; } else if (RARE_SET.has(n.type)) { r = 0xa0; g = 0x60; b = 0xc0; } else { r = 0x8a; g = 0x62; b = 0x38; } } }
       img.data[i * 4] = r; img.data[i * 4 + 1] = g; img.data[i * 4 + 2] = b; img.data[i * 4 + 3] = 255;
     }
     ctx.putImageData(img, 0, 0);
