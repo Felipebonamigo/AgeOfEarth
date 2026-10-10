@@ -29,8 +29,8 @@
   "config": {
     "players": [
       { "name": "Argos", "god": "zeus", "isAI": false, "difficulty": "normal", "team": 0 },
-      { "name": { "pt": "Liga do Istmo", "en": "Isthmian League" }, "god": "poseidon", "isAI": true, "difficulty": "normal", "team": 1 },
-      { "name": { "pt": "Micenas", "en": "Mycenae" }, "god": "zeus", "isAI": true, "difficulty": "easy", "team": 0 },
+      { "name": { "pt": "Liga do Istmo", "en": "Isthmian League" }, "god": "poseidon", "isAI": true, "difficulty": "normal", "team": 1, "maxAge": 4 },
+      { "name": { "pt": "Micenas", "en": "Mycenae" }, "god": "zeus", "isAI": true, "difficulty": "easy", "team": 0, "maxAge": 4 },
       { "name": { "pt": "Frota de Poseidon", "en": "Poseidon's Fleet" }, "god": "poseidon", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
     ],
     "startingAge": 2,

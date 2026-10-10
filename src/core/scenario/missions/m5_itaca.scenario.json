@@ -88,7 +88,7 @@
         "text": { "pt": "Tochas no nordeste, arconte! Os cavaleiros de Poseidon farejam Odisseu onde quer que ele pare.", "en": "Torches to the northeast, archon! Poseidon's riders sniff out Odysseus wherever he stops." } } ] },
     { "id": "caca", "repeat": true, "when": { "all": [ { "every": { "seconds": 75, "after": 150 } }, { "difficulty": ["easy", "normal"] }, { "not": { "fired": "sinais_caem" } }, { "objective": "escolta", "is": "pending" } ] }, "then": [
       { "do": "raid", "player": 2, "units": ["hippeus", "hippeus", "hetairoi"], "target": { "entity": { "tag": "odisseu" } }, "angle": 7 } ] },
-    { "id": "caca_dificil", "repeat": true, "when": { "all": [ { "every": { "seconds": 55, "after": 165 } }, { "difficulty": "hard" }, { "not": { "fired": "sinais_caem" } }, { "objective": "escolta", "is": "pending" } ] }, "then": [
+    { "id": "caca_dificil", "repeat": true, "when": { "all": [ { "every": { "seconds": 50, "after": 150 } }, { "difficulty": "hard" }, { "not": { "fired": "sinais_caem" } }, { "objective": "escolta", "is": "pending" } ] }, "then": [
       { "do": "raid", "player": 2, "units": ["hippeus", "hippeus", "hetairoi"], "target": { "entity": { "tag": "odisseu" } }, "angle": 7 } ] },
     { "id": "sinais_caem", "when": { "all": [ { "entity": { "tag": "sinal1" }, "exists": false }, { "entity": { "tag": "sinal2" }, "exists": false } ] }, "then": [
       { "do": "objective", "id": "sinais", "status": "done" },

@@ -100,7 +100,7 @@ describe('m5: mapa fixo "Planície da Argólida"', () => {
 });
 
 describe('m5: caça, vau, Heraion e náufragos', () => {
-  for (const [d, first] of [['normal', 150], ['hard', 165]] as const) {
+  for (const [d, first] of [['normal', 150], ['hard', 150]] as const) {
     it(`[${d}] a caça começa depois da trégua, aos ${first} s, mirando Odisseu, com todos os cavaleiros`, () => {
       const s = start(d);
       const got: { t: number; r: RaidRecord }[] = [];

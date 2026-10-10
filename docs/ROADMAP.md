@@ -23,7 +23,7 @@ paralelo com o visual.
 
 | Quando | Visual — Unreal (sessão local no seu PC + nuvem) | Simulação — nuvem (`docs/eras/`) | Você |
 |---|---|---|---|
-| out/2026, semanas 1–2 | **U0** ambiente: Unreal 5 instalado, projeto, plugins, biblioteca Fab/Megascans; **ponte** simulação ↔ Unreal (servidor local + protocolo) e exportador de terreno | E1 (8 Eras e Biblioteca) | Instalar o Unreal (Epic Games Launcher) e ligar a sessão local |
+| out/2026, semanas 1–2 | **U0** ambiente: Unreal 5 instalado, projeto, plugins, biblioteca Fab/Megascans; **ponte** simulação ↔ Unreal (servidor local + protocolo) e exportador de terreno | ✅ E1 (8 Eras e Biblioteca, 10/10/2026: SIM_VERSION 4, árvore de estudos F3, Era inicial/final; 79 pesquisas, 32 das linhas) | Instalar o Unreal (Epic Games Launcher) e ligar a sessão local |
 | out–nov, semanas 3–8 | **U1 — fatia bonita**: um pedaço de mapa realista (terreno, vegetação mediterrânea, água, céu, luz), uma cidade grega Arcaica e Clássica, hoplitas e cidadãos animados (Meshy + Mixamo), câmera de RTS, selecionar e mover pela ponte | E2 (pedra, petróleo, raros), E3 (linhas de unidade) | Aprovar a fatia (capturas e vídeo); orçamento de créditos do Meshy |
 | — | **Marco: decisão final.** Se a fatia agradar, segue tudo no Unreal | | Abrir a empresa e a conta Steamworks |
 | dez/2026–mar/2027 | **U2 — cliente completo das Eras I–IV**: as 35 unidades, todos os edifícios por Era, poderes e efeitos (Niagara), névoa, minimapa, interface, som; campanha jogável | E4 (naval), E5+E7 (caravanas e maravilhas), E6 (mitologia) | Página **"Em breve"** na Steam com as imagens da fatia (wishlists cedo) |

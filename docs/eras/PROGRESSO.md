@@ -12,7 +12,7 @@ Estados: `pendente` · `em andamento` · `feito` · `feito com pendências` · `
 
 | Etapa | Estado | Data | Commit | Notas |
 |---|---|---|---|---|
-| E1 + painel/árvore (E9) | em andamento | | | |
+| E1 + painel/árvore (E9) | feito | 10/10/2026 | 04f0080+ | SIM_VERSION 4, save v2; Prometeu por roteiro nas m3/m8/m12 |
 | E2 | pendente | | | |
 | E3 | pendente | | | |
 | E4 | pendente | | | |
@@ -102,8 +102,8 @@ Bloco I — Ferramentas de medição
 - [x] I1 `scripts/maps/fairness.ts` com N Eras
 
 Bloco J — Verificação e documentação
-- [ ] J1 Seção "Verificação" inteira
-- [ ] J2 Seção "Ao terminar"
+- [x] J1 Seção "Verificação" inteira
+- [x] J2 Seção "Ao terminar"
 
 ---
 
@@ -496,8 +496,8 @@ Bloco I — Testes e playtest
 - [ ] I2 `scripts/playtest-myth.mjs` (novo)
 
 Bloco J — Verificação e documentação
-- [ ] J1 Seção "Verificação" inteira
-- [ ] J2 Seção "Ao terminar"
+- [x] J1 Seção "Verificação" inteira
+- [x] J2 Seção "Ao terminar"
 
 ---
 
@@ -739,3 +739,18 @@ Bloco P — Capturas, loja e documentos
 
 ### E1 — medições
 - Antes (balance 35 1,2,3, 09/10/2026): Clássica 5–7 min, Heroica 13–17, Mítica 19–23, Titãs 23–27 (semente 2: [0,5,17,20,27]; semente 3 chega só à Mítica/Heroica).
+- Depois (10/10/2026), `npm run balance 35 1,2,3` (idades aos minutos, IAs vivas): II 5–8 · III 10–15 · IV 16–21 · V 23–28 (nenhuma PARADA aos 5 min); a mesma tabela antes: 5–7 · 13–17 · 19–23 · 23–27 (a Era V é a antiga dos Titãs). Partidas de IA × IA terminam antes dos 35 min (um lado vence), então o `balance 60` só mostra até a V/VI.
+- `fairness` Egeu e Estreito 1–16 (`--both`, 45 min): Egeu posição 17 × 15 (53 %), índice 19 × 13 (59 %); Estreito posição 19 × 13 (59 %), índice 15 × 17 (53 %): DENTRO nos dois. Nas partidas de fairness as IAs chegam a: V ~24 · VI ~29–30 · VII ~33–34 · VIII ~38 min.
+- `scripts/missions.ts`: ok (12 missões × 3 dificuldades e variantes; janelas na seção "Eras (E1)" de `docs/STORY.md`). `smoke 20 42`: hash `4980cdb` nas duas rodadas. `horde.ts` igual ao de antes; `art:check` ok; `npm test`: 70 arquivos, 948 testes.
+- Ajustes além do guia (todos explicados em `docs/STORY.md` "Eras (E1)"): a IA guarda a madeira da 1ª Biblioteca (200) e o Conhecimento/ouro da Era seguinte (`libraryWoodHold`, filósofos e estudos só depois do fundo), razão de coleta da Era I com mais ouro; IAs inimigas das m3/m5/m6/m7 com `maxAge: 4`; `MissionScript.playerMaxAge` (m9); caça do Difícil da m5 a cada 50 s desde 150 s; `tests/art-military.test.ts` aceita a maravilha de Zeus em `.glb` (estava vermelho desde o Meshy).
+### Pendências para o dono
+- Aprovar o Prometeu por roteiro (Fortaleza + 6 estudos + 500 de Favor, cobrados pelo gatilho) no lugar do Portal na campanha (D12).
+- Relay de produção: atualizar `server/relay.mjs` (chaves `startAge`/`endAge` do lobby).
+- Dar uma olhada em `docs/art/eras-e1-arvore-pt.png`, `eras-e1-arvore-en.png` e `eras-e1-biblioteca.png`.
+### E1 — ganchos para as próximas etapas
+- E2: somar pedra/petróleo aos custos das Eras; `need` da IA (`manageEconomy`); `libraryWoodHold` hoje só guarda madeira.
+- E3: evoluções como `TechDef` da Biblioteca; `rowOf` em `src/ui/studytree.ts` ganha as linhas de unidade.
+- E6: pares de deuses menores das Eras V–VII e `minorGod: true` em `AGES[4..6]`.
+- E8: kit de Era no lugar de `ageTier`; ícones definitivos `age/4..6`.
+- E9: botão "Abrir a árvore de estudos" na enciclopédia.
+- E10: ritmo das Eras (alvo II ~4, III ~9, IV ~14, V ~20, VI ~26, VII ~33, VIII ~40); hoje II ~5, III ~11, IV ~17, V ~24, VI ~30, VII ~34, VIII ~38.
