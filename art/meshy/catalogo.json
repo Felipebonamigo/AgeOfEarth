@@ -1121,6 +1121,38 @@
       "rig": false,
       "baixadoEm": "2026-10-09",
       "notas": "Leão adulto de juba ruiva, andando, quadrúpede realista e sem base; serve para o leão de Nemeia; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "criaturas/colossus__talos-bronze.glb",
+      "idJogo": "colossus",
+      "titulo": "Human. Full body Talos: The giant, invincible bronze automaton",
+      "url": "https://www.meshy.ai/3d-models/x-019f82c5-3bfa-72aa-9ec7-7e0c06dc3743",
+      "autor": "Gummibaum",
+      "autorUrl": "https://www.meshy.ai/@s174555067651c67",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 6952,
+      "triangulos": 10439,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Talos: gigante de bronze barbudo de pé, saiote de pano, ombreiras e braçadeiras de placas; sem base, pose de batalha neutra, malha já leve (não foi reduzida); de frente e de lado serve; soldado e com normais recalculadas, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "criaturas/cronus__ancient-stone-titan.glb",
+      "idJogo": "cronus",
+      "titulo": "Ancient Stone Titan",
+      "url": "https://www.meshy.ai/3d-models/x-019b42c8-f4dc-776f-b570-e97ec087de43",
+      "autor": "jurafjvs",
+      "autorUrl": "https://www.meshy.ai/@g110304704793494948782",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 452518,
+      "triangulos": 89995,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Titã de pele de pedra pálida com capa azul de capuz, faixa de couro e tiras nos pés; pose neutra de pé, sem base; serve de Cronos (ou outro titã) até haver um mais grego; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
     }
   ],
   "recusados": [
@@ -1243,6 +1275,14 @@
     {
       "url": "https://www.meshy.ai/pt-BR/tags/chimera",
       "motivo": "chimera: o resto é galo da França, esqueleto, carro cromado ou miniatura em base"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/titan",
+      "motivo": "titan: os demais são robôs, mechas, cristais ou monstros de fantasia (Gigantus-K, Mech Titan, Blue Crystal Titan, Sand Titan Warrior com brilho azul); só o \"Ancient Stone Titan\" lê como um titã de pedra"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/talos",
+      "motivo": "talos: \"Bronze Guardian\" (Rikomortis) é verde cobreado e fino demais; \"Kaplantalos\" é um jogo de blocos"
     }
   ],
   "faltando": [
@@ -1266,6 +1306,8 @@
     "helepolis",
     "aríete (novo, Eras novas)",
     "medusa (corpo inteiro)",
-    "hydra (de serpente, sem base, para 1–5 cabeças)"
+    "hydra (de serpente, sem base, para 1–5 cabeças)",
+    "prometheus",
+    "oceanus"
   ]
 }
