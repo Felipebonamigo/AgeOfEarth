@@ -13,7 +13,7 @@ import type { ObjectiveStatus, ScenarioDef } from './types';
 import { validateScenario, type CampaignDifficulty, type Condition, type ScenarioFile } from './schema';
 import { compileCondition, gameConfigFor } from './compile';
 import { campaignMission, isCampaignMission, missionConfig, withCampaignDifficulty, type CampaignEntry } from './campaign';
-import { academyTechCount, canAdvanceAge, canResearch, canTrain } from '../sim/commands';
+import { academyTechCount, canResearch, canTrain } from '../sim/commands';
 import { getBuildingStats, getUnitStats } from '../sim/modifiers';
 import { canAfford } from '../sim/economy';
 import { isEnemy, nearestNode } from '../sim/queries';
@@ -466,7 +466,7 @@ export function staticMissionIssues(e: CampaignEntry): string[] {
     // a config do TS passa pelo mesmo validador (e lint) dos arquivos, num arquivo mínimo
     const c = def.config;
     const shell: ScenarioFile = { format: 'aoe-scenario', version: 1, id: e.id, title: def.title, intro: def.intro, objectives: [], triggers: [], victory: { time: { gte: 1 } },
-      config: { seed: c.seed, players: c.players, ...(c.startingAge !== undefined ? { startingAge: c.startingAge } : {}), ...(c.startingResources ? { startingResources: c.startingResources } : {}), ...(c.startKit !== undefined ? { startKit: c.startKit } : {}), ...(c.mode ? { mode: c.mode } : {}) } };
+      config: { seed: c.seed, players: c.players, ...(c.startingAge !== undefined ? { startingAge: c.startingAge } : {}), ...(c.startingResources ? { startingResources: c.startingResources } : {}), ...(c.startKit !== undefined ? { startKit: c.startKit } : {}), ...(c.mode ? { mode: c.mode } : {}), ...(c.maxAge !== undefined ? { maxAge: c.maxAge } : {}), ...(c.visualEraMax !== undefined ? { visualEraMax: c.visualEraMax } : {}) } };
     for (const i of validateScenario(shell, { allowReserved: true, warnings: true })) out.push(`${i.level === 'warn' ? '(lint) ' : ''}config ${i.path}: ${i.message}`);
     c.players.forEach((p, i) => { if (p.team === undefined) out.push(`config.players[${i}] sem team explícito`); });
     for (const o of def.objectives) if (!o.text) out.push(`objetivo '${o.id}' sem texto`);
@@ -1250,27 +1250,13 @@ function m8Hydra(state: GameState): Command | null {
 }
 
 /**
- * m8, o caminho dos Titãs (a 3ª resposta da ficha): as pesquisas da Academia que faltam para 6 (a de nível mais baixo primeiro),
- * a Fortaleza perto do Centro Cívico, a Idade dos Titãs assim que der e o Portal dos Titãs com 8 cidadãos (em cenário, a IA do
- * jogador não põe construtores no Portal: quem o ergue é o roteiro). Um comando por chamada, na ordem do que falta.
+ * m8, o caminho dos Titãs (a 3ª resposta da ficha): os estudos da Biblioteca que faltam para 6 (o de nível mais baixo primeiro) e a
+ * Fortaleza perto do Centro Cívico; com os 500 de Favor (passo 'reza'), o gatilho chama_prometeu o convoca. Um comando por
+ * chamada, na ordem do que falta.
  */
 function m8Titans(state: GameState): Command | null {
   const p = state.players[0];
   const tc = firstBuilding(state, 'town_center'); if (!tc || !tc.complete) return null;
-  if (p.age >= 4) {
-    const gate = firstBuilding(state, 'titan_gate');
-    if (gate) {
-      if (gate.complete) return null;
-      const near = villagersNear(state, gate.x, gate.y).filter((u) => u.state !== 'pray');
-      const working = near.filter((u) => u.state === 'build' && u.targetId === gate.id).length;
-      const ids = near.filter((u) => u.targetId !== gate.id).slice(0, Math.max(0, 8 - working)).map((u) => u.id);
-      return ids.length ? { type: 'repair', player: 0, ids, targetId: gate.id } : null;
-    }
-    if (!canAfford(p, getBuildingStats(state, p, 'titan_gate').cost)) return null;
-    const spot = findBuildSpot(state, p, 'titan_gate', tc.x, tc.y, 4, 16); if (!spot) return null;
-    const ids = villagersNear(state, spot.x + 2, spot.y + 2).filter((u) => u.state !== 'pray').slice(0, 8).map((u) => u.id);
-    return ids.length ? { type: 'build', player: 0, ids, building: 'titan_gate', tx: spot.x, ty: spot.y } : null;
-  }
   if (academyTechCount(p) < 6) {
     const ac = [...state.buildings.values()].find((b) => b.owner === 0 && !b.dead && b.complete && b.type === 'academy' && b.queue.length === 0); if (!ac) return null;
     const next = Object.keys(TECHS).filter((t) => TECHS[t].line && ACADEMY_LINES.includes(TECHS[t].line!) && !p.techs.includes(t) && canResearchNow(state, ac.id, t))
@@ -1285,10 +1271,10 @@ function m8Titans(state: GameState): Command | null {
   }
   const f = firstBuilding(state, 'fortress');
   if (!f || !f.complete) return null;
-  return canAdvanceAge(state, p, tc).ok ? { type: 'advanceAge', player: 0, buildingId: tc.id } : null;
+  return null;   // a Fortaleza pronta e os estudos bastam: quem chama Prometeu é o gatilho chama_prometeu, quando o passo 'reza' juntou o Favor
 }
 
-/** m8, variante dos Titãs: cidadãos rezando no Templo de Argos (o Favor da Idade dos Titãs e do Portal: 500). */
+/** m8, variante dos Titãs: cidadãos rezando no Templo de Argos (o Favor de Prometeu: 500). */
 const M8_WORSHIPPERS = 10;
 /** Cidadãos do jogador 0 rezando agora (menor id primeiro). */
 function m8Praying(state: GameState): Unit[] {
@@ -1330,16 +1316,14 @@ function m8Detach(state: GameState, titans: boolean): number[] {
 }
 
 /**
- * m8: folga das filas militares. No roteiro principal, só uma sobra; na variante dos Titãs, também o custo do que falta, na
- * ordem (Fortaleza, Idade dos Titãs, Portal) e o Favor da Idade e do Portal, até Prometeu atender.
+ * m8: folga das filas militares. No roteiro principal, só uma sobra; na variante dos Titãs, também a Fortaleza e os 500 de Favor
+ * de Prometeu, até ele atender.
  */
 function m8ArmyReserve(state: GameState, titans: boolean): Partial<Record<ResourceType, number>> {
   const base = { food: 150, wood: 150, gold: 100 };
   if (!titans || state.scenario?.fired.includes('prometeu')) return base;
   if (!firstBuilding(state, 'fortress')) return { food: 150, wood: 550, gold: 400, favor: 500 };
-  if (state.players[0].age < 4) return { food: 1650, wood: 150, gold: 1600, favor: 500 };
-  if (!firstBuilding(state, 'titan_gate')) return { food: 750, wood: 750, gold: 700, favor: 200 };
-  return base;
+  return { ...base, favor: 500 };
 }
 
 /**
@@ -2115,7 +2099,7 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
     atEnd: M8_FOUGHT,
     steps: m8Steps(false),
     variants: [{
-      // a 3ª resposta da ficha: Idade dos Titãs e Prometeu pelo Portal (Fortaleza, 6 pesquisas da Academia, a Idade e o Portal,
+      // a 3ª resposta da ficha: Prometeu pelo gatilho chama_prometeu (Fortaleza, 6 estudos da Biblioteca e 500 de Favor,
       // com os cofres na ordem); Prometeu entra na luta junto dos heróis e o Raio continua guardado para a última maré
       label: 'titãs', minutes: 50, expect: [21, 45.5], fired: ['prometeu'],
       hold: { time: { gte: 0 } },
@@ -2123,10 +2107,8 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
       detach: (s) => m8Detach(s, true),
       atEnd: M8_FOUGHT,
       reserve: [
-        { when: { not: { fired: 'prometeu' } }, resources: { favor: 500, knowledge: 1000 } },
+        { when: { not: { fired: 'prometeu' } }, resources: { favor: 500, knowledge: 600 } },
         { when: { buildings: { player: 0, type: 'fortress' }, eq: 0 }, resources: { wood: 400, gold: 300 } },
-        { when: { all: [{ buildings: { player: 0, type: 'fortress', complete: true }, gte: 1 }, { value: { stat: 'age', player: 0 }, lt: 4 }] }, resources: { food: 1500, gold: 1500 } },
-        { when: { all: [{ value: { stat: 'age', player: 0 }, gte: 4 }, { buildings: { player: 0, type: 'titan_gate' }, eq: 0 }] }, resources: { food: 600, wood: 600, gold: 600 } },
       ],
       steps: m8Steps(true),
     }],

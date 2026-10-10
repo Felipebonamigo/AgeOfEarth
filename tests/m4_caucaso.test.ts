@@ -3,6 +3,7 @@
 // libertação, o segredo de Hefesto, o Portal dos Titãs proibido (G6 forbid) e o nome da Águia (G8) funcionam. O roteiro longo (vitória dentro da
 // janela) fica em scripts/missions.ts; a passiva curta, em tests/missions.test.ts.
 import { describe, it, expect } from 'vitest';
+import { ERA_TITANS } from '../src/core/data';
 import { TICK_RATE } from '../src/core/constants';
 import { createGame, tick } from '../src/core/sim/game';
 import { buildingLimitOk, canPlaceBuilding, placeBuilding } from '../src/core/sim/entities';
@@ -114,11 +115,11 @@ describe('m4: dificuldades (G3), libertação, segredo e paliativos', () => {
     expect(s.players[0].powers.some((p) => p.id === 'plenty')).toBe(true);
   });
 
-  it('G6: Portal dos Titãs proibido para Argos e o Culto (config.forbid); o aviso da Pítia vem quando Argos chega à Idade dos Titãs', () => {
+  it('G6: Portal dos Titãs proibido para Argos e o Culto (config.forbid)', () => {
     const s = start('hard'); seconds(s, 1);
     expect(s.config.forbid?.buildings).toEqual(['titan_gate']);
     for (const p of [0, 1]) {
-      s.players[p].age = 4;
+      s.players[p].age = ERA_TITANS;
       expect(buildingLimitOk(s, s.players[p], 'titan_gate')).toEqual({ ok: false, reason: 'Proibido nesta missão' });
       expect(canPlaceBuilding(s, s.players[p], 'titan_gate', 44, 88).ok).toBe(false);
     }
@@ -126,9 +127,7 @@ describe('m4: dificuldades (G3), libertação, segredo e paliativos', () => {
     s.players[0].resources = { food: 9000, wood: 9000, gold: 9000, favor: 900, knowledge: 900 };
     expect(applyCommand(s, { type: 'build', player: 0, ids: [v.id], building: 'titan_gate', tx: 44, ty: 88 })).toEqual({ ok: false, reason: 'Proibido nesta missão' });
     expect(s.players[0].resources.wood).toBe(9000);   // nada foi pago
-    expect(s.scenario!.fired).not.toContain('aviso_portal');
     seconds(s, 2);
-    expect(s.scenario!.fired).toContain('aviso_portal');   // Idade dos Titãs: a Pítia explica por que o Portal não se ergue
     placeBuilding(s, 1, 'titan_gate', 84, 30, false);      // o roteiro (e o editor) ainda podem pôr um Portal: a trava é só para comandos
     seconds(s, 2);
     expect([...s.buildings.values()].filter((b) => b.type === 'titan_gate' && !b.dead).length).toBe(1);

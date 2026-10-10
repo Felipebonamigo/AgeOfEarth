@@ -7,9 +7,11 @@ import type { ScenarioFile } from './schema';
 import { compileScenarioCached } from './compile';
 import { CAMPAIGN_PLAN, PROLOGUE_IDS, type CampaignAct } from './official';
 import { getLocale } from '../../i18n';
+import { CAMPAIGN_MAX_ERA, CAMPAIGN_VISUAL_ERA_MAX } from '../data';
 import m4 from './missions/m4_caucaso.scenario.json';
 import { count, countBuildings, military, townCenter, raid, give, grantTech, placeNear, spawnGroup, localHumanIndex } from './helpers';
 import { onBuildingComplete } from '../sim/entities';
+import { academyTechCount } from '../sim/commands';
 import { rectReachable } from '../map/components';
 import type { Unit } from '../types';
 import m5 from './missions/m5_itaca.scenario.json';
@@ -40,7 +42,7 @@ export const HORDE_WAVES = 20;
 
 export const HORDE: ScenarioDef = {
   id: 'horde', title: 'Modo Horda', subtitle: 'Sobreviva a 20 ondas do Tártaro (solo ou cooperativo)', icon: '💀',
-  intro: ['As portas do Tártaro se abriram. A cada 100 segundos uma onda maior e mais monstruosa marcha contra sua cidade. Fortifique-se, avance de Idade e sobreviva a 20 ondas. Em cooperativo, cada jogador defende sua própria cidade e pode socorrer o aliado.'],
+  intro: ['As portas do Tártaro se abriram. A cada 100 segundos uma onda maior e mais monstruosa marcha contra sua cidade. Fortifique-se, avance de Era e sobreviva a 20 ondas. Em cooperativo, cada jogador defende sua própria cidade e pode socorrer o aliado.'],
   outro: ['Vinte ondas do Tártaro quebraram contra suas muralhas. Os deuses aplaudem.'],
   config: { seed: 4404, mapSize: 'medium', players: [{ name: 'Defensor', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 }, { name: 'Tártaro', god: 'hades', isAI: false, difficulty: 'normal', team: 9, puppet: true }], startingResources: { food: 600, wood: 500, gold: 300, favor: 20 } },
   setup: (state) => {
@@ -85,10 +87,10 @@ export const PROLOGUE: ScenarioDef[] = [
     id: 'm1_despertar', title: 'O Despertar de Argos', subtitle: 'Missão 1 · Fundamentos', icon: '🏺',
     intro: [
       'Argos, antes das guerras dos deuses. Você é o jovem arconte de uma aldeia esquecida, e os oráculos falam de sombras que se agitam no Tártaro.',
-      'Zeus exige provas de que sua cidade merece proteção: cresça, honre-o com um Templo e alcance a Idade Clássica. Bandos de saqueadores rondam as colinas.',
+      'Zeus exige provas de que sua cidade merece proteção: cresça, honre-o com um Templo e alcance a Era Clássica. Bandos de saqueadores rondam as colinas.',
     ],
     outro: ['Argos prospera e o Olimpo tomou nota. Mas os batedores relatam um exército de Hades marchando do sul...'],
-    config: { seed: 1101, mapSize: 'small', players: [{ name: 'Argos', god: 'zeus', isAI: false, difficulty: 'easy', team: 0 }, { name: 'Saqueadores', god: 'hades', isAI: false, difficulty: 'easy', team: 1, puppet: true }], startingResources: { food: 400, wood: 300, gold: 150 } },
+    config: { seed: 1101, mapSize: 'small', players: [{ name: 'Argos', god: 'zeus', isAI: false, difficulty: 'easy', team: 0 }, { name: 'Saqueadores', god: 'hades', isAI: false, difficulty: 'easy', team: 1, puppet: true }], startingResources: { food: 400, wood: 300, gold: 150 }, maxAge: CAMPAIGN_MAX_ERA, visualEraMax: CAMPAIGN_VISUAL_ERA_MAX },
     setup: (state) => {
       // Os saqueadores não têm cidade: só um acampamento distante com uma torre e alguns hoplitas
       const tc = townCenter(state, 1);
@@ -103,7 +105,7 @@ export const PROLOGUE: ScenarioDef[] = [
       { id: 'vill', text: 'Treine 10 Cidadãos', check: (s) => (count(s, ME, (u) => u.type === 'villager') >= 10 ? 'done' : 'pending') },
       { id: 'temple', text: 'Construa um Templo e ponha 3 cidadãos para rezar', check: (s) => (countBuildings(s, ME, 'temple') >= 1 && count(s, ME, (u) => u.state === 'pray') >= 3 ? 'done' : 'pending') },
       { id: 'army', text: 'Treine 6 unidades militares no Quartel', check: (s) => (count(s, ME, military) >= 6 ? 'done' : 'pending') },
-      { id: 'age', text: 'Avance para a Idade Clássica', check: (s) => (s.players[ME].age >= 1 ? 'done' : 'pending') },
+      { id: 'age', text: 'Avance para a Era Clássica', check: (s) => (s.players[ME].age >= 1 ? 'done' : 'pending') },
       // G1 avalia objetivos ocultos: a guarda pelo gatilho que o revela mantém o comportamento de antes (só conta depois da Idade Clássica)
       { id: 'camp', text: 'Destrua o acampamento dos saqueadores', hidden: true, check: (s) => (s.scenario!.fired.includes('reveal_camp') && countBuildings(s, 1) === 0 ? 'done' : 'pending') },
     ],
@@ -111,6 +113,7 @@ export const PROLOGUE: ScenarioDef[] = [
       { id: 'start', when: (_s, c) => c.seconds >= 1, then: (_s, c) => { c.say('Oráculo de Delfos', 'Arconte, a terra é fértil e os deuses observam. Comece pelos cidadãos: selecione o Centro Cívico e treine-os (tecla Q). Mande-os às frutas e às árvores com o botão direito.', '🔮'); } },
       { id: 'tip_house', when: (s) => s.players[ME].pop >= s.players[ME].popCap - 3, then: (_s, c) => c.say('Oráculo de Delfos', 'Sua população está no limite. Selecione cidadãos e construa Casas (tecla Q). Cada casa abriga 10.', '🔮') },
       { id: 'tip_temple', when: (s, c) => c.fired('start') && s.scenario!.objectives.vill === 'done', then: (_s, c) => c.say('Oráculo de Delfos', 'Zeus quer um Templo (tecla S com cidadãos selecionados). Cidadãos que rezam nele geram Favor, a moeda dos deuses. Lembre-se: só se constrói dentro das suas fronteiras.', '🔮') },
+      { id: 'tip_library', when: (s) => s.scenario!.objectives.temple === 'done', then: (_s, c) => c.say('Oráculo de Delfos', 'Para avançar de Era, erga uma Biblioteca (tecla Z com cidadãos selecionados), selecione-a e use Avançar (tecla E). Ela também estuda as linhas que abrem as próximas Eras.', '🔮') },
       { id: 'raid1', when: (_s, c) => c.seconds >= 240, then: (s, c) => { const tc = townCenter(s, ME); if (tc) raid(s, 1, ['hoplite', 'hoplite', 'toxotes'], tc.x, tc.y, 3, 20); c.say('Batedor', 'Saqueadores se aproximam pelo sul! Reúna seus hoplitas.', '🐎'); } },
       { id: 'raid2', when: (_s, c) => c.seconds >= 480, then: (s, c) => { const tc = townCenter(s, ME); if (tc) raid(s, 1, ['hoplite', 'hoplite', 'hoplite', 'toxotes', 'toxotes'], tc.x, tc.y, 4, 22); c.say('Batedor', 'Outra onda de saqueadores! Lembre-se: dentro das nossas fronteiras eles sofrem atrito.', '🐎'); } },
       { id: 'reveal_camp', when: (s) => s.scenario!.objectives.age === 'done', then: (s, c) => { c.reveal('camp'); c.say('Zeus', 'Você provou seu valor, arconte. Agora leve a guerra até eles: destrua o acampamento dos saqueadores e Argos será minha.', '⚡'); give(s, ME, { gold: 200 }); } },
@@ -125,7 +128,7 @@ export const PROLOGUE: ScenarioDef[] = [
       'Resista por 12 minutos até que os reforços de Esparta cheguem. Torres, muralhas e a Fortaleza serão suas melhores amigas. Depois, contra-ataque.',
     ],
     outro: ['Os espartanos chegaram, e Argos resistiu. Mas os sacerdotes de Hades falam de um Portal... e do que dorme atrás dele.'],
-    config: { seed: 2202, mapSize: 'medium', players: [{ name: 'Argos', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 }, { name: 'Legião de Hades', god: 'hades', isAI: true, difficulty: 'normal', team: 1 }], startingAge: 1, startingResources: { food: 900, wood: 800, gold: 500, favor: 40 } },
+    config: { seed: 2202, mapSize: 'medium', players: [{ name: 'Argos', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 }, { name: 'Legião de Hades', god: 'hades', isAI: true, difficulty: 'normal', team: 1 }], startingAge: 1, startingResources: { food: 900, wood: 800, gold: 500, favor: 40 }, maxAge: CAMPAIGN_MAX_ERA, visualEraMax: CAMPAIGN_VISUAL_ERA_MAX },
     setup: (state) => {
       const tc = townCenter(state, ME);
       if (tc) {
@@ -163,10 +166,10 @@ export const PROLOGUE: ScenarioDef[] = [
     id: 'm3_portal', title: 'O Portal dos Titãs', subtitle: 'Missão 3 · Corrida', icon: '🌋',
     intro: [
       'Os sacerdotes de Hades ergueram um Portal nas montanhas. Quando ele se abrir, Cronos, o devorador, voltará ao mundo.',
-      'Você tem a liberdade de escolher o caminho: destrua o Portal antes que se conclua, ou alcance a Idade dos Titãs e liberte Prometeu para enfrentá-lo.',
+      'Você tem a liberdade de escolher o caminho: destrua o Portal antes que se conclua, ou erga uma Fortaleza, complete 6 estudos das linhas da Biblioteca, junte 500 de Favor e chame Prometeu para enfrentá-lo.',
     ],
     outro: ['O Portal caiu e o mundo respira. Por enquanto. As guerras dos deuses estão apenas começando... (Fim do prólogo)'],
-    config: { seed: 3303, mapSize: 'medium', players: [{ name: 'Argos', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 }, { name: 'Culto de Cronos', god: 'hades', isAI: true, difficulty: 'normal', team: 1 }, { name: 'Aliados de Poseidon', god: 'poseidon', isAI: true, difficulty: 'normal', team: 0 }], startingAge: 2, startingResources: { food: 1200, wood: 1000, gold: 800, favor: 80, knowledge: 200 } },
+    config: { seed: 3303, mapSize: 'medium', players: [{ name: 'Argos', god: 'zeus', isAI: false, difficulty: 'normal', team: 0 }, { name: 'Culto de Cronos', god: 'hades', isAI: true, difficulty: 'normal', team: 1 }, { name: 'Aliados de Poseidon', god: 'poseidon', isAI: true, difficulty: 'normal', team: 0 }], startingAge: 2, startingResources: { food: 1200, wood: 1000, gold: 800, favor: 80, knowledge: 200 }, maxAge: CAMPAIGN_MAX_ERA, visualEraMax: CAMPAIGN_VISUAL_ERA_MAX },
     setup: (state) => {
       const p = state.players[ME]; p.minorGods.push('athena', 'apollo'); p.powers.push({ id: 'restoration', used: false }, { id: 'oracle', used: false });
       grantTech(state, ME, 'civic1'); grantTech(state, ME, 'civic2'); grantTech(state, ME, 'science1');
@@ -181,17 +184,18 @@ export const PROLOGUE: ScenarioDef[] = [
     },
     objectives: [
       { id: 'gate', text: 'Destrua o Portal dos Titãs do Culto de Cronos antes que se conclua', check: (s) => { const g = [...s.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate'); if (!g) return 'done'; return 'pending'; } },
-      { id: 'titan', text: 'Ou: alcance a Idade dos Titãs e liberte Prometeu', optional: true, check: (s) => (count(s, ME, (u) => u.type === 'prometheus') >= 1 ? 'done' : 'pending') },
+      { id: 'titan', text: 'Ou: erga uma Fortaleza, complete 6 estudos das linhas da Biblioteca e junte 500 de Favor para chamar Prometeu', optional: true, check: (s) => (count(s, ME, (u) => u.type === 'prometheus') >= 1 ? 'done' : 'pending') },
       // oculto até Cronos surgir (G1: sem a guarda por 'cronus_rises' valeria no segundo 1, pois ainda não há Cronos)
       { id: 'cronus', text: 'Derrote Cronos', hidden: true, check: (s) => { if (!s.scenario!.fired.includes('cronus_rises')) return 'pending'; const c = [...s.units.values()].find((u) => u.owner === 1 && u.type === 'cronus'); return c ? 'pending' : 'done'; } },
     ],
     triggers: [
       { id: 'start', when: (_s, c) => c.seconds >= 1, then: (_s, c) => c.say('Héracles', 'O Portal está ao norte da cidade deles, guardado por torres e uma Fortaleza. Seus cidadãos o constroem lentamente; matá-los atrasa a obra.', '💪') },
+      { id: 'prometeu_chamado', when: (s) => countBuildings(s, ME, 'fortress') >= 1 && academyTechCount(s.players[ME]) >= 6 && s.players[ME].resources.favor >= 500 && count(s, ME, (u) => u.type === 'prometheus') === 0, then: (s, c) => { const f = [...s.buildings.values()].find((b) => b.owner === ME && !b.dead && b.complete && b.type === 'fortress'); if (!f) return; s.players[ME].resources.favor -= 500; spawnGroup(s, ME, ['prometheus'], f.x, f.y + f.h / 2 + 2); c.say('Prometeu', 'Argos me chamou, e eu atendo. O fogo que roubei arde agora contra Cronos.', '🔥'); } },
       { id: 'gate_progress', repeat: false, when: (s) => { const g = [...s.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate'); return !!g && g.progress > 90; }, then: (_s, c) => c.say('Oráculo de Delfos', 'O Portal está pela metade! Os sacerdotes cantam sem parar. Apresse-se!', '🔮') },
       // O ritual avança M3_RITUAL_RATE (0,125) s de obra por segundo enquanto houver sacerdotes (cidadãos) a até 6 tiles do Portal: ~24 minutos.
       { id: 'ritual', repeat: true, when: (_s, c) => c.seconds > 0, then: (s) => { const g = [...s.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate'); if (!g || g.complete) return; const priests = count(s, 1, (u) => u.type === 'villager' && (u.x - g.x) ** 2 + (u.y - g.y) ** 2 < 36); if (priests > 0) g.progress += M3_RITUAL_RATE; if (g.progress >= 180) { g.hp = g.maxHp; onBuildingComplete(s, g); } } },
       { id: 'priests', repeat: true, when: (_s, c) => c.seconds % 40 === 0 && c.seconds > 0, then: (s) => { const g = [...s.buildings.values()].find((b) => b.owner === 1 && b.type === 'titan_gate'); if (!g || g.complete) return; const priests = count(s, 1, (u) => u.type === 'villager' && (u.x - g.x) ** 2 + (u.y - g.y) ** 2 < 36); if (priests < 3) { const v = spawnGroup(s, 1, ['villager', 'villager'], g.x, g.y + g.h / 2 + 1); for (const u of v) { u.state = 'pray'; u.nodeId = -g.id; } } } },
-      { id: 'cronus_rises', when: (s) => count(s, 1, (u) => u.type === 'cronus') >= 1, then: (_s, c) => { c.objective('gate', 'failed'); c.reveal('cronus'); c.say('Zeus', 'Cronos caminha novamente sobre a terra! Só um Titã ou uma nação inteira poderá detê-lo. Perseu tem dano extra contra Titãs.', '⚡'); } },
+      { id: 'cronus_rises', when: (s) => count(s, 1, (u) => u.type === 'cronus') >= 1, then: (_s, c) => { c.objective('gate', 'failed'); c.reveal('cronus'); c.say('Zeus', 'Cronos caminha novamente sobre a terra! Só um Titã ou uma nação inteira poderá detê-lo. Uma Fortaleza, 6 estudos na Biblioteca e 500 de Favor chamam Prometeu.', '⚡'); } },
       { id: 'harass', repeat: true, when: (_s, c) => c.seconds >= 180 && c.seconds % 200 === 0, then: (s) => { const tc = townCenter(s, ME); if (tc) raid(s, 1, ['hetairoi', 'hetairoi', 'medusa', 'hypaspist', 'hypaspist'], tc.x, tc.y, 5, 26); } },
     ],
     victory: (s) => (s.scenario!.objectives.gate === 'done') || (s.scenario!.objectives.cronus === 'done' && s.scenario!.fired.includes('cronus_rises')),

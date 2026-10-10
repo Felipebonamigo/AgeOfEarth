@@ -73,11 +73,11 @@ Bloco E — Save de versão antiga
 - [x] E3 `menu.ts`: aviso e botão do save antigo
 
 Bloco F — Campanha
-- [ ] F1 Configs `maxAge 3`/`visualEraMax 2` nas missões
-- [ ] F2 Textos "Idade/Academia" → "Era/Biblioteca" nas missões
-- [ ] F3 Apagar as falas do Portal (m4, m6)
-- [ ] F4 Prometeu por roteiro (m3, m8, m12) e harness
-- [ ] F5 m1: dica da Biblioteca (TS e JSON)
+- [x] F1 Configs `maxAge 3`/`visualEraMax 2` nas missões
+- [x] F2 Textos "Idade/Academia" → "Era/Biblioteca" nas missões
+- [x] F3 Apagar as falas do Portal (m4, m6)
+- [x] F4 Prometeu por roteiro (m3, m8, m12) e harness
+- [x] F5 m1: dica da Biblioteca (TS e JSON)
 - [ ] F6 Testes de campanha e `scripts/missions.ts`
 
 Bloco G — Renderização, ícones e conquistas

@@ -35,6 +35,7 @@
       { "name": { "pt": "Cavaleiros de Poseidon", "en": "Poseidon's Riders" }, "god": "poseidon", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
     ],
     "startingAge": 2,
+    "maxAge": 3, "visualEraMax": 2,
     "startingResources": { "food": 800, "wood": 800, "gold": 400, "favor": 60, "knowledge": 200 },
     "startKit": [false, true, false]
   },

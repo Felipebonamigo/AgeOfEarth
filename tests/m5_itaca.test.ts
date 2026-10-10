@@ -5,6 +5,7 @@
 // exige o encontro na praia (nada de levar Odisseu sozinho a Argos) e a escolta ativa sem trégua é viável (variante "escolta").
 // O roteiro longo (vitória dentro da janela) fica em scripts/missions.ts; a passiva curta, em tests/missions.test.ts.
 import { describe, it, expect } from 'vitest';
+import { ERA_TITANS } from '../src/core/data';
 import { TICK_RATE, TERRAIN } from '../src/core/constants';
 import { createGame, tick } from '../src/core/sim/game';
 import { buildingLimitOk, placeBuilding } from '../src/core/sim/entities';
@@ -416,7 +417,7 @@ describe('m5: oferta do Emissário, resgate, fogueiras e dificuldades', () => {
 
   it('G6: o Portal dos Titãs é proibido só para a Liga (players[1].forbid): nada de Oceano antes da m8', () => {
     const s = start('hard'); seconds(s, 1);
-    s.players[1].age = 4; s.players[0].age = 4;
+    s.players[1].age = ERA_TITANS; s.players[0].age = ERA_TITANS;
     expect(buildingLimitOk(s, s.players[1], 'titan_gate')).toEqual({ ok: false, reason: 'Proibido nesta missão' });
     expect(buildingLimitOk(s, s.players[0], 'titan_gate').ok).toBe(true);   // Argos não tinha o paliativo: continua igual
     placeBuilding(s, 1, 'titan_gate', 100, 18, false);   // o roteiro ainda pode pôr um (a trava é dos comandos e da IA)

@@ -3,6 +3,7 @@
 // proibido (G6 forbid) e a barra da guarda (G4). Partidas curtas no mapa real (6606). A passiva de 6 min roda em tests/missions.test.ts; o roteiro longo (vitória
 // dentro da janela) só em scripts/missions.ts.
 import { describe, it, expect } from 'vitest';
+import { ERA_TITANS } from '../src/core/data';
 import { TICK_RATE } from '../src/core/constants';
 import { createGame, tick } from '../src/core/sim/game';
 import { destroyBuilding, killUnit } from '../src/core/sim/combat';
@@ -235,19 +236,17 @@ describe('m6_estatua', () => {
     }
   }, 60_000);
 
-  it('G6: Portal dos Titãs proibido para Argos, a Liga e Micenas (config.forbid); as falas vêm na Idade dos Titãs', () => {
+  it('G6: Portal dos Titãs proibido para Argos, a Liga e Micenas (config.forbid)', () => {
     const s = start('normal');
     run(s, 2);
     for (const p of [0, 1, 2]) {
-      s.players[p].age = 4; s.players[p].resources = { food: 9000, wood: 9000, gold: 9000, favor: 900, knowledge: 900 };
+      s.players[p].age = ERA_TITANS; s.players[p].resources = { food: 9000, wood: 9000, gold: 9000, favor: 900, knowledge: 900 };
       expect(buildingLimitOk(s, s.players[p], 'titan_gate'), `portal ${p}`).toEqual({ ok: false, reason: 'Proibido nesta missão' });
     }
     const v = alive(s, 0, 'villager')[0]; const tc = townCenter(s, 0)!;
     expect(applyCommand(s, { type: 'build', player: 0, ids: [v.id], building: 'titan_gate', tx: tc.tx + 8, ty: tc.ty + 8 }).ok).toBe(false);
     run(s, 60);   // as IAs na Idade dos Titãs com recursos de sobra: nenhuma tenta o Portal
     expect(gates(s)).toEqual([]);
-    expect(s.scenario!.fired).toEqual(expect.arrayContaining(['portal_argos_fala', 'portal_liga_fala', 'portal_micenas_fala']));
-    expect(lines(s).some((t) => t.includes('Prometeu ainda sangra'))).toBe(true);
     expect([...s.units.values()].some((u) => !u.dead && ['prometheus', 'oceanus', 'cronus'].includes(u.type))).toBe(false);
   }, 60_000);
 

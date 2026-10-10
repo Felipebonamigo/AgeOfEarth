@@ -26,8 +26,8 @@
       "en": "Cronus fights across three ages: each time he loses a third of his life, he devours the hour (two and a half minutes in which nothing wounds him) and calls the Cult; if the Throne still stands, he sits on it and only bleeds again once the Throne falls." },
     { "pt": "Heróis causam dano triplo em criaturas míticas, e um Titã é uma delas. O Raio de Zeus tira metade da vida de um Titã, mas nenhum golpe passa do que resta da idade em curso: guarde-o para a última.",
       "en": "Heroes deal triple damage to mythic creatures, and a Titan is one of them. Zeus's Bolt takes half of a Titan's life, but no blow goes past what is left of the current age: save it for the last one." },
-    { "pt": "Para chamar Prometeu: termine a Fortaleza da Nova Argos com cidadãos (botão direito nela), faça mais uma pesquisa na Academia e avance à Idade dos Titãs; nela, erga o Portal dos Titãs (tecla B). Terminar a Fortaleza também salva a missão: sem Centro Cívico e sem Fortaleza pronta, os exilados estão perdidos.",
-      "en": "To call Prometheus: finish the New Argos Fortress with villagers (right-click it), research once more at the Academy and advance to the Age of Titans; there, raise the Titan Gate (B key). Finishing the Fortress also saves the mission: with no Town Center and no finished Fortress, the exiles are lost." },
+    { "pt": "Para chamar Prometeu: termine a Fortaleza da Nova Argos com cidadãos (botão direito nela), faça mais um estudo na Biblioteca e junte 500 de Favor. Terminar a Fortaleza também salva a missão: sem Centro Cívico e sem Fortaleza pronta, os exilados estão perdidos.",
+      "en": "To call Prometheus: finish the New Argos Fortress with villagers (right-click it), complete one more study at the Library and gather 500 Favor. Finishing the Fortress also saves the mission: with no Town Center and no finished Fortress, the exiles are lost." },
     { "pt": "Hades guarda a caverna a sudoeste e Poseidon a costa a sudeste, e o Culto ataca os dois. Se Hades ou Poseidon ficar sem Centro Cívico, o objetivo 'Proteja Hades e Poseidon' falha.",
       "en": "Hades holds the cave to the southwest and Poseidon the coast to the southeast, and the Cult attacks both. If Hades or Poseidon is left without a Town Center, the 'Protect Hades and Poseidon' objective fails." }
   ],
@@ -40,6 +40,7 @@
       { "name": { "pt": "Culto de Cronos", "en": "Cult of Cronus" }, "god": "hades", "isAI": true, "difficulty": "normal", "team": 1, "maxAge": 3, "forbid": { "units": ["perseus", "heracles", "odysseus"] } }
     ],
     "startingAge": 3,
+    "maxAge": 3, "visualEraMax": 2,
     "startingResources": { "food": 1500, "wood": 1500, "gold": 1200, "favor": 200, "knowledge": 800 },
     "startKit": [false, true, true, true],
     "forbid": { "units": ["achilles", "jason"] }
@@ -71,7 +72,7 @@
     { "id": "irmaos", "optional": true, "text": { "pt": "Proteja Hades e Poseidon (os Centros Cívicos deles)", "en": "Protect Hades and Poseidon (their Town Centers)" },
       "done": { "objective": "cronos", "is": "done" },
       "failed": { "all": [ { "time": { "gte": 5 } }, { "any": [ { "buildings": { "player": 1, "type": "town_center" }, "eq": 0 }, { "buildings": { "player": 2, "type": "town_center" }, "eq": 0 } ] } ] } },
-    { "id": "prometeu", "optional": true, "text": { "pt": "Chame Prometeu de volta pelo Portal", "en": "Call Prometheus back through the Gate" },
+    { "id": "prometeu", "optional": true, "text": { "pt": "Chame Prometeu de volta (Fortaleza, 6 estudos das linhas e 500 de Favor)", "en": "Call Prometheus back (Fortress, 6 line studies and 500 Favor)" },
       "done": { "units": { "player": 0, "type": "prometheus" }, "gte": 1 } },
     { "id": "perseu", "optional": true, "hidden": true, "text": { "pt": "Perseu dá o golpe final em Cronos", "en": "Perseus strikes the final blow on Cronus" },
       "done": { "kills": { "player": 0, "type": "cronus", "by": { "type": "perseus" } }, "gte": 1 } }
@@ -92,7 +93,7 @@
         "text": { "pt": "Os Altares da Foice só caem com soldados de Argos por perto. Onde os exilados chegam, o juramento não protege mais a pedra.", "en": "The Altars of the Sickle only fall with soldiers of Argos nearby. Where the exiles arrive, the oath no longer shields the stone." } } ] },
     { "id": "pitia_portal", "when": { "time": { "gte": 90 } }, "then": [
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
-        "text": { "pt": "Prometeu ainda atende a Argos. Termine a Fortaleza, faça mais uma pesquisa na Academia e suba à Idade dos Titãs: o Portal (tecla B) o chama.", "en": "Prometheus still answers Argos. Finish the Fortress, research once more at the Academy and rise to the Age of Titans: the Gate (B key) calls him." } } ] },
+        "text": { "pt": "Prometeu ainda atende a Argos. Termine a Fortaleza, faça mais um estudo na Biblioteca e junte 500 de Favor: ele vem.", "en": "Prometheus still answers Argos. Finish the Fortress, complete one more study at the Library and gather 500 Favor: he will come." } } ] },
     { "id": "devorar_fala", "when": { "time": { "gte": 240 } }, "then": [
       { "do": "say", "speaker": { "pt": "Lícaon", "en": "Lycaon" }, "icon": "🐺",
         "text": { "pt": "Sentem-se à mesa, irmãos. O pai tem fome, e a mesa é a Tessália inteira.", "en": "Sit at the table, brothers. Father is hungry, and the table is all of Thessaly." } } ] },
@@ -146,7 +147,7 @@
         "text": { "pt": "Uma foice gigante? Já enfrentei coisa pior. Quer dizer... não. Mas vamos lá.", "en": "A giant sickle? I've faced worse. Well... no. But let's go." } } ] },
     { "id": "altares_caem", "when": { "all": [ { "objective": "foices", "is": "done" }, { "not": { "fired": "cronos_surge" } } ] }, "then": [
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
-        "text": { "pt": "Os Altares caíram: Cronos sairá do trono com fome e sem armadura. Use a espera, arconte: o Culto, o Portal, as muralhas.", "en": "The Altars have fallen: Cronus will leave his throne hungry and unarmored. Use the wait, archon: the Cult, the Gate, the walls." } } ] },
+        "text": { "pt": "Os Altares caíram: Cronos sairá do trono com fome e sem armadura. Use a espera, arconte: o Culto, Prometeu, as muralhas.", "en": "The Altars have fallen: Cronus will leave his throne hungry and unarmored. Use the wait, archon: the Cult, Prometheus, the walls." } } ] },
     { "id": "trono_aberto", "repeat": true, "when": { "all": [ { "every": { "seconds": 2 } }, { "fired": "trono_exposto" }, { "entity": { "tag": "trono" }, "exists": true }, { "units": { "player": 0, "military": true, "near": { "point": { "entity": { "tag": "trono" } }, "radius": 14 } }, "gte": 6 }, { "any": [ { "buildings": { "player": 3 }, "gte": 2 }, { "units": { "player": 3 }, "gte": 1 } ] } ] }, "then": [
       { "do": "hpFloor", "entity": { "tag": "trono" }, "value": 0 } ] },
     { "id": "trono_fechado", "repeat": true, "when": { "all": [ { "every": { "seconds": 2 } }, { "entity": { "tag": "trono" }, "exists": true }, { "not": { "all": [ { "fired": "trono_exposto" }, { "units": { "player": 0, "military": true, "near": { "point": { "entity": { "tag": "trono" } }, "radius": 14 } }, "gte": 6 }, { "any": [ { "buildings": { "player": 3 }, "gte": 2 }, { "units": { "player": 3 }, "gte": 1 } ] } ] } } ] }, "then": [
@@ -226,6 +227,9 @@
       { "do": "hpFloor", "entity": { "tag": "cronos" }, "value": 0 },
       { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
         "text": { "pt": "O Tempo sangra, arconte. Agora qualquer golpe fere de vez. Se o raio de Zeus ainda estiver na mão, é a hora dele.", "en": "Time is bleeding, archon. Now every blow wounds for good. If Zeus's bolt is still in your hand, this is its hour." } } ] },
+    { "id": "chama_prometeu", "when": { "all": [ { "buildings": { "player": 0, "type": "fortress", "complete": true }, "gte": 1 }, { "value": { "stat": "studies", "player": 0 }, "gte": 6 }, { "value": { "stat": "favor", "player": 0 }, "gte": 500 }, { "units": { "player": 0, "type": "prometheus" }, "eq": 0 } ] }, "then": [
+      { "do": "give", "player": 0, "resources": { "favor": -500 } },
+      { "do": "spawn", "player": 0, "units": ["prometheus"], "at": { "entity": { "player": 0, "type": "fortress" }, "dy": 4 } } ] },
     { "id": "prometeu", "when": { "units": { "player": 0, "type": "prometheus" }, "gte": 1 }, "then": [
       { "do": "say", "speaker": { "pt": "Prometeu", "en": "Prometheus" }, "icon": "🔥",
         "text": { "pt": "Argos me soltou do rochedo e ardeu por isso. Hoje o fogo que roubei volta contra o pai de Zeus.", "en": "Argos loosed me from the rock and burned for it. Today the fire I stole turns against the father of Zeus." } } ] },

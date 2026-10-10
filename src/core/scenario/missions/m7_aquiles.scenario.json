@@ -33,6 +33,7 @@
       { "name": { "pt": "Mirmidões de Aquiles", "en": "Achilles' Myrmidons" }, "god": "poseidon", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
     ],
     "startingAge": 2,
+    "maxAge": 3, "visualEraMax": 2,
     "startingResources": { "food": 1000, "wood": 800, "gold": 800, "favor": 120, "knowledge": 300 },
     "startKit": [true, true, false]
   },

@@ -39,6 +39,7 @@
       { "name": { "pt": "Cronos", "en": "Cronus" }, "god": "hades", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
     ],
     "startingAge": 3,
+    "visualEraMax": 2,
     "startingResources": { "food": 800, "wood": 800, "gold": 800, "favor": 100 },
     "startKit": [false, true, false],
     "maxAge": 3,

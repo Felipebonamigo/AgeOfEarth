@@ -41,6 +41,7 @@
       { "name": { "pt": "Carcereiros de Cronos", "en": "Jailers of Cronus" }, "god": "zeus", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
     ],
     "startingAge": 2,
+    "visualEraMax": 2,
     "startingResources": { "food": 800, "wood": 500, "gold": 800, "favor": 250, "knowledge": 300 },
     "startKit": [true, true, false],
     "maxAge": 3

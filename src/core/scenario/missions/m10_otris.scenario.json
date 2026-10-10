@@ -44,6 +44,7 @@
       { "name": { "pt": "Sentinelas de Ótris", "en": "Sentinels of Othrys" }, "god": "hades", "isAI": false, "difficulty": "normal", "team": 1, "puppet": true }
     ],
     "startingAge": 3,
+    "visualEraMax": 2,
     "startingResources": { "food": 2000, "wood": 2000, "gold": 1500, "favor": 150, "knowledge": 600 },
     "startKit": [true, true, false, false],
     "mode": "koth",

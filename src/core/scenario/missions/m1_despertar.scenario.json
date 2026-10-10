@@ -8,8 +8,8 @@
   "intro": [
     { "pt": "Argos, antes das guerras dos deuses. Você é o jovem arconte de uma aldeia esquecida, e os oráculos falam de sombras que se agitam no Tártaro.",
       "en": "Argos, before the wars of the gods. You are the young archon of a forgotten village, and the oracles speak of shadows stirring in Tartarus." },
-    { "pt": "Zeus exige provas de que sua cidade merece proteção: cresça, honre-o com um Templo e alcance a Idade Clássica. Bandos de saqueadores rondam as colinas.",
-      "en": "Zeus demands proof that your city deserves protection: grow, honor him with a Temple and reach the Classical Age. Bands of raiders roam the hills." }
+    { "pt": "Zeus exige provas de que sua cidade merece proteção: cresça, honre-o com um Templo e alcance a Era Clássica. Bandos de saqueadores rondam as colinas.",
+      "en": "Zeus demands proof that your city deserves protection: grow, honor him with a Temple and reach the Classical Era. Bands of raiders roam the hills." }
   ],
   "outro": [
     { "pt": "Argos prospera e o Olimpo tomou nota. Mas os batedores relatam um exército de Hades marchando do sul...",
@@ -25,6 +25,7 @@
       { "name": "Argos", "god": "zeus", "isAI": false, "difficulty": "easy", "team": 0 },
       { "name": "Saqueadores", "god": "hades", "isAI": false, "difficulty": "easy", "team": 1, "puppet": true }
     ],
+    "maxAge": 3, "visualEraMax": 2,
     "startingResources": { "food": 400, "wood": 300, "gold": 150 }
   },
   "setup": [
@@ -41,7 +42,7 @@
       "done": { "all": [ { "buildings": { "player": 0, "type": "temple", "complete": true }, "gte": 1 }, { "units": { "player": 0, "state": "pray" }, "gte": 3 } ] } },
     { "id": "army", "text": { "pt": "Treine 6 unidades militares no Quartel", "en": "Train 6 military units at the Barracks" },
       "done": { "units": { "player": 0, "military": true }, "gte": 6 } },
-    { "id": "age", "text": { "pt": "Avance para a Idade Clássica", "en": "Advance to the Classical Age" },
+    { "id": "age", "text": { "pt": "Avance para a Era Clássica", "en": "Advance to the Classical Era" },
       "done": { "value": { "stat": "age", "player": 0 }, "gte": 1 } },
     { "id": "camp", "text": { "pt": "Destrua o acampamento dos saqueadores", "en": "Destroy the raiders' camp" }, "hidden": true,
       "done": { "all": [ { "fired": "reveal_camp" }, { "buildings": { "player": 1, "complete": true }, "eq": 0 } ] } }
@@ -62,6 +63,10 @@
         "text": { "pt": "Zeus quer um Templo (tecla S com cidadãos selecionados). Cidadãos que rezam nele geram Favor, a moeda dos deuses. Lembre-se: só se constrói dentro das suas fronteiras.",
                   "en": "Zeus wants a Temple (S key with villagers selected). Villagers praying there generate Favor, the currency of the gods. Remember: you can only build inside your borders." } }
     ] },
+    { "id": "tip_library", "when": { "objective": "temple", "is": "done" }, "then": [
+      { "do": "say", "speaker": { "pt": "Oráculo de Delfos", "en": "Oracle of Delphi" }, "icon": "🔮",
+        "text": { "pt": "Para avançar de Era, erga uma Biblioteca (tecla Z com cidadãos selecionados), selecione-a e use Avançar (tecla E). Ela também estuda as linhas que abrem as próximas Eras.",
+                  "en": "To advance an Era, raise a Library (Z key with villagers selected), select it and use Advance (E key). It also studies the lines that open the next Eras." } } ] },
     { "id": "raid1", "when": { "time": { "gte": 240 } }, "then": [
       { "do": "raid", "player": 1, "units": ["hoplite", "hoplite", "toxotes"], "target": { "tc": 0 }, "angle": 3, "distance": 20 },
       { "do": "say", "speaker": { "pt": "Batedor", "en": "Scout" }, "icon": "🐎",

@@ -12,6 +12,10 @@ import { academyTechCount } from '../src/core/sim/commands';
 import { gameConfigFor } from '../src/core/scenario/compile';
 import { validateScenario, type ScenarioFile } from '../src/core/scenario/schema';
 import type { GameConfig } from '../src/core/types';
+import { CAMPAIGN, HORDE, campaignMission, missionConfig } from '../src/core/scenario/campaign';
+import { placeNear, townCenter } from '../src/core/scenario/helpers';
+import { recomputeMods } from '../src/core/sim/modifiers';
+import { CAMPAIGN_MAX_ERA, CAMPAIGN_VISUAL_ERA_MAX } from '../src/core/data';
 import { quickGame, run } from './helpers';
 
 const RICH = { food: 5000, wood: 5000, gold: 5000, knowledge: 5000, favor: 500 };
@@ -216,4 +220,42 @@ describe('E1 — save', () => {
     expect(() => deserialize(old)).toThrow(/v1/);
     expect(deserialize(json).tick).toBe(0);
   });
+});
+
+describe('E1 — campanha', () => {
+  it('toda missão limita a Era a CAMPAIGN_MAX_ERA e a aparência a CAMPAIGN_VISUAL_ERA_MAX; a Horda não', () => {
+    for (const e of CAMPAIGN) {
+      const c = campaignMission(e.id)!.config;
+      expect(c.players[0].maxAge ?? c.maxAge, e.id).toBe(CAMPAIGN_MAX_ERA);
+      expect(c.visualEraMax, e.id).toBe(CAMPAIGN_VISUAL_ERA_MAX);
+    }
+    expect(HORDE.config.maxAge).toBeUndefined();
+  });
+
+  it('nenhuma missão fala da "Idade dos Titãs"', () => {
+    for (const e of CAMPAIGN) if (e.source === 'json') expect(JSON.stringify(e.file), e.id).not.toMatch(/Idade dos Titãs|Age of Titans/);
+  });
+
+  // Prometeu por roteiro: Fortaleza pronta + 6 estudos + 500 de Favor (o gatilho cobra o Favor)
+  for (const id of ['m3_portal', 'm8_oceano', 'm12_titanomaquia']) {
+    it(`${id}: Prometeu só atende com Fortaleza, 6 estudos e 500 de Favor`, () => {
+      const s = createGame(missionConfig(campaignMission(id)!, 'normal'));
+      const p = s.players[0];
+      const tc = townCenter(s, 0)!;
+      placeNear(s, 0, 'fortress', tc.x + 8, tc.y, true);
+      for (const tech of ['civic1', 'commerce1', 'military1', 'science1', 'civic2', 'commerce2', 'military2', 'science2']) {
+        if (academyTechCount(p) >= 6) break;
+        if (!p.techs.includes(tech)) p.techs.push(tech);
+      }
+      recomputeMods(s, p);
+      const prom = () => [...s.units.values()].filter((u) => u.owner === 0 && !u.dead && u.type === 'prometheus').length;
+      p.resources.favor = 400;
+      for (let i = 0; i < 3 * TICK_RATE; i++) tick(s);
+      expect(prom()).toBe(0);
+      p.resources.favor = 600;
+      for (let i = 0; i < 3 * TICK_RATE; i++) tick(s);
+      expect(prom()).toBeGreaterThan(0);
+      expect(p.resources.favor).toBeLessThan(200);
+    }, 30000);
+  }
 });
