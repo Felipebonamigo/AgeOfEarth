@@ -1201,6 +1201,102 @@
       "rig": false,
       "baixadoEm": "2026-10-09",
       "notas": "Galeão de madeira escura de 3 mastros e castelo de proa, velas recolhidas; sem base; 109 mil triângulos (o cordame fino impede ir mais baixo sem perder os mastros); reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "criaturas/harpy__harpy-queen.glb",
+      "idJogo": "harpy",
+      "titulo": "Harpy Queen",
+      "url": "https://www.meshy.ai/3d-models/x-01a05d10-7b3b-760e-a86c-ccc766736473",
+      "autor": "jurafjvs",
+      "autorUrl": "https://www.meshy.ai/@g110304704793494948782",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 1069004,
+      "triangulos": 89984,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Harpia: mulher de cabelo claro com grandes asas cinza-esverdeadas e pés de ave, tronco vestido de couro; sem base, de pé, pose neutra; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "criaturas/satyr__satyr-spirit.glb",
+      "idJogo": "satyr",
+      "titulo": "Satyr Spirit",
+      "url": "https://www.meshy.ai/3d-models/x-01964e9d-d847-7823-a6c2-13c4fa512d69",
+      "autor": "buvalad",
+      "autorUrl": "https://www.meshy.ai/@buvalad",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 71931,
+      "triangulos": 90000,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Sátiro: tronco humano, chifres e pernas de bode, saiote de folhas; estilo mais pintado/estilizado do que realista; de pé, sem base; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "criaturas/griffin__lightbrown-griffin.glb",
+      "idJogo": "griffin",
+      "titulo": "A griffin, body with light-brown fur",
+      "url": "https://www.meshy.ai/3d-models/x-019466a7-8e2a-717a-9151-d49572e56c1e",
+      "autor": "Karrades",
+      "autorUrl": "https://www.meshy.ai/@s1720900476a2076",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 26166,
+      "triangulos": 34894,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Grifo: corpo de leão pardo, cabeça e asas de águia; sem base; malha já leve (35 mil triângulos, não foi reduzida); soldado e com normais recalculadas, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "criaturas/phoenix__ember-phoenix.glb",
+      "idJogo": "phoenix",
+      "titulo": "Ember Phoenix",
+      "url": "https://www.meshy.ai/3d-models/x-019cfe7a-0c9c-7ac5-839d-99115bd9e608",
+      "autor": "cyber_fox",
+      "autorUrl": "https://www.meshy.ai/@s17335902935f9ff",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 386223,
+      "triangulos": 89999,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Fênix vermelha-alaranjada de asas abertas em voo, sem base; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "criaturas/hippocampus__sea-horse.glb",
+      "idJogo": "hippocampus",
+      "titulo": "Hippocampus",
+      "url": "https://www.meshy.ai/3d-models/x-019897be-b367-78ef-92a3-4281ebbc89d6",
+      "autor": "cleerartdesign",
+      "autorUrl": "https://www.meshy.ai/@s1754144842d6f08",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 168097,
+      "triangulos": 89999,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Hipocampo: metade frontal de cavalo empinado, cauda de peixe com barbatana em leque, pálido azul-esverdeado; sem base; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "criaturas/dragon__emerald-dragon.glb",
+      "idJogo": "dragon",
+      "titulo": "Emerald Dragon",
+      "url": "https://www.meshy.ai/3d-models/x-019d1370-3e93-7244-9f6d-9ff774d71204",
+      "autor": "cyber_fox",
+      "autorUrl": "https://www.meshy.ai/@s17335902935f9ff",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 590326,
+      "triangulos": 89998,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Dragão verde de asas abertas, de pé em duas patas e cauda enrolada, sem base; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
     }
   ],
   "recusados": [
@@ -1343,6 +1439,22 @@
     {
       "url": "https://www.meshy.ai/pt-BR/tags/galleon",
       "motivo": "galleon: os outros são piratas coloridos, de fantasia ou trazem base/caneca"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/satyr",
+      "motivo": "satyr: a maioria é chibi, busto, escultura em base ou demônio; \"Satyr Playing Pan Pipes\" é um centauro-fauno de aparência média"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/harpy",
+      "motivo": "harpy: as outras são de ficção científica/cyber ou sentadas (harpa); \"HARPIA\" e \"HARPY MYTH\" vêm em base"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/griffin",
+      "motivo": "griffin: vários são miniatura em base de pedra (cyber_fox \"Griffin\") ou armadura"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/scylla",
+      "motivo": "scylla: só um modelo (demônia sobre base, para impressão 3D)"
     }
   ],
   "faltando": [
@@ -1368,6 +1480,9 @@
     "medusa (corpo inteiro)",
     "hydra (de serpente, sem base, para 1–5 cabeças)",
     "prometheus",
-    "oceanus"
+    "oceanus",
+    "scylla",
+    "ceto (monstro marinho)",
+    "erinias (fúrias)"
   ]
 }
