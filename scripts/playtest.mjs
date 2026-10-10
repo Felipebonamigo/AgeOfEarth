@@ -59,6 +59,20 @@ await pause(false); await page.waitForTimeout(400);
 st = await S(); console.log('templo:', st.buildings.filter((b) => b.startsWith('temple')).join(','));
 await page.evaluate(() => { const s = window.aoe.session; for (const b of s.state.buildings.values()) if (b.owner === s.local && b.type === 'temple') { b.complete = true; b.progress = 60; b.hp = b.maxHp; } });
 await page.waitForTimeout(300);
+// a Era só avança na Biblioteca (tecla Z com cidadãos): ergue uma e a conclui
+await pause(true);
+const vill3 = await page.evaluate(() => { const s = window.aoe.session; const u = [...s.state.units.values()].find((x) => x.owner === s.local && x.type === 'villager'); const p = window.aoe.renderer.cam.worldToScreen(u.x, u.y); return { x: p.x, y: p.y }; });
+await page.mouse.click(vill3.x, vill3.y); await page.waitForTimeout(150); await page.mouse.click(vill3.x, vill3.y); await page.waitForTimeout(200);
+await page.keyboard.press('z'); await page.waitForTimeout(200);
+for (const [dx, dy] of [[-7, 0], [0, 7], [7, -6], [-8, 6]]) {
+  const p = await page.evaluate(([x, y]) => window.aoe.renderer.cam.worldToScreen(x, y), [tc.x + dx, tc.y + dy]);
+  await page.mouse.move(p.x, p.y); await page.waitForTimeout(80); await page.mouse.click(p.x, p.y); await page.waitForTimeout(200);
+  st = await S(); if (st.buildings.includes('academy*')) break;
+}
+await pause(false); await page.waitForTimeout(400);
+st = await S(); console.log('biblioteca:', st.buildings.filter((b) => b.startsWith('academy')).join(','));
+await page.evaluate(() => { const s = window.aoe.session; for (const b of s.state.buildings.values()) if (b.owner === s.local && b.type === 'academy') { b.complete = true; b.progress = 60; b.hp = b.maxHp; } });
+await page.waitForTimeout(300);
 await page.click('#top .btn.gold'); await page.waitForTimeout(400);
 await page.screenshot({ path: `${out}-3-minorgod.png` });
 const cards = await page.$$('#modal .card'); console.log('cartas de deus menor:', cards.length);

@@ -83,7 +83,7 @@ Bloco F — Campanha
 Bloco G — Renderização, ícones e conquistas
 - [x] G1 `ageTier`/`visualEra` no renderizador
 - [x] G2 Ícones das 8 Eras (`AGE_ICONS` + `npm run art:hud`)
-- [ ] G3 Conquistas (`titans` = Era 7) e planilha da Steam
+- [x] G3 Conquistas (`titans` = Era 7) e planilha da Steam
 
 Bloco H — Interface
 - [x] H1 Textos que mudam em `strings.ts`
@@ -95,11 +95,11 @@ Bloco H — Interface
 - [x] H7 Partida rápida: seletores de Era
 - [x] H8 Lobby e relay: Era inicial/final
 - [x] H9 Editor (Testar): seletores de Era
-- [ ] H10 Testes de interface
-- [ ] H11 Playtests (`playtest.mjs` e `playtest-library.mjs`)
+- [x] H10 Testes de interface
+- [x] H11 Playtests (`playtest.mjs` e `playtest-library.mjs`)
 
 Bloco I — Ferramentas de medição
-- [ ] I1 `scripts/maps/fairness.ts` com N Eras
+- [x] I1 `scripts/maps/fairness.ts` com N Eras
 
 Bloco J — Verificação e documentação
 - [ ] J1 Seção "Verificação" inteira
@@ -287,7 +287,7 @@ Bloco F — Renderização, áudio, interface e ícones
 Bloco G — Testes, playtest e calibração
 - [ ] G1 `tests/naval.test.ts` (novo)
 - [ ] G2 Fuzz com `embark`/`unload`
-- [ ] G3 Testes que mudam (modes, editor, data, fairness)
+- [x] G3 Testes que mudam (modes, editor, data, fairness)
 - [ ] G4 `scripts/playtest-editor.mjs`
 - [ ] G5 `scripts/playtest-naval.mjs` (novo)
 - [ ] G6 Calibração
@@ -483,7 +483,7 @@ Bloco F — Efeitos, arte provisória e áudio
 Bloco G — Ícones do HUD
 - [ ] G1 `catalog.mjs`: poderes, pesquisas, deuses
 - [ ] G2 `icons.ts`: `techIconName` com `blessing`
-- [ ] G3 `hud-gods.js`: 9 bustos
+- [x] G3 `hud-gods.js`: 9 bustos
 - [ ] G4 Iterar um retrato e gerar o atlas
 
 Bloco H — Interface
@@ -567,7 +567,7 @@ Bloco F — Lote 1, maravilhas I–IV
 Bloco G — Lote 2, edifícios V–VIII
 - [ ] G1 Plantas próprias das Eras 4, 6 e 7
 - [ ] G2 Bake, fusão e prova
-- [ ] G3 Capturas e commit
+- [x] G3 Capturas e commit
 
 Bloco P — Efeitos
 - [ ] P1 Atlas `fx` (bala, obus, granada, clarão)
