@@ -1041,6 +1041,86 @@
       "rig": false,
       "baixadoEm": "2026-10-09",
       "notas": "Hidra de 3 cabeças de serpente verde enroladas; vem sobre uma base redonda com rochas e musgo (de miniatura) que precisa ser cortada no plano de corte; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "criaturas/chimera__lion-goat-serpent.glb",
+      "idJogo": "chimera",
+      "titulo": "High detail, mythical chimera.",
+      "url": "https://www.meshy.ai/3d-models/x-0199cd2b-aa46-7aea-9cfc-722336465319",
+      "autor": "Twilight",
+      "autorUrl": "https://www.meshy.ai/@Twilight",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 423175,
+      "triangulos": 89999,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Quimera: corpo de leão com juba, chifres de cabra e cauda de serpente; sem base. No visualizador sem mapa de ambiente aparece quase preta (material metálico); a miniatura do Meshy é bronze; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "criaturas/cerberus__unleashed.glb",
+      "idJogo": "cerberus",
+      "titulo": "Cerberus Unleashed",
+      "url": "https://www.meshy.ai/3d-models/x-0199e394-a266-7a87-816f-73030bcf044b",
+      "autor": "KATAKANA-KUN",
+      "autorUrl": "https://www.meshy.ai/@s1748308196b701a",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 2699042,
+      "triangulos": 87345,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Cérbero de 3 cabeças de cão, grilhões nas patas, sem base; original com 2,7 milhões de vértices, reduzido em modo \"sloppy\" (pelo de espinhos ficou um pouco ruidoso de perto); reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "criaturas/pegasus__rearing-white.glb",
+      "idJogo": "pegasus",
+      "titulo": "Pegasus",
+      "url": "https://www.meshy.ai/3d-models/x-019d4c05-3887-782e-8577-8e6503c54273",
+      "autor": "kanderson706",
+      "autorUrl": "https://www.meshy.ai/@s17712863027df9c",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 754181,
+      "triangulos": 111850,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Pégaso branco empinado, asas abertas, crina longa; sem base; ficou com 112 mil triângulos; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "criaturas/manticore__winged.glb",
+      "idJogo": "manticore",
+      "titulo": "Winged Manticore",
+      "url": "https://www.meshy.ai/3d-models/x-019c96cd-6c67-7813-bde8-630359f7e00f",
+      "autor": "Miniatures_Collectors_Club",
+      "autorUrl": "https://www.meshy.ai/@s173548187770468",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 458183,
+      "triangulos": 89993,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Mantícora: leão com asas de morcego e cauda de escorpião, sem base; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "criaturas/nemean_lion__embermane.glb",
+      "idJogo": "nemean_lion",
+      "titulo": "Embermane",
+      "url": "https://www.meshy.ai/3d-models/x-019de898-7628-7137-89b3-038af0658a7b",
+      "autor": "cyber_fox",
+      "autorUrl": "https://www.meshy.ai/@s17335902935f9ff",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 310827,
+      "triangulos": 89997,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Leão adulto de juba ruiva, andando, quadrúpede realista e sem base; serve para o leão de Nemeia; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
     }
   ],
   "recusados": [
@@ -1147,6 +1227,22 @@
     {
       "url": "https://www.meshy.ai/pt-BR/tags/medusa",
       "motivo": "medusa: só bustos e máscaras (emrework, EXALM), nenhuma de corpo inteiro"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/pegasus",
+      "motivo": "pegasus: quase todos vêm em pedestal de estátua (Jinsoil, cyber_fox) ou são fantasia/anime (Saint Seiya, mecha)"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/cerberus",
+      "motivo": "cerberus: os demais são miniaturas em base, mecha, esqueleto ou de cartoon"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/manticore",
+      "motivo": "manticore: os demais vêm sobre base de rocha ou são demoníacos/robóticos; \"Fierce Lion-Scorpion Hybrid\" (kioshiki_3d) parecia bom mas não achei o link a tempo"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/chimera",
+      "motivo": "chimera: o resto é galo da França, esqueleto, carro cromado ou miniatura em base"
     }
   ],
   "faltando": [
