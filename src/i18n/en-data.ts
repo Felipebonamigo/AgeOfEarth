@@ -4,6 +4,7 @@ export interface TextOverlay { name?: string; plural?: string; desc?: string; ti
 
 export const EN_UNITS: Record<string, TextOverlay> = {
   villager: { name: 'Citizen', plural: 'Citizens', desc: 'Gathers resources, builds and repairs buildings, and prays at temples to generate Favor.' },
+  merchant: { name: 'Merchant', plural: 'Merchants', desc: 'Works a rare resource on the map: while there, it earns gold and the rare bonus applies to your whole empire. It does not gather other resources, pray or build.' },
   kataskopos: { name: 'Scout', plural: 'Scouts', desc: 'Light, fast rider. Excellent for exploring the map, weak in combat.' },
   hoplite: { name: 'Hoplite', plural: 'Hoplites', desc: 'Spear-and-shield infantry. Strong against cavalry, weak against archers.' },
   toxotes: { name: 'Toxotes', plural: 'Toxotai', desc: 'Archer. Strong against infantry, weak against cavalry.' },
@@ -47,6 +48,10 @@ export const EN_BUILDINGS: Record<string, TextOverlay> = {
   granary: { name: 'Granary', desc: 'Food drop-off point and farming research.' },
   lumber_camp: { name: 'Lumber Camp', desc: 'Wood drop-off point and woodcutting research.' },
   mine: { name: 'Mine', desc: 'Gold drop-off point and mining research.' },
+  quarry: { name: 'Quarry', desc: 'Stone drop-off point and stonecutting research.' },
+  naphtha_well: { name: 'Naphtha Well', desc: 'Oil drop-off point: citizens gather naphtha from the seeps (from Era IV on) and bring it here.' },
+  oil_well: { name: 'Oil Well', desc: 'Built touching an oil field, it extracts 1 oil per second with no citizens until the field runs dry.' },
+  refinery: { name: 'Refinery', desc: 'Receives oil and researches refining (faster oil gathering and extraction).' },
   market: { name: 'Market', desc: 'Buy and sell resources for gold. Prices shift with use.' },
   temple: { name: 'Temple', desc: 'Citizens pray here to generate Favor. Trains heroes and mythic creatures. Required for the Classical Era.' },
   barracks: { name: 'Barracks', desc: 'Trains infantry and archers.' },
@@ -86,6 +91,8 @@ export const EN_TECHS: Record<string, TextOverlay> = {
   harvest1: { name: 'Harvest I', desc: 'Food gathering +15%.' }, harvest2: { name: 'Harvest II', desc: 'Food gathering +15%.' }, harvest3: { name: 'Harvest III', desc: 'Food gathering +15%.' },
   irrigation: { name: 'Irrigation', desc: 'Farms yield 30% more.' },
   axes1: { name: 'Bronze Axes', desc: 'Woodcutting +15%.' }, axes2: { name: 'Iron Axes', desc: 'Woodcutting +15%.' }, axes3: { name: 'Saws', desc: 'Woodcutting +15%.' },
+  stone_wedges: { name: 'Bronze Wedges', desc: 'Stone gathering +15%.' }, stone_saws: { name: 'Sand Saw', desc: 'Stone gathering +15%.' }, stone_cranes: { name: 'Trispastos Crane', desc: 'Stone gathering +15% and building 10% faster.' },
+  bitumen_jars: { name: 'Bitumen Jars', desc: 'Oil gathering +15%.' }, distillation: { name: 'Distillation', desc: 'Oil gathering and extraction +20%.' }, cracking: { name: 'Cracking', desc: 'Oil gathering and extraction +25%.' },
   picks1: { name: 'Pickaxes', desc: 'Mining +15%.' }, picks2: { name: 'Galleries', desc: 'Mining +15%.' }, picks3: { name: 'Smelting', desc: 'Mining +15%.' },
   coinage: { name: 'Coinage', desc: 'Market fees 30% lower.' },
   oracles: { name: 'Oracles', desc: 'Favor generation +20%.' },

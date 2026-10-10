@@ -124,7 +124,7 @@ describe('m4: dificuldades (G3), libertação, segredo e paliativos', () => {
       expect(canPlaceBuilding(s, s.players[p], 'titan_gate', 44, 88).ok).toBe(false);
     }
     const v = [...s.units.values()].find((u) => u.owner === 0 && u.type === 'villager')!;
-    s.players[0].resources = { food: 9000, wood: 9000, gold: 9000, favor: 900, knowledge: 900 };
+    s.players[0].resources = { food: 9000, wood: 9000, stone: 9000, gold: 9000, oil: 9000, favor: 900, knowledge: 900 };
     expect(applyCommand(s, { type: 'build', player: 0, ids: [v.id], building: 'titan_gate', tx: 44, ty: 88 })).toEqual({ ok: false, reason: 'Proibido nesta missão' });
     expect(s.players[0].resources.wood).toBe(9000);   // nada foi pago
     seconds(s, 2);

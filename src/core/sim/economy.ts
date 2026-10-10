@@ -1,11 +1,13 @@
 // Economia: custos, pagamento, favor (templos), conhecimento (filósofos), cornucópias, mercado,
 // regeneração, atrito territorial e contagem de maravilhas. Roda uma vez por segundo.
-import { BASE_ATTRITION, FAVOR_DECAY, FAVOR_PER_WORSHIPPER, KNOWLEDGE_PER_SCHOLAR, MARKET_BASE_PRICE, MARKET_TAX, MARKET_TRADE_LOT, RESOURCES, WONDER_VICTORY_SECONDS, TICK_RATE, GARRISON_HEAL, type ResourceType } from '../constants';
+import { BASE_ATTRITION, FAVOR_DECAY, FAVOR_PER_WORSHIPPER, KNOWLEDGE_PER_SCHOLAR, MARKET_BASE_PRICE, MARKET_TAX, MARKET_TRADE_LOT, NODE_RESOURCE, OIL_FROM_AGE, RARE_GOLD_RATE, RARE_SET, RESOURCES, WONDER_VICTORY_SECONDS, TICK_RATE, GARRISON_HEAL, type ResourceType } from '../constants';
 import { BUILDINGS, UNITS } from '../data';
-import type { GameState, Player, QueueItem } from '../types';
+import type { GameState, Player, QueueItem, Unit } from '../types';
+import { distToRect } from '../map/grid';
+import { removeNode } from '../map/mapgen';
 import { territoryOwnerAt } from './territory';
-import { getUnitStats, techCost } from './modifiers';
-import { isEnemy } from './queries';
+import { getUnitStats, recomputeMods, refreshMaxHp, techCost } from './modifiers';
+import { extractorNode, isEnemy } from './queries';
 import { clampToFloor, killUnit } from './combat';
 import { AGES } from '../data';
 import { SCHOLAR_COST } from '../constants';
@@ -63,9 +65,43 @@ export function economySecond(state: GameState): void {
       p.resources.knowledge += gain; p.stats.gathered.knowledge += gain;
     }
     if (def.plenty) { p.resources.food += 1.5; p.resources.wood += 1.5; p.resources.gold += 1.5; }
+    if (def.extract) {
+      const n = extractorNode(map, b.tx, b.ty, b.w, b.h, def.extract.node);
+      if (n) {
+        const take = Math.min(def.extract.rate * p.mods.gather[NODE_RESOURCE[n.type]], n.amount);
+        n.amount -= take;
+        p.resources[NODE_RESOURCE[n.type]] += take; p.stats.gathered[NODE_RESOURCE[n.type]] += take;
+        if (n.amount <= 0.001) {
+          removeNode(map, n.id);
+          state.effects.push({ type: 'nodeGone', x: n.x + 0.5, y: n.y + 0.5, ttl: 6, total: 6, data: n.type });
+        }
+      }
+    }
     if (def.wonder && b.wonderStart >= 0 && p.wonderVictoryAt < 0) {
       if (state.tick - b.wonderStart >= WONDER_VICTORY_SECONDS * TICK_RATE) p.wonderVictoryAt = state.tick;
     }
+  }
+  // Raros ocupados (E2): em cada raro, o Mercador de MENOR id em 'gather' nele e ao lado (distância à borda do tile ≤ 1)
+  // rende RARE_GOLD_RATE de ouro por segundo ao dono e conta o tipo do raro para o bônus; outros no mesmo nó não rendem
+  const holder = new Map<number, Unit>();
+  for (const u of state.units.values()) {
+    if (u.dead || u.state !== 'gather' || u.nodeId <= 0 || !UNITS[u.type].tags.includes('merchant')) continue;
+    const n = map.nodes.get(u.nodeId);
+    if (!n || !RARE_SET.has(n.type) || distToRect(u.x, u.y, n.x, n.y, 1, 1) > 1) continue;
+    const h = holder.get(n.id);
+    if (!h || u.id < h.id) holder.set(n.id, u);
+  }
+  const occ: string[][] = state.players.map(() => []);
+  for (const [nodeId, u] of holder) {
+    const n = map.nodes.get(nodeId)!, p = state.players[u.owner];
+    const g = RARE_GOLD_RATE * p.mods.gather.gold;
+    p.resources.gold += g; p.stats.gathered.gold += g;
+    if (!occ[u.owner].includes(n.type)) occ[u.owner].push(n.type);
+  }
+  for (const p of state.players) {
+    const next = occ[p.id].sort();
+    if (next.join(',') === p.rares.join(',')) continue;
+    p.rares = next; recomputeMods(state, p); refreshMaxHp(state, p);
   }
   // Regeneração e atrito
   for (const u of state.units.values()) {
@@ -95,6 +131,7 @@ export function economySecond(state: GameState): void {
 
 export function marketTrade(state: GameState, player: Player, action: 'buy' | 'sell', resource: ResourceType): boolean {
   if (resource === 'gold' || resource === 'knowledge' || resource === 'favor') return false;
+  if (resource === 'oil' && player.age < OIL_FROM_AGE) return false;
   const tax = MARKET_TAX * player.mods.player.tradeTax;
   const price = player.prices[resource];
   if (action === 'sell') {

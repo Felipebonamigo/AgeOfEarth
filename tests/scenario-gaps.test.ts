@@ -431,7 +431,7 @@ describe('G6: remove, guarnição por roteiro, maxAge e forbid', () => {
   it('remove de edifício reembolsa a fila (unidades e avanço de Idade), como a destruição', () => {
     const s = game(mk());
     const p = s.players[0];
-    p.resources = { food: 5000, wood: 5000, gold: 5000, favor: 100, knowledge: 5000 };
+    p.resources = { food: 5000, wood: 5000, stone: 5000, gold: 5000, oil: 5000, favor: 100, knowledge: 5000 };
     const tc = townCenter(s, 0)!;
     const bar = placeBuilding(s, 0, 'barracks', tc.tx, tc.ty + 7, true);
     expect(applyCommand(s, { type: 'train', player: 0, buildingId: bar.id, unit: 'hoplite' }).ok).toBe(true);
@@ -493,7 +493,7 @@ describe('G6: remove, guarnição por roteiro, maxAge e forbid', () => {
     expect(maxAgeOf(s, 0)).toBe(1); expect(maxAgeOf(s, 1)).toBe(3);
     expect(isForbidden(s, 0, 'units', 'toxotes')).toBe(true); expect(isForbidden(s, 1, 'units', 'toxotes')).toBe(false);   // por jogador
     expect(isForbidden(s, 1, 'units', 'hoplite')).toBe(true);                                                              // global vale para todos
-    const rich = { food: 9000, wood: 9000, gold: 9000, favor: 900, knowledge: 9000 };
+    const rich = { food: 9000, wood: 9000, stone: 9000, gold: 9000, oil: 9000, favor: 900, knowledge: 9000 };
     p0.resources = { ...rich }; p1.resources = { ...rich };
     const tc = townCenter(s, 0)!;
     placeBuilding(s, 0, 'academy', tc.tx + 7, tc.ty, true); p0.techs.push('civic1', 'science1');   // requisitos da Heroica cumpridos

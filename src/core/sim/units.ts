@@ -1,6 +1,6 @@
 // Comportamento das unidades: máquina de estados (mover, atacar, coletar, construir, rezar),
 // seguimento de caminho com separação suave e perseguição com "coleira" (retorno ao ponto de origem).
-import { CARRY_CAPACITY, FARM_GATHERERS, GATHER_RATES, HUNT_TYPES, NODE_RESOURCE, TICK_RATE, type ResourceType } from '../constants';
+import { CARRY_CAPACITY, FARM_GATHERERS, GATHER_RATES, HUNT_TYPES, NODE_RESOURCE, RARE_SET, TICK_RATE, type ResourceType } from '../constants';
 import { BUILDINGS, UNITS } from '../data';
 import type { Building, GameState, Order, ResourceNode, Unit } from '../types';
 import { distToRect, idx, inBounds, canPass, canStep, dist, towardFrame, centerFrame } from '../map/grid';
@@ -10,7 +10,7 @@ import { removeNode } from '../map/mapgen';
 import { getBuildingStats, getUnitStats } from './modifiers';
 import { getRuntime, type Runtime } from './runtime';
 import { acquireTarget, attackInterval, canTarget, performAttack } from './combat';
-import { entityById, distanceTo, nearestDropoff, nearestFreeFarm, nearestNode, nearestNodeWithRoom, nodeGatherers, nodeCapacity, farmGatherers, farmPrimary } from './queries';
+import { canWorkNode, entityById, distanceTo, nearestDropoff, nearestFreeFarm, nearestNode, nearestNodeWithRoom, nodeGatherers, nodeCapacity, farmGatherers, farmPrimary } from './queries';
 import { t } from '../../i18n';
 import { onBuildingComplete, canGarrison, enterGarrison } from './entities';
 import { MAX_ORDER_QUEUE } from './validate';
@@ -57,6 +57,7 @@ export function startOrder(state: GameState, u: Unit, order: Order): void {
       // Fazenda própria (checada antes dos nós: ids de entidades e de nós são disjuntos, mas fica explícito)
       const b = state.buildings.get(id);
       if (b && !b.dead && BUILDINGS[b.type].farm && b.owner === u.owner) {
+        if (def.tags.includes('merchant')) { finishOrder(state, u); return; }
         if (!b.complete) { u.nodeId = -b.id; u.state = 'build'; u.targetId = b.id; break; }
         const mine = u.nodeId === -b.id && (u.state === 'gather' || u.state === 'return') ? 1 : 0;
         const target = farmGatherers(state, b.id) - mine < FARM_GATHERERS ? b : nearestFreeFarm(state, u.owner, b.x, b.y, 12);
@@ -68,6 +69,7 @@ export function startOrder(state: GameState, u: Unit, order: Order): void {
       }
       let node = state.map.nodes.get(id);
       if (node) {
+        if (!canWorkNode(state.players[u.owner], u.type, node).ok) { finishOrder(state, u); return; }
         // nó lotado: escolhe outro do mesmo tipo no agrupamento
         if (nodeGatherers(state, node.id) >= nodeCapacity(state, node)) node = nearestNodeWithRoom(state, node.x + 0.5, node.y + 0.5, node.type, 6, node.id) ?? node;
         u.nodeId = node.id; u.state = 'gather'; break;
@@ -81,7 +83,7 @@ export function startOrder(state: GameState, u: Unit, order: Order): void {
       u.state = 'build'; u.targetId = b.id; break;
     }
     case 'pray': {
-      if (!def.canGather) { finishOrder(state, u); return; }
+      if (!def.canGather || def.tags.includes('merchant')) { finishOrder(state, u); return; }
       const b = state.buildings.get(order.targetId!);
       if (!b || b.dead || b.owner !== u.owner || !(BUILDINGS[b.type].worship || BUILDINGS[b.type].titanGate) || (!b.complete && !BUILDINGS[b.type].titanGate)) { finishOrder(state, u); return; }   // Portal em obra: ritual dos cenários
       u.state = 'move'; u.targetId = b.id; u.nodeId = 0; u.tx = b.x; u.ty = b.y; break;   // ao chegar adjacente vira 'pray'
@@ -404,6 +406,8 @@ function updateGather(state: GameState, rt: Runtime, u: Unit, dt: number, speed:
     return;
   }
   u.orderTick = state.tick;
+  // Mercador num raro: fica parado ao lado, sem carga e sem gastar o nó; a renda e o bônus (um Mercador por nó) saem de economySecond
+  if (RARE_SET.has(node.type)) return;
   let rate = GATHER_RATES[node.type] * player.mods.gather[res];
   if (HUNT_TYPES.has(node.type)) rate *= player.mods.gather.hunt;
   const take = Math.min(rate * dt, node.amount, CARRY_CAPACITY - u.carryAmt);
@@ -444,6 +448,7 @@ export function depleteNode(state: GameState, node: ResourceNode): void {
 
 /** Escolhe nova fonte do mesmo recurso perto da unidade: id do nó (> 0) ou -id da fazenda; null se não houver. */
 function pickNewSource(state: GameState, u: Unit, res: ResourceType): number | null {
+  if (UNITS[u.type].tags.includes('merchant')) return null;   // Mercador não troca de fonte (iria a um veio de ouro: raro conta como 'gold')
   const av = avoided(state, u);
   const node = nearestNodeWithRoom(state, u.x, u.y, res, 14, -1, av) ?? nearestNode(state, u.x, u.y, res, 14, -1, (n) => !(av && av.includes(n.id)));
   const farm = res === 'food' ? nearestFreeFarm(state, u.owner, u.x, u.y, 14, av) : null;

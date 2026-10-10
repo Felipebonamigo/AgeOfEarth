@@ -240,7 +240,7 @@ describe('m6_estatua', () => {
     const s = start('normal');
     run(s, 2);
     for (const p of [0, 1, 2]) {
-      s.players[p].age = ERA_TITANS; s.players[p].resources = { food: 9000, wood: 9000, gold: 9000, favor: 900, knowledge: 900 };
+      s.players[p].age = ERA_TITANS; s.players[p].resources = { food: 9000, wood: 9000, stone: 9000, gold: 9000, oil: 9000, favor: 900, knowledge: 900 };
       expect(buildingLimitOk(s, s.players[p], 'titan_gate'), `portal ${p}`).toEqual({ ok: false, reason: 'Proibido nesta missão' });
     }
     const v = alive(s, 0, 'villager')[0]; const tc = townCenter(s, 0)!;

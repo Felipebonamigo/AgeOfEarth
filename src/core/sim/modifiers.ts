@@ -2,7 +2,7 @@
 // e calcula os atributos finais de unidades e edifícios (com cache por versão).
 import { RESOURCES, DIFFICULTIES, VETERAN_BONUS, rankOf, type ResourceType } from '../constants';
 import type { Unit } from '../types';
-import { BUILDINGS, MAJOR_GODS, TECHS, UNITS } from '../data';
+import { BUILDINGS, MAJOR_GODS, RARES, TECHS, UNITS } from '../data';
 import type { Effect, EffectMatch, GameState, Player, PlayerMods, PlayerStat } from '../types';
 import { getRuntime, type BuildingStats, type UnitStats } from './runtime';
 
@@ -10,7 +10,7 @@ export const PLAYER_STATS: PlayerStat[] = ['territory', 'cityLimit', 'attrition'
 
 export function defaultMods(): PlayerMods {
   return {
-    gather: { food: 1, wood: 1, gold: 1, knowledge: 1, favor: 1, hunt: 1, farm: 1 },
+    gather: { food: 1, wood: 1, stone: 1, gold: 1, oil: 1, knowledge: 1, favor: 1, hunt: 1, farm: 1 },
     player: { territory: 0, cityLimit: 1, attrition: 0, attritionResist: 0, favorRate: 1, knowledgeRate: 1, researchCost: 1, buildSpeed: 1, trainSpeed: 1, popCap: 0, los: 0, tradeTax: 1, regen: 0 },
     unitEffects: [], buildingEffects: [], version: 0,
   };
@@ -24,6 +24,7 @@ export function recomputeMods(state: GameState, player: Player): void {
   const god = MAJOR_GODS[player.god];
   if (god) effects.push(...god.bonuses);
   for (const t of player.techs) { const def = TECHS[t]; if (def) effects.push(...def.effects); }
+  for (const r of player.rares ?? []) { const d = RARES[r]; if (d) effects.push(...d.effects); }   // E2: raros ocupados por um Mercador
   // Maravilhas concluídas
   for (const b of state.buildings.values()) {
     if (b.owner !== player.id || !b.complete || b.dead) continue;

@@ -102,7 +102,7 @@ function value(env: Env, v: Value): number {
     switch (v.stat) {
       case 'age': return p.age; case 'pop': return p.pop; case 'popCap': return p.popCap; case 'alive': return scenarioAlive(env.state, p.id) ? 1 : 0;
       case 'relics': return relicsOf(env.state, p.id);   // G10: relíquias guardadas nos Templos do jogador
-      case 'food': case 'wood': case 'gold': case 'favor': case 'knowledge': return p.resources[v.stat];
+      case 'food': case 'wood': case 'stone': case 'gold': case 'oil': case 'favor': case 'knowledge': return p.resources[v.stat];
       case 'studies': return academyTechCount(p);   // estudos das 4 linhas da Biblioteca (requisito das Eras)
       default: return 0;
     }

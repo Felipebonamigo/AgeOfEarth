@@ -51,7 +51,11 @@ describe('integridade dos dados', () => {
     for (const b of BUILD_MENU) expect(BUILDINGS[b]).toBeDefined();
     const hotkeys = new Map<string, string[]>();
     for (const b of BUILD_MENU) { const hk = BUILDINGS[b].hotkey!; hotkeys.set(hk, [...(hotkeys.get(hk) ?? []), b]); }
-    for (const [hk, list] of hotkeys) if (list.length > 1) expect(list.every((x) => x.startsWith('wonder_')), `atalho ${hk} duplicado: ${list}`).toBe(true);
+    for (const [hk, list] of hotkeys) if (list.length > 1) {
+      const g = BUILDINGS[list[0]].hotkeyGroup;
+      const ok = list.every((x) => x.startsWith('wonder_')) || (!!g && list.every((x) => BUILDINGS[x].hotkeyGroup === g));
+      expect(ok, `atalho ${hk} duplicado: ${list}`).toBe(true);
+    }
     // editor de mapas: uma tecla por ação, sem A (atacar-mover), R (ponto de encontro), U (liberar) nem W/S/D (câmera)
     const edKeys = [...Object.keys(TOOL_KEYS), ...Object.keys(EDITOR_KEYS), ...Object.keys(TERRAIN_KEYS)];
     expect(new Set(edKeys).size, `atalhos do editor repetidos: ${edKeys}`).toBe(edKeys.length);

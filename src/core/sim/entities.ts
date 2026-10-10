@@ -7,6 +7,7 @@ import { getBuildingStats, getUnitStats } from './modifiers';
 import { t } from '../../i18n';
 import { invalidateComponents, componentAt, componentSize } from '../map/components';
 import { forbiddenReason } from './restrictions';
+import { extractorNode } from './queries';
 
 export function spawnUnit(state: GameState, owner: number, type: string, x: number, y: number): Unit {
   const player = state.players[owner];
@@ -155,6 +156,7 @@ export function canPlaceBuilding(state: GameState, player: Player, type: string,
       return { ok: false, reason: t('err.ownTerritory') };
     }
   }
+  if (def.extract && !force && !extractorNode(map, tx, ty, def.w, def.h, def.extract.node)) return { ok: false, reason: t('err.needsOilField') };
   return { ok: true };
 }
 

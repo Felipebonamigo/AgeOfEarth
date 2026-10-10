@@ -95,7 +95,7 @@ class Fuzzer {
     c.stance = this.key(STANCES); c.formation = this.chance(0.6) ? this.pick(FORMATIONS) : this.weird();
     c.index = this.chance(0.7) ? this.rng.int(-2, 12) : this.weird(); c.itemId = this.chance(0.5) ? this.anyId(s) : undefined;
     c.action = this.chance(0.8) ? this.pick(['buy', 'sell']) : this.weird();
-    c.resource = this.chance(0.8) ? this.pick(RESOURCES) : this.pick([...PROTO_KEYS, 'stone', 7]);
+    c.resource = this.chance(0.8) ? this.pick(RESOURCES) : this.pick([...PROTO_KEYS, 'marble', 7]);
     c.queue = this.chance(0.7) ? this.chance(0.3) : this.weird();
     // campos faltando e sobrando
     for (const k of Object.keys(c)) if (k !== 'type' && this.chance(0.08)) delete c[k];
@@ -318,7 +318,7 @@ describe('applyCommand: regras de validação (4.5)', () => {
     const p = s.players[0], tc = tcOf(s, 0);
     placeBuilding(s, 0, 'market', tc.tx + 6, tc.ty + 6, true);
     const res = { ...p.resources };
-    for (const resource of ['toString', 'stone', '__proto__', 'constructor', 7]) for (const action of ['buy', 'sell', 'steal']) {
+    for (const resource of ['toString', 'marble', '__proto__', 'constructor', 7]) for (const action of ['buy', 'sell', 'steal']) {
       expect(applyCommand(s, { type: 'trade', player: 0, action, resource } as Command).ok).toBe(false);
     }
     expect(applyCommand(s, { type: 'trade', player: 0, action: 'steal', resource: 'wood' } as unknown as Command).ok).toBe(false);

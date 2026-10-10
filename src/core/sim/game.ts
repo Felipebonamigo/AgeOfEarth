@@ -83,7 +83,7 @@ export function createGame(config: GameConfig): GameState {
     ceasefireUntil: 0, ceasefireBy: -1, fogVersion: 0, relics: [], aiRound: 0,
   };
   config.players.forEach((pc, i) => {
-    const resources = { food: 300, wood: 250, gold: 120, knowledge: 0, favor: 0 } as Record<ResourceType, number>;
+    const resources = { food: 300, wood: 250, stone: 100, gold: 120, oil: 0, knowledge: 0, favor: 0 } as Record<ResourceType, number>;
     if (mode === 'deathmatch') for (const r of RESOURCES) resources[r] = DEATHMATCH_RESOURCES[r];   // Deathmatch: cofres cheios
     for (const r of RESOURCES) if (config.startingResources?.[r] !== undefined) resources[r] = config.startingResources[r]!;
     // deus vindo do lobby (texto livre de outro par): só chave própria da tabela — `constructor`/`__proto__`/`toString` existem em qualquer objeto
@@ -91,9 +91,9 @@ export function createGame(config: GameConfig): GameState {
     const p: Player = {
       id: i, name: pc.name, color: PLAYER_COLORS[i % PLAYER_COLORS.length].num, isAI: pc.isAI, difficulty: pc.difficulty, team: pc.team ?? i,
       god, minorGods: [], age: startAge, resources, techs: [], powers: [{ id: MAJOR_GODS[god].power, used: false }],
-      pop: 0, popCap: 0, alive: true, defeatedTick: -1, mods: defaultMods(),
-      stats: { kills: 0, losses: 0, unitsTrained: 0, buildingsBuilt: 0, buildingsLost: 0, razed: 0, gathered: { food: 0, wood: 0, gold: 0, knowledge: 0, favor: 0 } },
-      prices: { food: MARKET_BASE_PRICE, wood: MARKET_BASE_PRICE, gold: MARKET_BASE_PRICE, knowledge: MARKET_BASE_PRICE, favor: MARKET_BASE_PRICE },
+      pop: 0, popCap: 0, alive: true, defeatedTick: -1, mods: defaultMods(), rares: [],
+      stats: { kills: 0, losses: 0, unitsTrained: 0, buildingsBuilt: 0, buildingsLost: 0, razed: 0, gathered: { food: 0, wood: 0, stone: 0, gold: 0, oil: 0, knowledge: 0, favor: 0 } },
+      prices: { food: MARKET_BASE_PRICE, wood: MARKET_BASE_PRICE, stone: MARKET_BASE_PRICE, gold: MARKET_BASE_PRICE, oil: MARKET_BASE_PRICE, knowledge: MARKET_BASE_PRICE, favor: MARKET_BASE_PRICE },
       territoryTiles: 0, visibility: new Uint8Array(size.w * size.h),
       // todas as IAs começam a pensar no mesmo instante (antes 2 + i s: o jogador 0 ganhava 1 s por índice de vantagem)
       ai: pc.isAI ? { difficulty: pc.difficulty, nextThink: TICK_RATE * 2, lastAttack: 0, attackTarget: -1, waves: 0, rallyX: 0, rallyY: 0, defending: -1000, builderIds: [], lastExpand: 0, personality: Number.isInteger(pc.personality) && pc.personality! >= 0 ? pc.personality! % 97 : (config.seed + i * 7) % 97 } : null,

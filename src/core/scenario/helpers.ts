@@ -1,6 +1,6 @@
 // Utilidades para cenários: contagens, invocação de esquadrões inimigos, recursos.
 import { UNITS } from '../data';
-import { TICK_RATE } from '../constants';
+import { TICK_RATE, type ResourceType } from '../constants';
 import type { Building, GameConfig, GameState, Unit } from '../types';
 import { spawnUnit, placeBuilding, canPlaceBuilding, onBuildingComplete, removeBuildingNow, removeUnitNow } from '../sim/entities';
 import { getBuildingStats } from '../sim/modifiers';
@@ -132,7 +132,7 @@ export function raid(state: GameState, owner: number, group: string[], targetX: 
   return spawned;
 }
 
-export function give(state: GameState, owner: number, res: Partial<Record<'food' | 'wood' | 'gold' | 'favor' | 'knowledge', number>>): void {
+export function give(state: GameState, owner: number, res: Partial<Record<ResourceType, number>>): void {
   const p = state.players[owner];
   for (const [k, v] of Object.entries(res)) p.resources[k as 'food'] += v ?? 0;
 }

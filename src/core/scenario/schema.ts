@@ -25,7 +25,7 @@ export type EntityRef =
 export type Point =
   | { at: [number, number] } | { start: number; dx?: number; dy?: number }
   | { tc: PlayerSel; dx?: number; dy?: number } | { entity: EntityRef; dx?: number; dy?: number };
-export type StatName = 'age' | 'pop' | 'popCap' | 'food' | 'wood' | 'gold' | 'favor' | 'knowledge' | 'alive' | 'difficulty' | 'relics' | 'studies';
+export type StatName = 'age' | 'pop' | 'popCap' | 'food' | 'wood' | 'stone' | 'gold' | 'oil' | 'favor' | 'knowledge' | 'alive' | 'difficulty' | 'relics' | 'studies';
 /**
  * { stat: 'difficulty' } dispensa player: 0 = Fácil, 1 = Normal, 2 = Difícil (config.campaignDifficulty).
  * { stat: 'relics', player } (G10) = relíquias guardadas nos Templos do jogador agora (relicsOf).
@@ -142,7 +142,7 @@ export const MAX_LINE_CHARS = 200;
 // ---------------------------------------------------------------------------------------------------------------
 
 const CMP_KEYS = ['gte', 'lte', 'eq', 'gt', 'lt'] as const;
-const STATS: readonly string[] = ['age', 'pop', 'popCap', 'food', 'wood', 'gold', 'favor', 'knowledge', 'alive', 'difficulty', 'relics', 'studies'];
+const STATS: readonly string[] = ['age', 'pop', 'popCap', 'food', 'wood', 'stone', 'gold', 'oil', 'favor', 'knowledge', 'alive', 'difficulty', 'relics', 'studies'];
 const CAMPAIGN_DIFFS: readonly string[] = ['easy', 'normal', 'hard'];
 const UNIT_STATES: readonly string[] = ['idle', 'move', 'attackMove', 'attack', 'gather', 'return', 'build', 'pray', 'hold', 'garrison'];
 const OBJ_STATUS: readonly string[] = ['pending', 'done', 'failed'];
@@ -362,7 +362,7 @@ function checkRelics(v: unknown, size: { w: number; h: number } | undefined, pat
 }
 
 function checkResources(r: unknown, path: string, err: (p: string, m: string) => void): void {
-  if (!isObj(r)) { err(path, 'esperado um objeto { food, wood, gold, favor, knowledge }'); return; }
+  if (!isObj(r)) { err(path, 'esperado um objeto { food, wood, stone, gold, oil, favor, knowledge }'); return; }
   for (const [k, val] of Object.entries(r)) {
     if (!(RESOURCES as readonly string[]).includes(k)) err(`${path}.${k}`, `recurso desconhecido: '${k}'`);
     else if (!isNum(val)) err(`${path}.${k}`, 'esperado um número');

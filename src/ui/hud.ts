@@ -10,7 +10,7 @@ import { getUnitStats, getBuildingStats, techCost } from '../core/sim/modifiers'
 import { canTrain, canResearch, canAdvanceAge, canHireScholar, academyTechCount } from '../core/sim/commands';
 import { studyTreeModel, studyTreeHtml, studyTreeKey, studyNodeDetail, pickLibrary, librariesOf, type StudyNode } from './studytree';
 import { canPlaceBuilding, buildingLimitOk } from '../core/sim/entities';
-import { farmGatherers, isMilitary } from '../core/sim/queries';
+import { extractorNode, farmGatherers, isMilitary } from '../core/sim/queries';
 import { canAfford, missingResources } from '../core/sim/economy';
 import type { Session } from '../game/session';
 import type { Renderer } from '../render/renderer';
@@ -448,6 +448,7 @@ export class HUD {
     if (def.popCap) stats.push(`${t('sel.popCap')} <b>+${def.popCap}</b>`);
     if (def.worship) { let n = 0; for (const u of s.state.units.values()) if (u.state === 'pray' && u.nodeId === -b.id) n++; stats.push(`${t('sel.worshippers')} <b>${n}</b>`); }
     if (def.scholars) stats.push(`${t('sel.scholars')} <b>${b.scholars}/${MAX_SCHOLARS}</b>`);
+    if (def.extract) { const n = extractorNode(s.state.map, b.tx, b.ty, b.w, b.h, def.extract.node); stats.push(`${t('sel.extract')} <b>${n ? Math.round(n.amount) : 0}</b>`); }
     if (def.queueMax) stats.push(`${t('sel.queue')} <b>${b.queue.length}/${def.queueMax}</b>`);
     if (def.farm) stats.push(`${t('sel.farmers')} <b>${farmGatherers(s.state, b.id)}/1</b>`);
     if (def.garrison) stats.push(`${t('sel.garrison')} <b>${b.garrison.length}/${def.garrison}</b>${b.garrison.length >= 3 ? ` (${t('sel.extraArrows', { n: Math.min(4, Math.floor(b.garrison.length / 3)) })})` : ''}`);

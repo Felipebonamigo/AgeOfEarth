@@ -319,7 +319,8 @@ export class Input {
         const cands = (BUILD_HOTKEYS[keyU] ?? '').split(',').filter(Boolean);
         if (cands.length > 0) {
           // 'M' alterna entre maravilhas
-          const type = cands.length === 1 ? cands[0] : cands[(cands.indexOf(s.ui.placeType ?? '') + 1) % cands.length];
+          const age = s.state.players[s.local].age; const avail = cands.filter((c) => BUILDINGS[c].age <= age); const pool = avail.length ? avail : cands;
+          const type = pool.length === 1 ? pool[0] : pool[(pool.indexOf(s.ui.placeType ?? '') + 1) % pool.length];
           this.hud.startPlacement(type); return;
         }
       }

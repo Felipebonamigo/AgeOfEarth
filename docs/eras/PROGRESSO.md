@@ -13,7 +13,7 @@ Estados: `pendente` · `em andamento` · `feito` · `feito com pendências` · `
 | Etapa | Estado | Data | Commit | Notas |
 |---|---|---|---|---|
 | E1 + painel/árvore (E9) | feito | 10/10/2026 | 04f0080+ | SIM_VERSION 4, save v2; Prometeu por roteiro nas m3/m8/m12 |
-| E2 | pendente | | | |
+| E2 | em andamento | | | |
 | E3 | pendente | | | |
 | E4 | pendente | | | |
 | E5 — comércio | pendente | | | |

@@ -2,7 +2,7 @@
 // #bottom (no lugar de #selection/#commands). Abas de ferramentas, subpaleta, pincel, jogador ativo, sobreposições,
 // inspetor do selecionado, lista de validação (Ir até / Corrigir), modais (Testar, Propriedades, menu por Esc, atalhos),
 // salvar/exportar e autosave. Nunca muta o estado diretamente: tudo passa pela MapEditor (apply/setMeta/fix*).
-import { MAX_PLAYERS, PLAYER_COLORS, TERRAIN, type Difficulty, type GameMode, type NodeType } from '../core/constants';
+import { MAX_PLAYERS, PLAYER_COLORS, RARE_NODES, TERRAIN, type Difficulty, type GameMode, type NodeType } from '../core/constants';
 import { BUILDINGS, BUILD_MENU, MAJOR_GODS, MAJOR_GOD_LIST, MAX_AGE, UNITS } from '../core/data';
 import { eraSelectsHtml, eraChoiceValid } from '../ui/era-select';
 import { GAME_MODES, DIFFICULTIES } from '../core/constants';
@@ -65,9 +65,13 @@ const TOOLS: { id: EditorTool; key: string; icon: string }[] = [
 ];
 /** Subpaleta de terreno na ordem das teclas 1..6 (grama, areia, terra, água, montanha, água profunda). */
 const TERRAIN_ORDER: number[] = [TERRAIN.GRASS, TERRAIN.SAND, TERRAIN.DIRT, TERRAIN.WATER, TERRAIN.MOUNTAIN, TERRAIN.DEEP];
-const NODE_TYPES: NodeType[] = ['tree', 'berry', 'deer', 'boar', 'gold', 'lure'];
+const NODE_TYPES: NodeType[] = ['tree', 'berry', 'deer', 'boar', 'gold', 'lure', 'limestone', 'naphtha', 'oil_field', ...RARE_NODES];
 /** Ícone de cada recurso do mapa (atlas `hud`: a árvore é o glifo; o resto são os ícones de recurso, caça e poder). */
-const NODE_ICONS: Record<NodeType, string> = { tree: '', berry: 'res/food', deer: 'tech/great_hunt', boar: 'power/curse', gold: 'res/gold', lure: 'power/lure' };
+const NODE_ICONS: Record<NodeType, string> = {
+  tree: '', berry: 'res/food', deer: 'tech/great_hunt', boar: 'power/curse', gold: 'res/gold', lure: 'power/lure',
+  limestone: 'res/stone', naphtha: 'res/oil', oil_field: 'res/oil', olive: 'tech/irrigation', vineyard: 'tech/bacchanal', paros_marble: 'tech/masonry',
+  salt: 'tech/logistics', wild_horses: 'tech/horse_breeding', copper: 'tech/bronze_armor', incense: 'tech/oracles',
+};
 const nodeIcon = (n: NodeType): string => (NODE_ICONS[n] ? iconHtml(NODE_ICONS[n], { cls: 'hic-res' }) : `<span class="hic hic-gly hic-res">${glyph('tree')}</span>`);
 const teamNum = (p: number): number => PLAYER_COLORS[p % PLAYER_COLORS.length].num;
 const UNIT_CLASSES: UnitClass[] = ['villager', 'scout', 'infantry', 'archer', 'skirmisher', 'cavalry', 'siege', 'hero', 'myth', 'titan'];

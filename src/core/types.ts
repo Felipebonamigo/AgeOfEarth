@@ -30,6 +30,8 @@ export interface BuildingDef {
   gate?: boolean;             // portão: bloqueia inimigos, deixa aliados passarem
   library?: boolean;          // Biblioteca (id 'academy'): o avanço de Era sai daqui (canAdvanceAge)
   queueMax?: number;          // itens que cabem na fila (padrão DEFAULT_QUEUE_MAX = 10; a Biblioteca: 5)
+  extract?: { node: NodeType; rate: number };   // E2: extrator passivo encostado no nó (Poço de Petróleo)
+  hotkeyGroup?: string;   // E2: edifícios que dividem o atalho (apertar de novo alterna)
   perCity?: boolean;          // com limit numérico: no máximo um por Centro Cívico (a Biblioteca: uma por cidade, até 3)
 }
 
@@ -141,6 +143,7 @@ export interface AIState {
 }
 
 export interface Player {
+  rares: string[];   // E2: tipos de raro ocupados por um Mercador (bônus em recomputeMods)
   id: number; name: string; color: number; isAI: boolean; difficulty: Difficulty; team: number;
   god: string; minorGods: string[]; age: number;
   resources: Record<ResourceType, number>;

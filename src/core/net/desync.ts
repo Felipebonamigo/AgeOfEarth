@@ -4,6 +4,7 @@
 // estado local no mesmo tick (contagens, somas de vida, recursos); comparar o resumo dos diagnósticos de dois jogadores aponta
 // o valor que difere. Nada aqui entra no hash total: o stateHash (e o `hash final` do smoke) não muda.
 import type { GameState } from '../types';
+import { RESOURCES } from '../constants';
 
 /** Versão do formato do detalhamento no fio: [versão, nº de jogadores, mundo, (jogador, recursos, unidades, edifícios) × n]. */
 export const HASH_PARTS_VERSION = 1;
@@ -30,12 +31,13 @@ export function stateHashParts(state: GameState): number[] {
     h = strHash(h, p.god); for (const g of p.minorGods) h = strHash(h, g);
     for (const tc of p.techs) h = strHash(h, tc);
     for (const pw of p.powers) { h = strHash(h, pw.id); h = step(h, pw.used ? 1 : 0); }
+    for (const rr of p.rares) h = strHash(h, rr);
     h = step(h, p.revealUntil); h = step(h, p.bronzeUntil); h = step(h, p.wonderVictoryAt); h = step(h, p.titanSpawned ? 1 : 0);
     pl[p.id] = h;
     let r = res[p.id];
     const rs = p.resources;
-    r = step(r, Math.floor(rs.food)); r = step(r, Math.floor(rs.wood)); r = step(r, Math.floor(rs.gold)); r = step(r, Math.floor(rs.knowledge)); r = step(r, Math.floor(rs.favor * 10));
-    for (const k of ['food', 'wood', 'gold', 'knowledge', 'favor'] as const) r = step(r, Math.floor((p.prices[k] ?? 0) * 100));
+    r = step(r, Math.floor(rs.food)); r = step(r, Math.floor(rs.wood)); r = step(r, Math.floor(rs.gold)); r = step(r, Math.floor(rs.knowledge)); r = step(r, Math.floor(rs.favor * 10)); r = step(r, Math.floor(rs.stone)); r = step(r, Math.floor(rs.oil));
+    for (const k of RESOURCES) r = step(r, Math.floor((p.prices[k] ?? 0) * 100));
     res[p.id] = r;
   }
   for (const u of state.units.values()) {

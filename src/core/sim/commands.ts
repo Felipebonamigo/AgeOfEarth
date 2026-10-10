@@ -1,6 +1,6 @@
 // Comandos: validação e aplicação. Toda mudança de estado originada do jogador/IA/rede passa por aqui,
 // o que torna a simulação reproduzível (lockstep, replays, saves).
-import { DEFAULT_QUEUE_MAX, MAX_SCHOLARS, SCHOLAR_COST, TICK_RATE, type Stance, type Formation } from '../constants';
+import { DEFAULT_QUEUE_MAX, MAX_SCHOLARS, OIL_FROM_AGE, SCHOLAR_COST, TICK_RATE, type Stance, type Formation } from '../constants';
 import { ACADEMY_LINES, AGES, BUILDINGS, MAX_AGE, MINOR_GODS, MAJOR_GODS, TECHS, UNITS } from '../data';
 import type { Building, Command, GameState, Player, Unit } from '../types';
 import { spiralSearchFrame, towardFrame, centerFrame, canPass, inBounds } from '../map/grid';
@@ -9,7 +9,7 @@ import { canPlaceBuilding, placeBuilding, recomputePop, unitsOf, countBuildings,
 import { getUnitStats, techCost, getBuildingStats } from './modifiers';
 import { queueTotalFor } from './buildings';
 import { giveOrder, stopUnit } from './units';
-import { entityById, isAlly, isEnemy } from './queries';
+import { canWorkNode, entityById, isAlly, isEnemy } from './queries';
 import { getRuntime } from './runtime';
 import { ABILITIES } from '../data';
 import { usePower } from './powers';
@@ -194,14 +194,21 @@ export function applyCommand(state: GameState, raw: Command): CommandResult {
       const farm = state.buildings.get(cmd.targetId);
       const okFarm = !!farm && !farm.dead && farm.owner === cmd.player && !!BUILDINGS[farm.type].farm;
       if (!okFarm && !state.map.nodes.has(cmd.targetId)) return { ok: false };
-      for (const u of ownedUnits(state, cmd.player, cmd.ids)) if (UNITS[u.type].canGather) giveOrder(state, u, { type: 'gather', targetId: cmd.targetId }, cmd.queue);
-      return { ok: true };
+      const node = state.map.nodes.get(cmd.targetId);
+      let any = false, reason: string | undefined;
+      for (const u of ownedUnits(state, cmd.player, cmd.ids)) {
+        if (!UNITS[u.type].canGather) continue;
+        const w = node ? canWorkNode(player, u.type, node) : UNITS[u.type].tags.includes('merchant') ? { ok: false, reason: t('err.merchantRare') } : { ok: true };
+        if (!w.ok) { reason = w.reason; continue; }
+        giveOrder(state, u, { type: 'gather', targetId: cmd.targetId }, cmd.queue); any = true;
+      }
+      return any || reason === undefined ? { ok: true } : { ok: false, reason };
     }
     case 'pray': {
       // alvo: templo (ou Portal dos Titãs) do próprio jogador
       const b = ownedBuilding(state, cmd.player, cmd.targetId);
       if (!b || !(BUILDINGS[b.type].worship || BUILDINGS[b.type].titanGate)) return { ok: false };
-      for (const u of ownedUnits(state, cmd.player, cmd.ids)) if (UNITS[u.type].canGather) giveOrder(state, u, { type: 'pray', targetId: cmd.targetId }, cmd.queue);
+      for (const u of ownedUnits(state, cmd.player, cmd.ids)) if (UNITS[u.type].canGather && !UNITS[u.type].tags.includes('merchant')) giveOrder(state, u, { type: 'pray', targetId: cmd.targetId }, cmd.queue);
       return { ok: true };
     }
     case 'repair': {
@@ -270,6 +277,7 @@ export function applyCommand(state: GameState, raw: Command): CommandResult {
     case 'ability': return useAbility(state, player, cmd.unitId);
     case 'trade': {
       if (countBuildings(state, player.id, (b) => b.complete && !!BUILDINGS[b.type].trade) === 0) return { ok: false, reason: t('err.needMarket') };
+      if (cmd.resource === 'oil' && player.age < OIL_FROM_AGE) return { ok: false, reason: t('err.oilEra', { age: AGES[OIL_FROM_AGE].name }) };
       return marketTrade(state, player, cmd.action, cmd.resource) ? { ok: true } : { ok: false, reason: t('err.noResources') };
     }
     case 'delete': {

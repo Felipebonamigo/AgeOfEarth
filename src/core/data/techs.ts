@@ -61,7 +61,7 @@ const RAW: Record<string, TechInput> = {
     desc: 'Conhecimento +15%, pesquisas 8% mais baratas e visão +1.',
   }),
   masonry: {
-    name: 'Alvenaria', icon: '🧱', building: 'academy', age: 1, cost: { wood: 200, knowledge: 100 }, time: 40,
+    name: 'Alvenaria', icon: '🧱', building: 'academy', age: 1, cost: { wood: 100, stone: 150, knowledge: 100 }, time: 40,
     effects: [{ type: 'building', match: 'all', stat: 'hp', mult: 1.2 }], desc: 'Todos os edifícios +20% de vida.',
   },
   ballista_towers: {
@@ -85,7 +85,7 @@ const RAW: Record<string, TechInput> = {
     effects: [{ type: 'gather', resource: 'hunt', mult: 1.25 }], desc: 'Caça 25% mais rápida.',
   },
   fortified_towns: {
-    name: 'Cidades Fortificadas', icon: '🏯', building: 'town_center', age: 1, cost: { wood: 200, gold: 100 }, time: 45,
+    name: 'Cidades Fortificadas', icon: '🏯', building: 'town_center', age: 1, cost: { wood: 100, stone: 150, gold: 100 }, time: 45,
     effects: [{ type: 'building', match: { types: ['town_center'] }, stat: 'hp', mult: 1.3 }, { type: 'building', match: { types: ['town_center'] }, stat: 'attack', mult: 1.5 }],
     desc: 'Centros Cívicos +30% de vida e +50% de ataque.',
   },
@@ -105,6 +105,12 @@ const RAW: Record<string, TechInput> = {
   picks1: { name: 'Picaretas', icon: '⛏️', building: 'mine', age: 0, cost: { food: 80, wood: 60 }, time: 30, effects: [{ type: 'gather', resource: 'gold', mult: 1.15 }], desc: 'Mineração +15%.' },
   picks2: { name: 'Galerias', icon: '⛏️', building: 'mine', age: 1, cost: { food: 160, wood: 120 }, time: 40, prereq: ['picks1'], effects: [{ type: 'gather', resource: 'gold', mult: 1.15 }], desc: 'Mineração +15%.' },
   picks3: { name: 'Fundição', icon: '🔥', building: 'mine', age: 2, cost: { food: 300, wood: 200 }, time: 50, prereq: ['picks2'], effects: [{ type: 'gather', resource: 'gold', mult: 1.15 }], desc: 'Mineração +15%.' },
+  stone_wedges: { name: 'Cunhas de Bronze', icon: '🪨', building: 'quarry', age: 0, cost: { food: 80, wood: 60 }, time: 30, effects: [{ type: 'gather', resource: 'stone', mult: 1.15 }], desc: 'Coleta de pedra +15%.' },
+  stone_saws: { name: 'Serra de Areia', icon: '🪚', building: 'quarry', age: 1, cost: { food: 160, wood: 120 }, time: 40, prereq: ['stone_wedges'], effects: [{ type: 'gather', resource: 'stone', mult: 1.15 }], desc: 'Coleta de pedra +15%.' },
+  stone_cranes: { name: 'Guindaste Trispastos', icon: '🏗️', building: 'quarry', age: 2, cost: { food: 300, wood: 200, gold: 100 }, time: 50, prereq: ['stone_saws'], effects: [{ type: 'gather', resource: 'stone', mult: 1.15 }, { type: 'player', stat: 'buildSpeed', mult: 1.1 }], desc: 'Coleta de pedra +15% e construção 10% mais rápida.' },
+  bitumen_jars: { name: 'Jarros de Betume', icon: '🏺', building: 'naphtha_well', age: 3, cost: { food: 200, wood: 150 }, time: 40, effects: [{ type: 'gather', resource: 'oil', mult: 1.15 }], desc: 'Coleta de petróleo +15%.' },
+  distillation: { name: 'Destilação', icon: '⚗️', building: 'refinery', age: 6, cost: { wood: 300, gold: 300, knowledge: 100 }, time: 50, effects: [{ type: 'gather', resource: 'oil', mult: 1.2 }], desc: 'Coleta e extração de petróleo +20%.' },
+  cracking: { name: 'Craqueamento', icon: '⚗️', building: 'refinery', age: 7, cost: { gold: 500, knowledge: 200 }, time: 60, prereq: ['distillation'], effects: [{ type: 'gather', resource: 'oil', mult: 1.25 }], desc: 'Coleta e extração de petróleo +25%.' },
   coinage: { name: 'Cunhagem', icon: '🪙', building: 'market', age: 1, cost: { gold: 150, wood: 100 }, time: 40, effects: [{ type: 'player', stat: 'tradeTax', mult: 0.7 }], desc: 'Taxas do Mercado 30% menores.' },
 
   // ---------- Templo ----------

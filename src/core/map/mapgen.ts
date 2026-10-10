@@ -7,7 +7,11 @@ import { idx, inBounds, dist } from './grid';
 import { articulationPoints, invalidateComponents } from './components';
 
 /** Quantidade padrão de recurso por tipo de nó (editor: valor inicial ao colocar um nó). */
-export const NODE_AMOUNT: Record<NodeType, number> = { tree: 150, berry: 175, gold: 900, deer: 140, boar: 260, lure: 800 };
+export const NODE_AMOUNT: Record<NodeType, number> = {
+  tree: 150, berry: 175, gold: 900, deer: 140, boar: 260, lure: 800,
+  limestone: 600, naphtha: 1500, oil_field: 8000,
+  olive: 99999, vineyard: 99999, paros_marble: 99999, salt: 99999, wild_horses: 99999, copper: 99999, incense: 99999,   // raros: nunca se esgotam
+};
 
 /** Pontos do círculo unitário (32 direções) usados por generateMap, placeStartResources e blankMap. */
 const CIRCLE32 = unitCircle(32);
