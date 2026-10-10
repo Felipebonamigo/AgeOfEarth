@@ -23,3 +23,11 @@ use "Text to 3D", textura PBR ligada e, se houver a opção, rig automático de 
 | `achilles` | herói Aquiles | o único "aquiles" parece retrato de um ator real | `greek hero Achilles, bronze attic helmet with tall horsehair crest, ornate bronze cuirass, large round aspis shield, long spear, original face, realistic, PBR, game asset, full body, A-pose, no base` |
 | `perseus` | herói Perseu | o achado é estátua de mármore com a cabeça da Medusa | `greek hero Perseus, winged sandals, petasos helmet, polished mirror bronze shield, curved harpe sword, short tunic and cloak, realistic, PBR, game asset, full body, A-pose, no base` |
 | `heracles` (pose A) | Héracles | o baixado ("The Lion Warrior") é bom, mas tem o braço levantado; o "hercules" é bloqueado pelo Meshy (lembra o da Disney) | `greek hero Heracles, nemean lion pelt worn as hood and cloak, massive wooden club, muscular bearded man, leather loincloth, sandals, realistic, PBR, game asset, full body, A-pose, no base` |
+
+## Grupo 2 — cerco
+
+| id do jogo | o que é | por que o que havia não serviu | prompt sugerido (inglês) |
+|---|---|---|---|
+| `helepolis` | helépole: torre de cerco de madeira em rodas | a galeria não tem a tag `siege-tower` (nem `helepolis`); o único cerco achado em `siege` é um mamute de guerra cartoon | `ancient greek helepolis siege tower, multi-storey wooden tower on large wheels, front covered with wet hides and iron plates, small shuttered ports for catapults, ladders inside, realistic, PBR, game asset, three-quarter front view, no base, no soldiers` |
+| `petrobolos` (versão grega) | petróbolo/litobolo de torção | os 2 baixados são medievais (colher e guindaste); servem até haver um grego | `ancient greek torsion stone-thrower lithobolos, heavy wooden frame with twisted sinew skeins, throwing arm with sling, mounted on a low four-wheeled cart, realistic, PBR, game asset, three-quarter view, no base, no crew` |
+| aríete (Eras novas) | aríete com cobertura | tags `battering-ram` e `siege-weapon` não existem; não olhei a tag `ram` a fundo (o Meshy bloqueou) | `ancient battering ram under a pitched wooden roof covered with hides, heavy log with iron ram head hanging on chains, four wheels, realistic, PBR, game asset, three-quarter view, no base, no crew` |

@@ -913,6 +913,38 @@
       "rig": false,
       "baixadoEm": "2026-10-09",
       "notas": "Héracles: pele do leão de Nemeia na cabeça e nas costas, clava, tanga; braço direito levantado (não é pose A); reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "unidades/petrobolos__wheeled-catapult.glb",
+      "idJogo": "petrobolos",
+      "titulo": "Catapult",
+      "url": "https://www.meshy.ai/3d-models/x-019563c0-c96d-73e7-9db5-fd7f3366e11d",
+      "autor": "Illustros",
+      "autorUrl": "https://www.meshy.ai/@s1733934066df585",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 380621,
+      "triangulos": 60000,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Catapulta de braço com colher, sobre quatro rodas de madeira e ferro; limpa e coerente, estilo medieval simples (serve de petróbolo até haver uma grega com contrapeso); reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "unidades/petrobolos__siege-engine.glb",
+      "idJogo": "petrobolos",
+      "titulo": "Medieval Siege Engine Model",
+      "url": "https://www.meshy.ai/3d-models/x-0195f68e-5cff-743d-9054-22f6816093eb",
+      "autor": "Illustros",
+      "autorUrl": "https://www.meshy.ai/@s1733934066df585",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 194630,
+      "triangulos": 60000,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-09",
+      "notas": "Máquina de cerco com braço em guindaste e corrente, carroça de 4 rodas; mais rústica e menos reconhecível como catapulta; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
     }
   ],
   "recusados": [
@@ -991,6 +1023,14 @@
     {
       "url": null,
       "motivo": "basileus: \"King Leonidas\" (ProteinPenguin) é cartoon (galeria, busca \"leonidas\")"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/catapult",
+      "motivo": "petrobolos: torres \"low poly\" com catapulta (rg.royalgaming1) são estilizadas demais; \"6.Catapult (Siege Unit)\" (ProteinPenguin) tem 1,8 mil vértices e é cartoon; os trabucos são medievais"
+    },
+    {
+      "url": "https://www.meshy.ai/pt-BR/tags/siege",
+      "motivo": "helepolis: o único resultado de cerco em \"siege\" é um mamute de guerra rúnico (ProteinPenguin), cartoon"
     }
   ],
   "faltando": [
@@ -1010,6 +1050,8 @@
     "odysseus",
     "achilles",
     "perseus",
-    "villager (homem de quíton)"
+    "villager (homem de quíton)",
+    "helepolis",
+    "aríete (novo, Eras novas)"
   ]
 }
