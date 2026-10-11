@@ -13,6 +13,7 @@ import { serialize } from '../core/serialize';
 import { RNG, makeNoise } from '../core/rng';
 import { idx, inBounds, isPassable, spiralSearch } from '../core/map/grid';
 import { articulationPoints, componentAt, invalidateComponents } from '../core/map/components';
+import { isLandBlockedTerrain, isUnbuildableTerrain, layerOf, nodeFitsTerrain } from '../core/map/naval';
 import { nearestFreeTile } from '../core/map/pathfinding';
 import { ensureConnectivity, placeStartResources as genStartResources } from '../core/map/mapgen';
 import { migrateMap, resizeMapData, saveMap, startResourceTable, validateMap, START_RESOURCE_RADIUS, type FixedMapData, type MapIssue, type MapMeta, type ResizeAnchor, type ResizeReport, type StartResources } from '../core/map/fixed';
@@ -33,14 +34,13 @@ type Drag =
   | { kind: 'move'; target: EditorPick; from: { x: number; y: number }; moved: boolean }
   | { kind: 'none' };
 
-const SOLID = new Set<number>([TERRAIN.WATER, TERRAIN.DEEP, TERRAIN.MOUNTAIN]);
-/** Subpaleta de terreno: teclas 1..6 (grama, areia, terra, água, montanha, água profunda). */
-export const TERRAIN_KEYS: Record<string, number> = { '1': TERRAIN.GRASS, '2': TERRAIN.SAND, '3': TERRAIN.DIRT, '4': TERRAIN.WATER, '5': TERRAIN.MOUNTAIN, '6': TERRAIN.DEEP };
+/** Subpaleta de terreno: teclas 1..7 (grama, areia, terra, água, montanha, água profunda, baixio). */
+export const TERRAIN_KEYS: Record<string, number> = { '1': TERRAIN.GRASS, '2': TERRAIN.SAND, '3': TERRAIN.DIRT, '4': TERRAIN.WATER, '5': TERRAIN.MOUNTAIN, '6': TERRAIN.DEEP, '7': TERRAIN.SHALLOWS };
 const PLAYER_KEYS: Record<string, number> = { '1': 0, '2': 1, '3': 2, '4': 3, '!': 0, '@': 1, '#': 2, '$': 3 };
 /** Ferramentas por tecla. Como na partida, A, R e U ficam de fora (atacar-mover, ponto de encontro, liberar): unidades = M. */
 export const TOOL_KEYS: Record<string, EditorTool> = { T: 'terrain', N: 'node', B: 'building', M: 'unit', I: 'start', V: 'select', E: 'erase' };
 /** Demais atalhos de uma tecla do editor (docs/EDITOR.md §4.3); tests/data.test.ts confere que são únicos e sem A/R/U. */
-export const EDITOR_KEYS: Record<string, string> = { F: 'fill', P: 'eyedrop', X: 'shape', C: 'complete', G: 'grid', L: 'regions', O: 'passable', K: 'kit', H: 'hotkeys' };
+export const EDITOR_KEYS: Record<string, string> = { F: 'fill', P: 'eyedrop', X: 'shape', C: 'complete', G: 'grid', L: 'regions', O: 'passable', K: 'kit', H: 'hotkeys', J: 'naval' };
 const CHOKE_RADIUS = 10;   // o mesmo raio do aviso chokepoint de validateMap
 const TREE_DENSITY = 60;   // % dos tiles do pincel de árvores que recebem uma árvore (determinístico por posição)
 const FLASH_MS = 1500;
@@ -55,7 +55,7 @@ export function buildingCorner(type: string, tx: number, ty: number): { x: numbe
 function removeNodeOf(m: GameMap, i: number): void {
   const id = m.nodeAt[i];
   if (id === -1) return;
-  m.nodes.delete(id); m.nodeAt[i] = -1; m.blocked[i] = 0;
+  m.nodes.delete(id); m.nodeAt[i] = -1; m.blocked[i] = isLandBlockedTerrain(m.terrain[i]) ? 1 : 0;
 }
 /** Abre a colina (raio 1) sobre terreno sólido: água → areia, montanha → terra, sem nós (como carveCorridor). */
 function carveHill(m: GameMap, x: number, y: number): void {
@@ -288,7 +288,7 @@ export class MapEditor {
     const next = new MapEditor(data, this.view, { now: this.now });
     this.redoStack.length = 0;   // redimensionar é uma ação nova: o refazer antigo deixa de valer (como em apply)
     const keep = this.ui, ui = next.ui;
-    for (const k of ['tool', 'terrain', 'brushRadius', 'brushShape', 'nodeType', 'nodeAmount', 'buildingType', 'unitType', 'player', 'complete', 'showGrid', 'showRegions', 'showPassable', 'showKit', 'bucket'] as const) (ui as unknown as Record<string, unknown>)[k] = keep[k];
+    for (const k of ['tool', 'terrain', 'brushRadius', 'brushShape', 'nodeType', 'nodeAmount', 'buildingType', 'unitType', 'player', 'complete', 'showGrid', 'showRegions', 'showNaval', 'showPassable', 'showKit', 'bucket'] as const) (ui as unknown as Record<string, unknown>)[k] = keep[k];
     next.onSwitch = this.onSwitch;
     next.resizedFrom = this;
     this.resizedTo = next;
@@ -324,11 +324,11 @@ export class MapEditor {
     return null;
   }
   /** Um nó cabe no tile? (terreno passável, sem nó nem edifício) */
-  nodeFits(tx: number, ty: number): boolean {
+  nodeFits(tx: number, ty: number, type: string = this.ui.nodeType): boolean {
     const map = this.map;
     if (!inBounds(map, tx, ty)) return false;
     const i = idx(map, tx, ty);
-    return !SOLID.has(map.terrain[i]) && map.nodeAt[i] === -1 && map.buildingAt[i] === -1;
+    return nodeFitsTerrain(type, map.terrain[i]) && map.nodeAt[i] === -1 && map.buildingAt[i] === -1;
   }
   /** A ferramenta atual pode colocar algo com o cursor neste tile? (alimenta ui.ghostOk) */
   canPlaceAt(tx: number, ty: number): boolean {
@@ -341,7 +341,7 @@ export class MapEditor {
         const c = buildingCorner(ui.buildingType, tx, ty);
         return canPlaceBuilding(state, player, ui.buildingType, c.x, c.y, true, true).ok;
       }
-      case 'unit': return !!UNITS[ui.unitType] && !!state.players[ui.player] && isPassable(map, tx, ty);
+      case 'unit': return !!UNITS[ui.unitType] && !!state.players[ui.player] && isPassable(map, tx, ty, layerOf(UNITS[ui.unitType] ?? {}));
       case 'node': return this.nodeFits(tx, ty);
       case 'start': return this.startTarget() >= 0;
       case 'terrain': return true;
@@ -554,7 +554,7 @@ export class MapEditor {
       case 'building': { const b = state.buildings.get(p.id); if (b) this.tryApply({ kind: 'moveEntity', id: p.id, x: b.tx + dx, y: b.ty + dy }); return; }
       case 'node': {
         const n = map.nodes.get(p.id);
-        if (!n || !this.nodeFits(n.x + dx, n.y + dy)) { this.onError?.(new EditError('occupied')); return; }
+        if (!n || !this.nodeFits(n.x + dx, n.y + dy, n.type)) { this.onError?.(new EditError('occupied')); return; }
         if (this.tryApply({ kind: 'batch', ops: [{ kind: 'removeNode', x: n.x, y: n.y }, { kind: 'addNode', type: n.type, x: n.x + dx, y: n.y + dy, amount: n.amount }] })) this.ui.selected = { kind: 'node', id: map.nodeAt[idx(map, n.x + dx, n.y + dy)] };
         return;
       }
@@ -562,13 +562,13 @@ export class MapEditor {
     }
   }
 
-  /** Terreno efetivo do pincel (6 = DEEP forçado na interface → TERRAIN.DEEP; a derivação ainda rebaixa as bordas para WATER). */
-  private brushTerrain(): number { const t = this.ui.terrain; return t === 6 ? TERRAIN.DEEP : Math.max(0, Math.min(TERRAIN.DEEP, t | 0)); }
+  /** Terreno efetivo do pincel (0–6; DEEP pintado ainda é rebaixado a WATER nas bordas pela derivação; 6 = baixio). */
+  private brushTerrain(): number { return Math.max(0, Math.min(TERRAIN.SHALLOWS, this.ui.terrain | 0)); }
   /** Remove tiles que já têm o terreno (água e água profunda contam como iguais) e, ao pintar sólido, os que têm edifício (avisa uma vez). */
   private filterPaint(tiles: number[], terrain: number, d: { warned: boolean } | null): number[] {
     const map = this.map;
     const water = terrain === TERRAIN.WATER || terrain === TERRAIN.DEEP;
-    const solid = SOLID.has(terrain);
+    const solid = isUnbuildableTerrain(terrain);
     const out: number[] = [];
     let blocked = -1;
     for (const i of tiles) {
@@ -597,7 +597,7 @@ export class MapEditor {
     const ops: EditOp[] = [];
     for (const i of [...set].sort((a, b) => a - b)) {
       const x = i % map.w, y = (i - x) / map.w;
-      if (!treeAt(x, y) || !this.nodeFits(x, y)) continue;
+      if (!treeAt(x, y) || !this.nodeFits(x, y, 'tree')) continue;
       ops.push({ kind: 'addNode', type: 'tree', x, y, amount: ui.nodeAmount ?? undefined });
     }
     if (ops.length === 1) this.tryApply(ops[0]); else if (ops.length > 1) this.tryApply({ kind: 'batch', ops });
@@ -630,6 +630,7 @@ export class MapEditor {
       case 'Delete': case 'Backspace': this.deleteSelected(); return true;
       case 'G': ui.showGrid = !ui.showGrid; return true;
       case 'L': ui.showRegions = !ui.showRegions; return true;
+      case 'J': ui.showNaval = !ui.showNaval; return true;
       case 'O': ui.showPassable = !ui.showPassable; return true;
       case 'K': ui.showKit = !ui.showKit; return true;
     }
@@ -853,7 +854,7 @@ export class MapEditor {
     for (let i = 0; i < map.w * map.h; i++) {
       const t = copy.terrain[i];
       if (t === map.terrain[i]) continue;
-      if (SOLID.has(t) && map.buildingAt[i] !== -1) continue;   // nunca põe sólido sob edifício
+      if (isUnbuildableTerrain(t) && map.buildingAt[i] !== -1) continue;   // nunca põe sólido sob edifício
       let list = byTerrain.get(t);
       if (!list) { list = []; byTerrain.set(t, list); }
       list.push(i);

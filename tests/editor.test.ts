@@ -566,7 +566,7 @@ describe('editor: MapEditor', () => {
   });
   it('fixConnectivity liga dois inícios em ilhas separadas (some o aviso startsDisconnected) e é desfazível; clearRadius e placeStartResources idem', () => {
     const file = blankMap(80, 80, 2, 1);
-    file.starts = [[15, 40], [65, 40]];
+    file.starts = [[10, 40], [70, 40]];
     const ed = editorOf(file);
     const map = ed.map;
     const stripe: number[] = [];
@@ -593,12 +593,12 @@ describe('editor: MapEditor', () => {
     ed.undo(); expect(map.nodes.size).toBe(0); expect(mapHash(ed.toFile())).toBe(h2);
     ed.placeStartResources(0, 42); expect(mapHash(ed.toFile())).toBe(h3);
     // limpar raio 8 do início 0: remove os nós perto e devolve grama
-    ed.apply({ kind: 'paint', tiles: brushTiles(15, 40, 3, 'circle', 80, 80), terrain: TERRAIN.SAND });
+    ed.apply({ kind: 'paint', tiles: brushTiles(10, 40, 3, 'circle', 80, 80), terrain: TERRAIN.SAND });
     expect(ed.clearRadius(0)).toBe(true);
-    expect(map.terrain[tile(map, 15, 40)]).toBe(TERRAIN.GRASS);
-    for (const n of map.nodes.values()) expect((n.x - 15) ** 2 + (n.y - 40) ** 2).toBeGreaterThan(81);
+    expect(map.terrain[tile(map, 10, 40)]).toBe(TERRAIN.GRASS);
+    for (const n of map.nodes.values()) expect((n.x - 10) ** 2 + (n.y - 40) ** 2).toBeGreaterThan(81);
     ed.undo();
-    expect(map.terrain[tile(map, 15, 40)]).toBe(TERRAIN.SAND);
+    expect(map.terrain[tile(map, 10, 40)]).toBe(TERRAIN.SAND);
     expect(map.nodes.size).toBe(nodes);
   });
   it('widenChokepoints remove só os nós em volta de um gargalo perto de um início e é desfazível; gargalos longe e bosques ficam', () => {
@@ -773,7 +773,7 @@ describe('editor: Etapa 4 (balde, conta-gotas, correções, recursos por início
   });
   it('tabela de recursos por início (raio 16): cache até a próxima op e igual à do arquivo', () => {
     const ed = editorOf(twoStarts());
-    const zero = { food: 0, wood: 0, gold: 0, stone: 0, oil: 0, rare: 0, foodNodes: 0, woodNodes: 0, goldNodes: 0, stoneNodes: 0, oilNodes: 0 };
+    const zero = { food: 0, wood: 0, gold: 0, stone: 0, oil: 0, rare: 0, fish: 0, foodNodes: 0, woodNodes: 0, goldNodes: 0, stoneNodes: 0, oilNodes: 0, fishNodes: 0 };
     expect(ed.startResources()).toEqual([zero, zero]);
     const first = ed.startResources();
     expect(ed.startResources()).toBe(first);

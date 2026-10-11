@@ -64,18 +64,18 @@ const TOOLS: { id: EditorTool; key: string; icon: string }[] = [
   { id: 'start', key: 'I', icon: 'rally' }, { id: 'select', key: 'V', icon: 'pointer' }, { id: 'erase', key: 'E', icon: 'eraser' },
 ];
 /** Subpaleta de terreno na ordem das teclas 1..6 (grama, areia, terra, água, montanha, água profunda). */
-const TERRAIN_ORDER: number[] = [TERRAIN.GRASS, TERRAIN.SAND, TERRAIN.DIRT, TERRAIN.WATER, TERRAIN.MOUNTAIN, TERRAIN.DEEP];
-const NODE_TYPES: NodeType[] = ['tree', 'berry', 'deer', 'boar', 'gold', 'lure', 'limestone', 'naphtha', 'oil_field', ...RARE_NODES];
+const TERRAIN_ORDER: number[] = [TERRAIN.GRASS, TERRAIN.SAND, TERRAIN.DIRT, TERRAIN.WATER, TERRAIN.MOUNTAIN, TERRAIN.DEEP, TERRAIN.SHALLOWS];
+const NODE_TYPES: NodeType[] = ['tree', 'berry', 'deer', 'boar', 'gold', 'lure', 'limestone', 'naphtha', 'oil_field', ...RARE_NODES, 'fish', 'rare_fish'];
 /** Ícone de cada recurso do mapa (atlas `hud`: a árvore é o glifo; o resto são os ícones de recurso, caça e poder). */
 const NODE_ICONS: Record<NodeType, string> = {
   tree: '', berry: 'res/food', deer: 'tech/great_hunt', boar: 'power/curse', gold: 'res/gold', lure: 'power/lure',
   limestone: 'res/stone', naphtha: 'res/oil', oil_field: 'res/oil', olive: 'tech/irrigation', vineyard: 'tech/bacchanal', paros_marble: 'tech/masonry',
   salt: 'tech/logistics', wild_horses: 'tech/horse_breeding', copper: 'tech/bronze_armor', incense: 'tech/oracles',
-  fish: 'res/food', rare_fish: 'res/gold',
+  fish: 'tech/fishing_nets', rare_fish: 'tech/fishing_nets',
 };
 const nodeIcon = (n: NodeType): string => (NODE_ICONS[n] ? iconHtml(NODE_ICONS[n], { cls: 'hic-res' }) : `<span class="hic hic-gly hic-res">${glyph('tree')}</span>`);
 const teamNum = (p: number): number => PLAYER_COLORS[p % PLAYER_COLORS.length].num;
-const UNIT_CLASSES: UnitClass[] = ['villager', 'scout', 'infantry', 'archer', 'skirmisher', 'cavalry', 'siege', 'hero', 'myth', 'titan'];
+const UNIT_CLASSES: UnitClass[] = ['villager', 'scout', 'infantry', 'archer', 'skirmisher', 'cavalry', 'siege', 'hero', 'myth', 'titan', 'ship'];
 const el = (tag: string, cls?: string, html?: string): HTMLElement => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 
 /** Categoria de um edifício para a paleta (economia, militar, cultura, especiais). */
@@ -153,7 +153,7 @@ export class EditorPanel {
     }
     const comp = el('button', 'btn', ''); comp.id = 'ed-complete'; comp.title = 'C'; comp.addEventListener('click', () => { this.editor.ui.complete = !this.editor.ui.complete; this.renderPlayer(); }); this.playerEl.appendChild(comp);
     // sobreposições
-    for (const [id, key, prop] of [['grid', 'G', 'showGrid'], ['regions', 'L', 'showRegions'], ['passable', 'O', 'showPassable'], ['kit', 'K', 'showKit']] as const) {
+    for (const [id, key, prop] of [['grid', 'G', 'showGrid'], ['regions', 'L', 'showRegions'], ['naval', 'J', 'showNaval'], ['passable', 'O', 'showPassable'], ['kit', 'K', 'showKit']] as const) {
       const b = el('button', 'btn ov', `${t(`editor.${id}`)} <kbd>${key}</kbd>`); b.dataset.ov = prop;
       b.addEventListener('click', () => { const ui = this.editor.ui; ui[prop] = !ui[prop]; this.renderOverlays(); });
       this.overlayEl.appendChild(b);
@@ -217,7 +217,7 @@ export class EditorPanel {
       c.addEventListener('click', onClick); return c;
     };
     if (ui.tool === 'terrain') {
-      TERRAIN_ORDER.forEach((tr, i) => p.appendChild(chip(`<span class="sw" style="background:${terrainHex(tr)}"></span>${t(`editor.terrain.${tr}`)} <kbd>${i + 1}</kbd>`, ui.terrain === tr || (ui.terrain === 6 && tr === TERRAIN.DEEP), t(`editor.terrain.${tr}`), () => { ui.terrain = tr; this.renderPalette(); }, ['terrain', String(tr)])));
+      TERRAIN_ORDER.forEach((tr, i) => p.appendChild(chip(`<span class="sw" style="background:${terrainHex(tr)}"></span>${t(`editor.terrain.${tr}`)} <kbd>${i + 1}</kbd>`, ui.terrain === tr, t(`editor.terrain.${tr}`), () => { ui.terrain = tr; this.renderPalette(); }, ['terrain', String(tr)])));
     } else if (ui.tool === 'node') {
       for (const nt of NODE_TYPES) p.appendChild(chip(`${nodeIcon(nt)} ${t(`node.${nt}`)}`, ui.nodeType === nt, `${t(`node.${nt}`)} · ${t('editor.amountDefault')}: ${NODE_AMOUNT[nt]}`, () => { ui.nodeType = nt; ui.nodeAmount = null; this.renderPalette(); }, ['node', nt]));
       const amt = el('label', 'amt', `${t('editor.amount')} <input type="number" id="ed-amount" min="1" max="99999" placeholder="${NODE_AMOUNT[ui.nodeType]} (${t('editor.amountDefault')})" value="${ui.nodeAmount ?? ''}">`);
@@ -264,9 +264,9 @@ export class EditorPanel {
   }
   private renderOverlays(): void {
     const ui = this.editor.ui;
-    const key = `${ui.showGrid}${ui.showRegions}${ui.showPassable}${ui.showKit}`;
+    const key = `${ui.showGrid}${ui.showRegions}${ui.showNaval}${ui.showPassable}${ui.showKit}`;
     if (key === this.keys.overlay) return; this.keys.overlay = key;
-    this.overlayEl.querySelectorAll('.ov').forEach((b) => b.classList.toggle('active', !!ui[(b as HTMLElement).dataset.ov as 'showGrid' | 'showRegions' | 'showPassable' | 'showKit']));
+    this.overlayEl.querySelectorAll('.ov').forEach((b) => b.classList.toggle('active', !!ui[(b as HTMLElement).dataset.ov as 'showGrid' | 'showRegions' | 'showNaval' | 'showPassable' | 'showKit']));
   }
   private renderInspector(): void {
     const ed = this.editor, ui = ed.ui, state = ed.state, map = ed.map;
@@ -319,10 +319,10 @@ export class EditorPanel {
   private renderResources(): void {
     const rows = this.editor.startResources();
     if (rows.length === 0) { this.resEl.innerHTML = ''; return; }
-    const kinds = ['food', 'wood', 'stone', 'gold', 'oil', 'rare'] as const;
+    const kinds = ['food', 'wood', 'stone', 'gold', 'oil', 'rare', 'fish'] as const;
     const max = Object.fromEntries(kinds.map((k) => [k, Math.max(...rows.map((r) => r[k]))])) as Record<typeof kinds[number], number>;
     const cell = (r: (typeof rows)[number], k: typeof kinds[number]) => `<td class="${max[k] > 0 && r[k] < max[k] * 0.8 ? 'low' : ''}" title="${t('editor.resNodes', { n: k === 'rare' ? r.rare : r[`${k}Nodes` as 'foodNodes'] })}">${r[k]}</td>`;
-    const head = kinds.map((k) => `<th title="${k === 'rare' ? t('editor.resRare') : t(`res.${k}`)}">${k === 'rare' ? iconHtml('tech/masonry', { cls: 'hic-res' }) : ic.res(k)}</th>`).join('');
+    const head = kinds.map((k) => `<th title="${k === 'rare' ? t('editor.resRare') : k === 'fish' ? t('node.fish') : t(`res.${k}`)}">${k === 'rare' ? iconHtml('tech/masonry', { cls: 'hic-res' }) : k === 'fish' ? iconHtml('tech/fishing_nets', { cls: 'hic-res' }) : ic.res(k)}</th>`).join('');
     this.resEl.innerHTML = `<div class="ttl">${t('editor.resTitle', { r: 16 })}</div><table><tr><th></th>${head}</tr>${rows.map((r, i) => `<tr data-start="${i}"><th style="color:${PLAYER_COLORS[i % PLAYER_COLORS.length].hex}">${glyph('rally')} ${i + 1}</th>${kinds.map((k) => cell(r, k)).join('')}</tr>`).join('')}</table>`;
   }
   /** "Corrigir" quando cabe (docs/EDITOR.md §4.4): cada aviso/erro com uma correção automática desfazível (um passo de Ctrl+Z). */
@@ -651,9 +651,9 @@ export class EditorPanel {
   showHotkeys(): void {
     const k = (...keys: string[]) => keys.map((x) => `<kbd>${x}</kbd>`).join(' ');
     const rows: [string, string][] = [
-      [k('T', 'N', 'B', 'M', 'I', 'V', 'E'), t('editor.hk.tools')], [k('1', '2', '3', '4', '5', '6'), t('editor.hk.terrain')], [`${k('[', ']')} · ${k('X')}`, t('editor.hk.brush')], [`${k('F')} · ${glyph('bucket')}`, t('editor.hk.fill')],
+      [k('T', 'N', 'B', 'M', 'I', 'V', 'E'), t('editor.hk.tools')], [k('1', '2', '3', '4', '5', '6', '7'), t('editor.hk.terrain')], [`${k('[', ']')} · ${k('X')}`, t('editor.hk.brush')], [`${k('F')} · ${glyph('bucket')}`, t('editor.hk.fill')],
       [`${k('Shift')}+${k(t('hk.k.click'))}`, t('editor.hk.line')], [`${k('P')} · ${k('Alt')}+${k(t('hk.k.click'))}`, t('editor.hk.eyedrop')], [`${k('Shift')}+${k('1-4')}`, t('editor.hk.player')], [k('C'), t('editor.hk.complete')], [k('Tab'), t('editor.hk.startCycle')],
-      [k('G', 'L', 'O', 'K'), t('editor.hk.overlays')], [`${k('Ctrl')}+${k('Z')} · ${k('Ctrl')}+${k('Y')}`, t('editor.hk.undo')], [`${k('Ctrl')}+${k('S')} · ${k('Ctrl')}+${k('Enter')}`, t('editor.hk.save')],
+      [k('G', 'L', 'J', 'O', 'K'), t('editor.hk.overlays')], [`${k('Ctrl')}+${k('Z')} · ${k('Ctrl')}+${k('Y')}`, t('editor.hk.undo')], [`${k('Ctrl')}+${k('S')} · ${k('Ctrl')}+${k('Enter')}`, t('editor.hk.save')],
       [k(t('hk.k.right')), t('editor.hk.erase')], [k('Delete'), t('editor.hk.delete')], [`${k('W A S D')} · ${k(t('hk.k.arrows'))} · ${t('hk.k.edge')} · ${k(t('hk.k.middle'))} · ${k(t('hk.k.wheel'))}`, t('editor.hk.camera')], [`${k('Esc')} · ${k('H')}`, t('editor.hk.esc')],
     ];
     this.hud.showModal(`<h2>${t('editor.hkTitle')}</h2><table>${rows.map(([a, b]) => `<tr><td style="white-space:nowrap">${a}</td><td>${b}</td></tr>`).join('')}</table><div class="actions"><button class="btn primary" id="m-close">${t('modal.close')}</button></div>`);

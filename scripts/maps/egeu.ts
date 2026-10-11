@@ -44,7 +44,7 @@ export function buildEgeu(): { file: FixedMapData; warnings: MapIssue[]; routes:
     const shoal = shoals.find((s) => Math.abs(x - s.x - (s.x === CX ? 0 : (n.noise(3.1, y * 0.18) - 0.5) * 2)) <= s.half + (n.noise(x * 0.5 + 5, y * 0.5) - 0.5) * 0.6);
     if (fromAxis <= sea) {
       if (isl) return isl.x === CX && fromAxis <= 2.2 && Math.abs(x - CX) <= 3.5 ? T.DIRT : T.GRASS;   // colina central de terra batida
-      if (shoal) return T.SAND;
+      if (shoal) return T.SHALLOWS;   // E4: baixio — caminhável e navegável (o mar fica um só)
       if (islets.some(({ p, r }) => dist(x, y, p[0], p[1]) + (n.noise(x * 0.7 + 1, y * 0.7) - 0.5) * 1.4 <= r)) return T.MOUNTAIN;
       return T.WATER;
     }
@@ -85,6 +85,26 @@ export function buildEgeu(): { file: FixedMapData; warnings: MapIssue[]; routes:
   b.forest(sx - 16, sy - 1, 4.5, 0.85, far, 12);                                // bosque do flanco oeste
   b.forest(sx + 3, sy - 15, 4.5, 0.85, far, 13);                                // bosque ao norte
 
+  // ---- E4: peixes diante do início 1 (6 cardumes na água aberta mais perto, espaçados) e um atum entre as ilhas ----
+  const water = (x: number, y: number) => { const t = b.ed.map.terrain[y * W + x]; return t === T.WATER || t === T.DEEP; };
+  // tile de mar sem nó e sem terra nos 8 vizinhos: o cardume fica a 1+ tile da praia (não ocupa a margem dos Estaleiros
+  // e o barco tem por onde encostar)
+  const sea = (x: number, y: number) => {
+    if (!water(x, y) || b.ed.map.nodeAt[y * W + x] !== -1) return false;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (!water(x + dx, y + dy)) return false;
+    return true;
+  };
+  const byDist = (p: Pt, q: Pt, cx: number, cy: number) => d2(p[0], p[1], cx, cy) - d2(q[0], q[1], cx, cy) || p[1] - q[1] || p[0] - q[0];
+  const cand: Pt[] = [];
+  for (let y = 36; y <= CY - 3; y++) for (let x = 6; x <= CX - 6; x++) if (sea(x, y)) cand.push([x, y]);
+  cand.sort((p, q) => byDist(p, q, sx, sy));
+  const fish: Pt[] = [];
+  for (const p of cand) { if (fish.length >= 6) break; if (fish.every((f) => d2(f[0], f[1], p[0], p[1]) >= 4)) fish.push(p); }
+  if (b.nodes('fish', fish) !== 6) throw new Error(`egeu: só ${fish.length} cardumes couberam`);
+  // o atum: candidato ainda livre (sea() de novo, depois dos peixes) e longe deles
+  const tuna = cand.filter(([x, y]) => x >= 30 && y <= CY - 2 && sea(x, y) && fish.every((f) => d2(f[0], f[1], x, y) >= 9)).sort((p, q) => byDist(p, q, 40, 50))[0];
+  if (!tuna || b.nodes('rare_fish', [tuna]) !== 1) throw new Error('egeu: atum não coube');
+
   // ---- disputados: ouro e caça nas ilhas, caça e bosques na costa ----
   b.nodes('gold', [[26, 55], [27, 55]]);                                        // ilha oeste: 2 + 2 veios dos dois lados do eixo (leste pelo espelho)
   b.nodes('deer', [[23, 54], [23, 55]]);
@@ -97,7 +117,7 @@ export function buildEgeu(): { file: FixedMapData; warnings: MapIssue[]; routes:
   return b.finish({
     id: 'egeu', name: 'Egeu', nameEn: 'Aegean', author: 'Age of Earth', startTeams: [0, 0, 1, 1],
     relics: false,   // relíquias sorteadas pela semente quebrariam a simetria
-    description: 'Um mar separa o norte (inícios 1 e 2) do sul (3 e 4); três ilhas ligadas às costas por baixios — oeste, central (colina do Rei da Colina e ouro) e leste — são as rotas entre os times. Lago entre os aliados, serras nos cantos; os quatro inícios são equivalentes (simetria de espelho dupla). Desenhado por scripts/maps/egeu.ts.',
+    description: 'Um mar separa o norte (inícios 1 e 2) do sul (3 e 4); três ilhas ligadas às costas por baixios — oeste, central (colina do Rei da Colina e ouro) e leste — são as rotas entre os times. O mar é navegável de ponta a ponta (os baixios também) e tem cardumes diante de cada início. Lago entre os aliados, serras nos cantos; os quatro inícios são equivalentes (simetria de espelho dupla). Desenhado por scripts/maps/egeu.ts.',
   }, routes);
 }
 

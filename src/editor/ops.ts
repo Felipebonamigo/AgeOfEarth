@@ -12,7 +12,9 @@
 import { MAX_PLAYERS, TERRAIN, type NodeType } from '../core/constants';
 import { BUILDINGS, UNITS } from '../core/data';
 import type { Building, GameMap, GameState, ResourceNode, Unit } from '../core/types';
-import { idx, inBounds, isPassable } from '../core/map/grid';
+import { centerFrame, idx, inBounds, isPassable } from '../core/map/grid';
+import { isUnbuildableTerrain, layerOf, nodeFitsTerrain } from '../core/map/naval';
+import { nearestFreeTile } from '../core/map/pathfinding';
 import { addNode, deriveDeepWater, rebuildBlocked, removeNode, resetNodeSeq, getNodeSeq, NODE_AMOUNT, NODE_ID_BASE } from '../core/map/mapgen';
 import { invalidateComponents } from '../core/map/components';
 import { canPlaceBuilding, onBuildingComplete, placeBuilding, pushUnitsOutOfTile, recomputePop, removeBuildingNow, removeUnitNow, spawnUnit } from '../core/sim/entities';
@@ -43,7 +45,6 @@ export type Rect = { x0: number; y0: number; x1: number; y1: number };
 export type MetaRef = { relics?: boolean | [number, number][] };
 const copyRelics = (v: boolean | [number, number][]): boolean | [number, number][] => (Array.isArray(v) ? v.map(([x, y]) => [x, y] as [number, number]) : v);
 
-const isSolid = (t: number) => t === TERRAIN.WATER || t === TERRAIN.DEEP || t === TERRAIN.MOUNTAIN;
 const MAX_TERRAIN = Math.max(...Object.values(TERRAIN));
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -228,7 +229,7 @@ function applyEditOpInner(state: GameState, op: EditOp, tags?: TagMap, meta?: Me
       if (!inBounds(map, op.x, op.y)) throw new EditError('badTile', op.x, op.y);
       if (!isNodeType(op.type)) throw new EditError('badType', op.x, op.y);
       const i = idx(map, op.x, op.y);
-      if (isSolid(map.terrain[i]) || map.buildingAt[i] !== -1 || map.nodeAt[i] !== -1) throw new EditError('occupied', op.x, op.y);
+      if (!nodeFitsTerrain(op.type, map.terrain[i]) || map.buildingAt[i] !== -1 || map.nodeAt[i] !== -1) throw new EditError('occupied', op.x, op.y);
       insertNode(map, op.type, op.x, op.y, op.amount, op.id);
       // unidades sobre o tile (agora bloqueado) são empurradas; a inversa as traz de volta ao tile exato
       const moved = pushUnitsFrom(state, [i]);
@@ -320,7 +321,7 @@ function applyEditOpInner(state: GameState, op: EditOp, tags?: TagMap, meta?: Me
       const e = state.units.get(op.id) ?? state.buildings.get(op.id);
       if (!e || e.dead) throw new EditError('notFound');
       if (e.kind === 'unit') {
-        if (!isPassable(state.map, op.x, op.y)) throw new EditError('noRoom', op.x, op.y);
+        if (!isPassable(state.map, op.x, op.y, layerOf(UNITS[e.type]))) throw new EditError('noRoom', op.x, op.y);
         const inv: EditOp = { kind: 'moveEntity', id: e.id, x: Math.floor(e.x), y: Math.floor(e.y) };
         settleUnit(e, op.x, op.y);
         return inv;
@@ -365,6 +366,8 @@ function pushUnitsFrom(state: GameState, tiles: number[]): { id: number; x: numb
     const x = i % map.w, y = (i - x) / map.w;
     pushUnitsOutOfTile(state, x, y);
   }
+  // E4: navios que ficaram fora da água (o tile virou terra) vão para a água mais perto
+  for (const u of state.units.values()) { if (u.dead || !UNITS[u.type].naval) continue; if (isPassable(map, Math.floor(u.x), Math.floor(u.y), 'naval')) continue; const f = nearestFreeTile(map, u.x, u.y, 8, centerFrame(map, u.x, u.y), 'naval'); if (f) { u.x = f.x + 0.5; u.y = f.y + 0.5; u.px = u.x; u.py = u.y; u.path = null; } }
   const moved: { id: number; x: number; y: number }[] = [];
   for (const u of state.units.values()) {
     const p = posBefore.get(u.id);
@@ -412,7 +415,7 @@ function applyPlace(state: GameState, op: Extract<EditOp, { kind: 'placeEntity' 
   } else {
     if (!UNITS[ent.type]) throw new EditError('badType', ent.x, ent.y);
     if (!inBounds(map, ent.x, ent.y)) throw new EditError('badTile', ent.x, ent.y);
-    if (!isPassable(map, ent.x, ent.y)) throw new EditError('noRoom', ent.x, ent.y);
+    if (!isPassable(map, ent.x, ent.y, layerOf(UNITS[ent.type]))) throw new EditError('noRoom', ent.x, ent.y);
   }
   // unidades sobre o footprint de um edifício não passável são empurradas por placeBuilding; a inversa as traz de volta
   const moved = snapshotThenPlace(state, ent, op.id, savedNext);
@@ -467,7 +470,7 @@ function applyPaint(state: GameState, op: Extract<EditOp, { kind: 'paint' }>): E
     const t = terrainAt(k);
     if (!Number.isInteger(t) || t < 0 || t > MAX_TERRAIN) throw new EditError('badTerrain');
     const x = i % w, y = (i - x) / w;
-    if (isSolid(t) && map.buildingAt[i] !== -1) throw new EditError('underBuilding', x, y);
+    if (isUnbuildableTerrain(t) && map.buildingAt[i] !== -1) throw new EditError('underBuilding', x, y);
     if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
   }
   // região que pode mudar: tiles pintados ±1 (derivação da água profunda)
@@ -478,9 +481,8 @@ function applyPaint(state: GameState, op: Extract<EditOp, { kind: 'paint' }>): E
   const removedNodes: ResourceNode[] = [];
   for (let k = 0; k < tiles.length; k++) {
     const i = tiles[k];
-    if (!isSolid(terrainAt(k))) continue;
     const id = map.nodeAt[i];
-    if (id !== -1) { const n = map.nodes.get(id); if (n) { removedNodes.push({ ...n }); removeNode(map, id); } }
+    if (id !== -1) { const n = map.nodes.get(id); if (n && !nodeFitsTerrain(n.type, terrainAt(k))) { removedNodes.push({ ...n }); removeNode(map, id); } }   // E4: o nó cujo tipo não cabe no terreno novo sai
   }
   for (let k = 0; k < tiles.length; k++) map.terrain[tiles[k]] = terrainAt(k);
   // Com terrains (inversa) os valores são restaurados tal qual, sem derivar: o original pode não ser "derivado"

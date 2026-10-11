@@ -1146,14 +1146,15 @@ export class Renderer {
     const zoom = this.cam.zoom, lw = 1 / zoom;                       // lw = 1 px de tela em unidades de mundo
     const mk = Math.min(6, Math.max(1, lw));                          // marcadores com tamanho quase constante na tela
     // Texturas: a chave muda com invalidateRect/setState, com o nº de edifícios (bloqueio) e de nós
-    const key = `${this.editVersion}:${state.buildings.size}:${map.nodes.size}:${w}x${h}`;
-    this.regSprite.visible = ed.showRegions;
-    if (ed.showRegions && this.regKey !== key) {
+    const key = `${this.editVersion}:${state.buildings.size}:${map.nodes.size}:${w}x${h}:${ed.showNaval}`;
+    this.regSprite.visible = ed.showRegions || ed.showNaval;
+    if ((ed.showRegions || ed.showNaval) && this.regKey !== key) {
       this.regKey = key;
+      const regLayer = ed.showNaval ? 'naval' : 'land';   // E4: J mostra as regiões do mar
       const ctx = this.regCanvas.getContext('2d')!;
       const img = ctx.createImageData(w, h); const d = img.data;
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-        const l = componentAt(map, x, y);
+        const l = componentAt(map, x, y, regLayer);
         if (l < 0) continue;
         const c = regionColor(l), i = (y * w + x) * 4;
         d[i] = (c >> 16) & 255; d[i + 1] = (c >> 8) & 255; d[i + 2] = c & 255; d[i + 3] = 105;
