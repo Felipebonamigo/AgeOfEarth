@@ -31,6 +31,7 @@ import { spawnUnit, placeBuilding, canPlaceBuilding } from './core/sim/entities'
 import { destroyBuilding } from './core/sim/combat';
 import { getBuildingStats } from './core/sim/modifiers';
 import { nearestFreeTile } from './core/map/pathfinding';
+import { layerOf } from './core/map/naval';
 import { Achievements, achievementText } from './game/achievements';
 import { detectLocale, getLocale, setLocale, t } from './i18n';
 import { loadSettings, saveSettings } from './game/settings';
@@ -40,7 +41,8 @@ import { exportText, importText } from './game/files';
 import { initCloud, storeSet, storeRemove } from './game/cloud';
 import { applyUiScale, initDisplay, isFullscreen, setFullscreen, desktop, setPresence } from './game/display';
 import type { OptionsContext } from './ui/options';
-import { MAJOR_GODS, MAJOR_GOD_LIST, AGES, MAX_AGE } from './core/data';
+import { MAJOR_GODS, MAJOR_GOD_LIST, AGES, MAX_AGE, UNITS } from './core/data';
+import { IDENTITY_FRAME } from './core/map/grid';
 import { eraConfig } from './ui/era-select';
 import { serialize, deserialize, SAVE_VERSION, saveVersionOf } from './core/serialize';
 import { mapToData } from './core/map/fixed';
@@ -534,7 +536,7 @@ async function boot() {
   };
   requestAnimationFrame(loop);
   // Expõe para depuração/testes automatizados
-  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, hud, loading, pad, input, perf, settings, audio, applyQuality, startGame, loadGame, diagnostic, menu, startEditor, exitEditor, testFromEditor, startScenarioFile, get editor() { return editor; }, get editorPanel() { return editorPanel; }, mapData: () => (session ? mapToData(session.state.map) : null), debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; },
+  (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, hud, loading, pad, input, perf, settings, audio, applyQuality, startGame, loadGame, diagnostic, menu, startEditor, exitEditor, testFromEditor, startScenarioFile, get editor() { return editor; }, get editorPanel() { return editorPanel; }, mapData: () => (session ? mapToData(session.state.map) : null), debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12, IDENTITY_FRAME, layerOf(UNITS[type] ?? {})); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; },
     // cenas de teste (scripts/artparade.mjs): edifício no canto (tx, ty) com a obra na fração `frac` (1 = completo); fora do lockstep, como debugSpawn
     debugBuild: (owner: number, type: string, tx: number, ty: number, frac = 1) => { if (!session) return null; const st = session.state; if (!canPlaceBuilding(st, st.players[owner], type, tx, ty, true, true).ok) return null; const b = placeBuilding(st, owner, type, tx, ty, frac >= 1); if (frac < 1) b.progress = Math.max(0, frac) * getBuildingStats(st, st.players[owner], type).buildTime; return b; },
     // cenas de teste (scripts/artcity.mjs): derruba um edifício como se fosse destruído (colapso + escombros)

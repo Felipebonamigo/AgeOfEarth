@@ -11,6 +11,7 @@ import { findSpawnTile, recomputePop, spawnUnit } from './entities';
 import { giveOrder } from './units';
 import { entityById } from './queries';
 import { t } from '../../i18n';
+import { layerOf } from '../map/naval';
 
 export function updateBuilding(state: GameState, rt: Runtime, b: Building, dt: number): void {
   void rt;
@@ -53,7 +54,7 @@ function completeQueueItem(state: GameState, b: Building, item: QueueItem): void
     case 'unit': {
       const type = trainTypeOf(state, player, item.id); const def = UNITS[type];   // E3: o item da fila sai no degrau atual
       const toward = b.rallyX >= 0 ? b.rallyX : undefined;
-      const spot = findSpawnTile(state, b, toward, b.rallyY >= 0 ? b.rallyY : undefined);
+      const spot = findSpawnTile(state, b, toward, b.rallyY >= 0 ? b.rallyY : undefined, layerOf(def));
       const u = spawnUnit(state, b.owner, type, spot.x, spot.y);
       player.stats.unitsTrained++;
       recomputePop(state, player);

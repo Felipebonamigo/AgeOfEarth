@@ -18,6 +18,8 @@ import { lineUnitOf, trainTypeOf, unitLinesOn } from './lines';
 import { t } from '../../i18n';
 import { endAgeReason, forbiddenReason, maxAgeOf } from './restrictions';
 import { sanitizeCommand } from './validate';
+import { layerOf } from '../map/naval';
+import { canBoard, shoreTileNear } from './naval';
 
 export interface CommandResult { ok: boolean; reason?: string }
 
@@ -172,11 +174,12 @@ export function applyCommand(state: GameState, raw: Command): CommandResult {
       const gx = units.reduce((s, u) => s + u.x, 0) / units.length, gy = units.reduce((s, u) => s + u.y, 0) / units.length;
       const from = towardFrame(gx - cmd.x, gy - cmd.y, centerFrame(state.map, cmd.x, cmd.y));   // alinhado: lado voltado ao centro do mapa
       units.forEach((u, i) => {
+        const lay = layerOf(UNITS[u.type]);   // E4: navios escolhem o destino no mar
         let x = cmd.x + offs[i][0], y = cmd.y + offs[i][1];
         const tx = Math.floor(x), ty = Math.floor(y);
-        if (!inBounds(state.map, tx, ty) || !canPass(state.map, tx, ty, player.team)) {
+        if (!inBounds(state.map, tx, ty) || !canPass(state.map, tx, ty, player.team, lay)) {
           // destino bloqueado: procura o tile livre mais próximo do próprio offset, evitando repetir tiles
-          const t = spiralSearchFrame(Math.max(0, Math.min(state.map.w - 1, tx)), Math.max(0, Math.min(state.map.h - 1, ty)), 8, (a, b) => canPass(state.map, a, b, player.team) && !taken.has(b * state.map.w + a), from);
+          const t = spiralSearchFrame(Math.max(0, Math.min(state.map.w - 1, tx)), Math.max(0, Math.min(state.map.h - 1, ty)), 8, (a, b) => canPass(state.map, a, b, player.team, lay) && !taken.has(b * state.map.w + a), from);
           if (t) { x = t.x + 0.5; y = t.y + 0.5; taken.add(t.y * state.map.w + t.x); }
         }
         giveOrder(state, u, { type: cmd.type, x, y }, cmd.queue);
@@ -199,7 +202,7 @@ export function applyCommand(state: GameState, raw: Command): CommandResult {
       let any = false, reason: string | undefined;
       for (const u of ownedUnits(state, cmd.player, cmd.ids)) {
         if (!UNITS[u.type].canGather) continue;
-        const w = node ? canWorkNode(player, u.type, node) : UNITS[u.type].tags.includes('merchant') ? { ok: false, reason: t('err.merchantRare') } : { ok: true };
+        const w = node ? canWorkNode(player, u.type, node) : UNITS[u.type].naval ? { ok: false, reason: t('err.fishOnly') } : UNITS[u.type].tags.includes('merchant') ? { ok: false, reason: t('err.merchantRare') } : { ok: true };
         if (!w.ok) { reason = w.reason; continue; }
         giveOrder(state, u, { type: 'gather', targetId: cmd.targetId }, cmd.queue); any = true;
       }
@@ -209,13 +212,32 @@ export function applyCommand(state: GameState, raw: Command): CommandResult {
       // alvo: templo (ou Portal dos Titãs) do próprio jogador
       const b = ownedBuilding(state, cmd.player, cmd.targetId);
       if (!b || !(BUILDINGS[b.type].worship || BUILDINGS[b.type].titanGate)) return { ok: false };
-      for (const u of ownedUnits(state, cmd.player, cmd.ids)) if (UNITS[u.type].canGather && !UNITS[u.type].tags.includes('merchant')) giveOrder(state, u, { type: 'pray', targetId: cmd.targetId }, cmd.queue);
+      for (const u of ownedUnits(state, cmd.player, cmd.ids)) if (UNITS[u.type].canGather && !UNITS[u.type].tags.includes('merchant') && !UNITS[u.type].naval) giveOrder(state, u, { type: 'pray', targetId: cmd.targetId }, cmd.queue);
       return { ok: true };
     }
     case 'repair': {
       const b = ownedBuilding(state, cmd.player, cmd.targetId);
       if (!b) return { ok: false };
       for (const u of ownedUnits(state, cmd.player, cmd.ids)) if (UNITS[u.type].canBuild) giveOrder(state, u, { type: 'repair', targetId: b.id }, cmd.queue);
+      return { ok: true };
+    }
+    case 'embark': {   // E4
+      const ship = state.units.get(cmd.targetId);
+      if (!ship || ship.dead || ship.owner !== cmd.player || !UNITS[ship.type].capacity || ship.inside !== -1) return { ok: false, reason: t('err.notTransport') };
+      const riders = ownedUnits(state, cmd.player, cmd.ids).filter((u) => canBoard(state, u, ship));
+      if (riders.length === 0) return { ok: false, reason: t('err.cannotBoard') };
+      for (const u of riders) giveOrder(state, u, { type: 'embark', targetId: ship.id }, cmd.queue);
+      if (ship.state === 'idle' && !ship.order) {   // o navio parado vem buscar: encosta na margem mais perto do grupo
+        const cx = riders.reduce((s, u) => s + u.x, 0) / riders.length, cy = riders.reduce((s, u) => s + u.y, 0) / riders.length;
+        const sh = shoreTileNear(state.map, ship.x, ship.y, cx, cy, 16);
+        if (sh) giveOrder(state, ship, { type: 'move', x: sh.x + 0.5, y: sh.y + 0.5 });
+      }
+      return { ok: true };
+    }
+    case 'unload': {   // E4
+      const ships = ownedUnits(state, cmd.player, cmd.ids).filter((u) => (UNITS[u.type].capacity ?? 0) > 0 && u.cargo.length > 0);
+      if (ships.length === 0) return { ok: false, reason: t('err.nothingToUnload') };
+      for (const s of ships) giveOrder(state, s, { type: 'unload', x: cmd.x, y: cmd.y }, cmd.queue);
       return { ok: true };
     }
     case 'build': {

@@ -1,10 +1,11 @@
 // Consultas sobre o estado: nós de recurso, pontos de entrega, edifícios próximos, contagens.
-import { NODE_RESOURCE, FARM_GATHERERS, NODE_CAPACITY, NOT_GATHERED, OIL_FROM_AGE, RARE_SET, WELL_NODES, type NodeType, type ResourceType } from '../constants';
+import { NODE_RESOURCE, FARM_GATHERERS, NODE_CAPACITY, NOT_GATHERED, OIL_FROM_AGE, RARE_SET, SHIP_NODES, WELL_NODES, type NodeType, type ResourceType } from '../constants';
 import { getRuntime } from './runtime';
 import { AGES, BUILDINGS, UNITS } from '../data';
 import { t } from '../../i18n';
 import type { Building, GameMap, GameState, Player, ResourceNode, Unit } from '../types';
 import { distToRect, idx, inBounds, centerFrame, frameCompare } from '../map/grid';
+import { navalBlocked } from '../map/naval';
 
 /** Jogadores de times diferentes são inimigos. */
 export function isEnemy(state: GameState, a: number, b: number): boolean { return a !== b && state.players[a].team !== state.players[b].team; }
@@ -54,6 +55,9 @@ export function nearestRareNode(state: GameState, x: number, y: number, maxR = 4
 
 /** Regra única de "quem pode trabalhar este nó" (comando, ordem e interface). */
 export function canWorkNode(player: Player, unitType: string, node: ResourceNode): { ok: boolean; reason?: string } {
+  const fisher = !!UNITS[unitType]?.naval && !!UNITS[unitType]?.canGather;   // E4: barco de pesca
+  if (SHIP_NODES.has(node.type)) return fisher ? { ok: true } : { ok: false, reason: t('err.boatOnly') };
+  if (fisher) return { ok: false, reason: t('err.fishOnly') };
   const merchant = UNITS[unitType]?.tags.includes('merchant') ?? false;
   if (WELL_NODES.has(node.type)) return { ok: false, reason: t('err.wellOnly') };
   if (RARE_SET.has(node.type)) return merchant ? { ok: true } : { ok: false, reason: t('err.merchantOnly') };
@@ -86,10 +90,11 @@ export function nodeGatherers(state: GameState, nodeId: number): number { return
 /** Nº de tiles vizinhos (8) do nó onde uma unidade terrestre pode ficar; 0 = inacessível por enquanto. */
 export function nodeAccessTiles(map: GameMap, n: ResourceNode): number {
   let c = 0;
+  const nb = SHIP_NODES.has(n.type) ? navalBlocked(map) : map.blocked;   // E4: peixe se alcança pelo mar
   for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
     if (dx === 0 && dy === 0) continue;
     const x = n.x + dx, y = n.y + dy;
-    if (inBounds(map, x, y) && map.blocked[idx(map, x, y)] === 0) c++;
+    if (inBounds(map, x, y) && nb[idx(map, x, y)] === 0) c++;
   }
   return c;
 }

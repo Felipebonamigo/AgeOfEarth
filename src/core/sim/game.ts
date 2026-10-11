@@ -5,6 +5,7 @@ import { RNG } from '../rng';
 import type { Command, GameConfig, GameState, Player } from '../types';
 import { generateMap, resetNodeSeq } from '../map/mapgen';
 import { mapFromData } from '../map/fixed';
+import { layerOf } from '../map/naval';
 import { canPlaceBuilding, openTile, placeBuilding, recomputePop, removeBuildingNow, removeUnitNow, spawnUnit } from './entities';
 import { defaultMods, recomputeMods } from './modifiers';
 import { recomputeTerritory } from './territory';
@@ -171,7 +172,8 @@ export function createGame(config: GameConfig): GameState {
         // prefere região com ≥ 8 tiles (não nasce presa); tile ocupado → espiral no referencial do tile voltado ao centro do mapa
         // (antes: o norte primeiro, e a mesma entidade espelhada no arquivo nascia em tiles não espelhados)
         const f = centerFrame(map, e.x + 0.5, e.y + 0.5);
-        const t = spiralSearchFrame(e.x, e.y, 6, (a, b) => openTile(state, a, b), f) ?? nearestFreeTile(map, e.x, e.y, 6, f);
+        const lay = layerOf(UNITS[e.type]);   // E4: navio posto pelo editor nasce na água
+        const t = spiralSearchFrame(e.x, e.y, 6, (a, b) => openTile(state, a, b, lay), f) ?? nearestFreeTile(map, e.x, e.y, 6, f, lay);
         if (!t) continue;
         const u = spawnUnit(state, e.owner, e.type, t.x + 0.5, t.y + 0.5);
         if (e.tag) addTag(e.tag, u.id);
@@ -297,11 +299,11 @@ function cleanup(state: GameState): void {
 
 export function summarize(state: GameState): string {
   return state.players.map((p) => {
-    let v = 0, m = 0, b = 0;
-    for (const u of state.units.values()) if (u.owner === p.id) { if (u.type === 'villager') v++; else if (UNITS[u.type].tags.includes('military')) m++; }
+    let v = 0, m = 0, b = 0, nav = 0;
+    for (const u of state.units.values()) if (u.owner === p.id) { if (u.type === 'villager') v++; else if (UNITS[u.type].tags.includes('military')) m++; if (UNITS[u.type].naval) nav++; }
     for (const x of state.buildings.values()) if (x.owner === p.id) b++;
     const r = RESOURCES.map((k) => `${k[0]}=${Math.floor(p.resources[k])}`).join(' ');
-    return `${p.name}[${p.alive ? 'vivo' : 'morto'}] idade=${p.age} vill=${v} mil=${m} edif=${b} pop=${p.pop}/${p.popCap} techs=${p.techs.length} evo=${p.techs.filter((t) => TECHS[t]?.evolve).length} ${r}`;
+    return `${p.name}[${p.alive ? 'vivo' : 'morto'}] idade=${p.age} vill=${v} mil=${m}${nav ? ` nav=${nav}` : ''} edif=${b} pop=${p.pop}/${p.popCap} techs=${p.techs.length} evo=${p.techs.filter((t) => TECHS[t]?.evolve).length} ${r}`;
   }).join('\n');
 }
 

@@ -111,7 +111,7 @@ export interface ScenarioFile {
   config: {
     seed?: number; players: ScenarioPlayer[]; startingAge?: number; startingResources?: Partial<Record<ResourceType, number>>;
     revealMap?: boolean; startKit?: boolean | boolean[]; mode?: GameMode; campaignDifficulty?: 'easy' | 'normal' | 'hard';
-    unitLines?: boolean; maxAge?: number; forbid?: Forbid; visualEraMax?: number;             // G6: travas globais (players[i].maxAge substitui; players[i].forbid soma)
+    unitLines?: boolean; naval?: boolean; maxAge?: number; forbid?: Forbid; visualEraMax?: number;             // G6: travas globais (players[i].maxAge substitui; players[i].forbid soma)
   };
   vars?: Record<string, number>;
   setup?: Action[];                              // após as entidades do mapa; tags → vars['#tag'] = id
@@ -215,6 +215,7 @@ export function validateScenario(file: unknown, opts: ValidateScenarioOpts = {})
     if (c.startingResources !== undefined) checkResources(c.startingResources, 'config.startingResources', err);
     if (c.revealMap !== undefined && typeof c.revealMap !== 'boolean') err('config.revealMap', 'esperado true/false');
     if (c.unitLines !== undefined && typeof c.unitLines !== 'boolean') err('config.unitLines', 'esperado true/false');
+    if (c.naval !== undefined && typeof c.naval !== 'boolean') err('config.naval', 'esperado true/false');   // E4
     if (c.startKit !== undefined && typeof c.startKit !== 'boolean' && !(Array.isArray(c.startKit) && c.startKit.every((b) => typeof b === 'boolean'))) err('config.startKit', 'esperado true/false ou lista de true/false');
     if (c.mode !== undefined) { if (typeof c.mode === 'string' && GAME_MODES.includes(c.mode as GameMode)) mode = c.mode as GameMode; else err('config.mode', `modo desconhecido: '${String(c.mode)}'`); }
     if (c.campaignDifficulty !== undefined && !['easy', 'normal', 'hard'].includes(c.campaignDifficulty as string)) err('config.campaignDifficulty', "esperado 'easy', 'normal' ou 'hard'");

@@ -109,10 +109,15 @@ export function sanitizeCommand(state: GameState, raw: unknown): Command | null 
       if (!absent(raw.formation)) { if (!(FORMATIONS as unknown[]).includes(raw.formation)) return null; formation = raw.formation as Formation; }
       return formation ? { type: raw.type, player, ids, x, y, queue, formation } : { type: raw.type, player, ids, x, y, queue };
     }
-    case 'attack': case 'gather': case 'pray': case 'repair': case 'garrison': {
+    case 'attack': case 'gather': case 'pray': case 'repair': case 'garrison': case 'embark': {
       const ids = idList(raw.ids);
       if (!ids || !isId(raw.targetId)) return null;
       return { type: raw.type, player, ids, targetId: raw.targetId, queue };
+    }
+    case 'unload': {   // E4
+      const ids = idList(raw.ids), x = coord(raw.x, w), y = coord(raw.y, h);
+      if (!ids || x === null || y === null) return null;
+      return { type: 'unload', player, ids, x, y, queue };
     }
     case 'build': {
       const ids = idList(raw.ids), tx = tile(raw.tx, w), ty = tile(raw.ty, h);

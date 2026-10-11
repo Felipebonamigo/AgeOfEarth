@@ -85,7 +85,7 @@ export function economySecond(state: GameState): void {
   // rende RARE_GOLD_RATE de ouro por segundo ao dono e conta o tipo do raro para o bônus; outros no mesmo nó não rendem
   const holder = new Map<number, Unit>();
   for (const u of state.units.values()) {
-    if (u.dead || u.state !== 'gather' || u.nodeId <= 0 || !UNITS[u.type].tags.includes('merchant')) continue;
+    if (u.dead || u.state !== 'gather' || u.nodeId <= 0 || !(UNITS[u.type].tags.includes('merchant') || (UNITS[u.type].naval && UNITS[u.type].canGather))) continue;   // E4: o atum é do barco de pesca
     const n = map.nodes.get(u.nodeId);
     if (!n || !RARE_SET.has(n.type) || distToRect(u.x, u.y, n.x, n.y, 1, 1) > 1) continue;
     const h = holder.get(n.id);

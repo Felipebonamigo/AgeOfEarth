@@ -3,6 +3,7 @@ import { TICK_RATE } from '../constants';
 import { BUILDINGS, POWERS, UNITS } from '../data';
 import type { GameState, Player } from '../types';
 import { addNode } from '../map/mapgen';
+import { isUnbuildableTerrain } from '../map/naval';
 import { spiralSearchFrame, centerFrame, towardFrame, frameTile, frameRound, isPassable, inBounds, idx } from '../map/grid';
 import { placeBuilding, spawnUnit, canPlaceBuilding, pushUnitsOutOfTile } from './entities';
 import { getRuntime } from './runtime';
@@ -32,7 +33,7 @@ export function usePower(state: GameState, player: Player, powerId: string, x?: 
     case 'lure': {
       // espiral no referencial do ponto voltado ao centro do mapa (antes: o norte primeiro): pontos espelhados dão iscas espelhadas
       const f = centerFrame(state.map, px, py);
-      const spot = spiralSearchFrame(frameTile(px, f.sx), frameTile(py, f.sy), 6, (a, b) => isPassable(state.map, a, b) && state.map.buildingAt[idx(state.map, a, b)] === -1, f);
+      const spot = spiralSearchFrame(frameTile(px, f.sx), frameTile(py, f.sy), 6, (a, b) => isPassable(state.map, a, b) && !isUnbuildableTerrain(state.map.terrain[idx(state.map, a, b)]) && state.map.buildingAt[idx(state.map, a, b)] === -1, f);
       if (!spot) return { ok: false, reason: t('err.invalidPlace') };
       addNode(state.map, 'lure', spot.x, spot.y, 800);
       pushUnitsOutOfTile(state, spot.x, spot.y);
@@ -84,7 +85,7 @@ export function usePower(state: GameState, player: Player, powerId: string, x?: 
         killUnit(state, u, player.id);
         if (!u.dead) { n++; continue; }   // piso de vida (G9): a Maldição só o leva até o piso (sem javali)
         const f = centerFrame(state.map, u.x, u.y);
-        const s = spiralSearchFrame(frameTile(u.x, f.sx), frameTile(u.y, f.sy), 3, (a, b) => isPassable(state.map, a, b) && state.map.buildingAt[idx(state.map, a, b)] === -1, f);
+        const s = spiralSearchFrame(frameTile(u.x, f.sx), frameTile(u.y, f.sy), 3, (a, b) => isPassable(state.map, a, b) && !isUnbuildableTerrain(state.map.terrain[idx(state.map, a, b)]) && state.map.buildingAt[idx(state.map, a, b)] === -1, f);
         if (s) { addNode(state.map, 'boar', s.x, s.y, 120); pushUnitsOutOfTile(state, s.x, s.y); }
         state.effects.push({ type: 'curse', x: u.x, y: u.y, ttl: 20, total: 20 });
         n++;
@@ -125,7 +126,7 @@ function canPlaceIgnoringBuildable(state: GameState, player: Player, tx: number,
   for (let y = ty; y < ty + 2; y++) for (let x = tx; x < tx + 2; x++) {
     if (!inBounds(state.map, x, y)) return false;
     const i = idx(state.map, x, y);
-    if (state.map.blocked[i] || state.map.buildingAt[i] !== -1 || state.territory[i] !== player.id) return false;
+    if (state.map.blocked[i] || isUnbuildableTerrain(state.map.terrain[i]) || state.map.buildingAt[i] !== -1 || state.territory[i] !== player.id) return false;
   }
   return true;
 }

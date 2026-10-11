@@ -13,7 +13,7 @@ import { refund, queueItemCost } from './economy';
 import { t } from '../../i18n';
 import { recordKill } from '../scenario/log';
 
-export const ATTACK_INTERVAL: Record<string, number> = { villager: 1.0, scout: 1.0, infantry: 1.0, archer: 1.5, skirmisher: 1.2, cavalry: 1.1, siege: 3.0, hero: 1.1, myth: 1.5, titan: 2.0, building: 2.0 };
+export const ATTACK_INTERVAL: Record<string, number> = { villager: 1.0, scout: 1.0, infantry: 1.0, archer: 1.5, skirmisher: 1.2, cavalry: 1.1, siege: 3.0, hero: 1.1, myth: 1.5, titan: 2.0, ship: 2.0, building: 2.0 };
 
 export function attackInterval(attacker: Unit | Building, tick = -1): number {
   if (attacker.kind === 'building') return ATTACK_INTERVAL.building;
@@ -32,6 +32,11 @@ export function canTarget(state: GameState, attacker: Unit | Building, target: U
   if (!isEnemy(state, attacker.owner, target.owner)) return false;
   if (!state.players[target.owner].alive) return false;
   if (target.kind === 'unit' && UNITS[target.type].flying && isMelee(state, attacker)) return false;
+  // E4: corpo a corpo não alcança o outro meio (terra × mar); os titãs alcançam (golpe gigante, Oceano na margem)
+  if (attacker.kind === 'unit' && isMelee(state, attacker) && !UNITS[attacker.type].tags.includes('titan')) {
+    const an = !!UNITS[attacker.type].naval, tn = target.kind === 'unit' && !!UNITS[target.type].naval;
+    if (an !== tn) return false;
+  }
   if (attacker.kind === 'unit' && UNITS[attacker.type].attack <= 0) return false;
   return true;
 }
@@ -175,8 +180,9 @@ export function killUnit(state: GameState, u: Unit, killerOwner: number, killer?
   // G9: com piso de vida, morte instantânea causada por inimigo (Raio, Maldição, atrito) só o leva até o piso;
   // kill do roteiro e dispensar (dono -1) continuam matando
   if (u.hpFloor && u.hpFloor > 0 && killerOwner >= 0 && killerOwner !== u.owner) { u.hp = Math.max(Math.min(u.hp, u.maxHp * u.hpFloor), Math.min(u.maxHp * u.hpFloor, 1)); u.lastDamageTick = state.tick; return; }
+  const drowned = u.inside !== -1 && state.units.has(u.inside);   // E4: passageiro de um navio que afundou
   u.dead = true; u.hp = 0;
-  if (u.inside !== -1) { const g = state.buildings.get(u.inside); if (g) g.garrison = g.garrison.filter((id) => id !== u.id); u.inside = -1; }
+  if (u.inside !== -1) { const g = state.buildings.get(u.inside); if (g) g.garrison = g.garrison.filter((id) => id !== u.id); const sh = state.units.get(u.inside); if (sh) sh.cargo = sh.cargo.filter((id) => id !== u.id); u.inside = -1; }
   const def = UNITS[u.type];
   const victim = state.players[u.owner];
   victim.stats.losses++;
@@ -198,12 +204,22 @@ export function killUnit(state: GameState, u: Unit, killerOwner: number, killer?
   if (def.tags.includes('hero')) state.events.push({ tick: state.tick, type: 'heroDied', player: u.owner, x: u.x, y: u.y, text: t('ev.heroDied', { name: def.name }) });
   if (def.tags.includes('titan')) state.events.push({ tick: state.tick, type: 'titanDied', player: u.owner, x: u.x, y: u.y, text: t('ev.titanDied', { name: def.name }) });
   // Hades: sombras
-  if (victim.god === 'hades' && killerOwner !== -1 && def.tags.includes('human') && def.tags.includes('military') && !def.tags.includes('hero') && state.rng.chance(0.25)) {   // só mortes em combate/atrito (dispensar não gera sombras)
+  if (victim.god === 'hades' && killerOwner !== -1 && def.tags.includes('human') && def.tags.includes('military') && !def.tags.includes('hero') && !drowned && state.rng.chance(0.25)) {   // só mortes em combate/atrito (dispensar não gera sombras)
     const s = spawnUnit(state, u.owner, 'shade', u.x, u.y);
     s.stance = 'aggressive';
     state.effects.push({ type: 'spawn', x: u.x, y: u.y, ttl: 12, total: 12 });
   }
   recomputePop(state, victim);
+  if (u.cargo.length) {   // E4: o navio afundou com a tropa
+    for (const id of u.cargo) {
+      const p = state.units.get(id);
+      if (!p || p.dead) continue;
+      p.x = u.x; p.y = u.y; p.px = p.x; p.py = p.y;
+      killUnit(state, p, killerOwner, killer);           // ainda com inside = navio: sai da carga e não vira Sombra (drowned)
+      if (!p.dead) { p.inside = -1; p.state = 'idle'; }  // hpFloor de cenário: sobrevive na água (aceito; navios desligados em cenário)
+    }
+    u.cargo = [];
+  }
 }
 
 export function destroyBuilding(state: GameState, b: Building, killerOwner: number, killer?: Unit | Building): void {

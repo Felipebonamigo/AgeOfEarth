@@ -3,9 +3,11 @@
 import { CARRY_CAPACITY, FARM_GATHERERS, GATHER_RATES, HUNT_TYPES, NODE_RESOURCE, RARE_SET, TICK_RATE, type ResourceType } from '../constants';
 import { BUILDINGS, UNITS } from '../data';
 import type { Building, GameState, Order, ResourceNode, Unit } from '../types';
-import { distToRect, idx, inBounds, canPass, canStep, dist, towardFrame, centerFrame } from '../map/grid';
+import { distToRect, idx, inBounds, canPass, canStep, dist, isPassable, towardFrame, centerFrame } from '../map/grid';
 import { componentAt, componentSize, nearestLargeComponentTile, rectReachable } from '../map/components';
 import { findPathEx, nearestFreeTile, type PathGoal } from '../map/pathfinding';
+import { layerOf, type Layer } from '../map/naval';
+import { approachTile, boardShip, canBoard, dropCargo, dropoffFor, shoreTileNear } from './naval';
 import { removeNode } from '../map/mapgen';
 import { getBuildingStats, getUnitStats } from './modifiers';
 import { getRuntime, type Runtime } from './runtime';
@@ -57,7 +59,7 @@ export function startOrder(state: GameState, u: Unit, order: Order): void {
       // Fazenda própria (checada antes dos nós: ids de entidades e de nós são disjuntos, mas fica explícito)
       const b = state.buildings.get(id);
       if (b && !b.dead && BUILDINGS[b.type].farm && b.owner === u.owner) {
-        if (def.tags.includes('merchant')) { finishOrder(state, u); return; }
+        if (def.tags.includes('merchant') || def.naval) { finishOrder(state, u); return; }
         if (!b.complete) { u.nodeId = -b.id; u.state = 'build'; u.targetId = b.id; break; }
         const mine = u.nodeId === -b.id && (u.state === 'gather' || u.state === 'return') ? 1 : 0;
         const target = farmGatherers(state, b.id) - mine < FARM_GATHERERS ? b : nearestFreeFarm(state, u.owner, b.x, b.y, 12);
@@ -83,10 +85,21 @@ export function startOrder(state: GameState, u: Unit, order: Order): void {
       u.state = 'build'; u.targetId = b.id; break;
     }
     case 'pray': {
-      if (!def.canGather || def.tags.includes('merchant')) { finishOrder(state, u); return; }
+      if (!def.canGather || def.tags.includes('merchant') || def.naval) { finishOrder(state, u); return; }
       const b = state.buildings.get(order.targetId!);
       if (!b || b.dead || b.owner !== u.owner || !(BUILDINGS[b.type].worship || BUILDINGS[b.type].titanGate) || (!b.complete && !BUILDINGS[b.type].titanGate)) { finishOrder(state, u); return; }   // Portal em obra: ritual dos cenários
       u.state = 'move'; u.targetId = b.id; u.nodeId = 0; u.tx = b.x; u.ty = b.y; break;   // ao chegar adjacente vira 'pray'
+    }
+    case 'embark': {   // E4
+      const ship = state.units.get(order.targetId!);
+      if (!ship || !canBoard(state, u, ship)) { finishOrder(state, u); return; }
+      u.state = 'move'; u.targetId = ship.id; break;
+    }
+    case 'unload': {   // E4
+      if (!def.capacity || u.cargo.length === 0) { finishOrder(state, u); return; }
+      const w = shoreTileNear(state.map, u.x, u.y, order.x!, order.y!, 20);
+      if (!w) { if (!state.players[u.owner].isAI) state.events.push({ tick: state.tick, type: 'naval', player: u.owner, x: u.x, y: u.y, text: t('ev.noLanding') }); finishOrder(state, u); return; }
+      u.state = 'move'; u.tx = w.x + 0.5; u.ty = w.y + 0.5; break;
     }
     case 'garrison': {
       const b = state.buildings.get(order.targetId!);
@@ -120,7 +133,7 @@ export function updateUnit(state: GameState, rt: Runtime, u: Unit, dt: number): 
     case 'idle': case 'hold': {
       if (u.queue.length > 0 && !u.order) { startOrder(state, u, u.queue.shift()!); return; }
       // Carga na mão e ponto de entrega disponível (ex.: Centro Cívico reconstruído): retoma a entrega
-      if (u.carryAmt > 0 && u.carry && !u.order && (state.tick + u.id) % 40 === 0 && nearestDropoff(state, u.owner, u.x, u.y, u.carry, avoided(state, u))) { u.state = 'return'; u.path = null; return; }
+      if (u.carryAmt > 0 && u.carry && !u.order && (state.tick + u.id) % 40 === 0 && dropoffFor(state, u, u.carry, avoided(state, u))) { u.state = 'return'; u.path = null; return; }
       if (def.attack > 0 && u.stance !== 'passive' && (state.tick + u.id) % 6 === 0 && state.tick >= state.ceasefireUntil) {
         const range = u.state === 'hold' || u.stance === 'defensive' ? stats.range + 0.5 : stats.los;
         const t = acquireTarget(state, u, range, true, Math.min(range, stats.range + 4));
@@ -129,6 +142,22 @@ export function updateUnit(state: GameState, rt: Runtime, u: Unit, dt: number): 
       return;
     }
     case 'move': {
+      if (u.order?.type === 'embark') {   // E4: vai até a margem junto do navio e sobe quando ele encosta
+        const ship = state.units.get(u.targetId);
+        if (!ship || !canBoard(state, u, ship) || state.tick - u.orderTick > 45 * TICK_RATE) { finishOrder(state, u); return; }
+        if (dist(u.x, u.y, ship.x, ship.y) <= def.radius + UNITS[ship.type].radius + 1.0) { if (!boardShip(state, u, ship)) finishOrder(state, u); return; }
+        if (u.path || state.tick >= u.repathAt) { if (moveTowards(state, rt, u, spd * dt, ship.x, ship.y, null) !== 'moving') { u.path = null; u.repathAt = state.tick + TICK_RATE; } }
+        return;
+      }
+      if (u.order?.type === 'unload') {   // E4: o transporte encosta na margem e a carga desce
+        if (moveTowards(state, rt, u, spd * dt, u.tx, u.ty, null) === 'moving') return;
+        const ox = u.order.x!, oy = u.order.y!;
+        const landed = dropCargo(state, u, ox, oy);
+        const there = isPassable(state.map, Math.floor(ox), Math.floor(oy));
+        for (const p of landed) if (there) giveOrder(state, p, { type: 'move', x: ox, y: oy });
+        if (u.cargo.length && !state.players[u.owner].isAI) state.events.push({ tick: state.tick, type: 'naval', player: u.owner, x: u.x, y: u.y, text: t('ev.noLanding') });
+        finishOrder(state, u); return;
+      }
       if (u.order?.type === 'garrison') {
         const b = state.buildings.get(u.targetId);
         if (!b || b.dead) { finishOrder(state, u); return; }
@@ -172,6 +201,19 @@ export function updateUnit(state: GameState, rt: Runtime, u: Unit, dt: number): 
       if (!u.order && dist(u.x, u.y, u.leashX, u.leashY) > LEASH) { u.targetId = -1; u.state = 'move'; u.tx = u.leashX; u.ty = u.leashY; u.path = null; u.order = { type: 'move', x: u.leashX, y: u.leashY }; return; }
       // Alvo adquirido sozinho que não conseguimos golpear há 10 s (fugindo, atrás de obstáculo): desiste e evita-o por um tempo
       if (!u.order && state.tick - Math.max(u.orderTick, u.attackTick) > 10 * TICK_RATE) { giveUpTarget(state, u, t.id); return; }
+      // E4: alvo no outro meio: vai ao tile do SEU meio de onde o alcança (o fim do caminho guarda esse tile entre repaths)
+      const layer = layerOf(def), tLayer = t.kind === 'unit' ? layerOf(UNITS[t.type]) : 'land';
+      if (layer !== tLayer && !def.flying) {   // voador vai em linha reta pelo caminho de sempre (a E6 cuida de voador × navio)
+        let ax: number, ay: number;
+        if (u.path && u.path.length >= 2 && state.tick < u.repathAt) { ax = u.path[u.path.length - 2]; ay = u.path[u.path.length - 1]; }
+        else {
+          const a = approachTile(state.map, layer, u.x, u.y, t, reach - 0.2);
+          if (!a) { giveUpTarget(state, u, t.id); return; }
+          ax = a.x + 0.5; ay = a.y + 0.5; u.path = null;
+        }
+        if (moveTowards(state, rt, u, spd * dt, ax, ay, null) === 'blocked') giveUpTarget(state, u, t.id);
+        return;
+      }
       const goal: PathGoal = t.kind === 'building' ? { tx: t.tx, ty: t.ty, w: t.w, h: t.h } : { tx: Math.floor(t.x), ty: Math.floor(t.y), w: 1, h: 1 };
       if (moveTowards(state, rt, u, spd * dt, t.x, t.y, goal, reach - 0.1, t.kind === 'building') === 'blocked') giveUpTarget(state, u, t.id);
       return;
@@ -214,25 +256,26 @@ function moveTowards(state: GameState, rt: Runtime, u: Unit, step: number, tx: n
   const def = UNITS[u.type];
   const map = state.map;
   const team = state.players[u.owner].team;
+  const layer = layerOf(def);   // E4: navios andam pela camada naval
   const goalDist = (): number => rectTarget && goal ? distToRect(u.x, u.y, goal.tx, goal.ty, goal.w, goal.h) : dist(u.x, u.y, tx, ty);
   const dNow = goalDist();
   if (dNow <= stopDist) { u.path = null; return 'arrived'; }
   if (def.flying) {
     const fx = Math.max(0.5, Math.min(map.w - 0.5, tx)), fy = Math.max(0.5, Math.min(map.h - 0.5, ty));   // destino fora do mapa: para na borda
-    stepTo(u, fx, fy, step, map, true, team);
+    stepTo(u, fx, fy, step, map, true, team, layer);
     return dist(u.x, u.y, fx, fy) <= stopDist ? 'arrived' : 'moving';
   }
   const sx = Math.floor(u.x), sy = Math.floor(u.y);
-  if (!canPass(map, sx, sy, team)) {
+  if (!canPass(map, sx, sy, team, layer)) {
     // presa num tile bloqueado (ex.: portão fechado, edifício surgido em cima): sai para o tile livre mais próximo
-    const f = nearestFreeTile(map, u.x, u.y, 4, towardFrame(tx - u.x, ty - u.y, centerFrame(map, u.x, u.y)));   // sai pelo lado do destino
-    if (f) stepTo(u, f.x + 0.5, f.y + 0.5, step, map, true, team);
+    const f = nearestFreeTile(map, u.x, u.y, 4, towardFrame(tx - u.x, ty - u.y, centerFrame(map, u.x, u.y)), layer);   // sai pelo lado do destino
+    if (f) stepTo(u, f.x + 0.5, f.y + 0.5, step, map, true, team, layer);
     return 'moving';
   }
-  if (componentSize(map, componentAt(map, sx, sy)) < 8) {
+  if (componentSize(map, componentAt(map, sx, sy, layer), layer) < 8) {
     // presa num bolsão minúsculo entre obstáculos: sai para a região grande mais próxima
-    const f = nearestLargeComponentTile(map, sx, sy, 8, 6);
-    if (f) { stepTo(u, f.x + 0.5, f.y + 0.5, step, map, true, team); return 'moving'; }
+    const f = nearestLargeComponentTile(map, sx, sy, 8, 6, layer);
+    if (f) { stepTo(u, f.x + 0.5, f.y + 0.5, step, map, true, team, layer); return 'moving'; }
   }
   // Passo direto rumo ao ponto mais próximo do alvo. Usado quando o A* diz que já estamos no tile certo/adjacente
   // ou enquanto se espera um novo caminho: sem isso a unidade ficava parada a ~1 tile do alvo sem nunca encostar.
@@ -240,7 +283,7 @@ function moveTowards(state: GameState, rt: Runtime, u: Unit, step: number, tx: n
     if (amount <= 0) return goalDist();
     let ax = tx, ay = ty;
     if (rectTarget && goal) { ax = Math.max(goal.tx, Math.min(goal.tx + goal.w, u.x)); ay = Math.max(goal.ty, Math.min(goal.ty + goal.h, u.y)); }
-    stepTo(u, ax, ay, amount, map, false, team);
+    stepTo(u, ax, ay, amount, map, false, team, layer);
     return goalDist();
   };
   // (Re)calcula caminho se necessário
@@ -259,16 +302,16 @@ function moveTowards(state: GameState, rt: Runtime, u: Unit, step: number, tx: n
     let adjacent = false;
     if (goal) { g = goal; adjacent = true; }
     else {
-      const t = nearestFreeTile(map, tx, ty, 10, towardFrame(u.x - tx, u.y - ty, centerFrame(map, tx, ty)));   // destino bloqueado: o lado de quem chega (antes: o norte)
+      const t = nearestFreeTile(map, tx, ty, 10, towardFrame(u.x - tx, u.y - ty, centerFrame(map, tx, ty)), layer);   // destino bloqueado: o lado de quem chega (antes: o norte)
       if (!t) { u.path = null; return 'blocked'; }
       g = { tx: t.x, ty: t.y, w: 1, h: 1 };
     }
     u.repathAt = state.tick + Math.floor(TICK_RATE * 1.5);
     // Alvo em outra região do mapa (ilha, bolsão, base selada): não há caminho — decidido sem gastar A*
-    if (!rectReachable(map, sx, sy, g.tx, g.ty, g.w, g.h, adjacent)) { u.path = null; u.stuck = 0; return 'blocked'; }
-    let r = findPathEx(map, sx, sy, g, adjacent, 6000, team);
+    if (!rectReachable(map, sx, sy, g.tx, g.ty, g.w, g.h, adjacent, layer)) { u.path = null; u.stuck = 0; return 'blocked'; }
+    let r = findPathEx(map, sx, sy, g, adjacent, 6000, team, layer);
     // Há caminho (mesma região) mas o orçamento acabou num mínimo local (margem de lago): tenta uma vez com orçamento maior
-    if (!r.complete && (!r.path || r.path.length === 0)) r = findPathEx(map, sx, sy, g, adjacent, 40000, team);
+    if (!r.complete && (!r.path || r.path.length === 0)) r = findPathEx(map, sx, sy, g, adjacent, 40000, team, layer);
     const p = r.path;
     if (!p) { u.path = null; u.stuck = 0; return 'blocked'; }
     // só encosta no ponto exato se o caminho chegou ao tile do próprio destino (destino sobre obstáculo: para no tile livre vizinho)
@@ -276,7 +319,7 @@ function moveTowards(state: GameState, rt: Runtime, u: Unit, step: number, tx: n
     u.path = p; u.pathI = 0;
     if (p.length === 0) {
       u.path = null;
-      if (!goal && !canPass(map, Math.floor(tx), Math.floor(ty), team)) return 'arrived';   // destino sobre obstáculo: o tile livre vizinho é o mais perto possível
+      if (!goal && !canPass(map, Math.floor(tx), Math.floor(ty), team, layer)) return 'arrived';   // destino sobre obstáculo: o tile livre vizinho é o mais perto possível
       return approach(step) <= Math.max(stopDist, 1.2) ? 'arrived' : 'moving';   // já no tile adjacente: encosta
     }
   }
@@ -286,35 +329,35 @@ function moveTowards(state: GameState, rt: Runtime, u: Unit, step: number, tx: n
   while (remaining > 0 && u.pathI < path.length) {
     const wx = path[u.pathI], wy = path[u.pathI + 1];
     const d = dist(u.x, u.y, wx, wy);
-    if (d <= remaining) { moveExact(u, wx, wy, map, team); remaining -= d; u.pathI += 2; }
-    else { stepTo(u, wx, wy, remaining, map, false, team); remaining = 0; }
+    if (d <= remaining) { moveExact(u, wx, wy, map, team, layer); remaining -= d; u.pathI += 2; }
+    else { stepTo(u, wx, wy, remaining, map, false, team, layer); remaining = 0; }
   }
   if (u.x !== x0 || u.y !== y0) u.blockedTicks = 0;
   if (u.pathI >= path.length) {
     u.path = null;
-    if (!goal && !canPass(map, Math.floor(tx), Math.floor(ty), team)) return 'arrived';   // destino sobre obstáculo: chegou ao tile livre mais próximo
+    if (!goal && !canPass(map, Math.floor(tx), Math.floor(ty), team, layer)) return 'arrived';   // destino sobre obstáculo: chegou ao tile livre mais próximo
     return approach(remaining) <= Math.max(stopDist, 1.3) ? 'arrived' : 'moving';
   }
   return 'moving';
 }
 
-function moveExact(u: Unit, x: number, y: number, map: GameState['map'], team: number) {
-  if (canStep(map, u.x, u.y, x, y, team)) { u.x = x; u.y = y; }
+function moveExact(u: Unit, x: number, y: number, map: GameState['map'], team: number, layer: Layer = 'land') {
+  if (canStep(map, u.x, u.y, x, y, team, layer)) { u.x = x; u.y = y; }
   else u.stuck++;
 }
 
-function stepTo(u: Unit, tx: number, ty: number, step: number, map: GameState['map'], fly: boolean, team: number) {
+function stepTo(u: Unit, tx: number, ty: number, step: number, map: GameState['map'], fly: boolean, team: number, layer: Layer = 'land') {
   const dx = tx - u.x, dy = ty - u.y;
   const d = Math.sqrt(dx * dx + dy * dy);
   if (d < 1e-6) return;
   const k = Math.min(1, step / d);
   const nx = u.x + dx * k, ny = u.y + dy * k;
   if (fly) { u.x = Math.max(0.5, Math.min(map.w - 0.5, nx)); u.y = Math.max(0.5, Math.min(map.h - 0.5, ny)); return; }
-  if (canStep(map, u.x, u.y, nx, ny, team)) { u.x = nx; u.y = ny; u.stuck = 0; }
+  if (canStep(map, u.x, u.y, nx, ny, team, layer)) { u.x = nx; u.y = ny; u.stuck = 0; }
   else {
     // tenta deslizar em um eixo (sem atravessar frestas diagonais); deslizar sem sair do lugar conta como preso
-    if (Math.abs(nx - u.x) > 1e-6 && canStep(map, u.x, u.y, nx, u.y, team)) u.x = nx;
-    else if (Math.abs(ny - u.y) > 1e-6 && canStep(map, u.x, u.y, u.x, ny, team)) u.y = ny;
+    if (Math.abs(nx - u.x) > 1e-6 && canStep(map, u.x, u.y, nx, u.y, team, layer)) u.x = nx;
+    else if (Math.abs(ny - u.y) > 1e-6 && canStep(map, u.x, u.y, u.x, ny, team, layer)) u.y = ny;
     else { u.stuck++; if (u.stuck > 6) { u.path = null; u.stuck = 0; } }
   }
 }
@@ -330,7 +373,7 @@ export function applySeparation(state: GameState, rt: Runtime): void {
     let px = 0, py = 0;
     const r = def.radius;
     rt.hash.each(u.x, u.y, 1.2, (o) => {
-      if (o === u || o.dead || UNITS[o.type].flying) return;
+      if (o === u || o.dead || UNITS[o.type].flying || !!UNITS[o.type].naval !== !!def.naval) return;   // E4: terra e mar não se empurram
       const minD = r + UNITS[o.type].radius;
       const dx = u.x - o.x, dy = u.y - o.y;
       const d2 = dx * dx + dy * dy;
@@ -344,7 +387,7 @@ export function applySeparation(state: GameState, rt: Runtime): void {
     });
     if (px !== 0 || py !== 0) {
       const nx = u.x + px, ny = u.y + py;
-      if (canStep(map, u.x, u.y, nx, ny, state.players[u.owner].team)) { u.x = nx; u.y = ny; }
+      if (canStep(map, u.x, u.y, nx, ny, state.players[u.owner].team, layerOf(def))) { u.x = nx; u.y = ny; }
     }
   }
 }
@@ -410,6 +453,7 @@ function updateGather(state: GameState, rt: Runtime, u: Unit, dt: number, speed:
   if (RARE_SET.has(node.type)) return;
   let rate = GATHER_RATES[node.type] * player.mods.gather[res];
   if (HUNT_TYPES.has(node.type)) rate *= player.mods.gather.hunt;
+  if (node.type === 'fish') rate *= player.mods.gather.fish;
   const take = Math.min(rate * dt, node.amount, CARRY_CAPACITY - u.carryAmt);
   node.amount -= take;
   gatherInto(u, res, take);
@@ -449,6 +493,7 @@ export function depleteNode(state: GameState, node: ResourceNode): void {
 /** Escolhe nova fonte do mesmo recurso perto da unidade: id do nó (> 0) ou -id da fazenda; null se não houver. */
 function pickNewSource(state: GameState, u: Unit, res: ResourceType): number | null {
   if (UNITS[u.type].tags.includes('merchant')) return null;   // Mercador não troca de fonte (iria a um veio de ouro: raro conta como 'gold')
+  if (UNITS[u.type].naval) { const av0 = avoided(state, u); const n = nearestNodeWithRoom(state, u.x, u.y, 'fish', 20, -1, av0) ?? nearestNode(state, u.x, u.y, 'fish', 20, -1, (x) => !(av0 && av0.includes(x.id))); return n ? n.id : null; }   // E4: barco só procura cardume
   const av = avoided(state, u);
   const node = nearestNodeWithRoom(state, u.x, u.y, res, 14, -1, av) ?? nearestNode(state, u.x, u.y, res, 14, -1, (n) => !(av && av.includes(n.id)));
   const farm = res === 'food' ? nearestFreeFarm(state, u.owner, u.x, u.y, 14, av) : null;
@@ -475,7 +520,7 @@ function fallbackIdle(state: GameState, u: Unit, text = t('ev.idleDepleted')) {
 
 function updateReturn(state: GameState, rt: Runtime, u: Unit, dt: number, speed: number): void {
   if (!u.carry || u.carryAmt <= 0) { u.carryAmt = 0; u.state = u.nodeId !== -1 ? 'gather' : 'idle'; u.path = null; return; }
-  const drop = nearestDropoff(state, u.owner, u.x, u.y, u.carry, avoided(state, u));
+  const drop = dropoffFor(state, u, u.carry, avoided(state, u));
   const p = state.players[u.owner];
   if (!drop) {
     // Sem ponto de entrega (ex.: Centro Cívico destruído): fica ocioso com a carga, avisa e retoma quando houver um (ver 'idle')

@@ -1,11 +1,12 @@
 // Criação, posicionamento e remoção de unidades e edifícios; população; regras de colocação.
-import { TERRAIN, POP_CAP_MAX } from '../constants';
+import { POP_CAP_MAX } from '../constants';
 import { BUILDINGS, UNITS, AGES } from '../data';
 import type { Building, GameState, Player, Unit } from '../types';
 import { idx, inBounds, spiralSearchFrame, towardFrame, centerFrame, frameTile, frameCompare, isPassable } from '../map/grid';
 import { getBuildingStats, getUnitStats } from './modifiers';
 import { t } from '../../i18n';
-import { invalidateComponents, componentAt, componentSize } from '../map/components';
+import { invalidateComponents, componentAt, componentSize, shoreOk } from '../map/components';
+import { isUnbuildableTerrain, MIN_DOCK_WATER, type Layer } from '../map/naval';
 import { forbiddenReason } from './restrictions';
 import { extractorNode } from './queries';
 
@@ -46,8 +47,8 @@ export function placeBuilding(state: GameState, owner: number, type: string, tx:
 
 /** Empurra unidades que estejam sobre a área do edifício para o tile livre mais próximo. */
 /** Tile passável que não seja um bolsão minúsculo (região com pelo menos 8 tiles), para não prender unidades. */
-export function openTile(state: GameState, x: number, y: number): boolean {
-  return isPassable(state.map, x, y) && componentSize(state.map, componentAt(state.map, x, y)) >= 8;
+export function openTile(state: GameState, x: number, y: number, layer: Layer = 'land'): boolean {
+  return isPassable(state.map, x, y, layer) && componentSize(state.map, componentAt(state.map, x, y, layer), layer) >= (layer === 'naval' ? MIN_DOCK_WATER : 8);
 }
 function pushUnitsOut(state: GameState, b: Building) {
   for (const u of state.units.values()) {
@@ -146,29 +147,30 @@ export function canPlaceBuilding(state: GameState, player: Player, type: string,
     if (!inBounds(map, x, y)) return { ok: false, reason: t('err.offMap') };
     const i = idx(map, x, y);
     const tt = map.terrain[i];
-    if (tt === TERRAIN.WATER || tt === TERRAIN.DEEP || tt === TERRAIN.MOUNTAIN) return { ok: false, reason: t('err.terrain') };
+    if (isUnbuildableTerrain(tt)) return { ok: false, reason: t('err.terrain') };
     if (map.nodeAt[i] !== -1 || map.buildingAt[i] !== -1) return { ok: false, reason: t('err.occupied') };
     if (force) continue;
     const owner = state.territory[i];
-    if (type === 'town_center') {
+    if (type === 'town_center' || def.shore) {   // E4: o Estaleiro também pode ficar em território neutro
       if (owner !== -1 && owner !== player.id) return { ok: false, reason: t('err.enemyTerritory') };
     } else if (owner !== player.id) {
       return { ok: false, reason: t('err.ownTerritory') };
     }
   }
+  if (def.shore && !shoreOk(map, tx, ty, def.w, def.h)) return { ok: false, reason: t('err.needsShore') };
   if (def.extract && !force && !extractorNode(map, tx, ty, def.w, def.h, def.extract.node)) return { ok: false, reason: t('err.needsOilField') };
   return { ok: true };
 }
 
 /** Tile livre mais próximo ao redor de um edifício para posicionar uma unidade nova. */
-export function findSpawnTile(state: GameState, b: Building, towardX?: number, towardY?: number): { x: number; y: number } {
+export function findSpawnTile(state: GameState, b: Building, towardX?: number, towardY?: number, layer: Layer = 'land'): { x: number; y: number } {
   const map = state.map;
   let bestX = b.tx, bestY = b.ty + b.h, bestD = Infinity, bestC = Infinity;
   const f = centerFrame(map, b.x, b.y);
   const ring = (r: number) => {
     for (let y = b.ty - r; y < b.ty + b.h + r; y++) for (let x = b.tx - r; x < b.tx + b.w + r; x++) {
       const onRing = x === b.tx - r || x === b.tx + b.w + r - 1 || y === b.ty - r || y === b.ty + b.h + r - 1;
-      if (!onRing || !openTile(state, x, y)) continue;
+      if (!onRing || !openTile(state, x, y, layer)) continue;
       // distâncias pelo centro do tile (pelo canto, o lado sul/leste do edifício ficava sempre "mais perto"); empate → o lado
       // mais perto do centro do mapa e, se ainda empatar (edifício na diagonal do mapa), b e a no referencial do edifício
       // voltado ao centro (a ordem da varredura, norte→sul, escolhia o norte dos dois lados)
@@ -181,7 +183,7 @@ export function findSpawnTile(state: GameState, b: Building, towardX?: number, t
   for (let r = 1; r <= 6 && bestD === Infinity; r++) ring(r);
   if (bestD === Infinity) {
     // nenhum tile aberto em 6 anéis: qualquer passável, a partir do meio do edifício, na espiral voltada ao centro do mapa
-    const t = spiralSearchFrame(frameTile(b.x, f.sx), frameTile(b.y, f.sy), 8 + Math.max(b.w, b.h), (x, y) => isPassable(map, x, y), f);
+    const t = spiralSearchFrame(frameTile(b.x, f.sx), frameTile(b.y, f.sy), 8 + Math.max(b.w, b.h), (x, y) => isPassable(map, x, y, layer), f);
     if (t) { bestX = t.x; bestY = t.y; }
   }
   return { x: bestX + 0.5, y: bestY + 0.5 };
@@ -207,7 +209,7 @@ import { GARRISON_TAGS } from '../constants';
 export function canGarrison(u: Unit, b: Building): boolean {
   const def = UNITS[u.type]; const bdef = BUILDINGS[b.type];
   if (!bdef.garrison || !b.complete || b.dead || u.dead || u.inside !== -1) return false;
-  if (!def.tags.some((t) => GARRISON_TAGS.has(t)) || def.tags.includes('myth') || def.tags.includes('siege') || def.tags.includes('cavalry')) return false;
+  if (!def.tags.some((t) => GARRISON_TAGS.has(t)) || def.tags.includes('myth') || def.tags.includes('siege') || def.tags.includes('cavalry') || def.naval) return false;
   return b.garrison.length < bdef.garrison;
 }
 export function enterGarrison(state: GameState, u: Unit, b: Building): boolean {
@@ -260,7 +262,9 @@ export function removeBuildingNow(state: GameState, b: Building): void {
 
 /** Remove uma unidade na hora: sai da guarnição (se estiver dentro), apaga do Map e recalcula a população. Sem efeitos nem estatísticas. */
 export function removeUnitNow(state: GameState, u: Unit): void {
-  if (u.inside !== -1) { const g = state.buildings.get(u.inside); if (g) g.garrison = g.garrison.filter((id) => id !== u.id); u.inside = -1; }
+  if (u.inside !== -1) { const g = state.buildings.get(u.inside); if (g) g.garrison = g.garrison.filter((id) => id !== u.id); const sh = state.units.get(u.inside); if (sh) sh.cargo = sh.cargo.filter((id) => id !== u.id); u.inside = -1; }
+  for (const id of u.cargo) { const p = state.units.get(id); if (p && !p.dead) { p.inside = -1; removeUnitNow(state, p); } }   // E4: a carga sai junto
+  u.cargo = [];
   u.dead = true;
   state.units.delete(u.id);
   const owner = state.players[u.owner];
