@@ -324,7 +324,7 @@ describe('sondagem de simetria nos mapas oficiais (estado inicial)', () => {
   // correção: Egeu 3/30 e Estreito 0/10; na 1ª correção, Egeu 30/30 e Estreito 4/10 (desempates em (y, x) absolutos com os
   // inícios na diagonal do mapa). `extra` acrescenta os outros edifícios (celeiro, serraria, mina, estábulo, oficina, fortaleza).
   const PROBE_TYPES: [string, number, number][] = [['temple', 4, 12], ['academy', 3, 16], ['market', 3, 16], ['house', 0, 14], ['barracks', 1, 10], ['tower', 0, 6], ['farm', 1, 18]];
-  const EXTRA_TYPES: [string, number, number][] = [['granary', 2, 12], ['lumber_camp', 2, 14], ['mine', 2, 14], ['quarry', 2, 14], ['stable', 1, 10], ['siege_workshop', 2, 12], ['fortress', 3, 14]];
+  const EXTRA_TYPES: [string, number, number][] = [['granary', 2, 12], ['lumber_camp', 2, 14], ['mine', 2, 14], ['quarry', 2, 14], ['stable', 1, 10], ['siege_workshop', 2, 12], ['fortress', 3, 14], ['shipyard', 4, 24]];
   function probe(id: string, tf: Record<number, (x: number, y: number) => [number, number]>, types = PROBE_TYPES) {
     const map = migrateMap(JSON.parse(fs.readFileSync(`src/core/data/maps/${id}.map.json`, 'utf8')));
     const s = createGame({ seed: 7, mapSize: 'medium', map, players: map.starts.map((_, i) => ({ name: `P${i}`, god: 'zeus', isAI: true, difficulty: 'normal' as const, team: map.startTeams ? map.startTeams[i] : i })) });

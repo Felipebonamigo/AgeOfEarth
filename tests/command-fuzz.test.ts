@@ -14,6 +14,7 @@ import { RNG } from '../src/core/rng';
 import { BUILDINGS, POWERS, TECHS, UNITS, MINOR_GODS } from '../src/core/data';
 import { FORMATIONS, RESOURCES, STANCES } from '../src/core/constants';
 import { placeBuilding, spawnUnit } from '../src/core/sim/entities';
+import { isNavigableTerrain } from '../src/core/map/naval';
 import type { Command, GameConfig, GameState } from '../src/core/types';
 
 const CONFIG: GameConfig = {
@@ -26,7 +27,7 @@ const CONFIG: GameConfig = {
   ],
 };
 
-const TYPES = ['move', 'attackMove', 'attack', 'gather', 'build', 'pray', 'repair', 'stop', 'stance', 'train', 'research', 'hireScholar', 'cancel', 'rally', 'advanceAge', 'power', 'trade', 'delete', 'ungarrison', 'garrison', 'ability'];
+const TYPES = ['move', 'attackMove', 'attack', 'gather', 'build', 'pray', 'repair', 'stop', 'stance', 'train', 'research', 'hireScholar', 'cancel', 'rally', 'advanceAge', 'power', 'trade', 'delete', 'ungarrison', 'garrison', 'ability', 'embark', 'unload'];
 const WEIRD: unknown[] = [NaN, Infinity, -Infinity, -0, 1e21, -1, 0.5, '3', '', null, undefined, true, {}, [], [1], { valueOf: 3 }, '__proto__', 'constructor', 'toString', 'hasOwnProperty'];
 const PROTO_KEYS = ['__proto__', 'constructor', 'toString', 'valueOf', 'prototype', 'hasOwnProperty'];
 
@@ -130,7 +131,9 @@ function checkInvariants(s: GameState, full: boolean): string[] {
     if (!(u.stance in STANCES)) bad.push(`unidade ${id} postura ${String(u.stance)}`);
     if (u.queue.length > MAX_ORDER_QUEUE) bad.push(`unidade ${id} fila ${u.queue.length}`);
     for (const o of [u.order, ...u.queue]) if (o && ((o.x !== undefined && !fin(o.x)) || (o.y !== undefined && !fin(o.y)))) bad.push(`unidade ${id} ordem NaN`);
-    if (u.inside !== -1 && !u.dead) { const g = s.buildings.get(u.inside); if (!g || !g.garrison.includes(id)) bad.push(`unidade ${id} guarnição`); }
+    if (u.inside !== -1 && !u.dead) { const g = s.buildings.get(u.inside), sh = s.units.get(u.inside); if (!(g?.garrison.includes(id) || sh?.cargo.includes(id))) bad.push(`unidade ${id} guarnição`); }
+    for (const cid of u.cargo) { const q = s.units.get(cid); if (!q || q.dead || q.inside !== id) bad.push(`navio ${id} carga ${cid}`); }   // E4
+    if (UNITS[u.type].naval && u.inside === -1 && !u.dead && !isNavigableTerrain(s.map.terrain[Math.floor(u.y) * s.map.w + Math.floor(u.x)])) bad.push(`navio ${id} em terra`);
   }
   for (const [id, b] of s.buildings) {
     if (b.id !== id || id >= s.nextId) bad.push(`edifício ${id} id`);
@@ -153,8 +156,8 @@ function checkInvariants(s: GameState, full: boolean): string[] {
 }
 
 /** Partida em curso + N ticks com `perTick` comandos aleatórios pela porta de entrada real (tick). */
-function fuzzRun(seed: number, ticks: number, perTick: number) {
-  const s = createGame(JSON.parse(JSON.stringify(CONFIG)));
+function fuzzRun(seed: number, ticks: number, perTick: number, over: Partial<GameConfig> = {}) {
+  const s = createGame({ ...JSON.parse(JSON.stringify(CONFIG)), ...over });
   for (let i = 0; i < 300; i++) tick(s);   // a IA e os kits já produziram alguma coisa
   const fz = new Fuzzer(new RNG(seed));
   const violations: string[] = [];
@@ -190,6 +193,13 @@ describe('fuzz determinístico de comandos', () => {
     // e a partida segue normalmente depois do fuzz
     for (let i = 0; i < 200; i++) tick(r1.s);
     expect(checkInvariants(r1.s, true)).toEqual([]);
+  }, 60_000);
+
+  it('rodada curta nas Ilhas (barcos, transportes e embarque): sem exceção e estado íntegro', () => {
+    const r = fuzzRun(20261011, 100, 18, { mapType: 'islands', seed: 4545 });
+    expect(r.lastError).toBe('');
+    expect(r.errors).toBe(0);
+    expect(r.violations).toEqual([]);
   }, 60_000);
 
   it('applyCommand direto (sem a rede de segurança do tick) nunca lança', () => {

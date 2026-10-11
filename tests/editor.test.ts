@@ -537,6 +537,7 @@ describe('editor: MapEditor', () => {
     expect(ed.key('T')).toBe(true); expect(ui.tool).toBe('terrain');
     expect(ed.key('4')).toBe(true); expect(ui.terrain).toBe(TERRAIN.WATER);
     expect(ed.key('6')).toBe(true); expect(ui.terrain).toBe(TERRAIN.DEEP);
+    expect(ed.key('7')).toBe(true); expect(ui.terrain).toBe(TERRAIN.SHALLOWS);
     expect(ed.key(']')).toBe(true); expect(ui.brushRadius).toBe(3);
     for (let k = 0; k < 10; k++) ed.key(']');
     expect(ui.brushRadius).toBe(8);

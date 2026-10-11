@@ -7,7 +7,7 @@ import { buildingLimitOk, buildingsOf, placeBuilding } from '../src/core/sim/ent
 import { setLocale, t } from '../src/i18n';
 import { SAVE_VERSION, deserialize, saveVersionOf, serialize } from '../src/core/serialize';
 import { createGame, tick } from '../src/core/sim/game';
-import { ARMY_ATTACK, FARM_LIMIT, MIN_ARMY, RESEARCH_PRIORITY, VILLAGER_TARGET } from '../src/core/sim/ai';
+import { ARMY_ATTACK, FARM_LIMIT, FISH_BOATS, MIN_ARMY, RESEARCH_PRIORITY, VILLAGER_TARGET, WARSHIPS_COAST, WARSHIPS_ISLAND } from '../src/core/sim/ai';
 import { academyTechCount } from '../src/core/sim/commands';
 import { gameConfigFor } from '../src/core/scenario/compile';
 import { validateScenario, type ScenarioFile } from '../src/core/scenario/schema';
@@ -184,7 +184,7 @@ describe('E1 — cenário', () => {
 
 describe('E1 — IA', () => {
   it('tabelas com uma posição por Era; prioridade de estudos cobre as linhas', () => {
-    for (const tab of [VILLAGER_TARGET, FARM_LIMIT, ARMY_ATTACK, MIN_ARMY]) expect(tab.length).toBe(AGES.length);
+    for (const tab of [VILLAGER_TARGET, FARM_LIMIT, ARMY_ATTACK, MIN_ARMY, FISH_BOATS, WARSHIPS_ISLAND, WARSHIPS_COAST]) expect(tab.length).toBe(AGES.length);
     for (const id of RESEARCH_PRIORITY) expect(TECHS[id], id).toBeTruthy();
     for (const [id, tech] of Object.entries(TECHS)) if (tech.line) expect(RESEARCH_PRIORITY, id).toContain(id);
   });

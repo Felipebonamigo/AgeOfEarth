@@ -1,5 +1,6 @@
 // Modos de jogo (Fase 5.1): Deathmatch, Regicídio, Rei da Colina e tipos de mapa.
 import { describe, it, expect } from 'vitest';
+import { seaOfStart } from '../src/core/map/fixed';
 import { KOTH_RADIUS, KOTH_SECONDS, MAP_TYPES, TICK_RATE, DEATHMATCH_RESOURCES } from '../src/core/constants';
 import { createGame, tick } from '../src/core/sim/game';
 import { applyCommand } from '../src/core/sim/commands';
@@ -74,7 +75,11 @@ describe('modos de jogo', () => {
       const b = createGame(base({ mapType, seed: 5 }));
       expect(stateHash(a)).toBe(stateHash(b));
       const comps = a.map.starts.map((st) => { for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const c = componentAt(a.map, st.x + dx, st.y + dy); if (c >= 0) return c; } return -1; });
-      expect(comps.every((c) => c >= 0 && c === comps[0]), `inícios desconexos em ${mapType}`).toBe(true);
+      if (mapType === 'islands') {   // E4: cada início na sua ilha, todos no mesmo mar
+        expect(new Set(comps).size, 'ilhas separadas').toBe(comps.length);
+        const seas = a.map.starts.map((st) => seaOfStart(a.map, st.x, st.y));
+        expect(seas.every((c) => c >= 0 && c === seas[0]), 'mesmo mar').toBe(true);
+      } else expect(comps.every((c) => c >= 0 && c === comps[0]), `inícios desconexos em ${mapType}`).toBe(true);
       expect(a.map.nodes.size).toBeGreaterThan(50);
     }
   });

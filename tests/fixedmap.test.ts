@@ -190,6 +190,20 @@ describe('validateMap', () => {
     // sem kit inicial, água sob o início não é erro
     expect(codes(errors({ ...withTerrain(BLANK, (x, y, t) => (x === sx && y === sy ? TERRAIN.WATER : t)), startKit: false }))).not.toContain('startBlocked');
   });
+  it('E4: peixe só em água aberta, navio só na água, Estaleiro só na margem, baixio construível não', () => {
+    const sea = withTerrain(BLANK, (x, y, t) => (x >= 10 && x <= 19 && y >= 10 && y <= 19 ? TERRAIN.WATER : x >= 20 && x <= 21 && y >= 10 && y <= 19 ? TERRAIN.SHALLOWS : t));
+    expect(errors({ ...sea, nodes: [['fish', 14, 14, 450]] })).toEqual([]);
+    expect(errors({ ...sea, nodes: [['fish', 30, 30, 450]] })[0]).toMatchObject({ code: 'fishOnLand' });
+    expect(errors({ ...sea, nodes: [['fish', 20, 14, 450]] })[0]).toMatchObject({ code: 'fishOnLand' });   // baixio não é água aberta
+    expect(errors({ ...sea, nodes: [['tree', 14, 14, 150]] })[0]).toMatchObject({ code: 'nodeOnBlocked' });
+    expect(errors({ ...sea, nodes: [['tree', 20, 14, 150]] })[0]).toMatchObject({ code: 'nodeOnBlocked' });   // baixio não constrói
+    const boat = (x: number, y: number): MapEntity => ({ kind: 'unit', type: 'fishing_boat', owner: 0, x, y });
+    expect(errors({ ...sea, entities: [boat(14, 14)] })).toEqual([]);
+    expect(errors({ ...sea, entities: [boat(30, 30)] })[0]).toMatchObject({ code: 'shipOnLand' });
+    const yard = (x: number, y: number): MapEntity => ({ kind: 'building', type: 'shipyard', owner: 0, x, y, complete: true });
+    expect(errors({ ...sea, entities: [yard(22, 12)] })[0]).toMatchObject({ code: 'shoreNoWater' });   // só baixio encostado
+    expect(errors({ ...sea, entities: [yard(30, 30)] })[0]).toMatchObject({ code: 'shoreNoWater' });
+  });
   it('erros de nós', () => {
     expect(errors({ ...BLANK, nodes: [['gold', -1, 5, 900]] })[0]).toMatchObject({ code: 'nodeOut', x: -1, y: 5 });
     expect(codes(errors({ ...BLANK, nodes: [['gold', 48, 5, 900]] }))).toContain('nodeOut');
