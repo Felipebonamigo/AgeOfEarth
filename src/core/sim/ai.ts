@@ -2,6 +2,7 @@
 // exército (defesa, ondas de ataque, recuo) e uso de poderes divinos. Pensa a cada N segundos.
 import { DIFFICULTIES, TICK_RATE, NODE_RESOURCE, NOT_GATHERED, WELL_NODES, RESOURCES, MARKET_TRADE_LOT, OIL_FROM_AGE, MERCHANT_MAX_AI, type ResourceType } from '../constants';
 import { rectReachable, wouldSeal } from '../map/components';
+import { findPathEx, nearestFreeTile } from '../map/pathfinding';
 import { AGES, BUILDINGS, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS } from '../data';
 import type { Building, GameState, Player, ResourceNode, Unit } from '../types';
 import { idx, inBounds, isPassable, dist, centerFrame, frameOffset, frameCompare, type Frame } from '../map/grid';
@@ -495,7 +496,17 @@ export function findBuildSpot(state: GameState, player: Player, type: string, ax
   const def = BUILDINGS[type];
   const map = state.map;
   const needsMargin = !!(def.trains || def.dropoff || def.worship || def.scholars || def.trade || def.wonder || def.titanGate);
-  const ok = (x: number, y: number): boolean => {
+  // E2: o local tem de ser alcançável a pé a partir do Centro Cívico — os componentes do mapa dizem "alcançável" para bolsões cujo
+  // acesso as casas e árvores já fecharam, e a obra ficava em 0 até a IA cancelá-la e repetir o mesmo local (m9: povoado parado em 120/120)
+  let home: { x: number; y: number } | null | undefined;
+  const reachable = (x: number, y: number): boolean => {
+    if (home === undefined) {
+      const tc = [...state.buildings.values()].find((b) => b.owner === player.id && !b.dead && b.complete && b.type === 'town_center');
+      home = tc ? nearestFreeTile(map, tc.x, tc.y, 6) : null;
+    }
+    return !home || findPathEx(map, home.x, home.y, { tx: x, ty: y, w: def.w, h: def.h }, true, 3000).complete;
+  };
+  const okBase = (x: number, y: number): boolean => {
     if (!canPlaceBuilding(state, player, type, x, y, ignoreLimits).ok) return false;
     // nunca fecha a passagem local (corredor de saída da base, gargalo do mapa)
     if (!def.passable && !def.wall && wouldSeal(map, x, y, def.w, def.h)) return false;
@@ -513,6 +524,7 @@ export function findBuildSpot(state: GameState, player: Player, type: string, ax
     }
     return true;
   };
+  const ok = (x: number, y: number): boolean => okBase(x, y) && (def.passable || !!def.wall || reachable(x, y));
   const bx = Math.floor(ax), by = Math.floor(ay);
   const o = spotOrder(def.w, def.h, maxR, ax - bx, ay - by);
   const n = o.s.length;

@@ -4,6 +4,7 @@
 //   runScripted: o jogador 0 ganha um estado de IA (aiThink a cada tick, economia e exército como numa partida IA × missão)
 //                e, por cima, passos roteirizados { when: Condition, command } aplicados por applyCommand (via tick).
 import { TICK_RATE, type Difficulty, type ResourceType } from '../constants';
+import { rectReachable } from '../map/components';
 import { ACADEMY_LINES, BUILDINGS, TECHS, UNITS } from '../data';
 import type { Building, Command, GameConfig, GameState, Unit } from '../types';
 import { createGame, tick } from '../sim/game';
@@ -588,7 +589,7 @@ const M4_CHOKE_TOWERS: [number, number][] = [[43, 73], [40, 75], [46, 72]];
 
 /** Uma torre por vez na saída do desfiladeiro (até 3), com o cidadão mais perto, quando há madeira e ouro. */
 function m4ChokeTower(state: GameState): Command | null {
-  const p = state.players[0]; if (p.resources.wood < 130 || p.resources.gold < 70) return null;
+  const p = state.players[0]; if (p.resources.wood < 130 || p.resources.stone < 130 || p.resources.gold < 70) return null;
   const busy = [...state.buildings.values()].some((b) => b.owner === 0 && !b.dead && b.type === 'tower' && !b.complete);
   if (busy) return null;
   const spot = M4_CHOKE_TOWERS.find(([x, y]) => canPlaceBuilding(state, p, 'tower', x, y).ok);
@@ -746,7 +747,7 @@ function m6Towers(state: GameState, n: number): Command | null {
   for (const b of state.buildings.values()) if (b.owner === 0 && !b.dead && b.type === 'tower' && (b.x - w.x) * (b.x - w.x) + (b.y - w.y) * (b.y - w.y) <= 81) have++;
   if (have >= n) return null;
   const cost = getBuildingStats(state, p, 'tower').cost;
-  if (p.resources.wood < (cost.wood ?? 0) + 150 || p.resources.gold < (cost.gold ?? 0) + 100) return null;
+  if (p.resources.wood < (cost.wood ?? 0) + 150 || p.resources.stone < (cost.stone ?? 0) + 100 || p.resources.gold < (cost.gold ?? 0) + 100) return null;
   const dirs: [number, number][] = [[1, 1], [0, 1], [1, 0], [-1, 1], [1, -1], [-1, 0]];
   const [dx, dy] = dirs[have % dirs.length];
   const spot = findBuildSpot(state, p, 'tower', w.x + dx * 5, w.y + dy * 5, 0, 3); if (!spot) return null;
@@ -937,7 +938,7 @@ const M5_HERAION_TOWERS = 3;
 function m5HeraionTower(state: GameState): Command | null {
   const p = state.players[0]; const h = entityPos(state, '#heraion'); if (!h) return null;
   const cost = getBuildingStats(state, p, 'tower').cost as Partial<Record<ResourceType, number>>;
-  if (p.resources.wood < (cost.wood ?? 0) + 30 || p.resources.gold < (cost.gold ?? 0) + 20) return null;
+  if (p.resources.wood < (cost.wood ?? 0) + 30 || p.resources.stone < (cost.stone ?? 0) + 30 || p.resources.gold < (cost.gold ?? 0) + 20) return null;
   const towers = [...state.buildings.values()].filter((b) => b.owner === 0 && !b.dead && b.type === 'tower' && (b.x - h.x) * (b.x - h.x) + (b.y - h.y) * (b.y - h.y) <= 12 * 12);
   if (towers.length >= M5_HERAION_TOWERS || towers.some((b) => !b.complete)) return null;
   const spot = findBuildSpot(state, p, 'tower', M5_HERAION_POST.x, M5_HERAION_POST.y, 1, 6);
@@ -1107,7 +1108,7 @@ function m7Build(state: GameState, type: string): Command | null {
   const p = state.players[0];
   if (firstBuilding(state, type)) return null;
   const cost = getBuildingStats(state, p, type).cost;
-  if (p.resources.wood < (cost.wood ?? 0) + 100 || p.resources.gold < (cost.gold ?? 0) + 50) return null;
+  if (p.resources.wood < (cost.wood ?? 0) + 100 || p.resources.stone < (cost.stone ?? 0) + 50 || p.resources.gold < (cost.gold ?? 0) + 50) return null;
   const tc = firstBuilding(state, 'town_center'); if (!tc || !tc.complete) return null;
   const spot = findBuildSpot(state, p, type, tc.x, tc.y, 5, 14); if (!spot) return null;
   const v = villagersNear(state, spot.x, spot.y).find((u) => u.state !== 'build'); if (!v) return null;
@@ -1186,7 +1187,7 @@ function m8Towers(state: GameState, n: number): Command | null {
   for (const b of state.buildings.values()) if (b.owner === 0 && !b.dead && b.type === 'tower' && b.y > 28) have++;
   if (have >= n) return null;
   const cost = getBuildingStats(state, p, 'tower').cost;
-  if (p.resources.wood < (cost.wood ?? 0) + 200 || p.resources.gold < (cost.gold ?? 0) + 150) return null;
+  if (p.resources.wood < (cost.wood ?? 0) + 200 || p.resources.stone < (cost.stone ?? 0) + 100 || p.resources.gold < (cost.gold ?? 0) + 150) return null;
   for (const [x, y] of M8_TOWERS) {
     if (!canPlaceBuilding(state, p, 'tower', x, y).ok) continue;
     const v = villagersNear(state, x, y).find((u) => u.state !== 'build'); if (!v) return null;
@@ -1335,7 +1336,7 @@ function m8Detach(state: GameState, titans: boolean): number[] {
 function m8ArmyReserve(state: GameState, titans: boolean): Partial<Record<ResourceType, number>> {
   const base = { food: 150, wood: 150, gold: 100 };
   if (!titans || state.scenario?.fired.includes('prometeu')) return base;
-  if (!firstBuilding(state, 'fortress')) return { food: 150, wood: 550, gold: 400, favor: 500 };
+  if (!firstBuilding(state, 'fortress')) return { food: 150, wood: 400, stone: 350, gold: 350, favor: 500 };
   return { ...base, favor: 500 };
 }
 
@@ -1429,9 +1430,14 @@ function m9House(state: GameState, slack: number): Command | null {
   if (p.popCap - p.pop >= slack || p.popCap >= 250 || p.resources.wood < 80) return null;
   if ([...state.buildings.values()].some((b) => b.owner === 0 && !b.dead && b.type === 'house' && !b.complete)) return null;
   const tc = firstBuilding(state, 'town_center'); if (!tc) return null;
-  const spot = findBuildSpot(state, p, 'house', tc.x, tc.y, 4, 16); if (!spot) return null;
-  const v = villagersNear(state, spot.x, spot.y).find((u) => u.state !== 'build'); if (!v) return null;
-  return { type: 'build', player: 0, ids: [v.id], building: 'house', tx: spot.x, ty: spot.y };
+  // (a IA enche o entorno do Centro Cívico e o melhor chão a até 16 tiles pode ficar do outro lado de um obstáculo: a casa ficava
+  // em obra para sempre e o povoado parava em 120/120 com a comida sobrando — só vale o local que o cidadão mais perto alcança)
+  for (const [minR, maxR] of [[4, 16], [16, 28]] as const) {
+    const spot = findBuildSpot(state, p, 'house', tc.x, tc.y, minR, maxR); if (!spot) continue;
+    const v = villagersNear(state, spot.x, spot.y).find((u) => u.state !== 'build' && rectReachable(state.map, Math.floor(u.x), Math.floor(u.y), spot.x, spot.y, 2, 2, true)); if (!v) continue;
+    return { type: 'build', player: 0, ids: [v.id], building: 'house', tx: spot.x, ty: spot.y };
+  }
+  return null;
 }
 
 /** m9: ataque-movimento de todo o exército até o alvo; perto dele (10 tiles), todos batem na jaula ou na fenda. */
@@ -2121,7 +2127,7 @@ export const MISSION_SCRIPTS: Record<string, MissionScript> = {
       atEnd: M8_FOUGHT,
       reserve: [
         { when: { not: { fired: 'prometeu' } }, resources: { favor: 500, knowledge: 600 } },
-        { when: { buildings: { player: 0, type: 'fortress' }, eq: 0 }, resources: { wood: 400, gold: 300 } },
+        { when: { buildings: { player: 0, type: 'fortress' }, eq: 0 }, resources: { wood: 250, stone: 350, gold: 250 } },
       ],
       steps: m8Steps(true),
     }],
