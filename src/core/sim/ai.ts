@@ -1,25 +1,35 @@
 // Inteligência artificial dos oponentes: economia, construção, pesquisa, avanço de idade,
 // exército (defesa, ondas de ataque, recuo) e uso de poderes divinos. Pensa a cada N segundos.
-import { DIFFICULTIES, TICK_RATE, NODE_RESOURCE, NOT_GATHERED, WELL_NODES, RESOURCES, MARKET_TRADE_LOT, OIL_FROM_AGE, MERCHANT_MAX_AI, type ResourceType } from '../constants';
+import { DIFFICULTIES, TICK_RATE, NODE_RESOURCE, NOT_GATHERED, SHIP_NODES, WELL_NODES, RESOURCES, MARKET_TRADE_LOT, OIL_FROM_AGE, MERCHANT_MAX_AI, type ResourceType } from '../constants';
 import { rectReachable, wouldSeal } from '../map/components';
 import { findPathEx, nearestFreeTile } from '../map/pathfinding';
 import { AGES, BUILDINGS, LINES, LINE_ORDER, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS } from '../data';
-import type { Building, GameState, Player, ResourceNode, Unit } from '../types';
-import { idx, inBounds, isPassable, dist, centerFrame, frameOffset, frameCompare, type Frame } from '../map/grid';
+import type { Building, GameState, Player, ResourceNode, Unit, UnitDef } from '../types';
+import { idx, inBounds, isPassable, dist, dist2, centerFrame, frameOffset, frameCompare, type Frame } from '../map/grid';
 import { applyCommand, canAdvanceAge, canResearch, canTrain, academyTechCount } from './commands';
-import { canPlaceBuilding, countBuildings, buildingsOf, unitsOf } from './entities';
+import { canPlaceBuilding, countBuildings, buildingsOf, findSpawnTile, unitsOf } from './entities';
 import { getRuntime } from './runtime';
-import { nextEvolution, trainChoices, unitLinesOn } from './lines';
+import { nextEvolution, trainChoices, unitLinesOn, type TrainChoice } from './lines';
+import { approachTile, cargoPop, fairer, fishNear, seatsOf, shoreTileNear } from './naval';
+import { SHIPYARD_SITE_RADIUS, seaOfStart } from '../map/fixed';
 import { isMilitary, isEnemy, nearestEnemyBuilding, nearestNode, nearestNodeBy, nearestRareNode, nearestNodeWithRoom, nearestFreeFarm, countUnits, nodeHasRoom, centerDist2 } from './queries';
 import { getBuildingStats, getUnitStats, techCost } from './modifiers';
 import { canAfford } from './economy';
 import { t } from '../../i18n';
-import { isForbidden, maxAgeOf } from './restrictions';
+import { isForbidden, maxAgeOf, navalOn } from './restrictions';
 
 // uma posição por Era (tests/eras.test.ts confere)
 export const VILLAGER_TARGET = [18, 26, 34, 40, 44, 48, 52, 56];
 export const FARM_LIMIT = [4, 8, 12, 16, 18, 20, 22, 24];
 export const ARMY_ATTACK = [7, 12, 16, 20, 24, 28, 32, 36];
+/** E4: barcos de pesca por Era (teto; também ≤ 2 por cardume a até 26 tiles do Estaleiro). */
+export const FISH_BOATS = [3, 5, 6, 6, 7, 7, 8, 8];
+/** E4: navios de guerra por Era no modo ilha (o inimigo só se alcança por mar) e no modo costa (há Estaleiro). */
+export const WARSHIPS_ISLAND = [2, 3, 4, 5, 6, 6, 7, 8];
+export const WARSHIPS_COAST = [0, 1, 2, 2, 3, 3, 4, 4];
+/** E4: transportes no modo ilha; cidadãos mínimos antes do primeiro Estaleiro. */
+export const TRANSPORTS = 2;
+export const SHIPYARD_MIN_VILLAGERS = 12;
 /** Recursos que os cidadãos da IA coletam (a ordem é a das proporções em manageEconomy). */
 const AI_RES = ['food', 'wood', 'stone', 'gold', 'oil', 'favor'] as const;
 export const RESEARCH_PRIORITY = [
@@ -29,12 +39,13 @@ export const RESEARCH_PRIORITY = [
   'mythic_blood', 'divine_arms', 'sacred_rites', 'ballista_towers', 'logistics', 'civic4', 'military4', 'science4', 'commerce4', 'bitumen_jars', 'ballistics', 'civic5', 'military5', 'science5', 'commerce5', 'coinage',
   ...[6, 7, 8].flatMap((l) => ['civic', 'military', 'science', 'commerce'].map((k) => `${k}${l}`)),
   'distillation', 'cracking',
+  'fishing_nets', 'caulking', 'bronze_rams', 'navigation',   // E4: Estaleiro (no fim: não muda a ordem nem o corte slice(0, 13))
 ];
 
 interface Snapshot {
   villagers: Unit[]; idleVillagers: Unit[]; military: Unit[]; scouts: Unit[]; heroes: Unit[];
   buildings: Building[]; byType: Map<string, Building[]>; tc: Building | null; underConstruction: Building[];
-  gatherers: Record<string, number>; enemies: Player[]; merchants: Unit[];
+  gatherers: Record<string, number>; enemies: Player[]; merchants: Unit[]; ships: Unit[];
 }
 
 export function aiThink(state: GameState, player: Player): void {
@@ -69,6 +80,7 @@ export function aiThink(state: GameState, player: Player): void {
   manageMerchants(state, player, snap);
   manageBuilding(state, player, snap);
   manageTraining(state, player, snap);
+  manageNavy(state, player, snap);
   manageResearch(state, player, snap);
   manageArmy(state, player, snap);
   manageTrade(state, player, snap);
@@ -93,12 +105,13 @@ function snapshot(state: GameState, player: Player): Snapshot {
   const tcs = byType.get('town_center') ?? [];
   return {
     villagers, idleVillagers: villagers.filter((u) => u.state === 'idle' && !u.order),
-    military: units.filter((u) => isMilitary(u) && !UNITS[u.type].immobile && u.inside === -1),
+    military: units.filter((u) => isMilitary(u) && !UNITS[u.type].immobile && !UNITS[u.type].naval && u.inside === -1),
     scouts: units.filter((u) => UNITS[u.type].tags.includes('scout')),
     heroes: units.filter((u) => UNITS[u.type].tags.includes('hero')),
     buildings, byType, tc: tcs.find((b) => b.complete) ?? tcs[0] ?? null, underConstruction: buildings.filter((b) => !b.complete),
     gatherers, enemies: state.players.filter((p) => isEnemy(state, player.id, p.id) && p.alive),
     merchants: units.filter((u) => u.type === 'merchant' && u.inside === -1),
+    ships: units.filter((u) => UNITS[u.type].naval && u.inside === -1),
   };
 }
 
@@ -131,13 +144,13 @@ function manageMerchants(state: GameState, player: Player, snap: Snapshot): void
   for (const m of snap.merchants) {
     if (m.state !== 'idle' || m.order) continue;
     const mx = Math.floor(m.x), my = Math.floor(m.y);
-    const node = nearestRareNode(state, m.x, m.y, 40, (n) => nodeHasRoom(state, n) && rectReachable(state.map, mx, my, n.x, n.y, 1, 1, true));
+    const node = nearestRareNode(state, m.x, m.y, 40, (n) => !SHIP_NODES.has(n.type) && nodeHasRoom(state, n) && rectReachable(state.map, mx, my, n.x, n.y, 1, 1, true));
     if (node) { applyCommand(state, { type: 'gather', player: player.id, ids: [m.id], targetId: node.id }); break; }   // um por pensamento: a vaga só é recontada no próximo tick
   }
   const queued = snap.buildings.reduce((n, b) => n + b.queue.filter((q) => q.kind === 'unit' && q.id === 'merchant').length, 0);
   if (snap.merchants.length + queued >= MERCHANT_MAX_AI) return;
   const market = (snap.byType.get('market') ?? []).find((b) => b.complete && b.queue.length === 0);
-  if (!market || !nearestRareNode(state, snap.tc.x, snap.tc.y, 40, (n) => nodeHasRoom(state, n))) return;
+  if (!market || !nearestRareNode(state, snap.tc.x, snap.tc.y, 40, (n) => !SHIP_NODES.has(n.type) && nodeHasRoom(state, n))) return;
   if (player.resources.gold < budgetOf(state, player).reserveGold + 150) return;
   if (canTrain(state, player, market, 'merchant').ok) applyCommand(state, { type: 'train', player: player.id, buildingId: market.id, unit: 'merchant' });
 }
@@ -599,6 +612,7 @@ function manageTraining(state: GameState, player: Player, snap: Snapshot): void 
   const mix = armyMix(state, player, snap);
   for (const b of snap.buildings) {
     const def = BUILDINGS[b.type];
+    if (def.shore) continue;   // E4: o Estaleiro é do manageNavy
     if (!b.complete || !def.military || !def.trains || b.queue.length >= 2) continue;
     if (player.pop + 3 > player.popCap) break;
     if (player.resources.gold < goldReserve || player.resources.food < foodReserve) break;
@@ -679,7 +693,7 @@ function tryAdvanceAge(state: GameState, player: Player, snap: Snapshot): void {
 /** Unidades do jogador por linha (militares e cidadãos): a IA estuda primeiro a evolução das linhas que usa (E3). */
 function lineUsers(snap: Snapshot): Map<string, number> {
   const m = new Map<string, number>();
-  for (const u of [...snap.military, ...snap.villagers]) { const l = UNITS[u.type].line; if (l) m.set(l, (m.get(l) ?? 0) + 1); }
+  for (const u of [...snap.military, ...snap.ships, ...snap.villagers]) { const l = UNITS[u.type].line; if (l) m.set(l, (m.get(l) ?? 0) + 1); }
   return m;
 }
 /** Próximo estudo de evolução de cada linha, das mais usadas para as menos (empate: LINE_ORDER). Vazio sem as linhas.
@@ -689,6 +703,9 @@ function evolutionPriority(state: GameState, player: Player, users: Map<string, 
   const out: { id: string; n: number; i: number }[] = [];
   LINE_ORDER.forEach((line, i) => {
     const r = LINES[line].retireAt; if (r !== undefined && player.age >= r) return;
+    // E4: sem Estaleiro pronto, a IA não estuda evoluções de navio (num mapa sem mar o estudo seria gasto à toa — e a
+    // partida terrestre deixaria de ser idêntica: o diff do smoke da Verificação 4 acusa)
+    if (LINES[line].buildings.every((b) => BUILDINGS[b]?.shore) && countBuildings(state, player.id, (b) => b.type === 'shipyard' && b.complete) === 0) return;
     const next = nextEvolution(player, line); if (next) out.push({ id: next, n: users.get(line) ?? 0, i });
   });
   out.sort((a, b) => b.n - a.n || a.i - b.i);
@@ -789,6 +806,7 @@ function manageArmy(state: GameState, player: Player, snap: Snapshot): void {
     rt.hash.each(b.x, b.y, 12, (u) => {
       if (!isEnemy(state, player.id, u.owner) || u.dead || !state.players[u.owner].alive) return;
       const ud = UNITS[u.type];
+      if (ud.naval) return;   // E4: navio é com a frota (manageNavy)
       if (ud.tags.includes('scout') || ud.attack <= 0) return;
       const d = dist(u.x, u.y, b.x, b.y);
       if (ud.tags.includes('civilian') && u.state !== 'attack' && d >= 5) return;   // cidadão só coletando perto da fronteira não é ameaça
@@ -820,6 +838,7 @@ function manageArmy(state: GameState, player: Player, snap: Snapshot): void {
   if (state.tick - ai.defending > 20 * TICK_RATE) {
     for (const b of snap.buildings) if (b.garrison.length > 0 && b.complete) applyCommand(state, { type: 'ungarrison', player: player.id, buildingId: b.id });
   }
+  if (islandMode(state, player, snap)) return;   // E4: o inimigo só se alcança por mar: a invasão é do manageNavy
   // 2) Ataque em ondas
   const threshold = Math.round(ARMY_ATTACK[player.age] * diff.armyMult);
   const attackCooldown = Math.round(75 * diff.attackDelay * TICK_RATE);
@@ -903,6 +922,147 @@ function chooseAttackTarget(state: GameState, player: Player, tc: Building, from
   return nearestEnemyBuilding(state, player.id, tc.x, tc.y, (b) => b.owner === w.id && !BUILDINGS[b.type].wall && reachable(b))
     ?? nearestEnemyBuilding(state, player.id, tc.x, tc.y, (b) => !BUILDINGS[b.type].wall && reachable(b))
     ?? nearestEnemyBuilding(state, player.id, tc.x, tc.y, reachable);
+}
+
+// ---------------- Naval (E4) ----------------
+/** Nenhum Centro Cívico inimigo vivo é alcançável por terra a partir do meu (Ilhas), e o meu e algum deles estão no
+ *  mesmo mar grande: só o mar leva ao inimigo. A condição do mar evita o "modo ilha" num mapa terrestre em que um humano
+ *  se murou por inteiro (sem portão): sem ela a IA pararia de atacar por terra. */
+function islandMode(state: GameState, player: Player, snap: Snapshot): boolean {
+  const tc = snap.tc; if (!tc) return false;
+  const mySea = seaOfStart(state.map, Math.floor(tc.x), Math.floor(tc.y));
+  if (mySea < 0) return false;
+  const from = findSpawnTile(state, tc);
+  let sameSea = false;
+  for (const b of state.buildings.values()) {
+    if (b.dead || b.type !== 'town_center' || !isEnemy(state, player.id, b.owner) || !state.players[b.owner].alive) continue;
+    if (rectReachable(state.map, Math.floor(from.x), Math.floor(from.y), b.tx, b.ty, b.w, b.h, true)) return false;
+    if (seaOfStart(state.map, Math.floor(b.x), Math.floor(b.y)) === mySea) sameSea = true;
+  }
+  return sameSea;
+}
+/** Centro Cívico inimigo mais perto do meu (desempate justo). */
+function invasionTarget(state: GameState, player: Player, snap: Snapshot): Building | null {
+  const tc = snap.tc; if (!tc) return null;
+  let best: Building | null = null, bd = Infinity;
+  for (const b of state.buildings.values()) {
+    if (b.dead || b.type !== 'town_center' || !isEnemy(state, player.id, b.owner) || !state.players[b.owner].alive) continue;
+    const d = dist2(b.x, b.y, tc.x, tc.y);
+    if (d < bd || (d === bd && best && fairer(state.map, tc, { x: b.tx, y: b.ty }, { x: best.tx, y: best.ty }))) { bd = d; best = b; }
+  }
+  return best;
+}
+function manageNavy(state: GameState, player: Player, snap: Snapshot): void {
+  if (!navalOn(state) || !snap.tc) return;
+  const age = player.age, tc = snap.tc;
+  const yards = snap.byType.get('shipyard') ?? [];
+  const yard = yards.find((b) => b.complete) ?? null;
+  const island = islandMode(state, player, snap);
+  // 1) Estaleiro: só com peixe perto ou no modo ilha (mapas terrestres: nada muda); uma tentativa por janela de 10 s.
+  //    A IA só pensa a cada round(thinkEvery·20) ticks a partir do tick 40, então um `(tick + id) % 200 === 0` nunca
+  //    bateria para os jogadores 1–3 (o 0 seria o único com Estaleiro): conta-se a passagem da janela desde o último pensamento.
+  if (yards.length === 0) {
+    const period = Math.round(DIFFICULTIES[player.ai!.difficulty].thinkEvery * TICK_RATE), every = 10 * TICK_RATE;
+    if (snap.villagers.length < SHIPYARD_MIN_VILLAGERS || Math.floor(state.tick / every) === Math.floor((state.tick - period) / every)) return;
+    if (!island && fishNear(state, tc.x, tc.y, 30) < 2) return;
+    const spot = findBuildSpot(state, player, 'shipyard', tc.x, tc.y, 4, SHIPYARD_SITE_RADIUS);
+    if (!spot || !canAfford(player, getBuildingStats(state, player, 'shipyard').cost)) return;
+    const v = pickBuilder(state, snap, spot.x, spot.y);
+    if (v) applyCommand(state, { type: 'build', player: player.id, ids: [v.id], building: 'shipyard', tx: spot.x, ty: spot.y });
+    return;
+  }
+  if (!yard) return;
+  const boats = snap.ships.filter((u) => UNITS[u.type].canGather);
+  const war = snap.ships.filter((u) => isMilitary(u));
+  const trans = snap.ships.filter((u) => (UNITS[u.type].capacity ?? 0) > 0);
+  const queued = (pred: (d: UnitDef) => boolean) => yard.queue.filter((q) => q.kind === 'unit' && pred(UNITS[q.id])).length;
+  // 2) Treino: um item por pensamento, fila de no máximo 2
+  if (yard.queue.length < 2) {
+    const choices = trainChoices(state, player, 'shipyard');
+    const pick = (pred: (d: UnitDef) => boolean) => choices.find((c) => pred(UNITS[c.show]) && canTrain(state, player, yard, c.send).ok);
+    const fishTarget = Math.min(FISH_BOATS[age], 2 * fishNear(state, yard.x, yard.y, 26));
+    const warTarget = (island ? WARSHIPS_ISLAND : WARSHIPS_COAST)[age];
+    let c: TrainChoice | undefined;   // tipo da E3 (src/core/sim/lines.ts)
+    if (boats.length + queued((d) => !!d.canGather) < fishTarget) c = pick((d) => !!d.canGather);
+    else if (island && trans.length + queued((d) => !!d.capacity) < TRANSPORTS) c = pick((d) => !!d.capacity);
+    else if (war.length + queued((d) => d.tags.includes('military')) < warTarget && !savingForAge(state, player)) c = pick((d) => d.tags.includes('military'));
+    if (c) applyCommand(state, { type: 'train', player: player.id, buildingId: yard.id, unit: c.send });
+  }
+  // 3a) Atum (raro do mar, D7): se nenhum barco meu está nele, o primeiro barco ocioso ocupa o atum livre mais perto do Estaleiro
+  if (!boats.some((b) => b.nodeId > 0 && state.map.nodes.get(b.nodeId)?.type === 'rare_fish')) {
+    const idleBoat = boats.find((b) => b.state === 'idle' && !b.order);
+    const tuna = idleBoat ? nearestRareNode(state, yard.x, yard.y, 30, (n) => n.type === 'rare_fish' && nodeHasRoom(state, n)) : null;
+    if (idleBoat && tuna) applyCommand(state, { type: 'gather', player: player.id, ids: [idleBoat.id], targetId: tuna.id });
+  }
+  // 3) Pesca: barco ocioso vai ao cardume com vaga mais perto
+  for (const b of boats) if (b.state === 'idle' && !b.order) {
+    const n = nearestNodeWithRoom(state, b.x, b.y, 'fish', 30);
+    if (n) applyCommand(state, { type: 'gather', player: player.id, ids: [b.id], targetId: n.id });
+  }
+  // 4) Frota parada: navio inimigo a até 14 do Estaleiro ou do CC → ataca; com onda em curso, bombardeia o alvo pelo mar
+  const idle = war.filter((s) => s.state === 'idle' && !s.order);
+  if (idle.length) {
+    let foe: Unit | null = null, fd = Infinity;
+    for (const base of [yard, tc]) getRuntime(state).hash.each(base.x, base.y, 14, (u) => {
+      if (u.dead || !UNITS[u.type].naval || !isEnemy(state, player.id, u.owner)) return;
+      const d = dist2(u.x, u.y, base.x, base.y);
+      if (d < fd || (d === fd && foe && fairer(state.map, base, { x: Math.floor(u.x), y: Math.floor(u.y) }, { x: Math.floor(foe.x), y: Math.floor(foe.y) }))) { fd = d; foe = u; }
+    });
+    const target = player.ai!.attackTarget !== -1 ? state.buildings.get(player.ai!.attackTarget) : undefined;
+    for (const s of idle) {
+      if (foe) { applyCommand(state, { type: 'attack', player: player.id, ids: [s.id], targetId: (foe as Unit).id }); continue; }
+      const a = target && !target.dead ? approachTile(state.map, 'naval', s.x, s.y, target, getUnitStats(state, player, s.type).range) : null;
+      if (a) applyCommand(state, { type: 'attackMove', player: player.id, ids: [s.id], x: a.x + 0.5, y: a.y + 0.5 });
+      else if (dist(s.x, s.y, yard.x, yard.y) > 10) { const h = shoreTileNear(state.map, s.x, s.y, yard.x, yard.y, 6); if (h) applyCommand(state, { type: 'move', player: player.id, ids: [s.id], x: h.x + 0.5, y: h.y + 0.5 }); }
+    }
+  }
+  // 5) Desembarque (Ilhas)
+  if (island) manageInvasion(state, player, snap, trans, war);
+}
+/** Desembarque no modo ilha — fase 0 parado, 1 embarcando, 2 navegando. Uma leva por vez. */
+function manageInvasion(state: GameState, player: Player, snap: Snapshot, trans: Unit[], war: Unit[]): void {
+  const ai = player.ai!, diff = DIFFICULTIES[ai.difficulty];
+  const nv = ai.navy ?? (ai.navy = { phase: 0, ship: -1, x: 0, y: 0, since: 0 });
+  const ship = nv.ship >= 0 ? state.units.get(nv.ship) : undefined;
+  const reset = () => { nv.phase = 0; nv.ship = -1; };
+  if (nv.phase > 0 && (!ship || ship.dead)) { reset(); return; }
+  if (nv.phase === 0) {
+    const t = trans.find((s) => s.cargo.length === 0 && s.state === 'idle' && !s.order);
+    const threshold = Math.round(ARMY_ATTACK[player.age] * diff.armyMult * 0.6);   // levas menores que a onda por terra (o navio leva 20 de pop)
+    if (!t || snap.military.length < threshold || state.tick - ai.lastAttack < Math.round(75 * diff.attackDelay * TICK_RATE)) return;
+    const target = invasionTarget(state, player, snap);
+    if (!target) return;
+    const cap = UNITS[t.type].capacity ?? 0;
+    // comparador consistente (sort exige: a<b ⇒ não b<a): distância, depois fairer nos dois sentidos, depois o id
+    const tileOf = (u: Unit) => ({ x: Math.floor(u.x), y: Math.floor(u.y) });
+    const riders = snap.military.filter((u) => !UNITS[u.type].tags.includes('titan') && !UNITS[u.type].flying).sort((a, b) =>
+      dist2(a.x, a.y, t.x, t.y) - dist2(b.x, b.y, t.x, t.y) || (fairer(state.map, t, tileOf(a), tileOf(b)) ? -1 : fairer(state.map, t, tileOf(b), tileOf(a)) ? 1 : a.id - b.id));
+    let pop = 0; const ids: number[] = [];
+    for (const u of riders) { const p = seatsOf(u.type); if (pop + p > cap) continue; pop += p; ids.push(u.id); }
+    if (ids.length === 0 || !applyCommand(state, { type: 'embark', player: player.id, ids, targetId: t.id }).ok) return;
+    nv.phase = 1; nv.ship = t.id; nv.x = target.x; nv.y = target.y; nv.since = state.tick;
+    return;
+  }
+  if (nv.phase === 1) {
+    const waiting = [...state.units.values()].some((u) => !u.dead && u.owner === player.id && u.order?.type === 'embark' && u.targetId === ship!.id);
+    if (waiting && cargoPop(state, ship!) < (UNITS[ship!.type].capacity ?? 0) * 0.8 && state.tick - nv.since < 45 * TICK_RATE) return;
+    if (ship!.cargo.length === 0) { reset(); return; }
+    applyCommand(state, { type: 'unload', player: player.id, ids: [ship!.id], x: nv.x, y: nv.y });
+    const escort = war.filter((w) => w.state === 'idle' || w.state === 'move').map((w) => w.id);
+    const sea = shoreTileNear(state.map, ship!.x, ship!.y, nv.x, nv.y, 20);
+    if (escort.length && sea) applyCommand(state, { type: 'attackMove', player: player.id, ids: escort, x: sea.x + 0.5, y: sea.y + 0.5 });
+    nv.phase = 2; nv.since = state.tick;
+    return;
+  }
+  if (ship!.cargo.length === 0) {   // desembarcou: quem desceu ataca o Centro Cívico
+    const landed = snap.military.filter((u) => dist(u.x, u.y, ship!.x, ship!.y) < 6).map((u) => u.id);
+    if (landed.length) applyCommand(state, { type: 'attackMove', player: player.id, ids: landed, x: nv.x, y: nv.y });
+    ai.waves++; ai.lastAttack = state.tick; reset(); return;
+  }
+  if (state.tick - nv.since > 120 * TICK_RATE) {   // não chegou em 2 min: volta e desce em casa
+    applyCommand(state, { type: 'unload', player: player.id, ids: [ship!.id], x: snap.tc!.x, y: snap.tc!.y });
+    reset();
+  }
 }
 
 function manageScouts(state: GameState, player: Player, snap: Snapshot): void {
