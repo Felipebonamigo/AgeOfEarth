@@ -18,10 +18,10 @@ export function isTradePost(state: GameState, b: Building | undefined, kind: Tra
 }
 export function centerDist(a: Building, b: Building): number { const dx = a.x - b.x, dy = a.y - b.y; return Math.sqrt(dx * dx + dy * dy); }
 
-/** Dá para chegar ao edifício a partir do tile (sx, sy)? Terra: regiões conexas. Mar: gancho da E4 (Fase F). */
+/** Dá para chegar ao edifício a partir do tile (sx, sy)? Terra: regiões conexas. Mar: camada naval da E4. */
 export function reachableFor(state: GameState, kind: TradeKind, sx: number, sy: number, b: Building): boolean {
   if (kind === 'land') return rectReachable(state.map, sx, sy, b.tx, b.ty, b.w, b.h, true);
-  return false;   // E4/Fase F: troque pela alcançabilidade da camada de água
+  return rectReachable(state.map, sx, sy, b.tx, b.ty, b.w, b.h, true, 'naval');
 }
 
 /** Ponto de comércio PRÓPRIO mais perto de (x, y) pela borda, sem `exclude`. Empate: mais perto do centro do mapa,

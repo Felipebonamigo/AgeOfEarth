@@ -5,6 +5,7 @@ export interface TextOverlay { name?: string; plural?: string; desc?: string; ti
 
 export const EN_UNITS: Record<string, TextOverlay> = {
   villager: { name: 'Citizen', plural: 'Citizens', desc: 'Gathers resources, builds and repairs buildings, and prays at temples to generate Favor.' },
+  merchant_ship: { name: 'Merchant Ship', plural: 'Merchant Ships', desc: "Cargo ship: runs a route between two Shipyards (yours or an ally's) 16 tiles or more apart; each arrival earns gold by distance. Right-click the destination Shipyard. Does not fight." },
   caravan: { name: 'Caravan', plural: 'Caravans', desc: 'Carries goods on a route between a Town Center or Market of yours and another of yours or an ally\'s, 16 tiles or more apart: each arrival earns gold by distance (+25% if the destination is an ally\'s). Right-click the destination. Does not fight or enter buildings.' },
   merchant: { name: 'Merchant', plural: 'Merchants', desc: 'Works a rare resource on the map: while there, it earns gold and the rare bonus applies to your whole empire. It does not gather other resources, pray or build.' },
   kataskopos: { name: 'Scout', plural: 'Scouts', desc: 'Light, fast rider. Excellent for exploring the map, weak in combat.' },

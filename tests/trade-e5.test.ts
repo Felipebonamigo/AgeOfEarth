@@ -1,15 +1,16 @@
 // E5: caravanas e rotas comerciais (docs/eras/E5-E7-comercio-maravilhas.md, Fase E)
 import { describe, it, expect } from 'vitest';
 import { AGES, BUILDINGS, UNITS } from '../src/core/data';
-import { CARAVAN_TARGET_AI, MERCHANT_SHIP_TARGET_AI, RESOURCES, TICK_RATE, TRADE_ALLY_BONUS } from '../src/core/constants';
+import { TERRAIN, CARAVAN_TARGET_AI, MERCHANT_SHIP_TARGET_AI, RESOURCES, TICK_RATE, TRADE_ALLY_BONUS } from '../src/core/constants';
 import { applyCommand } from '../src/core/sim/commands';
-import { buildingsOf, placeBuilding, spawnUnit } from '../src/core/sim/entities';
+import { buildingsOf, canPlaceBuilding, placeBuilding, spawnUnit } from '../src/core/sim/entities';
 import { routeGold } from '../src/core/sim/trade';
 import { destroyBuilding } from '../src/core/sim/combat';
 import { serialize, deserialize } from '../src/core/serialize';
 import { addNode } from '../src/core/map/mapgen';
-import { idx } from '../src/core/map/grid';
-import { invalidateComponents } from '../src/core/map/components';
+import { idx, isPassable } from '../src/core/map/grid';
+import { MIN_DOCK_WATER } from '../src/core/map/naval';
+import { componentAt, componentSize, invalidateComponents } from '../src/core/map/components';
 import type { GameState } from '../src/core/types';
 import { t } from '../src/i18n';
 import { quickGame, run } from './helpers';
@@ -128,5 +129,51 @@ describe('E5: caravanas', () => {
     const cs = [...s.units.values()].filter((u) => u.owner === 0 && !u.dead && u.type === 'caravan');
     expect(cs.length).toBeGreaterThanOrEqual(1);
     expect(cs.some((u) => u.state === 'route')).toBe(true);
+  });
+});
+
+describe('E5: navio mercante (rota marítima, com a E4)', () => {
+  function shipyardAt(s: GameState, player: number) {
+    const tc = buildingsOf(s, player).find((b) => b.type === 'town_center')!;
+    for (let r = 4; r <= 24; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+      if (canPlaceBuilding(s, s.players[player], 'shipyard', tc.tx + dx, tc.ty + dy, true, true).ok) return placeBuilding(s, player, 'shipyard', tc.tx + dx, tc.ty + dy, true);
+    }
+    throw new Error('sem lugar para Estaleiro');
+  }
+  function waterBeside(s: GameState, y: { tx: number; ty: number; w: number; h: number }) {
+    const m = s.map;
+    for (let yy = y.ty - 3; yy < y.ty + y.h + 3; yy++) for (let xx = y.tx - 3; xx < y.tx + y.w + 3; xx++) {
+      if (!isPassable(m, xx, yy, 'naval') || m.terrain[idx(m, xx, yy)] === TERRAIN.SHALLOWS) continue;
+      if (componentSize(m, componentAt(m, xx, yy, 'naval'), 'naval') >= MIN_DOCK_WATER) return { x: xx, y: yy };
+    }
+    throw new Error('sem água ao lado do Estaleiro');
+  }
+  const team0 = [{ name: 'A', god: 'zeus', isAI: false, difficulty: 'normal' as const, team: 0 }, { name: 'B', god: 'poseidon', isAI: false, difficulty: 'normal' as const, team: 0 }, { name: 'C', god: 'hades', isAI: false, difficulty: 'normal' as const, team: 1 }];   // o inimigo evita a vitória imediata do time 0
+  it('rota entre dois Estaleiros do time rende ouro; seaTradeIncome multiplica', () => {
+    const s = quickGame({ mapType: 'mediterranean', seed: 42, players: team0 });
+    s.players[0].age = 2;
+    const ya = shipyardAt(s, 0), yb = shipyardAt(s, 1);
+    const w = waterBeside(s, ya);
+    const ship = spawnUnit(s, 0, 'merchant_ship', w.x + 0.5, w.y + 0.5);
+    const r = applyCommand(s, { type: 'route', player: 0, ids: [ship.id], targetId: yb.id });
+    expect(r.ok, r.reason).toBe(true);
+    expect(ship.state).toBe('route');
+    const g = routeGold(s, 0, ya, yb, 'sea');
+    expect(g).toBeGreaterThan(0);
+    s.players[0].mods.player.seaTradeIncome = 1.25;
+    const g2 = routeGold(s, 0, ya, yb, 'sea');
+    expect(g2).toBeGreaterThan(g); expect(g2).toBe(Math.round(0.7 * Math.sqrt((ya.x - yb.x) ** 2 + (ya.y - yb.y) ** 2) * 1.25 * 1.25 * s.players[0].mods.gather.gold));
+    s.players[0].mods.player.seaTradeIncome = 1;
+    const before = s.players[0].resources.gold;
+    run(s, 240 * TICK_RATE);
+    expect(s.players[0].resources.gold - before).toBeGreaterThanOrEqual(g);
+  }, 60000);
+  it('caravana não faz rota entre Estaleiros e o navio não entra em edifícios', () => {
+    const s = quickGame({ mapType: 'mediterranean', seed: 42, players: team0 });
+    const ya = shipyardAt(s, 0), yb = shipyardAt(s, 1);
+    const c = spawnUnit(s, 0, 'caravan', ya.x, ya.y + 4);
+    expect(applyCommand(s, { type: 'route', player: 0, ids: [c.id], targetId: yb.id }).ok).toBe(false);
+    expect(UNITS.merchant_ship.trader).toBe('sea');
   });
 });

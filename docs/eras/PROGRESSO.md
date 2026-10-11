@@ -342,11 +342,11 @@ Fase E — Testes
 - [x] T2 Fuzz com `route`
 
 Fase F — Navio mercante (com a E4)
-- [ ] F0 Pré-condição (E4 pronta)
-- [ ] F1 Dados do `merchant_ship` e ícone
-- [ ] F2 Alcance no mar
-- [ ] F3 IA com navios mercantes
-- [ ] F4 Teste da rota marítima
+- [x] F0 Pré-condição (E4 pronta)
+- [x] F1 Dados do `merchant_ship` e ícone
+- [x] F2 Alcance no mar
+- [x] F3 IA com navios mercantes
+- [x] F4 Teste da rota marítima
 
 Fase G — Verificação e commit
 - [ ] G1 "Verificação" (itens da E5)

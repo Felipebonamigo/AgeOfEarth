@@ -74,7 +74,7 @@ export const BUILDINGS: Record<string, BuildingDef> = {
   },
   shipyard: { id: 'shipyard',
     name: 'Estaleiro', icon: '🪨', cost: { wood: 150 }, hp: 1200, w: 3, h: 3, buildTime: 45, armor: BARMOR,
-    los: 8, trains: ['fishing_boat', 'transport_ship', 'penteconter'], navalDropoff: ['food'], shore: true,
+    los: 8, trains: ['fishing_boat', 'transport_ship', 'penteconter', 'merchant_ship'], navalDropoff: ['food'], shore: true, tradeRoute: 'sea',
     age: 0, hotkey: 'I', military: true,
     desc: 'Constrói navios na margem: precisa de mar aberto encostado (2 tiles ou mais) e pode ficar em território seu ou neutro. Barcos de pesca entregam comida aqui.' },
   academy: { id: 'academy',

@@ -1,6 +1,6 @@
 // Inteligência artificial dos oponentes: economia, construção, pesquisa, avanço de idade,
 // exército (defesa, ondas de ataque, recuo) e uso de poderes divinos. Pensa a cada N segundos.
-import { DIFFICULTIES, TICK_RATE, NODE_RESOURCE, NOT_GATHERED, SHIP_NODES, WELL_NODES, RESOURCES, MARKET_TRADE_LOT, OIL_FROM_AGE, MERCHANT_MAX_AI, CARAVAN_TARGET_AI, type ResourceType } from '../constants';
+import { DIFFICULTIES, TICK_RATE, NODE_RESOURCE, NOT_GATHERED, SHIP_NODES, WELL_NODES, RESOURCES, MARKET_TRADE_LOT, OIL_FROM_AGE, MERCHANT_MAX_AI, CARAVAN_TARGET_AI, MERCHANT_SHIP_TARGET_AI, type ResourceType } from '../constants';
 import { rectReachable, wouldSeal } from '../map/components';
 import { findPathEx, nearestFreeTile } from '../map/pathfinding';
 import { AGES, BUILDINGS, LINES, LINE_ORDER, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS } from '../data';
@@ -157,23 +157,28 @@ function manageMerchants(state: GameState, player: Player, snap: Snapshot): void
   if (canTrain(state, player, market, 'merchant').ok) applyCommand(state, { type: 'train', player: player.id, buildingId: market.id, unit: 'merchant' });
 }
 
-/** E5: caravanas até a meta da Era, só com rota válida; cada caravana ociosa vai para a rota mais longa. Fora de cenário (D8). */
+/** E5: caravanas (Mercado) e navios mercantes (Estaleiro) até a meta da Era, só com rota válida; cada um ocioso vai para a
+ *  rota mais longa. Fora de cenário (D8). */
 function manageCaravans(state: GameState, player: Player, snap: Snapshot): void {
   if (state.scenario) return;
+  tradeFleet(state, player, snap, 'land', 'market', 'caravan', CARAVAN_TARGET_AI);
+  if (navalOn(state)) tradeFleet(state, player, snap, 'sea', 'shipyard', 'merchant_ship', MERCHANT_SHIP_TARGET_AI);
+}
+function tradeFleet(state: GameState, player: Player, snap: Snapshot, kind: 'land' | 'sea', buildingType: string, unit: string, targets: readonly number[]): void {
   const mine: Unit[] = [];
-  for (const u of state.units.values()) if (u.owner === player.id && !u.dead && UNITS[u.type].trader === 'land') mine.push(u);
+  for (const u of state.units.values()) if (u.owner === player.id && !u.dead && UNITS[u.type].trader === kind) mine.push(u);
   for (const u of mine) {
     if (u.state !== 'idle' || u.order) continue;
-    const r = bestRoute(state, player.id, 'land', u.x, u.y);
+    const r = bestRoute(state, player.id, kind, u.x, u.y);
     if (r) applyCommand(state, { type: 'route', player: player.id, ids: [u.id], targetId: r.dest.id });
   }
-  const market = (snap.byType.get('market') ?? []).find((b) => b.complete && b.queue.length < 2);
-  if (!market) return;
-  const queued = snap.buildings.reduce((n, b) => n + b.queue.filter((q) => q.kind === 'unit' && q.id === 'caravan').length, 0);
-  if (mine.length + queued >= (CARAVAN_TARGET_AI[player.age] ?? 0) || savingForAge(state, player)) return;
-  const spot = findSpawnTile(state, market);
-  if (!bestRoute(state, player.id, 'land', spot.x, spot.y)) return;   // sem rota possível, não treina
-  if (canTrain(state, player, market, 'caravan').ok) applyCommand(state, { type: 'train', player: player.id, buildingId: market.id, unit: 'caravan' });
+  const post = (snap.byType.get(buildingType) ?? []).find((b) => b.complete && b.queue.length < 2);
+  if (!post) return;
+  const queued = snap.buildings.reduce((n, b) => n + b.queue.filter((q) => q.kind === 'unit' && q.id === unit).length, 0);
+  if (mine.length + queued >= (targets[player.age] ?? 0) || savingForAge(state, player)) return;
+  const spot = findSpawnTile(state, post, undefined, undefined, kind === 'sea' ? 'naval' : 'land');   // onde a unidade nasce
+  if (!bestRoute(state, player.id, kind, spot.x, spot.y)) return;   // sem rota possível, não treina
+  if (canTrain(state, player, post, unit).ok) applyCommand(state, { type: 'train', player: player.id, buildingId: post.id, unit });
 }
 
 // ---------------- Economia ----------------

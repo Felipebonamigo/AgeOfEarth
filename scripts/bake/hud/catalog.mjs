@@ -52,7 +52,7 @@ export const TECH_ICONS = {
 /** E4: ícones dos navios (unit/<id>): o objeto `ship` de hud-objects.js com a flâmula do time, até a E8 trazer os rigs. */
 const S = (params) => ({ ...O('ship', params), team: true });
 export const SHIP_ICONS = {
-  fishing_boat: S({ kind: 'fishing' }), transport_ship: S({ kind: 'transport' }),
+  fishing_boat: S({ kind: 'fishing' }), transport_ship: S({ kind: 'transport' }), merchant_ship: S({ kind: 'transport' }),
   penteconter: S({ kind: 'galley' }), trireme: S({ kind: 'galley', ram: true }), quinquereme: S({ kind: 'galley', ram: true }),
   dromon: S({ kind: 'dromon' }), galleon: S({ kind: 'sail' }), ship_of_the_line: S({ kind: 'sail' }),
   ironclad: S({ kind: 'steam' }), battleship: S({ kind: 'battleship' }),

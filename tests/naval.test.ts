@@ -135,11 +135,11 @@ describe('E4 — Estaleiro', () => {
     expect(navalOn(s3)).toBe(true);
     expect(canPlaceBuilding(s3, s3.players[0], 'shipyard', spot.tx, spot.ty, true).reason).not.toBe(t('err.navalOff'));
   });
-  it('treina pesca, transporte e navio de guerra pelas linhas (Q, W, E); no elenco clássico, os 3 do trains', () => {
+  it('treina pesca, transporte e navio de guerra pelas linhas (Q, W, E) e o mercante (M, E5); no elenco clássico, os do trains', () => {
     const s = naval();
     const y = shipyardAt(s);
     const ch = trainChoices(s, s.players[0], 'shipyard');
-    expect(ch.map((c) => [c.line?.id, c.show, c.hotkey])).toEqual([['fishing', 'fishing_boat', 'Q'], ['transport', 'transport_ship', 'W'], ['warship', 'penteconter', 'E']]);
+    expect(ch.map((c) => [c.line?.id, c.show, c.hotkey])).toEqual([['fishing', 'fishing_boat', 'Q'], ['transport', 'transport_ship', 'W'], ['warship', 'penteconter', 'E'], [undefined, 'merchant_ship', 'M']]);
     s.players[0].resources.wood = 5000; s.players[0].resources.gold = 5000;
     expect(canTrain(s, s.players[0], y, 'fishing_boat').ok).toBe(true);
     const s2 = naval({ unitLines: false });
@@ -301,7 +301,7 @@ describe('E4 — gerador dos mapas com mar', () => {
 describe('E4 — dados', () => {
   it('10 navios, 3 linhas, 4 pesquisas do Estaleiro e as linhas "a vapor"', () => {
     const ships = Object.values(UNITS).filter((u) => u.naval);
-    expect(ships).toHaveLength(10);
+    expect(ships).toHaveLength(11);   // 10 da E4 + o navio mercante da E5
     expect(LINES.warship.steps.filter(Boolean)).toHaveLength(8);
     for (const id of ['fishing_nets', 'caulking', 'bronze_rams', 'navigation']) { expect(TECHS[id].building).toBe('shipyard'); expect(TECHS[id].line).toBeUndefined(); }
     expect(TECHS.evo_fishing_7.evolve).toEqual({ line: 'fishing', to: 'fishing_boat' });

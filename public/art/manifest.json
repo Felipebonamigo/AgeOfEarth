@@ -181,10 +181,10 @@
    "scale": 1,
    "page": 0,
    "w": 2048,
-   "h": 544,
-   "frames": 181,
-   "bytes": 723464,
-   "sha256": "4323af77c2ef4b0af3384397600f473ad9c4fea10308e0b31a3d746cc3ad4524"
+   "h": 512,
+   "frames": 182,
+   "bytes": 726144,
+   "sha256": "edc2526020ce386c0883b5221655cb7f9d7da9ff63f876830f6bfcec80463e4b"
   },
   {
    "json": "hud-1x-team-0.json",
@@ -194,10 +194,10 @@
    "scale": 1,
    "page": 0,
    "w": 2048,
-   "h": 544,
-   "frames": 79,
-   "bytes": 62342,
-   "sha256": "309ffe27677eb7a8b74eb09bfedf1f7fa0850f98034ab5a3036043a4cd16f210"
+   "h": 512,
+   "frames": 80,
+   "bytes": 62142,
+   "sha256": "a4a5e60442b7b5cba1e06c3e78fc0031fe59e27d07e5c502410e552d0104ba2d"
   },
   {
    "json": "hud-2x-0.json",
@@ -207,10 +207,10 @@
    "scale": 2,
    "page": 0,
    "w": 2048,
-   "h": 1760,
-   "frames": 181,
-   "bytes": 2081901,
-   "sha256": "a5e4e72421bdc2c695d041c73a8d617da80d2e18c8a5c9ac3c6f71c74b428f52"
+   "h": 1696,
+   "frames": 182,
+   "bytes": 2087163,
+   "sha256": "28f48ce014b8a738665cb0807cefad44b239507c3ca73776f5e95e3c1d3a5f70"
   },
   {
    "json": "hud-2x-team-0.json",
@@ -220,10 +220,10 @@
    "scale": 2,
    "page": 0,
    "w": 2048,
-   "h": 1760,
-   "frames": 79,
-   "bytes": 153741,
-   "sha256": "c43e38028e7e9f16a25b06219b215edb456ef64debc3194920547d85cb6d4203"
+   "h": 1696,
+   "frames": 80,
+   "bytes": 153357,
+   "sha256": "32a85c1923389e699ce848c51f5d687524e4e0a8b1b5fe6fec308f89959227dc"
   },
   {
    "json": "icons-1x-0.json",
@@ -4190,12 +4190,12 @@
   "hud": {
    "kind": "hud",
    "group": "hud",
-   "sourceHash": "79b32bd8491ca044",
+   "sourceHash": "745aab4178e55388",
    "dirs": 1,
    "mirror": false,
    "team": true,
    "shadow": false,
-   "frames": 181,
+   "frames": 182,
    "items": [
     "ability/cunning",
     "ability/fury",
@@ -4358,6 +4358,7 @@
     "unit/kataskopos",
     "unit/manticore",
     "unit/medusa",
+    "unit/merchant_ship",
     "unit/militia",
     "unit/minotaur",
     "unit/myrmidon",
@@ -4439,6 +4440,7 @@
     "unit/kataskopos",
     "unit/manticore",
     "unit/medusa",
+    "unit/merchant_ship",
     "unit/militia",
     "unit/minotaur",
     "unit/myrmidon",
@@ -8341,8 +8343,8 @@
   }
  },
  "totals": {
-  "pngBytes": 117312627,
-  "vramBytes": 731213824,
+  "pngBytes": 117319985,
+  "vramBytes": 729640960,
   "atlases": 148
  }
 }
