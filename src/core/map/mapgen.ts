@@ -1,11 +1,11 @@
 // Geração procedural de mapas: lagos, montanhas, florestas, veios de ouro, frutas e caça,
 // com áreas iniciais justas e garantia de conectividade entre todos os jogadores.
-import { RARE_NODES, TERRAIN, type NodeType, type MapType } from '../constants';
+import { NAVAL_MAP_TYPES, RARE_NODES, TERRAIN, type NodeType, type MapType } from '../constants';
 import { RNG, makeNoise } from '../rng';
 import type { GameMap, ResourceNode } from '../types';
 import { idx, inBounds, dist } from './grid';
-import { articulationPoints, invalidateComponents, wouldSeal } from './components';
-import { isLandBlockedTerrain, isUnbuildableTerrain, nodeFitsTerrain } from './naval';
+import { articulationPoints, componentAt, componentSize, invalidateComponents, wouldSeal } from './components';
+import { isLandBlockedTerrain, isOpenWater, isUnbuildableTerrain, MIN_DOCK_WATER, nodeFitsTerrain } from './naval';
 
 /** Quantidade padrão de recurso por tipo de nó (editor: valor inicial ao colocar um nó). */
 export const NODE_AMOUNT: Record<NodeType, number> = {
@@ -37,6 +37,14 @@ export function generateMap(w: number, h: number, seed: number, playerCount: num
   const elev = makeNoise(seed);
   const forest = makeNoise(seed + 101);
   const decorN = makeNoise(seed + 202);
+  // E4: formas de mar (protótipo de 06/10/2026: 270 mapas por tipo, nenhum início sem lugar de Estaleiro, mar único).
+  // Os inícios saem ANTES do terreno (o primeiro rng.float() é o mesmo de antes; os 5 tipos de hoje não passam por aqui).
+  const naval = NAVAL_MAP_TYPES.has(mapType);
+  const early = naval ? circleStarts(w, h, playerCount, rng.float()) : null;
+  const seaN = naval ? makeNoise(seed + 303) : null;
+  const mcx = w / 2, mcy = h / 2, R = Math.min(w, h) * 0.36;
+  const islandR = Math.max(13, Math.min(22, Math.round(Math.min(w, h) * 0.16)));
+  const centers = (early ?? []).map((s) => { const dx = mcx - s.x, dy = mcy - s.y, l = Math.sqrt(dx * dx + dy * dy) || 1; return { x: s.x + (dx / l) * (islandR - 9.5), y: s.y + (dy / l) * (islandR - 9.5) }; });
   const terrain = new Uint8Array(w * h);
   const decor = new Uint8Array(w * h);
   const map: GameMap = { w, h, terrain, blocked: new Uint8Array(w * h), nodeAt: new Int32Array(w * h).fill(-1), buildingAt: new Int32Array(w * h).fill(-1), gateTeam: new Int8Array(w * h).fill(-1), nodes: new Map(), starts: [], decor };
@@ -47,19 +55,28 @@ export function generateMap(w: number, h: number, seed: number, playerCount: num
     const e = elev.fbm(x * scale, y * scale, 5, 2.1, 0.5);
     const i = idx(map, x, y);
     let t: number = P.base;
-    if (e < P.water) t = TERRAIN.WATER;
+    if (e < P.water) t = naval ? TERRAIN.GRASS : TERRAIN.WATER;
     else if (e < P.sand) t = TERRAIN.SAND;
     else if (e > P.mountain) t = TERRAIN.MOUNTAIN;
     else if (e > P.dirt) t = TERRAIN.DIRT;
+    if (seaN) {
+      const n = (seaN.fbm(x * 0.08, y * 0.08, 3) - 0.5) * 2;
+      const r = Math.sqrt((x + 0.5 - mcx) * (x + 0.5 - mcx) + (y + 0.5 - mcy) * (y + 0.5 - mcy));
+      if (mapType === 'coastal') { if (r > R + 10 + n * 1.5 || Math.min(x, y, w - 1 - x, h - 1 - y) < 3) t = TERRAIN.WATER; }
+      else if (mapType === 'mediterranean') { if (r < R - 10 + n * 1.5) t = TERRAIN.WATER; }
+      else if (!centers.some((c) => { const dx = x + 0.5 - c.x, dy = y + 0.5 - c.y; return Math.sqrt(dx * dx + dy * dy) < islandR + n * 1.5; })) t = TERRAIN.WATER;
+    }
     terrain[i] = t;
     decor[i] = Math.floor(decorN.noise(x * 0.9, y * 0.9) * 255);
   }
+  // E4: montanha perto dos inícios vira terra (o início não nasce preso)
+  if (early) for (const s of early) for (let dy = -14; dy <= 14; dy++) for (let dx = -14; dx <= 14; dx++) { const x = s.x + dx, y = s.y + dy; if (!inBounds(map, x, y) || dx * dx + dy * dy > 13.5 * 13.5) continue; const i = idx(map, x, y); if (terrain[i] === TERRAIN.MOUNTAIN) terrain[i] = TERRAIN.DIRT; }
   // Água profunda: água cercada de água
   deriveDeepWater(map);
 
   // 2) Posições iniciais em círculo ao redor do centro, com rotação aleatória
   // (sem trigonometria na simulação: pontos pré-calculados de um círculo unitário com 32 direções)
-  for (const s of circleStarts(w, h, playerCount, rng.float())) map.starts.push(s);
+  for (const s of early ?? circleStarts(w, h, playerCount, rng.float())) map.starts.push(s);
   // Limpa área inicial (raio 8) para grama
   for (const s of map.starts) {
     for (let dy = -9; dy <= 9; dy++) for (let dx = -9; dx <= 9; dx++) {
@@ -79,7 +96,7 @@ export function generateMap(w: number, h: number, seed: number, playerCount: num
   }
 
   // 4) Recursos garantidos perto de cada início
-  for (const s of map.starts) placeStartResources(map, rng, s);
+  for (const s of map.starts) placeStartResources(map, rng, s, naval ? landwardIndex(map, s, mapType) : undefined);
 
   // 5) Recursos espalhados pelo mapa
   const extra = Math.round((w * h) / 900);
@@ -107,13 +124,14 @@ export function generateMap(w: number, h: number, seed: number, playerCount: num
     }
     rebuildBlocked(map);
     map.starts.push({ x: cx0, y: cy0 });
-    ensureConnectivity(map);
+    ensureConnectivity(map, mapType === 'islands' ? TERRAIN.SHALLOWS : TERRAIN.SAND);   // E4 (D16): ilhas ligadas por baixio
     map.starts.pop();
   }
-  ensureConnectivity(map);
+  if (mapType !== 'islands') ensureConnectivity(map);   // E4: nas Ilhas os inícios ficam separados por mar
   rebuildBlocked(map);
   widenChokepoints(map);
   placeEraResources(map, seed, clearCenter);
+  placeNavalResources(map, seed, mapType);
   return map;
 }
 
@@ -152,9 +170,9 @@ export function circleStarts(w: number, h: number, count: number, rot: number): 
 }
 
 /** Recursos garantidos ao redor de um início: bosque a ~9 tiles, 2 grupos de frutas, 2 veios de ouro e caça (consome o rng). */
-export function placeStartResources(map: GameMap, rng: RNG, s: { x: number; y: number }): void {
+export function placeStartResources(map: GameMap, rng: RNG, s: { x: number; y: number }, angle?: number): void {
   // bosque garantido a ~8-10 tiles
-  const ang = rng.int(0, 31);
+  const ang = angle ?? rng.int(0, 31);
   placeCluster(map, rng, 'tree', s.x + Math.round(CIRCLE32[ang][0] * 9), s.y + Math.round(CIRCLE32[ang][1] * 9), 4.2, 28);
   // frutas: 2 grupos
   for (let k = 0; k < 2; k++) {
@@ -169,6 +187,71 @@ export function placeStartResources(map: GameMap, rng: RNG, s: { x: number; y: n
   // caça
   const da = (ang + 26 + rng.int(-3, 3)) % 32;
   placeCluster(map, rng, 'deer', s.x + Math.round(CIRCLE32[da][0] * 9), s.y + Math.round(CIRCLE32[da][1] * 9), 1.6, 4);
+}
+
+/** Índice de CIRCLE32 mais alinhado com o vetor início → centro do mapa (sem empate: os inícios não ficam no centro). */
+function towardCenterIndex(map: GameMap, s: { x: number; y: number }): number {
+  const dx = map.w / 2 - s.x, dy = map.h / 2 - s.y;
+  let best = 0, bv = -Infinity;
+  for (let k = 0; k < 32; k++) { const v = CIRCLE32[k][0] * dx + CIRCLE32[k][1] * dy; if (v > bv) { bv = v; best = k; } }
+  return best;
+}
+/** E4: direção da terra (bosque, frutas e ouro iniciais não caem no mar) e do mar (peixe) por tipo naval. */
+function landwardIndex(map: GameMap, s: { x: number; y: number }, type: MapType): number { const c = towardCenterIndex(map, s); return type === 'mediterranean' ? (c + 8) % 32 : c; }
+function seawardIndex(map: GameMap, s: { x: number; y: number }, type: MapType): number { const c = towardCenterIndex(map, s); return type === 'mediterranean' ? c : (c + 16) % 32; }
+
+/** E4: cardumes e atum nos tipos com mar, com RNG próprio, depois de toda a geração (não mexe em nenhum nó antigo). */
+export function placeNavalResources(map: GameMap, seed: number, mapType: MapType): void {
+  if (!NAVAL_MAP_TYPES.has(mapType)) return;
+  const rng = new RNG((seed ^ 0x6a09e667) >>> 0);
+  const bigSea = (x: number, y: number): boolean => inBounds(map, x, y) && isOpenWater(map.terrain[idx(map, x, y)]) && map.nodeAt[idx(map, x, y)] === -1 && componentSize(map, componentAt(map, x, y, 'naval'), 'naval') >= MIN_DOCK_WATER;
+  const free = (x: number, y: number): boolean => {
+    if (!bigSea(x, y)) return false;
+    let open = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && bigSea(x + dx, y + dy)) open++;
+    return open >= 5;   // cardume no meio da água, com vaga para 2 barcos
+  };
+  const cluster = (type: NodeType, cx: number, cy: number, radius: number, count: number): number => {
+    let placed = 0, tries = 0;
+    while (placed < count && tries++ < count * 12) {
+      const x = Math.round(cx + rng.range(-radius, radius)), y = Math.round(cy + rng.range(-radius, radius));
+      if ((x - cx) * (x - cx) + (y - cy) * (y - cy) > radius * radius + 1 || !free(x, y)) continue;
+      if (addNode(map, type, x, y)) placed++;
+    }
+    return placed;
+  };
+  const at = (s: { x: number; y: number }, a: number, r: number): [number, number] => { const k = ((a % 32) + 32) % 32; return [s.x + Math.round(CIRCLE32[k][0] * r), s.y + Math.round(CIRCLE32[k][1] * r)]; };
+  const around = (s: { x: number; y: number }, type: NodeType, a: number, r: number, radius: number, count: number): number => {
+    let placed = 0;
+    for (const k of [0, 1, -1, 2, -2, 3, -3]) { if (placed >= count) break; placed += cluster(type, ...at(s, a + k, r), radius, count - placed); }
+    return placed;
+  };
+  const FISH_PER_START = 9;
+  for (const s of map.starts) {
+    const sea = seawardIndex(map, s, mapType);
+    let placed = 0, tuna = false;
+    // direção do mar; se ela não comportar os 9 peixes (Ilhas 80×80: atrás de uma ilha alinhada a um eixo sobra ~1,7
+    // tile de mar), os lados e o lado oposto completam — r0 ≤ 20, para os cardumes caberem em FISH_RADIUS (24)
+    for (const dir of [sea, sea + 8, sea - 8, sea + 16]) {
+      if (placed >= FISH_PER_START) break;
+      let r0 = -1;
+      for (let r = 6; r <= 20; r++) { const [x, y] = at(s, dir, r); if (bigSea(x, y)) { r0 = r; break; } }
+      if (r0 < 0) continue;
+      for (const [k, dr] of [[0, 2.5], [4, 3], [-4, 3]] as const) {
+        if (placed >= FISH_PER_START) break;
+        placed += around(s, 'fish', dir + k, r0 + dr, 1.6, Math.min(3, FISH_PER_START - placed));
+      }
+      if (!tuna) tuna = around(s, 'rare_fish', dir, r0 + 8, 2.0, 1) > 0;
+    }
+  }
+  let seaTiles = 0;
+  for (let i = 0; i < map.w * map.h; i++) if (isOpenWater(map.terrain[i])) seaTiles++;
+  const extra = Math.round(seaTiles / 450);
+  for (let k = 0; k < extra; k++) {
+    const x = rng.int(4, map.w - 5), y = rng.int(4, map.h - 5);
+    if (map.starts.some((s) => dist(s.x, s.y, x, y) < 20)) continue;
+    cluster('fish', x, y, 1.6, 3);
+  }
 }
 
 function clampi(v: number, lo: number, hi: number) { return v < lo ? lo : v > hi ? hi : v; }

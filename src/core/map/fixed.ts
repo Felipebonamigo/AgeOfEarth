@@ -2,12 +2,13 @@
 // e carregamento de volta. Terreno e decoração vão em base64 de bytes (sem depender de btoa/Buffer); nós como listas.
 // Também: forma canônica, hash de identificação, validação (erros/avisos), mapa em branco, migração e saveMap.
 // Tudo determinístico (só state.rng/makeNoise): o arquivo é a única fonte da verdade; blocked/nodeAt/ids são derivados.
-import { MAX_FIXED_RELICS, MAX_PLAYERS, RARE_SET, TERRAIN, type GameMode, type NodeType } from '../constants';
+import { MAX_FIXED_RELICS, MAX_PLAYERS, RARE_SET, SHIP_NODES, TERRAIN, type GameMode, type NodeType } from '../constants';
 import { BUILDINGS, UNITS } from '../data';
 import { RNG, makeNoise } from '../rng';
 import type { GameMap, GameState } from '../types';
 import { addNode, circleStarts, deriveDeepWater, NODE_AMOUNT, rebuildBlocked } from './mapgen';
-import { articulationPoints, componentAt, componentSize } from './components';
+import { articulationPoints, componentAt, componentSize, shoreOk } from './components';
+import { isLandBlockedTerrain, isNavigableTerrain, isOpenWater, isUnbuildableTerrain, MIN_DOCK_WATER, nodeFitsTerrain } from './naval';
 import { dist, idx, inBounds, spiralSearch } from './grid';
 import type { ScenarioFile } from '../scenario/schema';
 
@@ -275,8 +276,6 @@ const FOOD_RADIUS = 14, WOOD_RADIUS = 16;   // raios de nearestNode nas ordens i
 const CHOKE_RADIUS = 10, POCKET_TILES = 8, MAIN_COMPONENT_MIN = 0.6;
 const MAX_PER_CODE = 25;         // limite de itens por código (bolsões, nós sem acesso…) para a lista não explodir
 
-const isSolid = (t: number) => t === TERRAIN.WATER || t === TERRAIN.DEEP || t === TERRAIN.MOUNTAIN;
-
 /**
  * Valida um arquivo de mapa (docs/EDITOR.md §2.1). Erros bloqueiam Testar/Iniciar/Import; avisos só informam.
  * opts.players: nº de jogadores da partida; opts.mode: modo (regicide/koth); opts.ai[i]: se o jogador i é IA
@@ -335,7 +334,7 @@ export function validateMap(input: FixedMapData, opts: ValidateOpts = {}): MapIs
     if (amount !== undefined && !(typeof amount === 'number' && Number.isFinite(amount) && amount > 0)) { err('badNodeAmount', x, y, { amount: String(amount) }); continue; }
     if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x >= w || y >= h) { err('nodeOut', x, y); continue; }
     const i = y * w + x;
-    if (isSolid(terrain[i])) { err('nodeOnBlocked', x, y); continue; }
+    if (!nodeFitsTerrain(type, terrain[i])) { err(SHIP_NODES.has(type) ? 'fishOnLand' : 'nodeOnBlocked', x, y); continue; }
     if (nodeAt[i] !== -1) { err('nodeDup', x, y); continue; }
     nodeAt[i] = nodes.length;
     nodes.push({ type, x, y });
@@ -350,7 +349,7 @@ export function validateMap(input: FixedMapData, opts: ValidateOpts = {}): MapIs
       const x = sx + dx, y = sy + dy;
       if (x < 0 || y < 0 || x >= w || y >= h) { bad = true; break; }
       const i = y * w + x;
-      if (isSolid(terrain[i]) || nodeAt[i] !== -1) { bad = true; break; }
+      if (isUnbuildableTerrain(terrain[i]) || nodeAt[i] !== -1) { bad = true; break; }
       if (kitAt[i] !== -1) overlap = true;
     }
     if (bad) err('startBlocked', sx, sy);
@@ -379,7 +378,7 @@ export function validateMap(input: FixedMapData, opts: ValidateOpts = {}): MapIs
       for (let y = e.y; y < e.y + bh && !bad; y++) for (let x = e.x; x < e.x + bw; x++) {
         if (x < 0 || y < 0 || x >= w || y >= h) { bad = true; break; }
         const i = y * w + x;
-        if (isSolid(terrain[i]) || nodeAt[i] !== -1 || buildingAt[i] !== -1 || kitAt[i] !== -1) { bad = true; break; }   // inclui o CC do kit inicial
+        if (isUnbuildableTerrain(terrain[i]) || nodeAt[i] !== -1 || buildingAt[i] !== -1 || kitAt[i] !== -1) { bad = true; break; }   // inclui o CC do kit inicial
       }
       if (bad) { err('entityOverlap', e.x, e.y, { type: e.type }); continue; }
       const bdef = BUILDINGS[e.type];
@@ -392,7 +391,9 @@ export function validateMap(input: FixedMapData, opts: ValidateOpts = {}): MapIs
       if (!bdef.wall && !bdef.farm) baseOf.add(e.owner);
       if (bdef.wonder && e.complete !== false) warn('wonderComplete', e.x, e.y, { type: e.type });
     } else {
-      if (e.x < 0 || e.y < 0 || e.x >= w || e.y >= h || isSolid(terrain[e.y * w + e.x])) err('entityOverlap', e.x, e.y, { type: e.type });
+      if (e.x < 0 || e.y < 0 || e.x >= w || e.y >= h) err('entityOverlap', e.x, e.y, { type: e.type });
+      else if (UNITS[e.type].naval) { if (!isNavigableTerrain(terrain[e.y * w + e.x])) err('shipOnLand', e.x, e.y); }   // E4: navio só na água
+      else if (isLandBlockedTerrain(terrain[e.y * w + e.x])) err('entityOverlap', e.x, e.y, { type: e.type });
       else if (e.type === 'villager') villagerOf.add(e.owner);
     }
   }
@@ -409,18 +410,22 @@ export function validateMap(input: FixedMapData, opts: ValidateOpts = {}): MapIs
   const map: GameMap = { w, h, terrain, blocked: new Uint8Array(n), nodeAt, buildingAt, gateTeam: gateAt, nodes: new Map(), starts: starts.map(([x, y]) => ({ x, y })), decor: new Uint8Array(0) };
   const ents = data.entities ?? [];
   for (let i = 0; i < n; i++) {
-    let blocked = isSolid(terrain[i]) || nodeAt[i] !== -1;
+    let blocked = isLandBlockedTerrain(terrain[i]) || nodeAt[i] !== -1;
     if (!blocked && buildingAt[i] !== -1) { const e = ents[buildingAt[i]]; blocked = !BUILDINGS[e.type]?.passable; }
     map.blocked[i] = blocked ? 1 : 0;
   }
   // com kit inicial, o CC 3x3 também bloqueia
   if (kit) for (const [sx, sy] of starts) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inBounds(map, sx + dx, sy + dy)) map.blocked[idx(map, sx + dx, sy + dy)] = 1;
+  // E4: edifício de margem (Estaleiro) sem mar aberto encostado
+  for (const e of ents) if (e && e.kind === 'building' && BUILDINGS[e.type]?.shore && Number.isInteger(e.x) && Number.isInteger(e.y) && !shoreOk(map, e.x, e.y, BUILDINGS[e.type].w, BUILDINGS[e.type].h)) err('shoreNoWater', e.x, e.y);
 
-  const accessTiles = (x: number, y: number): number => {
+  const accessTiles = (x: number, y: number, ship = false): number => {
     let c = 0;
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
       if (dx === 0 && dy === 0) continue;
-      if (inBounds(map, x + dx, y + dy) && map.blocked[idx(map, x + dx, y + dy)] === 0) c++;
+      if (!inBounds(map, x + dx, y + dy)) continue;
+      const j = idx(map, x + dx, y + dy);
+      if (ship ? (isNavigableTerrain(terrain[j]) && nodeAt[j] === -1) : map.blocked[j] === 0) c++;   // E4: peixe se alcança pelo mar
     }
     return c;
   };
@@ -429,7 +434,17 @@ export function validateMap(input: FixedMapData, opts: ValidateOpts = {}): MapIs
   const startComp = starts.map(([sx, sy]) => { const t = startTile(sx, sy); return t ? componentAt(map, t.x, t.y) : -1; });
 
   // inícios em regiões diferentes
-  for (let p = 1; p < starts.length; p++) if (startComp[p] !== startComp[0]) warn('startsDisconnected', starts[p][0], starts[p][1], { start: p + 1 });
+  // E4: início sem caminho por terra até o 1 — avisa só se também não houver o mesmo mar grande (Ilhas são válidas);
+  // lagos diferentes entre inícios ligados por terra não importam (o Estreito tem um lago de 190 tiles perto de cada início)
+  const seaComp = starts.map(([sx, sy]) => seaOfStart(map, sx, sy));
+  for (let p = 1; p < starts.length; p++) {
+    if (startComp[p] === startComp[0]) continue;
+    if (seaComp[p] >= 0 && seaComp[p] === seaComp[0]) continue;
+    if (seaComp[p] >= 0 && seaComp[0] >= 0) warn('seasApart', starts[p][0], starts[p][1], { start: p + 1 });
+    else warn('startsDisconnected', starts[p][0], starts[p][1], { start: p + 1 });
+  }
+  const sites = starts.map(([sx, sy]) => hasShipyardSite(map, sx, sy));
+  if (sites.some(Boolean)) starts.forEach(([sx, sy], p) => { if (!sites[p]) warn('noShipyardSite', sx, sy, { start: p + 1 }); });
 
   // gargalos perto de um início (o ponto de articulação mais próximo de cada início)
   if (starts.length > 0) {
@@ -464,7 +479,7 @@ export function validateMap(input: FixedMapData, opts: ValidateOpts = {}): MapIs
   if (passable > 0 && largest < passable * MAIN_COMPONENT_MIN) warn('mainComponentSmall', undefined, undefined, { percent: Math.round((largest / passable) * 100) });
 
   // nós sem acesso (árvores no meio de um bosque são normais; os demais tipos precisam de um tile livre ao lado)
-  for (const nd of nodes) if (nd.type !== 'tree' && accessTiles(nd.x, nd.y) === 0) warn('nodeNoAccess', nd.x, nd.y, { type: nd.type });
+  for (const nd of nodes) if (nd.type !== 'tree' && accessTiles(nd.x, nd.y, SHIP_NODES.has(nd.type)) === 0) warn('nodeNoAccess', nd.x, nd.y, { type: nd.type });
 
   // comida/madeira ao alcance das ordens iniciais (só nós acessíveis, como nearestNode)
   if (kit) for (let p = 0; p < starts.length; p++) {
@@ -518,9 +533,34 @@ export function validateMap(input: FixedMapData, opts: ValidateOpts = {}): MapIs
 // Recursos por início (tabela do editor, mapas oficiais, testes de simetria)
 // ---------------------------------------------------------------------------------------------------------------
 
+/** E4: raio de busca do lugar de Estaleiro e do peixe por início (a costa do Egeu fica a ~19 tiles). */
+export const SHIPYARD_SITE_RADIUS = 24, FISH_RADIUS = 24;
+/** E4: há lugar para um Estaleiro 3×3 a até r do início (pegada livre e construível, mar aberto encostado)? */
+export function hasShipyardSite(map: GameMap, sx: number, sy: number, r = SHIPYARD_SITE_RADIUS): boolean {
+  for (let ty = sy - r; ty <= sy + r - 2; ty++) for (let tx = sx - r; tx <= sx + r - 2; tx++) {
+    if (dist(tx + 1.5, ty + 1.5, sx + 0.5, sy + 0.5) > r) continue;
+    let ok = true;
+    for (let y = ty; y < ty + 3 && ok; y++) for (let x = tx; x < tx + 3; x++) { if (!inBounds(map, x, y)) { ok = false; break; } const i = idx(map, x, y); if (isUnbuildableTerrain(map.terrain[i]) || map.blocked[i] !== 0) { ok = false; break; } }
+    if (ok && shoreOk(map, tx, ty, 3, 3)) return true;
+  }
+  return false;
+}
+/** E4: região naval do mar grande (≥ MIN_DOCK_WATER) mais perto do início, a até r; -1 se nenhum. */
+export function seaOfStart(map: GameMap, sx: number, sy: number, r = SHIPYARD_SITE_RADIUS): number {
+  let best = -1, bd = Infinity;
+  for (let y = sy - r; y <= sy + r; y++) for (let x = sx - r; x <= sx + r; x++) {
+    if (!inBounds(map, x, y) || !isOpenWater(map.terrain[idx(map, x, y)])) continue;
+    const c = componentAt(map, x, y, 'naval');
+    if (c < 0 || componentSize(map, c, 'naval') < MIN_DOCK_WATER) continue;
+    const d = (x - sx) * (x - sx) + (y - sy) * (y - sy);
+    if (d < bd) { bd = d; best = c; }   // o rótulo só serve para comparar inícios: empate não muda o resultado
+  }
+  return best;
+}
+
 /** Raio padrão da tabela de recursos por início (o mesmo da madeira nas ordens iniciais de createGame). */
 export const START_RESOURCE_RADIUS = 16;
-export interface StartResources { food: number; wood: number; gold: number; stone: number; oil: number; rare: number; foodNodes: number; woodNodes: number; goldNodes: number; stoneNodes: number; oilNodes: number }
+export interface StartResources { food: number; wood: number; gold: number; stone: number; oil: number; rare: number; fish: number; foodNodes: number; woodNodes: number; goldNodes: number; stoneNodes: number; oilNodes: number; fishNodes: number }
 type NodeLike = { type: string; x: number; y: number; amount: number };
 
 /**
@@ -528,10 +568,11 @@ type NodeLike = { type: string; x: number; y: number; amount: number };
  * até `radius` tiles (distância euclidiana entre tiles, como validateMap). Aceita os nós de um GameMap ou de um arquivo.
  */
 export function startResourceTable(starts: readonly { x: number; y: number }[], nodes: Iterable<NodeLike>, radius = START_RESOURCE_RADIUS): StartResources[] {
-  const out = starts.map((): StartResources => ({ food: 0, wood: 0, gold: 0, stone: 0, oil: 0, rare: 0, foodNodes: 0, woodNodes: 0, goldNodes: 0, stoneNodes: 0, oilNodes: 0 }));
-  const r2 = radius * radius;
+  const out = starts.map((): StartResources => ({ food: 0, wood: 0, gold: 0, stone: 0, oil: 0, rare: 0, fish: 0, foodNodes: 0, woodNodes: 0, goldNodes: 0, stoneNodes: 0, oilNodes: 0, fishNodes: 0 }));
+  const r2 = radius * radius, rf2 = Math.max(radius, FISH_RADIUS) ** 2;   // E4: o peixe conta num raio maior (a costa do Egeu fica a ~19 tiles)
   for (const n of nodes) {
     if (RARE_SET.has(n.type)) { starts.forEach((s, i) => { const dx = n.x - s.x, dy = n.y - s.y; if (dx * dx + dy * dy <= r2) out[i].rare++; }); continue; }
+    if (n.type === 'fish') { const amountF = Math.round(n.amount); starts.forEach((s, i) => { const dx = n.x - s.x, dy = n.y - s.y; if (dx * dx + dy * dy <= rf2) { out[i].fish += amountF; out[i].fishNodes++; } }); continue; }
     const kind = n.type === 'tree' ? 'wood' : n.type === 'gold' ? 'gold' : n.type === 'limestone' ? 'stone' : n.type === 'naphtha' || n.type === 'oil_field' ? 'oil' : FOOD_NODES.has(n.type) ? 'food' : null;
     if (!kind) continue;
     const amount = Math.round(n.amount);
@@ -682,7 +723,7 @@ function pocketBoundedByTerrain(map: GameMap, sx: number, sy: number, label: num
       const nx = x + dx, ny = y + dy;
       if (!inBounds(map, nx, ny)) continue;
       const ni = idx(map, nx, ny);
-      if (map.blocked[ni]) { if (isSolid(map.terrain[ni]) || map.buildingAt[ni] !== -1) return true; continue; }
+      if (map.blocked[ni]) { if (isLandBlockedTerrain(map.terrain[ni]) || map.buildingAt[ni] !== -1) return true; continue; }
       if (seen.has(ni) || componentAt(map, nx, ny) !== label) continue;
       seen.add(ni); stack.push(ni);
     }

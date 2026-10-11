@@ -1,5 +1,5 @@
 // Exporta um mapa gerado por semente como arquivo fixo canônico (.map.json), para embutidos, fixtures e testes.
-// Uso: npx tsx scripts/export-map.ts <saida.map.json> [--size small|medium|large] [--seed N] [--type continental|mountains|forest|desert|lakes] [--players N] [--name "..."]
+// Uso: npx tsx scripts/export-map.ts <saida.map.json> [--size small|medium|large] [--seed N] [--type continental|mountains|forest|desert|lakes|coastal|islands|mediterranean] [--players N] [--name "..."]
 import fs from 'node:fs';
 import { MAP_SIZES, MAP_TYPES, type MapSize, type MapType } from '../src/core/constants';
 import { generateMap, resetNodeSeq } from '../src/core/map/mapgen';
@@ -16,7 +16,7 @@ for (let i = 0; i < args.length; i++) {
 const out = positional.length === 1 ? positional[0] : undefined;
 const opt = (name: string, def: string): string => opts.get(name) ?? def;
 if (!out) {
-  console.error('Uso: npx tsx scripts/export-map.ts <saida.map.json> [--size small|medium|large] [--seed N] [--type continental|mountains|forest|desert|lakes] [--players N] [--name "..."]');
+  console.error('Uso: npx tsx scripts/export-map.ts <saida.map.json> [--size small|medium|large] [--seed N] [--type continental|mountains|forest|desert|lakes|coastal|islands|mediterranean] [--players N] [--name "..."]');
   process.exit(1);
 }
 const size = opt('size', 'small') as MapSize;
