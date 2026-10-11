@@ -4,21 +4,23 @@
 // Portões contam como passáveis (otimista para inimigos; o A* por time decide o caminho real).
 import type { GameMap } from '../types';
 import { idx, inBounds } from './grid';
+import { invalidateNaval, isOpenWater, navalBlocked, MIN_DOCK_WATER, type Layer } from './naval';
 
 interface Components { labels: Int32Array; sizes: number[] }
 const cache = new WeakMap<GameMap, Components>();
+const navalCache = new WeakMap<GameMap, Components>();   // E4: regiões do mar
 
-export function invalidateComponents(map: GameMap): void { cache.delete(map); }
+export function invalidateComponents(map: GameMap): void { cache.delete(map); navalCache.delete(map); invalidateNaval(map); }
 
 const passable = (map: GameMap, i: number): boolean => map.blocked[i] === 0 || map.gateTeam[i] >= 0;
 
-function compute(map: GameMap): Components {
+function compute(map: GameMap, pass: (i: number) => boolean): Components {
   const n = map.w * map.h;
   const labels = new Int32Array(n).fill(-1);
   const sizes: number[] = [];
   const stack: number[] = [];
   for (let s = 0; s < n; s++) {
-    if (labels[s] !== -1 || !passable(map, s)) continue;
+    if (labels[s] !== -1 || !pass(s)) continue;
     const label = sizes.length;
     let size = 0;
     labels[s] = label; stack.push(s);
@@ -26,37 +28,42 @@ function compute(map: GameMap): Components {
       const c = stack.pop()!;
       size++;
       const x = c % map.w, y = (c - x) / map.w;
-      if (x > 0) { const i = c - 1; if (labels[i] === -1 && passable(map, i)) { labels[i] = label; stack.push(i); } }
-      if (x < map.w - 1) { const i = c + 1; if (labels[i] === -1 && passable(map, i)) { labels[i] = label; stack.push(i); } }
-      if (y > 0) { const i = c - map.w; if (labels[i] === -1 && passable(map, i)) { labels[i] = label; stack.push(i); } }
-      if (y < map.h - 1) { const i = c + map.w; if (labels[i] === -1 && passable(map, i)) { labels[i] = label; stack.push(i); } }
+      if (x > 0) { const i = c - 1; if (labels[i] === -1 && pass(i)) { labels[i] = label; stack.push(i); } }
+      if (x < map.w - 1) { const i = c + 1; if (labels[i] === -1 && pass(i)) { labels[i] = label; stack.push(i); } }
+      if (y > 0) { const i = c - map.w; if (labels[i] === -1 && pass(i)) { labels[i] = label; stack.push(i); } }
+      if (y < map.h - 1) { const i = c + map.w; if (labels[i] === -1 && pass(i)) { labels[i] = label; stack.push(i); } }
     }
     sizes.push(size);
   }
   return { labels, sizes };
 }
 
-function get(map: GameMap): Components {
-  let c = cache.get(map);
-  if (!c) { c = compute(map); cache.set(map, c); }
+function get(map: GameMap, layer: Layer = 'land'): Components {
+  const store = layer === 'naval' ? navalCache : cache;
+  let c = store.get(map);
+  if (!c) {
+    if (layer === 'naval') { const nb = navalBlocked(map); c = compute(map, (i) => nb[i] === 0); }
+    else c = compute(map, (i) => passable(map, i));
+    store.set(map, c);
+  }
   return c;
 }
 
 /** Rótulo da região do tile (-1 se bloqueado ou fora do mapa). */
-export function componentAt(map: GameMap, x: number, y: number): number {
+export function componentAt(map: GameMap, x: number, y: number, layer: Layer = 'land'): number {
   if (!inBounds(map, x, y)) return -1;
-  return get(map).labels[idx(map, x, y)];
+  return get(map, layer).labels[idx(map, x, y)];
 }
-export function componentSize(map: GameMap, label: number): number { return label < 0 ? 0 : get(map).sizes[label] ?? 0; }
+export function componentSize(map: GameMap, label: number, layer: Layer = 'land'): number { return label < 0 ? 0 : get(map, layer).sizes[label] ?? 0; }
 
 /**
  * Há caminho terrestre de (sx,sy) até o retângulo [tx,tx+w)x[ty,ty+h)? Com adjacent, basta alcançar algum tile
  * passável do anel ao redor do retângulo (ou dentro dele, se for passável); sem adjacent, o próprio retângulo.
  */
-export function rectReachable(map: GameMap, sx: number, sy: number, tx: number, ty: number, w: number, h: number, adjacent: boolean): boolean {
-  const from = componentAt(map, sx, sy);
+export function rectReachable(map: GameMap, sx: number, sy: number, tx: number, ty: number, w: number, h: number, adjacent: boolean, layer: Layer = 'land'): boolean {
+  const from = componentAt(map, sx, sy, layer);
   if (from < 0) return false;
-  const { labels } = get(map);
+  const { labels } = get(map, layer);
   const x0 = adjacent ? tx - 1 : tx, y0 = adjacent ? ty - 1 : ty, x1 = adjacent ? tx + w : tx + w - 1, y1 = adjacent ? ty + h : ty + h - 1;
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
     if (!inBounds(map, x, y)) continue;
@@ -66,8 +73,8 @@ export function rectReachable(map: GameMap, sx: number, sy: number, tx: number, 
 }
 
 /** Tile passável mais próximo pertencente a uma região com pelo menos minSize tiles (busca em anéis). */
-export function nearestLargeComponentTile(map: GameMap, x: number, y: number, minSize: number, maxR = 6): { x: number; y: number } | null {
-  const c = get(map);
+export function nearestLargeComponentTile(map: GameMap, x: number, y: number, minSize: number, maxR = 6, layer: Layer = 'land'): { x: number; y: number } | null {
+  const c = get(map, layer);
   for (let r = 1; r <= maxR; r++) {
     for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
       if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
@@ -141,3 +148,19 @@ export function articulationPoints(map: GameMap): Uint8Array {
   }
   return ap;
 }
+
+/** E4: tiles do anel da pegada (8-vizinhança, sem os 4 cantos) em água aberta, sem nó, de um mar com ≥ MIN_DOCK_WATER tiles. */
+export function shoreWaterCount(map: GameMap, tx: number, ty: number, w: number, h: number): number {
+  let n = 0;
+  for (let y = ty - 1; y <= ty + h; y++) for (let x = tx - 1; x <= tx + w; x++) {
+    const corner = (x === tx - 1 || x === tx + w) && (y === ty - 1 || y === ty + h);
+    const inside = x >= tx && x < tx + w && y >= ty && y < ty + h;
+    if (corner || inside || !inBounds(map, x, y)) continue;
+    const i = idx(map, x, y);
+    if (!isOpenWater(map.terrain[i]) || map.nodeAt[i] !== -1) continue;
+    if (componentSize(map, componentAt(map, x, y, 'naval'), 'naval') >= MIN_DOCK_WATER) n++;
+  }
+  return n;
+}
+/** E4: a pegada [tx, tx+w)×[ty, ty+h) fica na margem de um mar de verdade (≥ 2 tiles de água aberta encostados)? */
+export function shoreOk(map: GameMap, tx: number, ty: number, w: number, h: number): boolean { return shoreWaterCount(map, tx, ty, w, h) >= 2; }

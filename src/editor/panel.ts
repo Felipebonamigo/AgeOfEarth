@@ -71,6 +71,7 @@ const NODE_ICONS: Record<NodeType, string> = {
   tree: '', berry: 'res/food', deer: 'tech/great_hunt', boar: 'power/curse', gold: 'res/gold', lure: 'power/lure',
   limestone: 'res/stone', naphtha: 'res/oil', oil_field: 'res/oil', olive: 'tech/irrigation', vineyard: 'tech/bacchanal', paros_marble: 'tech/masonry',
   salt: 'tech/logistics', wild_horses: 'tech/horse_breeding', copper: 'tech/bronze_armor', incense: 'tech/oracles',
+  fish: 'res/food', rare_fish: 'res/gold',
 };
 const nodeIcon = (n: NodeType): string => (NODE_ICONS[n] ? iconHtml(NODE_ICONS[n], { cls: 'hic-res' }) : `<span class="hic hic-gly hic-res">${glyph('tree')}</span>`);
 const teamNum = (p: number): number => PLAYER_COLORS[p % PLAYER_COLORS.length].num;

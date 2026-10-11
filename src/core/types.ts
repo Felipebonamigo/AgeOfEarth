@@ -7,7 +7,7 @@ export type AttackType = 'hack' | 'pierce' | 'crush' | 'divine';
 export interface Armor { hack: number; pierce: number; crush: number }
 
 // ---------------- Definições de conteúdo ----------------
-export type UnitClass = 'villager' | 'scout' | 'infantry' | 'archer' | 'skirmisher' | 'cavalry' | 'siege' | 'hero' | 'myth' | 'titan';
+export type UnitClass = 'villager' | 'scout' | 'infantry' | 'archer' | 'skirmisher' | 'cavalry' | 'siege' | 'hero' | 'myth' | 'titan' | 'ship';
 
 export interface UnitDef {
   id: string; name: string; plural: string; icon: string; cls: UnitClass;
@@ -18,6 +18,8 @@ export interface UnitDef {
   ability?: string;                                     // habilidade ativa (heróis), ver data/abilities.ts
   flying?: boolean; immobile?: boolean; unique?: boolean; god?: string; special?: 'heads' | 'petrify';
   splash?: number; canGather?: boolean; canBuild?: boolean;
+  naval?: boolean;            // E4: navio (camada naval; src/core/map/naval.ts)
+  capacity?: number;          // E4: transporte — população que leva a bordo
   line?: string; tier?: number;          // E3: linha de unidade (src/core/data/lines.ts) e degrau = Era do degrau (0–7)
   lineOnly?: boolean;                    // E3: degrau novo — só existe com as linhas ligadas (fora do elenco clássico)
   attackInterval?: number;               // E3: segundos entre ataques (armas de fogo); padrão ATTACK_INTERVAL[cls]
@@ -31,6 +33,8 @@ export interface BuildingDef {
   wall?: boolean; wonder?: boolean; titanGate?: boolean; plenty?: boolean; notBuildable?: boolean;
   garrison?: number;          // capacidade de guarnição
   gate?: boolean;             // portão: bloqueia inimigos, deixa aliados passarem
+  shore?: boolean;            // E4: fica na margem (shoreOk) em território próprio ou neutro
+  navalDropoff?: ResourceType[];   // E4: recursos que NAVIOS entregam aqui (o Estaleiro recebe o peixe)
   library?: boolean;          // Biblioteca (id 'academy'): o avanço de Era sai daqui (canAdvanceAge)
   queueMax?: number;          // itens que cabem na fila (padrão DEFAULT_QUEUE_MAX = 10; a Biblioteca: 5)
   extract?: { node: NodeType; rate: number };   // E2: extrator passivo encostado no nó (Poço de Petróleo)
@@ -42,7 +46,7 @@ export type EffectMatch = 'all' | 'buildings' | { tags?: string[]; types?: strin
 export type Effect =
   | { type: 'unit'; match: EffectMatch; stat: string; mult?: number; add?: number }
   | { type: 'building'; match: EffectMatch; stat: string; mult?: number; add?: number }
-  | { type: 'gather'; resource: ResourceType | 'hunt' | 'farm' | 'all'; mult: number }
+  | { type: 'gather'; resource: ResourceType | 'hunt' | 'farm' | 'fish' | 'all'; mult: number }
   | { type: 'player'; stat: PlayerStat; mult?: number; add?: number }
   | { type: 'cost'; match: EffectMatch; mult: number };
 
@@ -68,7 +72,7 @@ export interface MajorGodDef {
 export type UnitState = 'idle' | 'move' | 'attackMove' | 'attack' | 'gather' | 'return' | 'build' | 'pray' | 'hold' | 'garrison';
 
 export interface Order {
-  type: 'move' | 'attackMove' | 'attack' | 'gather' | 'build' | 'pray' | 'repair' | 'garrison';
+  type: 'move' | 'attackMove' | 'attack' | 'gather' | 'build' | 'pray' | 'repair' | 'garrison' | 'embark' | 'unload';
   x?: number; y?: number; targetId?: number;
 }
 
@@ -90,6 +94,7 @@ export interface Unit {
   avoidIds: number[]; avoidUntil: number; blockedTicks: number;   // ticks seguidos sem conseguir se aproximar do alvo
   abilityReadyAt: number; buffUntil: number; buffAttack: number; buffSpeed: number; buffHaste: number; buffWard: boolean; chargeUntil: number;   // habilidades/buffs (heróis)               // alvos/nós/entregas inalcançáveis a evitar até o tick
   inside: number;                                      // id do edifício em que está guarnecida (-1 fora)
+  cargo: number[];                                     // E4: ids a bordo (só transportes; o passageiro tem inside = id do navio)
   resumeNodeId: number;                                // nó/fazenda para retomar a coleta ao sair da guarnição
   orderTick: number;                                   // tick em que o alvo/ordem atual começou (detecção de travamento)
   lastDamageTick: number;
@@ -132,7 +137,7 @@ export interface GameMap {
 export interface PowerState { id: string; used: boolean }
 
 export interface PlayerMods {
-  gather: Record<ResourceType | 'hunt' | 'farm', number>;
+  gather: Record<ResourceType | 'hunt' | 'farm' | 'fish', number>;
   player: Record<PlayerStat, number>;
   unitEffects: Effect[];       // efeitos de tipo 'unit' e 'cost'
   buildingEffects: Effect[];   // efeitos de tipo 'building'
@@ -144,6 +149,7 @@ export interface PlayerStats { kills: number; losses: number; unitsTrained: numb
 export interface AIState {
   difficulty: Difficulty; nextThink: number; lastAttack: number; attackTarget: number; waves: number;
   rallyX: number; rallyY: number; defending: number; builderIds: number[]; lastExpand: number; personality: number;
+  navy?: { phase: number; ship: number; x: number; y: number; since: number };   // E4: desembarque (manageInvasion); ausente = parado
 }
 
 export interface Player {
@@ -185,6 +191,7 @@ export interface GameConfig {
   visualEraMax?: number;                                // aparência por Era limitada a esta Era (só o renderizador lê; campanha: 2 = Helenística)
   forbid?: Forbid;                                      // G6: proibidos para todos; somam-se aos de config.players[i].forbid
   revealMap?: boolean; startingAge?: number; startingResources?: Partial<Record<ResourceType, number>>;
+  naval?: boolean;       // E4: navios em cenário; padrão ligados fora de cenário e desligados em cenário (navalOn)
   unitLines?: boolean;   // E3: linhas de unidade; padrão ligadas fora de cenário e desligadas em cenário (elenco clássico)
   mode?: GameMode; mapType?: MapType;
   map?: FixedMapData;                                   // mapa fixo (editor/arquivo); se ausente, gera pelo seed
@@ -248,4 +255,6 @@ export type Command =
   | { type: 'delete'; player: number; ids: number[] }
   | { type: 'ungarrison'; player: number; buildingId: number }
   | { type: 'garrison'; player: number; ids: number[]; targetId: number; queue?: boolean }
+  | { type: 'embark'; player: number; ids: number[]; targetId: number; queue?: boolean }
+  | { type: 'unload'; player: number; ids: number[]; x: number; y: number; queue?: boolean }
   | { type: 'ability'; player: number; unitId: number };

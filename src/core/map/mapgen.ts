@@ -5,12 +5,14 @@ import { RNG, makeNoise } from '../rng';
 import type { GameMap, ResourceNode } from '../types';
 import { idx, inBounds, dist } from './grid';
 import { articulationPoints, invalidateComponents, wouldSeal } from './components';
+import { isLandBlockedTerrain, isUnbuildableTerrain, nodeFitsTerrain } from './naval';
 
 /** Quantidade padrão de recurso por tipo de nó (editor: valor inicial ao colocar um nó). */
 export const NODE_AMOUNT: Record<NodeType, number> = {
   tree: 150, berry: 175, gold: 900, deer: 140, boar: 260, lure: 800,
   limestone: 600, naphtha: 1500, oil_field: 8000,
   olive: 99999, vineyard: 99999, paros_marble: 99999, salt: 99999, wild_horses: 99999, copper: 99999, incense: 99999,   // raros: nunca se esgotam
+  fish: 450, rare_fish: 99999,   // E4: cardume de 450 de comida; o atum nunca se esgota
 };
 
 /** Pontos do círculo unitário (32 direções) usados por generateMap, placeStartResources e blankMap. */
@@ -23,6 +25,10 @@ const MAP_PRESETS: Record<MapType, { water: number; sand: number; dirt: number; 
   forest: { water: 0.33, sand: 0.36, dirt: 0.70, mountain: 0.78, forest: 0.50, forestDensity: 0.9, base: TERRAIN.GRASS, goldRoll: 0.3 },
   desert: { water: 0.31, sand: 0.34, dirt: 0.62, mountain: 0.70, forest: 0.66, forestDensity: 0.6, base: TERRAIN.SAND, goldRoll: 0.45 },
   lakes: { water: 0.42, sand: 0.45, dirt: 0.70, mountain: 0.78, forest: 0.58, forestDensity: 0.85, base: TERRAIN.GRASS, goldRoll: 0.3 },
+  // E4: os tipos com mar usam os limiares do continental (a forma do mar vem de generateMap)
+  coastal: { water: 0.34, sand: 0.37, dirt: 0.66, mountain: 0.73, forest: 0.58, forestDensity: 0.85, base: TERRAIN.GRASS, goldRoll: 0.3 },
+  islands: { water: 0.34, sand: 0.37, dirt: 0.66, mountain: 0.73, forest: 0.58, forestDensity: 0.85, base: TERRAIN.GRASS, goldRoll: 0.3 },
+  mediterranean: { water: 0.34, sand: 0.37, dirt: 0.66, mountain: 0.73, forest: 0.58, forestDensity: 0.85, base: TERRAIN.GRASS, goldRoll: 0.3 },
 };
 
 export function generateMap(w: number, h: number, seed: number, playerCount: number, mapType: MapType = 'continental', clearCenter = false): GameMap {
@@ -196,7 +202,7 @@ export function placeEraResources(map: GameMap, seed: number, clearCenter: boole
   const ok = (x: number, y: number): boolean => {
     if (x < 2 || y < 2 || x > map.w - 3 || y > map.h - 3) return false;
     const i = idx(map, x, y), t = map.terrain[i];
-    if (t === TERRAIN.WATER || t === TERRAIN.DEEP || t === TERRAIN.MOUNTAIN || map.blocked[i] !== 0) return false;
+    if (isUnbuildableTerrain(t) || map.blocked[i] !== 0) return false;
     if (near(x, y, 4.5)) return false;
     if (clearCenter && dist(x, y, map.w / 2, map.h / 2) < 7) return false;
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inBounds(map, x + dx, y + dy) && oldBlocked[idx(map, x + dx, y + dy)] !== 0) return false;
@@ -265,7 +271,7 @@ export function addNode(map: GameMap, type: NodeType, x: number, y: number, amou
   const i = idx(map, x, y);
   if (map.nodeAt[i] !== -1) return null;
   const t = map.terrain[i];
-  if (t === TERRAIN.WATER || t === TERRAIN.DEEP || t === TERRAIN.MOUNTAIN) return null;
+  if (!nodeFitsTerrain(type, t)) return null;
   const id = nextNodeId(map);
   const amt = amount ?? NODE_AMOUNT[type];
   const node: ResourceNode = { id, type, x, y, amount: amt, max: amt };
@@ -295,7 +301,7 @@ export function removeNode(map: GameMap, id: number): void {
   map.nodes.delete(id);
   const i = idx(map, n.x, n.y);
   map.nodeAt[i] = -1;
-  map.blocked[i] = 0;
+  map.blocked[i] = isLandBlockedTerrain(map.terrain[i]) ? 1 : 0;   // E4: peixe esgotado não abre um tile de água para a infantaria
   invalidateComponents(map);
 }
 
@@ -315,7 +321,7 @@ export function rebuildBlocked(map: GameMap): void {
   const { w, h, terrain, blocked } = map;
   for (let i = 0; i < w * h; i++) {
     const t = terrain[i];
-    blocked[i] = (t === TERRAIN.WATER || t === TERRAIN.DEEP || t === TERRAIN.MOUNTAIN || map.nodeAt[i] !== -1) ? 1 : 0;
+    blocked[i] = (isLandBlockedTerrain(t) || map.nodeAt[i] !== -1) ? 1 : 0;
   }
   invalidateComponents(map);
 }
@@ -341,7 +347,7 @@ export function widenChokepoints(map: GameMap): void {
 }
 
 /** Garante que todos os inícios estão conectados por terra; abre corredores quando necessário. */
-export function ensureConnectivity(map: GameMap): void {
+export function ensureConnectivity(map: GameMap, fill: number = TERRAIN.SAND): void {
   if (map.starts.length < 2) return;
   for (let guard = 0; guard < 8; guard++) {
     const reach = floodFrom(map, map.starts[0].x, map.starts[0].y);
@@ -356,7 +362,7 @@ export function ensureConnectivity(map: GameMap): void {
         const d = dist(x, y, s.x, s.y);
         if (d < bd) { bd = d; bx = x; by = y; }
       }
-      carveCorridor(map, s.x, s.y, bx, by);
+      carveCorridor(map, s.x, s.y, bx, by, fill);
       fixed = true;
     }
     if (!fixed) return;
@@ -383,7 +389,7 @@ function floodFrom(map: GameMap, sx: number, sy: number): Uint8Array {
 }
 
 /** Abre um corredor reto de 3 tiles de largura entre dois pontos: água vira areia, montanha vira terra, nós são removidos. */
-export function carveCorridor(map: GameMap, x0: number, y0: number, x1: number, y1: number): void {
+export function carveCorridor(map: GameMap, x0: number, y0: number, x1: number, y1: number, fill: number = TERRAIN.SAND): void {
   const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
   for (let s = 0; s <= steps; s++) {
     const t = steps === 0 ? 0 : s / steps;
@@ -393,7 +399,7 @@ export function carveCorridor(map: GameMap, x0: number, y0: number, x1: number, 
       if (!inBounds(map, xx, yy)) continue;
       const i = idx(map, xx, yy);
       const tt = map.terrain[i];
-      if (tt === TERRAIN.WATER || tt === TERRAIN.DEEP) map.terrain[i] = TERRAIN.SAND;
+      if (tt === TERRAIN.WATER || tt === TERRAIN.DEEP) map.terrain[i] = fill;
       else if (tt === TERRAIN.MOUNTAIN) map.terrain[i] = TERRAIN.DIRT;
       if (map.nodeAt[i] !== -1) removeNode(map, map.nodeAt[i]);
     }

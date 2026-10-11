@@ -10,7 +10,7 @@ export const PLAYER_STATS: PlayerStat[] = ['territory', 'cityLimit', 'attrition'
 
 export function defaultMods(): PlayerMods {
   return {
-    gather: { food: 1, wood: 1, stone: 1, gold: 1, oil: 1, knowledge: 1, favor: 1, hunt: 1, farm: 1 },
+    gather: { food: 1, wood: 1, stone: 1, gold: 1, oil: 1, knowledge: 1, favor: 1, hunt: 1, farm: 1, fish: 1 },
     player: { territory: 0, cityLimit: 1, attrition: 0, attritionResist: 0, favorRate: 1, knowledgeRate: 1, researchCost: 1, buildSpeed: 1, trainSpeed: 1, popCap: 0, los: 0, tradeTax: 1, regen: 0 },
     unitEffects: [], buildingEffects: [], version: 0,
   };

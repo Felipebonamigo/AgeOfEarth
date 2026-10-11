@@ -32,7 +32,8 @@ export const RARE_GOLD_RATE = 0.5;
 /** A IA mantém no máximo este número de Mercadores. */
 export const MERCHANT_MAX_AI = 3;
 
-export const TERRAIN = { GRASS: 0, WATER: 1, MOUNTAIN: 2, SAND: 3, DIRT: 4, DEEP: 5 } as const;
+/** E4: SHALLOWS (baixio) é caminhável e navegável, mas não construível; WATER/DEEP só navio (src/core/map/naval.ts). */
+export const TERRAIN = { GRASS: 0, WATER: 1, MOUNTAIN: 2, SAND: 3, DIRT: 4, DEEP: 5, SHALLOWS: 6 } as const;
 
 export const PLAYER_COLORS = [
   { name: 'Azul', hex: '#3b82f6', num: 0x3b82f6 },
@@ -55,33 +56,41 @@ export const BUILD_RATE = 1;                   // segundos de obra por segundo p
 export const REPAIR_RATE = 0.5;                // fração do buildTime por segundo... (usado como hp/s relativo)
 
 export type NodeType = 'berry' | 'deer' | 'boar' | 'lure' | 'tree' | 'gold'
-  | 'limestone' | 'naphtha' | 'oil_field' | 'olive' | 'vineyard' | 'paros_marble' | 'salt' | 'wild_horses' | 'copper' | 'incense';
+  | 'limestone' | 'naphtha' | 'oil_field' | 'olive' | 'vineyard' | 'paros_marble' | 'salt' | 'wild_horses' | 'copper' | 'incense'
+  | 'fish' | 'rare_fish';
 export const GATHER_RATES: Record<NodeType | 'farm', number> = {
   berry: 1.1, deer: 1.2, boar: 1.3, lure: 1.5, tree: 1.0, gold: 0.9, farm: 0.9,
   limestone: 0.85, naphtha: 0.6, oil_field: 0, olive: 0.5, vineyard: 0.5, paros_marble: 0.5, salt: 0.5, wild_horses: 0.5, copper: 0.5, incense: 0.5,
+  fish: 1.0, rare_fish: 0.5,
 };
 export const NODE_RESOURCE: Record<NodeType, ResourceType> = {
   berry: 'food', deer: 'food', boar: 'food', lure: 'food', tree: 'wood', gold: 'gold',
   limestone: 'stone', naphtha: 'oil', oil_field: 'oil',
   olive: 'gold', vineyard: 'gold', paros_marble: 'gold', salt: 'gold', wild_horses: 'gold', copper: 'gold', incense: 'gold',
+  fish: 'food', rare_fish: 'gold',
 };
 export const NODE_NAMES: Record<NodeType, string> = {
   berry: 'Arbustos de Frutas', deer: 'Rebanho de Cervos', boar: 'Javalis', lure: 'Pedra de Poseidon', tree: 'Árvore', gold: 'Veio de Ouro',
   limestone: 'Afloramento de Calcário', naphtha: 'Fonte de Nafta', oil_field: 'Jazida de Petróleo', olive: 'Olival', vineyard: 'Vinhedo',
   paros_marble: 'Mármore de Paros', salt: 'Salinas', wild_horses: 'Cavalos Selvagens', copper: 'Minas de Cobre', incense: 'Árvores de Incenso',
+  fish: 'Cardume', rare_fish: 'Cardume de Atum',
 };
 export const NODE_CAPACITY: Record<NodeType, number> = {
   berry: 3, deer: 4, boar: 3, lure: 6, tree: 2, gold: 4,
   limestone: 4, naphtha: 3, oil_field: 0, olive: 1, vineyard: 1, paros_marble: 1, salt: 1, wild_horses: 1, copper: 1, incense: 1,
+  fish: 2, rare_fish: 1,
 };
 export const HUNT_TYPES: ReadonlySet<string> = new Set(['deer', 'boar', 'lure']);
 // Recursos raros (E2): um Mercador parado no nó rende ouro e dá o bônus do raro (src/core/data/rares.ts). A ordem é a do gerador.
 export const RARE_NODES: readonly NodeType[] = ['olive', 'vineyard', 'paros_marble', 'salt', 'wild_horses', 'copper', 'incense'];
-export const RARE_SET: ReadonlySet<string> = new Set<string>(RARE_NODES);
+/** E4: o atum (rare_fish) é raro do mar: fora de RARE_NODES (o gerador da E2 sorteia dessa lista), dentro de RARE_SET. */
+export const RARE_SET: ReadonlySet<string> = new Set<string>([...RARE_NODES, 'rare_fish']);
+/** E4: nós de água, trabalhados só por barco de pesca (canWorkNode). */
+export const SHIP_NODES: ReadonlySet<string> = new Set(['fish', 'rare_fish']);
 /** Nós que só um extrator (BuildingDef.extract) explora. */
 export const WELL_NODES: ReadonlySet<string> = new Set<string>(['oil_field']);
 /** Nós que nenhum cidadão coleta: fora das buscas por recurso (nearestNode com 'gold', 'oil'…). */
-export const NOT_GATHERED: ReadonlySet<string> = new Set<string>([...RARE_NODES, 'oil_field']);
+export const NOT_GATHERED: ReadonlySet<string> = new Set<string>([...RARE_NODES, 'oil_field', 'fish', 'rare_fish']);
 
 export const MAP_SIZES = {
   small: { w: 80, h: 80, label: 'Pequeno' },
@@ -106,8 +115,11 @@ export const GARRISON_HEAL = 1;          // vida/s recuperada dentro de um edif�
 // Modos de jogo e tipos de mapa (Fase 5.1)
 export type GameMode = 'conquest' | 'deathmatch' | 'regicide' | 'koth';
 export const GAME_MODES: GameMode[] = ['conquest', 'deathmatch', 'regicide', 'koth'];
-export type MapType = 'continental' | 'mountains' | 'forest' | 'desert' | 'lakes';
-export const MAP_TYPES: MapType[] = ['continental', 'mountains', 'forest', 'desert', 'lakes'];
+// E4: os 3 tipos com mar vêm NO FIM (o menu e os testes indexam os de antes)
+export type MapType = 'continental' | 'mountains' | 'forest' | 'desert' | 'lakes' | 'coastal' | 'islands' | 'mediterranean';
+export const MAP_TYPES: MapType[] = ['continental', 'mountains', 'forest', 'desert', 'lakes', 'coastal', 'islands', 'mediterranean'];
+/** E4: tipos de mapa com mar (formas de mar e peixe em generateMap). */
+export const NAVAL_MAP_TYPES: ReadonlySet<string> = new Set(['coastal', 'islands', 'mediterranean']);
 // Veterania: patentes por abates (unidades militares, exceto Titãs); cada patente dá +10% de ataque e de vida
 export const VETERAN_KILLS = [3, 8, 15];
 export const VETERAN_BONUS = 0.1;

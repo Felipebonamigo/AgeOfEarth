@@ -1,5 +1,6 @@
 // Utilitários de grade. Sem funções trigonométricas: a simulação precisa ser determinística entre máquinas.
 import type { GameMap } from '../types';
+import { navalBlocked, type Layer } from './naval';
 
 export const idx = (map: { w: number }, x: number, y: number): number => y * map.w + x;
 export const inBounds = (map: { w: number; h: number }, x: number, y: number): boolean => x >= 0 && y >= 0 && x < map.w && y < map.h;
@@ -28,22 +29,25 @@ export function circleOffsets(r: number): Int16Array {
   return c;
 }
 
-export function isPassable(map: GameMap, x: number, y: number): boolean {
-  return inBounds(map, x, y) && map.blocked[idx(map, x, y)] === 0;
-}
-/** Passável para uma unidade de determinado time (portões do próprio time são atravessáveis). */
-export function canPass(map: GameMap, x: number, y: number, team: number): boolean {
+export function isPassable(map: GameMap, x: number, y: number, layer: Layer = 'land'): boolean {
   if (!inBounds(map, x, y)) return false;
   const i = idx(map, x, y);
+  return layer === 'naval' ? navalBlocked(map)[i] === 0 : map.blocked[i] === 0;
+}
+/** Passável para uma unidade de determinado time (portões do próprio time são atravessáveis). */
+export function canPass(map: GameMap, x: number, y: number, team: number, layer: Layer = 'land'): boolean {
+  if (!inBounds(map, x, y)) return false;
+  const i = idx(map, x, y);
+  if (layer === 'naval') return navalBlocked(map)[i] === 0;   // no mar não há portão
   return map.blocked[i] === 0 || (team >= 0 && map.gateTeam[i] === team);
 }
 
 /** Passo físico de (x0,y0) a (x1,y1): destino passável e, ao trocar de tile em x e em y ao mesmo tempo, os dois vizinhos
  * ortogonais também (mesma regra do A*: não atravessa a fresta diagonal entre dois obstáculos). */
-export function canStep(map: GameMap, x0: number, y0: number, x1: number, y1: number, team: number): boolean {
+export function canStep(map: GameMap, x0: number, y0: number, x1: number, y1: number, team: number, layer: Layer = 'land'): boolean {
   const ax = Math.floor(x0), ay = Math.floor(y0), bx = Math.floor(x1), by = Math.floor(y1);
-  if (!canPass(map, bx, by, team)) return false;
-  if (ax !== bx && ay !== by) return canPass(map, bx, ay, team) && canPass(map, ax, by, team);
+  if (!canPass(map, bx, by, team, layer)) return false;
+  if (ax !== bx && ay !== by) return canPass(map, bx, ay, team, layer) && canPass(map, ax, by, team, layer);
   return true;
 }
 
@@ -152,7 +156,7 @@ export function spiralSearchFrame(cx: number, cy: number, maxR: number, pred: (x
 }
 
 /** Verdadeiro se a linha entre dois pontos (em tiles) não cruza tiles bloqueados (Bresenham supercover). */
-export function lineClear(map: GameMap, x0: number, y0: number, x1: number, y1: number, team = -1): boolean {
+export function lineClear(map: GameMap, x0: number, y0: number, x1: number, y1: number, team = -1, layer: Layer = 'land'): boolean {
   let ix = Math.floor(x0), iy = Math.floor(y0);
   const ex = Math.floor(x1), ey = Math.floor(y1);
   const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
@@ -160,7 +164,7 @@ export function lineClear(map: GameMap, x0: number, y0: number, x1: number, y1: 
   let err = dx - dy;
   let guard = 0;
   while (guard++ < 4096) {
-    if (!canPass(map, ix, iy, team)) return false;
+    if (!canPass(map, ix, iy, team, layer)) return false;
     if (ix === ex && iy === ey) return true;
     const e2 = 2 * err;
     let moved = 0;
@@ -168,7 +172,7 @@ export function lineClear(map: GameMap, x0: number, y0: number, x1: number, y1: 
     if (e2 < dx) { err += dx; iy += sy; moved++; }
     if (moved === 2) {
       // movimento diagonal: exige que os dois vizinhos ortogonais também sejam livres (evita cortar cantos)
-      if (!canPass(map, ix - sx, iy, team) || !canPass(map, ix, iy - sy, team)) return false;
+      if (!canPass(map, ix - sx, iy, team, layer) || !canPass(map, ix, iy - sy, team, layer)) return false;
     }
   }
   return false;

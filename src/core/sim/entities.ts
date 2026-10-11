@@ -17,7 +17,7 @@ export function spawnUnit(state: GameState, owner: number, type: string, x: numb
     id: state.nextId++, kind: 'unit', type, owner, x, y, px: x, py: y, hp: stats.hp, maxHp: stats.hp,
     state: 'idle', tx: x, ty: y, path: null, pathI: 0, targetId: -1, nodeId: -1, carry: null, carryAmt: 0,
     cooldown: 0, stance: def.tags.includes('civilian') ? 'passive' : 'aggressive', leashX: x, leashY: y, kills: 0, heads: 1,
-    dead: false, spawnTick: state.tick, repathAt: 0, stuck: 0, order: null, queue: [], attackTick: -100, lastDamageTick: -100, orderTick: state.tick, inside: -1, resumeNodeId: -1, avoidIds: [], avoidUntil: 0, blockedTicks: 0, abilityReadyAt: 0, buffUntil: 0, buffAttack: 1, buffSpeed: 1, buffHaste: 1, buffWard: false, chargeUntil: 0,
+    dead: false, spawnTick: state.tick, repathAt: 0, stuck: 0, order: null, queue: [], attackTick: -100, lastDamageTick: -100, orderTick: state.tick, inside: -1, cargo: [], resumeNodeId: -1, avoidIds: [], avoidUntil: 0, blockedTicks: 0, abilityReadyAt: 0, buffUntil: 0, buffAttack: 1, buffSpeed: 1, buffHaste: 1, buffWard: false, chargeUntil: 0,
   };
   state.units.set(u.id, u);
   player.pop += def.pop;
@@ -51,7 +51,7 @@ export function openTile(state: GameState, x: number, y: number): boolean {
 }
 function pushUnitsOut(state: GameState, b: Building) {
   for (const u of state.units.values()) {
-    if (u.dead || UNITS[u.type].flying || u.inside !== -1) continue;
+    if (u.dead || UNITS[u.type].flying || UNITS[u.type].naval || u.inside !== -1) continue;
     if (u.x >= b.tx && u.x < b.tx + b.w && u.y >= b.ty && u.y < b.ty + b.h) {
       // sai pelo lado do edifício em que já está (antes: a espiral testava o norte primeiro); alinhada ao centro dele, pelo
       // lado voltado ao centro do mapa
@@ -68,7 +68,7 @@ function pushUnitsOut(state: GameState, b: Building) {
 export function pushUnitsOutOfTile(state: GameState, tx: number, ty: number): void {
   const mid = centerFrame(state.map, tx + 0.5, ty + 0.5);
   for (const u of state.units.values()) {
-    if (u.dead || UNITS[u.type].flying || u.inside !== -1) continue;
+    if (u.dead || UNITS[u.type].flying || UNITS[u.type].naval || u.inside !== -1) continue;
     if (Math.floor(u.x) !== tx || Math.floor(u.y) !== ty) continue;
     const f = towardFrame(u.x - (tx + 0.5), u.y - (ty + 0.5), mid);
     const t = spiralSearchFrame(tx, ty, 6, (x, y) => openTile(state, x, y), f) ?? spiralSearchFrame(tx, ty, 6, (x, y) => isPassable(state.map, x, y), f);

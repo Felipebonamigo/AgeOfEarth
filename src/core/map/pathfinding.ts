@@ -1,6 +1,7 @@
 // A* em grade com 8 direções, sem cortar cantos, heap binário e suavização por linha de visada.
 import type { GameMap } from '../types';
 import { idx, inBounds, lineClear, isPassable, frameOffset, IDENTITY_FRAME, type Frame } from './grid';
+import { navalBlocked, type Layer } from './naval';
 
 class MinHeap {
   keys: number[] = []; vals: number[] = [];
@@ -66,13 +67,14 @@ function isGoal(x: number, y: number, g: PathGoal, adjacent: boolean): boolean {
  * Retorna array plano de centros de tiles [x0,y0,x1,y1,...] (excluindo a origem) ou null se nada for alcançável.
  * Se o objetivo for inalcançável dentro do orçamento, retorna um caminho parcial até o tile mais próximo explorado.
  */
-export function findPath(map: GameMap, sx: number, sy: number, goal: PathGoal, adjacent = false, maxNodes = 6000, team = -1): number[] | null {
-  return findPathEx(map, sx, sy, goal, adjacent, maxNodes, team).path;
+export function findPath(map: GameMap, sx: number, sy: number, goal: PathGoal, adjacent = false, maxNodes = 6000, team = -1, layer: Layer = 'land'): number[] | null {
+  return findPathEx(map, sx, sy, goal, adjacent, maxNodes, team, layer).path;
 }
 
 /** Como findPath, mas informa se o caminho chegou de fato ao objetivo (false = parcial por orçamento ou inalcançável). */
-export function findPathEx(map: GameMap, sx: number, sy: number, goal: PathGoal, adjacent = false, maxNodes = 6000, team = -1): { path: number[] | null; complete: boolean } {
-  const pass = (i: number) => map.blocked[i] === 0 || (team >= 0 && map.gateTeam[i] === team);
+export function findPathEx(map: GameMap, sx: number, sy: number, goal: PathGoal, adjacent = false, maxNodes = 6000, team = -1, layer: Layer = 'land'): { path: number[] | null; complete: boolean } {
+  const nb = layer === 'naval' ? navalBlocked(map) : null;
+  const pass = nb ? (i: number) => nb[i] === 0 : (i: number) => map.blocked[i] === 0 || (team >= 0 && map.gateTeam[i] === team);
   const n = map.w * map.h;
   ensureBuffers(n);
   stamp++;
@@ -119,11 +121,11 @@ export function findPathEx(map: GameMap, sx: number, sy: number, goal: PathGoal,
   while (c !== -1 && c !== start) { rev.push(c); c = parentBuf[c]; }
   const tiles: number[] = [];
   for (let i = rev.length - 1; i >= 0; i--) { const t = rev[i]; const x = t % map.w; tiles.push(x, (t - x) / map.w); }
-  return { path: smoothPath(map, sx, sy, tiles, team), complete: found >= 0 };
+  return { path: smoothPath(map, sx, sy, tiles, team, layer), complete: found >= 0 };
 }
 
 /** Remove waypoints intermediários quando há linha de visada livre. */
-function smoothPath(map: GameMap, sx: number, sy: number, tiles: number[], team = -1): number[] {
+function smoothPath(map: GameMap, sx: number, sy: number, tiles: number[], team = -1, layer: Layer = 'land'): number[] {
   const n = tiles.length / 2;
   if (n <= 1) return tiles.map((v) => v + 0.5);
   const out: number[] = [];
@@ -132,7 +134,7 @@ function smoothPath(map: GameMap, sx: number, sy: number, tiles: number[], team 
   while (i < n) {
     let j = n - 1;
     while (j > i) {
-      if (lineClear(map, ax, ay, tiles[2 * j], tiles[2 * j + 1], team)) break;
+      if (lineClear(map, ax, ay, tiles[2 * j], tiles[2 * j + 1], team, layer)) break;
       j--;
     }
     out.push(tiles[2 * j] + 0.5, tiles[2 * j + 1] + 0.5);
@@ -149,14 +151,14 @@ export function straightPath(x: number, y: number): number[] { return [x, y]; }
  * Tile livre mais próximo de (x,y) (busca em anéis). O referencial f orienta a ordem dentro de cada anel (padrão: linhas do
  * norte para o sul, oeste→leste); com towardFrame(dx, dy) o anel começa pelo lado (dx, dy) — o de quem chega.
  */
-export function nearestFreeTile(map: GameMap, x: number, y: number, maxR = 12, f: Frame = IDENTITY_FRAME): { x: number; y: number } | null {
+export function nearestFreeTile(map: GameMap, x: number, y: number, maxR = 12, f: Frame = IDENTITY_FRAME, layer: Layer = 'land'): { x: number; y: number } | null {
   const cx = Math.floor(x), cy = Math.floor(y);
-  if (isPassable(map, cx, cy)) return { x: cx, y: cy };
+  if (isPassable(map, cx, cy, layer)) return { x: cx, y: cy };
   for (let r = 1; r <= maxR; r++) {
     for (let b = -r; b <= r; b++) for (let a = -r; a <= r; a++) {
       if (Math.abs(a) !== r && Math.abs(b) !== r) continue;
       const q = frameOffset(f, cx, cy, a, b);
-      if (isPassable(map, q.x, q.y)) return q;
+      if (isPassable(map, q.x, q.y, layer)) return q;
     }
   }
   return null;
