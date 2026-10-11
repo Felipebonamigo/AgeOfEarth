@@ -694,15 +694,13 @@ function evolutionPriority(state: GameState, player: Player, users: Map<string, 
   out.sort((a, b) => b.n - a.n || a.i - b.i);
   return out.map((x) => x.id);
 }
-/** Linhas com pelo menos este número de unidades em campo evoluem mesmo sem o fundo da próxima Era junto. */
-const EVO_USERS = 4;
-/** Evoluir agora? Só depois dos estudos que a próxima Era pede (ou na Era final); cidadãos sempre; as outras linhas com o
- *  fundo da Era junto ou com EVO_USERS+ unidades da linha. */
+/** Evoluir agora? Só depois dos estudos que a próxima Era pede (ou na Era final); cidadãos sempre; as outras linhas só com o
+ *  fundo da Era junto (E3, ajuste 2 do balance: antes bastavam 4 unidades da linha e as Eras III–V atrasavam 2,4–4,5 min). */
 function evolutionAllowed(state: GameState, player: Player, budget: Budget, users: Map<string, number>, line: string): boolean {
   const done = player.age >= maxAgeOf(state, player.id);
   const need = AGES[player.age + 1]?.requires.techCount ?? 0;
   if (!done && academyTechCount(player) < need) return false;
-  return done || budget.fundMet || line === 'citizen' || (users.get(line) ?? 0) >= EVO_USERS;
+  return done || budget.fundMet || line === 'citizen';
 }
 
 function manageResearch(state: GameState, player: Player, snap: Snapshot): void {
