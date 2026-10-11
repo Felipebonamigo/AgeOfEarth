@@ -59,6 +59,12 @@ function completeQueueItem(state: GameState, b: Building, item: QueueItem): void
       player.stats.unitsTrained++;
       recomputePop(state, player);
       if (b.rallyX >= 0) {
+        if (def.trader) {   // E5: ponto de encontro num ponto de comércio = rota automática
+          const tx = Math.floor(b.rallyX), ty = Math.floor(b.rallyY);
+          const bid = tx >= 0 && ty >= 0 && tx < state.map.w && ty < state.map.h ? state.map.buildingAt[ty * state.map.w + tx] : -1;
+          const post = bid !== -1 ? state.buildings.get(bid) : undefined;
+          if (post && !post.dead && BUILDINGS[post.type].tradeRoute === def.trader) { giveOrder(state, u, { type: 'route', targetId: post.id }); break; }
+        }
         // Ponto de encontro: se for um recurso/edifício, cidadãos vão coletar; senão, mover
         const rallyTarget = rallyEntityAt(state, b.rallyX, b.rallyY);
         if (def.canGather && rallyTarget !== null) giveOrder(state, u, { type: 'gather', targetId: rallyTarget });

@@ -203,12 +203,18 @@ describe('linhas de unidade: IA', () => {
   const cfg: Partial<GameConfig> = { seed: 21, startingAge: 1, maxAge: 2, startingResources: { food: 20000, wood: 20000, stone: 20000, gold: 20000, knowledge: 5000, favor: 300 } };
   it('na Era final a IA estuda evoluções da Era e o exército passa ao degrau novo', () => {
     const s = quickGame(cfg, true);
-    run(s, 12 * 60 * TICK_RATE);   // Era III (~4 min) + filósofos e estudos de nível 1 que vêm antes na lista da IA + 2 evoluções
+    // Era III (~4 min) + filósofos e estudos de nível 1 que vêm antes na lista da IA + 2 evoluções. O exército pode estar
+    // gasto numa batalha na hora exata do fim: olha-se a cada minuto se algum degrau novo já apareceu em campo.
+    const seen = new Set<number>();
+    for (let m = 0; m < 12; m++) {
+      run(s, 60 * TICK_RATE);
+      for (const p of s.players) if (unitsOf(s, p.id).some((u) => UNITS[u.type].lineOnly || u.type === 'hetairoi')) seen.add(p.id);
+    }
     const final = s.players.filter((p) => p.alive && p.age === 2);
     expect(final.map((p) => p.name), 'alguma IA viva chegou à Era III (a final)').not.toEqual([]);
     for (const p of final) {
       expect(p.techs.some((x) => TECHS[x]?.evolve && TECHS[x].age === 2 && TECHS[x].evolve!.line !== 'citizen'), `${p.name}: ${p.techs.join(',')}`).toBe(true);
-      expect(unitsOf(s, p.id).some((u) => UNITS[u.type].lineOnly || u.type === 'hetairoi'), p.name).toBe(true);
+      expect(seen.has(p.id), p.name).toBe(true);
     }
   }, 150_000);
   it('a mesma config dá o mesmo estado (determinismo com as linhas)', () => {

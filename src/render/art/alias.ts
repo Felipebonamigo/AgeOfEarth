@@ -4,6 +4,7 @@
 // tipo ganhar manifesto próprio, ele SAI daqui (os testes de arte passam a exigir o assado dele).
 export const UNIT_ART_ALIAS: Readonly<Record<string, string>> = {
   merchant: 'villager',
+  caravan: 'kataskopos',   // E5
   // E3: degraus novos das linhas de unidade (docs/eras/E3-linhas-de-unidade.md) até a E8 trazer a arte própria
   prodromos: 'kataskopos', trapezites: 'kataskopos', stradiot: 'hippeus', hussar: 'hippeus', mounted_scout: 'hippeus', motorcyclist: 'hippeus',
   phalangite: 'hypaspist', skoutatos: 'hypaspist', pikeman: 'hypaspist', grenadier: 'hypaspist', fusilier: 'hypaspist', modern_infantry: 'hypaspist',

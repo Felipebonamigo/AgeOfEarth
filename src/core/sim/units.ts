@@ -12,8 +12,9 @@ import { removeNode } from '../map/mapgen';
 import { getBuildingStats, getUnitStats } from './modifiers';
 import { getRuntime, type Runtime } from './runtime';
 import { acquireTarget, attackInterval, canTarget, performAttack } from './combat';
-import { canWorkNode, entityById, distanceTo, nearestDropoff, nearestFreeFarm, nearestNode, nearestNodeWithRoom, nodeGatherers, nodeCapacity, farmGatherers, farmPrimary } from './queries';
+import { isAlly, canWorkNode, entityById, distanceTo, nearestDropoff, nearestFreeFarm, nearestNode, nearestNodeWithRoom, nodeGatherers, nodeCapacity, farmGatherers, farmPrimary } from './queries';
 import { t } from '../../i18n';
+import { isTradePost, canRoute, routeGold, reachableFor } from './trade';
 import { onBuildingComplete, canGarrison, enterGarrison } from './entities';
 import { MAX_ORDER_QUEUE } from './validate';
 
@@ -105,6 +106,12 @@ export function startOrder(state: GameState, u: Unit, order: Order): void {
       const b = state.buildings.get(order.targetId!);
       if (!b || b.dead || state.players[b.owner].team !== state.players[u.owner].team || !canGarrison(u, b)) { finishOrder(state, u); return; }
       u.state = 'move'; u.targetId = b.id; u.tx = b.x; u.ty = b.y; break;   // ao chegar adjacente, entra
+    }
+    case 'route': {   // E5
+      const dest = state.buildings.get(order.targetId!);
+      const r = canRoute(state, u, dest);
+      if (!r.ok || !r.home || !dest) { finishOrder(state, u); return; }
+      u.routeA = r.home.id; u.routeB = dest.id; u.routeLeg = 0; u.targetId = -1; u.state = 'route'; break;
     }
   }
 }
@@ -222,6 +229,7 @@ export function updateUnit(state: GameState, rt: Runtime, u: Unit, dt: number): 
     case 'gather': updateGather(state, rt, u, dt, spd); return;
     case 'return': updateReturn(state, rt, u, dt, spd); return;
     case 'build': updateBuild(state, rt, u, dt, spd); return;
+    case 'route': updateRoute(state, rt, u, dt, spd); return;
     case 'pray': {
       const b = state.buildings.get(-u.nodeId);
       if (!b || b.dead || b.owner !== u.owner) { u.nodeId = -1; finishOrder(state, u); return; }
@@ -543,6 +551,33 @@ function updateReturn(state: GameState, rt: Runtime, u: Unit, dt: number, speed:
     const res: ResourceType = node ? NODE_RESOURCE[node.type] : (farm ? 'food' : delivered);   // nó sumiu: mantém o recurso entregue
     if (findNewSource(state, u, res)) return;
   }
+  finishOrder(state, u);
+}
+
+// ---------------- Rota comercial (E5) ----------------
+function updateRoute(state: GameState, rt: Runtime, u: Unit, dt: number, speed: number): void {
+  const kind = UNITS[u.type].trader;
+  const a = state.buildings.get(u.routeA), b = state.buildings.get(u.routeB);
+  if (!kind || !isTradePost(state, a, kind) || !isTradePost(state, b, kind) || !isAlly(state, u.owner, a.owner) || !isAlly(state, u.owner, b.owner)) { endRoute(state, u, 'ev.routeLost'); return; }
+  const to = u.routeLeg === 1 ? b : a;   // perna 0 e 2: rumo à casa; 1: rumo ao destino
+  if (distToRect(u.x, u.y, to.tx, to.ty, to.w, to.h) > 0.9) {
+    const r = moveTowards(state, rt, u, speed * dt, to.x, to.y, { tx: to.tx, ty: to.ty, w: to.w, h: to.h }, 0.9, true);
+    // 'blocked' por multidão passa (o A* tenta de novo); sem caminho de verdade (outra região), a rota acaba
+    if (r === 'blocked' && !reachableFor(state, kind, Math.floor(u.x), Math.floor(u.y), to)) endRoute(state, u, 'ev.routeBlocked');
+    return;
+  }
+  if (u.routeLeg !== 0) {
+    const g = routeGold(state, u.owner, a, b, kind);
+    const p = state.players[u.owner];
+    p.resources.gold += g; p.stats.gathered.gold += g;
+  }
+  u.routeLeg = u.routeLeg === 1 ? 2 : 1;
+  u.path = null;
+}
+function endRoute(state: GameState, u: Unit, key: string): void {
+  const p = state.players[u.owner];
+  if (!p.isAI && !state.events.some((e) => e.type === 'routeStopped' && e.player === u.owner && state.tick - e.tick < 10 * TICK_RATE)) state.events.push({ tick: state.tick, type: 'routeStopped', player: u.owner, x: u.x, y: u.y, text: t(key) });
+  u.routeA = -1; u.routeB = -1; u.routeLeg = 0;
   finishOrder(state, u);
 }
 

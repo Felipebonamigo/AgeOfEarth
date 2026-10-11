@@ -23,6 +23,7 @@ export interface UnitDef {
   line?: string; tier?: number;          // E3: linha de unidade (src/core/data/lines.ts) e degrau = Era do degrau (0–7)
   lineOnly?: boolean;                    // E3: degrau novo — só existe com as linhas ligadas (fora do elenco clássico)
   attackInterval?: number;               // E3: segundos entre ataques (armas de fogo); padrão ATTACK_INTERVAL[cls]
+  trader?: 'land' | 'sea';               // E5: caravana (terra) ou navio mercante (mar)
 }
 
 export interface BuildingDef {
@@ -33,6 +34,7 @@ export interface BuildingDef {
   wall?: boolean; wonder?: boolean; titanGate?: boolean; plenty?: boolean; notBuildable?: boolean;
   garrison?: number;          // capacidade de guarnição
   gate?: boolean;             // portão: bloqueia inimigos, deixa aliados passarem
+  tradeRoute?: 'land' | 'sea';   // E5: ponto de comércio das rotas (≠ trade, a compra/venda do Mercado)
   shore?: boolean;            // E4: fica na margem (shoreOk) em território próprio ou neutro
   navalDropoff?: ResourceType[];   // E4: recursos que NAVIOS entregam aqui (o Estaleiro recebe o peixe)
   library?: boolean;          // Biblioteca (id 'academy'): o avanço de Era sai daqui (canAdvanceAge)
@@ -51,7 +53,7 @@ export type Effect =
   | { type: 'cost'; match: EffectMatch; mult: number };
 
 export type PlayerStat = 'territory' | 'cityLimit' | 'attrition' | 'attritionResist' | 'favorRate' | 'knowledgeRate' | 'researchCost'
-  | 'buildSpeed' | 'trainSpeed' | 'popCap' | 'los' | 'tradeTax' | 'regen';
+  | 'buildSpeed' | 'trainSpeed' | 'popCap' | 'los' | 'tradeTax' | 'regen' | 'tradeIncome' | 'seaTradeIncome';
 
 export interface TechDef {
   id: string; name: string; icon: string; building: string; age: number; cost: Cost; time: number;
@@ -69,10 +71,10 @@ export interface MajorGodDef {
 }
 
 // ---------------- Estado de jogo ----------------
-export type UnitState = 'idle' | 'move' | 'attackMove' | 'attack' | 'gather' | 'return' | 'build' | 'pray' | 'hold' | 'garrison';
+export type UnitState = 'idle' | 'move' | 'attackMove' | 'attack' | 'gather' | 'return' | 'build' | 'pray' | 'hold' | 'garrison' | 'route';
 
 export interface Order {
-  type: 'move' | 'attackMove' | 'attack' | 'gather' | 'build' | 'pray' | 'repair' | 'garrison' | 'embark' | 'unload';
+  type: 'move' | 'attackMove' | 'attack' | 'gather' | 'build' | 'pray' | 'repair' | 'garrison' | 'embark' | 'unload' | 'route';
   x?: number; y?: number; targetId?: number;
 }
 
@@ -97,6 +99,7 @@ export interface Unit {
   cargo: number[];                                     // E4: ids a bordo (só transportes; o passageiro tem inside = id do navio)
   resumeNodeId: number;                                // nó/fazenda para retomar a coleta ao sair da guarnição
   orderTick: number;                                   // tick em que o alvo/ordem atual começou (detecção de travamento)
+  routeA: number; routeB: number; routeLeg: number;    // E5: rota comercial (casa, destino, perna: 0 = à casa sem carga, 1 = ao destino, 2 = voltando)
   lastDamageTick: number;
   displayName?: LocalText;                             // G8: nome próprio dado pelo cenário (spawn/place name); o HUD o mostra no idioma atual
   hpFloor?: number;                                    // G9: piso de vida (fração de maxHp) enquanto o cenário o mantiver (hpFloor)
@@ -255,6 +258,7 @@ export type Command =
   | { type: 'delete'; player: number; ids: number[] }
   | { type: 'ungarrison'; player: number; buildingId: number }
   | { type: 'garrison'; player: number; ids: number[]; targetId: number; queue?: boolean }
+  | { type: 'route'; player: number; ids: number[]; targetId: number; queue?: boolean }
   | { type: 'embark'; player: number; ids: number[]; targetId: number; queue?: boolean }
   | { type: 'unload'; player: number; ids: number[]; x: number; y: number; queue?: boolean }
   | { type: 'ability'; player: number; unitId: number };

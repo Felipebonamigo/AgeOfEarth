@@ -18,7 +18,7 @@ export function spawnUnit(state: GameState, owner: number, type: string, x: numb
     id: state.nextId++, kind: 'unit', type, owner, x, y, px: x, py: y, hp: stats.hp, maxHp: stats.hp,
     state: 'idle', tx: x, ty: y, path: null, pathI: 0, targetId: -1, nodeId: -1, carry: null, carryAmt: 0,
     cooldown: 0, stance: def.tags.includes('civilian') ? 'passive' : 'aggressive', leashX: x, leashY: y, kills: 0, heads: 1,
-    dead: false, spawnTick: state.tick, repathAt: 0, stuck: 0, order: null, queue: [], attackTick: -100, lastDamageTick: -100, orderTick: state.tick, inside: -1, cargo: [], resumeNodeId: -1, avoidIds: [], avoidUntil: 0, blockedTicks: 0, abilityReadyAt: 0, buffUntil: 0, buffAttack: 1, buffSpeed: 1, buffHaste: 1, buffWard: false, chargeUntil: 0,
+    dead: false, spawnTick: state.tick, repathAt: 0, stuck: 0, order: null, queue: [], attackTick: -100, lastDamageTick: -100, orderTick: state.tick, inside: -1, cargo: [], resumeNodeId: -1, avoidIds: [], avoidUntil: 0, blockedTicks: 0, abilityReadyAt: 0, buffUntil: 0, buffAttack: 1, buffSpeed: 1, buffHaste: 1, buffWard: false, chargeUntil: 0, routeA: -1, routeB: -1, routeLeg: 0,
   };
   state.units.set(u.id, u);
   player.pop += def.pop;
@@ -209,6 +209,7 @@ import { GARRISON_TAGS } from '../constants';
 export function canGarrison(u: Unit, b: Building): boolean {
   const def = UNITS[u.type]; const bdef = BUILDINGS[b.type];
   if (!bdef.garrison || !b.complete || b.dead || u.dead || u.inside !== -1) return false;
+  if (def.trader) return false;   // E5: caravana e navio mercante não entram em edifícios
   if (!def.tags.some((t) => GARRISON_TAGS.has(t)) || def.tags.includes('myth') || def.tags.includes('siege') || def.tags.includes('cavalry') || def.naval) return false;
   return b.garrison.length < bdef.garrison;
 }

@@ -305,7 +305,7 @@ Guia: `docs/eras/E5-E7-comercio-maravilhas.md`
 Fase 0 — Preparação
 - [ ] 0.1 Pré-requisitos
 - [ ] 0.2 Conferir o Mercador da E2
-- [ ] 0.3 "Antes" (smoke e balance)
+- [x] 0.3 "Antes" (smoke e balance)
 
 Fase A — Dados e tipos
 - [ ] A1 `types.ts`: `trader`, `tradeRoute`, rota, comando `route`
@@ -327,19 +327,19 @@ Fase B — Núcleo
 - [ ] B9 `SIM_VERSION` +1
 
 Fase C — IA
-- [ ] C1 `manageCaravans`
-- [ ] C2 `scripts/balance.ts`: `caravanas=`
+- [x] C1 `manageCaravans`
+- [x] C2 `scripts/balance.ts`: `caravanas=`
 
 Fase D — Interface
-- [ ] D1 `issueChecked` da rota
-- [ ] D2 Clique direito de caravana
-- [ ] D3 Cartão da caravana
-- [ ] D4 Ganchos dos playtests (nada a criar)
-- [ ] D5 `scripts/playtest-trade.mjs` (novo)
+- [x] D1 `issueChecked` da rota
+- [x] D2 Clique direito de caravana
+- [x] D3 Cartão da caravana
+- [x] D4 Ganchos dos playtests (nada a criar)
+- [x] D5 `scripts/playtest-trade.mjs` (novo)
 
 Fase E — Testes
-- [ ] T1 `tests/trade-e5.test.ts` (novo)
-- [ ] T2 Fuzz com `route`
+- [x] T1 `tests/trade-e5.test.ts` (novo)
+- [x] T2 Fuzz com `route`
 
 Fase F — Navio mercante (com a E4)
 - [ ] F0 Pré-condição (E4 pronta)

@@ -27,7 +27,7 @@ const CONFIG: GameConfig = {
   ],
 };
 
-const TYPES = ['move', 'attackMove', 'attack', 'gather', 'build', 'pray', 'repair', 'stop', 'stance', 'train', 'research', 'hireScholar', 'cancel', 'rally', 'advanceAge', 'power', 'trade', 'delete', 'ungarrison', 'garrison', 'ability', 'embark', 'unload'];
+const TYPES = ['move', 'attackMove', 'attack', 'gather', 'build', 'pray', 'repair', 'stop', 'stance', 'train', 'research', 'hireScholar', 'cancel', 'rally', 'advanceAge', 'power', 'trade', 'delete', 'ungarrison', 'garrison', 'ability', 'embark', 'unload', 'route'];
 const WEIRD: unknown[] = [NaN, Infinity, -Infinity, -0, 1e21, -1, 0.5, '3', '', null, undefined, true, {}, [], [1], { valueOf: 3 }, '__proto__', 'constructor', 'toString', 'hasOwnProperty'];
 const PROTO_KEYS = ['__proto__', 'constructor', 'toString', 'valueOf', 'prototype', 'hasOwnProperty'];
 
@@ -177,14 +177,14 @@ function fuzzRun(seed: number, ticks: number, perTick: number, over: Partial<Gam
 
 describe('fuzz determinístico de comandos', () => {
   it('milhares de comandos malucos: sem exceção, estado íntegro e o mesmo hash em duas execuções', () => {
-    const r1 = fuzzRun(20260926, 400, 18);
+    const r1 = fuzzRun(20260927, 400, 18);
     expect(r1.lastError).toBe('');
     expect(r1.errors).toBe(0);
     expect(r1.violations).toEqual([]);
     expect(r1.sent).toBeGreaterThanOrEqual(7000);
     expect(r1.accepted).toBeGreaterThan(r1.sent * 0.1);          // o fuzz também exercita comandos bem formados…
     expect(r1.accepted).toBeLessThan(r1.sent * 0.95);            // …e muitos malformados
-    const r2 = fuzzRun(20260926, 400, 18);
+    const r2 = fuzzRun(20260927, 400, 18);
     expect(stateHash(r2.s)).toBe(stateHash(r1.s));
     const ser = serialize(r1.s);
     expect(serialize(r2.s)).toBe(ser);

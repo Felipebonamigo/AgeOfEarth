@@ -25,6 +25,7 @@ import type { ScenarioDef } from '../core/scenario/types';
 import { entityDisplayName, playerDisplayName } from '../core/scenario/text';
 import { maxAgeOf, navalOn } from '../core/sim/restrictions';
 import { cargoPop } from '../core/sim/naval';
+import { canRoute, routeGold } from '../core/sim/trade';
 import { scenarioHudHtml } from './scenario-hud';
 
 /** Ids oficiais (registro da campanha, TS ou JSON, e Horda): só eles marcam progresso em aoe_campaign e destravam conquistas de missão. */
@@ -434,6 +435,10 @@ export class HUD {
     if (u.owner === s.local) stats.push(`${t('sel.stance')} <b>${t(`stance.${u.stance}`)}</b>`);
     if (u.carry && u.carryAmt > 0) stats.push(`${t('sel.carry')} <b>${ic.res(u.carry)} ${Math.floor(u.carryAmt)}</b>`);
     if (u.owner === s.local) stats.push(`${t('sel.state')} <b>${t(`state.${u.state}`)}</b>`);
+    if (u.owner === s.local && u.state === 'route') {
+      const ra = s.state.buildings.get(u.routeA), rb = s.state.buildings.get(u.routeB), kind = UNITS[u.type].trader;
+      if (ra && rb && kind) stats.push(`${t('sel.route')} <b>${esc(BUILDINGS[ra.type].name)} – ${esc(BUILDINGS[rb.type].name)}</b> · ${t('sel.routeGold', { g: routeGold(s.state, u.owner, ra, rb, kind) })}`);
+    }
     c.appendChild(el('div', 'stats', stats.map((x) => `<span>${x}</span>`).join('')));
     const bonuses = Object.entries(def.bonus).map(([k, v]) => `×${v} vs ${t(`vs.${k}`)}`).join(', ');
     c.appendChild(el('div', 'desc', (u.displayName ? `<b>${def.name}</b> · ` : '') + def.desc + (bonuses ? ` <i>(${bonuses})</i>` : '')));
@@ -612,6 +617,7 @@ export class HUD {
     if (cmd.type === 'train') { const b = s.state.buildings.get(cmd.buildingId); if (b) check = canTrain(s.state, p, b, cmd.unit); }
     else if (cmd.type === 'research') { const b = s.state.buildings.get(cmd.buildingId); if (b) check = canResearch(s.state, p, b, cmd.tech); }
     else if (cmd.type === 'hireScholar') { const b = s.state.buildings.get(cmd.buildingId); if (b) check = canHireScholar(s.state, p, b); }
+    else if (cmd.type === 'route') { const u = cmd.ids.map((id) => s.state.units.get(id)).find((x) => x && UNITS[x.type].trader); if (u) check = canRoute(s.state, u, s.state.buildings.get(cmd.targetId)); }
     if (!check.ok) { this.toast(check.reason ?? t('msg.cannot'), 'warn'); this.audio.play('error'); return false; }
     s.issue(cmd);
     return true;

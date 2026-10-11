@@ -16,6 +16,7 @@ import { usePower } from './powers';
 import { killUnit, destroyBuilding } from './combat';
 import { lineUnitOf, trainTypeOf, unitLinesOn } from './lines';
 import { t } from '../../i18n';
+import { canRoute } from './trade';
 import { endAgeReason, forbiddenReason, maxAgeOf } from './restrictions';
 import { sanitizeCommand } from './validate';
 import { layerOf } from '../map/naval';
@@ -326,6 +327,19 @@ export function applyCommand(state: GameState, raw: Command): CommandResult {
       if (units.length === 0) return { ok: false, reason: t('err.noGarrison') };
       for (const u of units) giveOrder(state, u, { type: 'garrison', targetId: b.id }, cmd.queue);
       return { ok: true };
+    }
+    case 'route': {
+      // alvo: ponto de comércio pronto do próprio time; cada caravana/navio mercante confere a própria rota (casa, distância, caminho)
+      const dest = state.buildings.get(cmd.targetId);
+      if (!dest || dest.dead || !validOwner(state, dest.owner)) return { ok: false };
+      const traders = ownedUnits(state, cmd.player, cmd.ids).filter((u) => !!UNITS[u.type].trader);
+      if (traders.length === 0) return { ok: false, reason: t('err.notTrader') };
+      let firstFail: CommandResult | null = null, any = false;
+      for (const u of traders) {
+        const r = canRoute(state, u, dest);
+        if (r.ok) { giveOrder(state, u, { type: 'route', targetId: dest.id }, cmd.queue); any = true; } else if (!firstFail) firstFail = { ok: false, reason: r.reason };
+      }
+      return any ? { ok: true } : (firstFail ?? { ok: false });
     }
   }
   return { ok: false, reason: t('err.unknown') };

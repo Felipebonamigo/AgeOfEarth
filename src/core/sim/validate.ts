@@ -109,7 +109,7 @@ export function sanitizeCommand(state: GameState, raw: unknown): Command | null 
       if (!absent(raw.formation)) { if (!(FORMATIONS as unknown[]).includes(raw.formation)) return null; formation = raw.formation as Formation; }
       return formation ? { type: raw.type, player, ids, x, y, queue, formation } : { type: raw.type, player, ids, x, y, queue };
     }
-    case 'attack': case 'gather': case 'pray': case 'repair': case 'garrison': case 'embark': {
+    case 'attack': case 'gather': case 'pray': case 'repair': case 'garrison': case 'embark': case 'route': {
       const ids = idList(raw.ids);
       if (!ids || !isId(raw.targetId)) return null;
       return { type: raw.type, player, ids, targetId: raw.targetId, queue };

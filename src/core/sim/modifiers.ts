@@ -6,12 +6,12 @@ import { BUILDINGS, MAJOR_GODS, RARES, TECHS, UNITS } from '../data';
 import type { Effect, EffectMatch, GameState, Player, PlayerMods, PlayerStat } from '../types';
 import { getRuntime, type BuildingStats, type UnitStats } from './runtime';
 
-export const PLAYER_STATS: PlayerStat[] = ['territory', 'cityLimit', 'attrition', 'attritionResist', 'favorRate', 'knowledgeRate', 'researchCost', 'buildSpeed', 'trainSpeed', 'popCap', 'los', 'tradeTax', 'regen'];
+export const PLAYER_STATS: PlayerStat[] = ['territory', 'cityLimit', 'attrition', 'attritionResist', 'favorRate', 'knowledgeRate', 'researchCost', 'buildSpeed', 'trainSpeed', 'popCap', 'los', 'tradeTax', 'regen', 'tradeIncome', 'seaTradeIncome'];
 
 export function defaultMods(): PlayerMods {
   return {
     gather: { food: 1, wood: 1, stone: 1, gold: 1, oil: 1, knowledge: 1, favor: 1, hunt: 1, farm: 1, fish: 1 },
-    player: { territory: 0, cityLimit: 1, attrition: 0, attritionResist: 0, favorRate: 1, knowledgeRate: 1, researchCost: 1, buildSpeed: 1, trainSpeed: 1, popCap: 0, los: 0, tradeTax: 1, regen: 0 },
+    player: { territory: 0, cityLimit: 1, attrition: 0, attritionResist: 0, favorRate: 1, knowledgeRate: 1, researchCost: 1, buildSpeed: 1, trainSpeed: 1, popCap: 0, los: 0, tradeTax: 1, regen: 0, tradeIncome: 1, seaTradeIncome: 1 },
     unitEffects: [], buildingEffects: [], version: 0,
   };
 }

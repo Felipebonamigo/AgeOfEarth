@@ -15,8 +15,9 @@ export const MAX_PLAYERS = 4;
  * avança na Biblioteca. 5 = E2: pedra, petróleo e raros (recursos, nós, gerador, custos, IA). 6 = linhas de unidade (E3): 41 degraus
  * novos, evolução na Biblioteca, treino pelo degrau atual, IA com as linhas. 7 = naval (E4): camada naval, Estaleiro, pesca,
  * transporte, navios I–VIII, mapas com mar; a mesma semente em mapa terrestre dá a mesma partida, mas o hash agora inclui inside/cargo.
+ * 8 = comércio (E5): caravanas com rotas automáticas, IA treina caravanas.
  */
-export const SIM_VERSION = 7;
+export const SIM_VERSION = 8;
 export const DEFAULT_QUEUE_MAX = 10;   // itens na fila de um edifício sem queueMax
 
 // E2: ordem = a da barra do topo e a de todo literal de recursos (a ida e volta do save mantém a ordem das chaves)
@@ -139,3 +140,14 @@ export const DEATHMATCH_RESOURCES = { food: 4000, wood: 4000, stone: 2000, gold:
 export const MARKET_BASE_PRICE = 100;   // ouro por 100 unidades
 export const MARKET_TRADE_LOT = 100;
 export const MARKET_TAX = 0.3;
+// Comércio (docs/ERAS.md §7; docs/eras/E5-E7-comercio-maravilhas.md): caravanas (terra) e navios mercantes (mar)
+/** Distância mínima (tiles, entre os centros) entre a casa e o destino de uma rota. */
+export const TRADE_MIN_DISTANCE = 16;
+/** Ouro por tile de distância a cada chegada (antes dos bônus). */
+export const TRADE_GOLD_PER_TILE = { land: 0.5, sea: 0.7 } as const;
+/** Rota até um ponto de comércio de OUTRO jogador do time. */
+export const TRADE_ALLY_BONUS = 1.25;
+/** Meta de caravanas da IA por Era (índice = player.age); o teste exige length === AGES.length. */
+export const CARAVAN_TARGET_AI = [0, 2, 3, 4, 5, 6, 6, 6];
+/** Meta de navios mercantes da IA por Era (Fase F, com a E4). */
+export const MERCHANT_SHIP_TARGET_AI = [0, 0, 1, 2, 2, 3, 3, 3];

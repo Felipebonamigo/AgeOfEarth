@@ -208,6 +208,14 @@ export class Input {
     const tx = Math.floor(x), ty = Math.floor(y);
     const nid = tx >= 0 && ty >= 0 && tx < map.w && ty < map.h ? map.nodeAt[ty * map.w + tx] : -1;
     let cmd: Command | null = null;
+    // E5: só caravanas/navios mercantes selecionados + clique direito num ponto de comércio do time = rota
+    if (units.every((u) => !!UNITS[u.type].trader) && target && target.kind === 'building' && BUILDINGS[target.type].tradeRoute && !isEnemy(s.state, s.local, target.owner)) {
+      if (this.hud.issueChecked({ type: 'route', player: s.local, ids, targetId: target.id, queue })) {
+        this.audio.ack('move', this.dominantClass(s));
+        s.state.effects.push({ type: 'spawn', x, y, ttl: 8, total: 8, data: 'order' });
+      }
+      return;
+    }
     if (target && isEnemy(s.state, s.local, target.owner)) {
       cmd = { type: 'attack', player: s.local, ids, targetId: target.id, queue };
     } else if (target && target.kind === 'unit' && target.owner === s.local && UNITS[target.type].capacity) {

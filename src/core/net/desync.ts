@@ -44,7 +44,7 @@ export function stateHashParts(state: GameState): number[] {
     const o = own(u.owner);
     let h = o < 0 ? world : un[o];
     h = step(h, u.id); h = strHash(h, u.type); h = step(h, Math.floor(u.x * 64)); h = step(h, Math.floor(u.y * 64)); h = step(h, Math.floor(u.hp));
-    h = strHash(h, u.state); h = step(h, u.targetId); h = step(h, u.nodeId); h = step(h, Math.floor(u.carryAmt)); h = step(h, u.inside); h = step(h, u.cargo.length); h = step(h, u.dead ? 1 : 0);
+    h = strHash(h, u.state); h = step(h, u.targetId); h = step(h, u.nodeId); h = step(h, Math.floor(u.carryAmt)); h = step(h, u.inside); h = step(h, u.routeA); h = step(h, u.routeB); h = step(h, u.routeLeg); h = step(h, u.cargo.length); h = step(h, u.dead ? 1 : 0);
     if (o < 0) world = h; else un[o] = h;
   }
   for (const b of state.buildings.values()) {
