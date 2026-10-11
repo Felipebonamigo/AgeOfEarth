@@ -938,7 +938,7 @@ const M5_HERAION_TOWERS = 3;
 function m5HeraionTower(state: GameState): Command | null {
   const p = state.players[0]; const h = entityPos(state, '#heraion'); if (!h) return null;
   const cost = getBuildingStats(state, p, 'tower').cost as Partial<Record<ResourceType, number>>;
-  if (p.resources.wood < (cost.wood ?? 0) + 30 || p.resources.stone < (cost.stone ?? 0) + 30 || p.resources.gold < (cost.gold ?? 0) + 20) return null;
+  if (p.resources.wood < (cost.wood ?? 0) + 30 || p.resources.gold < (cost.gold ?? 0) + 20) return null;
   const towers = [...state.buildings.values()].filter((b) => b.owner === 0 && !b.dead && b.type === 'tower' && (b.x - h.x) * (b.x - h.x) + (b.y - h.y) * (b.y - h.y) <= 12 * 12);
   if (towers.length >= M5_HERAION_TOWERS || towers.some((b) => !b.complete)) return null;
   const spot = findBuildSpot(state, p, 'tower', M5_HERAION_POST.x, M5_HERAION_POST.y, 1, 6);
@@ -1403,7 +1403,7 @@ const M9_MIX: Record<string, number> = { minotaur: 3, manticore: 2, cerberus: 2,
  */
 const M9_TARGETS = ['fenda1', 'jaula1', 'jaula2', 'jaula3', 'fenda3', 'fenda2'] as const;
 /** m9: militares para sair contra o próximo alvo (estado, não relógio), o mesmo nas três dificuldades. */
-const M9_ASSAULT_ARMY = 40;
+const M9_ASSAULT_ARMY: Record<CampaignDifficulty, number> = { easy: 70, normal: 75, hard: 50 };
 
 /** Militares do jogador a até `r` tiles de (x, y). */
 function m9ArmyNear(state: GameState, x: number, y: number, r: number): number {
@@ -1416,7 +1416,7 @@ function m9ArmyNear(state: GameState, x: number, y: number, r: number): number {
  */
 function m9AssaultTarget(state: GameState): string | null {
   const next = M9_TARGETS.find((t) => entityPos(state, '#' + t)); if (!next) return null;
-  if (militaryCount(state, 0) >= M9_ASSAULT_ARMY) return next;
+  if (militaryCount(state, 0) >= M9_ASSAULT_ARMY[state.config.campaignDifficulty ?? 'normal']) return next;
   const p = entityPos(state, '#' + next)!;
   return m9ArmyNear(state, p.x, p.y, 16) >= 10 ? next : null;
 }

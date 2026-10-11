@@ -160,6 +160,11 @@ function manageEconomy(state: GameState, player: Player, snap: Snapshot): void {
     food: (next.cost.food ?? 0) + 200, wood: (next.cost.wood ?? 0) + 350, stone: (next.cost.stone ?? 0) + 150, gold: (next.cost.gold ?? 0) + 150,
     oil: age >= OIL_FROM_AGE && !state.scenario ? (next.cost.oil ?? 0) : 0, favor: 0,
   };
+  // pedra e petróleo parados no estoque não pedem mais cidadãos (a pedra acumulava em milhares com o ouro em zero e a economia travava)
+  for (const r of ['stone', 'oil'] as const) {
+    const idleStock = Math.max(0, (player.resources[r] ?? 0) - need[r] - 300);
+    ratio[r] *= Math.max(0.1, 1 - idleStock / 600);
+  }
   let sum = 0;
   for (const r of AI_RES) {
     const shortage = Math.max(0, need[r] - (player.resources[r as ResourceType] ?? 0));
