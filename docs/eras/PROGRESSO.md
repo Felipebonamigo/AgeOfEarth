@@ -185,32 +185,32 @@ Bloco B — Núcleo
 - [x] B9 `tests/unit-lines.test.ts` (dados e núcleo)
 
 Bloco C — IA
-- [ ] C1 Imports da IA
-- [ ] C2 Treino do exército por `trainChoices`
-- [ ] C3 Evoluções em `manageResearch`
-- [ ] C4 Teste da IA e smoke
+- [x] C1 Imports da IA
+- [x] C2 Treino do exército por `trainChoices`
+- [x] C3 Evoluções em `manageResearch`
+- [x] C4 Teste da IA e smoke
 
 Bloco D — Renderização provisória
-- [ ] D1 Alias das 41 unidades
-- [ ] D2 `TextureCache.unit` desenha o alias
-- [ ] D3 Efeito `evolve`
-- [ ] D4 Projétil do sifão (`fireball`)
-- [ ] D5 Testes de efeitos
+- [x] D1 Alias das 41 unidades
+- [x] D2 `TextureCache.unit` desenha o alias
+- [x] D3 Efeito `evolve`
+- [x] D4 Projétil do sifão (`fireball`)
+- [x] D5 Testes de efeitos
 
 Bloco E — Ícones do HUD
-- [ ] E1 `catalog.mjs`: ícones `evo_<linha>`
-- [ ] E2 `icons.ts`: `techIconName` para `evo_*`
-- [ ] E3 Gerar o atlas (`art:hud`) e `art:check`
+- [x] E1 `catalog.mjs`: ícones `evo_<linha>`
+- [x] E2 `icons.ts`: `techIconName` para `evo_*`
+- [x] E3 Gerar o atlas (`art:hud`) e `art:check`
 
 Bloco F — Interface
-- [ ] F1 `hud.ts`: botões por linha, cartão, atalhos, fila
-- [ ] F2 `input.ts`: atalho de treino por `trainChoices`
-- [ ] F3 `studytree.ts`: uma linha da árvore por linha de unidade
-- [ ] F4 Testes da interface
+- [x] F1 `hud.ts`: botões por linha, cartão, atalhos, fila
+- [x] F2 `input.ts`: atalho de treino por `trainChoices`
+- [x] F3 `studytree.ts`: uma linha da árvore por linha de unidade
+- [x] F4 Testes da interface
 
 Bloco G — Playtest
-- [ ] G1 `scripts/playtest-lines.mjs` (novo)
-- [ ] G2 Rodar no build e olhar as 3 capturas
+- [x] G1 `scripts/playtest-lines.mjs` (novo)
+- [x] G2 Rodar no build e olhar as 3 capturas
 
 Bloco H — Verificação e documentação
 - [ ] H1 Seção "Verificação" inteira
