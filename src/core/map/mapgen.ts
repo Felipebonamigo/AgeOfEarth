@@ -4,7 +4,7 @@ import { NAVAL_MAP_TYPES, RARE_NODES, TERRAIN, type NodeType, type MapType } fro
 import { RNG, makeNoise } from '../rng';
 import type { GameMap, ResourceNode } from '../types';
 import { idx, inBounds, dist } from './grid';
-import { articulationPoints, componentAt, componentSize, invalidateComponents, wouldSeal } from './components';
+import { articulationPoints, componentAt, componentSize, invalidateComponents, shoreOk, wouldSeal } from './components';
 import { isLandBlockedTerrain, isOpenWater, isUnbuildableTerrain, MIN_DOCK_WATER, nodeFitsTerrain } from './naval';
 
 /** Quantidade padrão de recurso por tipo de nó (editor: valor inicial ao colocar um nó). */
@@ -127,7 +127,7 @@ export function generateMap(w: number, h: number, seed: number, playerCount: num
     ensureConnectivity(map, mapType === 'islands' ? TERRAIN.SHALLOWS : TERRAIN.SAND);   // E4 (D16): ilhas ligadas por baixio
     map.starts.pop();
   }
-  if (mapType !== 'islands') ensureConnectivity(map);   // E4: nas Ilhas os inícios ficam separados por mar
+  if (mapType !== 'islands') ensureConnectivity(map, naval ? TERRAIN.SHALLOWS : TERRAIN.SAND);   // E4: nas Ilhas os inícios ficam separados por mar; nos outros tipos com mar, o corredor sobre a água vira baixio (o mar continua um só)
   rebuildBlocked(map);
   widenChokepoints(map);
   placeEraResources(map, seed, clearCenter);
@@ -244,6 +244,8 @@ export function placeNavalResources(map: GameMap, seed: number, mapType: MapType
       if (!tuna) tuna = around(s, 'rare_fish', dir, r0 + 8, 2.0, 1) > 0;
     }
   }
+  // Garante lugar de Estaleiro em todo início: se a floresta tomou toda a margem, abre (sem rng) o sítio mais perto
+  for (const st of map.starts) ensureShipyardSite(map, st.x, st.y);
   let seaTiles = 0;
   for (let i = 0; i < map.w * map.h; i++) if (isOpenWater(map.terrain[i])) seaTiles++;
   const extra = Math.round(seaTiles / 450);
@@ -252,6 +254,28 @@ export function placeNavalResources(map: GameMap, seed: number, mapType: MapType
     if (map.starts.some((s) => dist(s.x, s.y, x, y) < 20)) continue;
     cluster('fish', x, y, 1.6, 3);
   }
+}
+
+/** E4: há uma pegada 3×3 livre (sem nó nem edifício) numa margem de mar grande a até 24 tiles do início? Senão, limpa os nós do sítio de terreno mais perto. */
+function ensureShipyardSite(map: GameMap, sx: number, sy: number): void {
+  const R = 24;
+  let best: { x: number; y: number; d: number; c: number } | null = null;
+  for (let ty = sy - R; ty <= sy + R - 2; ty++) for (let tx = sx - R; tx <= sx + R - 2; tx++) {
+    const d = dist(tx + 1.5, ty + 1.5, sx + 0.5, sy + 0.5);
+    if (d > R) continue;
+    let terrainOk = true, free = true;
+    for (let y = ty; y < ty + 3 && terrainOk; y++) for (let x = tx; x < tx + 3; x++) {
+      if (!inBounds(map, x, y) || isUnbuildableTerrain(map.terrain[idx(map, x, y)])) { terrainOk = false; break; }
+      const i = idx(map, x, y);
+      if (map.blocked[i] !== 0 || map.buildingAt[i] !== -1) free = false;
+    }
+    if (!terrainOk || !shoreOk(map, tx, ty, 3, 3)) continue;
+    if (free) return;   // já há um sítio livre
+    const c = (tx + 1.5 - map.w / 2) ** 2 + (ty + 1.5 - map.h / 2) ** 2;
+    if (!best || d < best.d || (d === best.d && (c < best.c || (c === best.c && (ty < best.y || (ty === best.y && tx < best.x)))))) best = { x: tx, y: ty, d, c };
+  }
+  if (!best) return;
+  for (let y = best.y; y < best.y + 3; y++) for (let x = best.x; x < best.x + 3; x++) { const nid = map.nodeAt[idx(map, x, y)]; if (nid !== -1) removeNode(map, nid); }
 }
 
 function clampi(v: number, lo: number, hi: number) { return v < lo ? lo : v > hi ? hi : v; }
