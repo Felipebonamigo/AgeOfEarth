@@ -303,28 +303,28 @@ Bloco H — Verificação e documentação
 Guia: `docs/eras/E5-E7-comercio-maravilhas.md`
 
 Fase 0 — Preparação
-- [x] 0.1 Pré-requisitos
-- [x] 0.2 Conferir o Mercador da E2
+- [ ] 0.1 Pré-requisitos
+- [ ] 0.2 Conferir o Mercador da E2
 - [ ] 0.3 "Antes" (smoke e balance)
 
 Fase A — Dados e tipos
-- [x] A1 `types.ts`: `trader`, `tradeRoute`, rota, comando `route`
-- [x] A2 Constantes do comércio
-- [x] A3 `modifiers.ts`: `tradeIncome`, `seaTradeIncome`
-- [x] A4 Dados: `caravan`, pontos de comércio
-- [x] A5 Arte provisória (alias `kataskopos`)
-- [x] A6 Textos PT/EN
+- [ ] A1 `types.ts`: `trader`, `tradeRoute`, rota, comando `route`
+- [ ] A2 Constantes do comércio
+- [ ] A3 `modifiers.ts`: `tradeIncome`, `seaTradeIncome`
+- [ ] A4 Dados: `caravan`, pontos de comércio
+- [ ] A5 Arte provisória (alias `kataskopos`)
+- [ ] A6 Textos PT/EN
 
 Fase B — Núcleo
-- [x] B1 `src/core/sim/trade.ts` (novo)
-- [x] B2 Campos da unidade e `deserialize`
-- [x] B3 Caravana sem guarnição
-- [x] B4 Movimento da rota (`updateRoute`)
-- [x] B5 Validação do comando
-- [x] B6 Comando `route`
-- [x] B7 Ponto de encontro num ponto de comércio vira rota
-- [x] B8 Relatório de dessincronia
-- [x] B9 `SIM_VERSION` +1
+- [ ] B1 `src/core/sim/trade.ts` (novo)
+- [ ] B2 Campos da unidade e `deserialize`
+- [ ] B3 Caravana sem guarnição
+- [ ] B4 Movimento da rota (`updateRoute`)
+- [ ] B5 Validação do comando
+- [ ] B6 Comando `route`
+- [ ] B7 Ponto de encontro num ponto de comércio vira rota
+- [ ] B8 Relatório de dessincronia
+- [ ] B9 `SIM_VERSION` +1
 
 Fase C — IA
 - [ ] C1 `manageCaravans`
@@ -422,32 +422,32 @@ Fase N — Testes, verificação e commit
 Guia: `docs/eras/E6-mitologia.md`
 
 Bloco 0 — Preparação
-- [x] 0.1 Pré-condições (E1–E4; E5 e E7 já feitas)
-- [x] 0.2 O "antes" (missions, balance 35/60, smoke)
+- [ ] 0.1 Pré-condições (E1–E4; E5 e E7 já feitas)
+- [ ] 0.2 O "antes" (missions, balance 35/60, smoke)
 
 Bloco A — Tipos, dados e textos
-- [x] A1 `types.ts`: anfíbio, especiais, `group`, flags dos poderes, `eraMyth`
-- [x] A2 Constantes dos Titãs por Era
-- [x] A3 `ages.ts`: `minorGod` nas Eras V–VII
-- [x] A4 `gods.ts`: 9 poderes, 9 deuses, pares, bônus de pólvora
-- [x] A5 `units.ts`: 12 criaturas, `MYTH_UPGRADES`, Oceano anfíbio
-- [x] A6 `buildings.ts`: Templo e Estaleiro treinam as criaturas
-- [x] A7 `techs.ts`: 18 pesquisas e as Bênçãos
-- [x] A8 `data/index.ts`: exportações novas
-- [x] A9 `en-data.ts`: inglês
+- [ ] A1 `types.ts`: anfíbio, especiais, `group`, flags dos poderes, `eraMyth`
+- [ ] A2 Constantes dos Titãs por Era
+- [ ] A3 `ages.ts`: `minorGod` nas Eras V–VII
+- [ ] A4 `gods.ts`: 9 poderes, 9 deuses, pares, bônus de pólvora
+- [ ] A5 `units.ts`: 12 criaturas, `MYTH_UPGRADES`, Oceano anfíbio
+- [ ] A6 `buildings.ts`: Templo e Estaleiro treinam as criaturas
+- [ ] A7 `techs.ts`: 18 pesquisas e as Bênçãos
+- [ ] A8 `data/index.ts`: exportações novas
+- [ ] A9 `en-data.ts`: inglês
 - [ ] A10 `strings.ts`: 10 chaves
 - [ ] A11 `eraMyth` (restrições, schema, compile)
 - [ ] A12 `data.test.ts`: 6 pares por deus maior
 
 Bloco B — Camada anfíbia
-- [x] B1 `map/naval.ts`: camada `amphibious`
-- [x] B2 `grid.ts`
-- [x] B3 `pathfinding.ts`
-- [x] B4 `components.ts`
-- [x] B5 `sim/naval.ts`: `unitLayer`, `mediumOf`
-- [x] B6 Trocar `layerOf` por `unitLayer` no núcleo
-- [x] B7 Aproximação de ataque com anfíbio/voador
-- [x] B8 `canTarget` com anfíbio
+- [ ] B1 `map/naval.ts`: camada `amphibious`
+- [ ] B2 `grid.ts`
+- [ ] B3 `pathfinding.ts`
+- [ ] B4 `components.ts`
+- [ ] B5 `sim/naval.ts`: `unitLayer`, `mediumOf`
+- [ ] B6 Trocar `layerOf` por `unitLayer` no núcleo
+- [ ] B7 Aproximação de ataque com anfíbio/voador
+- [ ] B8 `canTarget` com anfíbio
 
 Bloco C — Poderes e escala por Era
 - [ ] C1 `src/core/sim/divine.ts` (novo)
@@ -483,7 +483,7 @@ Bloco F — Efeitos, arte provisória e áudio
 Bloco G — Ícones do HUD
 - [ ] G1 `catalog.mjs`: poderes, pesquisas, deuses
 - [ ] G2 `icons.ts`: `techIconName` com `blessing`
-- [x] G3 `hud-gods.js`: 9 bustos
+- [ ] G3 `hud-gods.js`: 9 bustos
 - [ ] G4 Iterar um retrato e gerar o atlas
 
 Bloco H — Interface
@@ -496,8 +496,8 @@ Bloco I — Testes e playtest
 - [ ] I2 `scripts/playtest-myth.mjs` (novo)
 
 Bloco J — Verificação e documentação
-- [x] J1 Seção "Verificação" inteira
-- [x] J2 Seção "Ao terminar"
+- [ ] J1 Seção "Verificação" inteira
+- [ ] J2 Seção "Ao terminar"
 
 ---
 
@@ -506,29 +506,29 @@ Bloco J — Verificação e documentação
 Guia: `docs/eras/E8-arte-por-era.md`
 
 Bloco 0 — Preparação
-- [x] 0.1 Conferir os pré-requisitos e a lista de alias
-- [x] 0.2 Fotografia do antes
+- [ ] 0.1 Conferir os pré-requisitos e a lista de alias
+- [ ] 0.2 Fotografia do antes
 - [ ] 0.3 Cache de referência dos edifícios
 - [ ] 0.4 Ganchos `debugSetAge`/`debugData` em `main.ts`
 
 Bloco A — Manifesto, bake e check por Era
-- [x] A1 Constantes e validação em `manifest.mjs`
-- [x] A2 Expansão das Eras (`expandEraVariants`)
-- [x] A3 Grupo nos quadros e no filtro
-- [x] A4 `bake.mjs` com os grupos por Era
-- [x] A5 `check.ts` por Era
-- [x] A6 `scripts/bake/cache-diff.mjs` (novo)
-- [x] A7 Centro Cívico por Era (prova com manifesto de prova)
+- [ ] A1 Constantes e validação em `manifest.mjs`
+- [ ] A2 Expansão das Eras (`expandEraVariants`)
+- [ ] A3 Grupo nos quadros e no filtro
+- [ ] A4 `bake.mjs` com os grupos por Era
+- [ ] A5 `check.ts` por Era
+- [ ] A6 `scripts/bake/cache-diff.mjs` (novo)
+- [ ] A7 Centro Cívico por Era (prova com manifesto de prova)
 
 Bloco B — Renderizador por Era
-- [x] B1 Tipos e funções puras
-- [x] B2 `src/render/art/era.ts` (novo)
-- [x] B3 `AtlasSource`/`ArtLibrary` com grupos sob demanda
-- [x] B4 `BuildingView` com `artId` e Era
-- [x] B5 `renderer.ts`: edifícios por Era
-- [x] B6 Fantasma, desabamento e escombros
-- [x] B7 Unidades por Era
-- [x] B8 Testes do bloco (`tests/art-eras.test.ts`)
+- [ ] B1 Tipos e funções puras
+- [ ] B2 `src/render/art/era.ts` (novo)
+- [ ] B3 `AtlasSource`/`ArtLibrary` com grupos sob demanda
+- [ ] B4 `BuildingView` com `artId` e Era
+- [ ] B5 `renderer.ts`: edifícios por Era
+- [ ] B6 Fantasma, desabamento e escombros
+- [ ] B7 Unidades por Era
+- [ ] B8 Testes do bloco (`tests/art-eras.test.ts`)
 
 Bloco C — Kit de Era no rig de edifícios
 - [ ] C1 Materiais novos
@@ -567,7 +567,7 @@ Bloco F — Lote 1, maravilhas I–IV
 Bloco G — Lote 2, edifícios V–VIII
 - [ ] G1 Plantas próprias das Eras 4, 6 e 7
 - [ ] G2 Bake, fusão e prova
-- [x] G3 Capturas e commit
+- [ ] G3 Capturas e commit
 
 Bloco P — Efeitos
 - [ ] P1 Atlas `fx` (bala, obus, granada, clarão)
@@ -624,22 +624,22 @@ Bloco M — VRAM, desempenho, capturas e documentos
 Guia: `docs/eras/E9-E10-interface-balanceamento.md`
 
 Bloco 0 — Preparação
-- [x] 0.1 Pré-condições
-- [x] 0.2 Base (smoke e enciclopédia de antes)
+- [ ] 0.1 Pré-condições
+- [ ] 0.2 Base (smoke e enciclopédia de antes)
 
 Bloco A — Enciclopédia
-- [x] A1 Textos `enc.*` e afins
-- [x] A2 `src/ui/encyclopedia.ts` (novo)
-- [x] A3 `hud.ts`: enciclopédia nova e filtro de Era
-- [x] A4 CSS
-- [x] A5 Testes (`tests/encyclopedia.test.ts`)
+- [ ] A1 Textos `enc.*` e afins
+- [ ] A2 `src/ui/encyclopedia.ts` (novo)
+- [ ] A3 `hud.ts`: enciclopédia nova e filtro de Era
+- [ ] A4 CSS
+- [ ] A5 Testes (`tests/encyclopedia.test.ts`)
 
 Bloco B — Ajuda, dicas, atalhos e partida
-- [x] B1 Textos de ajuda e dicas
-- [x] B2 `showHelp`
-- [x] B3 Tela de carregamento (18 dicas)
-- [x] B4 Atalhos (`U`)
-- [x] B5 Linha da partida no menu
+- [ ] B1 Textos de ajuda e dicas
+- [ ] B2 `showHelp`
+- [ ] B3 Tela de carregamento (18 dicas)
+- [ ] B4 Atalhos (`U`)
+- [ ] B5 Linha da partida no menu
 
 Bloco C — Revisão dos textos PT/EN
 - [ ] C1 `tests/i18n-eras.test.ts` (novo)
@@ -743,11 +743,6 @@ Bloco P — Capturas, loja e documentos
 - `fairness` Egeu e Estreito 1–16 (`--both`, 45 min): Egeu posição 17 × 15 (53 %), índice 19 × 13 (59 %); Estreito posição 19 × 13 (59 %), índice 15 × 17 (53 %): DENTRO nos dois. Nas partidas de fairness as IAs chegam a: V ~24 · VI ~29–30 · VII ~33–34 · VIII ~38 min.
 - `scripts/missions.ts`: ok (12 missões × 3 dificuldades e variantes; janelas na seção "Eras (E1)" de `docs/STORY.md`). `smoke 20 42`: hash `4980cdb` nas duas rodadas. `horde.ts` igual ao de antes; `art:check` ok; `npm test`: 70 arquivos, 948 testes.
 - Ajustes além do guia (todos explicados em `docs/STORY.md` "Eras (E1)"): a IA guarda a madeira da 1ª Biblioteca (200) e o Conhecimento/ouro da Era seguinte (`libraryWoodHold`, filósofos e estudos só depois do fundo), razão de coleta da Era I com mais ouro; IAs inimigas das m3/m5/m6/m7 com `maxAge: 4`; `MissionScript.playerMaxAge` (m9); caça do Difícil da m5 a cada 50 s desde 150 s; `tests/art-military.test.ts` aceita a maravilha de Zeus em `.glb` (estava vermelho desde o Meshy).
-### E3 — medições
-- `balance 60 1,2,3` (média dos minutos por Era, antes (E2) × depois): sem o ajuste, III +2,4 · IV +3,6 · V +4,5 (falha, o critério é +2,0). Ajuste 1 (`EVO_USERS = 8`): III +0,7 · IV +0,5 · V +2,2 (falha). **Ajuste 2** (linhas militares só evoluem com o fundo da Era junto; cidadãos sempre): II 0,0 · III +0,6 · IV 0,0 · V +0,9 (7 IAs na V, como antes): passa; ajuste 3 também passaria (0,0 / +0,8 / +0,2), mas o 2 é o primeiro que passa. `EVO_USERS` foi removido. Nenhuma `PARADA`.
-- `smoke 20 42`: hash `79764f52` nas duas rodadas; as IAs vivas têm `evo=1–2` no minuto 20.
-- `fairness` 45 min, 16 sementes × 2 ordens, `--both`: Egeu posição 19 × 13 (59 %), índice 15 × 17 (53 %); Estreito posição 16 × 16 (50 %), índice 20 × 12 (63 %): DENTRO nos dois.
-- `missions.ts`: idêntico ao antes (diff vazio, tempos à parte); `horde.ts` igual; `npm test`: 72 arquivos, 977 testes; `art:check` ok (hud 164 ícones); playtests `lines`, `noemoji` (sem emoji nem ícone vazio), `i18n` e `playtest.mjs` sem erro. O "fila TC:" vazio do `playtest.mjs` já é assim no baseline da E2 (jogo pausado, o comando só vale no tick seguinte); Q no Centro Cívico enfileira `villager` com o jogo rodando.
 ### Pendências para o dono
 - Aprovar o Prometeu por roteiro (Fortaleza + 6 estudos + 500 de Favor, cobrados pelo gatilho) no lugar do Portal na campanha (D12).
 - Relay de produção: atualizar `server/relay.mjs` (chaves `startAge`/`endAge` do lobby).
