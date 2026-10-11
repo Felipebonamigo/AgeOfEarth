@@ -1,7 +1,7 @@
 // Comandos: validação e aplicação. Toda mudança de estado originada do jogador/IA/rede passa por aqui,
 // o que torna a simulação reproduzível (lockstep, replays, saves).
 import { DEFAULT_QUEUE_MAX, MAX_SCHOLARS, OIL_FROM_AGE, SCHOLAR_COST, TICK_RATE, type Stance, type Formation } from '../constants';
-import { ACADEMY_LINES, AGES, BUILDINGS, MAX_AGE, MINOR_GODS, MAJOR_GODS, TECHS, UNITS } from '../data';
+import { ACADEMY_LINES, AGES, BUILDINGS, LINES, MAX_AGE, MINOR_GODS, MAJOR_GODS, TECHS, UNITS, lineStart } from '../data';
 import type { Building, Command, GameState, Player, Unit } from '../types';
 import { spiralSearchFrame, towardFrame, centerFrame, canPass, inBounds } from '../map/grid';
 import { canAfford, marketTrade, pay, refund, queueItemCost } from './economy';
@@ -14,6 +14,7 @@ import { getRuntime } from './runtime';
 import { ABILITIES } from '../data';
 import { usePower } from './powers';
 import { killUnit, destroyBuilding } from './combat';
+import { lineUnitOf, trainTypeOf, unitLinesOn } from './lines';
 import { t } from '../../i18n';
 import { endAgeReason, forbiddenReason, maxAgeOf } from './restrictions';
 import { sanitizeCommand } from './validate';
@@ -324,6 +325,8 @@ export function canHireScholar(state: GameState, player: Player, b: Building): C
 export function canTrain(state: GameState, player: Player, b: Building, unit: string): CommandResult {
   const def = UNITS[unit];
   if (!def || !b.complete) return { ok: false };
+  if (def.line && unitLinesOn(state)) return canTrainLine(state, player, b, def.line);   // E3: a linha decide edifício, Era e degrau
+  if (def.lineOnly) return { ok: false, reason: t('err.legacyRoster') };                 // E3: degrau novo não existe no elenco clássico
   const forbid = forbiddenReason(state, player.id, 'units', unit); if (forbid) return { ok: false, reason: forbid };   // G6
   const bdef = BUILDINGS[b.type];
   if (!bdef.trains || !bdef.trains.includes(unit)) return { ok: false, reason: t('err.notTrained') };
@@ -344,14 +347,31 @@ export function canTrain(state: GameState, player: Player, b: Building, unit: st
   return { ok: true };
 }
 
+/** Treino de uma linha (E3, com as linhas ligadas): edifício da linha, Era da base, aposentadoria, trava (no degrau que
+ *  sairia), fila, população e custo do degrau atual. */
+function canTrainLine(state: GameState, player: Player, b: Building, lineId: string): CommandResult {
+  const l = LINES[lineId];
+  if (!l.buildings.includes(b.type)) return { ok: false, reason: t('err.notTrained') };
+  const from = lineStart(l);
+  if (player.age < from) return { ok: false, reason: t('err.requiresAge', { age: AGES[from].name }) };
+  if (l.retireAt !== undefined && player.age >= l.retireAt) return { ok: false, reason: t('err.lineRetired', { line: l.name, age: AGES[l.retireAt].name }) };
+  const unit = lineUnitOf(player, lineId);
+  const forbid = forbiddenReason(state, player.id, 'units', unit); if (forbid) return { ok: false, reason: forbid };   // G6
+  if (b.queue.length >= queueMaxOf(b.type)) return { ok: false, reason: t('err.queueFull') };
+  if (player.pop + UNITS[unit].pop > player.popCap) return { ok: false, reason: t('err.popCap') };
+  if (!canAfford(player, getUnitStats(state, player, unit).cost)) return { ok: false, reason: t('err.noResources') };
+  return { ok: true };
+}
+
 function train(state: GameState, player: Player, buildingId: number, unit: string): CommandResult {
   const b = ownedBuilding(state, player.id, buildingId);
   if (!b) return { ok: false };
   const c = canTrain(state, player, b, unit);
   if (!c.ok) return c;
-  const paid = { ...getUnitStats(state, player, unit).cost };
+  const type = trainTypeOf(state, player, unit);   // E3: com as linhas, o degrau atual (sem elas, o próprio unit)
+  const paid = { ...getUnitStats(state, player, type).cost };
   pay(player, paid);
-  b.queue.push({ kind: 'unit', id: unit, elapsed: 0, total: queueTotalFor(state, player, 'unit', unit), paid, uid: state.nextId++ });
+  b.queue.push({ kind: 'unit', id: type, elapsed: 0, total: queueTotalFor(state, player, 'unit', type), paid, uid: state.nextId++ });
   recomputePop(state, player);
   return { ok: true };
 }
@@ -360,6 +380,7 @@ export function canResearch(state: GameState, player: Player, b: Building, tech:
   const def = TECHS[tech];
   if (!def || !b.complete) return { ok: false };
   if (def.building !== b.type) return { ok: false };
+  if (def.evolve && !unitLinesOn(state)) return { ok: false, reason: t('err.legacyRoster') };
   const forbid = forbiddenReason(state, player.id, 'techs', tech); if (forbid) return { ok: false, reason: forbid };   // G6
   if (player.techs.includes(tech)) return { ok: false, reason: t('err.researched') };
   if (def.age > player.age) return { ok: false, reason: t('err.requiresAge', { age: AGES[def.age].name }) };

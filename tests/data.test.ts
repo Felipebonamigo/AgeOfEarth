@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { AGES, BUILDINGS, BUILD_MENU, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS } from '../src/core/data';
+import { AGES, BUILDINGS, BUILD_MENU, LINES, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS } from '../src/core/data';
 import { BUILTIN_MAPS } from '../src/core/data/maps';
 import { validateMap, mapHash, canonicalize, startResourcesOf, blankMap, base64ToBytes, bytesToBase64 } from '../src/core/map/fixed';
 import { TERRAIN } from '../src/core/constants';
@@ -14,6 +14,7 @@ describe('integridade dos dados', () => {
     for (const u of Object.values(UNITS)) {
       if (!u.building) continue;
       expect(BUILDINGS[u.building], `edifício ${u.building} de ${u.id}`).toBeDefined();
+      if (u.lineOnly) { expect(LINES[u.line!]?.buildings, `linha de ${u.id}`).toContain(u.building); continue; }   // E3: degrau novo treina pela linha
       expect(BUILDINGS[u.building].trains, `trains de ${u.building}`).toContain(u.id);
     }
     for (const b of Object.values(BUILDINGS)) for (const t of b.trains ?? []) expect(UNITS[t], `unidade ${t} em ${b.id}`).toBeDefined();

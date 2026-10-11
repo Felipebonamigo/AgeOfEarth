@@ -6,3 +6,4 @@ export { TECHS, ACADEMY_LINES, ROMAN, LINE_LEVELS } from './techs';
 export { POWERS, MINOR_GODS, MAJOR_GODS, MAJOR_GOD_LIST } from './gods';
 export * from './abilities';
 export * from './rares';
+export * from './lines';

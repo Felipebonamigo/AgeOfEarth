@@ -18,6 +18,9 @@ export interface UnitDef {
   ability?: string;                                     // habilidade ativa (heróis), ver data/abilities.ts
   flying?: boolean; immobile?: boolean; unique?: boolean; god?: string; special?: 'heads' | 'petrify';
   splash?: number; canGather?: boolean; canBuild?: boolean;
+  line?: string; tier?: number;          // E3: linha de unidade (src/core/data/lines.ts) e degrau = Era do degrau (0–7)
+  lineOnly?: boolean;                    // E3: degrau novo — só existe com as linhas ligadas (fora do elenco clássico)
+  attackInterval?: number;               // E3: segundos entre ataques (armas de fogo); padrão ATTACK_INTERVAL[cls]
 }
 
 export interface BuildingDef {
@@ -49,6 +52,7 @@ export type PlayerStat = 'territory' | 'cityLimit' | 'attrition' | 'attritionRes
 export interface TechDef {
   id: string; name: string; icon: string; building: string; age: number; cost: Cost; time: number;
   prereq: string[]; effects: Effect[]; desc: string; line?: string; level?: number; god?: string;
+  evolve?: { line: string; to: string };   // E3: estudo de evolução da Biblioteca (a Era é `age`); sem `line` de propósito
 }
 
 export type PowerTargeting = 'unit' | 'area' | 'building' | 'global' | 'place';
@@ -181,6 +185,7 @@ export interface GameConfig {
   visualEraMax?: number;                                // aparência por Era limitada a esta Era (só o renderizador lê; campanha: 2 = Helenística)
   forbid?: Forbid;                                      // G6: proibidos para todos; somam-se aos de config.players[i].forbid
   revealMap?: boolean; startingAge?: number; startingResources?: Partial<Record<ResourceType, number>>;
+  unitLines?: boolean;   // E3: linhas de unidade; padrão ligadas fora de cenário e desligadas em cenário (elenco clássico)
   mode?: GameMode; mapType?: MapType;
   map?: FixedMapData;                                   // mapa fixo (editor/arquivo); se ausente, gera pelo seed
   mapHash?: number;                                     // mapHash(map): identificação no lobby/replay/biblioteca (não é segurança)

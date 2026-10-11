@@ -12,9 +12,10 @@ export const MAX_PLAYERS = 4;
  * `8783483f` igual), mas um comando que ficou inválido no caminho (nó esgotado antes de a ordem chegar) ou de um cliente
  * modificado dá outro resultado, e todos os clientes da sala precisam validar igual. O relay recusa na sala quem tiver outra versão.
  * 4 = Eras (E1): 8 Eras, Biblioteca (avanço de Era e fila de 5, uma por cidade), linhas × 8, Era inicial/final; a IA
- * avança na Biblioteca. 5 = E2: pedra, petróleo e raros (recursos, nós, gerador, custos, IA).
+ * avança na Biblioteca. 5 = E2: pedra, petróleo e raros (recursos, nós, gerador, custos, IA). 6 = linhas de unidade (E3): 41 degraus
+ * novos, evolução na Biblioteca, treino pelo degrau atual, IA com as linhas.
  */
-export const SIM_VERSION = 5;
+export const SIM_VERSION = 6;
 export const DEFAULT_QUEUE_MAX = 10;   // itens na fila de um edifício sem queueMax
 
 // E2: ordem = a da barra do topo e a de todo literal de recursos (a ida e volta do save mantém a ordem das chaves)

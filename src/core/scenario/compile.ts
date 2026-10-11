@@ -450,6 +450,7 @@ export function scenarioConfig(file: ScenarioFile): ScenarioDef['config'] {
   if (c.maxAge !== undefined) cfg.maxAge = c.maxAge;   // G6
   if (c.visualEraMax !== undefined) cfg.visualEraMax = c.visualEraMax;
   if (c.forbid) cfg.forbid = copyForbid(c.forbid);
+  if (c.unitLines !== undefined) cfg.unitLines = c.unitLines;   // E3
   return cfg as ScenarioDef['config'];
 }
 

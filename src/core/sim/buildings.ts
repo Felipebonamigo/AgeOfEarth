@@ -1,6 +1,7 @@
 // Atualização de edifícios: filas de produção (unidades, tecnologias, filósofos, avanço de idade),
 // defesa automática (torres, fortalezas, centros cívicos) e Portal dos Titãs.
 import { MAX_SCHOLARS, TICK_RATE } from '../constants';
+import { applyEvolution, trainTypeOf } from './lines';
 import { AGES, BUILDINGS, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS } from '../data';
 import type { Building, GameState, Player, QueueItem } from '../types';
 import { getBuildingStats, getUnitStats, recomputeMods, refreshMaxHp } from './modifiers';
@@ -50,10 +51,10 @@ function completeQueueItem(state: GameState, b: Building, item: QueueItem): void
   const player = state.players[b.owner];
   switch (item.kind) {
     case 'unit': {
-      const def = UNITS[item.id];
+      const type = trainTypeOf(state, player, item.id); const def = UNITS[type];   // E3: o item da fila sai no degrau atual
       const toward = b.rallyX >= 0 ? b.rallyX : undefined;
       const spot = findSpawnTile(state, b, toward, b.rallyY >= 0 ? b.rallyY : undefined);
-      const u = spawnUnit(state, b.owner, item.id, spot.x, spot.y);
+      const u = spawnUnit(state, b.owner, type, spot.x, spot.y);
       player.stats.unitsTrained++;
       recomputePop(state, player);
       if (b.rallyX >= 0) {
@@ -65,7 +66,7 @@ function completeQueueItem(state: GameState, b: Building, item: QueueItem): void
       break;
     }
     case 'tech': {
-      if (!player.techs.includes(item.id)) player.techs.push(item.id);
+      if (!player.techs.includes(item.id)) { player.techs.push(item.id); applyEvolution(state, player, item.id); }   // E3: antes dos mods
       recomputeMods(state, player);
       refreshMaxHp(state, player);
       if (!player.isAI) state.events.push({ tick: state.tick, type: 'research', player: b.owner, text: t('ev.research', { name: TECHS[item.id].name }) });

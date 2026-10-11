@@ -1,6 +1,6 @@
 // Criação da partida e laço principal da simulação (passo fixo, determinístico).
 import { DT, MAP_SIZES, RESOURCES, TICK_RATE, MARKET_BASE_PRICE, PLAYER_COLORS, type ResourceType, DEATHMATCH_RESOURCES } from '../constants';
-import { ACADEMY_LINES, AGES, BUILDINGS, MAJOR_GODS, MINOR_GODS, TECHS, UNITS, clampEra } from '../data';
+import { ACADEMY_LINES, AGES, BUILDINGS, LINES, LINE_ORDER, MAJOR_GODS, MINOR_GODS, TECHS, UNITS, clampEra, evoTechId, lineStart } from '../data';
 import { RNG } from '../rng';
 import type { Command, GameConfig, GameState, Player } from '../types';
 import { generateMap, resetNodeSeq } from '../map/mapgen';
@@ -17,6 +17,7 @@ import { economySecond } from './economy';
 import { updateTimedEffects } from './powers';
 import { aiThink } from './ai';
 import { isScenarioConfig } from './restrictions';
+import { trainTypeOf, unitLinesOn } from './lines';
 import { checkVictory } from './victory';
 import { spiralSearch, spiralSearchFrame, centerFrame, frameOffset, frameTile, isPassable } from '../map/grid';
 import { nearestFreeTile } from '../map/pathfinding';
@@ -41,6 +42,18 @@ export function aiThinkOrder(round: number, n: number): number[] {
   const first = round % n, dir = Math.floor(round / n) % 2 === 0 ? 1 : -1;
   for (let k = 0; k < n; k++) out.push((((first + dir * k) % n) + n) % n);
   return out;
+}
+
+/** Era inicial acima da I com as linhas ligadas (E3, D16): começa com os degraus da Era — todos os estudos de evolução até ela. */
+export function grantStartingEvolutions(p: Player, startAge: number): void {
+  for (const id of LINE_ORDER) {
+    const l = LINES[id];
+    for (let k = lineStart(l) + 1; k <= startAge && k < l.steps.length; k++) {
+      if (!l.steps[k]) continue;
+      const tid = evoTechId(id, k);
+      if (TECHS[tid] && !p.techs.includes(tid)) p.techs.push(tid);
+    }
+  }
 }
 
 /**
@@ -100,6 +113,7 @@ export function createGame(config: GameConfig): GameState {
       revealUntil: 0, bronzeUntil: 0, wonderVictoryAt: -1, titanSpawned: false,
     };
     if (!isScenarioConfig(config)) grantStartingEras(p, startAge);
+    if (!isScenarioConfig(config) && unitLinesOn(state)) grantStartingEvolutions(p, startAge);
     state.players.push(p);
     recomputeMods(state, p);
   });
@@ -121,7 +135,7 @@ export function createGame(config: GameConfig): GameState {
         const q = frameOffset(f, tc.x, tc.y, a, b);
         const t = spiralSearchFrame(frameTile(q.x, f.sx), frameTile(q.y, f.sy), 6, (x, y) => isPassable(map, x, y), f);
         const px = t ? t.x + 0.5 : q.x, py = t ? t.y + 0.5 : q.y;
-        spawnUnit(state, p.id, k < 5 ? 'villager' : 'kataskopos', px, py);
+        spawnUnit(state, p.id, k < 5 ? 'villager' : trainTypeOf(state, p, 'kataskopos'), px, py);
       });
       if (mode === 'regicide') {
         const q = frameOffset(f, tc.x, tc.y, 0, 3);
@@ -287,7 +301,7 @@ export function summarize(state: GameState): string {
     for (const u of state.units.values()) if (u.owner === p.id) { if (u.type === 'villager') v++; else if (UNITS[u.type].tags.includes('military')) m++; }
     for (const x of state.buildings.values()) if (x.owner === p.id) b++;
     const r = RESOURCES.map((k) => `${k[0]}=${Math.floor(p.resources[k])}`).join(' ');
-    return `${p.name}[${p.alive ? 'vivo' : 'morto'}] idade=${p.age} vill=${v} mil=${m} edif=${b} pop=${p.pop}/${p.popCap} techs=${p.techs.length} ${r}`;
+    return `${p.name}[${p.alive ? 'vivo' : 'morto'}] idade=${p.age} vill=${v} mil=${m} edif=${b} pop=${p.pop}/${p.popCap} techs=${p.techs.length} evo=${p.techs.filter((t) => TECHS[t]?.evolve).length} ${r}`;
   }).join('\n');
 }
 

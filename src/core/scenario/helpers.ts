@@ -1,5 +1,6 @@
 // Utilidades para cenários: contagens, invocação de esquadrões inimigos, recursos.
 import { UNITS } from '../data';
+import { applyEvolution } from '../sim/lines';
 import { TICK_RATE, type ResourceType } from '../constants';
 import type { Building, GameConfig, GameState, Unit } from '../types';
 import { spawnUnit, placeBuilding, canPlaceBuilding, onBuildingComplete, removeBuildingNow, removeUnitNow } from '../sim/entities';
@@ -139,7 +140,7 @@ export function give(state: GameState, owner: number, res: Partial<Record<Resour
 
 export function grantTech(state: GameState, owner: number, tech: string): void {
   const p = state.players[owner];
-  if (!p.techs.includes(tech)) { p.techs.push(tech); recomputeMods(state, p); refreshMaxHp(state, p); }
+  if (!p.techs.includes(tech)) { p.techs.push(tech); applyEvolution(state, p, tech); recomputeMods(state, p); refreshMaxHp(state, p); }
 }
 
 /** Coloca um edifício no tile livre mais próximo (raio 14, ignorando limites e fronteiras). Devolve o edifício ou null. */

@@ -1,5 +1,6 @@
 // Tradução para inglês do conteúdo do jogo (unidades, edifícios, tecnologias, deuses, poderes, idades).
 // Chaveado por id; os dados canônicos em português ficam em src/core/data.
+import { LINES, lineStart, evoTechId } from '../core/data/lines';
 export interface TextOverlay { name?: string; plural?: string; desc?: string; title?: string; short?: string; perks?: string[] }
 
 export const EN_UNITS: Record<string, TextOverlay> = {
@@ -39,6 +40,47 @@ export const EN_UNITS: Record<string, TextOverlay> = {
   prometheus: { name: 'Prometheus', plural: 'Prometheus', desc: 'Titan of fire, freed by Zeus. His passage sets armies and cities ablaze.' },
   oceanus: { name: 'Oceanus', plural: 'Oceanus', desc: 'Titan of the primordial waters, summoned by Poseidon.' },
   cronus: { name: 'Cronus', plural: 'Cronus', desc: 'King of the Titans, torn from Tartarus by Hades.' },
+  prodromos: { name: 'Prodromos', plural: 'Prodromoi', desc: 'Vanguard rider of the Hellenistic armies. Fast and far-sighted; weak in combat.' },
+  trapezites: { name: 'Trapezites', plural: 'Trapezitai', desc: 'Byzantine border rider trained for ambushes. Fast and far-sighted; weak in combat.' },
+  stradiot: { name: 'Stradiot', plural: 'Stradiots', desc: 'Light Greek horseman in Venetian service. Fast and far-sighted; weak in combat.' },
+  hussar: { name: 'Hussar', plural: 'Hussars', desc: 'Sabre-armed light cavalry. Fast and far-sighted; weak against line troops.' },
+  mounted_scout: { name: 'Mounted Scout', plural: 'Mounted Scouts', desc: 'Carbine scout: shoots at short range while scouting; weak in a long fight.' },
+  motorcyclist: { name: 'Motorcyclist', plural: 'Motorcyclists', desc: 'Motorized scout with a submachine gun, very fast. Costs oil.' },
+  phalangite: { name: 'Phalangite', plural: 'Phalangites', desc: 'Sarissa infantry of the Macedonian phalanx. Strong against cavalry, weak against missile troops.' },
+  skoutatos: { name: 'Skoutatos', plural: 'Skoutatoi', desc: 'Byzantine heavy infantry with oval shield and spear. Strong against cavalry, weak against missile troops.' },
+  pikeman: { name: 'Pikeman', plural: 'Pikemen', desc: 'Steel-cuirassed pikeman. Strong against cavalry, weak against missile troops.' },
+  grenadier: { name: 'Grenadier', plural: 'Grenadiers', desc: 'Throws grenades at short range, with area damage. Strong against cavalry, weak against missile troops.' },
+  fusilier: { name: 'Fusilier', plural: 'Fusiliers', desc: 'Line infantry with rifle and bayonet. Strong against cavalry, weak against missile troops.' },
+  modern_infantry: { name: 'Infantry', plural: 'Infantry', desc: 'Steel-helmeted infantry with anti-tank weapons: double damage against cavalry and tanks.' },
+  rhodian_slinger: { name: 'Rhodian Slinger', plural: 'Rhodian Slingers', desc: 'Rhodian slinger with long range. Strong against infantry, weak against cavalry.' },
+  byzantine_archer: { name: 'Byzantine Archer', plural: 'Byzantine Archers', desc: 'Byzantine composite-bow archer. Strong against infantry, weak against cavalry.' },
+  arquebusier: { name: 'Arquebusier', plural: 'Arquebusiers', desc: 'Arquebus shooter: slow, heavy shots. Strong against infantry, weak against cavalry.' },
+  musketeer: { name: 'Musketeer', plural: 'Musketeers', desc: 'Line musketeer. Strong against infantry, weak against cavalry.' },
+  sharpshooter: { name: 'Sharpshooter', plural: 'Sharpshooters', desc: 'Precision rifleman with great range. Strong against infantry, weak against cavalry.' },
+  machine_gunner: { name: 'Machine Gunner', plural: 'Machine Gunners', desc: 'Machine gun: continuous bursts, devastating against infantry; slow and weak against cavalry.' },
+  thureophoros: { name: 'Thureophoros', plural: 'Thureophoroi', desc: 'Light infantry with oval shield and javelins. Strong against missile troops, weak against infantry and cavalry.' },
+  akritas: { name: 'Akritas', plural: 'Akritai', desc: 'Byzantine border guard with javelins. Strong against missile troops, weak against infantry and cavalry.' },
+  rodelero: { name: 'Rodelero', plural: 'Rodeleros', desc: 'Sword-and-buckler man who charges the shooters. Strong against missile troops, weak against infantry and cavalry.' },
+  chasseur: { name: 'Chasseur', plural: 'Chasseurs', desc: 'Mobile, accurate carbine skirmisher. Strong against missile troops, weak against infantry and cavalry.' },
+  light_infantry: { name: 'Light Infantry', plural: 'Light Infantry', desc: 'Rifle-armed light infantry. Strong against missile troops, weak against infantry and cavalry.' },
+  commando: { name: 'Commando', plural: 'Commandos', desc: 'Fast elite assault troops. Strong against missile troops, weak against infantry and cavalry.' },
+  cataphract: { name: 'Cataphract', plural: 'Cataphracts', desc: 'Byzantine armored cavalry, horse and rider in mail. Strong against missile troops and siege, weak against heavy infantry.' },
+  cuirassier: { name: 'Cuirassier', plural: 'Cuirassiers', desc: 'Steel-cuirassed cavalry. Strong against missile troops and siege, weak against heavy infantry.' },
+  dragoon: { name: 'Dragoon', plural: 'Dragoons', desc: 'Mounted infantry with carbines. Strong against missile troops and siege, weak against heavy infantry.' },
+  lancer: { name: 'Lancer', plural: 'Lancers', desc: 'Charging mounted lancer. Strong against missile troops and siege, weak against heavy infantry.' },
+  tank: { name: 'Tank', plural: 'Tanks', desc: 'Armored gun vehicle: high health and armor, strong against missile troops, siege and buildings; weak against anti-tank infantry. Costs oil.' },
+  athanatos: { name: 'Athanatos', plural: 'Athanatoi', desc: 'The Immortals of the Byzantine guard. Elite infantry with bonus damage against mythic creatures.' },
+  knight_of_rhodes: { name: 'Knight of Rhodes', plural: 'Knights of Rhodes', desc: 'Hospitaller knight in full armor. Elite infantry with bonus damage against mythic creatures.' },
+  guard_grenadier: { name: 'Guard Grenadier', plural: 'Guard Grenadiers', desc: 'Guard grenadiers with area damage. Elite, with bonus damage against mythic creatures.' },
+  evzone: { name: 'Evzone', plural: 'Evzones', desc: 'The Greek elite guard, in kilt and with rifle. Elite, with bonus damage against mythic creatures.' },
+  sacred_band: { name: 'Sacred Band', plural: 'Sacred Band', desc: 'Commando heirs of the Sacred Band of Thebes. Elite, with bonus damage against mythic creatures.' },
+  trebuchet: { name: 'Trebuchet', plural: 'Trebuchets', desc: 'Counterweight trebuchet with enormous range. Devastating against buildings, fragile against cavalry.' },
+  bombard: { name: 'Bombard', plural: 'Bombards', desc: 'Heavy siege cannon. Brings down walls; slow and fragile against cavalry.' },
+  field_gun: { name: 'Field Gun', plural: 'Field Guns', desc: 'Light field cannon with area canister. Good against troops and buildings, fragile against cavalry.' },
+  howitzer: { name: 'Howitzer', plural: 'Howitzers', desc: 'Long-range, high-angle howitzer with area damage. Fragile against cavalry. Costs oil.' },
+  self_propelled_gun: { name: 'Self-Propelled Gun', plural: 'Self-Propelled Guns', desc: 'Tracked, armored gun, faster than towed artillery. Area damage at great range. Costs oil.' },
+  covered_ram: { name: 'Covered Ram', plural: 'Covered Rams', desc: 'Ram under a roof of wet hides: melee, shrugs off arrows and breaks gates. Gunpowder retires it.' },
+  greek_fire_siphon: { name: 'Greek Fire Siphon', plural: 'Greek Fire Siphons', desc: 'Greek fire siphon: short-range jet of flame with area damage against troops and buildings. Costs oil; gunpowder retires it.' },
 };
 
 export const EN_BUILDINGS: Record<string, TextOverlay> = {
@@ -68,6 +110,27 @@ export const EN_BUILDINGS: Record<string, TextOverlay> = {
   titan_gate: { name: 'Titan Gate', desc: "When completed, frees your major god's Titan. Can only be built once." },
   cornucopia: { name: 'Cornucopia', desc: "Hephaestus's gift: generates food, wood and gold continuously." },
 };
+
+export const EN_LINES: Record<string, TextOverlay> = {
+  citizen: { name: 'Citizens' }, scout: { name: 'Scouts' }, heavy_infantry: { name: 'Heavy Infantry' }, ranged: { name: 'Missile Troops' },
+  skirmisher: { name: 'Skirmishers' }, cavalry: { name: 'Cavalry' }, elite: { name: 'Fortress Elite' }, artillery: { name: 'Artillery' },
+  assault: { name: 'Wall Assault' }, greek_fire: { name: 'Greek Fire' },
+};
+const CITIZEN_STUDIES_EN = [null, 'Iron Tools', 'Artisans', 'Guilds', 'Steel Tools', 'Manufacture', 'Factory Workers', 'Modern Workers'];
+/** EN dos estudos de evolução (E3), na mesma conta de src/core/data/techs.ts (evolutions). */
+function evolutionsEN(): Record<string, TextOverlay> {
+  const out: Record<string, TextOverlay> = {};
+  for (const [id, l] of Object.entries(LINES)) {
+    for (let k = lineStart(l) + 1; k < l.steps.length; k++) {
+      const to = l.steps[k];
+      if (!to) continue;
+      out[evoTechId(id, k)] = id === 'citizen'
+        ? { name: `${EN_LINES[id].name}: ${CITIZEN_STUDIES_EN[k]}`, desc: 'Citizens +10% health; food, wood, stone and gold gathering +4%; building 5% faster.' }
+        : { name: `${EN_LINES[id].name}: ${EN_UNITS[to].name}`, desc: `Trains ${EN_UNITS[to].plural} instead of the previous step; the line's units you already have are transformed (health in proportion, rank and orders kept).` };
+    }
+  }
+  return out;
+}
 
 const line = (name: string, desc: string): Record<string, TextOverlay> => {
   const out: Record<string, TextOverlay> = {};
@@ -124,6 +187,7 @@ export const EN_TECHS: Record<string, TextOverlay> = {
   automatons: { name: 'Automatons', desc: 'Siege engines +40% health and +20% attack.' },
   moon_arrows: { name: 'Moon Arrows', desc: 'All ranged units +20% attack.' },
   great_hunt: { name: 'Great Hunt', desc: 'Hunting +50% and all food +10%.' },
+  ...evolutionsEN(),
 };
 
 export const EN_POWERS: Record<string, TextOverlay> = {

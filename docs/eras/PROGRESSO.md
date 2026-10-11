@@ -159,30 +159,30 @@ Fase E — testes, calibração e documentação
 Guia: `docs/eras/E3-linhas-de-unidade.md`
 
 Bloco 0 — Preparação
-- [ ] 0.1 Conferir as pré-condições (E1 e E2)
-- [ ] 0.2 Registrar o "antes" (balance 60, missions, horde, smoke)
+- [x] 0.1 Conferir as pré-condições (E1 e E2)
+- [x] 0.2 Registrar o "antes" (balance 60, missions, horde, smoke)
 
 Bloco A — Tipos e dados
-- [ ] A1 `types.ts`: `line`, `tier`, `lineOnly`, `attackInterval`, `evolve`, `unitLines`
-- [ ] A2 `src/core/data/lines.ts` (novo)
-- [ ] A3 `data/index.ts`: exportar `lines`
-- [ ] A4 `units.ts`: `line`/`tier` nas 12 de hoje e as 41 novas
-- [ ] A5 `techs.ts`: `evolutions()` (50 estudos)
-- [ ] A6 `en-data.ts`: inglês das unidades, linhas e estudos
-- [ ] A7 `i18n/index.ts`: `EN_LINES` no `setLocale`
-- [ ] A8 `strings.ts`: 4 chaves novas
-- [ ] A9 Testes de dados
+- [x] A1 `types.ts`: `line`, `tier`, `lineOnly`, `attackInterval`, `evolve`, `unitLines`
+- [x] A2 `src/core/data/lines.ts` (novo)
+- [x] A3 `data/index.ts`: exportar `lines`
+- [x] A4 `units.ts`: `line`/`tier` nas 12 de hoje e as 41 novas
+- [x] A5 `techs.ts`: `evolutions()` (50 estudos)
+- [x] A6 `en-data.ts`: inglês das unidades, linhas e estudos
+- [x] A7 `i18n/index.ts`: `EN_LINES` no `setLocale`
+- [x] A8 `strings.ts`: 4 chaves novas
+- [x] A9 Testes de dados
 
 Bloco B — Núcleo
-- [ ] B1 `src/core/sim/lines.ts` (novo)
-- [ ] B2 `commands.ts`: treino pela linha
-- [ ] B3 `buildings.ts`: item resolvido ao nascer e `applyEvolution`
-- [ ] B4 `helpers.ts`: `grantTech` transforma
-- [ ] B5 `combat.ts`: `attackInterval`
-- [ ] B6 `game.ts`: `grantStartingEvolutions`, kit e `evo=`
-- [ ] B7 Cenário: `config.unitLines`
-- [ ] B8 `SIM_VERSION` +1
-- [ ] B9 `tests/unit-lines.test.ts` (dados e núcleo)
+- [x] B1 `src/core/sim/lines.ts` (novo)
+- [x] B2 `commands.ts`: treino pela linha
+- [x] B3 `buildings.ts`: item resolvido ao nascer e `applyEvolution`
+- [x] B4 `helpers.ts`: `grantTech` transforma
+- [x] B5 `combat.ts`: `attackInterval`
+- [x] B6 `game.ts`: `grantStartingEvolutions`, kit e `evo=`
+- [x] B7 Cenário: `config.unitLines`
+- [x] B8 `SIM_VERSION` +1
+- [x] B9 `tests/unit-lines.test.ts` (dados e núcleo)
 
 Bloco C — IA
 - [ ] C1 Imports da IA
@@ -228,20 +228,20 @@ Bloco 0 — Preparação
 - [ ] 02 Linha de base (smoke, balance, missions, fairness)
 
 Bloco A — Terreno, camada naval e regiões
-- [ ] A1 Constantes e tipos (baixio, nós de peixe, tipos de mapa)
-- [ ] A2 `src/core/map/naval.ts` (novo)
-- [ ] A3 `grid.ts` com camada
-- [ ] A4 `pathfinding.ts` com camada
-- [ ] A5 `components.ts`: regiões navais e `shoreOk`
-- [ ] A6 Bloqueio terrestre pela regra única
+- [x] A1 Constantes e tipos (baixio, nós de peixe, tipos de mapa)
+- [x] A2 `src/core/map/naval.ts` (novo)
+- [x] A3 `grid.ts` com camada
+- [x] A4 `pathfinding.ts` com camada
+- [x] A5 `components.ts`: regiões navais e `shoreOk`
+- [x] A6 Bloqueio terrestre pela regra única
 
 Bloco B — Dados
-- [ ] B1 Unidades (10 navios)
-- [ ] B2 Linhas `fishing`, `transport`, `warship`
-- [ ] B3 Estudos (`evolutions()` com linhas de tipo fixo) e pesquisas do Estaleiro
-- [ ] B4 Estaleiro, Poseidon e `rare_fish`
-- [ ] B5 Textos PT/EN
-- [ ] B6 Testes da E3 que contam linhas, degraus e estudos
+- [x] B1 Unidades (10 navios)
+- [x] B2 Linhas `fishing`, `transport`, `warship`
+- [x] B3 Estudos (`evolutions()` com linhas de tipo fixo) e pesquisas do Estaleiro
+- [x] B4 Estaleiro, Poseidon e `rare_fish`
+- [x] B5 Textos PT/EN
+- [x] B6 Testes da E3 que contam linhas, degraus e estudos
 
 Bloco C — Núcleo
 - [ ] C1 `src/core/sim/naval.ts` (novo)
@@ -303,28 +303,28 @@ Bloco H — Verificação e documentação
 Guia: `docs/eras/E5-E7-comercio-maravilhas.md`
 
 Fase 0 — Preparação
-- [ ] 0.1 Pré-requisitos
-- [ ] 0.2 Conferir o Mercador da E2
+- [x] 0.1 Pré-requisitos
+- [x] 0.2 Conferir o Mercador da E2
 - [ ] 0.3 "Antes" (smoke e balance)
 
 Fase A — Dados e tipos
-- [ ] A1 `types.ts`: `trader`, `tradeRoute`, rota, comando `route`
-- [ ] A2 Constantes do comércio
-- [ ] A3 `modifiers.ts`: `tradeIncome`, `seaTradeIncome`
-- [ ] A4 Dados: `caravan`, pontos de comércio
-- [ ] A5 Arte provisória (alias `kataskopos`)
-- [ ] A6 Textos PT/EN
+- [x] A1 `types.ts`: `trader`, `tradeRoute`, rota, comando `route`
+- [x] A2 Constantes do comércio
+- [x] A3 `modifiers.ts`: `tradeIncome`, `seaTradeIncome`
+- [x] A4 Dados: `caravan`, pontos de comércio
+- [x] A5 Arte provisória (alias `kataskopos`)
+- [x] A6 Textos PT/EN
 
 Fase B — Núcleo
-- [ ] B1 `src/core/sim/trade.ts` (novo)
-- [ ] B2 Campos da unidade e `deserialize`
-- [ ] B3 Caravana sem guarnição
-- [ ] B4 Movimento da rota (`updateRoute`)
-- [ ] B5 Validação do comando
-- [ ] B6 Comando `route`
-- [ ] B7 Ponto de encontro num ponto de comércio vira rota
-- [ ] B8 Relatório de dessincronia
-- [ ] B9 `SIM_VERSION` +1
+- [x] B1 `src/core/sim/trade.ts` (novo)
+- [x] B2 Campos da unidade e `deserialize`
+- [x] B3 Caravana sem guarnição
+- [x] B4 Movimento da rota (`updateRoute`)
+- [x] B5 Validação do comando
+- [x] B6 Comando `route`
+- [x] B7 Ponto de encontro num ponto de comércio vira rota
+- [x] B8 Relatório de dessincronia
+- [x] B9 `SIM_VERSION` +1
 
 Fase C — IA
 - [ ] C1 `manageCaravans`
@@ -422,32 +422,32 @@ Fase N — Testes, verificação e commit
 Guia: `docs/eras/E6-mitologia.md`
 
 Bloco 0 — Preparação
-- [ ] 0.1 Pré-condições (E1–E4; E5 e E7 já feitas)
-- [ ] 0.2 O "antes" (missions, balance 35/60, smoke)
+- [x] 0.1 Pré-condições (E1–E4; E5 e E7 já feitas)
+- [x] 0.2 O "antes" (missions, balance 35/60, smoke)
 
 Bloco A — Tipos, dados e textos
-- [ ] A1 `types.ts`: anfíbio, especiais, `group`, flags dos poderes, `eraMyth`
-- [ ] A2 Constantes dos Titãs por Era
-- [ ] A3 `ages.ts`: `minorGod` nas Eras V–VII
-- [ ] A4 `gods.ts`: 9 poderes, 9 deuses, pares, bônus de pólvora
-- [ ] A5 `units.ts`: 12 criaturas, `MYTH_UPGRADES`, Oceano anfíbio
-- [ ] A6 `buildings.ts`: Templo e Estaleiro treinam as criaturas
-- [ ] A7 `techs.ts`: 18 pesquisas e as Bênçãos
-- [ ] A8 `data/index.ts`: exportações novas
-- [ ] A9 `en-data.ts`: inglês
+- [x] A1 `types.ts`: anfíbio, especiais, `group`, flags dos poderes, `eraMyth`
+- [x] A2 Constantes dos Titãs por Era
+- [x] A3 `ages.ts`: `minorGod` nas Eras V–VII
+- [x] A4 `gods.ts`: 9 poderes, 9 deuses, pares, bônus de pólvora
+- [x] A5 `units.ts`: 12 criaturas, `MYTH_UPGRADES`, Oceano anfíbio
+- [x] A6 `buildings.ts`: Templo e Estaleiro treinam as criaturas
+- [x] A7 `techs.ts`: 18 pesquisas e as Bênçãos
+- [x] A8 `data/index.ts`: exportações novas
+- [x] A9 `en-data.ts`: inglês
 - [ ] A10 `strings.ts`: 10 chaves
 - [ ] A11 `eraMyth` (restrições, schema, compile)
 - [ ] A12 `data.test.ts`: 6 pares por deus maior
 
 Bloco B — Camada anfíbia
-- [ ] B1 `map/naval.ts`: camada `amphibious`
-- [ ] B2 `grid.ts`
-- [ ] B3 `pathfinding.ts`
-- [ ] B4 `components.ts`
-- [ ] B5 `sim/naval.ts`: `unitLayer`, `mediumOf`
-- [ ] B6 Trocar `layerOf` por `unitLayer` no núcleo
-- [ ] B7 Aproximação de ataque com anfíbio/voador
-- [ ] B8 `canTarget` com anfíbio
+- [x] B1 `map/naval.ts`: camada `amphibious`
+- [x] B2 `grid.ts`
+- [x] B3 `pathfinding.ts`
+- [x] B4 `components.ts`
+- [x] B5 `sim/naval.ts`: `unitLayer`, `mediumOf`
+- [x] B6 Trocar `layerOf` por `unitLayer` no núcleo
+- [x] B7 Aproximação de ataque com anfíbio/voador
+- [x] B8 `canTarget` com anfíbio
 
 Bloco C — Poderes e escala por Era
 - [ ] C1 `src/core/sim/divine.ts` (novo)
@@ -506,29 +506,29 @@ Bloco J — Verificação e documentação
 Guia: `docs/eras/E8-arte-por-era.md`
 
 Bloco 0 — Preparação
-- [ ] 0.1 Conferir os pré-requisitos e a lista de alias
-- [ ] 0.2 Fotografia do antes
+- [x] 0.1 Conferir os pré-requisitos e a lista de alias
+- [x] 0.2 Fotografia do antes
 - [ ] 0.3 Cache de referência dos edifícios
 - [ ] 0.4 Ganchos `debugSetAge`/`debugData` em `main.ts`
 
 Bloco A — Manifesto, bake e check por Era
-- [ ] A1 Constantes e validação em `manifest.mjs`
-- [ ] A2 Expansão das Eras (`expandEraVariants`)
-- [ ] A3 Grupo nos quadros e no filtro
-- [ ] A4 `bake.mjs` com os grupos por Era
-- [ ] A5 `check.ts` por Era
-- [ ] A6 `scripts/bake/cache-diff.mjs` (novo)
-- [ ] A7 Centro Cívico por Era (prova com manifesto de prova)
+- [x] A1 Constantes e validação em `manifest.mjs`
+- [x] A2 Expansão das Eras (`expandEraVariants`)
+- [x] A3 Grupo nos quadros e no filtro
+- [x] A4 `bake.mjs` com os grupos por Era
+- [x] A5 `check.ts` por Era
+- [x] A6 `scripts/bake/cache-diff.mjs` (novo)
+- [x] A7 Centro Cívico por Era (prova com manifesto de prova)
 
 Bloco B — Renderizador por Era
-- [ ] B1 Tipos e funções puras
-- [ ] B2 `src/render/art/era.ts` (novo)
-- [ ] B3 `AtlasSource`/`ArtLibrary` com grupos sob demanda
-- [ ] B4 `BuildingView` com `artId` e Era
-- [ ] B5 `renderer.ts`: edifícios por Era
-- [ ] B6 Fantasma, desabamento e escombros
-- [ ] B7 Unidades por Era
-- [ ] B8 Testes do bloco (`tests/art-eras.test.ts`)
+- [x] B1 Tipos e funções puras
+- [x] B2 `src/render/art/era.ts` (novo)
+- [x] B3 `AtlasSource`/`ArtLibrary` com grupos sob demanda
+- [x] B4 `BuildingView` com `artId` e Era
+- [x] B5 `renderer.ts`: edifícios por Era
+- [x] B6 Fantasma, desabamento e escombros
+- [x] B7 Unidades por Era
+- [x] B8 Testes do bloco (`tests/art-eras.test.ts`)
 
 Bloco C — Kit de Era no rig de edifícios
 - [ ] C1 Materiais novos
@@ -624,22 +624,22 @@ Bloco M — VRAM, desempenho, capturas e documentos
 Guia: `docs/eras/E9-E10-interface-balanceamento.md`
 
 Bloco 0 — Preparação
-- [ ] 0.1 Pré-condições
-- [ ] 0.2 Base (smoke e enciclopédia de antes)
+- [x] 0.1 Pré-condições
+- [x] 0.2 Base (smoke e enciclopédia de antes)
 
 Bloco A — Enciclopédia
-- [ ] A1 Textos `enc.*` e afins
-- [ ] A2 `src/ui/encyclopedia.ts` (novo)
-- [ ] A3 `hud.ts`: enciclopédia nova e filtro de Era
-- [ ] A4 CSS
-- [ ] A5 Testes (`tests/encyclopedia.test.ts`)
+- [x] A1 Textos `enc.*` e afins
+- [x] A2 `src/ui/encyclopedia.ts` (novo)
+- [x] A3 `hud.ts`: enciclopédia nova e filtro de Era
+- [x] A4 CSS
+- [x] A5 Testes (`tests/encyclopedia.test.ts`)
 
 Bloco B — Ajuda, dicas, atalhos e partida
-- [ ] B1 Textos de ajuda e dicas
-- [ ] B2 `showHelp`
-- [ ] B3 Tela de carregamento (18 dicas)
-- [ ] B4 Atalhos (`U`)
-- [ ] B5 Linha da partida no menu
+- [x] B1 Textos de ajuda e dicas
+- [x] B2 `showHelp`
+- [x] B3 Tela de carregamento (18 dicas)
+- [x] B4 Atalhos (`U`)
+- [x] B5 Linha da partida no menu
 
 Bloco C — Revisão dos textos PT/EN
 - [ ] C1 `tests/i18n-eras.test.ts` (novo)

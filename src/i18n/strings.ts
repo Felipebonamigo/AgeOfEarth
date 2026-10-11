@@ -218,6 +218,7 @@ const pt = {
   'line.commerce': 'Comércio',
   'line.military': 'Militar',
   'line.science': 'Ciência',
+  'err.legacyRoster': 'Este cenário usa o elenco clássico: sem linhas de unidade.', 'err.lineRetired': '{line}: aposentada a partir da {age}.', 'sel.line': 'Linha', 'cmd.lineTip': 'Linha {line}: evolui na Biblioteca.',
 } as const;
 
 const en: Record<keyof typeof pt, string> = {
@@ -424,6 +425,7 @@ const en: Record<keyof typeof pt, string> = {
   'line.military': 'Military',
   'line.science': 'Science',
 
+  'err.legacyRoster': 'This scenario uses the classic roster: no unit lines.', 'err.lineRetired': '{line}: retired from the {age} on.', 'sel.line': 'Line', 'cmd.lineTip': '{line} line: evolves at the Library.',
 };
 
 export const STRINGS = { pt, en };

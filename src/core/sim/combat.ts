@@ -17,7 +17,7 @@ export const ATTACK_INTERVAL: Record<string, number> = { villager: 1.0, scout: 1
 
 export function attackInterval(attacker: Unit | Building, tick = -1): number {
   if (attacker.kind === 'building') return ATTACK_INTERVAL.building;
-  const base = ATTACK_INTERVAL[UNITS[attacker.type].cls] ?? 1.2;
+  const def = UNITS[attacker.type]; const base = def.attackInterval ?? ATTACK_INTERVAL[def.cls] ?? 1.2;   // E3: armas de fogo têm cadência própria
   return tick >= 0 && tick < attacker.buffUntil ? base / attacker.buffHaste : base;   // Fúria: ataca mais rápido
 }
 

@@ -7,6 +7,8 @@
 //   { type:'cost', match:{tags:[..]}|{types:[..]}|'buildings', mult }
 
 import type { TechDef, Effect, Cost } from '../types';
+import { LINES, LINE_ORDER, lineStart, evoTechId } from './lines';
+import { UNITS } from './units';
 
 type TechInput = Omit<TechDef, 'id' | 'prereq'> & { prereq?: string[] };
 interface LineOpts { cost: (l: number) => Cost; time: (l: number) => number; effects: (l: number) => Effect[]; icon: string; desc: string }
@@ -28,6 +30,41 @@ const line = (key: string, name: string, count: number, opts: LineOpts): Record<
   }
   return out;
 };
+
+/** Efeitos de cada estudo da linha dos cidadãos (E3): o tipo não muda — dezenas de comparações com 'villager' no núcleo. */
+const CITIZEN_EVO_EFFECTS: Effect[] = [
+  { type: 'unit', match: { types: ['villager'] }, stat: 'hp', mult: 1.1 },
+  { type: 'gather', resource: 'food', mult: 1.04 }, { type: 'gather', resource: 'wood', mult: 1.04 },
+  { type: 'gather', resource: 'stone', mult: 1.04 }, { type: 'gather', resource: 'gold', mult: 1.04 },
+  { type: 'player', stat: 'buildSpeed', mult: 1.05 },
+];
+/** Estudos de evolução (E3): um por degrau novo de cada linha, na Biblioteca, na Era do degrau, em sequência (prereq = o
+ *  estudo anterior da mesma linha). Sem `line` de propósito: não contam no requires.techCount das Eras. */
+function evolutions(): Record<string, TechInput> {
+  const out: Record<string, TechInput> = {};
+  for (const id of LINE_ORDER) {
+    const l = LINES[id];
+    let prev: string | null = null;
+    for (let k = lineStart(l) + 1; k < l.steps.length; k++) {
+      const to = l.steps[k];
+      if (!to) continue;
+      const tid = evoTechId(id, k);
+      const citizen = id === 'citizen';
+      out[tid] = {
+        name: citizen ? `${l.name}: ${l.studyNames?.[k] ?? ''}` : `${l.name}: ${UNITS[to].name}`,
+        icon: UNITS[to].icon, building: 'academy', age: k,
+        cost: citizen ? { knowledge: 40 + 60 * k, food: 40 + 50 * k } : { knowledge: 40 + 60 * k, gold: 40 + 50 * k },
+        time: 25 + 8 * k, prereq: prev ? [prev] : [], effects: citizen ? CITIZEN_EVO_EFFECTS : [],
+        evolve: { line: id, to },
+        desc: citizen
+          ? 'Cidadãos +10% de vida; coleta de comida, madeira, pedra e ouro +4%; construção 5% mais rápida.'
+          : `Treina ${UNITS[to].plural} no lugar do degrau anterior; as unidades da linha que você já tem se transformam (vida proporcional, patente e ordens mantidas).`,
+      };
+      prev = tid;
+    }
+  }
+  return out;
+}
 
 const RAW: Record<string, TechInput> = {
   // ---------- Linhas da Academia (estilo Biblioteca do Rise of Nations) ----------
@@ -147,6 +184,8 @@ const RAW: Record<string, TechInput> = {
   automatons: { name: 'Autômatos', icon: '🤖', building: 'temple', age: 3, god: 'hephaestus', cost: { gold: 350, wood: 300, favor: 30 }, time: 55, effects: [{ type: 'unit', match: { tags: ['siege'] }, stat: 'hp', mult: 1.4 }, { type: 'unit', match: { tags: ['siege'] }, stat: 'attack', mult: 1.2 }], desc: 'Máquinas de cerco +40% de vida e +20% de ataque.' },
   moon_arrows: { name: 'Flechas Lunares', icon: '🌙', building: 'temple', age: 3, god: 'artemis', cost: { wood: 300, favor: 40 }, time: 50, effects: [{ type: 'unit', match: { tags: ['ranged'] }, stat: 'attack', mult: 1.2 }], desc: 'Todas as unidades à distância +20% de ataque.' },
   great_hunt: { name: 'Grande Caçada', icon: '🦌', building: 'temple', age: 3, god: 'artemis', cost: { food: 300, favor: 30 }, time: 45, effects: [{ type: 'gather', resource: 'hunt', mult: 1.5 }, { type: 'gather', resource: 'food', mult: 1.1 }], desc: 'Caça +50% e toda comida +10%.' },
+  // ---------- Evolução das linhas de unidade (E3) ----------
+  ...evolutions(),
 };
 export const TECHS: Record<string, TechDef> = {};
 for (const [id, t] of Object.entries(RAW)) TECHS[id] = { ...t, id, prereq: t.prereq ?? [] };
