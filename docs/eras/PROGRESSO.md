@@ -14,7 +14,7 @@ Estados: `pendente` · `em andamento` · `feito` · `feito com pendências` · `
 |---|---|---|---|---|
 | E1 + painel/árvore (E9) | feito | 10/10/2026 | 04f0080+ | SIM_VERSION 4, save v2; Prometeu por roteiro nas m3/m8/m12 |
 | E2 | feito | 11/10/2026 | E2-A…E | SIM_VERSION 5; pedra (Pedreira), nafta (Era IV, Poço de Nafta), jazidas (Era VII, Poço de Petróleo), 7 raros com Mercador; IA só planta onde a obra é alcançável (`findBuildSpot` com `findPathEx`); proporção de pedra/petróleo cai com estoque parado |
-| E3 | pendente | | | |
+| E3 | feito | 11/10/2026 | E3-A…H | SIM_VERSION 6; 10 linhas, 41 degraus novos e 50 estudos `evo_*`; elenco clássico nos cenários (`config.unitLines`); Sifão como linha técnica `greek_fire`; navios reservados para a E4; a IA só evolui linhas militares com o fundo da Era junto (ajuste 2) |
 | E4 | pendente | | | |
 | E5 — comércio | pendente | | | |
 | E7 — maravilhas | pendente | | | |
@@ -213,9 +213,9 @@ Bloco G — Playtest
 - [x] G2 Rodar no build e olhar as 3 capturas
 
 Bloco H — Verificação e documentação
-- [ ] H1 Seção "Verificação" inteira
-- [ ] H2 `docs/EDITOR.md`: `unitLines`
-- [ ] H3 "Ao terminar"
+- [x] H1 Seção "Verificação" inteira
+- [x] H2 `docs/EDITOR.md`: `unitLines`
+- [x] H3 "Ao terminar"
 
 ---
 
@@ -743,6 +743,11 @@ Bloco P — Capturas, loja e documentos
 - `fairness` Egeu e Estreito 1–16 (`--both`, 45 min): Egeu posição 17 × 15 (53 %), índice 19 × 13 (59 %); Estreito posição 19 × 13 (59 %), índice 15 × 17 (53 %): DENTRO nos dois. Nas partidas de fairness as IAs chegam a: V ~24 · VI ~29–30 · VII ~33–34 · VIII ~38 min.
 - `scripts/missions.ts`: ok (12 missões × 3 dificuldades e variantes; janelas na seção "Eras (E1)" de `docs/STORY.md`). `smoke 20 42`: hash `4980cdb` nas duas rodadas. `horde.ts` igual ao de antes; `art:check` ok; `npm test`: 70 arquivos, 948 testes.
 - Ajustes além do guia (todos explicados em `docs/STORY.md` "Eras (E1)"): a IA guarda a madeira da 1ª Biblioteca (200) e o Conhecimento/ouro da Era seguinte (`libraryWoodHold`, filósofos e estudos só depois do fundo), razão de coleta da Era I com mais ouro; IAs inimigas das m3/m5/m6/m7 com `maxAge: 4`; `MissionScript.playerMaxAge` (m9); caça do Difícil da m5 a cada 50 s desde 150 s; `tests/art-military.test.ts` aceita a maravilha de Zeus em `.glb` (estava vermelho desde o Meshy).
+### E3 — medições
+- `balance 60 1,2,3` (média dos minutos por Era, antes (E2) × depois): sem o ajuste, III +2,4 · IV +3,6 · V +4,5 (falha, o critério é +2,0). Ajuste 1 (`EVO_USERS = 8`): III +0,7 · IV +0,5 · V +2,2 (falha). **Ajuste 2** (linhas militares só evoluem com o fundo da Era junto; cidadãos sempre): II 0,0 · III +0,6 · IV 0,0 · V +0,9 (7 IAs na V, como antes): passa; ajuste 3 também passaria (0,0 / +0,8 / +0,2), mas o 2 é o primeiro que passa. `EVO_USERS` foi removido. Nenhuma `PARADA`.
+- `smoke 20 42`: hash `79764f52` nas duas rodadas; as IAs vivas têm `evo=1–2` no minuto 20.
+- `fairness` 45 min, 16 sementes × 2 ordens, `--both`: Egeu posição 19 × 13 (59 %), índice 15 × 17 (53 %); Estreito posição 16 × 16 (50 %), índice 20 × 12 (63 %): DENTRO nos dois.
+- `missions.ts`: idêntico ao antes (diff vazio, tempos à parte); `horde.ts` igual; `npm test`: 72 arquivos, 977 testes; `art:check` ok (hud 164 ícones); playtests `lines`, `noemoji` (sem emoji nem ícone vazio), `i18n` e `playtest.mjs` sem erro. O "fila TC:" vazio do `playtest.mjs` já é assim no baseline da E2 (jogo pausado, o comando só vale no tick seguinte); Q no Centro Cívico enfileira `villager` com o jogo rodando.
 ### Pendências para o dono
 - Aprovar o Prometeu por roteiro (Fortaleza + 6 estudos + 500 de Favor, cobrados pelo gatilho) no lugar do Portal na campanha (D12).
 - Relay de produção: atualizar `server/relay.mjs` (chaves `startAge`/`endAge` do lobby).
