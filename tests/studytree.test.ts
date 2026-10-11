@@ -76,7 +76,7 @@ describe('árvore de estudos', () => {
     const row = m.rows.find((r) => r.id === 'evo:heavy_infantry');
     expect(row, 'linha evo:heavy_infantry').toBeDefined();
     expect(row!.cells[1].map((x) => x.id)).toContain('evo_heavy_infantry_2');
-    expect(m.rows.filter((r) => r.id.startsWith('evo:'))).toHaveLength(9);
+    expect(m.rows.filter((r) => r.id.startsWith('evo:'))).toHaveLength(12);
     expect((m.rows.find((r) => r.id === 'other')?.cells.flat() ?? []).some((x) => !!TECHS[x.id]?.evolve)).toBe(false);
     expect(studyTreeModel(quickGame({ unitLines: false }), 0).rows.some((r) => r.id.startsWith('evo:'))).toBe(false);
   });

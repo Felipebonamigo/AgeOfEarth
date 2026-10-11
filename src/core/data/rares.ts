@@ -9,5 +9,6 @@ export const RARES: Record<string, RareDef> = {
   salt: { id: 'salt', effects: [{ type: 'player', stat: 'attritionResist', add: 0.25 }] },
   wild_horses: { id: 'wild_horses', effects: [{ type: 'cost', match: { tags: ['cavalry'] }, mult: 0.85 }] },
   copper: { id: 'copper', effects: [{ type: 'unit', match: { tags: ['military'] }, stat: 'attack', mult: 1.05 }] },
+  rare_fish: { id: 'rare_fish', effects: [{ type: 'gather', resource: 'fish', mult: 1.15 }] },   // E4: atum, raro do mar (barco de pesca)
   incense: { id: 'incense', effects: [{ type: 'player', stat: 'favorRate', mult: 1.15 }] },
 };

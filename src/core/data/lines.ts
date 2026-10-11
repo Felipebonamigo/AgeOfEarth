@@ -4,6 +4,8 @@
 // Biblioteca (src/core/data/techs.ts), em sequência; ao terminar, as unidades da linha se transformam
 // (src/core/sim/lines.ts). Nome em PT aqui; EN em src/i18n/en-data.ts (EN_LINES). Só valem com as linhas ligadas
 // (unitLinesOn): a campanha e os cenários usam o elenco clássico (os trains de src/core/data/buildings.ts).
+import type { Effect } from '../types';
+
 export interface LineDef {
   id: string;
   name: string;
@@ -17,6 +19,10 @@ export interface LineDef {
   retireAt?: number;
   /** Só na linha dos cidadãos (o tipo não muda): nome PT de cada estudo, pela Era. */
   studyNames?: (string | null)[];
+  /** E4: efeitos de cada estudo de uma linha que não troca de tipo (barcos "a vapor"); os cidadãos usam CITIZEN_EVO_EFFECTS. */
+  studyEffects?: Effect[];
+  /** E4: descrição PT desses estudos (EN em src/i18n/en-data.ts, LINE_STUDIES_EN). */
+  studyDesc?: string;
 }
 
 export const LINES: Record<string, LineDef> = {
@@ -41,10 +47,30 @@ export const LINES: Record<string, LineDef> = {
     steps: [null, null, 'helepolis', 'covered_ram', null, null, null, null] },
   greek_fire: { id: 'greek_fire', name: 'Fogo grego', buildings: ['siege_workshop'], hotkey: 'E', retireAt: 4,
     steps: [null, null, null, 'greek_fire_siphon', null, null, null, null] },
+  // ---- E4: naval (só o Estaleiro treina; os barcos não trocam de tipo, ganham o estudo "a vapor" na Era VII) ----
+  fishing: { id: 'fishing', name: 'Barcos de pesca', buildings: ['shipyard'], hotkey: 'Q',
+    steps: ['fishing_boat', null, null, null, null, null, 'fishing_boat', null],
+    studyNames: [null, null, null, null, null, null, 'A vapor', null],
+    studyDesc: 'Barcos de pesca a vapor: +25% de velocidade, +50% de vida e pesca +25%.',
+    studyEffects: [
+      { type: 'unit', match: { types: ['fishing_boat'] }, stat: 'speed', mult: 1.25 },
+      { type: 'unit', match: { types: ['fishing_boat'] }, stat: 'hp', mult: 1.5 },
+      { type: 'gather', resource: 'fish', mult: 1.25 },
+    ] },
+  transport: { id: 'transport', name: 'Transportes', buildings: ['shipyard'], hotkey: 'W',
+    steps: ['transport_ship', null, null, null, null, null, 'transport_ship', null],
+    studyNames: [null, null, null, null, null, null, 'A vapor', null],
+    studyDesc: 'Transportes a vapor: +30% de velocidade e +50% de vida.',
+    studyEffects: [
+      { type: 'unit', match: { types: ['transport_ship'] }, stat: 'speed', mult: 1.3 },
+      { type: 'unit', match: { types: ['transport_ship'] }, stat: 'hp', mult: 1.5 },
+    ] },
+  warship: { id: 'warship', name: 'Navios de guerra', buildings: ['shipyard'], hotkey: 'E',
+    steps: ['penteconter', 'trireme', 'quinquereme', 'dromon', 'galleon', 'ship_of_the_line', 'ironclad', 'battleship'] },
 };
 
 /** Ordem das linhas nos botões, na IA (desempate) e na árvore de estudos. */
-export const LINE_ORDER: readonly string[] = ['citizen', 'scout', 'heavy_infantry', 'ranged', 'skirmisher', 'cavalry', 'elite', 'artillery', 'assault', 'greek_fire'];
+export const LINE_ORDER: readonly string[] = ['citizen', 'scout', 'heavy_infantry', 'ranged', 'skirmisher', 'cavalry', 'elite', 'artillery', 'assault', 'greek_fire', 'fishing', 'transport', 'warship'];
 /** Era da base da linha (o primeiro degrau não nulo). */
 export function lineStart(l: LineDef): number { return l.steps.findIndex((s) => s !== null); }
 /** Id do estudo que libera o degrau da Era `era` (índice 0–7) da linha: evo_<linha>_<número da Era> (como civic3 = Era III). */

@@ -50,14 +50,16 @@ function evolutions(): Record<string, TechInput> {
       if (!to) continue;
       const tid = evoTechId(id, k);
       const citizen = id === 'citizen';
+      const keep = !!l.studyNames;   // linha que não troca de tipo (cidadãos, barcos)
       out[tid] = {
-        name: citizen ? `${l.name}: ${l.studyNames?.[k] ?? ''}` : `${l.name}: ${UNITS[to].name}`,
+        name: keep ? `${l.name}: ${l.studyNames![k] ?? ''}` : `${l.name}: ${UNITS[to].name}`,
         icon: UNITS[to].icon, building: 'academy', age: k,
         cost: citizen ? { knowledge: 40 + 60 * k, food: 40 + 50 * k } : { knowledge: 40 + 60 * k, gold: 40 + 50 * k },
-        time: 25 + 8 * k, prereq: prev ? [prev] : [], effects: citizen ? CITIZEN_EVO_EFFECTS : [],
+        time: 25 + 8 * k, prereq: prev ? [prev] : [], effects: citizen ? CITIZEN_EVO_EFFECTS : keep ? (l.studyEffects ?? []) : [],
         evolve: { line: id, to },
         desc: citizen
           ? 'Cidadãos +10% de vida; coleta de comida, madeira, pedra e ouro +4%; construção 5% mais rápida.'
+          : keep ? (l.studyDesc ?? '')
           : `Treina ${UNITS[to].plural} no lugar do degrau anterior; as unidades da linha que você já tem se transformam (vida proporcional, patente e ordens mantidas).`,
       };
       prev = tid;
@@ -184,6 +186,11 @@ const RAW: Record<string, TechInput> = {
   automatons: { name: 'Autômatos', icon: '🤖', building: 'temple', age: 3, god: 'hephaestus', cost: { gold: 350, wood: 300, favor: 30 }, time: 55, effects: [{ type: 'unit', match: { tags: ['siege'] }, stat: 'hp', mult: 1.4 }, { type: 'unit', match: { tags: ['siege'] }, stat: 'attack', mult: 1.2 }], desc: 'Máquinas de cerco +40% de vida e +20% de ataque.' },
   moon_arrows: { name: 'Flechas Lunares', icon: '🌙', building: 'temple', age: 3, god: 'artemis', cost: { wood: 300, favor: 40 }, time: 50, effects: [{ type: 'unit', match: { tags: ['ranged'] }, stat: 'attack', mult: 1.2 }], desc: 'Todas as unidades à distância +20% de ataque.' },
   great_hunt: { name: 'Grande Caçada', icon: '🦌', building: 'temple', age: 3, god: 'artemis', cost: { food: 300, favor: 30 }, time: 45, effects: [{ type: 'gather', resource: 'hunt', mult: 1.5 }, { type: 'gather', resource: 'food', mult: 1.1 }], desc: 'Caça +50% e toda comida +10%.' },
+  // ---------- Estaleiro (E4): fora da Biblioteca (§2: as de economia ficam fora) ----------
+  fishing_nets: { name: 'Redes de Pesca', icon: '🌊', building: 'shipyard', age: 0, cost: { wood: 100, gold: 50 }, time: 30, effects: [{ type: 'gather', resource: 'fish', mult: 1.2 }], desc: 'Barcos de pesca coletam 20% mais rápido.' },
+  caulking: { name: 'Calafeto com Piche', icon: '🌊', building: 'shipyard', age: 1, cost: { wood: 150, gold: 100 }, time: 40, effects: [{ type: 'unit', match: { tags: ['ship'] }, stat: 'hp', mult: 1.15 }], desc: 'Navios +15% de vida.' },
+  bronze_rams: { name: 'Esporões de Bronze', icon: '🌊', building: 'shipyard', age: 2, cost: { wood: 200, gold: 150 }, time: 50, prereq: ['caulking'], effects: [{ type: 'unit', match: { tags: ['ship'] }, stat: 'attack', mult: 1.15 }], desc: 'Navios de guerra +15% de ataque.' },
+  navigation: { name: 'Navegação Astronômica', icon: '🌊', building: 'shipyard', age: 4, cost: { wood: 250, gold: 200 }, time: 60, prereq: ['bronze_rams'], effects: [{ type: 'unit', match: { tags: ['ship'] }, stat: 'speed', mult: 1.1 }, { type: 'unit', match: { tags: ['ship'] }, stat: 'los', add: 2 }], desc: 'Navios 10% mais rápidos e +2 de visão.' },
   // ---------- Evolução das linhas de unidade (E3) ----------
   ...evolutions(),
 };

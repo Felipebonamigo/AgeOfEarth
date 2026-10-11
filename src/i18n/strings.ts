@@ -7,6 +7,14 @@ const pt = {
   'node.remaining': '{n} restantes',
   'node.limestone': 'Afloramento de Calcário', 'node.naphtha': 'Fonte de Nafta', 'node.oil_field': 'Jazida de Petróleo', 'node.olive': 'Olival', 'node.vineyard': 'Vinhedo', 'node.paros_marble': 'Mármore de Paros', 'node.salt': 'Salinas', 'node.wild_horses': 'Cavalos Selvagens', 'node.copper': 'Minas de Cobre', 'node.incense': 'Árvores de Incenso',
   'rare.olive': 'Azeite: fazendas +10%.', 'rare.vineyard': 'Vinho: taxas do Mercado 20% menores.', 'rare.paros_marble': 'Mármore: edifícios +10% de vida.', 'rare.salt': 'Sal: suas tropas sofrem 25% menos atrito.', 'rare.wild_horses': 'Cavalos: cavalaria 15% mais barata.', 'rare.copper': 'Cobre: militares +5% de ataque.', 'rare.incense': 'Incenso: Favor +15%.',
+  // E4: naval
+  'maptype.coastal': 'Costeiro', 'maptype.islands': 'Ilhas (só por mar)', 'maptype.mediterranean': 'Mediterrâneo (mar no centro)',
+  'node.fish': 'Cardume', 'node.rare_fish': 'Cardume de Atum', 'rare.rare_fish': 'Atum: pesca +15%.',
+  'editor.terrain.6': 'Baixio', 'editor.naval': 'Mar', 'editor.cls.ship': 'Navios',
+  'err.needsShore': 'O Estaleiro precisa de mar aberto encostado (2 tiles ou mais).', 'err.boatOnly': 'Só barcos de pesca trabalham na água.', 'err.fishOnly': 'Barcos de pesca só pescam (cardumes e atum).', 'err.notTransport': 'Escolha um transporte seu.', 'err.cannotBoard': 'Nenhuma unidade selecionada cabe ou pode embarcar.', 'err.nothingToUnload': 'Nenhum transporte com carga selecionado.', 'err.navalOff': 'Sem navios neste cenário.',
+  'ev.noLanding': 'Não há onde desembarcar aqui: escolha uma praia.', 'sel.cargo': 'Carga', 'cmd.unload': 'Desembarcar',
+  'cmd.unloadTip': '<b>Desembarcar</b><div class="desc">A carga desce na margem mais perto. Clique direito em terra desembarca lá. Atalho: U.</div>', 'hk.unload': 'Desembarcar a carga do transporte selecionado',
+  'map.issue.fishOnLand': 'Peixe fora de água aberta', 'map.issue.shipOnLand': 'Navio fora da água', 'map.issue.shoreNoWater': 'Estaleiro sem mar aberto encostado', 'map.issue.noShipyardSite': 'Início {start} sem lugar para Estaleiro (outro início tem)', 'map.issue.seasApart': 'O mar do início {start} não se liga ao do início 1',
   'res.stone': 'Pedra', 'res.oil': 'Petróleo', 'rare.hint': 'Recurso raro: um Mercador nele rende {g} de ouro por segundo e o bônus vale para todo o império.', 'err.oilEra': 'O petróleo só pode ser coletado a partir da {age}.', 'err.wellOnly': 'Só um Poço de Petróleo explora esta jazida.', 'err.merchantOnly': 'Só um Mercador trabalha num recurso raro.', 'err.merchantRare': 'O Mercador só trabalha em recursos raros.', 'err.needsOilField': 'O Poço de Petróleo precisa encostar numa jazida de petróleo.', 'sel.extract': 'Jazida', 'top.rares': 'Raros: {n}', 'node.oilDrop': 'Entregue no Poço de Nafta ou na Refinaria (o Centro Cívico não recebe petróleo).', 'editor.resRare': 'Recursos raros (nós)',
 
   'diff.easy': 'Fácil', 'diff.normal': 'Normal', 'diff.hard': 'Difícil', 'diff.brutal': 'Muito difícil',
@@ -228,6 +236,14 @@ const en: Record<keyof typeof pt, string> = {
   'node.remaining': '{n} left',
   'node.limestone': 'Limestone Outcrop', 'node.naphtha': 'Naphtha Seep', 'node.oil_field': 'Oil Field', 'node.olive': 'Olive Grove', 'node.vineyard': 'Vineyard', 'node.paros_marble': 'Parian Marble', 'node.salt': 'Salt Pans', 'node.wild_horses': 'Wild Horses', 'node.copper': 'Copper Mines', 'node.incense': 'Frankincense Trees',
   'rare.olive': 'Olive oil: farms +10%.', 'rare.vineyard': 'Wine: Market fees 20% lower.', 'rare.paros_marble': 'Marble: buildings +10% health.', 'rare.salt': 'Salt: your troops suffer 25% less attrition.', 'rare.wild_horses': 'Horses: cavalry 15% cheaper.', 'rare.copper': 'Copper: military units +5% attack.', 'rare.incense': 'Incense: Favor +15%.',
+  // E4: naval
+  'maptype.coastal': 'Coastal', 'maptype.islands': 'Islands (by sea only)', 'maptype.mediterranean': 'Mediterranean (sea in the middle)',
+  'node.fish': 'Fish Shoal', 'node.rare_fish': 'Tuna Run', 'rare.rare_fish': 'Tuna: fishing +15%.',
+  'editor.terrain.6': 'Shallows', 'editor.naval': 'Sea', 'editor.cls.ship': 'Ships',
+  'err.needsShore': 'The Shipyard needs open sea alongside (2 tiles or more).', 'err.boatOnly': 'Only fishing boats work on the water.', 'err.fishOnly': 'Fishing boats only fish (shoals and tuna).', 'err.notTransport': 'Choose one of your transports.', 'err.cannotBoard': 'No selected unit fits or can board.', 'err.nothingToUnload': 'No loaded transport selected.', 'err.navalOff': 'No ships in this scenario.',
+  'ev.noLanding': 'Nowhere to land here: pick a beach.', 'sel.cargo': 'Cargo', 'cmd.unload': 'Unload',
+  'cmd.unloadTip': '<b>Unload</b><div class="desc">The cargo goes ashore on the nearest bank. Right-click on land to unload there. Hotkey: U.</div>', 'hk.unload': "Unload the selected transport's cargo",
+  'map.issue.fishOnLand': 'Fish outside open water', 'map.issue.shipOnLand': 'Ship outside water', 'map.issue.shoreNoWater': 'Shipyard without open sea alongside', 'map.issue.noShipyardSite': 'Start {start} has no Shipyard site (another start has)', 'map.issue.seasApart': "The sea of start {start} does not connect to start 1's",
   'res.stone': 'Stone', 'res.oil': 'Oil', 'rare.hint': 'Rare resource: a Merchant here earns {g} gold per second and the bonus applies to your whole empire.', 'err.oilEra': 'Oil can only be gathered from the {age} on.', 'err.wellOnly': 'Only an Oil Well can tap this field.', 'err.merchantOnly': 'Only a Merchant can work a rare resource.', 'err.merchantRare': 'Merchants only work rare resources.', 'err.needsOilField': 'The Oil Well must touch an oil field.', 'sel.extract': 'Field', 'top.rares': 'Rares: {n}', 'node.oilDrop': 'Deliver to a Naphtha Well or a Refinery (the Town Center does not take oil).', 'editor.resRare': 'Rare resources (nodes)',
 
   'diff.easy': 'Easy', 'diff.normal': 'Normal', 'diff.hard': 'Hard', 'diff.brutal': 'Brutal',

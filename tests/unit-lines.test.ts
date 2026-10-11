@@ -53,11 +53,11 @@ describe('linhas de unidade: dados', () => {
       expect(new Set(steps(id).map((u) => UNITS[u].cls)).size, `${id}: classe`).toBe(1);
       expect(new Set(steps(id).map((u) => UNITS[u].pop)).size, `${id}: pop`).toBe(1);
       expect(new Set(steps(id).map(garrisonable)).size, `${id}: guarnição`).toBe(1);
-      if (id !== 'citizen') l.steps.forEach((x, k) => { if (x) { expect(UNITS[x].line, x).toBe(id); expect(UNITS[x].tier, x).toBe(k); } });
+      if (!LINES[id].studyNames) l.steps.forEach((x, k) => { if (x) { expect(UNITS[x].line, x).toBe(id); expect(UNITS[x].tier, x).toBe(k); } });
     }
     for (const u of Object.values(UNITS)) if (u.line) expect(LINES[u.line].steps, u.id).toContain(u.id);
   });
-  it('50 estudos de evolução: Biblioteca, Era do degrau, em sequência, fora do techCount', () => {
+  it('59 estudos de evolução: Biblioteca, Era do degrau, em sequência, fora do techCount', () => {
     let n = 0;
     for (const id of LINE_ORDER) {
       const l = LINES[id];
@@ -70,12 +70,12 @@ describe('linhas de unidade: dados', () => {
         prev = tid; n++;
       }
     }
-    expect(n).toBe(50);
-    expect(Object.values(TECHS).filter((x) => x.evolve)).toHaveLength(50);
+    expect(n).toBe(59);
+    expect(Object.values(TECHS).filter((x) => x.evolve)).toHaveLength(59);
   });
-  it('as 41 novas: lineOnly, fora de todo trains, no edifício da linha, age = tier', () => {
+  it('as 48 novas: lineOnly, fora de todo trains, no edifício da linha, age = tier', () => {
     const fresh = Object.values(UNITS).filter((u) => u.lineOnly);
-    expect(fresh).toHaveLength(41);
+    expect(fresh).toHaveLength(48);
     for (const u of fresh) {
       expect(LINES[u.line!].buildings, u.id).toContain(u.building);
       expect(u.age, u.id).toBe(u.tier);
@@ -107,7 +107,7 @@ describe('linhas de unidade: dados', () => {
   it('dentro de cada linha, vida e custo crescem com o degrau', () => {
     const total = (id: string) => Object.values(UNITS[id].cost).reduce((a: number, b) => a + (b ?? 0), 0);
     for (const id of LINE_ORDER) {
-      if (id === 'citizen') continue;
+      if (LINES[id].studyNames) continue;
       const u = steps(id);
       for (let i = 1; i < u.length; i++) { expect(UNITS[u[i]].hp, u[i]).toBeGreaterThan(UNITS[u[i - 1]].hp); expect(total(u[i]), u[i]).toBeGreaterThan(total(u[i - 1])); }
     }

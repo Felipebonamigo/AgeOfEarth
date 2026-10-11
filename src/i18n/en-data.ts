@@ -17,6 +17,16 @@ export const EN_UNITS: Record<string, TextOverlay> = {
   petrobolos: { name: 'Petrobolos', plural: 'Petroboloi', desc: 'Catapult. Devastating against buildings, fragile against cavalry.' },
   myrmidon: { name: 'Myrmidon', plural: 'Myrmidons', desc: "Achilles' warriors. Supreme infantry with bonus damage against mythic creatures." },
   helepolis: { name: 'Helepolis', plural: 'Helepoleis', desc: 'Armored siege tower. Brings down walls and fortresses.' },
+  fishing_boat: { name: 'Fishing Boat', plural: 'Fishing Boats', desc: 'Fishes the shoals and delivers food to the Shipyard. Parked on a tuna run, it earns gold.' },
+  transport_ship: { name: 'Transport Ship', plural: 'Transport Ships', desc: 'Carries up to 20 population. Right-click it with troops to board; with it selected, click on land to unload (U: here).' },
+  penteconter: { name: 'Penteconter', plural: 'Penteconters', desc: 'Fifty-oared galley with archers. Strong against ships.' },
+  trireme: { name: 'Trireme', plural: 'Triremes', desc: 'Fast galley with three banks of oars.' },
+  quinquereme: { name: 'Quinquereme', plural: 'Quinqueremes', desc: 'Heavy galley with deck ballistae.' },
+  dromon: { name: 'Dromon', plural: 'Dromons', desc: 'Byzantine galley with a Greek fire siphon: short range, area damage.' },
+  galleon: { name: 'Galleon', plural: 'Galleons', desc: 'Cannon-armed sailing ship. Bombards ships and the coast.' },
+  ship_of_the_line: { name: 'Ship of the Line', plural: 'Ships of the Line', desc: 'Two-decked sailing ship of cannons.' },
+  ironclad: { name: 'Ironclad', plural: 'Ironclads', desc: 'Steam-powered iron-hulled warship.' },
+  battleship: { name: 'Battleship', plural: 'Battleships', desc: 'Battleship with huge gun turrets.' },
   militia: { name: 'Militia', plural: 'Militia', desc: 'Citizens hastily armed by Poseidon when a building falls.' },
   basileus: { name: 'King', plural: 'Kings', desc: 'Regicide: if the king dies, the kingdom falls. Garrison him in a Town Center or a Fortress.' },
   jason: { name: 'Jason', plural: 'Jason', desc: 'Leader of the Argonauts. Heroes deal triple damage to mythic creatures.' },
@@ -99,6 +109,7 @@ export const EN_BUILDINGS: Record<string, TextOverlay> = {
   barracks: { name: 'Barracks', desc: 'Trains infantry and archers.' },
   stable: { name: 'Stable', desc: 'Trains cavalry.' },
   siege_workshop: { name: 'Siege Workshop', desc: 'Builds siege engines.' },
+  shipyard: { name: 'Shipyard', desc: 'Builds ships on the shore: needs open sea alongside (2 tiles or more) and can stand in your own or neutral territory. Fishing boats deliver food here.' },
   academy: { name: 'Library', desc: 'Library: advance the Eras and study the Civic, Commerce, Military and Science lines, one study at a time (queue of up to 5). Philosophers generate Knowledge. One per Town Center, up to 3.' },
   tower: { name: 'Watchtower', desc: 'Ranged defense that also slightly extends your borders.' },
   wall: { name: 'Wall', desc: 'Blocks passage. Click and drag to build in a line.' },
@@ -115,6 +126,12 @@ export const EN_LINES: Record<string, TextOverlay> = {
   citizen: { name: 'Citizens' }, scout: { name: 'Scouts' }, heavy_infantry: { name: 'Heavy Infantry' }, ranged: { name: 'Missile Troops' },
   skirmisher: { name: 'Skirmishers' }, cavalry: { name: 'Cavalry' }, elite: { name: 'Fortress Elite' }, artillery: { name: 'Artillery' },
   assault: { name: 'Wall Assault' }, greek_fire: { name: 'Greek Fire' },
+  fishing: { name: 'Fishing Boats' }, transport: { name: 'Transport Ships' }, warship: { name: 'Warships' },
+};
+/** E4: EN dos estudos de linhas que não trocam de tipo (na mesma conta de evolutions() em techs.ts). */
+const LINE_STUDIES_EN: Record<string, { names: (string | null)[]; desc: string }> = {
+  fishing: { names: [null, null, null, null, null, null, 'Steam', null], desc: 'Steam fishing boats: +25% speed, +50% health and fishing +25%.' },
+  transport: { names: [null, null, null, null, null, null, 'Steam', null], desc: 'Steam transports: +30% speed and +50% health.' },
 };
 const CITIZEN_STUDIES_EN = [null, 'Iron Tools', 'Artisans', 'Guilds', 'Steel Tools', 'Manufacture', 'Factory Workers', 'Modern Workers'];
 /** EN dos estudos de evolução (E3), na mesma conta de src/core/data/techs.ts (evolutions). */
@@ -126,6 +143,7 @@ function evolutionsEN(): Record<string, TextOverlay> {
       if (!to) continue;
       out[evoTechId(id, k)] = id === 'citizen'
         ? { name: `${EN_LINES[id].name}: ${CITIZEN_STUDIES_EN[k]}`, desc: 'Citizens +10% health; food, wood, stone and gold gathering +4%; building 5% faster.' }
+        : LINE_STUDIES_EN[id] ? { name: `${EN_LINES[id].name}: ${LINE_STUDIES_EN[id].names[k]}`, desc: LINE_STUDIES_EN[id].desc }
         : { name: `${EN_LINES[id].name}: ${EN_UNITS[to].name}`, desc: `Trains ${EN_UNITS[to].plural} instead of the previous step; the line's units you already have are transformed (health in proportion, rank and orders kept).` };
     }
   }
@@ -187,6 +205,10 @@ export const EN_TECHS: Record<string, TextOverlay> = {
   automatons: { name: 'Automatons', desc: 'Siege engines +40% health and +20% attack.' },
   moon_arrows: { name: 'Moon Arrows', desc: 'All ranged units +20% attack.' },
   great_hunt: { name: 'Great Hunt', desc: 'Hunting +50% and all food +10%.' },
+  fishing_nets: { name: 'Fishing Nets', desc: 'Fishing boats gather 20% faster.' },
+  caulking: { name: 'Pitch Caulking', desc: 'Ships +15% health.' },
+  bronze_rams: { name: 'Bronze Rams', desc: 'Warships +15% attack.' },
+  navigation: { name: 'Celestial Navigation', desc: 'Ships 10% faster and +2 sight.' },
   ...evolutionsEN(),
 };
 
@@ -219,7 +241,7 @@ export const EN_MINOR_GODS: Record<string, TextOverlay> = {
 
 export const EN_MAJOR_GODS: Record<string, TextOverlay> = {
   zeus: { name: 'Zeus', title: 'King of the Gods', desc: 'The lord of Olympus favors armies of devout hoplites and legendary heroes.', perks: ['Favor +25%', 'Infantry +10% attack', 'Heroes 20% cheaper', 'Pegasi at the Temple from the Archaic Era', 'Power: Bolt'] },
-  poseidon: { name: 'Poseidon', title: 'God of the Seas and Horses', desc: 'The earth-shaker commands swift cavalry and a trading economy.', perks: ['Cavalry 15% cheaper and 10% faster', 'Resource gathering +8% (the bounty of the seas)', 'Market with lower fees', 'Militia rises when one of your buildings is destroyed', 'Power: Lure'] },
+  poseidon: { name: 'Poseidon', title: 'God of the Seas and Horses', desc: 'The earth-shaker commands swift cavalry and a trading economy.', perks: ['Cavalry 15% cheaper and 10% faster', 'Resource gathering +8% (the bounty of the seas)', 'Market with lower fees', 'Militia rises when one of your buildings is destroyed', 'Ships 10% cheaper and 10% faster; fishing +15%', 'Power: Lure'] },
   hades: { name: 'Hades', title: 'Lord of the Underworld', desc: 'The king of the dead raises impregnable walls and an army that returns from Tartarus.', perks: ['Buildings +25% health', 'Archers +10% attack', 'Attrition +0.3/s in your territory', 'Fallen warriors may return as Shades', 'Cerberus at the Temple from the Hellenistic Era', 'Power: Sentinels'] },
 };
 

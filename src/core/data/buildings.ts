@@ -72,6 +72,11 @@ export const BUILDINGS: Record<string, BuildingDef> = {
     name: 'Oficina de Cerco', icon: '🪨', cost: { wood: 150, stone: 50, gold: 100 }, hp: 1000, w: 3, h: 3, buildTime: 50, armor: BARMOR,
     trains: ['petrobolos', 'helepolis'], age: 2, hotkey: 'G', military: true, desc: 'Constrói máquinas de cerco.',
   },
+  shipyard: { id: 'shipyard',
+    name: 'Estaleiro', icon: '🪨', cost: { wood: 150 }, hp: 1200, w: 3, h: 3, buildTime: 45, armor: BARMOR,
+    los: 8, trains: ['fishing_boat', 'transport_ship', 'penteconter'], navalDropoff: ['food'], shore: true,
+    age: 0, hotkey: 'I', military: true,
+    desc: 'Constrói navios na margem: precisa de mar aberto encostado (2 tiles ou mais) e pode ficar em território seu ou neutro. Barcos de pesca entregam comida aqui.' },
   academy: { id: 'academy',
     name: 'Biblioteca', icon: '📚', cost: { wood: 200, gold: 100 }, hp: 1000, w: 3, h: 3, buildTime: 60, armor: BARMOR,
     age: 0, hotkey: 'Z', scholars: true, limit: 3, library: true, queueMax: 5, perCity: true,
@@ -120,6 +125,6 @@ export const BUILDINGS: Record<string, BuildingDef> = {
 
 
 export const BUILD_MENU: string[] = [
-  'house', 'farm', 'granary', 'lumber_camp', 'mine', 'quarry', 'market', 'naphtha_well', 'oil_well', 'refinery', 'temple', 'barracks', 'stable', 'siege_workshop',
+  'house', 'farm', 'granary', 'lumber_camp', 'mine', 'quarry', 'market', 'naphtha_well', 'oil_well', 'refinery', 'temple', 'barracks', 'stable', 'siege_workshop', 'shipyard',
   'academy', 'tower', 'wall', 'gate', 'fortress', 'town_center', 'wonder_zeus', 'wonder_artemis', 'wonder_colossus', 'titan_gate',
 ];
