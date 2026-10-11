@@ -224,8 +224,8 @@ Bloco H — Verificação e documentação
 Guia: `docs/eras/E4-naval.md`
 
 Bloco 0 — Preparação
-- [ ] 01 Pré-voo (E1–E3 prontas)
-- [ ] 02 Linha de base (smoke, balance, missions, fairness)
+- [x] 01 Pré-voo (E1–E3 prontas)
+- [x] 02 Linha de base (smoke, balance, missions, fairness)
 
 Bloco A — Terreno, camada naval e regiões
 - [x] A1 Constantes e tipos (baixio, nós de peixe, tipos de mapa)
@@ -244,57 +244,57 @@ Bloco B — Dados
 - [x] B6 Testes da E3 que contam linhas, degraus e estudos
 
 Bloco C — Núcleo
-- [ ] C1 `src/core/sim/naval.ts` (novo)
-- [ ] C2 `queries.ts` pela camada do nó
-- [ ] C3 `entities.ts`: Estaleiro, spawn, guarnição
-- [ ] C4 `completeQueueItem`: navio nasce na água
-- [ ] C5 Movimento pela camada
-- [ ] C6 `combat.ts`: navios, afundamento
-- [ ] C7 Ataque entre meios
-- [ ] C8 Coleta e entrega de navio
-- [ ] C9 Ordens `embark`/`unload`
-- [ ] C9b Barco de pesca não reza nem cultiva
-- [ ] C10 `commands.ts`: `move` por camada, `embark`, `unload`
-- [ ] C11 `restrictions.ts`: `navalOn`
-- [ ] C12 Resto do núcleo (economia, poderes, createGame, debugSpawn…)
+- [x] C1 `src/core/sim/naval.ts` (novo)
+- [x] C2 `queries.ts` pela camada do nó
+- [x] C3 `entities.ts`: Estaleiro, spawn, guarnição
+- [x] C4 `completeQueueItem`: navio nasce na água
+- [x] C5 Movimento pela camada
+- [x] C6 `combat.ts`: navios, afundamento
+- [x] C7 Ataque entre meios
+- [x] C8 Coleta e entrega de navio
+- [x] C9 Ordens `embark`/`unload`
+- [x] C9b Barco de pesca não reza nem cultiva
+- [x] C10 `commands.ts`: `move` por camada, `embark`, `unload`
+- [x] C11 `restrictions.ts`: `navalOn`
+- [x] C12 Resto do núcleo (economia, poderes, createGame, debugSpawn…)
 
 Bloco D — Mapas e editor
-- [ ] D1 `generateMap`: Costeiro, Ilhas, Mediterrâneo
-- [ ] D2 `placeNavalResources`
-- [ ] D3 `fixed.ts`: validação e tabela por início
-- [ ] D4 Egeu navegável
-- [ ] D5 `mapcheck` e `export-map`
-- [ ] D6 Editor — terreno
-- [ ] D7 Editor — painel e tipos
-- [ ] D8 Renderizador do editor (sobreposição do mar)
-- [ ] D9 `docs/EDITOR.md`
+- [x] D1 `generateMap`: Costeiro, Ilhas, Mediterrâneo
+- [x] D2 `placeNavalResources`
+- [x] D3 `fixed.ts`: validação e tabela por início
+- [x] D4 Egeu navegável
+- [x] D5 `mapcheck` e `export-map`
+- [x] D6 Editor — terreno
+- [x] D7 Editor — painel e tipos
+- [x] D8 Renderizador do editor (sobreposição do mar)
+- [x] D9 `docs/EDITOR.md`
 
 Bloco E — IA naval
-- [ ] E1 Snapshot (`ships`) e evoluções navais só com Estaleiro
-- [ ] E2 Guardas no treino e no exército
-- [ ] E3 Funções (`manageNavy`, `manageInvasion`, modo ilha)
+- [x] E1 Snapshot (`ships`) e evoluções navais só com Estaleiro
+- [x] E2 Guardas no treino e no exército
+- [x] E3 Funções (`manageNavy`, `manageInvasion`, modo ilha)
 
 Bloco F — Renderização, áudio, interface e ícones
-- [ ] F1 Terreno (baixio)
-- [ ] F2 Nós (peixe, atum)
-- [ ] F3 Navio procedural (`drawShip`)
-- [ ] F4 Efeitos (esteira)
-- [ ] F5 Áudio
-- [ ] F6 Interface (carga, desembarque)
-- [ ] F7 Ícones (`SHIP_ICONS` + `art:hud`)
-- [ ] F8 Testes de arte (navios fora do "tudo assado")
+- [x] F1 Terreno (baixio)
+- [x] F2 Nós (peixe, atum)
+- [x] F3 Navio procedural (`drawShip`)
+- [x] F4 Efeitos (esteira)
+- [x] F5 Áudio
+- [x] F6 Interface (carga, desembarque)
+- [x] F7 Ícones (`SHIP_ICONS` + `art:hud`)
+- [x] F8 Testes de arte (navios fora do "tudo assado")
 
 Bloco G — Testes, playtest e calibração
-- [ ] G1 `tests/naval.test.ts` (novo)
-- [ ] G2 Fuzz com `embark`/`unload`
+- [x] G1 `tests/naval.test.ts` (novo)
+- [x] G2 Fuzz com `embark`/`unload`
 - [x] G3 Testes que mudam (modes, editor, data, fairness)
-- [ ] G4 `scripts/playtest-editor.mjs`
-- [ ] G5 `scripts/playtest-naval.mjs` (novo)
-- [ ] G6 Calibração
+- [x] G4 `scripts/playtest-editor.mjs`
+- [x] G5 `scripts/playtest-naval.mjs` (novo)
+- [x] G6 Calibração
 
 Bloco H — Verificação e documentação
-- [ ] H1 Seção "Verificação" inteira
-- [ ] H2 Seção "Ao terminar"
+- [x] H1 Seção "Verificação" inteira
+- [x] H2 Seção "Ao terminar"
 
 ---
 

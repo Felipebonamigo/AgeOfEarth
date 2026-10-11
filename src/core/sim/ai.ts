@@ -929,7 +929,7 @@ function chooseAttackTarget(state: GameState, player: Player, tc: Building, from
  *  mesmo mar grande: só o mar leva ao inimigo. A condição do mar evita o "modo ilha" num mapa terrestre em que um humano
  *  se murou por inteiro (sem portão): sem ela a IA pararia de atacar por terra. */
 function islandMode(state: GameState, player: Player, snap: Snapshot): boolean {
-  const tc = snap.tc; if (!tc) return false;
+  const tc = snap.tc; if (!tc || !navalOn(state)) return false;   // sem navios (cenário, Horda) o ataque é sempre por terra
   const mySea = seaOfStart(state.map, Math.floor(tc.x), Math.floor(tc.y));
   if (mySea < 0) return false;
   const from = findSpawnTile(state, tc);
