@@ -3,6 +3,7 @@
 // noroeste-alto; a sombra de um ponto a altura h cai h·(0,55; 0,35)/1,0 tile para sudeste — SUN_DIR do bake).
 import { BUILDINGS, UNITS } from '../../core/data';
 import { TERRAIN } from '../../core/constants';
+import { isNavigableTerrain } from '../../core/map/naval';
 import type { VisualEffect } from '../../core/types';
 
 /** Altura visual das verticais (cot 50°): uma altura h (tiles) sobe h·VERTICAL tiles na tela. */
@@ -91,6 +92,7 @@ export type Gait = 'foot' | 'hoof' | 'wheel' | 'none';
 export function gaitOf(type: string): Gait {
   const u = UNITS[type];
   if (!u || u.flying || u.immobile || type === 'shade') return 'none';
+  if (u.cls === 'ship') return 'none';   // E4: sem poeira nem respingo de pé (a esteira é do unitFx)
   if (u.cls === 'siege') return 'wheel';
   if (u.cls === 'cavalry' || u.cls === 'scout' || type === 'centaur') return 'hoof';
   return 'foot';
@@ -104,7 +106,7 @@ export const FOOT_CROWD = 28;
 /** Abaixo deste zoom a poeira dos pés não sai: a baforada teria 3–5 px na tela (o mapa inteiro custava ~0,1 ms à toa). */
 export const DUST_MIN_ZOOM = 0.5;
 export function footDustRate(gait: Gait, speed: number, movingOnScreen: number, terrain: number): number {
-  if (gait === 'none' || speed < 0.4 || terrain === TERRAIN.WATER || terrain === TERRAIN.DEEP) return 0;
+  if (gait === 'none' || speed < 0.4 || isNavigableTerrain(terrain)) return 0;
   // cavalo a galope (3,6 tiles/s na grama): ≈ 6,7 baforadas/s — uma nuvem contínua; hoplita a passo (2,4): ≈ 1,3/s
   const base = gait === 'hoof' ? 2.2 * speed * speed / 3 : gait === 'wheel' ? 2 * speed : 0.8 * speed;
   const soil = terrain === TERRAIN.SAND ? 1.5 : terrain === TERRAIN.DIRT ? 1.25 : terrain === TERRAIN.MOUNTAIN ? 0.8 : 0.7;

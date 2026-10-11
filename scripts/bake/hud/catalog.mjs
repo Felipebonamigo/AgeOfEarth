@@ -44,6 +44,18 @@ export const TECH_ICONS = {
   evo_elite: { kind: 'unit', unit: 'myrmidon', frame: { mode: 'bust', frac: 0.74, margin: 0.03 } },
   evo_artillery: { kind: 'unit', unit: 'petrobolos', frame: { margin: 0.04 } },
   evo_assault: { kind: 'unit', unit: 'helepolis', frame: { margin: 0.04 } },
+  // E4: Estaleiro e as linhas navais
+  fishing_nets: O('fish'), caulking: O('hydria'), bronze_rams: O('ship', { kind: 'galley', ram: true }),
+  navigation: O('armillary'), evo_fishing: O('ship', { kind: 'fishing', steam: true }),
+  evo_transport: O('ship', { kind: 'transport', steam: true }), evo_warship: O('ship', { kind: 'sail' }),
+};
+/** E4: ícones dos navios (unit/<id>): o objeto `ship` de hud-objects.js com a flâmula do time, até a E8 trazer os rigs. */
+const S = (params) => ({ ...O('ship', params), team: true });
+export const SHIP_ICONS = {
+  fishing_boat: S({ kind: 'fishing' }), transport_ship: S({ kind: 'transport' }),
+  penteconter: S({ kind: 'galley' }), trireme: S({ kind: 'galley', ram: true }), quinquereme: S({ kind: 'galley', ram: true }),
+  dromon: S({ kind: 'dromon' }), galleon: S({ kind: 'sail' }), ship_of_the_line: S({ kind: 'sail' }),
+  ironclad: S({ kind: 'steam' }), battleship: S({ kind: 'battleship' }),
 };
 /** Tecnologia → chave do ícone (as de nível usam o ramo). */
 export function techIconKey(id) {
@@ -91,6 +103,7 @@ export function hudItems(manifests, poses) {
     if (m.kind !== 'building' || !m.icon) continue;
     items.push({ name: `bld/${id}`, size: ICON, spec: { kind: 'building', style: m.source?.params?.style ?? id, params: m.source?.params ?? {}, state: m.icon.anim, variant: m.icon.variant, frame: { margin: 0.04 } } });
   }
+  for (const [id, s] of Object.entries(SHIP_ICONS)) items.push({ name: `unit/${id}`, size: ICON, spec: s });   // E4
   const resolve = (s) => {
     if (s.kind === 'unit' && s.unit) return unitSpec(manifests[s.unit], { frame: s.frame, team: s.team });
     if (s.kind === 'unit' && s.rigManifest) return { ...unitSpec(s.rigManifest), frame: s.frame ?? { margin: 0.05 }, team: s.team };
@@ -109,6 +122,7 @@ export function hudItems(manifests, poses) {
 export function hudNames(unitIds, buildingIds = []) {
   return [
     ...[...unitIds].sort().map((id) => `unit/${id}`),
+    ...Object.keys(SHIP_ICONS).map((id) => `unit/${id}`),   // E4
     ...[...buildingIds].sort().map((id) => `bld/${id}`),
     ...Object.keys(TECH_ICONS).map((id) => `tech/${id}`),
     ...Object.keys(POWER_ICONS).map((id) => `power/${id}`),

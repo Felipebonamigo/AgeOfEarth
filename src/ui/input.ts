@@ -7,6 +7,7 @@ import type { Renderer, RenderUI } from '../render/renderer';
 import type { HUD } from './hud';
 import type { Audio } from '../audio/audio';
 import { isMilitary, isEnemy, canWorkNode } from '../core/sim/queries';
+import { isPassable } from '../core/map/grid';
 import { trainChoices } from '../core/sim/lines';
 import { t, getLocale } from '../i18n';
 import { toggleFullscreen } from '../game/display';
@@ -108,6 +109,7 @@ export class Input {
   /** Descrição do nó na dica: restante, ou a regra dele (raro, jazida, nafta antes/depois da Era IV). */
   private nodeTip(n: ResourceNode): string {
     const remaining = t('node.remaining', { n: Math.round(n.amount) });
+    if (n.type === 'rare_fish') return t('rare.rare_fish');   // E4: o atum é do barco de pesca, não do Mercador
     if (RARE_SET.has(n.type)) return `${t(`rare.${n.type}`)}<br>${t('rare.hint', { g: String(RARE_GOLD_RATE).replace('.', getLocale() === 'pt' ? ',' : '.') })}`;
     if (WELL_NODES.has(n.type)) return `${t('err.wellOnly')}<br>${remaining}`;
     if (n.type === 'naphtha') return this.getSession()!.player.age < OIL_FROM_AGE ? `${t('err.oilEra', { age: AGES[OIL_FROM_AGE].name })}<br>${remaining}` : `${remaining}<br>${t('node.oilDrop')}`;
@@ -208,6 +210,15 @@ export class Input {
     let cmd: Command | null = null;
     if (target && isEnemy(s.state, s.local, target.owner)) {
       cmd = { type: 'attack', player: s.local, ids, targetId: target.id, queue };
+    } else if (target && target.kind === 'unit' && target.owner === s.local && UNITS[target.type].capacity) {
+      const riders = units.filter((u) => !UNITS[u.type].naval);   // E4: tropas no transporte → embarcar
+      cmd = riders.length > 0 ? { type: 'embark', player: s.local, ids: riders.map((u) => u.id), targetId: target.id, queue } : { type: 'move', player: s.local, ids, x, y, queue };
+    } else if (!target && nid === -1 && units.some((u) => UNITS[u.type].capacity && u.cargo.length) && isPassable(map, tx, ty)) {
+      const ships = units.filter((u) => UNITS[u.type].capacity && u.cargo.length);   // E4: transporte carregado + clique em terra → desembarcar lá
+      s.issue({ type: 'unload', player: s.local, ids: ships.map((u) => u.id), x, y, queue });
+      const rest = units.filter((u) => !ships.includes(u));
+      cmd = rest.length ? { type: 'move', player: s.local, ids: rest.map((u) => u.id), x, y, queue } : null;
+      this.audio.ack('move', this.dominantClass(s));
     } else if (nid !== -1) {
       const node = map.nodes.get(nid)!;
       const refused: string[] = [];   // E2: quem não pode trabalhar este nó (Mercador só em raro; jazida só com Poço; nafta só da Era IV)
@@ -223,7 +234,7 @@ export class Input {
     } else if (target && target.kind === 'building' && target.owner === s.local) {
       const def = BUILDINGS[target.type];
       const builders = units.filter((u) => UNITS[u.type].canBuild);
-      const canEnter = units.filter((u) => ['civilian', 'infantry', 'archer', 'skirmisher', 'hero'].some((t) => UNITS[u.type].tags.includes(t)) && !UNITS[u.type].tags.includes('cavalry') && !UNITS[u.type].tags.includes('myth'));
+      const canEnter = units.filter((u) => !UNITS[u.type].naval && ['civilian', 'infantry', 'archer', 'skirmisher', 'hero'].some((t) => UNITS[u.type].tags.includes(t)) && !UNITS[u.type].tags.includes('cavalry') && !UNITS[u.type].tags.includes('myth'));
       if (!target.complete && builders.length > 0) cmd = { type: 'build', player: s.local, ids: builders.map((u) => u.id), building: target.type, tx: target.tx, ty: target.ty, queue };
       else if (target.hp < target.maxHp && builders.length > 0) cmd = { type: 'repair', player: s.local, ids: builders.map((u) => u.id), targetId: target.id, queue };   // danificado: reparar (guarnecer é G / botão)
       else if (def.farm && builders.length > 0) cmd = { type: 'gather', player: s.local, ids: builders.map((u) => u.id), targetId: target.id, queue };
@@ -231,7 +242,7 @@ export class Input {
       else if (def.garrison && target.complete && canEnter.length > 0 && target.garrison.length < def.garrison) cmd = { type: 'garrison', player: s.local, ids: canEnter.map((u) => u.id), targetId: target.id, queue };
       else cmd = { type: 'move', player: s.local, ids, x, y, queue, formation: s.ui.formation };
     } else if (target && target.kind === 'building' && target.complete && s.state.players[target.owner].team === s.player.team && BUILDINGS[target.type].garrison) {
-      const canEnter = units.filter((u) => ['civilian', 'infantry', 'archer', 'skirmisher', 'hero'].some((t) => UNITS[u.type].tags.includes(t)) && !UNITS[u.type].tags.includes('cavalry') && !UNITS[u.type].tags.includes('myth'));
+      const canEnter = units.filter((u) => !UNITS[u.type].naval && ['civilian', 'infantry', 'archer', 'skirmisher', 'hero'].some((t) => UNITS[u.type].tags.includes(t)) && !UNITS[u.type].tags.includes('cavalry') && !UNITS[u.type].tags.includes('myth'));
       cmd = canEnter.length > 0 ? { type: 'garrison', player: s.local, ids: canEnter.map((u) => u.id), targetId: target.id, queue } : { type: 'move', player: s.local, ids, x, y, queue };
     } else {
       cmd = { type: 'move', player: s.local, ids, x, y, queue, formation: s.ui.formation };
@@ -327,6 +338,7 @@ export class Input {
     if (k === 'a' && e.ctrlKey) { e.preventDefault(); this.selectMilitaryOnScreen(); return; }
     const units = s.ownSelectedUnits(); const b = s.ownSelectedBuilding();
     if (units.length > 0) {
+      if (k === 'u') { const sh = units.filter((u) => UNITS[u.type].capacity && u.cargo.length); if (sh.length) { for (const x of sh) s.issue({ type: 'unload', player: s.local, ids: [x.id], x: x.x, y: x.y }); return; } }   // E4: U desembarca no lugar
       const villagersOnly = units.every((u) => !!UNITS[u.type].canBuild);
       if (k === 's' && (!villagersOnly || e.shiftKey)) { this.stopSelected(); return; }
       if (k === 'a' && !villagersOnly) { this.enterAttackMove(); return; }

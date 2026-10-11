@@ -15,7 +15,7 @@ const DARK = 0x2a2622;
 export const darken = scaleColor;
 
 /** Tipos de nó no atlas (linhas) e variantes por tipo (colunas). */
-const NODE_TYPES: readonly NodeType[] = ['tree', 'berry', 'gold', 'deer', 'boar', 'lure', 'limestone', 'naphtha', 'oil_field', 'olive', 'vineyard', 'paros_marble', 'salt', 'wild_horses', 'copper', 'incense'];
+const NODE_TYPES: readonly NodeType[] = ['tree', 'berry', 'gold', 'deer', 'boar', 'lure', 'limestone', 'naphtha', 'oil_field', 'olive', 'vineyard', 'paros_marble', 'salt', 'wild_horses', 'copper', 'incense', 'fish', 'rare_fish'];
 // E2: cor do disco dos recursos raros (arte provisória até a E8)
 const RARE_COLORS: Record<string, number> = { olive: 0x7a8a5a, vineyard: 0x5a2a6a, paros_marble: 0xf2efe6, salt: 0xf6f6f2, wild_horses: 0x8a6238, copper: 0xb87333, incense: 0xc9b27a };
 export const NODE_VARIANTS = 8;
@@ -181,6 +181,17 @@ function drawNode(g: Graphics, type: string, variant: number) {
       g.ellipse(0, 4, 12, 5).fill(0x2a2018); g.ellipse(0, 3, 7, 3).fill(0x0c0a08); g.circle(-3, 1, 1.5).fill({ color: 0x6a5a8a, alpha: 0.6 });
       break;
     }
+    case 'fish': {   // E4: cardume — peixinhos prateados sob a água
+      g.ellipse(0, 2, 12, 6).fill({ color: 0x1d5a78, alpha: 0.35 });
+      for (let i = 0; i < 6; i++) { const x = -8 + hash01(i, variant, 5) * 16, y = -3 + hash01(i, variant, 6) * 8; g.ellipse(x, y, 2.6, 1.1).fill({ color: 0xc8d8e0, alpha: 0.85 }); g.poly([x - 2.6, y, x - 4.2, y - 1.2, x - 4.2, y + 1.2]).fill({ color: 0xc8d8e0, alpha: 0.85 }); }
+      break;
+    }
+    case 'rare_fish': {   // E4: atum — peixes grandes e o anel dourado dos raros
+      g.ellipse(0, 2, 13, 6).fill({ color: 0x14465e, alpha: 0.4 });
+      for (let i = 0; i < 3; i++) { const x = -6 + i * 6, y = -1 + (i % 2) * 3; g.ellipse(x, y, 4.2, 1.6).fill(0x5a7088); g.poly([x - 4.2, y, x - 6.5, y - 2, x - 6.5, y + 2]).fill(0x5a7088); }
+      g.circle(0, 0, 9).stroke({ width: 1.5, color: GOLD });
+      break;
+    }
     default: {
       const c = RARE_COLORS[type];
       if (c !== undefined) { g.ellipse(0, 4, 11, 5).fill({ color: 0x3a3226, alpha: 0.35 }); g.circle(0, -2, 7).fill(c); g.circle(0, -2, 9).stroke({ width: 1.5, color: GOLD }); }
@@ -188,11 +199,26 @@ function drawNode(g: Graphics, type: string, variant: number) {
   }
 }
 
+/** E4: navio visto de cima, proa para +x: casco, convés, remos (galés), vela (madeira) ou chaminé (ferro), flâmula do time. Provisório até a E8. */
+function drawShip(g: Graphics, type: string, r: number, team: number) {
+  const d = UNITS[type], iron = d.tags.includes('mechanical');
+  const L = r * 1.6, B = r * 0.62;
+  const hull = iron ? IRON : WOOD_DARK, deck = iron ? 0x6b6e72 : WOOD;
+  g.poly([-L, -B * 0.8, L * 0.55, -B, L, 0, L * 0.55, B, -L, B * 0.8]).fill(hull).stroke({ width: 1, color: darken(hull, 0.6) });
+  g.poly([-L * 0.85, -B * 0.55, L * 0.5, -B * 0.72, L * 0.82, 0, L * 0.5, B * 0.72, -L * 0.85, B * 0.55]).fill(deck);
+  if (d.age <= 3 && !d.canGather && !d.capacity) for (let i = 0; i < 6; i++) { const x = -L * 0.6 + i * L * 0.24; g.moveTo(x, -B).lineTo(x - 2, -B - 4).moveTo(x, B).lineTo(x - 2, B + 4).stroke({ width: 1, color: WOOD }); }
+  if (iron) { g.circle(-L * 0.1, 0, B * 0.35).fill(0x2a2a2e); g.circle(L * 0.35, 0, B * 0.28).fill(IRON); }
+  else g.rect(-1.5, -B * 1.3, 3, B * 2.6).fill(LINEN);
+  g.circle(-L * 0.7, 0, B * 0.3).fill(team);
+  if (d.tags.includes('fire')) g.circle(L * 0.85, 0, 2).fill(0xe8701a);
+}
+
 // ---------------- Unidades (vistas de cima, olhando para +x; sem sombra assada) ----------------
 function drawUnit(g: Graphics, type: string, color: number) {
   const def = UNITS[type];
   const r = def.radius * TILE;
   const team = teamTint(color);
+  if (def.cls === 'ship') { drawShip(g, type, r, team); return; }
   const humanoid = (tunic: number, head: number = SKIN) => {
     g.ellipse(0, 0, r * 0.75, r).fill(tunic).ellipse(0, 0, r * 0.75, r).stroke({ width: 1, color: darken(tunic, 0.6) });
     g.circle(r * 0.15, 0, r * 0.48).fill(head).circle(r * 0.15, 0, r * 0.48).stroke({ width: 0.8, color: SKIN_DARK });

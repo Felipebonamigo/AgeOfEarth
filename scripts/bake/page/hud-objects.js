@@ -807,6 +807,34 @@ OBJ.quake = (THREE, M, T) => {
   for (let i = 0; i < 4; i++) { const c = T.add(T.sph(0.08 + 0.03 * i, 12, 8), x.cloudLight, (i - 1.5) * 0.12, 0.42 + 0.03 * i, -0.2); c.userData.noShadow = true; c.material = c.material.clone(); c.material.transparent = true; c.material.opacity = 0.6; }
 };
 
+OBJ.ship = (THREE, M, T, p) => {
+  // E4: navio em três quartos sobre um disco de água; kind: fishing | transport | galley | dromon | sail | steam | battleship
+  const x = X(THREE, M), k = p.kind ?? 'galley', iron = k === 'steam' || k === 'battleship';
+  T.root.rotation.y = -0.6;   // de viés: a vela e o casco aparecem de lado, não de topo
+  const L = k === 'fishing' ? 0.7 : k === 'battleship' ? 1.05 : 0.9, B = k === 'fishing' ? 0.2 : 0.26;
+  T.add(T.cyl(0.62, 0.62, 0.02, 40), x.water, 0, 0.01, 0);
+  T.add(T.box(L, 0.16, B), iron ? M.iron : M.wood, 0, 0.1, 0);
+  T.add(T.cone(B * 0.5, 0.22, 4), iron ? M.iron : M.woodDark, L / 2 + 0.1, 0.1, 0, 0, 0, -Math.PI / 2);
+  T.add(T.box(L * 0.92, 0.02, B * 0.86), iron ? M.stone : M.wood, 0, 0.19, 0);
+  if (k === 'galley' || k === 'dromon') for (let i = 0; i < 7; i++) for (const s of [-1, 1]) T.add(T.cyl(0.006, 0.006, 0.26, 4), M.wood, -L * 0.38 + i * L * 0.12, 0.08, s * (B / 2 + 0.1), s * 1.1, 0, 0);
+  if (k === 'dromon') T.add(T.cyl(0.02, 0.03, 0.14, 10), M.bronze, L / 2 + 0.05, 0.24, 0, 0, 0, -1.2);
+  if (!iron) { T.add(T.cyl(0.012, 0.014, 0.75, 8), M.wood, -0.05, 0.55, 0); T.add(T.box(0.02, 0.42, B * 1.6), M.linen, 0.01, 0.62, 0); T.add(T.box(0.03, 0.08, 0.05), M.team, -0.05, 0.95, 0); }
+  if (k === 'sail') { T.add(T.cyl(0.012, 0.014, 0.6, 8), M.wood, 0.25, 0.48, 0); T.add(T.box(0.02, 0.32, B * 1.4), M.linen, 0.26, 0.55, 0); }
+  if (iron) { T.add(T.cyl(0.05, 0.06, 0.32, 14), x.darkCloth, -0.1, 0.36, 0); T.add(T.box(0.22, 0.12, 0.18), M.iron, 0.18, 0.26, 0); T.add(T.cyl(0.015, 0.015, 0.28, 8), M.iron, 0.38, 0.29, 0, 0, 0, Math.PI / 2); T.add(T.box(0.04, 0.05, 0.05), M.team, -0.1, 0.55, 0); }
+  if (k === 'battleship') T.add(T.box(0.18, 0.1, 0.16), M.iron, -0.32, 0.26, 0);
+  if (k === 'transport') T.add(T.box(L * 0.5, 0.1, B * 0.7), M.woodDark, -0.05, 0.25, 0);
+  if (k === 'fishing') T.add(T.tor(0.09, 0.008, 6, 20), M.rope, 0.18, 0.21, 0.05, Math.PI / 2, 0, 0);
+  if (p.steam) T.add(T.cyl(0.035, 0.04, 0.22, 12), x.darkCloth, -0.18, 0.32, 0);
+  if (p.ram) T.add(T.cone(0.04, 0.16, 8), M.bronze, L / 2 + 0.18, 0.05, 0, 0, 0, -Math.PI / 2);
+};
+OBJ.fish = (THREE, M, T) => {
+  // E4: dois peixes prateados saltando sobre um disco de água
+  const x = X(THREE, M);
+  T.add(T.cyl(0.5, 0.5, 0.02, 36), x.water, 0, 0.01, 0);
+  const fish = (px, py, rz, s) => { const b = T.add(T.sph(0.12 * s, 18, 12), x.silver, px, py, 0, 0, 0, rz); b.scale.set(1.6, 0.6, 0.5); T.add(T.cone(0.07 * s, 0.12 * s, 4), x.silver, px - 0.2 * s * Math.cos(rz), py - 0.2 * s * Math.sin(rz), 0, 0, 0, rz + Math.PI / 2); };
+  fish(-0.08, 0.32, 0.5, 1); fish(0.16, 0.22, -0.4, 0.8);
+};
+
 /** Constrói o objeto `key` (grupo three.js em metros). */
 export function buildObject(THREE, M, key, params = {}, { pitch = 32 } = {}) {
   PITCH = pitch;

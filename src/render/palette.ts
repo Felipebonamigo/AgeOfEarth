@@ -4,7 +4,7 @@
 // shader e o minimapa compartilham. Fica fora do núcleo determinístico.
 import { TERRAIN, PLAYER_COLORS } from '../core/constants';
 
-/** Cor-base (0xRRGGBB) de cada terreno; 6 = água profunda forçada pelo pincel do editor. */
+/** Cor-base (0xRRGGBB) de cada terreno; 6 = baixio (E4: água a 0,15 sobre o leito de areia). */
 export const TERRAIN_PALETTE: Record<number, number> = {
   [TERRAIN.GRASS]: 0x5f7a33,
   [TERRAIN.WATER]: 0x2a6a86,
@@ -12,7 +12,7 @@ export const TERRAIN_PALETTE: Record<number, number> = {
   [TERRAIN.SAND]: 0xd3c294,
   [TERRAIN.DIRT]: 0x8a6b40,
   [TERRAIN.DEEP]: 0x184a66,
-  6: 0x184a66,
+  [TERRAIN.SHALLOWS]: 0x4f9aa0,
 };
 /** Grama seca (manchas na grama viva), topo claro da montanha, espuma e areia molhada (§1.6). */
 export const GRASS_DRY = 0x8a8a4a;

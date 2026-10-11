@@ -4,6 +4,7 @@
 import type { AudioEngine, Recipe } from './engine';
 import { pick, rnd, tone } from './synth';
 import { TERRAIN } from '../core/constants';
+import { isNavigableTerrain } from '../core/map/naval';
 import type { GameMap } from '../core/types';
 
 export interface BiomeMix { grass: number; forest: number; water: number; mountain: number; sand: number; zoom: number }
@@ -23,7 +24,7 @@ export function sampleBiome(map: GameMap, view: { x0: number; y0: number; x1: nu
     if (vis && vis[i] === 0) continue;
     n++;
     const tr = map.terrain[i];
-    if (tr === TERRAIN.WATER || tr === TERRAIN.DEEP) water++;
+    if (isNavigableTerrain(tr)) water++;
     else if (tr === TERRAIN.MOUNTAIN) mountain++;
     else if (tr === TERRAIN.SAND) sand++;
     else { const nid = map.nodeAt[i]; if (nid >= 0 && map.nodes.get(nid)?.type === 'tree') forest++; else grass++; }

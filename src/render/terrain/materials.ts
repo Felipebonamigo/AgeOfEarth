@@ -8,6 +8,7 @@
 // public/terrain (photos.ts, scripts/terrain-photos.ts), os 4 materiais daqui viram a reserva (sem os arquivos, fora do
 // navegador e até as fotos chegarem); a água e a macro continuam daqui.
 import { TERRAIN } from '../../core/constants';
+import { isNavigableTerrain } from '../../core/map/naval';
 import { TERRAIN_PALETTE, GRASS_DRY, hash01, dryness, noise2 } from '../palette';
 
 export type MaterialSize = 256 | 512;
@@ -475,7 +476,7 @@ for (let dy = -TERRAIN_INFLUENCE; dy <= TERRAIN_INFLUENCE; dy++) for (let dx = -
   if (d > 0 && d <= TERRAIN_INFLUENCE + 0.01) RING.push({ dx, dy, d });
 }
 RING.sort((p, q) => p.d - q.d || p.dy - q.dy || p.dx - q.dx);
-const isWaterT = (t: number) => t === TERRAIN.WATER || t === TERRAIN.DEEP;
+const isWaterT = isNavigableTerrain;
 /** Distância (tiles) do tile (x, y) ao tile mais próximo que NÃO satisfaz `inside`; fora do mapa conta como dentro. */
 function distToOutside(map: TerrainSource, x: number, y: number, inside: (t: number) => boolean): number {
   for (const r of RING) {
@@ -511,6 +512,7 @@ export function writeTerrainRect(map: TerrainSource, weights: Uint8Array, kind: 
         kind[o + 3] = (Math.min(1, d / 4) * 255 + 0.5) | 0;
         break;
       }
+      case TERRAIN.SHALLOWS: { weights[o + 2] = 255; kind[o] = 255; kind[o + 1] = 38; break; }   // E4: baixio — água a 0,15, leito de areia à vista
       case TERRAIN.WATER: case TERRAIN.DEEP: default: {
         weights[o + 2] = 255; kind[o] = 255;
         const k = Math.min(1, Math.max(0, (distToOutside(map, x, y, isWaterT) - 0.5) / 4.5));

@@ -15,6 +15,7 @@
 //   espelhada da camada 'shadows'; espécie/variante por hash do tile, estágio por amount/max, toco ao esgotar.
 import { Container, Sprite, type Texture } from 'pixi.js';
 import { TERRAIN, TILE } from '../core/constants';
+import { isNavigableTerrain } from '../core/map/naval';
 import type { GameState, ResourceNode } from '../core/types';
 import type { TextureCache } from './textures';
 import { NODE_ANCHOR } from './textures';
@@ -30,7 +31,7 @@ interface PropView { sprite: Sprite; shadow: Sprite | null; type: string; x: num
 const ZERO_OFF = { dx: 0, dy: 0 } as const;
 /** Algum dos 4 vizinhos do tile é água (juncos na margem). */
 function nearWater(map: GameState['map'], x: number, y: number): boolean {
-  const w = map.w, h = map.h, water = (i: number) => map.terrain[i] === TERRAIN.WATER || map.terrain[i] === TERRAIN.DEEP;
+  const w = map.w, h = map.h, water = (i: number) => isNavigableTerrain(map.terrain[i]);
   return (x > 0 && water(y * w + x - 1)) || (x + 1 < w && water(y * w + x + 1)) || (y > 0 && water((y - 1) * w + x)) || (y + 1 < h && water((y + 1) * w + x));
 }
 /** O tile `i` tem uma árvore. */

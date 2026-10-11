@@ -714,7 +714,8 @@ export class Renderer {
         v.root.position.set(ix * TILE, iy * TILE);
         v.body.rotation = v.angle;
         // animações simples: balanço ao andar, investida ao atacar
-        const bob = moving ? 1 + Math.sin(this.time * 14 + u.id) * 0.06 : 1;
+        const sea = !!UNITS[u.type].naval;   // E4: o navio balança devagar, sem passada
+        const bob = moving ? 1 + Math.sin(this.time * (sea ? 3 : 14) + u.id) * (sea ? 0.02 : 0.06) : 1;
         const lunge = state.tick - u.attackTick < 4 ? 1 + (4 - (state.tick - u.attackTick)) * 0.08 : 1;
         v.body.scale.set(bob * lunge, bob);
         if (flying) v.body.position.y = -6 + Math.sin(this.time * 3 + u.id) * 2;

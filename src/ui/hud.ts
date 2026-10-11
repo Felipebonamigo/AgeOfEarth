@@ -23,7 +23,8 @@ import { scenarioWon } from '../core/scenario/runner';
 import type { GameState } from '../core/types';
 import type { ScenarioDef } from '../core/scenario/types';
 import { entityDisplayName, playerDisplayName } from '../core/scenario/text';
-import { maxAgeOf } from '../core/sim/restrictions';
+import { maxAgeOf, navalOn } from '../core/sim/restrictions';
+import { cargoPop } from '../core/sim/naval';
 import { scenarioHudHtml } from './scenario-hud';
 
 /** Ids oficiais (registro da campanha, TS ou JSON, e Horda): só eles marcam progresso em aoe_campaign e destravam conquistas de missão. */
@@ -389,7 +390,7 @@ export class HUD {
     const s = this.session; if (!s) return;
     s.pruneSelection();
     const units = s.selectedUnits(), blds = s.selectedBuildings();
-    const key = [...s.selection].join(',') + '|' + units.map((u) => `${u.type}${u.hp}`).join(',') + '|' + blds.map((b) => `${b.hp}${b.complete}${b.queue.map((q) => q.id + Math.floor(q.elapsed)).join('.')}${b.scholars}g${b.garrison.length}`).join(',') + '|' + s.ui.mode + s.ui.placeType + '|' + s.player.age + s.player.techs.length + Math.floor(s.state.tick / 10) + '|' + (this.renderer.art?.generation ?? 0) + '|' + iconsGeneration();
+    const key = [...s.selection].join(',') + '|' + units.map((u) => `${u.type}${u.hp}${u.cargo.length}`).join(',') + '|' + blds.map((b) => `${b.hp}${b.complete}${b.queue.map((q) => q.id + Math.floor(q.elapsed)).join('.')}${b.scholars}g${b.garrison.length}`).join(',') + '|' + s.ui.mode + s.ui.placeType + '|' + s.player.age + s.player.techs.length + Math.floor(s.state.tick / 10) + '|' + (this.renderer.art?.generation ?? 0) + '|' + iconsGeneration();
     if (!force && key === this.lastSelKey) return;
     this.lastSelKey = key;
     this.selPanel.innerHTML = '';
@@ -425,6 +426,7 @@ export class HUD {
     stats.push(`${t('sel.armor')} <b>${Math.round(st.armor.hack * 100)}/${Math.round(st.armor.pierce * 100)}/${Math.round(st.armor.crush * 100)}%</b>`);
     if (st.range >= 1.6) stats.push(`${t('sel.range')} <b>${st.range}</b>`);
     stats.push(`${t('sel.speed')} <b>${st.speed.toFixed(1)}</b>`);
+    if (def.capacity) stats.push(`${t('sel.cargo')} <b>${cargoPop(s.state, u)}/${def.capacity}</b>`);   // E4: transporte
     if (def.line && def.line !== 'citizen' && unitLinesOn(s.state)) stats.push(`${t('sel.line')} <b>${esc(LINES[def.line].name)} · ${AGES[def.tier ?? def.age].short}</b>`);
     if (def.special === 'heads') stats.push(`${t('sel.heads')} <b>${u.heads}</b>`);
     if (u.kills > 0) stats.push(`${t('sel.kills')} <b>${u.kills}</b>`);
@@ -486,7 +488,7 @@ export class HUD {
     const s = this.session; if (!s) return;
     const p = s.player;
     const units = s.ownSelectedUnits(); const b = s.ownSelectedBuilding();
-    const key = `${[...s.selection].join(',')}|${s.ui.mode}|${s.ui.placeType}|${this.renderer.art?.generation ?? 0}|${iconsGeneration()}|${p.age}|${p.techs.length}|${p.minorGods.length}|${b?.garrison.length ?? 0}|${Object.values(p.resources).map((v) => Math.floor(v / 25)).join(',')}|${p.pop}/${p.popCap}|${b?.queue.length}|${b?.scholars}`;
+    const key = `${[...s.selection].join(',')}|${s.ui.mode}|${s.ui.placeType}|${this.renderer.art?.generation ?? 0}|${iconsGeneration()}|${p.age}|${p.techs.length}|${p.minorGods.length}|${b?.garrison.length ?? 0}|${Object.values(p.resources).map((v) => Math.floor(v / 25)).join(',')}|${p.pop}/${p.popCap}|${b?.queue.length}|${b?.scholars}|${units.map((u) => u.cargo.length).join(',')}`;
     if (!force && key === this.lastCmdKey) return;
     this.lastCmdKey = key;
     // a grade rola (styles.css): com a mesma seleção, o redesenho (recursos, fila…) mantém a rolagem; seleção nova volta ao topo
@@ -508,6 +510,7 @@ export class HUD {
       if (villagers.length > 0 && military.length === 0) {
         for (const type of BUILD_MENU) {
           const def = BUILDINGS[type];
+          if (def.shore && !navalOn(s.state)) continue;   // E4: na campanha e na Horda o Estaleiro some do menu
           if (def.age > p.age && def.age > p.age + 1) continue;
           const cost = getBuildingStats(s.state, p, type).cost;
           const lim = buildingLimitOk(s.state, p, type);
@@ -529,12 +532,13 @@ export class HUD {
           add(ic.ability(abId), ab.name, `<b>${ab.name}</b> · ${UNITS[h.type].name}<div class="desc">${ab.desc}</div><div>${left > 0 ? t('cmd.abilityCooldown', { s: left }) : t('cmd.abilityReady')}</div>`, 'Q', () => { this.issueChecked({ type: 'ability', player: s.local, unitId: h.id }); this.lastCmdKey = ''; }, { disabled: left > 0 });
         }
         add(glyph('stop'), t('cmd.stop'), t('cmd.stopTip'), 'S', () => { s.issue({ type: 'stop', player: s.local, ids }); });
+        if (units.some((x) => UNITS[x.type].capacity && x.cargo.length)) add(glyph('release'), t('cmd.unload'), t('cmd.unloadTip'), 'U', () => { for (const sh of units.filter((x) => UNITS[x.type].capacity && x.cargo.length)) s.issue({ type: 'unload', player: s.local, ids: [sh.id], x: sh.x, y: sh.y }); });   // E4
         if (units.length >= 4) for (const f of FORMATIONS) add(glyph(FORMATION_GLYPHS[f]), t(`formation.${f}`), `<b>${t(`formation.${f}`)}</b><div class="desc">${t(`formation.${f}Tip`)}</div>`, null, () => { s.ui.formation = f; this.lastCmdKey = ''; this.refreshCommands(true); }, { active: s.ui.formation === f });
         const stance = units[0].stance;
         for (const k of Object.keys(STANCES)) add(glyph(k === 'aggressive' ? 'aggressive' : k === 'defensive' ? 'defensive' : 'passive'), t(`stance.${k}`), `<b>${t('cmd.stance', { name: t(`stance.${k}`) })}</b><div class="desc">${t(`cmd.stanceTip.${k}`)}</div>`, null, () => { s.issue({ type: 'stance', player: s.local, ids, stance: k as Stance }); this.lastCmdKey = ''; }, { active: stance === k });
         if (villagers.length > 0) add(glyph('build'), t('cmd.build'), t('cmd.buildTip'), null, () => { s.select(villagers.map((u) => u.id)); });
       }
-      if (units.some((u) => ['civilian', 'infantry', 'archer', 'skirmisher', 'hero'].some((t) => UNITS[u.type].tags.includes(t)))) add(glyph('garrison'), t('cmd.garrison'), t('cmd.garrisonTip'), null, () => this.garrisonNearest(units));
+      if (units.some((u) => !UNITS[u.type].naval && ['civilian', 'infantry', 'archer', 'skirmisher', 'hero'].some((t) => UNITS[u.type].tags.includes(t)))) add(glyph('garrison'), t('cmd.garrison'), t('cmd.garrisonTip'), null, () => this.garrisonNearest(units));
       add(glyph('trash'), t('cmd.dismiss'), t('cmd.dismissTip'), 'Del', () => { s.issue({ type: 'delete', player: s.local, ids: units.map((u) => u.id) }); });
       return;
     }
@@ -793,7 +797,7 @@ export class HUD {
     const general: [string, string][] = [
       [`${k(t('hk.k.click'))} · ${k(t('hk.k.drag'))} · ${k(t('hk.k.dbl'))} · ${k('Ctrl')}+${k(t('hk.k.click'))}`, t('hk.select')],
       [`${k(t('hk.k.right'))} · ${k('Shift')}+${k(t('hk.k.right'))}`, t('hk.right')],
-      [k('A'), t('hk.attackMove')], [k('S'), t('hk.stop')], [k('G'), t('hk.garrison')], [k('Delete'), t('hk.delete')],
+      [k('A'), t('hk.attackMove')], [k('S'), t('hk.stop')], [k('G'), t('hk.garrison')], [k('U'), t('hk.unload')], [k('Delete'), t('hk.delete')],
       [k('Tab'), t('hk.tab')], [`${k('Ctrl')}+${k('A')}`, t('hk.selectMilitary')],
       [`${k('Ctrl')}+${k('1-9')} · ${k('1-9')} · ${k('Alt')}+${k('1-9')}`, t('hk.groups')],
       [`${k('W A S D')} · ${k(t('hk.k.arrows'))} · ${t('hk.k.edge')} · ${k(t('hk.k.middle'))}`, t('hk.camera')], [k(t('hk.k.wheel')), t('hk.zoom')],

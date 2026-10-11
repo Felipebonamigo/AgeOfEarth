@@ -3,6 +3,7 @@
 // quem pisa na margem da água, quanto do chão à vista é árido e onde sai a fumaça de trabalho de cada edifício.
 import { ABILITIES, UNITS } from '../../core/data';
 import { TERRAIN, TICK_RATE, RARE_SET } from '../../core/constants';
+import { isNavigableTerrain } from '../../core/map/naval';
 import type { Building, GameMap, GameState, Unit, VisualEffect } from '../../core/types';
 import { abilityUseTick } from '../art/logic';
 
@@ -132,7 +133,7 @@ export const SHORE_WET = 0.34;
 const isWater = (map: GameMap, x: number, y: number): boolean => {
   if (x < 0 || y < 0 || x >= map.w || y >= map.h) return false;
   const t = map.terrain[y * map.w + x];
-  return t === TERRAIN.WATER || t === TERRAIN.DEEP;
+  return isNavigableTerrain(t);
 };
 /** Há água no tile (x, y) ou num dos 8 vizinhos (só aí `shoreDistance` pode dar < Infinity). */
 export function nearWater(map: GameMap, x: number, y: number): boolean {
@@ -178,7 +179,7 @@ export function aridFraction(map: GameMap, vis: Uint8Array | null, reveal: boole
     const i = y * map.w + x;
     if (!reveal && (!vis || vis[i] !== 2)) continue;
     const t = map.terrain[i];
-    if (t === TERRAIN.WATER || t === TERRAIN.DEEP) continue;
+    if (isNavigableTerrain(t)) continue;
     land++;
     if (t === TERRAIN.SAND || t === TERRAIN.DIRT) arid++;
   }

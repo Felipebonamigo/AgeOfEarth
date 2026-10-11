@@ -48,6 +48,7 @@ export function deathRecipe(type: string | number | undefined): RecipeName {
   if (def.flying) return 'deathWing';
   if (def.cls === 'cavalry' || def.cls === 'scout') return 'deathHorse';
   if (def.cls === 'myth' || def.cls === 'titan') return 'deathMyth';
+  if (def.cls === 'ship') return 'treeFall';   // E4: madeira rachando; a E8 faz o som próprio
   if (def.cls === 'siege') return 'treeFall';
   return 'deathHuman';
 }

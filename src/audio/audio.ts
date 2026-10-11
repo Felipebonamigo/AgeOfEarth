@@ -31,6 +31,7 @@ export const ACKS: Record<string, Record<AckKind, RecipeName[]>> = {
   hero: { select: ['ackHorn'], move: ['march'], attack: ['ackHorn', 'ackShout'] },
   myth: { select: ['ackGrowl'], move: ['heavyStep'], attack: ['ackGrowl'] },
   titan: { select: ['ackGrowl'], move: ['heavyStep'], attack: ['ackGrowl'] },
+  ship: { select: ['ackCreak'], move: ['ackCreak'], attack: ['ackShout', 'ackCreak'] },   // E4
 };
 /** Intervalo mínimo entre respostas (ms): cliques rápidos não viram metralhadora de sons. */
 const ACK_GAP = 280;

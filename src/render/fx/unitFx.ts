@@ -37,7 +37,7 @@ export class UnitFx {
   private workers = 0; private workersPrev = 0;
   private dir = { x: 0, y: 0 };
   /** Contadores de diagnóstico (scripts/artfx.mjs, testes): golpes com lascas, folhas da coleta, respingos, curas, auras. */
-  readonly counts = { strike: 0, leaf: 0, shore: 0, heal: 0, aura: 0 };
+  readonly counts = { strike: 0, leaf: 0, shore: 0, heal: 0, aura: 0, wake: 0 };
 
   /** Começo do quadro: quantos trabalhavam na tela no quadro anterior decide a densidade das lascas. */
   begin(): void { this.frameN++; this.workersPrev = this.workers; this.workers = 0; }
@@ -84,6 +84,12 @@ export class UnitFx {
           if (R() < 0.5) waterSplash(fx.particles, fx.tex, px + this.dir.x * (d * TILE + 3), py + this.dir.y * (d * TILE + 3), { n: 0, power: 0.9 });
         }
       }
+    }
+    // E4: esteira — respingos na popa do navio em movimento
+    if (UNITS[u.type].naval && mdx * mdx + mdy * mdy > 4e-4) {
+      const speed = Math.sqrt(mdx * mdx + mdy * mdy) / DT, len = Math.sqrt(mdx * mdx + mdy * mdy);
+      a.wet += fx.dt * speed * 1.2;
+      if (a.wet >= 1) { a.wet -= 1; this.counts.wake++; const k = -UNITS[u.type].radius * TILE; waterSplash(fx.particles, fx.tex, px + (mdx / len) * k, py + (mdy / len) * k, { n: 2, power: 0.6, ring: true }); }
     }
   }
 

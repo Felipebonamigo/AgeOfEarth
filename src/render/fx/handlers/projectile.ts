@@ -13,6 +13,7 @@
 // brasas, fumaça e queimadura; na ÁGUA, respingo e ondulação em vez de poeira. Só à vista: origem ou alvo visíveis.
 import { Sprite } from 'pixi.js';
 import { TERRAIN } from '../../../core/constants';
+import { isNavigableTerrain } from '../../../core/map/naval';
 import type { VisualEffect } from '../../../core/types';
 import type { FxContext, FxHandler } from '../types';
 import { arcHeight, arcPoint, dirAndResidual, isEmissive, projectileKind, type ProjectileKind } from '../logic';
@@ -35,7 +36,7 @@ const SPIKE_VOLLEY: readonly (readonly [number, number])[] = [[0, 0], [-0.32, 0.
 function visibleShot(e: VisualEffect, fx: FxContext): boolean {
   return fx.visibleAt(e.x, e.y) || (e.tx !== undefined && e.ty !== undefined && fx.visibleAt(e.tx, e.ty));
 }
-const isWater = (t: number): boolean => t === TERRAIN.WATER || t === TERRAIN.DEEP;
+const isWater = isNavigableTerrain;
 
 export const projectile: FxHandler<S> = {
   create(e, fx) {

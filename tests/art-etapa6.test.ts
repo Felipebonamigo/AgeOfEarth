@@ -53,7 +53,7 @@ const headsOf = (type: string): number[] => (UNITS[type].special === 'heads' ? [
 describe('Etapa 6: todo tipo de unidade do jogo tem manifesto de arte (nenhum fica no ProceduralSource)', () => {
   it('os 35 tipos de UNITS — humanos, montados, cerco, as 13 míticas e os 3 titãs — têm art/manifest/<tipo>.json de unidade', () => {
     const ids = new Set(loadManifests(path.join(ROOT, 'art', 'manifest')).map((l: { manifest: { id: string; kind: string } }) => l.manifest).filter((m: { kind: string }) => m.kind === 'unit').map((m: { id: string }) => m.id));
-    const types = Object.keys(UNITS).filter((t) => !(t in UNIT_ART_ALIAS));
+    const types = Object.keys(UNITS).filter((t) => !(t in UNIT_ART_ALIAS) && !UNITS[t].naval);
     expect(types).toHaveLength(35);
     expect(types.filter((t) => !ids.has(t))).toEqual([]);
     expect(types.filter((t) => UNITS[t].tags.includes('myth') && !UNITS[t].tags.includes('titan'))).toHaveLength(13);
@@ -90,7 +90,7 @@ describe.skipIf(!hasArt)('Etapa 6: com a arte ligada, nenhuma unidade sai proced
     it(`preset ${scale === 1 ? 'Baixo/Médio (1×)' : 'Alto (2×)'}: as 35 unidades e as 5 hidras saem assadas, com parado, andar, golpe e queda`, () => {
       const lib = library(scale);
       const procedural: string[] = [], served: Record<string, number> = {};
-      for (const type of Object.keys(UNITS)) for (const heads of headsOf(type)) {
+      for (const type of Object.keys(UNITS).filter((t) => !UNITS[t].naval)) for (const heads of headsOf(type)) {
         const id = lib.unitId(type, heads);
         const art = lib.unit(id);
         if (!art) { procedural.push(`${type}×${heads} → ${id}`); continue; }
