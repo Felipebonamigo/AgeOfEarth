@@ -13,7 +13,7 @@ Estados: `pendente` · `em andamento` · `feito` · `feito com pendências` · `
 | Etapa | Estado | Data | Commit | Notas |
 |---|---|---|---|---|
 | E1 + painel/árvore (E9) | feito | 10/10/2026 | 04f0080+ | SIM_VERSION 4, save v2; Prometeu por roteiro nas m3/m8/m12 |
-| E2 | em andamento | | | |
+| E2 | feito | 11/10/2026 | E2-A…E | SIM_VERSION 5; pedra (Pedreira), nafta (Era IV, Poço de Nafta), jazidas (Era VII, Poço de Petróleo), 7 raros com Mercador; IA só planta onde a obra é alcançável (`findBuildSpot` com `findPathEx`); proporção de pedra/petróleo cai com estoque parado |
 | E3 | pendente | | | |
 | E4 | pendente | | | |
 | E5 — comércio | pendente | | | |
@@ -140,17 +140,17 @@ Fase C — IA
 - [x] 22 Mercadores da IA (`manageMerchants`)
 
 Fase D — interface, textos e arte provisória
-- [ ] 23 Textos PT/EN
-- [ ] 24 HUD (barra de 7 recursos, raros, mercado)
-- [ ] 25 Arte provisória por alias (`src/render/art/alias.ts`)
-- [ ] 26 Nós no renderizador (procedural)
-- [ ] 27 Ícones do HUD (`res/stone`, `res/oil`) + `art:hud`
+- [x] 23 Textos PT/EN
+- [x] 24 HUD (barra de 7 recursos, raros, mercado)
+- [x] 25 Arte provisória por alias (`src/render/art/alias.ts`)
+- [x] 26 Nós no renderizador (procedural)
+- [x] 27 Ícones do HUD (`res/stone`, `res/oil`) + `art:hud`
 
 Fase E — testes, calibração e documentação
-- [ ] 28 Teste novo `tests/resources-e2.test.ts`
-- [ ] 29 Verificação completa
-- [ ] 30 Campanha: harness com pedra e `scripts/missions.ts`
-- [ ] 31 Documentação e commit ("Ao terminar")
+- [x] 28 Teste novo `tests/resources-e2.test.ts`
+- [x] 29 Verificação completa
+- [x] 30 Campanha: harness com pedra e `scripts/missions.ts`
+- [x] 31 Documentação e commit ("Ao terminar")
 
 ---
 
