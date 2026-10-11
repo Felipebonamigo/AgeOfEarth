@@ -6,6 +6,7 @@ import { Container, Graphics, Rectangle, Texture, type Renderer } from 'pixi.js'
 import { TILE, type NodeType } from '../core/constants';
 import { BUILDINGS, UNITS } from '../core/data';
 import { MATERIALS, SHADOW_ALPHA, hash01, mixColor, scaleColor, teamTint } from './palette';
+import { unitArtType } from './art/alias';
 import { nodeShadow } from './shadows';
 
 const { skin: SKIN, skinDark: SKIN_DARK, wood: WOOD, woodDark: WOOD_DARK, stone: STONE, stoneDark: STONE_DARK, marble: MARBLE, terracotta: TERRACOTTA, gold: GOLD, bronze: BRONZE, iron: IRON, linen: LINEN, leather: LEATHER } = MATERIALS;
@@ -87,7 +88,7 @@ export class TextureCache {
   unit(type: string, color: number): Texture {
     const def = UNITS[type];
     const size = Math.ceil(def.radius * TILE * 2 * 2.6);
-    return this.make(`unit:${type}:${color}`, size, (g) => drawUnit(g, type, color), 2);
+    return this.make(`unit:${type}:${color}`, size, (g) => drawUnit(g, unitArtType(type), color), 2);
   }
   // ---------------- Edifícios ----------------
   building(type: string, color: number, complete: boolean): Texture {

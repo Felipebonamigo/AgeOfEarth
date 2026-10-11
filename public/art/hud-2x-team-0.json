@@ -21,10 +21,19 @@
   "bld/wonder_artemis": {"frame":{"x":105,"y":260,"w":104,"h":119},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":12,"y":5,"w":104,"h":119},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
   "bld/wonder_colossus": {"frame":{"x":1940,"y":133,"w":84,"h":120},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":22,"y":4,"w":84,"h":120},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
   "bld/wonder_zeus": {"frame":{"x":1,"y":260,"w":100,"h":120},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":14,"y":4,"w":100,"h":120},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
-  "power/sentinel": {"frame":{"x":1,"y":776,"w":66,"h":120},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":31,"y":4,"w":66,"h":120},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
-  "tech/automatons": {"frame":{"x":1,"y":384,"w":113,"h":123},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":0,"y":5,"w":113,"h":123},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
+  "power/sentinel": {"frame":{"x":1,"y":814,"w":66,"h":120},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":31,"y":4,"w":66,"h":120},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
+  "tech/automatons": {"frame":{"x":519,"y":384,"w":113,"h":123},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":0,"y":5,"w":113,"h":123},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
   "tech/barding": {"frame":{"x":1641,"y":260,"w":124,"h":120},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":4,"y":5,"w":124,"h":120},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
-  "tech/hunting_dogs": {"frame":{"x":1769,"y":260,"w":116,"h":118},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":6,"y":5,"w":116,"h":118},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
+  "tech/evo_artillery": {"frame":{"x":764,"y":384,"w":114,"h":121},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":7,"y":3,"w":114,"h":121},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
+  "tech/evo_assault": {"frame":{"x":882,"y":384,"w":86,"h":121},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":21,"y":3,"w":86,"h":121},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
+  "tech/evo_cavalry": {"frame":{"x":435,"y":384,"w":80,"h":124},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":24,"y":0,"w":80,"h":124},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
+  "tech/evo_citizen": {"frame":{"x":87,"y":384,"w":62,"h":125},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":33,"y":3,"w":62,"h":125},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
+  "tech/evo_elite": {"frame":{"x":221,"y":384,"w":105,"h":125},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":0,"y":3,"w":105,"h":125},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
+  "tech/evo_heavy_infantry": {"frame":{"x":330,"y":384,"w":101,"h":124},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":0,"y":4,"w":101,"h":124},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
+  "tech/evo_ranged": {"frame":{"x":153,"y":384,"w":64,"h":125},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":32,"y":3,"w":64,"h":125},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
+  "tech/evo_scout": {"frame":{"x":1769,"y":260,"w":88,"h":120},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":20,"y":4,"w":88,"h":120},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
+  "tech/evo_skirmisher": {"frame":{"x":1,"y":384,"w":82,"h":128},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":23,"y":0,"w":82,"h":128},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
+  "tech/hunting_dogs": {"frame":{"x":1861,"y":260,"w":116,"h":118},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":6,"y":5,"w":116,"h":118},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
   "unit/achilles": {"frame":{"x":427,"y":1,"w":103,"h":125},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":0,"y":3,"w":103,"h":125},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
   "unit/basileus": {"frame":{"x":1,"y":1,"w":104,"h":128},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":0,"y":0,"w":104,"h":128},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
   "unit/centaur": {"frame":{"x":511,"y":133,"w":84,"h":120},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":22,"y":4,"w":84,"h":120},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
@@ -64,5 +73,5 @@
  "animations": {
 
  },
- "meta": {"app":"age-of-earth/scripts/bake","version":"1","image":"hud-2x-team-0.png","format":"RGBA8888","size":{"w":2048,"h":1504},"scale":"2","aoe":{"version":1,"pass":"team","pxPerTile":64,"pitchDeg":50,"verticalFactor":0.8391,"sun":[-0.55,1,-0.35],"shadowDir":"SE","dirs":8,"dirNames":["E","SE","S","SW","W","NW","N","NE"],"fps":10,"pad":2,"extrude":1,"mirror":false}}
+ "meta": {"app":"age-of-earth/scripts/bake","version":"1","image":"hud-2x-team-0.png","format":"RGBA8888","size":{"w":2048,"h":1568},"scale":"2","aoe":{"version":1,"pass":"team","pxPerTile":64,"pitchDeg":50,"verticalFactor":0.8391,"sun":[-0.55,1,-0.35],"shadowDir":"SE","dirs":8,"dirNames":["E","SE","S","SW","W","NW","N","NE"],"fps":10,"pad":2,"extrude":1,"mirror":false}}
 }

@@ -4,12 +4,13 @@ import { RESOURCES, RESOURCE_ICONS, OIL_FROM_AGE, STANCES, TICK_RATE, MAX_SCHOLA
 const FORMATION_GLYPHS: Record<Formation, string> = { line: 'fLine', box: 'fBox', column: 'fColumn', wedge: 'fWedge' };
 import { teamNames } from '../core/sim/modes';
 import { relicsOf } from '../core/sim/relics';
-import { AGES, BUILDINGS, BUILD_MENU, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS, ACADEMY_LINES, ABILITIES } from '../core/data';
+import { AGES, BUILDINGS, BUILD_MENU, LINES, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS, ACADEMY_LINES, ABILITIES } from '../core/data';
 import type { Building, GameEvent, Unit } from '../core/types';
 import { getUnitStats, getBuildingStats, techCost } from '../core/sim/modifiers';
 import { canTrain, canResearch, canAdvanceAge, canHireScholar, academyTechCount } from '../core/sim/commands';
 import { studyTreeModel, studyTreeHtml, studyTreeKey, studyNodeDetail, pickLibrary, librariesOf, type StudyNode } from './studytree';
 import { canPlaceBuilding, buildingLimitOk } from '../core/sim/entities';
+import { trainChoices, trainTypeOf, unitLinesOn } from '../core/sim/lines';
 import { extractorNode, farmGatherers, isMilitary } from '../core/sim/queries';
 import { canAfford, missingResources } from '../core/sim/economy';
 import type { Session } from '../game/session';
@@ -388,7 +389,7 @@ export class HUD {
     const s = this.session; if (!s) return;
     s.pruneSelection();
     const units = s.selectedUnits(), blds = s.selectedBuildings();
-    const key = [...s.selection].join(',') + '|' + units.map((u) => `${u.hp}`).join(',') + '|' + blds.map((b) => `${b.hp}${b.complete}${b.queue.map((q) => q.id + Math.floor(q.elapsed)).join('.')}${b.scholars}g${b.garrison.length}`).join(',') + '|' + s.ui.mode + s.ui.placeType + '|' + s.player.age + s.player.techs.length + Math.floor(s.state.tick / 10) + '|' + (this.renderer.art?.generation ?? 0) + '|' + iconsGeneration();
+    const key = [...s.selection].join(',') + '|' + units.map((u) => `${u.type}${u.hp}`).join(',') + '|' + blds.map((b) => `${b.hp}${b.complete}${b.queue.map((q) => q.id + Math.floor(q.elapsed)).join('.')}${b.scholars}g${b.garrison.length}`).join(',') + '|' + s.ui.mode + s.ui.placeType + '|' + s.player.age + s.player.techs.length + Math.floor(s.state.tick / 10) + '|' + (this.renderer.art?.generation ?? 0) + '|' + iconsGeneration();
     if (!force && key === this.lastSelKey) return;
     this.lastSelKey = key;
     this.selPanel.innerHTML = '';
@@ -424,6 +425,7 @@ export class HUD {
     stats.push(`${t('sel.armor')} <b>${Math.round(st.armor.hack * 100)}/${Math.round(st.armor.pierce * 100)}/${Math.round(st.armor.crush * 100)}%</b>`);
     if (st.range >= 1.6) stats.push(`${t('sel.range')} <b>${st.range}</b>`);
     stats.push(`${t('sel.speed')} <b>${st.speed.toFixed(1)}</b>`);
+    if (def.line && def.line !== 'citizen' && unitLinesOn(s.state)) stats.push(`${t('sel.line')} <b>${esc(LINES[def.line].name)} · ${AGES[def.tier ?? def.age].short}</b>`);
     if (def.special === 'heads') stats.push(`${t('sel.heads')} <b>${u.heads}</b>`);
     if (u.kills > 0) stats.push(`${t('sel.kills')} <b>${u.kills}</b>`);
     if (rankOf(u.kills) > 0 && UNITS[u.type].tags.includes('military') && !UNITS[u.type].tags.includes('titan')) stats.push(`${t('sel.rank')} <b class="rank">${glyph('star').repeat(rankOf(u.kills))}</b>`);
@@ -461,8 +463,9 @@ export class HUD {
     if (b.owner === s.local && b.queue.length > 0) {
       const q = el('div', 'queue');
       b.queue.forEach((item, i) => {
-        const icon = item.kind === 'unit' ? ic.unit(item.id, owner.color) : item.kind === 'tech' ? ic.tech(item.id) : item.kind === 'scholar' ? `<span class="hic hic-gly">${glyph('scholar')}</span>` : ic.age(owner.age + 1);
-        const name = item.kind === 'unit' ? UNITS[item.id].name : item.kind === 'tech' ? TECHS[item.id].name : item.kind === 'scholar' ? t('cmd.scholar') : `${AGES[owner.age + 1]?.name ?? ''}`;
+        const qtype = item.kind === 'unit' ? trainTypeOf(s.state, owner, item.id) : item.id;   // E3: o degrau que vai nascer
+        const icon = item.kind === 'unit' ? ic.unit(qtype, owner.color) : item.kind === 'tech' ? ic.tech(item.id) : item.kind === 'scholar' ? `<span class="hic hic-gly">${glyph('scholar')}</span>` : ic.age(owner.age + 1);
+        const name = item.kind === 'unit' ? UNITS[qtype].name : item.kind === 'tech' ? TECHS[item.id].name : item.kind === 'scholar' ? t('cmd.scholar') : `${AGES[owner.age + 1]?.name ?? ''}`;
         const qi = el('div', 'qi', `${icon}<div class="prog" style="width:${i === 0 ? Math.round((item.elapsed / item.total) * 100) : 0}%"></div>`);
         qi.dataset.tip = `<b>${name}</b><div class="desc">${i === 0 ? t('sel.remaining', { n: Math.ceil(item.total - item.elapsed) }) : t('sel.queued')} · ${t('sel.clickCancel')}</div>`;
         qi.addEventListener('click', () => { s.issue({ type: 'cancel', player: s.local, buildingId: b.id, index: i, itemId: item.uid }); });
@@ -543,14 +546,15 @@ export class HUD {
         add(ic.age(Math.min(p.age + 1, AGES.length - 1)), p.age < AGES.length - 1 ? AGES[p.age + 1].short : t('cmd.ageMax'), this.ageBtn.dataset.tip ?? '', 'E', () => this.tryAdvanceAge(b), { disabled: !adv.ok });
         add(glyph('scroll'), t('cmd.studyTree'), t('cmd.studyTreeTip'), 'F3', () => this.showStudyTree());
       }
-      if (def.trains) for (const ut of def.trains) {
-        const ud = UNITS[ut];
-        if (ud.age > p.age + 1) continue;
+      for (const ch of trainChoices(s.state, p, b.type)) {   // E3: com as linhas, um botão por linha (o degrau atual); sem elas, o trains de sempre
+        const ut = ch.show; const ud = UNITS[ut];
+        if (ch.era > p.age + 1) continue;
         if (ud.god) { const major = MAJOR_GODS[p.god]; const ok = major.mythUnit === ut || p.minorGods.some((g) => MINOR_GODS[g].mythUnit === ut) || ud.god === p.god; if (!ok) continue; }
         const st = getUnitStats(s.state, p, ut);
-        const c = canTrain(s.state, p, b, ut);
-        const tip = `${t('cmd.trainTip', { name: ud.name, cost: fmtCost(st.cost, p), time: Math.round(st.trainTime), pop: ud.pop, desc: ud.desc, hp: st.hp, attack: st.attack, range: st.range >= 1.6 ? st.range : t('sel.melee') })}${c.ok ? '' : `<div style="color:#ef4444;margin-top:4px">${c.reason ?? (ud.age > p.age ? t('cmd.requiresAge', { age: AGES[ud.age].name }) : '')}</div>`}`;
-        add(ic.unit(ut, p.color), ud.name, tip, ud.hotkey ?? null, () => { const r = this.issueChecked({ type: 'train', player: s.local, buildingId: b.id, unit: ut }); if (r) this.audio.play('command'); }, { disabled: !c.ok });
+        const c = canTrain(s.state, p, b, ch.send);
+        const lineTip = ch.line ? `<div class="desc">${t('cmd.lineTip', { line: ch.line.name })}</div>` : '';
+        const tip = `${t('cmd.trainTip', { name: ud.name, cost: fmtCost(st.cost, p), time: Math.round(st.trainTime), pop: ud.pop, desc: ud.desc, hp: st.hp, attack: st.attack, range: st.range >= 1.6 ? st.range : t('sel.melee') })}${lineTip}${c.ok ? '' : `<div style="color:#ef4444;margin-top:4px">${c.reason ?? (ch.era > p.age ? t('cmd.requiresAge', { age: AGES[ch.era].name }) : '')}</div>`}`;
+        add(ic.unit(ut, p.color), ud.name, tip, ch.hotkey, () => { const r = this.issueChecked({ type: 'train', player: s.local, buildingId: b.id, unit: ch.send }); if (r) this.audio.play('command'); }, { disabled: !c.ok });
       }
       if (def.scholars) {
         const ch = canHireScholar(s.state, p, b); const c = ch.ok ? '' : (ch.reason ?? t('cmd.noResources'));
@@ -558,6 +562,7 @@ export class HUD {
       }
       for (const tech of Object.values(TECHS)) {
         if (tech.building !== b.type || p.techs.includes(tech.id)) continue;
+        if (tech.evolve && !unitLinesOn(s.state)) continue;   // E3: sem linhas (cenários), sem evoluções
         if (tech.age > p.age + 1) continue;
         if (tech.god && !p.minorGods.includes(tech.god) && p.god !== tech.god) continue;
         if (tech.prereq.some((pr) => !p.techs.includes(pr))) continue;   // mostra só o próximo nível de cada linha
@@ -801,7 +806,13 @@ export class HUD {
     const byKey = new Map<string, string[]>();
     for (const [id, b] of builds) byKey.set(b.hotkey!, [...(byKey.get(b.hotkey!) ?? []), id]);
     const buildRows = [...byKey.entries()].map(([key, ids]) => `<tr><td>${k(key)}</td><td>${ids.map((id) => `${ic.bld(id, undefined, 'sm')} ${BUILDINGS[id].name} <small style="color:#9aa5b8">(${AGES[BUILDINGS[id].age].short})</small>`).join(' · ')}${ids.length > 1 ? ` <small style="color:#9aa5b8">— ${t('hk.wonderCycle')}</small>` : ''}</td></tr>`).join('');
-    const trainRows = Object.entries(BUILDINGS).filter(([, b]) => b.trains && b.trains.length > 0).map(([id, b]) => `<tr><td>${ic.bld(id, undefined, 'sm')} ${b.name}</td><td>${b.trains!.filter((u) => UNITS[u].hotkey).map((u) => `${k(UNITS[u].hotkey!)} ${ic.unit(u, undefined, 'sm')} ${UNITS[u].name}`).join(' · ')}</td></tr>`).join('');
+    const sess = this.session?.player ? this.session : null;   // a tela de atalhos também abre do menu principal, sem partida (e o espectador pode não ter jogador)
+    const trainRows = Object.entries(BUILDINGS).filter(([, b]) => b.trains && b.trains.length > 0).map(([id, b]) => {
+      const items = sess
+        ? trainChoices(sess.state, sess.player, id).filter((c) => c.hotkey).map((c) => `${k(c.hotkey!)} ${ic.unit(c.show, undefined, 'sm')} ${c.line ? c.line.name : UNITS[c.show].name}`)
+        : b.trains!.filter((u) => UNITS[u].hotkey).map((u) => `${k(UNITS[u].hotkey!)} ${ic.unit(u, undefined, 'sm')} ${UNITS[u].name}`);
+      return `<tr><td>${ic.bld(id, undefined, 'sm')} ${b.name}</td><td>${items.join(' · ')}</td></tr>`;
+    }).join('');
     const rows = (list: [string, string][]) => list.map(([a, b]) => `<tr><td style="white-space:nowrap">${a}</td><td>${b}</td></tr>`).join('');
     this.showModal(`<h2>${t('hk.title')}</h2>
       <h3>${t('hk.general')}</h3><table>${rows(general)}</table>

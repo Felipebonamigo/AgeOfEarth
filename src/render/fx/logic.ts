@@ -23,6 +23,7 @@ export function projectileKind(src: string | undefined, data: unknown): Projecti
     if (BUILDINGS[src]) return 'arrow';
     const u = UNITS[src];
     if (u) {
+      if (u.tags.includes('fire')) return 'fireball';   // E3: sifão de fogo grego
       if (u.tags.includes('skirmisher')) return 'javelin';
       if (u.cls === 'siege') return 'stone';
       if (src === 'manticore') return 'spike';

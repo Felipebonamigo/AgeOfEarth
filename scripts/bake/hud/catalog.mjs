@@ -34,9 +34,20 @@ export const TECH_ICONS = {
   moon_arrows: O('bow', { mat: 'silver', moon: true }), great_hunt: O('antlers'),
   // E2: pedra e petróleo
   stone_wedges: O('blocks'), stone_saws: O('saw'), stone_cranes: O('blocks'), bitumen_jars: O('hydria'), distillation: O('crucible'), cracking: O('crucible'),
+  // E3: um ícone por linha de unidade para os estudos de evolução (evo_<linha>_<n>), com o modelo do degrau-âncora
+  evo_citizen: { kind: 'unit', unit: 'villager', frame: { mode: 'bust', frac: 0.74, margin: 0.03 } },
+  evo_scout: { kind: 'unit', unit: 'kataskopos', frame: { margin: 0.04 } },
+  evo_heavy_infantry: { kind: 'unit', unit: 'hypaspist', frame: { mode: 'bust', frac: 0.74, margin: 0.03 } },
+  evo_ranged: { kind: 'unit', unit: 'cretan_archer', frame: { mode: 'bust', frac: 0.74, margin: 0.03 } },
+  evo_skirmisher: { kind: 'unit', unit: 'peltast', frame: { mode: 'bust', frac: 0.74, margin: 0.03 } },
+  evo_cavalry: { kind: 'unit', unit: 'hetairoi', frame: { margin: 0.04 } },
+  evo_elite: { kind: 'unit', unit: 'myrmidon', frame: { mode: 'bust', frac: 0.74, margin: 0.03 } },
+  evo_artillery: { kind: 'unit', unit: 'petrobolos', frame: { margin: 0.04 } },
+  evo_assault: { kind: 'unit', unit: 'helepolis', frame: { margin: 0.04 } },
 };
 /** Tecnologia → chave do ícone (as de nível usam o ramo). */
 export function techIconKey(id) {
+  if (id.startsWith('evo_')) return id.slice(0, id.lastIndexOf('_'));   // E3: evo_heavy_infantry_3 → evo_heavy_infantry
   const m = /^(civic|commerce|military|science|harvest)\d$/.exec(id);
   return m ? m[1] : id;
 }

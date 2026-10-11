@@ -7,6 +7,7 @@ import type { Renderer, RenderUI } from '../render/renderer';
 import type { HUD } from './hud';
 import type { Audio } from '../audio/audio';
 import { isMilitary, isEnemy, canWorkNode } from '../core/sim/queries';
+import { trainChoices } from '../core/sim/lines';
 import { t, getLocale } from '../i18n';
 import { toggleFullscreen } from '../game/display';
 import type { MapEditor } from '../editor/editor';
@@ -349,7 +350,7 @@ export class Input {
       if (keyU === 'U' && (BUILDINGS[b.type].garrison || BUILDINGS[b.type].worship)) { s.issue({ type: 'ungarrison', player: s.local, buildingId: b.id }); return; }
       if (def.scholars && keyU === 'Q') { this.hud.issueChecked({ type: 'hireScholar', player: s.local, buildingId: b.id }); return; }
       if (def.library && keyU === 'E') { this.hud.tryAdvanceAge(b); return; }
-      if (def.trains) for (const ut of def.trains) if (UNITS[ut].hotkey === keyU) { this.hud.issueChecked({ type: 'train', player: s.local, buildingId: b.id, unit: ut }); return; }
+      for (const ch of trainChoices(s.state, s.state.players[s.local], b.type)) if (ch.hotkey === keyU) { this.hud.issueChecked({ type: 'train', player: s.local, buildingId: b.id, unit: ch.send }); return; }
     }
   }
 

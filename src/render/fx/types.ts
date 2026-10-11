@@ -16,8 +16,8 @@ import type { TextureCache } from '../textures';
 import type { UnitView } from '../views/UnitView';
 import type { ScreenFx } from './screen';
 
-/** Os 16 tipos de VisualEffect que o núcleo emite (e o marcador de ordem da interface, 'spawn' com data 'order'). */
-export const EFFECT_TYPES = ['projectile', 'hit', 'splash', 'death', 'petrify', 'collapse', 'nodeGone', 'spawn', 'heal', 'ability', 'curse', 'pestilence', 'quake', 'titanRise', 'bolt', 'bronze'] as const;
+/** Os 17 tipos de VisualEffect que o núcleo emite (e o marcador de ordem da interface, 'spawn' com data 'order'). */
+export const EFFECT_TYPES = ['projectile', 'hit', 'splash', 'death', 'petrify', 'collapse', 'nodeGone', 'spawn', 'heal', 'ability', 'curse', 'pestilence', 'quake', 'titanRise', 'bolt', 'bronze', 'evolve'] as const;
 export type EffectType = typeof EFFECT_TYPES[number];
 /** Tipos de TimedEffect (poderes com duração). */
 export const TIMED_TYPES = ['lightning_storm', 'earthquake'] as const;

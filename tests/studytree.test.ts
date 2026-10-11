@@ -1,6 +1,6 @@
 // Árvore de estudos da Biblioteca (src/ui/studytree.ts): modelo com as mesmas regras do núcleo, HTML sem emoji e navegável.
 import { describe, it, expect } from 'vitest';
-import { AGES } from '../src/core/data';
+import { AGES, TECHS } from '../src/core/data';
 import { applyCommand } from '../src/core/sim/commands';
 import { buildingsOf, placeBuilding } from '../src/core/sim/entities';
 import { studyNodeDetail, studyTreeHtml, studyTreeKey, studyTreeModel, type StudyNode } from '../src/ui/studytree';
@@ -70,5 +70,14 @@ describe('árvore de estudos', () => {
     } finally { setLocale('pt'); }
     const x = node(studyTreeModel(s, 0), 'civic2');
     expect(studyNodeDetail(x, fc)).toContain('class="why"');
+  });
+  it('E3: uma linha da árvore por linha de unidade, só com as linhas ligadas', () => {
+    const m = studyTreeModel(quickGame(), 0);
+    const row = m.rows.find((r) => r.id === 'evo:heavy_infantry');
+    expect(row, 'linha evo:heavy_infantry').toBeDefined();
+    expect(row!.cells[1].map((x) => x.id)).toContain('evo_heavy_infantry_2');
+    expect(m.rows.filter((r) => r.id.startsWith('evo:'))).toHaveLength(9);
+    expect((m.rows.find((r) => r.id === 'other')?.cells.flat() ?? []).some((x) => !!TECHS[x.id]?.evolve)).toBe(false);
+    expect(studyTreeModel(quickGame({ unitLines: false }), 0).rows.some((r) => r.id.startsWith('evo:'))).toBe(false);
   });
 });

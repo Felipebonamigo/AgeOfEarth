@@ -74,6 +74,7 @@ export function cuesForEffect(fx: VisualEffect): Cue[] {
     case 'petrify': return [{ recipe: 'petrify', x: fx.x, y: fx.y }];
     case 'bronze': return [{ recipe: 'bronzeRing', x: 0, y: 0, global: true }];
     case 'nodeGone': return fx.data === 'tree' ? [{ recipe: 'treeFall', x: fx.x, y: fx.y, gain: 0.7 }] : fx.data === 'gold' || fx.data === 'limestone' ? [{ recipe: 'rockCrumble', x: fx.x, y: fx.y }] : [];
+    case 'evolve': return [{ recipe: 'heal', x: fx.x, y: fx.y, gain: 0.5 }];
     default: return [];
   }
 }

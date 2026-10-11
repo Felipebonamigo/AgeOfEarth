@@ -111,6 +111,7 @@ function hydrate(): void {
 
 /** Nome do ícone de uma tecnologia (as de nível — civic1…5 — usam o do ramo). */
 export function techIconName(id: string): string {
+  if (id.startsWith('evo_')) return `tech/${id.slice(0, id.lastIndexOf('_'))}`;   // E3: igual a techIconKey do catálogo
   const m = /^(civic|commerce|military|science|harvest)\d$/.exec(id);
   return `tech/${m ? m[1] : id}`;
 }

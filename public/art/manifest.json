@@ -182,9 +182,9 @@
    "page": 0,
    "w": 2048,
    "h": 448,
-   "frames": 155,
-   "bytes": 638827,
-   "sha256": "b361f233dd08420919db750a99fdc516b3df3bcd8038dfa6111936693c780de7"
+   "frames": 164,
+   "bytes": 670931,
+   "sha256": "d22dae6b4eea7a74d08823148968f9e1f0ebc5ff7702ae9e1d844a78be6558c3"
   },
   {
    "json": "hud-1x-team-0.json",
@@ -195,9 +195,9 @@
    "page": 0,
    "w": 2048,
    "h": 448,
-   "frames": 60,
-   "bytes": 50794,
-   "sha256": "634afe23232f5235cbaa17e792c1aac4d2bba5c76587962d296fb4f239942d1a"
+   "frames": 69,
+   "bytes": 60895,
+   "sha256": "09e9d98827953c4893d04a2aa4d8fb2d02e373bc9db26e10a5c1405ab903881b"
   },
   {
    "json": "hud-2x-0.json",
@@ -207,10 +207,10 @@
    "scale": 2,
    "page": 0,
    "w": 2048,
-   "h": 1504,
-   "frames": 155,
-   "bytes": 1859098,
-   "sha256": "c8449e950df04375deea6a5235498c53060a8e300487dc80e08c43cca38c809d"
+   "h": 1568,
+   "frames": 164,
+   "bytes": 1948598,
+   "sha256": "f35fb011321542734f987bce8c9be22c30cc21072165e7401113c2adcc46eb37"
   },
   {
    "json": "hud-2x-team-0.json",
@@ -220,10 +220,10 @@
    "scale": 2,
    "page": 0,
    "w": 2048,
-   "h": 1504,
-   "frames": 60,
-   "bytes": 126791,
-   "sha256": "94417b3e5185abadc6cbf9c5ec07e0ce42de5ad0b7779be9fba5e2ae3815c2b9"
+   "h": 1568,
+   "frames": 69,
+   "bytes": 149899,
+   "sha256": "6608c05be8ebf36de104d3b917720c4de48ea995986a5d74fd2169fb08d5f822"
   },
   {
    "json": "icons-1x-0.json",
@@ -4190,12 +4190,12 @@
   "hud": {
    "kind": "hud",
    "group": "hud",
-   "sourceHash": "a150fbb8bebc0daf",
+   "sourceHash": "eb33406db0850c86",
    "dirs": 1,
    "mirror": false,
    "team": true,
    "shadow": false,
-   "frames": 155,
+   "frames": 164,
    "items": [
     "ability/cunning",
     "ability/fury",
@@ -4288,6 +4288,15 @@
     "tech/distillation",
     "tech/divine_arms",
     "tech/divine_forge",
+    "tech/evo_artillery",
+    "tech/evo_assault",
+    "tech/evo_cavalry",
+    "tech/evo_citizen",
+    "tech/evo_elite",
+    "tech/evo_heavy_infantry",
+    "tech/evo_ranged",
+    "tech/evo_scout",
+    "tech/evo_skirmisher",
     "tech/fortified_towns",
     "tech/fury",
     "tech/golden_bow",
@@ -4378,6 +4387,15 @@
     "power/sentinel",
     "tech/automatons",
     "tech/barding",
+    "tech/evo_artillery",
+    "tech/evo_assault",
+    "tech/evo_cavalry",
+    "tech/evo_citizen",
+    "tech/evo_elite",
+    "tech/evo_heavy_infantry",
+    "tech/evo_ranged",
+    "tech/evo_scout",
+    "tech/evo_skirmisher",
     "tech/hunting_dogs",
     "unit/achilles",
     "unit/basileus",
@@ -8296,8 +8314,8 @@
   }
  },
  "totals": {
-  "pngBytes": 116966689,
-  "vramBytes": 725446656,
+  "pngBytes": 117121502,
+  "vramBytes": 726495232,
   "atlases": 148
  }
 }

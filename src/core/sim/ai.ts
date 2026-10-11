@@ -3,12 +3,13 @@
 import { DIFFICULTIES, TICK_RATE, NODE_RESOURCE, NOT_GATHERED, WELL_NODES, RESOURCES, MARKET_TRADE_LOT, OIL_FROM_AGE, MERCHANT_MAX_AI, type ResourceType } from '../constants';
 import { rectReachable, wouldSeal } from '../map/components';
 import { findPathEx, nearestFreeTile } from '../map/pathfinding';
-import { AGES, BUILDINGS, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS } from '../data';
+import { AGES, BUILDINGS, LINES, LINE_ORDER, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS } from '../data';
 import type { Building, GameState, Player, ResourceNode, Unit } from '../types';
 import { idx, inBounds, isPassable, dist, centerFrame, frameOffset, frameCompare, type Frame } from '../map/grid';
 import { applyCommand, canAdvanceAge, canResearch, canTrain, academyTechCount } from './commands';
 import { canPlaceBuilding, countBuildings, buildingsOf, unitsOf } from './entities';
 import { getRuntime } from './runtime';
+import { nextEvolution, trainChoices, unitLinesOn } from './lines';
 import { isMilitary, isEnemy, nearestEnemyBuilding, nearestNode, nearestNodeBy, nearestRareNode, nearestNodeWithRoom, nearestFreeFarm, countUnits, nodeHasRoom, centerDist2 } from './queries';
 import { getBuildingStats, getUnitStats, techCost } from './modifiers';
 import { canAfford } from './economy';
@@ -601,12 +602,12 @@ function manageTraining(state: GameState, player: Player, snap: Snapshot): void 
     if (!b.complete || !def.military || !def.trains || b.queue.length >= 2) continue;
     if (player.pop + 3 > player.popCap) break;
     if (player.resources.gold < goldReserve || player.resources.food < foodReserve) break;
-    const options = def.trains.filter((u) => canTrain(state, player, b, u).ok && !UNITS[u].tags.includes('hero') && !UNITS[u].tags.includes('scout'));
+    const options = trainChoices(state, player, b.type).filter((c) => canTrain(state, player, b, c.send).ok && !UNITS[c.show].tags.includes('hero') && !UNITS[c.show].tags.includes('scout'));
     if (options.length === 0) continue;
-    // escolhe a opção com maior peso no mix, preferindo unidades da idade mais alta disponível
+    // escolhe a opção com maior peso no mix, preferindo unidades da Era mais alta disponível (com as linhas, o degrau atual)
     let best = options[0], bestW = -1;
-    for (const o of options) { const w = (mix[UNITS[o].cls] ?? 0.1) * (1 + UNITS[o].age * 0.5); if (w > bestW) { bestW = w; best = o; } }
-    applyCommand(state, { type: 'train', player: player.id, buildingId: b.id, unit: best });
+    for (const o of options) { const d = UNITS[o.show]; const w = (mix[d.cls] ?? 0.1) * (1 + d.age * 0.5); if (w > bestW) { bestW = w; best = o; } }
+    applyCommand(state, { type: 'train', player: player.id, buildingId: b.id, unit: best.send });
   }
 }
 
@@ -675,11 +676,41 @@ function tryAdvanceAge(state: GameState, player: Player, snap: Snapshot): void {
   applyCommand(state, { type: 'advanceAge', player: player.id, buildingId: lib.id, minorGod: minor });
 }
 
+/** Unidades do jogador por linha (militares e cidadãos): a IA estuda primeiro a evolução das linhas que usa (E3). */
+function lineUsers(snap: Snapshot): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const u of [...snap.military, ...snap.villagers]) { const l = UNITS[u.type].line; if (l) m.set(l, (m.get(l) ?? 0) + 1); }
+  return m;
+}
+/** Próximo estudo de evolução de cada linha, das mais usadas para as menos (empate: LINE_ORDER). Vazio sem as linhas.
+ *  Linha aposentada (Assalto e Fogo grego na Era V+) fica de fora: não treina mais, e o estudo seria gasto à toa. */
+function evolutionPriority(state: GameState, player: Player, users: Map<string, number>): string[] {
+  if (!unitLinesOn(state)) return [];
+  const out: { id: string; n: number; i: number }[] = [];
+  LINE_ORDER.forEach((line, i) => {
+    const r = LINES[line].retireAt; if (r !== undefined && player.age >= r) return;
+    const next = nextEvolution(player, line); if (next) out.push({ id: next, n: users.get(line) ?? 0, i });
+  });
+  out.sort((a, b) => b.n - a.n || a.i - b.i);
+  return out.map((x) => x.id);
+}
+/** Linhas com pelo menos este número de unidades em campo evoluem mesmo sem o fundo da próxima Era junto. */
+const EVO_USERS = 4;
+/** Evoluir agora? Só depois dos estudos que a próxima Era pede (ou na Era final); cidadãos sempre; as outras linhas com o
+ *  fundo da Era junto ou com EVO_USERS+ unidades da linha. */
+function evolutionAllowed(state: GameState, player: Player, budget: Budget, users: Map<string, number>, line: string): boolean {
+  const done = player.age >= maxAgeOf(state, player.id);
+  const need = AGES[player.age + 1]?.requires.techCount ?? 0;
+  if (!done && academyTechCount(player) < need) return false;
+  return done || budget.fundMet || line === 'citizen' || (users.get(line) ?? 0) >= EVO_USERS;
+}
+
 function manageResearch(state: GameState, player: Player, snap: Snapshot): void {
   const budget = budgetOf(state, player);
   const godTechs: string[] = [];
   for (const g of player.minorGods) godTechs.push(...(MINOR_GODS[g]?.techs ?? []));
-  const list = [...RESEARCH_PRIORITY.slice(0, 13), ...godTechs, ...RESEARCH_PRIORITY.slice(13)];
+  const users = lineUsers(snap);
+  const list = [...RESEARCH_PRIORITY.slice(0, 13), ...godTechs, ...evolutionPriority(state, player, users), ...RESEARCH_PRIORITY.slice(13)];
   let researchedThisThink = 0;
   for (const t of list) {
     if (researchedThisThink >= 2) break;
@@ -690,15 +721,19 @@ function manageResearch(state: GameState, player: Player, snap: Snapshot): void 
     if (!canResearch(state, player, b, t).ok) continue;
     const cost = techCost(player, t);
     if ((cost.wood ?? 0) > 0 && player.resources.wood - (cost.wood ?? 0) < libraryWoodHold(player, snap)) continue;   // madeira da 1ª Biblioteca
-    const isLine = !!def.line;
-    const cheap = ((cost.gold ?? 0) + (cost.food ?? 0) * 0.5) < 160;
-    // Exigência de estudos da próxima Era já cumprida: o Conhecimento que ela cobra não é gasto em mais estudos (a Era III saía aos
-    // 22 min numa semente do balance: os estudos comiam os 200 de Conhecimento que os filósofos juntavam)
-    if (!budget.fundMet && (cost.knowledge ?? 0) > 0 && budget.surplus.knowledge < (cost.knowledge ?? 0) && player.age < maxAgeOf(state, player.id) && academyTechCount(player) >= (AGES[player.age + 1]?.requires.techCount ?? 0)) continue;
-    // Linhas da Academia além do exigido pela próxima Idade só depois de juntar o fundo (senão o ouro nunca fecha)
-    if (isLine && !budget.fundMet && (cost.gold ?? 0) > 0 && academyTechCount(player) >= (AGES[player.age + 1]?.requires.techCount ?? 0) + 1) continue;
-    // Linhas da Academia (necessárias para avançar) sempre; o resto só com sobra sobre o fundo da idade
-    if (!isLine && !(cheap && player.age === 0) && (budget.surplus.gold < (cost.gold ?? 0) + 50 || budget.surplus.food < (cost.food ?? 0))) continue;
+    if (def.evolve) {
+      if (!evolutionAllowed(state, player, budget, users, def.evolve.line)) continue;
+    } else {
+      const isLine = !!def.line;
+      const cheap = ((cost.gold ?? 0) + (cost.food ?? 0) * 0.5) < 160;
+      // Exigência de estudos da próxima Era já cumprida: o Conhecimento que ela cobra não é gasto em mais estudos (a Era III saía aos
+      // 22 min numa semente do balance: os estudos comiam os 200 de Conhecimento que os filósofos juntavam)
+      if (!budget.fundMet && (cost.knowledge ?? 0) > 0 && budget.surplus.knowledge < (cost.knowledge ?? 0) && player.age < maxAgeOf(state, player.id) && academyTechCount(player) >= (AGES[player.age + 1]?.requires.techCount ?? 0)) continue;
+      // Linhas da Academia além do exigido pela próxima Idade só depois de juntar o fundo (senão o ouro nunca fecha)
+      if (isLine && !budget.fundMet && (cost.gold ?? 0) > 0 && academyTechCount(player) >= (AGES[player.age + 1]?.requires.techCount ?? 0) + 1) continue;
+      // Linhas da Academia (necessárias para avançar) sempre; o resto só com sobra sobre o fundo da idade
+      if (!isLine && !(cheap && player.age === 0) && (budget.surplus.gold < (cost.gold ?? 0) + 50 || budget.surplus.food < (cost.food ?? 0))) continue;
+    }
     if ((cost.gold ?? 0) > player.resources.gold - 40) continue;
     applyCommand(state, { type: 'research', player: player.id, buildingId: b.id, tech: t });
     researchedThisThink++;

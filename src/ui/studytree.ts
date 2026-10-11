@@ -1,10 +1,11 @@
 // Árvore de estudos da Biblioteca (E1/E9, docs/eras/E1-eras-biblioteca.md): modelo e HTML puros (sem DOM), com as MESMAS
 // regras do núcleo (canResearch/canAdvanceAge). Colunas = Eras; linhas = avanço de Era, as 4 linhas e outros estudos.
-import { ACADEMY_LINES, AGES, BUILDINGS, TECHS } from '../core/data';
+import { ACADEMY_LINES, AGES, BUILDINGS, LINES, LINE_ORDER, TECHS } from '../core/data';
 import type { Building, GameState, TechDef } from '../core/types';
 import { canAdvanceAge, canResearch, queueMaxOf } from '../core/sim/commands';
 import { endAgeReason, maxAgeOf } from '../core/sim/restrictions';
 import { techCost } from '../core/sim/modifiers';
+import { unitLinesOn } from '../core/sim/lines';
 import { t } from '../i18n';
 import { esc } from './html';
 import { ic } from './icons';
@@ -15,8 +16,11 @@ export interface StudyNode { id: string; kind: 'age' | 'tech'; era: number; name
 export interface StudyRow { id: string; label: string; cells: StudyNode[][] }   // cells[era]: nós daquela Era
 export interface StudyTreeModel { readOnly: boolean; era: number; libraries: number; queueUsed: number; queueMax: number; rows: StudyRow[] }
 
-/** Linha da árvore de uma tecnologia da Biblioteca (gancho da E3: as evoluções ganham linhas próprias aqui). */
-export function rowOf(tech: TechDef): string { return tech.line && ACADEMY_LINES.includes(tech.line) ? tech.line : 'other'; }
+/** Linha da árvore de uma tecnologia da Biblioteca: evolução (E3) → a linha de unidade; as 4 linhas; o resto em 'other'. */
+export function rowOf(tech: TechDef): string {
+  if (tech.evolve) return `evo:${tech.evolve.line}`;
+  return tech.line && ACADEMY_LINES.includes(tech.line) ? tech.line : 'other';
+}
 /** Bibliotecas prontas do jogador pela fila (empate: menor id). */
 export function librariesOf(state: GameState, playerId: number): Building[] {
   return [...state.buildings.values()].filter((b) => b.owner === playerId && !b.dead && b.complete && !!BUILDINGS[b.type]?.library).sort((a, b) => a.queue.length - b.queue.length || a.id - b.id);
@@ -65,6 +69,10 @@ export function studyTreeModel(state: GameState, playerId: number, readOnly = fa
 
   // Linhas fixas na ordem: as 4 linhas e "outros"
   for (const l of ACADEMY_LINES) row(l, t(`line.${l}`));
+  // E3: uma linha por linha de unidade (só com as linhas ligadas; as que têm ao menos um estudo)
+  const unitRowIds: string[] = unitLinesOn(state)
+    ? LINE_ORDER.filter((id) => Object.values(TECHS).some((x) => x.evolve?.line === id)).map((id) => { row(`evo:${id}`, LINES[id].name); return `evo:${id}`; })
+    : [];
   row('other', t('tree.row.other'));
   for (const tech of Object.values(TECHS)) {
     if (!BUILDINGS[tech.building]?.library) continue;
@@ -79,9 +87,10 @@ export function studyTreeModel(state: GameState, playerId: number, readOnly = fa
         if (c.ok) node.status = 'available'; else node.reason = c.reason ?? '';
       }
     }
-    row(rowOf(tech), '').cells[node.era].push(node);
+    const dest = rows.get(rowOf(tech)); if (!dest) continue;   // E3: evolução sem as linhas
+    dest.cells[node.era].push(node);
   }
-  const order = ['age', ...ACADEMY_LINES, 'other'];
+  const order = ['age', ...ACADEMY_LINES, ...unitRowIds, 'other'];
   return {
     readOnly, era: p.age, libraries: libs.length,
     queueUsed: (lib ?? libs[0])?.queue.length ?? 0,

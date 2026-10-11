@@ -53,6 +53,7 @@ describe('projéteis: arco, sombra e direção', () => {
     expect(projectileKind('odysseus', 'arrow')).toBe('arrow');
     expect(projectileKind('petrobolos', 'rock')).toBe('stone');
     expect(projectileKind('helepolis', 'rock')).toBe('stone');
+    expect(projectileKind('greek_fire_siphon', 'rock')).toBe('fireball');
     expect(projectileKind('tower', 'arrow')).toBe('arrow');
     expect(projectileKind('town_center', 'arrow')).toBe('arrow');
     expect(projectileKind('manticore', 'bolt')).toBe('spike');

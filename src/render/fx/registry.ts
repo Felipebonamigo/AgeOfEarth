@@ -20,11 +20,12 @@ import { earthquake, quake } from './handlers/earthquake';
 import { curse, curseWatcher } from './handlers/curse';
 import { bronze, bronzeWatcher } from './handlers/bronze';
 import { titanRise } from './handlers/titan';
+import { evolve } from './handlers/evolve';
 import { ceasefireWatcher, oracleWatcher } from './handlers/global';
 
 export const FX_HANDLERS: Record<EffectType, FxHandler<any>> = {
   projectile, hit, spawn, death, petrify, collapse, nodeGone, splash,
-  heal, ability, curse, pestilence, quake, titanRise, bolt, bronze,
+  heal, ability, curse, pestilence, quake, titanRise, bolt, bronze, evolve,
 };
 
 export const TIMED_HANDLERS: Record<TimedType, TimedHandler<any>> = {

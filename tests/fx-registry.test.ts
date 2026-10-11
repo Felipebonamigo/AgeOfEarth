@@ -90,7 +90,7 @@ function fakeHost(): FxHost {
 }
 
 describe('FxSystem em Node (sem DOM: atlas de reserva vazio → textura branca)', () => {
-  it('cada um dos 16 tipos: create → update → destroy sem erro, partículas dentro do orçamento, decalques nascem', () => {
+  it('cada um dos 17 tipos: create → update → destroy sem erro, partículas dentro do orçamento, decalques nascem', () => {
     const st = quickGame();
     st.config.revealMap = true;
     const fx = new FxSystem(() => null);
@@ -106,6 +106,7 @@ describe('FxSystem em Node (sem DOM: atlas de reserva vazio → textura branca)'
       mk('spawn', { ttl: 12, total: 12 }), mk('spawn', { ttl: 8, total: 8, data: 'order' }), mk('heal', { data: 8, ttl: 40, total: 40 }), mk('ability', { data: 2, owner: 0 }),
       mk('curse'), mk('pestilence', { data: 10, ttl: 60, total: 60 }), mk('quake', { data: 7, ttl: 100, total: 100 }), mk('titanRise', { ttl: 60, total: 60 }),
       mk('bolt', { ttl: 24, total: 24 }), mk('bronze', { owner: 0, ttl: 10, total: 10 }),
+      mk('evolve', { owner: 0, src: 'hypaspist' }),
     );
     st.timed.push({ type: 'lightning_storm', owner: 0, until: st.tick + 160, x: cx, y: cy, data: 6 }, { type: 'earthquake', owner: 0, until: st.tick + 100, x: cx, y: cy, data: 7 });
     st.ceasefireUntil = st.tick + 600;
