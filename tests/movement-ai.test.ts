@@ -2,7 +2,7 @@
 // destino sobre obstáculo, bolsões, IA que não sela a base e usa o mercado, Portal dos Titãs único, deus menor
 // inválido, bônus de maravilhas em entidades existentes, hash antes dos comandos e replay a partir de um save.
 import { describe, it, expect } from 'vitest';
-import { TICK_RATE } from '../src/core/constants';
+import { RESOURCES, TICK_RATE } from '../src/core/constants';
 import { applyCommand } from '../src/core/sim/commands';
 import { buildingsOf, canPlaceBuilding, placeBuilding, spawnUnit, unitsOf } from '../src/core/sim/entities';
 import { aiThink } from '../src/core/sim/ai';
@@ -215,22 +215,21 @@ describe('produção, poderes e estado', () => {
     expect(r.reason).toContain('uma vez');
   });
 
-  it('avançar para uma Era sem deus menor (V) ignora o deus enviado; deus inválido não é concedido', () => {
+  it('avançar para a Era VIII (sem deus menor) ignora o deus enviado; deus inválido não é concedido', () => {
     const s = quickGame();
     const p = s.players[0];
     const tc = buildingsOf(s, 0)[0];
-    p.age = 3; p.minorGods = ['athena', 'apollo', 'hera'];
-    p.techs = ['civic1', 'commerce1', 'military1', 'science1', 'civic2', 'commerce2', 'military2'];
-    placeBuilding(s, 0, 'fortress', tc.tx + 6, tc.ty, true);
+    p.age = 6; p.minorGods = ['athena', 'apollo', 'hera', 'pan', 'aeolus', 'helios'];
+    p.techs = ['civic', 'commerce', 'military', 'science'].flatMap((l) => [1, 2, 3, 4].map((n) => `${l}${n}`));
+    for (const r of RESOURCES) p.resources[r] = 99999;
     const lib = placeBuilding(s, 0, 'academy', tc.tx - 6, tc.ty, true);
-    p.resources.food = 9999; p.resources.stone = 9999; p.resources.oil = 9999; p.resources.gold = 9999; p.resources.knowledge = 9999; p.resources.favor = 9999;
     const r = applyCommand(s, { type: 'advanceAge', player: 0, buildingId: lib.id, minorGod: 'artemis' });
     expect(r.ok).toBe(true);
     expect(lib.queue[0].id).toBe('age:');
     lib.queue[0].elapsed = lib.queue[0].total - 0.01;
     run(s, 2);
-    expect(p.age).toBe(4);
-    expect(p.minorGods).toEqual(['athena', 'apollo', 'hera']);
+    expect(p.age).toBe(7);
+    expect(p.minorGods).toEqual(['athena', 'apollo', 'hera', 'pan', 'aeolus', 'helios']);
   });
 
   it('bônus de vida da maravilha vale para unidades existentes e some quando ela cai', () => {

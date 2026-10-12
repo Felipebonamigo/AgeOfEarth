@@ -139,14 +139,40 @@ describe('E4 — Estaleiro', () => {
     const s = naval();
     const y = shipyardAt(s);
     const ch = trainChoices(s, s.players[0], 'shipyard');
-    expect(ch.map((c) => [c.line?.id, c.show, c.hotkey])).toEqual([['fishing', 'fishing_boat', 'Q'], ['transport', 'transport_ship', 'W'], ['warship', 'penteconter', 'E'], [undefined, 'merchant_ship', 'M']]);
+    expect(ch.filter((c) => !UNITS[c.show].tags.includes('myth')).map((c) => [c.line?.id, c.show, c.hotkey])).toEqual([['fishing', 'fishing_boat', 'Q'], ['transport', 'transport_ship', 'W'], ['warship', 'penteconter', 'E'], [undefined, 'merchant_ship', 'M']]);
     s.players[0].resources.wood = 5000; s.players[0].resources.gold = 5000;
     expect(canTrain(s, s.players[0], y, 'fishing_boat').ok).toBe(true);
     const s2 = naval({ unitLines: false });
     const y2 = shipyardAt(s2);
-    expect(trainChoices(s2, s2.players[0], 'shipyard').map((c) => c.send)).toEqual(BUILDINGS.shipyard.trains);
+    expect(trainChoices(s2, s2.players[0], 'shipyard').map((c) => c.send)).toEqual(BUILDINGS.shipyard.trains);   // E6: as criaturas entram no fim
     expect(y2.type).toBe('shipyard');
   });
+});
+
+describe('E6 — criaturas do Estaleiro', () => {
+  it('Escila, Hipocampo e Ceto saem do Estaleiro: os navais nascem na água; Ceto anda em terra e só é alvo do corpo a corpo lá', () => {
+    const s = naval({ players: [{ name: 'A', god: 'poseidon', isAI: false, difficulty: 'normal' }, { name: 'B', god: 'hades', isAI: false, difficulty: 'normal' }] });
+    const p = s.players[0];
+    p.age = 5; p.minorGods = ['ares', 'aphrodite', 'hephaestus', 'pan', 'triton'];
+    for (const r of ['food', 'wood', 'gold', 'favor'] as const) p.resources[r] = 99999;
+    p.popCap = 250;
+    const y = shipyardAt(s);
+    for (const id of ['scylla', 'hippocampus', 'ceto']) {
+      expect(canTrain(s, p, y, id).ok).toBe(true);
+      y.queue.push({ kind: 'unit', id, elapsed: 0, total: 1 });
+      y.queue[0].elapsed = y.queue[0].total - 0.01;
+      run(s, 3);
+    }
+    const mine = (type: string) => [...s.units.values()].find((u) => u.owner === 0 && u.type === type)!;
+    for (const id of ['scylla', 'hippocampus']) expect(isNavigableTerrain(s.map.terrain[idx(s.map, Math.floor(mine(id).x), Math.floor(mine(id).y))])).toBe(true);
+    const ceto = mine('ceto');
+    expect(layerOf(UNITS.ceto)).toBe('amphibious');
+    const foe = spawnUnit(s, 1, 'hoplite', ceto.x, ceto.y);
+    const land = [...Array(40).keys()].map((k) => ({ x: Math.floor(ceto.x) + k - 20, y: Math.floor(ceto.y) })).find((q) => isPassable(s.map, q.x, q.y) && !isNavigableTerrain(s.map.terrain[idx(s.map, q.x, q.y)]));
+    ceto.x = land ? land.x + 0.5 : ceto.x; ceto.y = land ? land.y + 0.5 : ceto.y;
+    foe.x = ceto.x; foe.y = ceto.y;
+    if (land) expect(canTarget(s, foe, ceto)).toBe(true);
+  }, 60000);
 });
 
 describe('E4 — pesca', () => {
@@ -300,8 +326,8 @@ describe('E4 — gerador dos mapas com mar', () => {
 
 describe('E4 — dados', () => {
   it('10 navios, 3 linhas, 4 pesquisas do Estaleiro e as linhas "a vapor"', () => {
-    const ships = Object.values(UNITS).filter((u) => u.naval);
-    expect(ships).toHaveLength(11);   // 10 da E4 + o navio mercante da E5
+    const ships = Object.values(UNITS).filter((u) => u.naval && !u.tags.includes('myth'));
+    expect(ships).toHaveLength(11);   // 10 da E4 + o navio mercante da E5 (as criaturas navais da E6 ficam de fora)
     expect(LINES.warship.steps.filter(Boolean)).toHaveLength(8);
     for (const id of ['fishing_nets', 'caulking', 'bronze_rams', 'navigation']) { expect(TECHS[id].building).toBe('shipyard'); expect(TECHS[id].line).toBeUndefined(); }
     expect(TECHS.evo_fishing_7.evolve).toEqual({ line: 'fishing', to: 'fishing_boat' });
