@@ -6,6 +6,7 @@ import { canAdvanceAge, canResearch, queueMaxOf } from '../core/sim/commands';
 import { endAgeReason, maxAgeOf } from '../core/sim/restrictions';
 import { techCost } from '../core/sim/modifiers';
 import { unitLinesOn } from '../core/sim/lines';
+import { studySlotsOf } from '../core/sim/buildings';
 import { t } from '../i18n';
 import { esc } from './html';
 import { ic } from './icons';
@@ -39,7 +40,8 @@ export function studyTreeModel(state: GameState, playerId: number, readOnly = fa
       for (let i = 0; i < b.queue.length; i++) {
         const q = b.queue[i];
         if (q.kind !== kind || (id !== undefined && q.id !== id)) continue;
-        return { at: i, progress: i === 0 ? Math.min(1, q.elapsed / Math.max(1e-6, q.total)) : 0 };
+        const live = i < studySlotsOf(state, b);   // E7: Biblioteca de Alexandria = 2 estudos juntos
+        return { at: live ? 0 : i + 1, progress: live ? Math.min(1, q.elapsed / Math.max(1e-6, q.total)) : 0 };
       }
     }
     return null;

@@ -1,11 +1,13 @@
 // Combate: aquisição de alvos, cálculo de dano (tipos de ataque x armadura x bônus por tag),
 // habilidades especiais (petrificação, cabeças da Hidra, dano em área) e morte de unidades/edifícios.
-import { TICK_RATE, VETERAN_BONUS, rankOf } from '../constants';
+import { TICK_RATE, VETERAN_BONUS } from '../constants';
 import { BUILDINGS, UNITS, ABILITIES } from '../data';
 import type { Building, GameState, Unit } from '../types';
 import { idx } from '../map/grid';
 import { invalidateComponents } from '../map/components';
-import { getBuildingStats, getUnitStats, unitMaxHp } from './modifiers';
+import { getBuildingStats, getUnitStats, unitMaxHp, unitRank } from './modifiers';
+import { queueHeroRespawn, footprint } from './wonders';
+import { setNavalOpen } from '../map/naval';
 import { getRuntime } from './runtime';
 import { distanceTo, isEnemy } from './queries';
 import { recomputePop, spawnUnit, ejectGarrison } from './entities';
@@ -84,7 +86,7 @@ export function computeDamage(state: GameState, attacker: Unit | Building, targe
     const def = UNITS[attacker.type];
     attack = st.attack; attackType = def.attackType; bonus = def.bonus;
     if (def.special === 'heads') attack *= 1 + 0.2 * (attacker.heads - 1);
-    if (def.tags.includes('military') && !def.tags.includes('titan')) attack *= 1 + VETERAN_BONUS * rankOf(attacker.kills);   // veterania
+    if (def.tags.includes('military') && !def.tags.includes('titan')) attack *= 1 + VETERAN_BONUS * unitRank(state, attacker);   // veterania
     if (state.tick < attacker.buffUntil) attack *= attacker.buffAttack;   // Grito dos Argonautas
     if (attacker.chargeUntil > state.tick) attack *= ABILITIES[UNITS[attacker.type].ability ?? '']?.power ?? 3;   // Golpe Titânico
   } else {
@@ -192,16 +194,17 @@ export function killUnit(state: GameState, u: Unit, killerOwner: number, killer?
     kp.stats.kills++;
     recordKill(state, u.type, killerOwner, killer);   // G13: autoria para o cenário (só registra)
     if (killer && killer.kind === 'unit') {
-      const rankBefore = rankOf(killer.kills - 0);
+      const rankBefore = unitRank(state, killer);
       killer.kills++;
       if (UNITS[killer.type].special === 'heads') killer.heads = Math.min(5, 1 + Math.floor(killer.kills / 3));
-      if (rankOf(killer.kills) > rankBefore) {   // subiu de patente: vida máxima cresce e a diferença é curada
+      if (unitRank(state, killer) > rankBefore) {   // subiu de patente: vida máxima cresce e a diferença é curada
         const nm = unitMaxHp(state, kp, killer); const gain = nm - killer.maxHp; if (gain > 0) { killer.maxHp = nm; killer.hp = Math.min(nm, killer.hp + gain); }
-        if (!kp.isAI) state.events.push({ tick: state.tick, type: 'rank', player: kp.id, x: killer.x, y: killer.y, text: t('ev.rankUp', { name: UNITS[killer.type].name, rank: rankOf(killer.kills) }) });
+        if (!kp.isAI) state.events.push({ tick: state.tick, type: 'rank', player: kp.id, x: killer.x, y: killer.y, text: t('ev.rankUp', { name: UNITS[killer.type].name, rank: unitRank(state, killer) }) });
       }
     }
   }
   if (def.tags.includes('hero')) state.events.push({ tick: state.tick, type: 'heroDied', player: u.owner, x: u.x, y: u.y, text: t('ev.heroDied', { name: def.name }) });
+  queueHeroRespawn(state, u, killerOwner);   // E7: Mausoléu
   if (def.tags.includes('titan')) state.events.push({ tick: state.tick, type: 'titanDied', player: u.owner, x: u.x, y: u.y, text: t('ev.titanDied', { name: def.name }) });
   // Hades: sombras
   if (victim.god === 'hades' && killerOwner !== -1 && def.tags.includes('human') && def.tags.includes('military') && !def.tags.includes('hero') && !drowned && state.rng.chance(0.25)) {   // só mortes em combate/atrito (dispensar não gera sombras)
@@ -234,10 +237,11 @@ export function destroyBuilding(state: GameState, b: Building, killerOwner: numb
     if (state.map.buildingAt[i] === b.id) { state.map.buildingAt[i] = -1; if (!def.passable) state.map.blocked[i] = 0; }
   }
   if (!def.passable) invalidateComponents(state.map);
+  if (def.navalPassable) { setNavalOpen(state.map, footprint(state, b), false); invalidateComponents(state.map); }   // E7: fecha a passagem do Canal
   // Reembolsa a fila (unidades, tecnologias, filósofos, avanço de Idade) e devolve a população reservada
   for (const q of b.queue) refund(victim, queueItemCost(state, victim, q));
   b.queue.length = 0;
-  if (def.territory) state.territoryDirty = true;
+  if (def.territory || def.wonder) state.territoryDirty = true;
   if (def.gate) for (let y = b.ty; y < b.ty + b.h; y++) for (let x = b.tx; x < b.tx + b.w; x++) state.map.gateTeam[idx(state.map, x, y)] = -1;
   if (b.garrison.length > 0) ejectGarrison(state, b);
   state.effects.push({ type: 'collapse', x: b.x, y: b.y, ttl: 30, total: 30, data: b.type });

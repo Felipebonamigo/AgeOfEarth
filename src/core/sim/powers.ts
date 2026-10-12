@@ -13,12 +13,14 @@ import { t } from '../../i18n';
 import { recordPowerUse } from '../scenario/log';
 
 export interface PowerResult { ok: boolean; reason?: string }
+/** O poder pode ser usado agora? (uso normal ou um uso extra do Trono do Olimpo) */
+export function powerReady(ps: { used: boolean; charges?: number }): boolean { return !ps.used || (ps.charges ?? 0) > 0; }
 
 export function usePower(state: GameState, player: Player, powerId: string, x?: number, y?: number, targetId?: number): PowerResult {
   const def = POWERS[powerId];
   const ps = player.powers.find((p) => p.id === powerId);
   if (!def || !ps) return { ok: false, reason: t('err.powerUnavailable') };
-  if (ps.used) return { ok: false, reason: t('err.powerUsed') };
+  if (!powerReady(ps)) return { ok: false, reason: t('err.powerUsed') };
   const rt = getRuntime(state);
   const px = x ?? 0, py = y ?? 0;
   switch (powerId) {
@@ -116,7 +118,7 @@ export function usePower(state: GameState, player: Player, powerId: string, x?: 
     }
     default: return { ok: false, reason: t('err.unknownPower') };
   }
-  ps.used = true;
+  if (ps.used) ps.charges = Math.max(0, (ps.charges ?? 0) - 1); else ps.used = true;
   recordPowerUse(state, player.id, powerId);   // G11: { powerUsed } do cenário conta usos (reset/remove não zeram)
   state.events.push({ tick: state.tick, type: 'powerUsed', player: player.id, x: px, y: py, data: powerId, text: t('ev.powerUsed', { player: player.name, power: def.name }) });
   return { ok: true };

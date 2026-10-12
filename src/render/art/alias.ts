@@ -14,7 +14,9 @@ export const UNIT_ART_ALIAS: Readonly<Record<string, string>> = {
   knight_of_rhodes: 'myrmidon', guard_grenadier: 'myrmidon', evzone: 'myrmidon', sacred_band: 'myrmidon', trebuchet: 'petrobolos', bombard: 'petrobolos',
   field_gun: 'petrobolos', howitzer: 'petrobolos', self_propelled_gun: 'petrobolos', covered_ram: 'helepolis', greek_fire_siphon: 'petrobolos',
 };
-export const BUILDING_ART_ALIAS: Readonly<Record<string, string>> = { quarry: 'mine', naphtha_well: 'granary', oil_well: 'lumber_camp', refinery: 'market', shipyard: 'siege_workshop' };
+export const BUILDING_ART_ALIAS: Readonly<Record<string, string>> = { quarry: 'mine', naphtha_well: 'granary', oil_well: 'lumber_camp', refinery: 'market', shipyard: 'siege_workshop',
+  // E7: as 17 maravilhas novas usam a arte das 3 de hoje (mesma pegada 4×4) até a E8
+  wonder_lion_gate: 'wonder_colossus', wonder_labyrinth: 'wonder_artemis', wonder_delphi: 'wonder_artemis', wonder_parthenon: 'wonder_artemis', wonder_epidaurus: 'wonder_artemis', wonder_mausoleum: 'wonder_artemis', wonder_pharos: 'wonder_colossus', wonder_great_library: 'wonder_artemis', wonder_hagia_sophia: 'wonder_artemis', wonder_theodosian_walls: 'wonder_colossus', wonder_meteora: 'wonder_artemis', wonder_candia_arsenal: 'wonder_colossus', wonder_knights_rhodes: 'wonder_colossus', wonder_palamidi: 'wonder_colossus', wonder_corinth_canal: 'wonder_colossus', wonder_panathenaic: 'wonder_artemis', wonder_olympus_throne: 'wonder_zeus' };
 const own = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k);
 export const unitArtType = (type: string): string => (own(UNIT_ART_ALIAS, type) ? UNIT_ART_ALIAS[type] : type);
 export const buildingArtType = (type: string): string => (own(BUILDING_ART_ALIAS, type) ? BUILDING_ART_ALIAS[type] : type);

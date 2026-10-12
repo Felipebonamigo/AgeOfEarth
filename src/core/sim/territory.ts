@@ -1,7 +1,8 @@
 // Fronteiras nacionais (estilo Rise of Nations): cada edifício com "territory" projeta influência;
 // o tile pertence a quem tiver a maior influência. Recalculado quando edifícios/tecnologias mudam.
-import { BUILDINGS } from '../data';
-import type { GameState } from '../types';
+import { BUILDINGS, UNITS } from '../data';
+import type { GameState, Unit } from '../types';
+import { isEnemy } from './queries';
 import { circleOffsets, idx, inBounds } from '../map/grid';
 import { getBuildingStats } from './modifiers';
 
@@ -44,4 +45,12 @@ export function territoryOwnerAt(state: GameState, x: number, y: number): number
   const tx = Math.floor(x), ty = Math.floor(y);
   if (!inBounds(state.map, tx, ty)) return -1;
   return state.territory[idx(state.map, tx, ty)];
+}
+
+/** E7 (Labirinto): fator de velocidade de uma unidade dentro do território de um inimigo dela (1 = normal; Titãs ignoram). */
+export function enemyTerritorySpeed(state: GameState, u: Unit): number {
+  const o = territoryOwnerAt(state, u.x, u.y);
+  if (o < 0 || o === u.owner || !isEnemy(state, o, u.owner)) return 1;
+  const m = state.players[o].mods.player.enemySpeed;
+  return m < 1 && !UNITS[u.type].tags.includes('titan') ? m : 1;
 }

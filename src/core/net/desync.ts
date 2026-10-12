@@ -30,9 +30,9 @@ export function stateHashParts(state: GameState): number[] {
     h = step(h, p.age); h = step(h, p.pop); h = step(h, p.popCap); h = step(h, p.alive ? 1 : 0); h = step(h, p.team);
     h = strHash(h, p.god); for (const g of p.minorGods) h = strHash(h, g);
     for (const tc of p.techs) h = strHash(h, tc);
-    for (const pw of p.powers) { h = strHash(h, pw.id); h = step(h, pw.used ? 1 : 0); }
+    for (const pw of p.powers) { h = strHash(h, pw.id); h = step(h, pw.used ? 1 : 0); h = step(h, pw.charges ?? 0); }
     for (const rr of p.rares) h = strHash(h, rr);
-    h = step(h, p.revealUntil); h = step(h, p.bronzeUntil); h = step(h, p.wonderVictoryAt); h = step(h, p.titanSpawned ? 1 : 0);
+    h = step(h, p.revealUntil); h = step(h, p.bronzeUntil); h = step(h, p.wonderVictoryAt); h = step(h, p.titanSpawned ? 1 : 0); h = step(h, p.wonderHoldStart); h = step(h, p.respawns.length);
     pl[p.id] = h;
     let r = res[p.id];
     const rs = p.resources;

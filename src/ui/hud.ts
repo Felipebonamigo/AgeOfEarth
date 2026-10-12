@@ -1,12 +1,16 @@
 // Interface em DOM: barra de recursos, painel de seleção, grade de comandos, poderes divinos,
 // minimapa, mensagens, tooltips e modais (deuses menores, menu, ajuda, enciclopédia, fim de jogo).
-import { RESOURCES, RESOURCE_ICONS, OIL_FROM_AGE, STANCES, TICK_RATE, MAX_SCHOLARS, SCHOLAR_COST, WONDER_VICTORY_SECONDS, KOTH_SECONDS, FORMATIONS, PLAYER_COLORS, rankOf, type ResourceType, type Stance, type Formation } from '../core/constants';
+import { RESOURCES, RESOURCE_ICONS, OIL_FROM_AGE, STANCES, TICK_RATE, MAX_SCHOLARS, SCHOLAR_COST, WONDER_VICTORY_SECONDS, WONDER_POINTS_HOLD_SECONDS, KOTH_SECONDS, FORMATIONS, PLAYER_COLORS, type ResourceType, type Stance, type Formation } from '../core/constants';
 const FORMATION_GLYPHS: Record<Formation, string> = { line: 'fLine', box: 'fBox', column: 'fColumn', wedge: 'fWedge' };
 import { teamNames } from '../core/sim/modes';
 import { relicsOf } from '../core/sim/relics';
 import { AGES, BUILDINGS, BUILD_MENU, LINES, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS, ACADEMY_LINES, ABILITIES } from '../core/data';
 import type { Building, GameEvent, Unit } from '../core/types';
-import { getUnitStats, getBuildingStats, techCost } from '../core/sim/modifiers';
+import { getUnitStats, getBuildingStats, techCost, unitRank } from '../core/sim/modifiers';
+import { powerReady } from '../core/sim/powers';
+import { wonderListed, wonderVictoryMode, wonderPointsTarget, teamWonderPoints, wonderPoints } from '../core/sim/wonders';
+import { buildingAgeOf } from '../core/sim/restrictions';
+import { studySlotsOf } from '../core/sim/buildings';
 import { canTrain, canResearch, canAdvanceAge, canHireScholar, academyTechCount } from '../core/sim/commands';
 import { studyTreeModel, studyTreeHtml, studyTreeKey, studyNodeDetail, pickLibrary, librariesOf, type StudyNode } from './studytree';
 import { canPlaceBuilding, buildingLimitOk } from '../core/sim/entities';
@@ -250,7 +254,7 @@ export class HUD {
     while (s.eventCursor < st.events.length) {
       const e: GameEvent = st.events[s.eventCursor++];
       const mine = e.player === s.local;
-      const global = ['age', 'victory', 'defeated', 'wonder', 'wonderLost', 'titan', 'titanDied', 'ceasefire', 'powerUsed', 'dialogue', 'objective'].includes(e.type);
+      const global = ['age', 'victory', 'defeated', 'wonder', 'wonderLost', 'wonderRace', 'wonderRaceStop', 'titan', 'titanDied', 'ceasefire', 'powerUsed', 'dialogue', 'objective'].includes(e.type);
       if (!mine && !global) continue;
       if (e.type === 'dialogue') { this.showDialogue(e.data ?? '', e.text ?? ''); continue; }
       if (e.type === 'objective') { this.toast(e.text ?? '', e.data === 'done' ? 'good' : e.data === 'failed' ? 'warn' : 'gold'); this.audio.play(e.data === 'done' ? 'complete' : 'alert'); this.refreshObjectives(true); continue; }
@@ -295,9 +299,15 @@ export class HUD {
     const relics = relicsOf(s.state, p.id);
     // em cenário (m10) a vitória nativa do Rei da Colina não roda e a conta que vale é a do roteiro (barra do painel, G4): a barra
     // do topo não mostra a posse do modo, que conta o time inteiro (na m10, Hades sozinho não conta)
-    this.modeEl.textContent = (s.spectator ? t('top.spectator') + ' ' : '') + (k && !s.state.scenario ? (k.team === -1 ? t('top.kothNone') : t('top.koth', { who: teamNames(s.state, k.team), s: k.seconds, total: KOTH_SECONDS })) : '') + (relics > 0 ? ' ' + t('top.relics', { n: relics }) : '') + (p.rares.length ? ' ' + t('top.rares', { n: p.rares.length }) : '');
+    let wonderTxt = '';   // E7: pontos de maravilha e a contagem de vitória
+    if (!s.state.scenario && wonderVictoryMode(s.state.config) === 'points') {
+      const target = wonderPointsTarget(s.state), mine = teamWonderPoints(s.state, p.team);
+      const racer = s.state.players.find((q) => q.alive && q.wonderHoldStart >= 0);
+      wonderTxt = racer ? t('top.wonderRace', { who: teamNames(s.state, racer.team), s: Math.max(0, Math.ceil(WONDER_POINTS_HOLD_SECONDS - (s.state.tick - racer.wonderHoldStart) / TICK_RATE)) }) : (mine > 0 || s.state.players.some((q) => q.team !== p.team && teamWonderPoints(s.state, q.team) > 0) ? t('top.wonders', { mine, target }) : '');
+    }
+    this.modeEl.textContent = (s.spectator ? t('top.spectator') + ' ' : '') + (k && !s.state.scenario ? (k.team === -1 ? t('top.kothNone') : t('top.koth', { who: teamNames(s.state, k.team), s: k.seconds, total: KOTH_SECONDS })) : '') + (relics > 0 ? ' ' + t('top.relics', { n: relics }) : '') + (p.rares.length ? ' ' + t('top.rares', { n: p.rares.length }) : '') + (wonderTxt ? ' ' + wonderTxt : '');
     const raresTip = p.rares.map((r) => `${t(`node.${r}`)}: ${t(`rare.${r}`)}`).join('<br>');
-    this.modeEl.dataset.tip = [relics > 0 ? t('top.relicsTip') : '', raresTip].filter(Boolean).join('<br>');
+    this.modeEl.dataset.tip = [relics > 0 ? t('top.relicsTip') : '', wonderTxt ? t('top.wondersTip', { target: wonderPointsTarget(s.state), hold: WONDER_POINTS_HOLD_SECONDS }) : '', raresTip].filter(Boolean).join('<br>');
     const waiting = (s.scheduler as { waiting?: number }).waiting ?? 0;
     this.clockEl.textContent = fmtTime(s.state.time) + (s.paused ? ' ‖' : s.speed !== 1 ? ` ${s.speed}×` : '') + (waiting > 10 ? ' ' + noEmoji(t('top.waiting')) : '');
     let idle = 0;
@@ -352,8 +362,8 @@ export class HUD {
     const s = this.session; if (!s) return;
     const p = s.player;
     // G11: o roteiro tirou (ou gastou) o poder que estava sendo mirado: sai do modo de mira
-    if (s.ui.mode === 'power' && s.ui.powerId && !p.powers.some((x) => x.id === s.ui.powerId && !x.used)) { this.cancelMode(); return; }
-    const key = p.powers.map((x) => `${x.id}${x.used ? 1 : 0}`).join(',') + s.ui.powerId + '|' + p.god + p.minorGods.join(',') + '|' + iconsGeneration();
+    if (s.ui.mode === 'power' && s.ui.powerId && !p.powers.some((x) => x.id === s.ui.powerId && powerReady(x))) { this.cancelMode(); return; }
+    const key = p.powers.map((x) => `${x.id}${powerReady(x) ? 0 : 1}${x.charges ?? 0}`).join(',') + s.ui.powerId + '|' + p.god + p.minorGods.join(',') + '|' + iconsGeneration();
     if (this.godsPanel.dataset.key === key) return;
     this.godsPanel.dataset.key = key;
     this.godsPanel.innerHTML = '';
@@ -363,9 +373,9 @@ export class HUD {
     this.godsPanel.appendChild(pan);
     for (const ps of p.powers) {
       const def = POWERS[ps.id];
-      const e = el('div', `pw ${ps.used ? 'used' : ''} ${s.ui.powerId === ps.id ? 'active' : ''}`, `<span class="ic">${ic.power(ps.id)}</span><span>${def.name}<br><small style="color:#9aa5b8">${ps.used ? t('power.used') : def.targeting === 'global' ? t('power.clickInvoke') : t('power.clickTarget')}</small></span>`);
+      const e = el('div', `pw ${powerReady(ps) ? '' : 'used'} ${s.ui.powerId === ps.id ? 'active' : ''}`, `<span class="ic">${ic.power(ps.id)}</span><span>${def.name}<br><small style="color:#9aa5b8">${(!powerReady(ps) ? t('power.used') : def.targeting === 'global' ? t('power.clickInvoke') : t('power.clickTarget'))}${(ps.charges ?? 0) > 0 ? ` · ${t('power.charges', { n: ps.charges ?? 0 })}` : ''}</small></span>`);
       e.dataset.tip = `<b>${def.name}</b><div class="desc">${def.desc}</div>`;
-      if (!ps.used) e.addEventListener('click', () => this.activatePower(ps.id));
+      if (powerReady(ps)) e.addEventListener('click', () => this.activatePower(ps.id));
       this.godsPanel.appendChild(e);
     }
   }
@@ -431,7 +441,7 @@ export class HUD {
     if (def.line && def.line !== 'citizen' && unitLinesOn(s.state)) stats.push(`${t('sel.line')} <b>${esc(LINES[def.line].name)} · ${AGES[def.tier ?? def.age].short}</b>`);
     if (def.special === 'heads') stats.push(`${t('sel.heads')} <b>${u.heads}</b>`);
     if (u.kills > 0) stats.push(`${t('sel.kills')} <b>${u.kills}</b>`);
-    if (rankOf(u.kills) > 0 && UNITS[u.type].tags.includes('military') && !UNITS[u.type].tags.includes('titan')) stats.push(`${t('sel.rank')} <b class="rank">${glyph('star').repeat(rankOf(u.kills))}</b>`);
+    if (unitRank(s.state, u) > 0 && UNITS[u.type].tags.includes('military') && !UNITS[u.type].tags.includes('titan')) stats.push(`${t('sel.rank')} <b class="rank">${glyph('star').repeat(unitRank(s.state, u))}</b>`);
     if (u.owner === s.local) stats.push(`${t('sel.stance')} <b>${t(`stance.${u.stance}`)}</b>`);
     if (u.carry && u.carryAmt > 0) stats.push(`${t('sel.carry')} <b>${ic.res(u.carry)} ${Math.floor(u.carryAmt)}</b>`);
     if (u.owner === s.local) stats.push(`${t('sel.state')} <b>${t(`state.${u.state}`)}</b>`);
@@ -464,17 +474,19 @@ export class HUD {
     if (def.farm) stats.push(`${t('sel.farmers')} <b>${farmGatherers(s.state, b.id)}/1</b>`);
     if (def.garrison) stats.push(`${t('sel.garrison')} <b>${b.garrison.length}/${def.garrison}</b>${b.garrison.length >= 3 ? ` (${t('sel.extraArrows', { n: Math.min(4, Math.floor(b.garrison.length / 3)) })})` : ''}`);
     // em cenário a vitória nativa por Maravilha não roda (G2): a guarda, se houver, é do roteiro, e este cronômetro enganaria
-    if (def.wonder && b.complete && b.wonderStart >= 0 && !s.state.scenario) stats.push(`${t('sel.victoryIn')} <b>${fmtTime(Math.max(0, WONDER_VICTORY_SECONDS - (s.state.tick - b.wonderStart) / TICK_RATE))}</b>`);
+    if (def.wonder && !s.state.scenario && wonderVictoryMode(s.state.config) === 'points') stats.push(`${t('sel.wonderPoints')} <b>${wonderPoints(b.type)}</b>`);
+    if (def.wonder && b.complete && b.wonderStart >= 0 && !s.state.scenario && wonderVictoryMode(s.state.config) === 'hold') stats.push(`${t('sel.victoryIn')} <b>${fmtTime(Math.max(0, WONDER_VICTORY_SECONDS - (s.state.tick - b.wonderStart) / TICK_RATE))}</b>`);
     if (b.disabledUntil > s.state.tick) stats.push(`<span style="color:#c084fc">${t('sel.pestilence', { n: Math.ceil((b.disabledUntil - s.state.tick) / TICK_RATE) })}</span>`);
     c.appendChild(el('div', 'stats', stats.map((x) => `<span>${x}</span>`).join('')));
     if (b.owner === s.local && b.queue.length > 0) {
       const q = el('div', 'queue');
+      const slots = studySlotsOf(s.state, b);   // E7: Biblioteca de Alexandria = 2 estudos juntos
       b.queue.forEach((item, i) => {
         const qtype = item.kind === 'unit' ? trainTypeOf(s.state, owner, item.id) : item.id;   // E3: o degrau que vai nascer
         const icon = item.kind === 'unit' ? ic.unit(qtype, owner.color) : item.kind === 'tech' ? ic.tech(item.id) : item.kind === 'scholar' ? `<span class="hic hic-gly">${glyph('scholar')}</span>` : ic.age(owner.age + 1);
         const name = item.kind === 'unit' ? UNITS[qtype].name : item.kind === 'tech' ? TECHS[item.id].name : item.kind === 'scholar' ? t('cmd.scholar') : `${AGES[owner.age + 1]?.name ?? ''}`;
-        const qi = el('div', 'qi', `${icon}<div class="prog" style="width:${i === 0 ? Math.round((item.elapsed / item.total) * 100) : 0}%"></div>`);
-        qi.dataset.tip = `<b>${name}</b><div class="desc">${i === 0 ? t('sel.remaining', { n: Math.ceil(item.total - item.elapsed) }) : t('sel.queued')} · ${t('sel.clickCancel')}</div>`;
+        const qi = el('div', 'qi', `${icon}<div class="prog" style="width:${i < slots ? Math.round((item.elapsed / item.total) * 100) : 0}%"></div>`);
+        qi.dataset.tip = `<b>${name}</b><div class="desc">${i < slots ? t('sel.remaining', { n: Math.ceil(item.total - item.elapsed) }) : t('sel.queued')} · ${t('sel.clickCancel')}</div>`;
         qi.addEventListener('click', () => { s.issue({ type: 'cancel', player: s.local, buildingId: b.id, index: i, itemId: item.uid }); });
         q.appendChild(qi);
       });
@@ -493,7 +505,7 @@ export class HUD {
     const s = this.session; if (!s) return;
     const p = s.player;
     const units = s.ownSelectedUnits(); const b = s.ownSelectedBuilding();
-    const key = `${[...s.selection].join(',')}|${s.ui.mode}|${s.ui.placeType}|${this.renderer.art?.generation ?? 0}|${iconsGeneration()}|${p.age}|${p.techs.length}|${p.minorGods.length}|${b?.garrison.length ?? 0}|${Object.values(p.resources).map((v) => Math.floor(v / 25)).join(',')}|${p.pop}/${p.popCap}|${b?.queue.length}|${b?.scholars}|${units.map((u) => u.cargo.length).join(',')}`;
+    const key = `${[...s.selection].join(',')}|${s.ui.mode}|${s.ui.placeType}|${this.renderer.art?.generation ?? 0}|${iconsGeneration()}|${p.age}|${p.techs.length}|${p.minorGods.length}|${b?.garrison.length ?? 0}|${Object.values(p.resources).map((v) => Math.floor(v / 25)).join(',')}|${p.pop}/${p.popCap}|${b?.queue.length}|${b?.scholars}|${units.map((u) => u.cargo.length).join(',')}|w${[...s.state.buildings.values()].filter((x) => x.complete && BUILDINGS[x.type].wonder).length}`;
     if (!force && key === this.lastCmdKey) return;
     this.lastCmdKey = key;
     // a grade rola (styles.css): com a mesma seleção, o redesenho (recursos, fila…) mantém a rolagem; seleção nova volta ao topo
@@ -514,13 +526,15 @@ export class HUD {
       const military = units.filter((u) => !UNITS[u.type].canBuild && UNITS[u.type].attack > 0);
       if (villagers.length > 0 && military.length === 0) {
         for (const type of BUILD_MENU) {
+          if (!wonderListed(s.state, s.local, type)) continue;   // E7: maravilha só na Era dela e enquanto ninguém a concluiu (cenário: regras clássicas)
           const def = BUILDINGS[type];
+          const reqAge = buildingAgeOf(s.state.config, type);
           if (def.shore && !navalOn(s.state)) continue;   // E4: na campanha e na Horda o Estaleiro some do menu
-          if (def.age > p.age && def.age > p.age + 1) continue;
+          if (reqAge > p.age && reqAge > p.age + 1) continue;
           const cost = getBuildingStats(s.state, p, type).cost;
           const lim = buildingLimitOk(s.state, p, type);
           const reasons: string[] = [];
-          if (def.age > p.age) reasons.push(t('cmd.requiresAge', { age: AGES[def.age].name }));
+          if (reqAge > p.age) reasons.push(t('cmd.requiresAge', { age: AGES[reqAge].name }));
           if (!lim.ok) reasons.push(lim.reason ?? '');
           if (!canAfford(p, cost)) reasons.push(t('cmd.noResources'));
           const tip = `${t('cmd.buildTipB', { name: def.name, cost: fmtCost(cost, p), desc: def.desc })}${reasons.length ? `<div style="color:#ef4444;margin-top:4px">${reasons.join(' · ')}</div>` : ''}`;
@@ -626,7 +640,8 @@ export class HUD {
   startPlacement(type: string) {
     const s = this.session!;
     const def = BUILDINGS[type];
-    if (def.age > s.player.age) { this.toast(t('err.requiresAge', { age: AGES[def.age].name }), 'warn'); return; }
+    const reqAge = buildingAgeOf(s.state.config, type);
+    if (reqAge > s.player.age) { this.toast(t('err.requiresAge', { age: AGES[reqAge].name }), 'warn'); return; }
     const lim = buildingLimitOk(s.state, s.player, type);
     if (!lim.ok) { this.toast(lim.reason ?? '', 'warn'); return; }
     const cost = getBuildingStats(s.state, s.player, type).cost;

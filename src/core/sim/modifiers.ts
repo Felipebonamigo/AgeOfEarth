@@ -6,12 +6,12 @@ import { BUILDINGS, MAJOR_GODS, RARES, TECHS, UNITS } from '../data';
 import type { Effect, EffectMatch, GameState, Player, PlayerMods, PlayerStat } from '../types';
 import { getRuntime, type BuildingStats, type UnitStats } from './runtime';
 
-export const PLAYER_STATS: PlayerStat[] = ['territory', 'cityLimit', 'attrition', 'attritionResist', 'favorRate', 'knowledgeRate', 'researchCost', 'buildSpeed', 'trainSpeed', 'popCap', 'los', 'tradeTax', 'regen', 'tradeIncome', 'seaTradeIncome'];
+export const PLAYER_STATS: PlayerStat[] = ['territory', 'cityLimit', 'attrition', 'attritionResist', 'favorRate', 'knowledgeRate', 'researchCost', 'buildSpeed', 'trainSpeed', 'popCap', 'los', 'tradeTax', 'regen', 'tradeIncome', 'seaTradeIncome', 'enemySpeed', 'territoryRegen', 'veteranRate', 'studySlots', 'coastSight'];
 
 export function defaultMods(): PlayerMods {
   return {
     gather: { food: 1, wood: 1, stone: 1, gold: 1, oil: 1, knowledge: 1, favor: 1, hunt: 1, farm: 1, fish: 1 },
-    player: { territory: 0, cityLimit: 1, attrition: 0, attritionResist: 0, favorRate: 1, knowledgeRate: 1, researchCost: 1, buildSpeed: 1, trainSpeed: 1, popCap: 0, los: 0, tradeTax: 1, regen: 0, tradeIncome: 1, seaTradeIncome: 1 },
+    player: { territory: 0, cityLimit: 1, attrition: 0, attritionResist: 0, favorRate: 1, knowledgeRate: 1, researchCost: 1, buildSpeed: 1, trainSpeed: 1, popCap: 0, los: 0, tradeTax: 1, regen: 0, tradeIncome: 1, seaTradeIncome: 1, enemySpeed: 1, territoryRegen: 0, veteranRate: 1, studySlots: 0, coastSight: 0 },
     unitEffects: [], buildingEffects: [], version: 0,
   };
 }
@@ -25,12 +25,11 @@ export function recomputeMods(state: GameState, player: Player): void {
   if (god) effects.push(...god.bonuses);
   for (const t of player.techs) { const def = TECHS[t]; if (def) effects.push(...def.effects); }
   for (const r of player.rares ?? []) { const d = RARES[r]; if (d) effects.push(...d.effects); }   // E2: raros ocupados por um Mercador
-  // Maravilhas concluídas
+  // Maravilhas concluídas (efeitos nos dados: BuildingDef.wonderEffects)
   for (const b of state.buildings.values()) {
     if (b.owner !== player.id || !b.complete || b.dead) continue;
-    if (b.type === 'wonder_zeus') effects.push({ type: 'player', stat: 'favorRate', mult: 1.5 });
-    else if (b.type === 'wonder_artemis') effects.push({ type: 'unit', match: { tags: ['myth'] }, stat: 'hp', mult: 1.25 });
-    else if (b.type === 'wonder_colossus') { effects.push({ type: 'player', stat: 'territory', add: 4 }); effects.push({ type: 'building', match: 'all', stat: 'hp', mult: 1.2 }); }
+    const we = BUILDINGS[b.type].wonderEffects;
+    if (we) effects.push(...we);
   }
   // Dificuldade da IA: bônus/penalidade de coleta
   if (player.isAI) {
@@ -131,11 +130,14 @@ export function refreshMaxHp(state: GameState, player: Player): void {
   }
 }
 
+/** E7: patente por abates (o Estádio Panatenaico dobra o ritmo: veteranRate). */
+export function unitRank(state: GameState, u: Unit): number { return rankOf(u.kills * (state.players[u.owner]?.mods.player.veteranRate ?? 1)); }
+
 /** Vida máxima de uma unidade: estatística do tipo × bônus de veterania (patente por abates). */
 export function unitMaxHp(state: GameState, player: Player, u: Unit): number {
   const base = getUnitStats(state, player, u.type).hp;
   const def = UNITS[u.type];
-  const vet = def.tags.includes('military') && !def.tags.includes('titan') ? rankOf(u.kills) : 0;
+  const vet = def.tags.includes('military') && !def.tags.includes('titan') ? unitRank(state, u) : 0;
   return Math.round(base * (1 + VETERAN_BONUS * vet));
 }
 

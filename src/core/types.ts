@@ -1,5 +1,5 @@
 // Tipos centrais da simulação. Tudo aqui é serializável (salvar/carregar e replays).
-import type { ResourceType, NodeType, Stance, Difficulty, GameMode, MapType, Formation } from './constants';
+import type { ResourceType, NodeType, Stance, Difficulty, GameMode, MapType, Formation, WonderVictory } from './constants';
 import type { RNG } from './rng';
 
 export type Cost = Partial<Record<ResourceType, number>>;
@@ -34,6 +34,9 @@ export interface BuildingDef {
   wall?: boolean; wonder?: boolean; titanGate?: boolean; plenty?: boolean; notBuildable?: boolean;
   garrison?: number;          // capacidade de guarnição
   gate?: boolean;             // portão: bloqueia inimigos, deixa aliados passarem
+  wonderEffects?: Effect[];   // E7: efeitos da maravilha pronta (recomputeMods)
+  scenarioAge?: number;       // E7: Era de construção em cenário (as 3 maravilhas clássicas: 3)
+  navalPassable?: boolean;    // E7: navios atravessam a pegada (Canal de Corinto; camada naval da E4)
   tradeRoute?: 'land' | 'sea';   // E5: ponto de comércio das rotas (≠ trade, a compra/venda do Mercado)
   shore?: boolean;            // E4: fica na margem (shoreOk) em território próprio ou neutro
   navalDropoff?: ResourceType[];   // E4: recursos que NAVIOS entregam aqui (o Estaleiro recebe o peixe)
@@ -53,7 +56,8 @@ export type Effect =
   | { type: 'cost'; match: EffectMatch; mult: number };
 
 export type PlayerStat = 'territory' | 'cityLimit' | 'attrition' | 'attritionResist' | 'favorRate' | 'knowledgeRate' | 'researchCost'
-  | 'buildSpeed' | 'trainSpeed' | 'popCap' | 'los' | 'tradeTax' | 'regen' | 'tradeIncome' | 'seaTradeIncome';
+  | 'buildSpeed' | 'trainSpeed' | 'popCap' | 'los' | 'tradeTax' | 'regen' | 'tradeIncome' | 'seaTradeIncome'
+  | 'enemySpeed' | 'territoryRegen' | 'veteranRate' | 'studySlots' | 'coastSight';
 
 export interface TechDef {
   id: string; name: string; icon: string; building: string; age: number; cost: Cost; time: number;
@@ -137,7 +141,7 @@ export interface GameMap {
   decor: Uint8Array;          // variação visual por tile
 }
 
-export interface PowerState { id: string; used: boolean }
+export interface PowerState { id: string; used: boolean; charges?: number }   // charges: usos extras restantes (Trono do Olimpo, E7)
 
 export interface PlayerMods {
   gather: Record<ResourceType | 'hunt' | 'farm' | 'fish', number>;
@@ -170,6 +174,8 @@ export interface Player {
   revealUntil: number; bronzeUntil: number;
   wonderVictoryAt: number;
   titanSpawned: boolean;
+  wonderHoldStart: number;                 // E7: tick em que o time chegou à meta de pontos de maravilha (-1 = abaixo)
+  respawns: { type: string; at: number }[];   // E7: heróis que renascem no Templo (Mausoléu)
 }
 
 export interface TimedEffect { type: string; owner: number; until: number; x?: number; y?: number; data?: number }
@@ -195,6 +201,7 @@ export interface GameConfig {
   forbid?: Forbid;                                      // G6: proibidos para todos; somam-se aos de config.players[i].forbid
   revealMap?: boolean; startingAge?: number; startingResources?: Partial<Record<ResourceType, number>>;
   naval?: boolean;       // E4: navios em cenário; padrão ligados fora de cenário e desligados em cenário (navalOn)
+  wonderVictory?: WonderVictory; wonderPointsToWin?: number; allWonders?: boolean;   // E7 (D14–D16): vitória por maravilha, meta de pontos, regras modernas
   unitLines?: boolean;   // E3: linhas de unidade; padrão ligadas fora de cenário e desligadas em cenário (elenco clássico)
   mode?: GameMode; mapType?: MapType;
   map?: FixedMapData;                                   // mapa fixo (editor/arquivo); se ausente, gera pelo seed

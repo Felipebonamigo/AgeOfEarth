@@ -1,10 +1,11 @@
-// Condições de vitória: conquista (eliminar todos) ou maravilha mantida por 6 minutos.
+// Condições de vitória: conquista (eliminar todos), Rei da Colina ou maravilha (pontos ou 6 minutos).
 import { BUILDINGS } from '../data';
 import { KOTH_SECONDS } from '../constants';
 import type { GameState, Player } from '../types';
 import { t } from '../../i18n';
 import { kingAlive, teamNames } from './modes';
 import { hasStartKit } from './game';
+import { wonderWinner, wonderVictoryMode, teamWonderPoints } from './wonders';
 
 export function checkVictory(state: GameState): void {
   if (state.gameOver) return;
@@ -55,9 +56,15 @@ function declareWinner(state: GameState): void {
     const w = alive.find((p) => p.team === tm && !p.isAI) ?? alive.find((p) => p.team === tm);
     if (w) { state.gameOver = true; state.winner = w.id; state.events.push({ tick: state.tick, type: 'victory', player: w.id, text: t('ev.victoryKoth', { players: teamNames(state, tm) }) }); return; }
   }
-  for (const p of alive) if (p.wonderVictoryAt >= 0) {
-    state.gameOver = true; state.winner = p.id;
-    state.events.push({ tick: state.tick, type: 'victory', player: p.id, text: t('ev.victoryWonder', { player: p.name }) });
-    return;
+  const wt = wonderWinner(state);
+  if (wt !== null) {
+    const w = alive.find((p) => p.team === wt && !p.isAI) ?? alive.find((p) => p.team === wt);
+    if (w) {
+      for (const p of state.players) if (p.team === wt && p.wonderVictoryAt < 0) p.wonderVictoryAt = state.tick;   // conquista win_wonder
+      state.gameOver = true; state.winner = w.id;
+      const pts = wonderVictoryMode(state.config) === 'points';
+      state.events.push({ tick: state.tick, type: 'victory', player: w.id, text: pts ? t('ev.victoryWonderPoints', { players: teamNames(state, wt), n: teamWonderPoints(state, wt) }) : t('ev.victoryWonder', { player: w.name }) });
+      return;
+    }
   }
 }

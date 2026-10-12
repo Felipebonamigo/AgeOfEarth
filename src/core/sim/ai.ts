@@ -3,12 +3,13 @@
 import { DIFFICULTIES, TICK_RATE, NODE_RESOURCE, NOT_GATHERED, SHIP_NODES, WELL_NODES, RESOURCES, MARKET_TRADE_LOT, OIL_FROM_AGE, MERCHANT_MAX_AI, CARAVAN_TARGET_AI, MERCHANT_SHIP_TARGET_AI, type ResourceType } from '../constants';
 import { rectReachable, wouldSeal } from '../map/components';
 import { findPathEx, nearestFreeTile } from '../map/pathfinding';
-import { AGES, BUILDINGS, LINES, LINE_ORDER, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS } from '../data';
+import { AGES, BUILD_MENU, BUILDINGS, LINES, LINE_ORDER, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS } from '../data';
 import type { Building, GameState, Player, ResourceNode, Unit, UnitDef } from '../types';
 import { idx, inBounds, isPassable, dist, dist2, centerFrame, frameOffset, frameCompare, type Frame } from '../map/grid';
 import { applyCommand, canAdvanceAge, canResearch, canTrain, academyTechCount } from './commands';
 import { bestRoute } from './trade';
-import { canPlaceBuilding, countBuildings, buildingsOf, findSpawnTile, unitsOf } from './entities';
+import { powerReady } from './powers';
+import { buildingLimitOk, canPlaceBuilding, countBuildings, buildingsOf, findSpawnTile, unitsOf } from './entities';
 import { getRuntime } from './runtime';
 import { nextEvolution, trainChoices, unitLinesOn, type TrainChoice } from './lines';
 import { approachTile, cargoPop, fairer, fishNear, seatsOf, shoreTileNear } from './naval';
@@ -17,7 +18,8 @@ import { isMilitary, isEnemy, nearestEnemyBuilding, nearestNode, nearestNodeBy, 
 import { getBuildingStats, getUnitStats, techCost } from './modifiers';
 import { canAfford } from './economy';
 import { t } from '../../i18n';
-import { isForbidden, maxAgeOf, navalOn } from './restrictions';
+import { buildingAgeOf, isForbidden, maxAgeOf, navalOn } from './restrictions';
+import { wonderVictoryMode } from './wonders';
 
 // uma posição por Era (tests/eras.test.ts confere)
 export const VILLAGER_TARGET = [18, 26, 34, 40, 44, 48, 52, 56];
@@ -358,7 +360,15 @@ function manageBuilding(state: GameState, player: Player, snap: Snapshot): void 
     { type: 'siege_workshop', anchorX: tc.x + enemyDir.x * 5, anchorY: tc.y + enemyDir.y * 5, minR: 1, maxR: 10, cond: age >= 2 && has('siege_workshop') === 0 },
     { type: 'fortress', anchorX: tc.x + enemyDir.x * 9, anchorY: tc.y + enemyDir.y * 9, minR: 0, maxR: 8, cond: age >= 2 && has('fortress') === 0 && player.resources.wood > 300 && player.resources.stone > 400 },
     { type: 'academy', anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 12, cond: age >= 2 && has('academy') < Math.min(2, has('town_center')) && player.resources.gold > 400 },
-    { type: 'wonder_' + wonderChoice(player), anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 14, cond: age >= 3 && countBuildings(state, player.id, (b) => !!BUILDINGS[b.type].wonder) === 0 && player.resources.gold > 1500 && player.resources.wood > 1500 && player.resources.stone > 700 },
+    ...(state.scenario
+      ? [{ type: 'wonder_' + wonderChoice(player), anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 14, cond: age >= 3 && countBuildings(state, player.id, (b) => !!BUILDINGS[b.type].wonder) === 0 && player.resources.gold > 1500 && player.resources.wood > 1500 && player.resources.stone > 700 }]
+      : (() => {   // E7 (D23): fora de cenário, a maravilha vem da Era mais alta e da personalidade; uma obra por vez
+          const w = aiWonderChoice(state, player);
+          if (!w) return [];
+          const cost = getBuildingStats(state, player, w).cost;
+          const rich = Object.fromEntries(Object.entries(cost).map(([k, v]) => [k, Math.ceil((v ?? 0) * 1.25)]));
+          return [{ type: w, anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 14, cond: age >= 1 && !snap.underConstruction.some((b) => !!BUILDINGS[b.type].wonder) && canAfford(player, rich) }];
+        })()),
     { type: 'titan_gate', anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 14, cond: age >= BUILDINGS.titan_gate.age && has('titan_gate') === 0 },
   ];
   for (const d of neededDropoffs(state, player, snap)) {
@@ -379,7 +389,7 @@ function manageBuilding(state: GameState, player: Player, snap: Snapshot): void 
   for (const p of plan) {
     if (!p.cond) continue;
     const def = BUILDINGS[p.type];
-    if (!def || def.age > age || isForbidden(state, player.id, 'buildings', p.type)) continue;   // G6: config.forbid
+    if (!def || buildingAgeOf(state.config, p.type) > age || isForbidden(state, player.id, 'buildings', p.type)) continue;   // G6: config.forbid
     const bcost = getBuildingStats(state, player, p.type).cost;
     if (!canAfford(player, bcost)) { if (p.type === 'house') return; continue; }
     if (p.type !== 'house' && p.type !== 'temple' && p.type !== 'academy' && (bcost.wood ?? 0) > 0 && player.resources.wood - (bcost.wood ?? 0) < libraryWoodHold(player, snap)) continue;   // madeira da 1ª Biblioteca
@@ -429,6 +439,12 @@ function wellTouching(state: GameState, n: ResourceNode): boolean {
   return false;
 }
 
+/** E7 (D23): maravilha a erguer fora de cenário — entre as disponíveis da Era mais alta, pela personalidade. */
+export function aiWonderChoice(state: GameState, player: Player): string | null {
+  const cands = BUILD_MENU.filter((ty) => BUILDINGS[ty].wonder && BUILDINGS[ty].age <= player.age && buildingLimitOk(state, player, ty).ok)
+    .sort((a, b) => BUILDINGS[b].age - BUILDINGS[a].age || (a < b ? -1 : a > b ? 1 : 0));   // nunca localeCompare
+  return cands.length ? cands[player.ai!.personality % Math.min(3, cands.length)] : null;
+}
 function wonderChoice(player: Player): string { return ['zeus', 'artemis', 'colossus'][player.ai!.personality % 3]; }
 
 
@@ -929,6 +945,17 @@ function alliedAttackTarget(state: GameState, player: Player): Building | null {
 function invulnerable(b: Building): boolean { return b.hpFloor !== undefined && b.hpFloor >= 1; }
 
 function chooseAttackTarget(state: GameState, player: Player, tc: Building, from: Unit): Building | null {
+  if (!state.scenario) {   // E7: quem está na contagem de vitória por maravilha vira o alvo
+    const fx0 = Math.floor(from.x), fy0 = Math.floor(from.y);
+    const racing = (b: Building) => {
+      if (!BUILDINGS[b.type].wonder || !b.complete || invulnerable(b)) return false;
+      const o = state.players[b.owner];
+      const counting = o.wonderHoldStart >= 0 || (b.wonderStart >= 0 && wonderVictoryMode(state.config) === 'hold');
+      return counting && rectReachable(state.map, fx0, fy0, b.tx, b.ty, b.w, b.h, true);
+    };
+    const w = nearestEnemyBuilding(state, player.id, tc.x, tc.y, racing);
+    if (w) return w;
+  }
   // Prefere o inimigo mais fraco (menos militares) e, dentro dele, o edifício mais próximo — desde que haja caminho por terra
   let weakest: Player | null = null, weakestArmy = Infinity, weakestD = Infinity;
   for (const e of state.players) {
@@ -1102,7 +1129,7 @@ function manageScouts(state: GameState, player: Player, snap: Snapshot): void {
 // ---------------- Poderes divinos ----------------
 function managePowers(state: GameState, player: Player, snap: Snapshot): void {
   const rt = getRuntime(state);
-  const avail = player.powers.filter((p) => !p.used).map((p) => p.id);
+  const avail = player.powers.filter((p) => powerReady(p)).map((p) => p.id);
   if (avail.length === 0 || !snap.tc) return;
   const tc = snap.tc;
   const defending = state.tick - player.ai!.defending < 10 * TICK_RATE;

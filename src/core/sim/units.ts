@@ -14,6 +14,7 @@ import { getRuntime, type Runtime } from './runtime';
 import { acquireTarget, attackInterval, canTarget, performAttack } from './combat';
 import { isAlly, canWorkNode, entityById, distanceTo, nearestDropoff, nearestFreeFarm, nearestNode, nearestNodeWithRoom, nodeGatherers, nodeCapacity, farmGatherers, farmPrimary } from './queries';
 import { t } from '../../i18n';
+import { enemyTerritorySpeed } from './territory';
 import { isTradePost, canRoute, routeGold, reachableFor } from './trade';
 import { onBuildingComplete, canGarrison, enterGarrison } from './entities';
 import { MAX_ORDER_QUEUE } from './validate';
@@ -134,7 +135,7 @@ export function updateUnit(state: GameState, rt: Runtime, u: Unit, dt: number): 
   const def = UNITS[u.type];
   const player = state.players[u.owner];
   const stats = getUnitStats(state, player, u.type);
-  const spd = state.tick < u.buffUntil ? stats.speed * u.buffSpeed : stats.speed;   // Astúcia
+  const spd = (state.tick < u.buffUntil ? stats.speed * u.buffSpeed : stats.speed) * enemyTerritorySpeed(state, u);   // Astúcia; Labirinto (E7)
 
   switch (u.state) {
     case 'idle': case 'hold': {

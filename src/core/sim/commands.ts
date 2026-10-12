@@ -373,6 +373,7 @@ export function canTrain(state: GameState, player: Player, b: Building, unit: st
     if (!allowed) return { ok: false, reason: t('err.requiresGod') };
   }
   if (def.unique) {
+    if (player.respawns.some((r) => r.type === unit)) return { ok: false, reason: t('err.alreadyRespawning', { name: def.name }) };   // E7: Mausoléu
     for (const u of state.units.values()) if (u.owner === player.id && !u.dead && u.type === unit) return { ok: false, reason: t('err.alreadyAlive', { name: def.name }) };
     for (const ob of state.buildings.values()) if (ob.owner === player.id && !ob.dead && ob.queue.some((q) => q.kind === 'unit' && q.id === unit)) return { ok: false, reason: t('err.alreadyTraining', { name: def.name }) };
   }

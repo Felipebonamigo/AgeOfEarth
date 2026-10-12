@@ -1,8 +1,26 @@
 // Névoa de guerra por jogador: 0 = inexplorado, 1 = explorado (memória), 2 = visível agora.
 import { BUILDINGS } from '../data';
-import type { GameState, Player } from '../types';
+import type { GameMap, GameState, Player } from '../types';
+import { isNavigableTerrain } from '../map/naval';
 import { circleOffsets, idx, inBounds } from '../map/grid';
 import { getBuildingStats, getUnitStats } from './modifiers';
+
+const coastCache = new WeakMap<GameMap, Int32Array>();
+/** Litoral que o Farol de Alexandria revela: tiles de água com um vizinho (4 lados) de terra. O terreno não muda em
+ *  partida, então a lista vale para o mapa inteiro (cache por mapa, fora do save e do hash). */
+function coastTiles(map: GameMap): Int32Array {
+  let c = coastCache.get(map);
+  if (!c) {
+    const out: number[] = [];
+    for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) {
+      const i = y * map.w + x;
+      if (!isNavigableTerrain(map.terrain[i])) continue;
+      if ((x > 0 && !isNavigableTerrain(map.terrain[i - 1])) || (x < map.w - 1 && !isNavigableTerrain(map.terrain[i + 1])) || (y > 0 && !isNavigableTerrain(map.terrain[i - map.w])) || (y < map.h - 1 && !isNavigableTerrain(map.terrain[i + map.w]))) out.push(i);
+    }
+    c = Int32Array.from(out); coastCache.set(map, c);
+  }
+  return c;
+}
 
 export function updateFog(state: GameState, player: Player): void {
   const vis = player.visibility;
@@ -27,6 +45,7 @@ export function updateFog(state: GameState, player: Player): void {
     const los = b.complete ? getBuildingStats(state, state.players[b.owner], b.type).los : Math.max(3, (BUILDINGS[b.type].los ?? 6) / 2);
     mark(b.x, b.y, los);
   }
+  if (state.players.some((q) => q.team === player.team && q.alive && q.mods.player.coastSight > 0)) for (const i of coastTiles(map)) vis[i] = 2;   // E7: Farol de Alexandria
   state.fogVersion++;
 }
 

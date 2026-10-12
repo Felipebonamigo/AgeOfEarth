@@ -359,60 +359,60 @@ Fase G — Verificação e commit
 Guia: `docs/eras/E5-E7-comercio-maravilhas.md`
 
 Fase 0' — Preparação
-- [ ] 0'.1 E5 commitada e "antes"
-- [ ] 0'.2 Conferir `charges` (o normal é não achar)
+- [x] 0'.1 E5 commitada e "antes"
+- [x] 0'.2 Conferir `charges` (o normal é não achar)
 
 Fase H — Dados e tipos
-- [ ] H1 `types.ts`: efeitos, `scenarioAge`, vitória, `respawns`, `charges`
-- [ ] H2 Constantes das maravilhas
-- [ ] H3 `modifiers.ts`: 5 stats novos
-- [ ] H4 `buildings.ts`: 20 maravilhas e `CLASSIC_WONDERS`
-- [ ] H5 Arte provisória (17 aliases)
-- [ ] H6 Textos PT/EN e conquista `win_wonder`
+- [x] H1 `types.ts`: efeitos, `scenarioAge`, vitória, `respawns`, `charges`
+- [x] H2 Constantes das maravilhas
+- [x] H3 `modifiers.ts`: 5 stats novos
+- [x] H4 `buildings.ts`: 20 maravilhas e `CLASSIC_WONDERS`
+- [x] H5 Arte provisória (17 aliases)
+- [x] H6 Textos PT/EN e conquista `win_wonder`
 
 Fase I — Regras no núcleo
-- [ ] I1 `restrictions.ts`: `allWondersOn`, `buildingAgeOf`
-- [ ] I2 `buildingLimitOk`: única no mapa
-- [ ] I3 `canPlaceBuilding` pela Era de cenário
-- [ ] I4 `src/core/sim/wonders.ts` (novo)
-- [ ] I5 Ganchos em `entities.ts` e `combat.ts`
-- [ ] I6 `recomputeMods` com `wonderEffects`
-- [ ] I7 Tick com `wonderSecond`
-- [ ] I8 Vitória por maravilha (`wonderWinner`)
-- [ ] I9 Estado do jogador e `deserialize`
-- [ ] I10 `SIM_VERSION` +1
+- [x] I1 `restrictions.ts`: `allWondersOn`, `buildingAgeOf`
+- [x] I2 `buildingLimitOk`: única no mapa
+- [x] I3 `canPlaceBuilding` pela Era de cenário
+- [x] I4 `src/core/sim/wonders.ts` (novo)
+- [x] I5 Ganchos em `entities.ts` e `combat.ts`
+- [x] I6 `recomputeMods` com `wonderEffects`
+- [x] I7 Tick com `wonderSecond`
+- [x] I8 Vitória por maravilha (`wonderWinner`)
+- [x] I9 Estado do jogador e `deserialize`
+- [x] I10 `SIM_VERSION` +1
 
 Fase J — Efeitos com código
-- [ ] J1 Labirinto (`enemySpeed`)
-- [ ] J2 Epidauro (`territoryRegen`)
-- [ ] J3 Estádio (`veteranRate`)
-- [ ] J4 Biblioteca de Alexandria (`studySlots`)
-- [ ] J5 Farol (`coastSight`)
-- [ ] J6 Mausoléu no treino
-- [ ] J7 Trono do Olimpo e usos extras (`powerReady`)
-- [ ] J8 Canal de Corinto (passável)
+- [x] J1 Labirinto (`enemySpeed`)
+- [x] J2 Epidauro (`territoryRegen`)
+- [x] J3 Estádio (`veteranRate`)
+- [x] J4 Biblioteca de Alexandria (`studySlots`)
+- [x] J5 Farol (`coastSight`)
+- [x] J6 Mausoléu no treino
+- [x] J7 Trono do Olimpo e usos extras (`powerReady`)
+- [x] J8 Canal de Corinto (passável)
 
 Fase K — IA
-- [ ] K1 Escolha e plano das maravilhas
-- [ ] K2 Ataque à maravilha em contagem
+- [x] K1 Escolha e plano das maravilhas
+- [x] K2 Ataque à maravilha em contagem
 
 Fase L — Interface
-- [ ] L1 Painel e tecla `M`
-- [ ] L2 Barra do topo
-- [ ] L3 Cartão da maravilha
-- [ ] L4 Opção na partida rápida e no lobby (relay)
-- [ ] L5 Conquista (planilha da Steam)
-- [ ] L6 `scripts/balance.ts`: `maravilhas=`
+- [x] L1 Painel e tecla `M`
+- [x] L2 Barra do topo
+- [x] L3 Cartão da maravilha
+- [x] L4 Opção na partida rápida e no lobby (relay)
+- [x] L5 Conquista (planilha da Steam)
+- [x] L6 `scripts/balance.ts`: `maravilhas=`
 - [ ] L7 `scripts/playtest-wonders.mjs` (novo)
 
 Fase M — Ganchos navais (com a E4)
-- [ ] M0 Conferir a E4
-- [ ] M1 Tag dos navios
-- [ ] M2 Passagem do Canal (`setNavalOpen`)
-- [ ] M3 Teste do Canal
+- [x] M0 Conferir a E4
+- [x] M1 Tag dos navios
+- [x] M2 Passagem do Canal (`setNavalOpen`)
+- [x] M3 Teste do Canal
 
 Fase N — Testes, verificação e commit
-- [ ] N1 `tests/wonders-e7.test.ts` (novo)
+- [x] N1 `tests/wonders-e7.test.ts` (novo)
 - [ ] N2 "Verificação" e "Ao terminar" da E7
 
 ---

@@ -1,13 +1,13 @@
 // Criação, posicionamento e remoção de unidades e edifícios; população; regras de colocação.
 import { POP_CAP_MAX } from '../constants';
-import { BUILDINGS, UNITS, AGES } from '../data';
+import { BUILDINGS, CLASSIC_WONDERS, UNITS, AGES } from '../data';
 import type { Building, GameState, Player, Unit } from '../types';
 import { idx, inBounds, spiralSearchFrame, towardFrame, centerFrame, frameTile, frameCompare, isPassable } from '../map/grid';
 import { getBuildingStats, getUnitStats } from './modifiers';
 import { t } from '../../i18n';
 import { invalidateComponents, componentAt, componentSize, shoreOk } from '../map/components';
-import { isUnbuildableTerrain, MIN_DOCK_WATER, type Layer } from '../map/naval';
-import { forbiddenReason } from './restrictions';
+import { isUnbuildableTerrain, MIN_DOCK_WATER, setNavalOpen, type Layer } from '../map/naval';
+import { allWondersOn, buildingAgeOf, forbiddenReason } from './restrictions';
 import { extractorNode } from './queries';
 
 export function spawnUnit(state: GameState, owner: number, type: string, x: number, y: number): Unit {
@@ -84,16 +84,17 @@ export function onBuildingComplete(state: GameState, b: Building): void {
   b.progress = getBuildingStats(state, player, b.type).buildTime;
   if (def.gate) for (let y = b.ty; y < b.ty + b.h; y++) for (let x = b.tx; x < b.tx + b.w; x++) state.map.gateTeam[idx(state.map, x, y)] = player.team;
   if (def.territory) state.territoryDirty = true;
-  if (def.wonder) { b.wonderStart = state.tick; state.events.push({ tick: state.tick, type: 'wonder', player: b.owner, x: b.x, y: b.y, text: t(state.scenario ? 'ev.wonderScenario' : 'ev.wonder', { player: player.name, name: def.name }) }); }   // cenário: sem vitória nativa por Maravilha (G2)
+  if (def.wonder) { b.wonderStart = state.tick; state.events.push({ tick: state.tick, type: 'wonder', player: b.owner, x: b.x, y: b.y, text: t(state.scenario || wondersNs.wonderVictoryMode(state.config) === 'off' ? 'ev.wonderScenario' : wondersNs.wonderVictoryMode(state.config) === 'points' ? 'ev.wonderPoints' : 'ev.wonder', { player: player.name, name: def.name, pts: wondersNs.wonderPoints(b.type) }) }); }   // cenário: sem vitória nativa por Maravilha (G2)
   if (def.titanGate) state.events.push({ tick: state.tick, type: 'titan', player: b.owner, x: b.x, y: b.y, text: t('ev.titanGate', { player: player.name }) });
   player.stats.buildingsBuilt++;
   recomputePop(state, player);
   if (def.wonder || def.popCap) { /* nada extra */ }
-  if (def.wonder) { const { recomputeMods, refreshMaxHp } = requireMods(); recomputeMods(state, player); refreshMaxHp(state, player); }   // bônus da maravilha vale para quem já existe
+  if (def.wonder) { wondersNs.onWonderComplete(state, b); const { recomputeMods, refreshMaxHp } = requireMods(); recomputeMods(state, player); refreshMaxHp(state, player); }   // bônus da maravilha vale para quem já existe
 }
 
 // Import tardio para evitar ciclo modifiers <-> entities em tempo de módulo.
 import * as modsMod from './modifiers';
+import * as wondersNs from './wonders';   // ciclo wonders ↔ combat/entities: só dentro de funções
 function requireMods() { return modsMod; }
 
 export function recomputePop(state: GameState, player: Player): void {
@@ -125,7 +126,14 @@ export function buildingLimitOk(state: GameState, player: Player, type: string):
     const n = countBuildings(state, player.id, (b) => b.type === 'town_center');
     if (n >= player.mods.player.cityLimit) return { ok: false, reason: t('err.cityLimit', { n: player.mods.player.cityLimit }) };
   } else if (def.limit === 'wonder') {
-    if (countBuildings(state, player.id, (b) => !!BUILDINGS[b.type].wonder) >= 1) return { ok: false, reason: t('err.oneWonder') };
+    if (!allWondersOn(state.config)) {   // regras clássicas (cenário): só as 3, uma por jogador, sem unicidade
+      if (!CLASSIC_WONDERS.includes(type)) return { ok: false, reason: t('err.forbidden') };
+      if (countBuildings(state, player.id, (b) => !!BUILDINGS[b.type].wonder) >= 1) return { ok: false, reason: t('err.oneWonder') };
+    } else for (const b of state.buildings.values()) {   // única no mapa; uma obra por jogador
+      if (b.dead || b.type !== type) continue;
+      if (b.complete) return { ok: false, reason: t('err.wonderTaken', { name: def.name, player: state.players[b.owner].name }) };
+      if (b.owner === player.id) return { ok: false, reason: t('err.wonderBuilding', { name: def.name }) };
+    }
   } else if (typeof def.limit === 'number') {
     const have = countBuildings(state, player.id, (b) => b.type === type);
     if (have >= def.limit) return { ok: false, reason: t('err.limit', { name: def.name, n: def.limit }) };
@@ -140,7 +148,8 @@ export function buildingLimitOk(state: GameState, player: Player, type: string):
 export function canPlaceBuilding(state: GameState, player: Player, type: string, tx: number, ty: number, ignoreLimits = false, force = false): PlaceCheck {
   const def = BUILDINGS[type];
   if (!def || (def.notBuildable && !force)) return { ok: false, reason: t('err.invalidBuilding') };
-  if (def.age > player.age && !force) return { ok: false, reason: t('err.requiresAge', { age: AGES[def.age].name }) };
+  const reqAge = buildingAgeOf(state.config, type);
+  if (reqAge > player.age && !force) return { ok: false, reason: t('err.requiresAge', { age: AGES[reqAge].name }) };
   if (!ignoreLimits && !force) { const lim = buildingLimitOk(state, player, type); if (!lim.ok) return lim; }
   const map = state.map;
   for (let y = ty; y < ty + def.h; y++) for (let x = tx; x < tx + def.w; x++) {
@@ -255,7 +264,8 @@ export function removeBuildingNow(state: GameState, b: Building): void {
   b.queue.length = 0;
   b.dead = true;
   state.buildings.delete(b.id);
-  if (!def.passable) invalidateComponents(map);
+  if (def.navalPassable) setNavalOpen(map, wondersNs.footprint(state, b), false);   // E7: fecha a passagem do Canal
+  if (!def.passable || def.navalPassable) invalidateComponents(map);
   state.territoryDirty = true;
   const owner = state.players[b.owner];
   if (owner) { recomputePop(state, owner); if (def.wonder) { const { recomputeMods, refreshMaxHp } = requireMods(); owner.wonderVictoryAt = -1; recomputeMods(state, owner); refreshMaxHp(state, owner); } }

@@ -21,12 +21,22 @@ export const nodeFitsTerrain = (type: string, t: number): boolean => (SHIP_NODES
 export const MIN_DOCK_WATER = 60;
 
 const cache = new WeakMap<GameMap, Uint8Array>();
+/** E7 (Canal de Corinto): tiles de terra abertos à navegação — derivados dos edifícios `navalPassable` prontos, fora do GameMap,
+ *  do save e do hash (o `deserialize` os reabre). Nunca escreva em map.terrain: o terreno não muda em partida. */
+const navalOpen = new WeakMap<GameMap, Set<number>>();
+export function setNavalOpen(map: GameMap, tiles: number[], open: boolean): void {
+  let set = navalOpen.get(map);
+  if (!set) { set = new Set(); navalOpen.set(map, set); }
+  for (const i of tiles) { if (open) set.add(i); else set.delete(i); }
+  invalidateNaval(map);
+}
 /** 1 = navio não passa (terra, montanha, nó, edifício). */
 export function navalBlocked(map: GameMap): Uint8Array {
   let nb = cache.get(map);
   if (!nb) {
     nb = new Uint8Array(map.w * map.h);
-    for (let i = 0; i < nb.length; i++) nb[i] = isNavigableTerrain(map.terrain[i]) && map.nodeAt[i] === -1 && map.buildingAt[i] === -1 ? 0 : 1;
+    const opened = navalOpen.get(map);
+    for (let i = 0; i < nb.length; i++) { const open = opened?.has(i) ?? false; nb[i] = (isNavigableTerrain(map.terrain[i]) || open) && map.nodeAt[i] === -1 && (map.buildingAt[i] === -1 || open) ? 0 : 1; }
     cache.set(map, nb);
   }
   return nb;

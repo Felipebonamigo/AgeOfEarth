@@ -1,6 +1,6 @@
 // Economia: custos, pagamento, favor (templos), conhecimento (filósofos), cornucópias, mercado,
 // regeneração, atrito territorial e contagem de maravilhas. Roda uma vez por segundo.
-import { BASE_ATTRITION, FAVOR_DECAY, FAVOR_PER_WORSHIPPER, KNOWLEDGE_PER_SCHOLAR, MARKET_BASE_PRICE, MARKET_TAX, MARKET_TRADE_LOT, NODE_RESOURCE, OIL_FROM_AGE, RARE_GOLD_RATE, RARE_SET, RESOURCES, WONDER_VICTORY_SECONDS, TICK_RATE, GARRISON_HEAL, type ResourceType } from '../constants';
+import { BASE_ATTRITION, FAVOR_DECAY, FAVOR_PER_WORSHIPPER, KNOWLEDGE_PER_SCHOLAR, MARKET_BASE_PRICE, MARKET_TAX, MARKET_TRADE_LOT, NODE_RESOURCE, OIL_FROM_AGE, RARE_GOLD_RATE, RARE_SET, RESOURCES, TICK_RATE, GARRISON_HEAL, type ResourceType } from '../constants';
 import { BUILDINGS, UNITS } from '../data';
 import type { GameState, Player, QueueItem, Unit } from '../types';
 import { distToRect } from '../map/grid';
@@ -77,9 +77,6 @@ export function economySecond(state: GameState): void {
         }
       }
     }
-    if (def.wonder && b.wonderStart >= 0 && p.wonderVictoryAt < 0) {
-      if (state.tick - b.wonderStart >= WONDER_VICTORY_SECONDS * TICK_RATE) p.wonderVictoryAt = state.tick;
-    }
   }
   // Raros ocupados (E2): em cada raro, o Mercador de MENOR id em 'gather' nele e ao lado (distância à borda do tile ≤ 1)
   // rende RARE_GOLD_RATE de ouro por segundo ao dono e conta o tipo do raro para o bônus; outros no mesmo nó não rendem
@@ -110,6 +107,8 @@ export function economySecond(state: GameState): void {
     const def = UNITS[u.type];
     if (u.inside !== -1) { if (u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + GARRISON_HEAL); continue; }
     if (p.mods.player.regen > 0 && u.hp < u.maxHp && state.tick - u.lastDamageTick > 5 * TICK_RATE) u.hp = Math.min(u.maxHp, u.hp + p.mods.player.regen);
+    const tr = p.mods.player.territoryRegen;   // E7: Teatro de Epidauro
+    if (tr > 0 && u.hp < u.maxHp && state.tick - u.lastDamageTick > 5 * TICK_RATE && territoryOwnerAt(state, u.x, u.y) === u.owner) u.hp = Math.min(u.maxHp, u.hp + tr);
     if (def.tags.includes('titan')) continue;
     const owner = territoryOwnerAt(state, u.x, u.y);
     if (owner !== -1 && isEnemy(state, owner, u.owner) && state.players[owner].alive) {

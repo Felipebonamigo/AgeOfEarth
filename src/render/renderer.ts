@@ -2,12 +2,12 @@
 // handler por tipo de efeito, partículas, decalques), névoa e overlays.
 import { Application, Container, Graphics, Sprite, Texture, Text, TextStyle } from 'pixi.js';
 import { effectiveResolution, resolveQuality, type Quality } from './quality';
-import { TILE, TICK_RATE, DT, PLAYER_COLORS, KOTH_RADIUS, rankOf } from '../core/constants';
+import { TILE, TICK_RATE, DT, PLAYER_COLORS, KOTH_RADIUS } from '../core/constants';
 import { ABILITIES, BUILDINGS, MAJOR_GODS, UNITS } from '../core/data';
 import type { Building, GameState, Unit, VisualEffect } from '../core/types';
 import { Camera } from './camera';
 import { TextureCache, darken } from './textures';
-import { getUnitStats, getBuildingStats } from '../core/sim/modifiers';
+import { getUnitStats, getBuildingStats, unitRank } from '../core/sim/modifiers';
 import { componentAt } from '../core/map/components';
 import { distToRect } from '../core/map/grid';
 import type { EditorUI } from '../editor/types';
@@ -734,7 +734,7 @@ export class Renderer {
       this.fx.unit(v.fxAcc, u, ix, iy, v.unit);
       if (this.bakedMode) { const parent = this.parentFor('unit', iy, flying); if (v.root.parent !== parent) parent.addChild(v.root); }
       // patente de veterano (estrelas acima da unidade; na assada, acima do topo do quadro)
-      const rk = UNITS[u.type].tags.includes('military') && !UNITS[u.type].tags.includes('titan') ? rankOf(u.kills) : 0;
+      const rk = UNITS[u.type].tags.includes('military') && !UNITS[u.type].tags.includes('titan') ? unitRank(state, u) : 0;
       if (rk !== (v.rankShown ?? 0)) {
         v.rankShown = rk;
         if (!v.rank) { v.rank = new Graphics(); v.root.addChild(v.rank); if (v.unit) v.rank.position.y = 16 - v.unit.art.top - 6; }

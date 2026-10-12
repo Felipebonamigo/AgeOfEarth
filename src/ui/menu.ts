@@ -1,5 +1,5 @@
 // Menu principal: configuração da partida (nome, deus, mapa, oponentes, dificuldade, semente).
-import { DIFFICULTIES, MAP_SIZES, GAME_MODES, MAP_TYPES, SIM_VERSION, type Difficulty, type MapSize, type GameMode, type MapType } from '../core/constants';
+import { DIFFICULTIES, MAP_SIZES, GAME_MODES, MAP_TYPES, SIM_VERSION, WONDER_VICTORIES, type WonderVictory, type Difficulty, type MapSize, type GameMode, type MapType } from '../core/constants';
 import { MAJOR_GODS, MAJOR_GOD_LIST, MAX_AGE } from '../core/data';
 import { eraSelectsHtml, eraChoiceValid, eraConfig } from './era-select';
 import type { GameConfig } from '../core/types';
@@ -213,7 +213,7 @@ export class MainMenu {
 
   private render() {
     if (this.tab !== 'multiplayer' && this.browsing) this.stopBrowsing();
-    let saved: Partial<{ name: string; god: string; map: string; ais: number; diff: string; teams: string; mode: string; mapType: string; startAge: string; endAge: number }> = {};
+    let saved: Partial<{ name: string; god: string; map: string; ais: number; diff: string; teams: string; mode: string; mapType: string; startAge: string; endAge: number; wonderVictory: string }> = {};
     try { saved = JSON.parse(localStorage.getItem('aoe_setup') ?? '{}'); } catch { /* ignore */ }
     this.god = saved.god ?? this.god;
     let completed: string[] = [];
@@ -247,6 +247,7 @@ export class MainMenu {
           <label>${t('main.teams')}</label><select id="m-teams"><option value="ffa" ${(saved.teams ?? 'ffa') === 'ffa' ? 'selected' : ''}>${t('main.teams.ffa')}</option><option value="coop" ${saved.teams === 'coop' ? 'selected' : ''}>${t('main.teams.coop')}</option><option value="alliance" ${saved.teams === 'alliance' ? 'selected' : ''}>${t('main.teams.alliance')}</option></select>
           <label>${t('main.mode')}</label><select id="m-mode">${GAME_MODES.map((m) => `<option value="${m}" ${(saved.mode ?? 'conquest') === m ? 'selected' : ''}>${t(`mode.${m}`)}</option>`).join('')}</select>
           ${eraSelectsHtml({ start: 'm-startage', end: 'm-endage' }, { start: saved.startAge ?? 'auto', end: saved.endAge ?? MAX_AGE })}
+          <label>${t('main.wonderVictory')}</label><select id="m-wonder">${WONDER_VICTORIES.map((w) => `<option value="${w}" ${(saved.wonderVictory ?? 'points') === w ? 'selected' : ''}>${t(`wv.${w}`)}</option>`).join('')}</select>
           <label>${t('main.mapType')}</label><select id="m-maptype" ${this.fixedMap ? 'disabled' : ''}>${MAP_TYPES.map((m) => `<option value="${m}" ${(saved.mapType ?? 'continental') === m ? 'selected' : ''}>${t(`maptype.${m}`)}</option>`).join('')}</select>
           <label>${t('main.aiGods')}</label><select id="m-aigod"><option value="random">${t('main.randomGods')}</option>${MAJOR_GOD_LIST.map((g) => `<option value="${g}">${MAJOR_GODS[g].name}</option>`).join('')}</select>
           <label><input type="checkbox" id="m-reveal"> ${t('main.reveal')}</label>
@@ -304,15 +305,16 @@ export class MainMenu {
       }
       const mode = q('#m-mode').value as GameMode, mapType = q('#m-maptype').value as MapType;
       const startAge = q('#m-startage').value, endAge = Number(q('#m-endage').value);
+      const wonderVictory = q('#m-wonder').value as WonderVictory;
       if (!eraChoiceValid(startAge, endAge, mode)) { alert(t('main.endBeforeStart')); return; }
       const prev = (() => { try { return JSON.parse(localStorage.getItem('aoe_setup') ?? '{}') as Record<string, unknown>; } catch { return {}; } })();
-      try { storeSet('aoe_setup', JSON.stringify({ ...prev, name, god: this.god, map, ais, diff, teams, mode, mapType, startAge, endAge })); } catch { /* ignore */ }
+      try { storeSet('aoe_setup', JSON.stringify({ ...prev, name, god: this.god, map, ais, diff, teams, mode, mapType, startAge, endAge, wonderVictory })); } catch { /* ignore */ }
       const fixed = this.fixedMap ?? undefined;
       if (fixed) {
         const issues = validateMap(fixed, { players: players.length, mode, ai: players.map((p) => p.isAI) });
         if (hasErrors(issues)) { this.fixedIssues = issues; alert(`${t('main.fixedMapErrors')}\n${issues.filter((i) => i.level === 'error').slice(0, 5).map(issueText).join('\n')}`); this.render(); return; }
       }
-      this.cb.onStart({ seed, mapSize: map, players, revealMap: q('#m-reveal').checked, mode, mapType, ...eraConfig(startAge, endAge), map: fixed, mapHash: fixed ? mapHash(fixed) : undefined, startOrder: fixed && teams !== 'ffa' ? startOrderFor(fixed, players.map((p) => p.team ?? 0)) : undefined });
+      this.cb.onStart({ seed, mapSize: map, players, revealMap: q('#m-reveal').checked, mode, mapType, wonderVictory, ...eraConfig(startAge, endAge), map: fixed, mapHash: fixed ? mapHash(fixed) : undefined, startOrder: fixed && teams !== 'ffa' ? startOrderFor(fixed, players.map((p) => p.team ?? 0)) : undefined });
     });
     q('#m-load').addEventListener('click', () => this.cb.onLoad());
     this.el.querySelector('#m-oldsave')?.addEventListener('click', () => { if (!confirm(t('main.oldSaveConfirm'))) return; this.cb.onDeleteOldSave?.(); this.render(); });
@@ -424,6 +426,7 @@ export class MainMenu {
         <label>${t('main.mapSize')}</label><select id="mp-map" ${host && !st.fixedMap ? '' : 'disabled'}>${Object.keys(MAP_SIZES).map((k) => `<option value="${k}" ${st.mapSize === k ? 'selected' : ''}>${t(`map.${k}`)}</option>`).join('')}</select>
         <label>${t('main.mode')}</label><select id="mp-mode" ${host ? '' : 'disabled'}>${GAME_MODES.map((m) => `<option value="${m}" ${(st.mode ?? 'conquest') === m ? 'selected' : ''}>${t(`mode.${m}`)}</option>`).join('')}</select>
         <label>${t('main.mapType')}</label><select id="mp-maptype" ${host && !st.fixedMap ? '' : 'disabled'}>${MAP_TYPES.map((m) => `<option value="${m}" ${(st.mapType ?? 'continental') === m ? 'selected' : ''}>${t(`maptype.${m}`)}</option>`).join('')}</select>
+        <label>${t('main.wonderVictory')}</label><select id="mp-wonder" ${host ? '' : 'disabled'}>${WONDER_VICTORIES.map((w) => `<option value="${w}" ${(st.wonderVictory ?? 'points') === w ? 'selected' : ''}>${t(`wv.${w}`)}</option>`).join('')}</select>
         ${eraSelectsHtml({ start: 'mp-startage', end: 'mp-endage' }, { start: st.startAge ?? 'auto', end: st.endAge !== undefined ? Number(st.endAge) : MAX_AGE }, !host || !!st.horde || !!st.fixedMap?.scenario)}
         <label>${t('mp.ais')}</label><select id="mp-ais" ${host ? '' : 'disabled'}>${[0, 1, 2, 3].filter((n) => !st.fixedMap || n <= Math.max(0, st.fixedMap.starts - lobby.players.length)).map((n) => `<option value="${n}" ${st.ais === n ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
         <div><label>${t('mp.aiDiff')}</label><select id="mp-diff" ${host ? '' : 'disabled'}>${Object.keys(DIFFICULTIES).map((k) => `<option value="${k}" ${st.difficulty === k ? 'selected' : ''}>${t(`diff.${k}`)}</option>`).join('')}</select>
@@ -461,11 +464,11 @@ export class MainMenu {
     q('#mp-chat-send')?.addEventListener('click', sendChat);
     q('#mp-chat-input')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendChat(); } e.stopPropagation(); });
     this.el.querySelectorAll('[data-kick]').forEach((b) => b.addEventListener('click', () => this.net?.kick(Number((b as HTMLElement).dataset.kick))));
-    const settingsChanged = () => { if (!this.net?.isHost) return; this.net.settings({ mapSize: q('#mp-map')!.value, ais: Number(q('#mp-ais')!.value), difficulty: q('#mp-diff')!.value, horde: !!q('#mp-horde')?.checked, public: !!q('#mp-public')?.checked, mode: q('#mp-mode')!.value, mapType: q('#mp-maptype')!.value, startAge: q('#mp-startage')!.value, endAge: q('#mp-endage')!.value }); };
+    const settingsChanged = () => { if (!this.net?.isHost) return; this.net.settings({ mapSize: q('#mp-map')!.value, ais: Number(q('#mp-ais')!.value), difficulty: q('#mp-diff')!.value, horde: !!q('#mp-horde')?.checked, public: !!q('#mp-public')?.checked, mode: q('#mp-mode')!.value, mapType: q('#mp-maptype')!.value, startAge: q('#mp-startage')!.value, endAge: q('#mp-endage')!.value, wonderVictory: q('#mp-wonder')!.value }); };
     q('#mp-fixed-load')?.addEventListener('click', () => void this.loadFixedMap());
     q('#mp-fixed-clear')?.addEventListener('click', () => this.setFixedMap(null));
     this.bindMapSelect('mp-fixed-sel');
-    q('#mp-mode')?.addEventListener('change', settingsChanged); q('#mp-maptype')?.addEventListener('change', settingsChanged); q('#mp-startage')?.addEventListener('change', settingsChanged); q('#mp-endage')?.addEventListener('change', settingsChanged);
+    q('#mp-mode')?.addEventListener('change', settingsChanged); q('#mp-maptype')?.addEventListener('change', settingsChanged); q('#mp-startage')?.addEventListener('change', settingsChanged); q('#mp-endage')?.addEventListener('change', settingsChanged); q('#mp-wonder')?.addEventListener('change', settingsChanged);
     q('#mp-map')?.addEventListener('change', settingsChanged); q('#mp-ais')?.addEventListener('change', settingsChanged); q('#mp-diff')?.addEventListener('change', settingsChanged); q('#mp-horde')?.addEventListener('change', settingsChanged); q('#mp-public')?.addEventListener('change', settingsChanged);
     q('#mp-mygod')?.addEventListener('change', () => this.net?.player({ god: q('#mp-mygod')!.value }));
     this.el.querySelectorAll('[data-team]').forEach((sel) => sel.addEventListener('change', () => this.net?.player({ slot: Number((sel as HTMLElement).dataset.team), team: Number((sel as HTMLSelectElement).value) })));
@@ -514,7 +517,7 @@ export class MainMenu {
       const sa = st.startAge ?? 'auto', ea = Number(st.endAge ?? MAX_AGE);
       if (!eraChoiceValid(sa, ea, (st.mode ?? 'conquest') as GameMode)) { this.netStatus = t('main.endBeforeStart'); this.render(); return; }
       const teamsUsed = new Set(players.map((p) => p.team ?? 0)).size;
-      net.start({ seed: st.seed >>> 0, mapSize: st.mapSize as MapSize, players, mode: (st.mode ?? 'conquest') as GameMode, mapType: (st.mapType ?? 'continental') as MapType, ...eraConfig(sa, ea), map, mapHash: map ? mapHash(map) : undefined, startOrder: map && teamsUsed < players.length ? startOrderFor(map, players.map((p) => p.team ?? 0)) : undefined }, delay);
+      net.start({ seed: st.seed >>> 0, mapSize: st.mapSize as MapSize, players, mode: (st.mode ?? 'conquest') as GameMode, mapType: (st.mapType ?? 'continental') as MapType, wonderVictory: (st.wonderVictory ?? 'points') as WonderVictory, ...eraConfig(sa, ea), map, mapHash: map ? mapHash(map) : undefined, startOrder: map && teamsUsed < players.length ? startOrderFor(map, players.map((p) => p.team ?? 0)) : undefined }, delay);
     });
   }
 }

@@ -35,3 +35,11 @@ export function forbiddenReason(state: GameState, player: number, kind: ForbidKi
   if (!navalOn(state) && ((kind === 'buildings' && BUILDINGS[id]?.shore) || (kind === 'units' && UNITS[id]?.naval))) return t('err.navalOff');
   return isForbidden(state, player, kind, id) ? t('err.forbidden') : null;
 }
+
+/** E7 (D14): as 20 maravilhas com as regras novas (únicas no mapa, várias por jogador, pontos)? Padrão: fora de cenário. */
+export function allWondersOn(config: GameConfig): boolean { return config.allWonders ?? !isScenarioConfig(config); }
+/** Era exigida para construir: em cenário, `scenarioAge` (as 3 maravilhas clássicas continuam na Era IV da campanha). */
+export function buildingAgeOf(config: GameConfig, type: string): number {
+  const d = BUILDINGS[type];
+  return !allWondersOn(config) && d.scenarioAge !== undefined ? d.scenarioAge : d.age;
+}

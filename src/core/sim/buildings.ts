@@ -13,6 +13,11 @@ import { entityById } from './queries';
 import { t } from '../../i18n';
 import { layerOf } from '../map/naval';
 
+/** E7: quantos itens da fila andam juntos (Biblioteca de Alexandria = 2 nas Bibliotecas; resto = 1). */
+export function studySlotsOf(state: GameState, b: Building): number {
+  return BUILDINGS[b.type].library ? 1 + Math.max(0, Math.floor(state.players[b.owner].mods.player.studySlots)) : 1;
+}
+
 export function updateBuilding(state: GameState, rt: Runtime, b: Building, dt: number): void {
   void rt;
   const def = BUILDINGS[b.type];
@@ -21,9 +26,11 @@ export function updateBuilding(state: GameState, rt: Runtime, b: Building, dt: n
   if (b.cooldown > 0) b.cooldown -= dt;
   // Fila de produção
   if (b.queue.length > 0 && state.tick >= b.disabledUntil) {
-    const item = b.queue[0];
-    item.elapsed += dt;
-    if (item.elapsed >= item.total) { b.queue.shift(); completeQueueItem(state, b, item); }
+    const slots = Math.min(b.queue.length, studySlotsOf(state, b));
+    for (let i = 0; i < slots; i++) b.queue[i].elapsed += dt;
+    const done: QueueItem[] = [];
+    for (let i = slots - 1; i >= 0; i--) if (b.queue[i].elapsed >= b.queue[i].total) done.unshift(b.queue.splice(i, 1)[0]);
+    for (const item of done) completeQueueItem(state, b, item);
   }
   // Defesa
   if (def.attack && state.tick >= state.ceasefireUntil && b.cooldown <= 0 && (state.tick + b.id) % 4 === 0) {

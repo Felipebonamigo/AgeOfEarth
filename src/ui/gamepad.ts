@@ -5,6 +5,7 @@
 // (anel dourado) entre os elementos na ordem visual. Mexer o mouse devolve o controle a ele (DeviceArbiter).
 // A parte de lógica pura (zona morta, curva, tabela de ações, repetição, prioridade, navegação espacial) é testada
 // em tests/gamepad.test.ts sem navegador; a classe GamepadController só toca o DOM dentro dos métodos.
+import { powerReady } from '../core/sim/powers';
 import type { Input } from './input';
 import type { HUD } from './hud';
 import type { MainMenu } from './menu';
@@ -504,7 +505,7 @@ export class GamepadController {
   private power(s: Session): void {
     const { input, hud } = this.d;
     if (s.ownSelectedUnits().length && input.useAbility()) return;
-    const avail = s.player.powers.filter((p) => !p.used).map((p) => p.id);
+    const avail = s.player.powers.filter((p) => powerReady(p)).map((p) => p.id);
     if (!avail.length) { hud.toast(t('pad.noPower'), 'info'); return; }
     const cur = this.pendingGlobal ?? (s.ui.mode === 'power' ? s.ui.powerId : null);
     const next = avail[(avail.indexOf(cur ?? '') + 1) % avail.length];

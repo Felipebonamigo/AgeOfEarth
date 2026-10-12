@@ -2,7 +2,7 @@
 import { RNG } from './rng';
 import type { GameState, Unit, Building, ResourceNode, Player } from './types';
 import { NODE_ID_BASE, getNodeSeq, resetNodeSeq } from './map/mapgen';
-import { isLandBlockedTerrain } from './map/naval';
+import { isLandBlockedTerrain, setNavalOpen } from './map/naval';
 import { t } from '../i18n';
 
 export interface SavedGame { version: number; state: unknown }
@@ -49,7 +49,7 @@ export function deserialize(json: string): GameState {
   const state: GameState = {
     config: migrateScenarioLocks(migrateLegacyPuppets(o.config)), seed: o.seed, tick: o.tick, time: o.time, nextId: o.nextId,
     map: { w, h, terrain, blocked, nodeAt, buildingAt, gateTeam, nodes, starts: o.map.starts, decor: Uint8Array.from(o.map.decor as number[]) },
-    players: (o.players as (Player & { visibility: number[] })[]).map((p) => ({ ...p, team: p.team ?? p.id, visibility: Uint8Array.from(p.visibility), resources: { ...ZERO, ...p.resources }, stats: { ...p.stats, gathered: { ...ZERO, ...p.stats.gathered } }, prices: { ...BASE, ...p.prices }, rares: Array.isArray(p.rares) ? p.rares : [], mods: mods.defaultMods() })),
+    players: (o.players as (Player & { visibility: number[] })[]).map((p) => ({ ...p, team: p.team ?? p.id, visibility: Uint8Array.from(p.visibility), resources: { ...ZERO, ...p.resources }, stats: { ...p.stats, gathered: { ...ZERO, ...p.stats.gathered } }, prices: { ...BASE, ...p.prices }, rares: Array.isArray(p.rares) ? p.rares : [], wonderHoldStart: p.wonderHoldStart ?? -1, respawns: Array.isArray(p.respawns) ? p.respawns : [], mods: mods.defaultMods() })),
     units: new Map((o.units as Unit[]).map((u) => [u.id, scenarioExtras({ ...u, inside: u.inside ?? -1, cargo: Array.isArray(u.cargo) ? u.cargo : [], resumeNodeId: u.resumeNodeId ?? -1, avoidIds: u.avoidIds ?? [], avoidUntil: u.avoidUntil ?? 0, blockedTicks: u.blockedTicks ?? 0, abilityReadyAt: u.abilityReadyAt ?? 0, buffUntil: u.buffUntil ?? 0, buffAttack: u.buffAttack ?? 1, buffSpeed: u.buffSpeed ?? 1, buffHaste: u.buffHaste ?? 1, buffWard: u.buffWard ?? false, chargeUntil: u.chargeUntil ?? 0, routeA: u.routeA ?? -1, routeB: u.routeB ?? -1, routeLeg: u.routeLeg ?? 0 })])), buildings: new Map((o.buildings as Building[]).map((b) => [b.id, scenarioExtras({ ...b, garrison: b.garrison ?? [] })])),
     territory: Int8Array.from(o.territory as number[]), territoryDirty: true, territoryVersion: 0,
     events: o.events ?? [], effects: [], timed: o.timed ?? [], winner: o.winner, gameOver: o.gameOver, rng: new RNG(1),
@@ -63,6 +63,12 @@ export function deserialize(json: string): GameState {
   for (const b of state.buildings.values()) {
     const def = data.BUILDINGS[b.type];
     for (let y = b.ty; y < b.ty + b.h; y++) for (let x = b.tx; x < b.tx + b.w; x++) { const i = y * w + x; buildingAt[i] = b.id; if (!def.passable) blocked[i] = 1; if (def.gate && b.complete) gateTeam[i] = state.players[b.owner].team; }
+  }
+  for (const b of state.buildings.values()) {   // E7: o Canal de Corinto pronto reabre a passagem naval (derivada, fora do save)
+    if (!b.complete || !data.BUILDINGS[b.type].navalPassable) continue;
+    const tiles: number[] = [];
+    for (let y = b.ty; y < b.ty + b.h; y++) for (let x = b.tx; x < b.tx + b.w; x++) tiles.push(y * w + x);
+    setNavalOpen(state.map, tiles, true);
   }
   for (const p of state.players) mods.recomputeMods(state, p);
   return state;

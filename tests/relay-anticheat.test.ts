@@ -252,6 +252,20 @@ describe('relay: anti-trapaça básico', () => {
     a.close(); b.close();
   });
 
+  it('vitória por maravilha do lobby (E7): o anfitrião manda wonderVictory e os outros veem; texto inválido é ignorado', async () => {
+    const a = new Peer(), b = new Peer();
+    await a.open(); await b.open();
+    a.send({ t: 'join', room: 'WONDR', name: 'Ana', sim: SIM_VERSION }); await a.wait((m) => m.t === 'joined');
+    b.send({ t: 'join', room: 'WONDR', name: 'Beto', sim: SIM_VERSION }); await b.wait((m) => m.t === 'joined');
+    a.send({ t: 'settings', settings: { wonderVictory: 'hold' } });
+    const lobby = await b.wait((m) => m.t === 'lobby' && (m.settings as { wonderVictory?: string }).wonderVictory === 'hold');
+    expect(lobby.settings).toMatchObject({ wonderVictory: 'hold' });
+    a.send({ t: 'settings', settings: { wonderVictory: 'x y', endAge: '6' } });
+    const l2 = await b.wait((m) => m.t === 'lobby' && (m.settings as { endAge?: string }).endAge === '6');
+    expect((l2.settings as { wonderVictory?: string }).wonderVictory).toBe('hold');   // 'x y' não passa na regex: fica o valor anterior
+    a.close(); b.close();
+  });
+
   it('anfitrião também tem limites (tamanho e balde de bytes); configurações do lobby saneadas; `list` não amplifica', async () => {
     const a = new Peer(), b = new Peer();
     await a.open(); await b.open();

@@ -16,8 +16,9 @@ export const MAX_PLAYERS = 4;
  * novos, evolução na Biblioteca, treino pelo degrau atual, IA com as linhas. 7 = naval (E4): camada naval, Estaleiro, pesca,
  * transporte, navios I–VIII, mapas com mar; a mesma semente em mapa terrestre dá a mesma partida, mas o hash agora inclui inside/cargo.
  * 8 = comércio (E5): caravanas com rotas automáticas, IA treina caravanas.
+ * 9 = maravilhas (E7): 20 maravilhas únicas no mapa, pontos de maravilha, IA disputa maravilhas.
  */
-export const SIM_VERSION = 8;
+export const SIM_VERSION = 9;
 export const DEFAULT_QUEUE_MAX = 10;   // itens na fila de um edifício sem queueMax
 
 // E2: ordem = a da barra do topo e a de todo literal de recursos (a ida e volta do save mantém a ordem das chaves)
@@ -48,6 +49,18 @@ export const POP_CAP_MAX = 250;
 export const CARRY_CAPACITY = 12;
 export const BASE_ATTRITION = 0.4;             // dano/s a unidades em território inimigo
 export const WONDER_VICTORY_SECONDS = 360;     // manter uma maravilha por 6 minutos vence
+// Maravilhas (docs/ERAS.md §9; docs/eras/E5-E7-comercio-maravilhas.md)
+export type WonderVictory = 'points' | 'hold' | 'off';
+export const WONDER_VICTORIES: WonderVictory[] = ['points', 'hold', 'off'];
+/** Teto da meta de pontos de maravilha (a meta é 40% dos pontos existentes até a Era final, no máximo isto). */
+export const WONDER_POINTS_MAX_TARGET = 20;
+/** Segundos que o time precisa manter a meta de pontos para vencer. */
+export const WONDER_POINTS_HOLD_SECONDS = 120;
+/** Santuário de Delfos: Oráculo grátis a cada N segundos, durando M segundos. */
+export const DELPHI_ORACLE_EVERY = 180;
+export const DELPHI_ORACLE_SECONDS = 20;
+/** Mausoléu de Halicarnasso: segundos até o herói morto renascer no Templo. */
+export const MAUSOLEUM_RESPAWN_SECONDS = 30;
 export const FAVOR_PER_WORSHIPPER = 0.14;      // favor/s do primeiro devoto de um templo
 export const FAVOR_DECAY = 0.9;                // cada devoto adicional rende 90% do anterior
 export const KNOWLEDGE_PER_SCHOLAR = 0.5;      // conhecimento/s por filósofo

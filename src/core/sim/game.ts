@@ -15,6 +15,7 @@ import { applyCommand } from './commands';
 import { updateUnit, applySeparation } from './units';
 import { updateBuilding } from './buildings';
 import { economySecond } from './economy';
+import { wonderSecond } from './wonders';
 import { updateTimedEffects } from './powers';
 import { aiThink } from './ai';
 import { isScenarioConfig } from './restrictions';
@@ -111,7 +112,7 @@ export function createGame(config: GameConfig): GameState {
       territoryTiles: 0, visibility: new Uint8Array(size.w * size.h),
       // todas as IAs começam a pensar no mesmo instante (antes 2 + i s: o jogador 0 ganhava 1 s por índice de vantagem)
       ai: pc.isAI ? { difficulty: pc.difficulty, nextThink: TICK_RATE * 2, lastAttack: 0, attackTarget: -1, waves: 0, rallyX: 0, rallyY: 0, defending: -1000, builderIds: [], lastExpand: 0, personality: Number.isInteger(pc.personality) && pc.personality! >= 0 ? pc.personality! % 97 : (config.seed + i * 7) % 97 } : null,
-      revealUntil: 0, bronzeUntil: 0, wonderVictoryAt: -1, titanSpawned: false,
+      revealUntil: 0, bronzeUntil: 0, wonderVictoryAt: -1, titanSpawned: false, wonderHoldStart: -1, respawns: [],
     };
     if (!isScenarioConfig(config)) grantStartingEras(p, startAge);
     if (!isScenarioConfig(config) && unitLinesOn(state)) grantStartingEvolutions(p, startAge);
@@ -268,7 +269,7 @@ export function tick(state: GameState, commands: Command[] = []): void {
   if (reverse) { const arr = [...state.buildings.values()]; for (let i = arr.length - 1; i >= 0; i--) { const b = arr[i]; if (!b.dead) updateBuilding(state, rt, b, DT); } }
   else for (const b of state.buildings.values()) if (!b.dead) updateBuilding(state, rt, b, DT);
   // Economia e IA a cada segundo (defasadas para distribuir custo)
-  if (state.tick % TICK_RATE === 0) { economySecond(state); if (state.koth) updateKoth(state); updateRelics(state); }
+  if (state.tick % TICK_RATE === 0) { economySecond(state); wonderSecond(state); if (state.koth) updateKoth(state); updateRelics(state); }
   // IAs: com 2+ pensando neste tick, a ordem segue o rodízio por rodadas (aiThinkOrder) e a rodada avança; com uma só, a
   // ordem não importa e a rodada fica (senão IAs de períodos diferentes desalinhariam o rodízio das que pensam juntas)
   let ready = 0;

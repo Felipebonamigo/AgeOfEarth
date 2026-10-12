@@ -13,7 +13,7 @@ razed_25,0,🪨,Demolidor,Destrua 25 edifícios inimigos em uma partida.,Wrecker
 territory_2000,0,🗺️,Império,Controle 2000 tiles de território.,Empire,Control 2000 tiles of territory.
 all_techs_line,0,📚,Biblioteca de Alexandria,"Pesquise Civismo V, Comércio V, Militar V e Ciência V.",Library of Alexandria,"Research Civics V, Commerce V, Military V and Science V."
 win_conquest,0,🏆,Conquistador,Vença por conquista.,Conqueror,Win by conquest.
-win_wonder,0,🗽,Maravilha do Mundo,Vença mantendo uma Maravilha.,Wonder of the World,Win by holding a Wonder.
+win_wonder,0,🗽,Maravilha do Mundo,Vença por maravilhas (pontos ou 6 minutos).,Wonder of the World,Win by wonders (points or 6 minutes).
 win_no_loss,0,✨,Intocável,Vença uma partida rápida perdendo menos de 10 unidades.,Untouchable,Win a quick match losing fewer than 10 units.
 win_brutal,0,🔥,Domador de Titãs,Vença uma partida rápida contra uma IA Muito difícil.,Titan Tamer,Win a quick match against a Very Hard AI.
 all_gods,0,🌐,Ecumênico,"Jogue partidas com Zeus, Poseidon e Hades.",Ecumenical,"Play matches as Zeus, Poseidon and Hades."

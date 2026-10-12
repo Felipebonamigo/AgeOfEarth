@@ -1,7 +1,7 @@
 // Balanceamento: roda várias partidas IA x IA e imprime quando cada IA avança de Idade, ondas e vencedor.
 import { createGame, tick } from '../src/core/sim/game';
 import { TICK_RATE } from '../src/core/constants';
-import { AGES } from '../src/core/data';
+import { AGES, BUILDINGS } from '../src/core/data';
 import fs from 'node:fs';
 import { migrateMap, validateMap, type FixedMapData } from '../src/core/map/fixed';
 
@@ -40,7 +40,7 @@ for (const seed of seeds) {
   console.log(`\n=== semente ${seed} · ${Math.round(state.time / 60)} min de jogo em ${(ms / 1000).toFixed(1)}s reais · ${(ms / state.tick).toFixed(2)} ms/tick ===`);
   if (at5) console.log(`aos 5 min: ${at5}`);
   for (const p of state.players) {
-    console.log(`${p.name.padEnd(10)} ${p.alive ? 'vivo ' : 'morto'} idade=${AGES[p.age].short.padEnd(8)} idades aos minutos [${ageAt[p.name].join(', ')}] ondas=${p.ai?.waves} abates=${p.stats.kills} perdas=${p.stats.losses} destruídos=${p.stats.razed} território=${p.territoryTiles} techs=${p.techs.length} caravanas=${[...state.units.values()].filter((u) => u.owner === p.id && !u.dead && u.type === 'caravan').length}`);
+    console.log(`${p.name.padEnd(10)} ${p.alive ? 'vivo ' : 'morto'} idade=${AGES[p.age].short.padEnd(8)} idades aos minutos [${ageAt[p.name].join(', ')}] ondas=${p.ai?.waves} abates=${p.stats.kills} perdas=${p.stats.losses} destruídos=${p.stats.razed} território=${p.territoryTiles} techs=${p.techs.length} caravanas=${[...state.units.values()].filter((u) => u.owner === p.id && !u.dead && u.type === 'caravan').length} maravilhas=${[...state.buildings.values()].filter((b) => b.owner === p.id && !b.dead && b.complete && BUILDINGS[b.type].wonder).length}`);
   }
   if (state.gameOver) console.log('Vencedor:', state.winner >= 0 ? state.players[state.winner].name : 'nenhum');
 }

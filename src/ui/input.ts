@@ -1,4 +1,6 @@
 // Entrada do jogador: mouse (seleção, ordens contextuais, colocação de edifícios, poderes) e teclado.
+import { wonderListed } from '../core/sim/wonders';
+import { buildingAgeOf } from '../core/sim/restrictions';
 import { TILE, OIL_FROM_AGE, RARE_GOLD_RATE, RARE_SET, WELL_NODES } from '../core/constants';
 import { AGES, BUILDINGS, UNITS, POWERS } from '../core/data';
 import type { Building, Command, ResourceNode, Unit } from '../core/types';
@@ -354,10 +356,10 @@ export class Input {
       if (k === 'q' && !villagersOnly) { if (this.useAbility()) return; }
       if (villagersOnly && !e.ctrlKey && !e.altKey) {
         const keyU = e.key.toUpperCase();
-        const cands = (BUILD_HOTKEYS[keyU] ?? '').split(',').filter(Boolean);
+        const cands = (BUILD_HOTKEYS[keyU] ?? '').split(',').filter(Boolean).filter((ty) => wonderListed(s.state, s.local, ty));
         if (cands.length > 0) {
-          // 'M' alterna entre maravilhas
-          const age = s.state.players[s.local].age; const avail = cands.filter((c) => BUILDINGS[c].age <= age); const pool = avail.length ? avail : cands;
+          // 'M' alterna entre maravilhas (só as listadas: da Era do jogador e ainda livres — D22); a Era vem de buildingAgeOf (cenário: scenarioAge)
+          const age = s.state.players[s.local].age; const avail = cands.filter((c) => buildingAgeOf(s.state.config, c) <= age); const pool = avail.length ? avail : cands;
           const type = pool.length === 1 ? pool[0] : pool[(pool.indexOf(s.ui.placeType ?? '') + 1) % pool.length];
           this.hud.startPlacement(type); return;
         }
