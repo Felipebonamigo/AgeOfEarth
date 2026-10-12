@@ -3,7 +3,7 @@ import type { Cost } from '../types';
 export interface AgeDef { id: number; name: string; short: string; icon: string; cost: Cost; time: number; requires: { building?: string; techCount?: number }; minorGod: boolean; desc: string }
 
 // Os índices 0–3 são as Idades de antes com os mesmos custos; a antiga Idade dos Titãs (4) virou a Moderna (7);
-// `minorGod` só onde `MAJOR_GODS.minorGods` tem o par (índice k ↔ `minorGods[k − 1]`).
+// `minorGod` só onde `MAJOR_GODS.minorGods` tem o par (índice k ↔ `minorGods[k − 1]`): Eras II–VII (E6).
 export const AGES: AgeDef[] = [
   { id: 0, name: 'Era Arcaica', short: 'Arcaica', icon: '🏺', cost: {}, time: 0, requires: {}, minorGod: false,
     desc: 'O começo da civilização: aldeias, caça e os primeiros hoplitas. Erga uma Biblioteca para estudar e avançar de Era.' },
@@ -17,13 +17,13 @@ export const AGES: AgeDef[] = [
     requires: { techCount: 4 }, minorGod: true,
     desc: 'Constantinopla: criaturas colossais, maravilhas do mundo e poder divino. Requer 4 estudos das linhas da Biblioteca.' },
   { id: 4, name: 'Era da Pólvora', short: 'Pólvora', icon: '💣', cost: { food: 1500, gold: 1500, knowledge: 1000, stone: 400, oil: 150 }, time: 120,
-    requires: { building: 'fortress', techCount: 7 }, minorGod: false,
+    requires: { building: 'fortress', techCount: 7 }, minorGod: true,
     desc: 'A pólvora chega a Creta: fortes estrelados e couraças de aço. Requer uma Fortaleza e 7 estudos das linhas da Biblioteca.' },
   { id: 5, name: 'Era do Iluminismo', short: 'Iluminismo', icon: '📜', cost: { food: 1800, gold: 1800, knowledge: 1300, stone: 500, oil: 300 }, time: 130,
-    requires: { techCount: 10 }, minorGod: false,
+    requires: { techCount: 10 }, minorGod: true,
     desc: 'A razão e o renascimento grego em pedra neoclássica. Requer 10 estudos das linhas da Biblioteca.' },
   { id: 6, name: 'Era Industrial', short: 'Industrial', icon: '🏭', cost: { food: 2100, gold: 2100, knowledge: 1600, stone: 600, oil: 450 }, time: 140,
-    requires: { techCount: 13 }, minorGod: false,
+    requires: { techCount: 13 }, minorGod: true,
     desc: 'Vapor, ferro e chaminés. Requer 13 estudos das linhas da Biblioteca.' },
   { id: 7, name: 'Era Moderna', short: 'Moderna', icon: '🌋', cost: { food: 2400, gold: 2400, knowledge: 2000, favor: 300, stone: 800, oil: 600 }, time: 150,
     requires: { techCount: 16 }, minorGod: false,

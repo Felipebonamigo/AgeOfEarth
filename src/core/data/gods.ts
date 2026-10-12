@@ -14,6 +14,16 @@ export const POWERS: Record<string, PowerDef> = {
   lightning_storm: { id: 'lightning_storm', name: 'Tempestade de Raios', icon: '🌩️', targeting: 'area', radius: 6, desc: 'Durante 8 segundos, raios caem sobre inimigos na área, cada um causando 200 de dano.' },
   plenty: { id: 'plenty', name: 'Abundância', icon: '🌽', targeting: 'place', desc: 'Cria uma Cornucópia que gera comida, madeira e ouro para sempre.' },
   earthquake: { id: 'earthquake', name: 'Terremoto', icon: '🌋', targeting: 'area', radius: 7, desc: 'Sacode a terra: edifícios na área perdem até 1500 de vida e unidades 60.' },
+  // ---- E6: poderes dos deuses menores das Eras V–VII (docs/eras/E6-mitologia.md; números em src/core/sim/divine.ts) ----
+  panic: { id: 'panic', name: 'Pânico', icon: '☠️', targeting: 'area', radius: 7, desc: 'Os inimigos na área fogem e não atacam por 8 segundos (Titãs, heróis e navios resistem).' },
+  crossroads: { id: 'crossroads', name: 'Encruzilhada', icon: '👁️', targeting: 'group', desc: 'Leva as unidades selecionadas (até 20 de população) a um ponto já explorado do mapa.' },
+  spring: { id: 'spring', name: 'Primavera', icon: '💚', targeting: 'area', radius: 6, desc: 'Por 20 segundos, todo soldado humano que morrer na área volta como uma Sombra sua (até 12).' },
+  gale: { id: 'gale', name: 'Vendaval', icon: '🌩️', targeting: 'area', radius: 8, desc: 'Empurra os inimigos para fora da área; por 12 segundos eles andam pela metade e os navios param. Seus edifícios na área recuperam 20% da vida.' },
+  tidal_wave: { id: 'tidal_wave', name: 'Maremoto', icon: '🌊', targeting: 'area', radius: 7, desc: 'Uma onda gigante causa 120 de dano às tropas, 240 aos navios e 300 aos edifícios inimigos na área.' },
+  divine_harvest: { id: 'divine_harvest', name: 'Colheita Divina', icon: '🌽', targeting: 'global', desc: 'Por 45 segundos, seus cidadãos e barcos coletam 50% mais rápido.' },
+  sun_chariot: { id: 'sun_chariot', name: 'Carro do Sol', icon: '☀️', targeting: 'area', radius: 8, desc: 'O carro de Hélio risca uma faixa de fogo de 16 tiles, da sua cidade para o ponto, queimando inimigos por 6 segundos.' },
+  winged_victory: { id: 'winged_victory', name: 'Vitória Alada', icon: '👑', targeting: 'global', desc: 'Todas as suas unidades ganham +30% de ataque por 30 segundos.' },
+  retribution: { id: 'retribution', name: 'Retribuição', icon: '🗡️', targeting: 'global', desc: 'Por 20 segundos, metade do dano que suas unidades sofrem volta para quem atacou.' },
 };
 
 export const MINOR_GODS: Record<string, MinorGodDef> = {
@@ -35,23 +45,43 @@ export const MINOR_GODS: Record<string, MinorGodDef> = {
     desc: 'Abundância gera recursos infinitos; Colossos; armaduras e máquinas de cerco superiores.' },
   artemis: { id: 'artemis', name: 'Ártemis', title: 'Deusa da Caça', icon: '🌙', age: 3, power: 'earthquake', mythUnit: 'chimera', techs: ['moon_arrows', 'great_hunt'],
     desc: 'Terremoto arrasa cidades; Quimeras; unidades à distância mais fortes e caça abundante.' },
+  // ---- E6: Eras V–VII ----
+  pan: { id: 'pan', name: 'Pã', title: 'Deus dos Pastores e do Pânico', icon: '🦌', age: 4, power: 'panic', mythUnit: 'satyr', techs: ['rustic_flute', 'wild_hooves'],
+    desc: 'Pânico põe o inimigo em fuga; Sátiros; caça e fazendas fartas e criaturas mais rápidas.' },
+  hecate: { id: 'hecate', name: 'Hécate', title: 'Deusa das Encruzilhadas e da Magia', icon: '🌙', age: 4, power: 'crossroads', mythUnit: 'empusa', techs: ['torch_of_hecate', 'crossroads_rites'],
+    desc: 'Encruzilhada leva um grupo de unidades a outro ponto; Empusas; mais visão, Favor e ataque mítico.' },
+  persephone: { id: 'persephone', name: 'Perséfone', title: 'Rainha do Submundo e da Primavera', icon: '💚', age: 4, power: 'spring', mythUnit: 'lampad', techs: ['pomegranate', 'eternal_spring'],
+    desc: 'Primavera faz os mortos da área voltarem como Sombras; Lâmpades; Sombras mais fortes, fazendas e regeneração.' },
+  aeolus: { id: 'aeolus', name: 'Éolo', title: 'Senhor dos Ventos', icon: '🌬️', age: 5, power: 'gale', mythUnit: 'harpy', techs: ['bag_of_winds', 'storm_lord'],
+    desc: 'Vendaval empurra e freia os inimigos e para os navios; Harpias; navios e voadoras mais rápidos e fortes.' },
+  triton: { id: 'triton', name: 'Tritão', title: 'Mensageiro do Mar', icon: '🔱', age: 5, power: 'tidal_wave', mythUnit: 'hippocampus', techs: ['conch_horn', 'tidal_lore'],
+    desc: 'Maremoto arrasa tropas, navios e a costa; Hipocampos; navios mais fortes e baratos e pesca farta.' },
+  demeter: { id: 'demeter', name: 'Deméter', title: 'Deusa das Colheitas', icon: '🌾', age: 5, power: 'divine_harvest', mythUnit: 'triptolemus_dragon', techs: ['golden_harvest', 'eleusinian_mysteries'],
+    desc: 'Colheita Divina acelera toda a coleta; Dragões de Triptólemo; mais comida, população e cidadãos resistentes.' },
+  helios: { id: 'helios', name: 'Hélio', title: 'O Sol', icon: '☀️', age: 6, power: 'sun_chariot', mythUnit: 'phoenix', techs: ['solar_fire', 'all_seeing_sun'],
+    desc: 'Carro do Sol risca uma faixa de fogo; Fênix; unidades de fogo mais fortes, visão e torres de maior alcance.' },
+  nike: { id: 'nike', name: 'Nice', title: 'Deusa da Vitória', icon: '👑', age: 6, power: 'winged_victory', mythUnit: 'griffin', techs: ['laurels_of_victory', 'golden_wings'],
+    desc: 'Vitória Alada dá +30% de ataque a todo o exército; Grifos; militares mais fortes e cavalaria mais rápida.' },
+  nemesis: { id: 'nemesis', name: 'Nêmesis', title: 'Deusa da Retribuição', icon: '🗡️', age: 6, power: 'retribution', mythUnit: 'erinys', techs: ['balance_of_fate', 'wrath_of_nemesis'],
+    desc: 'Retribuição devolve metade do dano sofrido; Erínias; militares mais resistentes e heróis mais fortes.' },
 };
 
 export const MAJOR_GODS: Record<string, MajorGodDef> = {
   zeus: {
     id: 'zeus', name: 'Zeus', title: 'Rei dos Deuses', icon: '⚡', power: 'bolt', titan: 'prometheus', mythUnit: 'pegasus',
-    minorGods: [['athena', 'hermes'], ['apollo', 'dionysus'], ['hera', 'artemis']],
+    minorGods: [['athena', 'hermes'], ['apollo', 'dionysus'], ['hera', 'artemis'], ['pan', 'hecate'], ['aeolus', 'demeter'], ['helios', 'nike']],
     bonuses: [
       { type: 'player', stat: 'favorRate', mult: 1.25 },
       { type: 'unit', match: { tags: ['infantry'] }, stat: 'attack', mult: 1.1 },
       { type: 'cost', match: { tags: ['hero'] }, mult: 0.8 },
+      { type: 'unit', match: { tags: ['gunpowder'] }, stat: 'attack', mult: 1.1 },
     ],
-    perks: ['Favor +25%', 'Infantaria +10% de ataque', 'Heróis 20% mais baratos', 'Pégasos no Templo desde a Era Arcaica', 'Poder: Raio'],
+    perks: ['Favor +25%', 'Infantaria +10% de ataque', 'Heróis 20% mais baratos', 'Pégasos no Templo desde a Era Arcaica', 'Unidades de pólvora +10% de ataque', 'Poder: Raio'],
     desc: 'O senhor do Olimpo favorece exércitos de hoplitas devotos e heróis lendários.',
   },
   poseidon: {
     id: 'poseidon', name: 'Poseidon', title: 'Deus dos Mares e dos Cavalos', icon: '🔱', power: 'lure', titan: 'oceanus',
-    minorGods: [['ares', 'hermes'], ['aphrodite', 'dionysus'], ['hephaestus', 'artemis']],
+    minorGods: [['ares', 'hermes'], ['aphrodite', 'dionysus'], ['hephaestus', 'artemis'], ['pan', 'persephone'], ['aeolus', 'triton'], ['helios', 'nemesis']],
     bonuses: [
       { type: 'cost', match: { tags: ['cavalry'] }, mult: 0.85 },
       { type: 'unit', match: { tags: ['cavalry'] }, stat: 'speed', mult: 1.1 },
@@ -60,19 +90,21 @@ export const MAJOR_GODS: Record<string, MajorGodDef> = {
       { type: 'cost', match: { tags: ['ship'] }, mult: 0.9 },
       { type: 'unit', match: { tags: ['ship'] }, stat: 'speed', mult: 1.1 },
       { type: 'gather', resource: 'fish', mult: 1.15 },
+      { type: 'cost', match: { tags: ['gunpowder'] }, mult: 0.9 },
     ],
-    perks: ['Cavalaria 15% mais barata e 10% mais rápida', 'Coleta de recursos +8% (a fartura dos mares)', 'Mercado com taxas menores', 'Milícia surge quando um edifício seu é destruído', 'Navios 10% mais baratos e 10% mais rápidos; pesca +15%', 'Poder: Isca'],
+    perks: ['Cavalaria 15% mais barata e 10% mais rápida', 'Coleta de recursos +8% (a fartura dos mares)', 'Mercado com taxas menores', 'Milícia surge quando um edifício seu é destruído', 'Navios 10% mais baratos e 10% mais rápidos; pesca +15%', 'Unidades de pólvora 10% mais baratas; Escila no Estaleiro desde a Era Helenística e Ceto desde a Era da Pólvora', 'Poder: Isca'],
     desc: 'O abalador da terra comanda cavalarias velozes e uma economia de comércio.',
   },
   hades: {
     id: 'hades', name: 'Hades', title: 'Senhor do Submundo', icon: '💀', power: 'sentinel', titan: 'cronus',
-    minorGods: [['ares', 'athena'], ['aphrodite', 'apollo'], ['hephaestus', 'hera']],
+    minorGods: [['ares', 'athena'], ['aphrodite', 'apollo'], ['hephaestus', 'hera'], ['hecate', 'persephone'], ['triton', 'demeter'], ['nike', 'nemesis']],
     bonuses: [
       { type: 'building', match: 'all', stat: 'hp', mult: 1.25 },
       { type: 'unit', match: { tags: ['archer'] }, stat: 'attack', mult: 1.1 },
       { type: 'player', stat: 'attrition', add: 0.3 },
+      { type: 'unit', match: { tags: ['gunpowder'] }, stat: 'hp', mult: 1.1 },
     ],
-    perks: ['Edifícios +25% de vida', 'Arqueiros +10% de ataque', 'Atrito +0,3/s em seu território', 'Guerreiros mortos podem voltar como Sombras', 'Cérbero no Templo a partir da Era Helenística', 'Poder: Sentinelas'],
+    perks: ['Edifícios +25% de vida', 'Arqueiros +10% de ataque', 'Atrito +0,3/s em seu território', 'Guerreiros mortos podem voltar como Sombras', 'Cérbero no Templo a partir da Era Helenística', 'Unidades de pólvora +10% de vida', 'Poder: Sentinelas'],
     desc: 'O rei dos mortos ergue muralhas inexpugnáveis e um exército que retorna do Tártaro.',
   },
 };

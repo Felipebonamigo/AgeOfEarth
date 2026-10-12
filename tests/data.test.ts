@@ -41,7 +41,7 @@ describe('integridade dos dados', () => {
     for (const g of Object.values(MAJOR_GODS)) {
       expect(POWERS[g.power]).toBeDefined();
       expect(UNITS[g.titan]).toBeDefined();
-      expect(g.minorGods.length).toBe(3);
+      expect(g.minorGods.length).toBe(6);
       g.minorGods.forEach((pair, i) => { for (const m of pair) { expect(MINOR_GODS[m]).toBeDefined(); expect(MINOR_GODS[m].age).toBe(i + 1); } });
       if (g.mythUnit) expect(UNITS[g.mythUnit]).toBeDefined();
     }

@@ -18,6 +18,8 @@ export function maxAgeOf(state: GameState, player: number): number {
 export function isScenarioConfig(c: GameConfig): boolean { return !!(c.scenario || c.scenarioData); }
 /** E4: navios ligados? Fora de cenário sempre; em cenário (campanha, Horda, JSON) só com config.naval === true. */
 export function navalOn(state: GameState): boolean { return state.config.naval ?? !isScenarioConfig(state.config); }
+/** E6: mitologia por Era (escala dos poderes, Bênçãos, Titãs reforçados). Fora de cenário, sempre; em cenário, só com config.eraMyth === true. */
+export function eraMythOn(state: GameState): boolean { return state.config.eraMyth ?? !isScenarioConfig(state.config); }
 /** Motivo de recusa do avanço além da Era final: em cenário "Proibido nesta missão"; na partida rápida "Era final desta partida: X". */
 export function endAgeReason(state: GameState, player: number): string {
   return isScenarioConfig(state.config) ? t('err.forbidden') : t('err.endAge', { age: AGES[maxAgeOf(state, player)].name });

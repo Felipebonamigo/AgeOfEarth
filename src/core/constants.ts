@@ -48,6 +48,9 @@ export const PLAYER_COLORS = [
 export const POP_CAP_MAX = 250;
 export const CARRY_CAPACITY = 12;
 export const BASE_ATTRITION = 0.4;             // dano/s a unidades em território inimigo
+/** E6: os Titãs só chegam na Era VIII (Portal) diante de exércitos de pólvora e aço: vida e ataque multiplicados fora de cenário. */
+export const TITAN_ERA_HP = 2;
+export const TITAN_ERA_ATTACK = 1.5;
 export const WONDER_VICTORY_SECONDS = 360;     // manter uma maravilha por 6 minutos vence
 // Maravilhas (docs/ERAS.md §9; docs/eras/E5-E7-comercio-maravilhas.md)
 export type WonderVictory = 'points' | 'hold' | 'off';

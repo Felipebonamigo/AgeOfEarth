@@ -93,6 +93,19 @@ export const EN_UNITS: Record<string, TextOverlay> = {
   self_propelled_gun: { name: 'Self-Propelled Gun', plural: 'Self-Propelled Guns', desc: 'Tracked, armored gun, faster than towed artillery. Area damage at great range. Costs oil.' },
   covered_ram: { name: 'Covered Ram', plural: 'Covered Rams', desc: 'Ram under a roof of wet hides: melee, shrugs off arrows and breaks gates. Gunpowder retires it.' },
   greek_fire_siphon: { name: 'Greek Fire Siphon', plural: 'Greek Fire Siphons', desc: 'Greek fire siphon: short-range jet of flame with area damage against troops and buildings. Costs oil; gunpowder retires it.' },
+  // E6
+  satyr: { name: 'Satyr', plural: 'Satyrs', desc: 'Follower of Pan: hurls javelins from range and hunts archers.' },
+  empusa: { name: 'Empusa', plural: 'Empusae', desc: 'Hecate\'s swift demon: heals 30% of the damage it deals.' },
+  lampad: { name: 'Lampad', plural: 'Lampads', desc: 'Underworld nymph with torches: area fire against troops and buildings.' },
+  harpy: { name: 'Harpy', plural: 'Harpies', desc: 'Flies fast over anything and strikes archers and artillery; only ranged troops and other flyers can hit it.' },
+  hippocampus: { name: 'Hippocampus', plural: 'Hippocampi', desc: 'Triton\'s sea-horse: swims fast and sinks boats and galleys. Trained at the Shipyard.' },
+  triptolemus_dragon: { name: 'Dragon of Triptolemus', plural: 'Dragons of Triptolemus', desc: 'Winged serpent of Triptolemus\' chariot: breathes area fire at close range.' },
+  phoenix: { name: 'Phoenix', plural: 'Phoenixes', desc: 'Helios\' firebird: shoots flames and, on its first death, rises from its ashes with half its health.' },
+  griffin: { name: 'Griffin', plural: 'Griffins', desc: 'Nike\'s winged lion: hunts other flying creatures in the air and cavalry on the ground.' },
+  erinys: { name: 'Erinys', plural: 'Erinyes', desc: 'Nemesis\' Fury: hunts down the mighty, with double damage against heroes.' },
+  scylla: { name: 'Scylla', plural: 'Scyllas', desc: 'Six-headed monster of the strait: devours crews, area damage against ships. Trained at the Shipyard.' },
+  ceto: { name: 'Ceto', plural: 'Cetos', desc: 'Primordial sea monster: swims and walks on land, crushing ships and the coast. Trained at the Shipyard.' },
+  talos: { name: 'Talos', plural: 'Taloi', desc: 'Hephaestus\' bronze giant, the Colossus of the Industrial Era: stronger, red-hot (area damage), razes buildings.' },
 };
 
 export const EN_BUILDINGS: Record<string, TextOverlay> = {
@@ -229,6 +242,26 @@ export const EN_TECHS: Record<string, TextOverlay> = {
   bronze_rams: { name: 'Bronze Rams', desc: 'Warships +15% attack.' },
   navigation: { name: 'Celestial Navigation', desc: 'Ships 10% faster and +2 sight.' },
   ...evolutionsEN(),
+  // E6
+  rustic_flute: { name: 'Rustic Flute', desc: 'Hunting +30% and farms +15%.' },
+  wild_hooves: { name: 'Wild Hooves', desc: 'Mythic creatures +15% speed and Satyrs +20% attack.' },
+  torch_of_hecate: { name: 'Torch of Hecate', desc: 'Sight +3 for everything and mythic creatures +10% attack.' },
+  crossroads_rites: { name: 'Rites of the Crossroads', desc: 'Favor +25% and Empusae +20% health.' },
+  pomegranate: { name: 'Pomegranate of the Underworld', desc: 'Shades with double health and attack; Favor +15%.' },
+  eternal_spring: { name: 'Eternal Spring', desc: 'Farms +25% and units regenerate 0.5 health/s.' },
+  bag_of_winds: { name: 'Bag of Winds', desc: 'Ships +20% and flyers +15% speed.' },
+  storm_lord: { name: 'Lord of Storms', desc: 'Flying creatures +20% health and attack.' },
+  conch_horn: { name: 'Triton\'s Conch', desc: 'Ships +15% attack and Hippocampi +20% health.' },
+  tidal_lore: { name: 'Lore of the Tides', desc: 'Fishing +25% and ships 10% cheaper.' },
+  golden_harvest: { name: 'Golden Harvest', desc: 'Food +15% and farms +20%.' },
+  eleusinian_mysteries: { name: 'Eleusinian Mysteries', desc: 'Population +20 and citizens +20% health.' },
+  solar_fire: { name: 'Solar Fire', desc: 'Fire units +20% attack and Phoenixes +20% health.' },
+  all_seeing_sun: { name: 'All-Seeing Sun', desc: 'Sight +3; towers and fortresses +1 range.' },
+  laurels_of_victory: { name: 'Laurels of Victory', desc: 'Military +10% attack.' },
+  golden_wings: { name: 'Golden Wings', desc: 'Griffins +20% health and cavalry +10% speed.' },
+  balance_of_fate: { name: 'Scales of Fate', desc: 'Military +10% health.' },
+  wrath_of_nemesis: { name: 'Wrath of Nemesis', desc: 'Erinyes +25% attack and heroes +15% attack.' },
+  ...Object.fromEntries(['II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'].map((r, i) => [`blessing${i + 2}`, { name: `Blessing of Olympus ${r}`, desc: 'Mythic creatures and heroes +20% health and attack and +0.02 armor (Titans excluded).' }])),
 };
 
 export const EN_POWERS: Record<string, TextOverlay> = {
@@ -244,6 +277,16 @@ export const EN_POWERS: Record<string, TextOverlay> = {
   lightning_storm: { name: 'Lightning Storm', desc: 'For 8 seconds, bolts strike enemies in the area, each dealing 200 damage.' },
   plenty: { name: 'Plenty', desc: 'Creates a Cornucopia that generates food, wood and gold forever.' },
   earthquake: { name: 'Earthquake', desc: 'Shakes the earth: buildings in the area lose up to 1500 health and units 60.' },
+  // E6
+  panic: { name: 'Panic', desc: 'Enemies in the area flee and cannot attack for 8 seconds (Titans, heroes and ships resist).' },
+  crossroads: { name: 'Crossroads', desc: 'Carries the selected units (up to 20 population) to an already explored point of the map.' },
+  spring: { name: 'Spring', desc: 'For 20 seconds, every human soldier who dies in the area returns as one of your Shades (up to 12).' },
+  gale: { name: 'Gale', desc: 'Pushes enemies out of the area; for 12 seconds they move at half speed and ships stop. Your buildings in the area regain 20% health.' },
+  tidal_wave: { name: 'Tidal Wave', desc: 'A giant wave deals 120 damage to troops, 240 to ships and 300 to enemy buildings in the area.' },
+  divine_harvest: { name: 'Divine Harvest', desc: 'For 45 seconds, your citizens and boats gather 50% faster.' },
+  sun_chariot: { name: 'Sun Chariot', desc: 'Helios\' chariot scorches a 16-tile strip of fire, from your city towards the point, burning enemies for 6 seconds.' },
+  winged_victory: { name: 'Winged Victory', desc: 'All your units gain +30% attack for 30 seconds.' },
+  retribution: { name: 'Retribution', desc: 'For 20 seconds, half the damage your units take goes back to the attacker.' },
 };
 
 export const EN_MINOR_GODS: Record<string, TextOverlay> = {
@@ -256,12 +299,22 @@ export const EN_MINOR_GODS: Record<string, TextOverlay> = {
   hera: { name: 'Hera', title: 'Queen of Olympus', desc: 'Lightning Storm; petrifying Medusas; larger borders and superior mythic creatures.' },
   hephaestus: { name: 'Hephaestus', title: 'God of the Forge', desc: 'Plenty generates endless resources; Colossi; superior armor and siege engines.' },
   artemis: { name: 'Artemis', title: 'Goddess of the Hunt', desc: 'Earthquake razes cities; Chimeras; stronger ranged units and abundant hunting.' },
+  // E6
+  pan: { name: 'Pan', title: 'God of Shepherds and Panic', desc: 'Panic sends the enemy fleeing; Satyrs; plentiful hunting and farms, faster creatures.' },
+  hecate: { name: 'Hecate', title: 'Goddess of Crossroads and Magic', desc: 'Crossroads carries a group of units elsewhere; Empusae; more sight, Favor and mythic attack.' },
+  persephone: { name: 'Persephone', title: 'Queen of the Underworld and of Spring', desc: 'Spring raises the dead of an area as Shades; Lampads; stronger Shades, farms and regeneration.' },
+  aeolus: { name: 'Aeolus', title: 'Keeper of the Winds', desc: 'Gale pushes and slows enemies and stops ships; Harpies; faster and stronger ships and flyers.' },
+  triton: { name: 'Triton', title: 'Herald of the Sea', desc: 'Tidal Wave crushes troops, ships and the coast; Hippocampi; stronger, cheaper ships and rich fishing.' },
+  demeter: { name: 'Demeter', title: 'Goddess of the Harvest', desc: 'Divine Harvest speeds up all gathering; Dragons of Triptolemus; more food, population and hardier citizens.' },
+  helios: { name: 'Helios', title: 'The Sun', desc: 'Sun Chariot scorches a strip of fire; Phoenixes; stronger fire units, sight and longer-ranged towers.' },
+  nike: { name: 'Nike', title: 'Goddess of Victory', desc: 'Winged Victory gives your whole army +30% attack; Griffins; stronger military and faster cavalry.' },
+  nemesis: { name: 'Nemesis', title: 'Goddess of Retribution', desc: 'Retribution returns half the damage taken; Erinyes; sturdier military and stronger heroes.' },
 };
 
 export const EN_MAJOR_GODS: Record<string, TextOverlay> = {
-  zeus: { name: 'Zeus', title: 'King of the Gods', desc: 'The lord of Olympus favors armies of devout hoplites and legendary heroes.', perks: ['Favor +25%', 'Infantry +10% attack', 'Heroes 20% cheaper', 'Pegasi at the Temple from the Archaic Era', 'Power: Bolt'] },
-  poseidon: { name: 'Poseidon', title: 'God of the Seas and Horses', desc: 'The earth-shaker commands swift cavalry and a trading economy.', perks: ['Cavalry 15% cheaper and 10% faster', 'Resource gathering +8% (the bounty of the seas)', 'Market with lower fees', 'Militia rises when one of your buildings is destroyed', 'Ships 10% cheaper and 10% faster; fishing +15%', 'Power: Lure'] },
-  hades: { name: 'Hades', title: 'Lord of the Underworld', desc: 'The king of the dead raises impregnable walls and an army that returns from Tartarus.', perks: ['Buildings +25% health', 'Archers +10% attack', 'Attrition +0.3/s in your territory', 'Fallen warriors may return as Shades', 'Cerberus at the Temple from the Hellenistic Era', 'Power: Sentinels'] },
+  zeus: { name: 'Zeus', title: 'King of the Gods', desc: 'The lord of Olympus favors armies of devout hoplites and legendary heroes.', perks: ['Favor +25%', 'Infantry +10% attack', 'Heroes 20% cheaper', 'Pegasi at the Temple from the Archaic Era', 'Gunpowder units +10% attack', 'Power: Bolt'] },
+  poseidon: { name: 'Poseidon', title: 'God of the Seas and Horses', desc: 'The earth-shaker commands swift cavalry and a trading economy.', perks: ['Cavalry 15% cheaper and 10% faster', 'Resource gathering +8% (the bounty of the seas)', 'Market with lower fees', 'Militia rises when one of your buildings is destroyed', 'Ships 10% cheaper and 10% faster; fishing +15%', 'Gunpowder units 10% cheaper; Scylla at the Shipyard from the Hellenistic Era and Ceto from the Gunpowder Era', 'Power: Lure'] },
+  hades: { name: 'Hades', title: 'Lord of the Underworld', desc: 'The king of the dead raises impregnable walls and an army that returns from Tartarus.', perks: ['Buildings +25% health', 'Archers +10% attack', 'Attrition +0.3/s in your territory', 'Fallen warriors may return as Shades', 'Cerberus at the Temple from the Hellenistic Era', 'Gunpowder units +10% health', 'Power: Sentinels'] },
 };
 
 export const EN_AGES: Record<string, TextOverlay> = {

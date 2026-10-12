@@ -16,9 +16,10 @@ export interface UnitDef {
   tags: string[]; bonus: Record<string, number>; building: string | null; age: number;
   hotkey?: string; desc: string;
   ability?: string;                                     // habilidade ativa (heróis), ver data/abilities.ts
-  flying?: boolean; immobile?: boolean; unique?: boolean; god?: string; special?: 'heads' | 'petrify';
+  flying?: boolean; immobile?: boolean; unique?: boolean; god?: string; special?: 'heads' | 'petrify' | 'drain' | 'rebirth';
   splash?: number; canGather?: boolean; canBuild?: boolean;
   naval?: boolean;            // E4: navio (camada naval; src/core/map/naval.ts)
+  amphibious?: boolean;       // E6: anda em terra e nada (camada 'amphibious', src/core/map/naval.ts): Ceto, Oceano
   capacity?: number;          // E4: transporte — população que leva a bordo
   line?: string; tier?: number;          // E3: linha de unidade (src/core/data/lines.ts) e degrau = Era do degrau (0–7)
   lineOnly?: boolean;                    // E3: degrau novo — só existe com as linhas ligadas (fora do elenco clássico)
@@ -63,9 +64,10 @@ export interface TechDef {
   id: string; name: string; icon: string; building: string; age: number; cost: Cost; time: number;
   prereq: string[]; effects: Effect[]; desc: string; line?: string; level?: number; god?: string;
   evolve?: { line: string; to: string };   // E3: estudo de evolução da Biblioteca (a Era é `age`); sem `line` de propósito
+  blessing?: boolean;   // E6: Bênção do Templo (só com eraMythOn)
 }
 
-export type PowerTargeting = 'unit' | 'area' | 'building' | 'global' | 'place';
+export type PowerTargeting = 'unit' | 'area' | 'building' | 'global' | 'place' | 'group';
 export interface PowerDef { id: string; name: string; icon: string; targeting: PowerTargeting; radius?: number; desc: string }
 
 export interface MinorGodDef { id: string; name: string; title: string; icon: string; age: number; power: string; mythUnit: string; techs: string[]; desc: string }
@@ -107,6 +109,8 @@ export interface Unit {
   lastDamageTick: number;
   displayName?: LocalText;                             // G8: nome próprio dado pelo cenário (spawn/place name); o HUD o mostra no idioma atual
   hpFloor?: number;                                    // G9: piso de vida (fração de maxHp) enquanto o cenário o mantiver (hpFloor)
+  fearUntil?: number;                                  // E6: Pânico — até este tick a unidade não ataca (canTarget)
+  reborn?: boolean;                                    // E6: a Fênix já renasceu uma vez
 }
 
 export interface QueueItem { kind: 'unit' | 'tech' | 'age' | 'scholar'; id: string; elapsed: number; total: number; paid?: Record<string, number>; uid?: number }  // paid: custo pago ao enfileirar (reembolso exato)
@@ -172,13 +176,15 @@ export interface Player {
   visibility: Uint8Array;                         // 0 inexplorado, 1 explorado, 2 visível
   ai: AIState | null;
   revealUntil: number; bronzeUntil: number;
+  harvestUntil?: number; nikeUntil?: number; nemesisUntil?: number;   // E6: Colheita Divina, Vitória Alada, Retribuição (tick final; ausente = 0)
   wonderVictoryAt: number;
   titanSpawned: boolean;
   wonderHoldStart: number;                 // E7: tick em que o time chegou à meta de pontos de maravilha (-1 = abaixo)
   respawns: { type: string; at: number }[];   // E7: heróis que renascem no Templo (Mausoléu)
 }
 
-export interface TimedEffect { type: string; owner: number; until: number; x?: number; y?: number; data?: number }
+export interface TimedEffect { type: string; owner: number; until: number; x?: number; y?: number; data?: number; mult?: number; dx?: number; dy?: number; count?: number }
+// E6: mult = escala do poder na hora do uso (ausente = 1); dx/dy = direção unitária (Carro do Sol); count = Sombras já erguidas (Primavera)
 
 export interface GameEvent { tick: number; type: string; player: number; text?: string; x?: number; y?: number; data?: string }
 
@@ -202,6 +208,7 @@ export interface GameConfig {
   revealMap?: boolean; startingAge?: number; startingResources?: Partial<Record<ResourceType, number>>;
   naval?: boolean;       // E4: navios em cenário; padrão ligados fora de cenário e desligados em cenário (navalOn)
   wonderVictory?: WonderVictory; wonderPointsToWin?: number; allWonders?: boolean;   // E7 (D14–D16): vitória por maravilha, meta de pontos, regras modernas
+  eraMyth?: boolean;     // E6: escala dos poderes, Bênçãos e Titãs reforçados; padrão ligado fora de cenário
   unitLines?: boolean;   // E3: linhas de unidade; padrão ligadas fora de cenário e desligadas em cenário (elenco clássico)
   mode?: GameMode; mapType?: MapType;
   map?: FixedMapData;                                   // mapa fixo (editor/arquivo); se ausente, gera pelo seed
@@ -260,7 +267,7 @@ export type Command =
   | { type: 'cancel'; player: number; buildingId: number; index: number; itemId?: number }   // itemId = uid do item (preferido)
   | { type: 'rally'; player: number; buildingId: number; x: number; y: number }
   | { type: 'advanceAge'; player: number; buildingId: number; minorGod?: string }
-  | { type: 'power'; player: number; power: string; x?: number; y?: number; targetId?: number }
+  | { type: 'power'; player: number; power: string; x?: number; y?: number; targetId?: number; ids?: number[] }
   | { type: 'trade'; player: number; action: 'buy' | 'sell'; resource: ResourceType }
   | { type: 'delete'; player: number; ids: number[] }
   | { type: 'ungarrison'; player: number; buildingId: number }

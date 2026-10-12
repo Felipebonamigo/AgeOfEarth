@@ -68,6 +68,27 @@ function evolutions(): Record<string, TechInput> {
   return out;
 }
 
+/** E6: tipos que as Bênçãos do Templo fortalecem — criaturas míticas e heróis, nunca os Titãs (docs/eras/E6, D13). */
+export const BLESSED_TYPES: string[] = Object.values(UNITS).filter((u) => (u.tags.includes('myth') || u.tags.includes('hero')) && !u.tags.includes('titan')).map((u) => u.id);
+/** E6: Bênçãos do Olimpo II–VIII (uma por Era, em sequência; Templo). Só valem com eraMythOn (src/core/sim/restrictions.ts). */
+const blessings = (): Record<string, TechInput> => {
+  const out: Record<string, TechInput> = {};
+  const m = { types: BLESSED_TYPES };
+  for (let n = 2; n <= 8; n++) {
+    const k = n - 1;
+    out[`blessing${n}`] = {
+      name: `Bênção do Olimpo ${ROMAN[n - 1]}`, icon: '🕯️', building: 'temple', age: k, blessing: true,
+      cost: { gold: 80 + 60 * k, favor: 20 + 10 * k }, time: 30 + 6 * k, prereq: n > 2 ? [`blessing${n - 1}`] : [],
+      effects: [
+        { type: 'unit', match: m, stat: 'hp', mult: 1.2 }, { type: 'unit', match: m, stat: 'attack', mult: 1.2 },
+        { type: 'unit', match: m, stat: 'armor.hack', add: 0.02 }, { type: 'unit', match: m, stat: 'armor.pierce', add: 0.02 }, { type: 'unit', match: m, stat: 'armor.crush', add: 0.02 },
+      ],
+      desc: 'Criaturas míticas e heróis +20% de vida e de ataque e +0,02 de armadura (os Titãs não recebem).',
+    };
+  }
+  return out;
+};
+
 const RAW: Record<string, TechInput> = {
   // ---------- Linhas da Academia (estilo Biblioteca do Rise of Nations) ----------
   ...line('civic', 'Civismo', LINE_LEVELS, {
@@ -193,8 +214,30 @@ const RAW: Record<string, TechInput> = {
   navigation: { name: 'Navegação Astronômica', icon: '🌊', building: 'shipyard', age: 4, cost: { wood: 250, gold: 200 }, time: 60, prereq: ['bronze_rams'], effects: [{ type: 'unit', match: { tags: ['ship'] }, stat: 'speed', mult: 1.1 }, { type: 'unit', match: { tags: ['ship'] }, stat: 'los', add: 2 }], desc: 'Navios 10% mais rápidos e +2 de visão.' },
   // ---------- Evolução das linhas de unidade (E3) ----------
   ...evolutions(),
+  // ---------- Deuses menores das Eras V–VII (E6) ----------
+  rustic_flute: { name: 'Flauta Silvestre', icon: '🦌', building: 'temple', age: 4, god: 'pan', cost: { food: 400, favor: 45 }, time: 55, effects: [{ type: 'gather', resource: 'hunt', mult: 1.3 }, { type: 'gather', resource: 'farm', mult: 1.15 }], desc: 'Caça +30% e fazendas +15%.' },
+  wild_hooves: { name: 'Cascos Selvagens', icon: '🦌', building: 'temple', age: 4, god: 'pan', cost: { gold: 400, favor: 45 }, time: 55, effects: [{ type: 'unit', match: { tags: ['myth'] }, stat: 'speed', mult: 1.15 }, { type: 'unit', match: { types: ['satyr'] }, stat: 'attack', mult: 1.2 }], desc: 'Criaturas míticas +15% de velocidade e Sátiros +20% de ataque.' },
+  torch_of_hecate: { name: 'Tocha de Hécate', icon: '🌙', building: 'temple', age: 4, god: 'hecate', cost: { gold: 400, favor: 45 }, time: 55, effects: [{ type: 'player', stat: 'los', add: 3 }, { type: 'unit', match: { tags: ['myth'] }, stat: 'attack', mult: 1.1 }], desc: 'Visão +3 para tudo e criaturas míticas +10% de ataque.' },
+  crossroads_rites: { name: 'Ritos da Encruzilhada', icon: '🌙', building: 'temple', age: 4, god: 'hecate', cost: { gold: 450, favor: 50 }, time: 60, effects: [{ type: 'player', stat: 'favorRate', mult: 1.25 }, { type: 'unit', match: { types: ['empusa'] }, stat: 'hp', mult: 1.2 }], desc: 'Favor +25% e Empusas +20% de vida.' },
+  pomegranate: { name: 'Romã do Submundo', icon: '💚', building: 'temple', age: 4, god: 'persephone', cost: { food: 400, favor: 45 }, time: 55, effects: [{ type: 'unit', match: { types: ['shade'] }, stat: 'hp', mult: 2 }, { type: 'unit', match: { types: ['shade'] }, stat: 'attack', mult: 2 }, { type: 'player', stat: 'favorRate', mult: 1.15 }], desc: 'Sombras com o dobro de vida e de ataque; Favor +15%.' },
+  eternal_spring: { name: 'Primavera Eterna', icon: '💚', building: 'temple', age: 4, god: 'persephone', cost: { food: 450, favor: 50 }, time: 60, effects: [{ type: 'gather', resource: 'farm', mult: 1.25 }, { type: 'player', stat: 'regen', add: 0.5 }], desc: 'Fazendas +25% e unidades regeneram 0,5 de vida/s.' },
+  bag_of_winds: { name: 'Odre dos Ventos', icon: '🌬️', building: 'temple', age: 5, god: 'aeolus', cost: { wood: 450, favor: 50 }, time: 60, effects: [{ type: 'unit', match: { tags: ['ship'] }, stat: 'speed', mult: 1.2 }, { type: 'unit', match: { tags: ['flying'] }, stat: 'speed', mult: 1.15 }], desc: 'Navios +20% e voadoras +15% de velocidade.' },
+  storm_lord: { name: 'Senhor das Tempestades', icon: '🌬️', building: 'temple', age: 5, god: 'aeolus', cost: { gold: 450, favor: 50 }, time: 60, effects: [{ type: 'unit', match: { tags: ['flying'] }, stat: 'hp', mult: 1.2 }, { type: 'unit', match: { tags: ['flying'] }, stat: 'attack', mult: 1.2 }], desc: 'Criaturas voadoras +20% de vida e de ataque.' },
+  conch_horn: { name: 'Concha de Tritão', icon: '🔱', building: 'temple', age: 5, god: 'triton', cost: { gold: 450, favor: 50 }, time: 60, effects: [{ type: 'unit', match: { tags: ['ship'] }, stat: 'attack', mult: 1.15 }, { type: 'unit', match: { types: ['hippocampus'] }, stat: 'hp', mult: 1.2 }], desc: 'Navios +15% de ataque e Hipocampos +20% de vida.' },
+  tidal_lore: { name: 'Saber das Marés', icon: '🔱', building: 'temple', age: 5, god: 'triton', cost: { wood: 450, favor: 50 }, time: 60, effects: [{ type: 'gather', resource: 'fish', mult: 1.25 }, { type: 'cost', match: { tags: ['ship'] }, mult: 0.9 }], desc: 'Pesca +25% e navios 10% mais baratos.' },
+  golden_harvest: { name: 'Colheita Dourada', icon: '🌾', building: 'temple', age: 5, god: 'demeter', cost: { food: 450, favor: 50 }, time: 60, effects: [{ type: 'gather', resource: 'food', mult: 1.15 }, { type: 'gather', resource: 'farm', mult: 1.2 }], desc: 'Comida +15% e fazendas +20%.' },
+  eleusinian_mysteries: { name: 'Mistérios de Elêusis', icon: '🌾', building: 'temple', age: 5, god: 'demeter', cost: { gold: 450, favor: 50 }, time: 60, effects: [{ type: 'player', stat: 'popCap', add: 20 }, { type: 'unit', match: { types: ['villager'] }, stat: 'hp', mult: 1.2 }], desc: 'População +20 e cidadãos +20% de vida.' },
+  solar_fire: { name: 'Fogo Solar', icon: '☀️', building: 'temple', age: 6, god: 'helios', cost: { gold: 500, favor: 55 }, time: 65, effects: [{ type: 'unit', match: { tags: ['fire'] }, stat: 'attack', mult: 1.2 }, { type: 'unit', match: { types: ['phoenix'] }, stat: 'hp', mult: 1.2 }], desc: 'Unidades de fogo +20% de ataque e Fênix +20% de vida.' },
+  all_seeing_sun: { name: 'Sol que Tudo Vê', icon: '☀️', building: 'temple', age: 6, god: 'helios', cost: { gold: 500, favor: 55 }, time: 65, effects: [{ type: 'player', stat: 'los', add: 3 }, { type: 'building', match: { types: ['tower', 'fortress'] }, stat: 'range', add: 1 }], desc: 'Visão +3; torres e fortalezas +1 de alcance.' },
+  laurels_of_victory: { name: 'Louros da Vitória', icon: '👑', building: 'temple', age: 6, god: 'nike', cost: { food: 500, favor: 55 }, time: 65, effects: [{ type: 'unit', match: { tags: ['military'] }, stat: 'attack', mult: 1.1 }], desc: 'Militares +10% de ataque.' },
+  golden_wings: { name: 'Asas Douradas', icon: '👑', building: 'temple', age: 6, god: 'nike', cost: { gold: 500, favor: 55 }, time: 65, effects: [{ type: 'unit', match: { types: ['griffin'] }, stat: 'hp', mult: 1.2 }, { type: 'unit', match: { tags: ['cavalry'] }, stat: 'speed', mult: 1.1 }], desc: 'Grifos +20% de vida e cavalaria +10% de velocidade.' },
+  balance_of_fate: { name: 'Balança do Destino', icon: '🗡️', building: 'temple', age: 6, god: 'nemesis', cost: { gold: 500, favor: 55 }, time: 65, effects: [{ type: 'unit', match: { tags: ['military'] }, stat: 'hp', mult: 1.1 }], desc: 'Militares +10% de vida.' },
+  wrath_of_nemesis: { name: 'Ira de Nêmesis', icon: '🗡️', building: 'temple', age: 6, god: 'nemesis', cost: { gold: 500, favor: 55 }, time: 65, effects: [{ type: 'unit', match: { types: ['erinys'] }, stat: 'attack', mult: 1.25 }, { type: 'unit', match: { tags: ['hero'] }, stat: 'attack', mult: 1.15 }], desc: 'Erínias +25% de ataque e heróis +15% de ataque.' },
+  ...blessings(),
 };
 export const TECHS: Record<string, TechDef> = {};
 for (const [id, t] of Object.entries(RAW)) TECHS[id] = { ...t, id, prereq: t.prereq ?? [] };
+/** E6: ids das Bênçãos do Templo. */
+export const BLESSING_IDS: string[] = Object.keys(TECHS).filter((id) => TECHS[id].blessing);
 
 export const ACADEMY_LINES: string[] = ['civic', 'commerce', 'military', 'science'];
