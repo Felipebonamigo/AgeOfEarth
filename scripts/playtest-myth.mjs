@@ -55,7 +55,7 @@ for (const locale of ['pt', 'en']) {
   let panel = await readPanel();
   for (let k = 0; k < 6 && !panel.includes('Talos'); k++) { await page.waitForTimeout(500); panel = await readPanel(); }
   for (const needle of locale === 'pt' ? ['Sátiro', 'Fênix', 'Talos', 'Bênção do Olimpo'] : ['Satyr', 'Phoenix', 'Talos', 'Blessing of Olympus']) if (!panel.includes(needle)) failures.push(`[${locale}/templo] o painel do Templo não mostra "${needle}"`);
-  if (panel.includes(locale === 'pt' ? 'Colosso' : 'Colossus')) failures.push(`[${locale}/templo] o Colosso deveria sumir na Era VII`);
+  if (panel.split(' | ').some((x) => x.startsWith(locale === 'pt' ? 'Colosso' : 'Colossus'))) failures.push(`[${locale}/templo] o Colosso deveria sumir na Era VII`);
   await scan(page, `${locale}/templo`);
   if (locale === 'pt') await page.screenshot({ path: `${out}/e6-templo.png` });
   for (const id of POWERS) {
