@@ -13,6 +13,9 @@ export const UNIT_ART_ALIAS: Readonly<Record<string, string>> = {
   cataphract: 'hetairoi', cuirassier: 'hetairoi', dragoon: 'hetairoi', lancer: 'hetairoi', tank: 'helepolis', athanatos: 'myrmidon',
   knight_of_rhodes: 'myrmidon', guard_grenadier: 'myrmidon', evzone: 'myrmidon', sacred_band: 'myrmidon', trebuchet: 'petrobolos', bombard: 'petrobolos',
   field_gun: 'petrobolos', howitzer: 'petrobolos', self_propelled_gun: 'petrobolos', covered_ram: 'helepolis', greek_fire_siphon: 'petrobolos',
+  // E6: criaturas das Eras V–VII e as navais de Poseidon (arte própria na E8)
+  satyr: 'peltast', empusa: 'shade', lampad: 'medusa', harpy: 'pegasus', hippocampus: 'centaur', triptolemus_dragon: 'manticore',
+  phoenix: 'chimera', griffin: 'nemean_lion', erinys: 'cerberus', scylla: 'hydra', ceto: 'cyclops', talos: 'colossus',
 };
 export const BUILDING_ART_ALIAS: Readonly<Record<string, string>> = { quarry: 'mine', naphtha_well: 'granary', oil_well: 'lumber_camp', refinery: 'market', shipyard: 'siege_workshop',
   // E7: as 17 maravilhas novas usam a arte das 3 de hoje (mesma pegada 4×4) até a E8

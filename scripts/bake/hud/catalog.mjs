@@ -48,6 +48,12 @@ export const TECH_ICONS = {
   fishing_nets: O('fish'), caulking: O('hydria'), bronze_rams: O('ship', { kind: 'galley', ram: true }),
   navigation: O('armillary'), evo_fishing: O('ship', { kind: 'fishing', steam: true }),
   evo_transport: O('ship', { kind: 'transport', steam: true }), evo_warship: O('ship', { kind: 'sail' }),
+  // E6: pesquisas dos deuses das Eras V–VII e as Bênçãos do Templo (blessing2…8 usam o ícone `blessing`)
+  rustic_flute: O('salpinx'), wild_hooves: O('antlers'), torch_of_hecate: O('tripod', { glow: true }), crossroads_rites: O('altar'),
+  pomegranate: O('ambrosia'), eternal_spring: O('olive_branch'), bag_of_winds: O('satchel'), storm_lord: O('storm_cloud'),
+  conch_horn: O('salpinx'), tidal_lore: O('trident'), golden_harvest: O('sheaf'), eleusinian_mysteries: O('hydria'),
+  solar_fire: O('chalice'), all_seeing_sun: O('eye'), laurels_of_victory: O('crown'), golden_wings: O('sandal'),
+  balance_of_fate: O('scales'), wrath_of_nemesis: O('divine_sword'), blessing: O('altar', { }, { margin: 0.05 }),
 };
 /** E4: ícones dos navios (unit/<id>): o objeto `ship` de hud-objects.js com a flâmula do time, até a E8 trazer os rigs. */
 const S = (params) => ({ ...O('ship', params), team: true });
@@ -60,7 +66,7 @@ export const SHIP_ICONS = {
 /** Tecnologia → chave do ícone (as de nível usam o ramo). */
 export function techIconKey(id) {
   if (id.startsWith('evo_')) return id.slice(0, id.lastIndexOf('_'));   // E3: evo_heavy_infantry_3 → evo_heavy_infantry
-  const m = /^(civic|commerce|military|science|harvest)\d$/.exec(id);
+  const m = /^(civic|commerce|military|science|harvest|blessing)\d$/.exec(id);
   return m ? m[1] : id;
 }
 
@@ -68,8 +74,11 @@ export const POWER_ICONS = {
   bolt: O('bolt'), lure: O('lure_stone'), sentinel: { kind: 'unit', unit: 'sentinel', frame: { margin: 0.04 } }, restoration: O('chalice'),
   ceasefire: O('olive_branch'), pestilence: O('skull_miasma'), oracle: O('eye'), bronze: O('bronze_shield'), curse: O('boar'),
   lightning_storm: O('storm_cloud'), plenty: O('cornucopia'), earthquake: O('quake'),
+  // E6: poderes dos deuses das Eras V–VII (provisórios com objetos que já existem; a E8 desenha os próprios)
+  panic: O('salpinx'), crossroads: O('compass'), spring: O('kylix'), gale: O('storm_cloud'), tidal_wave: O('trident'),
+  divine_harvest: O('sheaf'), sun_chariot: O('wheel'), winged_victory: O('crown'), retribution: O('scales'),
 };
-export const GODS = ['zeus', 'poseidon', 'hades', 'athena', 'hermes', 'ares', 'apollo', 'dionysus', 'aphrodite', 'hera', 'hephaestus', 'artemis'];
+export const GODS = ['zeus', 'poseidon', 'hades', 'athena', 'hermes', 'ares', 'apollo', 'dionysus', 'aphrodite', 'hera', 'hephaestus', 'artemis', 'pan', 'hecate', 'persephone', 'aeolus', 'triton', 'demeter', 'helios', 'nike', 'nemesis'];
 // uma por Era (docs/ERAS.md §1); 4–6 são provisórias até o U3 do Unreal (o 4 é o elmo do 2 em bronze escuro, o 6 repete a bigorna da forja divina)
 export const AGE_ICONS = [O('amphora'), O('column', { order: 'doric' }), O('helm', { crest: 'red' }), O('trident'),
   O('helm', { metal: 'dark', crest: 'dark' }), O('column', { order: 'corinthian' }), O('anvil'), O('volcano')];

@@ -14,6 +14,15 @@
 //   hera       pólos alto de ouro com véu, peplos púrpura real, o cetro com a flor de lótus e penas de pavão
 //   hephaestus barba e cabelo revoltos, pílos de feltro, avental de couro, o martelo no ombro, fagulhas
 //   artemis    cabelo preso castanho, diadema com o crescente de prata, quíton verde-oliva, arco e aljava
+//   pan        cabelo e barba selvagens, coroa de hera e chifres de bode curvos (E6, provisório até a E8)
+//   hecate     cabelo longo negro, tiara com a lua cheia e duas tochas atrás dos ombros
+//   persephone cabelo ruivo escuro, coroa de flores com romãs, uma romã no cabelo
+//   aeolus     barba e cabelo cinzentos, redemoinhos de vento em volta da cabeça
+//   triton     cabelo verde-azulado, diadema de pérolas, a concha ao ombro
+//   demeter    cabelo dourado, coroa de espigas e um feixe de trigo atrás do ombro
+//   helios     cachos dourados, coroa radiada de raios de sol
+//   nike       cabelo castanho, louros de ouro e asas abertas atrás dos ombros
+//   nemesis    cabelo escuro, diadema de ferro e a balança atrás do ombro
 
 import { buildHuman } from './rigs/human.js';
 import { dressBody, addHair } from './rigs/anatomy.js';
@@ -264,6 +273,80 @@ const GODS = {
     bow.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(bpts), 40, 0.012, 6), g.silver));
     return r;
   },
+// ---- E6: deuses das Eras V–VII (provisórios até a E8) ----
+pan(THREE, M, g) {
+  const r = base(THREE, M, g, { hair: 'wild', beard: 'full', hairColor: 0x4a3420, iris: g.iris, drape: 0x6b5a2a, drapeWidth: 0.16, drapeTilt: -0.7, tone: 'ruddy', seed: 30 });
+  wreath(THREE, r.J.head, g.ivy, { r: 0.13, n: 16 });
+  for (const s of [-1, 1]) {   // chifres de bode curvos saindo da testa
+    const pts = [];
+    for (let i = 0; i <= 12; i++) { const k = i / 12; pts.push(new THREE.Vector3(s * (0.05 + 0.07 * k), 0.2 + 0.1 * Math.sin(k * 2.2), -0.03 + 0.09 * k)); }
+    r.J.head.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, 0.014, 6), g.spot));
+  }
+  return r;
+},
+hecate(THREE, M, g) {
+  const r = base(THREE, M, g, { female: true, hair: 'long', hairColor: 0x1c1418, iris: g.irisGrey, dress: 0x2e2440, collar: g.silver, seed: 32 });
+  const d = new THREE.Group(); d.position.set(0, 0.18, 0.004); d.rotation.x = 0.2; r.J.head.add(d);
+  { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.122, 0.006, 6, 40), g.silver); ring.rotation.x = Math.PI / 2; d.add(ring); }
+  d.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.03, 14, 10), g.silver), 0, 0.05, -0.12));   // a lua cheia na tiara
+  for (const s of [-1, 1]) {   // duas tochas acesas atrás dos ombros
+    const tg = new THREE.Group(); tg.position.set(s * 0.3, 0, 0.12); r.human.group.add(tg);
+    tg.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.02, 1.9, 8), M.wood), 0, 0.95, 0));
+    const f = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), g.fire); f.scale.set(1, 1.6, 1); f.position.set(0, 1.98, 0); f.userData.noShadow = true; tg.add(f);
+    const c = new THREE.Mesh(new THREE.SphereGeometry(0.028, 10, 8), g.fireCore); c.position.set(0, 1.96, -0.01); c.userData.noShadow = true; tg.add(c);
+  }
+  return r;
+},
+persephone(THREE, M, g) {
+  const r = base(THREE, M, g, { female: true, hair: 'long', hairColor: 0x6a2a1c, iris: g.iris, dress: 0x7a3a5a, collar: g.gold, seed: 34 });
+  wreath(THREE, r.J.head, g.leaf, { r: 0.126, n: 20, berry: g.rose, berryEvery: 4 });   // coroa de flores com romãs
+  r.J.head.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.035, 14, 12), g.rose), 0.11, 0.15, -0.03));
+  return r;
+},
+aeolus(THREE, M, g) {
+  const r = base(THREE, M, g, { hair: 'wild', beard: 'full', hairColor: 0x9aa0a6, iris: g.irisBlue, drape: 0x8aa6c0, drapeWidth: 0.2, drapeTilt: 0.8, seed: 36 });
+  for (let k = 0; k < 3; k++) {   // redemoinhos de vento em volta da cabeça
+    const w = new THREE.Mesh(new THREE.TorusGeometry(0.17 + k * 0.05, 0.006, 6, 48, Math.PI * 1.3), g.glowWhite);
+    w.position.set(0, 0.14 + k * 0.03, 0.02); w.rotation.set(Math.PI / 2 - 0.2, 0, k * 1.7); w.userData.noShadow = true; r.J.head.add(w);
+  }
+  return r;
+},
+triton(THREE, M, g) {
+  const r = base(THREE, M, g, { hair: 'wild', hairColor: 0x2f5a52, iris: g.irisBlue, drape: 0x1f6f78, drapeWidth: 0.18, seed: 38 });
+  const band = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.007, 6, 40), g.pearl); band.position.set(0, 0.165, 0.005); band.rotation.x = Math.PI / 2 + 0.15; r.J.head.add(band);
+  const c = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.26, 12), g.pearl); c.position.set(0.26, 1.62, -0.05); c.rotation.set(0, 0, -1.1); r.human.group.add(c);   // a concha
+  return r;
+},
+demeter(THREE, M, g) {
+  const r = base(THREE, M, g, { female: true, hair: 'long', hairColor: 0xb0843a, iris: g.iris, dress: 0x9a7a36, collar: g.gold, seed: 40 });
+  wreath(THREE, r.J.head, g.leafGold, { r: 0.126, n: 24 });   // coroa de espigas
+  for (let i = 0; i < 7; i++) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.5, 4), g.leafGold); s.position.set(0.26 + (i - 3) * 0.012, 1.55, -0.06); s.rotation.z = (i - 3) * 0.06; r.human.group.add(s); }
+  return r;
+},
+helios(THREE, M, g) {
+  const r = base(THREE, M, g, { hair: 'curls', hairColor: 0xd8a640, iris: g.irisBlue, drape: 0xc8662a, drapeWidth: 0.18, seed: 42 });
+  const c = new THREE.Group(); c.position.set(0, 0.18, 0.004); c.rotation.x = 0.12; r.J.head.add(c);   // coroa radiada
+  for (let k = 0; k < 13; k++) { const a = -1.3 + (k / 12) * 2.6; const ray = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.13, 5), g.glowGold); ray.position.set(Math.sin(a) * 0.12, 0.06, -Math.cos(a) * 0.12); ray.rotation.set(-Math.cos(a) * 0.3, 0, Math.sin(a) * 0.3); ray.userData.noShadow = true; c.add(ray); }
+  return r;
+},
+nike(THREE, M, g) {
+  const r = base(THREE, M, g, { female: true, hair: 'long', hairColor: 0x5a3b22, iris: g.iris, dress: 0xe9e2d0, collar: g.gold, seed: 44 });
+  wreath(THREE, r.J.head, g.leafGold, { r: 0.124 });
+  for (const s of [-1, 1]) for (let i = 0; i < 6; i++) {   // asas abertas atrás dos ombros
+    const f = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.42 - i * 0.04, 0.012), M.feather);
+    f.position.set(s * (0.2 + i * 0.05), 1.55 + i * 0.04, 0.16); f.rotation.z = s * (0.5 + i * 0.12); r.human.group.add(f);
+  }
+  return r;
+},
+nemesis(THREE, M, g) {
+  const r = base(THREE, M, g, { female: true, hair: 'long', hairColor: 0x2a1c18, iris: g.irisGrey, dress: 0x3a3a46, collar: g.darkMetal, seed: 46 });
+  const d = new THREE.Mesh(new THREE.TorusGeometry(0.122, 0.008, 6, 40), g.darkMetal); d.position.set(0, 0.18, 0.004); d.rotation.x = Math.PI / 2 + 0.2; r.J.head.add(d);
+  const bal = new THREE.Group(); bal.position.set(-0.3, 1.5, 0.1); r.human.group.add(bal);   // a balança atrás do ombro
+  bal.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.5, 6), g.gold), 0, 0.25, 0));
+  bal.add(at(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.012, 0.012), g.gold), 0, 0.5, 0));
+  for (const s of [-1, 1]) bal.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.03, 0.02, 12), g.gold), s * 0.16, 0.38, 0));
+  return r;
+},
 };
 
 /** Constrói o busto do deus `key`, já em tiles e girado em três quartos para a câmera. */

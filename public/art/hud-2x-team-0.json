@@ -21,7 +21,7 @@
   "bld/wonder_artemis": {"frame":{"x":697,"y":374,"w":104,"h":119},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":12,"y":5,"w":104,"h":119},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
   "bld/wonder_colossus": {"frame":{"x":505,"y":374,"w":84,"h":120},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":22,"y":4,"w":84,"h":120},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
   "bld/wonder_zeus": {"frame":{"x":593,"y":374,"w":100,"h":120},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":14,"y":4,"w":100,"h":120},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
-  "power/sentinel": {"frame":{"x":1,"y":927,"w":66,"h":120},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":31,"y":4,"w":66,"h":120},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
+  "power/sentinel": {"frame":{"x":1,"y":1016,"w":66,"h":120},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":31,"y":4,"w":66,"h":120},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
   "tech/automatons": {"frame":{"x":519,"y":499,"w":113,"h":123},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":0,"y":5,"w":113,"h":123},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
   "tech/barding": {"frame":{"x":1881,"y":374,"w":124,"h":120},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":4,"y":5,"w":124,"h":120},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
   "tech/evo_artillery": {"frame":{"x":1673,"y":374,"w":114,"h":121},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":7,"y":3,"w":114,"h":121},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
@@ -33,7 +33,7 @@
   "tech/evo_ranged": {"frame":{"x":153,"y":499,"w":64,"h":125},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":32,"y":3,"w":64,"h":125},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
   "tech/evo_scout": {"frame":{"x":764,"y":499,"w":88,"h":120},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":20,"y":4,"w":88,"h":120},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
   "tech/evo_skirmisher": {"frame":{"x":1,"y":499,"w":82,"h":128},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":23,"y":0,"w":82,"h":128},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
-  "tech/hunting_dogs": {"frame":{"x":856,"y":499,"w":116,"h":118},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":6,"y":5,"w":116,"h":118},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
+  "tech/hunting_dogs": {"frame":{"x":980,"y":499,"w":116,"h":118},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":6,"y":5,"w":116,"h":118},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
   "unit/achilles": {"frame":{"x":427,"y":1,"w":103,"h":125},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":0,"y":3,"w":103,"h":125},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
   "unit/basileus": {"frame":{"x":1,"y":1,"w":104,"h":128},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":0,"y":0,"w":104,"h":128},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
   "unit/battleship": {"frame":{"x":597,"y":260,"w":114,"h":78},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":7,"y":25,"w":114,"h":78},"sourceSize":{"w":128,"h":128},"anchor":{"x":0.5,"y":0.5}},
@@ -84,5 +84,5 @@
  "animations": {
 
  },
- "meta": {"app":"age-of-earth/scripts/bake","version":"1","image":"hud-2x-team-0.png","format":"RGBA8888","size":{"w":2048,"h":1696},"scale":"2","aoe":{"version":1,"pass":"team","pxPerTile":64,"pitchDeg":50,"verticalFactor":0.8391,"sun":[-0.55,1,-0.35],"shadowDir":"SE","dirs":8,"dirNames":["E","SE","S","SW","W","NW","N","NE"],"fps":10,"pad":2,"extrude":1,"mirror":false}}
+ "meta": {"app":"age-of-earth/scripts/bake","version":"1","image":"hud-2x-team-0.png","format":"RGBA8888","size":{"w":2048,"h":1984},"scale":"2","aoe":{"version":1,"pass":"team","pxPerTile":64,"pitchDeg":50,"verticalFactor":0.8391,"sun":[-0.55,1,-0.35],"shadowDir":"SE","dirs":8,"dirNames":["E","SE","S","SW","W","NW","N","NE"],"fps":10,"pad":2,"extrude":1,"mirror":false}}
 }

@@ -11,6 +11,8 @@ import type { Audio } from '../audio/audio';
 import { isMilitary, isEnemy, canWorkNode } from '../core/sim/queries';
 import { isPassable } from '../core/map/grid';
 import { trainChoices } from '../core/sim/lines';
+import { powerRadius } from '../core/sim/divine';
+import { pickTrainHotkey } from './train-hotkey';
 import { t, getLocale } from '../i18n';
 import { toggleFullscreen } from '../game/display';
 import type { MapEditor } from '../editor/editor';
@@ -302,6 +304,11 @@ export class Input {
     const target = this.renderer.pick(s.state, x, y, s.local);
     if (def.targeting === 'unit') { if (!target || target.kind !== 'unit' || !isEnemy(s.state, s.local, target.owner)) { this.hud.toast(t('msg.chooseEnemyUnit'), 'warn'); return; } s.issue({ type: 'power', player: s.local, power: id, targetId: target.id }); }
     else if (def.targeting === 'building') { if (!target || target.kind !== 'building' || target.owner !== s.local) { this.hud.toast(t('msg.chooseOwnBuilding'), 'warn'); return; } s.issue({ type: 'power', player: s.local, power: id, targetId: target.id }); }
+    else if (def.targeting === 'group') {   // E6: Encruzilhada — o grupo é a seleção
+      const ids = s.ownSelectedUnits().map((u) => u.id);
+      if (ids.length === 0) { this.hud.toast(t('msg.selectGroup'), 'warn'); return; }
+      this.hud.issueChecked({ type: 'power', player: s.local, power: id, x, y, ids });
+    }
     else s.issue({ type: 'power', player: s.local, power: id, x, y });
     this.audio.play('power');
     this.hud.cancelMode();
@@ -372,7 +379,9 @@ export class Input {
       if (keyU === 'U' && (BUILDINGS[b.type].garrison || BUILDINGS[b.type].worship)) { s.issue({ type: 'ungarrison', player: s.local, buildingId: b.id }); return; }
       if (def.scholars && keyU === 'Q') { this.hud.issueChecked({ type: 'hireScholar', player: s.local, buildingId: b.id }); return; }
       if (def.library && keyU === 'E') { this.hud.tryAdvanceAge(b); return; }
-      for (const ch of trainChoices(s.state, s.state.players[s.local], b.type)) if (ch.hotkey === keyU) { this.hud.issueChecked({ type: 'train', player: s.local, buildingId: b.id, unit: ch.send }); return; }
+      const cands = trainChoices(s.state, s.state.players[s.local], b.type).filter((c) => c.hotkey === keyU).map((c) => c.send);
+      const pick = pickTrainHotkey(s.player, cands);   // E6: várias criaturas na mesma tecla
+      if (pick) { this.hud.issueChecked({ type: 'train', player: s.local, buildingId: b.id, unit: pick }); return; }
     }
   }
 
@@ -502,7 +511,7 @@ export class Input {
     let dragRect: RenderUI['dragRect'] = null;
     if (this.mouse.down && this.mouse.dragging && this.mouse.button === 0) dragRect = { x0: this.mouse.downX, y0: this.mouse.downY, x1: this.mouse.x, y1: this.mouse.y };
     const power = s.ui.mode === 'power' && s.ui.powerId ? POWERS[s.ui.powerId] : null;
-    return { localPlayer: s.local, selection: s.selection, hoverId: this.hoverId, placement, dragRect, showRanges: s.ui.showRanges, editor: s.ui.editor ?? null, powerTarget: power && power.radius ? { radius: power.radius } : null, mouseWorld: w };
+    return { localPlayer: s.local, selection: s.selection, hoverId: this.hoverId, placement, dragRect, showRanges: s.ui.showRanges, editor: s.ui.editor ?? null, powerTarget: power && power.radius ? { radius: powerRadius(s.state, s.player, s.ui.powerId!) ?? power.radius } : null, mouseWorld: w };
   }
 
   get tileSize() { return TILE; }

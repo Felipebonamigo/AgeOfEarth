@@ -21,15 +21,16 @@ import { curse, curseWatcher } from './handlers/curse';
 import { bronze, bronzeWatcher } from './handlers/bronze';
 import { titanRise } from './handlers/titan';
 import { evolve } from './handlers/evolve';
+import { divine, galeTimed, springTimed, sunChariotTimed } from './handlers/divine';
 import { ceasefireWatcher, oracleWatcher } from './handlers/global';
 
 export const FX_HANDLERS: Record<EffectType, FxHandler<any>> = {
   projectile, hit, spawn, death, petrify, collapse, nodeGone, splash,
-  heal, ability, curse, pestilence, quake, titanRise, bolt, bronze, evolve,
+  heal, ability, curse, pestilence, quake, titanRise, bolt, bronze, evolve, divine,
 };
 
 export const TIMED_HANDLERS: Record<TimedType, TimedHandler<any>> = {
-  lightning_storm: lightningStorm, earthquake,
+  lightning_storm: lightningStorm, earthquake, spring: springTimed, gale: galeTimed, sun_chariot: sunChariotTimed,
 };
 
 /** Observadores de estado (poderes sem efeito próprio, a duração de um poder, o lançamento de um poder de área); um por
@@ -53,6 +54,10 @@ export const POWER_ART: Record<string, string> = {
   lightning_storm: 'timed:lightning_storm+effect:bolt',
   plenty: 'effect:spawn',
   earthquake: 'effect:quake+timed:earthquake',
+  // E6 (provisório até a E8: src/render/fx/handlers/divine.ts)
+  panic: 'effect:divine', crossroads: 'effect:divine', spring: 'effect:divine+timed:spring', gale: 'effect:divine+timed:gale',
+  tidal_wave: 'effect:divine', divine_harvest: 'effect:divine', sun_chariot: 'effect:divine+timed:sun_chariot',
+  winged_victory: 'effect:divine', retribution: 'effect:divine',
 };
 
 /** Handler de um tipo (undefined = tipo desconhecido: o FxSystem avisa uma vez e conta). */

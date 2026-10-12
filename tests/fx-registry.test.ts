@@ -90,7 +90,7 @@ function fakeHost(): FxHost {
 }
 
 describe('FxSystem em Node (sem DOM: atlas de reserva vazio → textura branca)', () => {
-  it('cada um dos 17 tipos: create → update → destroy sem erro, partículas dentro do orçamento, decalques nascem', () => {
+  it('cada um dos 18 tipos: create → update → destroy sem erro, partículas dentro do orçamento, decalques nascem', () => {
     const st = quickGame();
     st.config.revealMap = true;
     const fx = new FxSystem(() => null);
@@ -107,8 +107,10 @@ describe('FxSystem em Node (sem DOM: atlas de reserva vazio → textura branca)'
       mk('curse'), mk('pestilence', { data: 10, ttl: 60, total: 60 }), mk('quake', { data: 7, ttl: 100, total: 100 }), mk('titanRise', { ttl: 60, total: 60 }),
       mk('bolt', { ttl: 24, total: 24 }), mk('bronze', { owner: 0, ttl: 10, total: 10 }),
       mk('evolve', { owner: 0, src: 'hypaspist' }),
+      mk('divine', { data: 6, src: 'panic', owner: 0, ttl: 30, total: 30 }),
     );
-    st.timed.push({ type: 'lightning_storm', owner: 0, until: st.tick + 160, x: cx, y: cy, data: 6 }, { type: 'earthquake', owner: 0, until: st.tick + 100, x: cx, y: cy, data: 7 });
+    st.timed.push({ type: 'lightning_storm', owner: 0, until: st.tick + 160, x: cx, y: cy, data: 6 }, { type: 'earthquake', owner: 0, until: st.tick + 100, x: cx, y: cy, data: 7 },
+      { type: 'spring', owner: 0, until: st.tick + 200, x: cx, y: cy, data: 6 }, { type: 'gale', owner: 0, until: st.tick + 200, x: cx, y: cy, data: 8 }, { type: 'sun_chariot', owner: 0, until: st.tick + 120, x: cx, y: cy, data: 8, dx: 1, dy: 0, mult: 1 });
     st.ceasefireUntil = st.tick + 600;
     const view = { x0: 0, y0: 0, x1: st.map.w, y1: st.map.h };
     let shake = 0;

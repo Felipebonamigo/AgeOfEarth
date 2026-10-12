@@ -9,9 +9,11 @@ import type { Building, GameEvent, Unit } from '../core/types';
 import { getUnitStats, getBuildingStats, techCost, unitRank } from '../core/sim/modifiers';
 import { powerReady } from '../core/sim/powers';
 import { wonderListed, wonderVictoryMode, wonderPointsTarget, teamWonderPoints, wonderPoints } from '../core/sim/wonders';
-import { buildingAgeOf } from '../core/sim/restrictions';
+import { buildingAgeOf, eraMythOn } from '../core/sim/restrictions';
+import { powerScale } from '../core/sim/divine';
+import { mythUpgradeOf } from '../core/sim/myth';
 import { studySlotsOf } from '../core/sim/buildings';
-import { canTrain, canResearch, canAdvanceAge, canHireScholar, academyTechCount } from '../core/sim/commands';
+import { godAllows, canTrain, canResearch, canAdvanceAge, canHireScholar, academyTechCount } from '../core/sim/commands';
 import { studyTreeModel, studyTreeHtml, studyTreeKey, studyNodeDetail, pickLibrary, librariesOf, type StudyNode } from './studytree';
 import { canPlaceBuilding, buildingLimitOk } from '../core/sim/entities';
 import { trainChoices, trainTypeOf, unitLinesOn } from '../core/sim/lines';
@@ -363,7 +365,7 @@ export class HUD {
     const p = s.player;
     // G11: o roteiro tirou (ou gastou) o poder que estava sendo mirado: sai do modo de mira
     if (s.ui.mode === 'power' && s.ui.powerId && !p.powers.some((x) => x.id === s.ui.powerId && powerReady(x))) { this.cancelMode(); return; }
-    const key = p.powers.map((x) => `${x.id}${powerReady(x) ? 0 : 1}${x.charges ?? 0}`).join(',') + s.ui.powerId + '|' + p.god + p.minorGods.join(',') + '|' + iconsGeneration();
+    const key = p.powers.map((x) => `${x.id}${powerReady(x) ? 0 : 1}${x.charges ?? 0}`).join(',') + s.ui.powerId + '|' + p.god + p.minorGods.join(',') + '|' + iconsGeneration() + '|' + p.age;
     if (this.godsPanel.dataset.key === key) return;
     this.godsPanel.dataset.key = key;
     this.godsPanel.innerHTML = '';
@@ -374,7 +376,8 @@ export class HUD {
     for (const ps of p.powers) {
       const def = POWERS[ps.id];
       const e = el('div', `pw ${powerReady(ps) ? '' : 'used'} ${s.ui.powerId === ps.id ? 'active' : ''}`, `<span class="ic">${ic.power(ps.id)}</span><span>${def.name}<br><small style="color:#9aa5b8">${(!powerReady(ps) ? t('power.used') : def.targeting === 'global' ? t('power.clickInvoke') : t('power.clickTarget'))}${(ps.charges ?? 0) > 0 ? ` · ${t('power.charges', { n: ps.charges ?? 0 })}` : ''}</small></span>`);
-      e.dataset.tip = `<b>${def.name}</b><div class="desc">${def.desc}</div>`;
+      const sc = powerScale(s.state, p, ps.id);   // E6: força da Era
+      e.dataset.tip = `<b>${def.name}</b><div class="desc">${def.desc}</div>${sc > 1.001 ? `<div class="desc">${t('power.scale', { pct: Math.round((sc - 1) * 100) })}</div>` : ''}`;
       if (powerReady(ps)) e.addEventListener('click', () => this.activatePower(ps.id));
       this.godsPanel.appendChild(e);
     }
@@ -385,7 +388,7 @@ export class HUD {
     if (def.targeting === 'global') { s.issue({ type: 'power', player: s.local, power: id }); this.audio.play('power'); return; }
     s.ui.mode = 'power'; s.ui.powerId = id; s.ui.placeType = null;
     document.body.className = 'cur-power';
-    this.toast(t('msg.powerHint', { power: def.name, target: t(def.targeting === 'unit' ? 'msg.powerTarget.unit' : def.targeting === 'building' ? 'msg.powerTarget.building' : 'msg.powerTarget.place') }), 'gold');
+    this.toast(t('msg.powerHint', { power: def.name, target: t(def.targeting === 'unit' ? 'msg.powerTarget.unit' : def.targeting === 'building' ? 'msg.powerTarget.building' : def.targeting === 'group' ? 'msg.powerTarget.group' : 'msg.powerTarget.place') }), 'gold');
     this.refreshGods();
   }
 
@@ -571,8 +574,9 @@ export class HUD {
       }
       for (const ch of trainChoices(s.state, p, b.type)) {   // E3: com as linhas, um botão por linha (o degrau atual); sem elas, o trains de sempre
         const ut = ch.show; const ud = UNITS[ut];
+        if (mythUpgradeOf(ch.show, p.age) !== ch.show) continue;   // E6: o Colosso some na Era VII (sai o Talos)
         if (ch.era > p.age + 1) continue;
-        if (ud.god) { const major = MAJOR_GODS[p.god]; const ok = major.mythUnit === ut || p.minorGods.some((g) => MINOR_GODS[g].mythUnit === ut) || ud.god === p.god; if (!ok) continue; }
+        if (ud.god && !godAllows(p, ut)) continue;   // E6: mesma regra do canTrain (o Talos é de Hefesto, não é mythUnit de ninguém)
         const st = getUnitStats(s.state, p, ut);
         const c = canTrain(s.state, p, b, ch.send);
         const lineTip = ch.line ? `<div class="desc">${t('cmd.lineTip', { line: ch.line.name })}</div>` : '';
@@ -586,6 +590,7 @@ export class HUD {
       for (const tech of Object.values(TECHS)) {
         if (tech.building !== b.type || p.techs.includes(tech.id)) continue;
         if (tech.evolve && !unitLinesOn(s.state)) continue;   // E3: sem linhas (cenários), sem evoluções
+        if (tech.blessing && !eraMythOn(s.state)) continue;   // E6
         if (tech.age > p.age + 1) continue;
         if (tech.god && !p.minorGods.includes(tech.god) && p.god !== tech.god) continue;
         if (tech.prereq.some((pr) => !p.techs.includes(pr))) continue;   // mostra só o próximo nível de cada linha
