@@ -4,9 +4,9 @@
 import { TERRAIN, SHIP_NODES } from '../constants';
 import type { GameMap } from '../types';
 
-/** Camada de movimento: terrestre (map.blocked + portões) ou naval (navalBlocked). */
-export type Layer = 'land' | 'naval';
-export const layerOf = (def: { naval?: boolean }): Layer => (def.naval ? 'naval' : 'land');
+/** Camada de movimento: terrestre, naval ou anfíbia (E6: Ceto e Oceano; terra caminhável OU água navegável). */
+export type Layer = 'land' | 'naval' | 'amphibious';
+export const layerOf = (def: { naval?: boolean; amphibious?: boolean }): Layer => (def.amphibious ? 'amphibious' : def.naval ? 'naval' : 'land');
 /** Água em que navio navega (inclui o baixio). Também é "água" para o renderizador e o áudio. */
 export const isNavigableTerrain = (t: number): boolean => t === TERRAIN.WATER || t === TERRAIN.DEEP || t === TERRAIN.SHALLOWS;
 /** Água aberta: onde há peixe e o que conta para o Estaleiro (o baixio não). */
@@ -41,4 +41,18 @@ export function navalBlocked(map: GameMap): Uint8Array {
   }
   return nb;
 }
-export function invalidateNaval(map: GameMap): void { cache.delete(map); }
+const amphCache = new WeakMap<GameMap, Uint8Array>();
+/** E6: 1 = nem a pé nem a nado (montanha, nó, edifício). Portão do próprio time: canPass. Derivada; descartada com a naval. */
+export function amphibBlocked(map: GameMap): Uint8Array {
+  let ab = amphCache.get(map);
+  if (!ab) {
+    const nb = navalBlocked(map);
+    ab = new Uint8Array(map.w * map.h);
+    for (let i = 0; i < ab.length; i++) ab[i] = map.blocked[i] === 0 || nb[i] === 0 ? 0 : 1;
+    amphCache.set(map, ab);
+  }
+  return ab;
+}
+/** Bloqueio por camada (land = map.blocked). */
+export function layerBlocked(map: GameMap, layer: Layer): Uint8Array { return layer === 'naval' ? navalBlocked(map) : layer === 'amphibious' ? amphibBlocked(map) : map.blocked; }
+export function invalidateNaval(map: GameMap): void { cache.delete(map); amphCache.delete(map); }

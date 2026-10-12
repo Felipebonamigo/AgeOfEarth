@@ -1,7 +1,7 @@
 // Comandos: validação e aplicação. Toda mudança de estado originada do jogador/IA/rede passa por aqui,
 // o que torna a simulação reproduzível (lockstep, replays, saves).
 import { DEFAULT_QUEUE_MAX, MAX_SCHOLARS, OIL_FROM_AGE, SCHOLAR_COST, TICK_RATE, type Stance, type Formation } from '../constants';
-import { ACADEMY_LINES, AGES, BUILDINGS, LINES, MAX_AGE, MINOR_GODS, MAJOR_GODS, TECHS, UNITS, lineStart } from '../data';
+import { ACADEMY_LINES, AGES, BUILDINGS, LINES, MAX_AGE, MINOR_GODS, MYTH_UPGRADES, MAJOR_GODS, TECHS, UNITS, lineStart } from '../data';
 import type { Building, Command, GameState, Player, Unit } from '../types';
 import { spiralSearchFrame, towardFrame, centerFrame, canPass, inBounds } from '../map/grid';
 import { canAfford, marketTrade, pay, refund, queueItemCost } from './economy';
@@ -17,10 +17,9 @@ import { killUnit, destroyBuilding } from './combat';
 import { lineUnitOf, trainTypeOf, unitLinesOn } from './lines';
 import { t } from '../../i18n';
 import { canRoute } from './trade';
-import { endAgeReason, forbiddenReason, maxAgeOf } from './restrictions';
+import { endAgeReason, eraMythOn, forbiddenReason, maxAgeOf } from './restrictions';
 import { sanitizeCommand } from './validate';
-import { layerOf } from '../map/naval';
-import { canBoard, shoreTileNear } from './naval';
+import { canBoard, shoreTileNear, unitLayer } from './naval';
 
 export interface CommandResult { ok: boolean; reason?: string }
 
@@ -175,7 +174,7 @@ export function applyCommand(state: GameState, raw: Command): CommandResult {
       const gx = units.reduce((s, u) => s + u.x, 0) / units.length, gy = units.reduce((s, u) => s + u.y, 0) / units.length;
       const from = towardFrame(gx - cmd.x, gy - cmd.y, centerFrame(state.map, cmd.x, cmd.y));   // alinhado: lado voltado ao centro do mapa
       units.forEach((u, i) => {
-        const lay = layerOf(UNITS[u.type]);   // E4: navios escolhem o destino no mar
+        const lay = unitLayer(state, UNITS[u.type]);   // E4: navios escolhem o destino no mar
         let x = cmd.x + offs[i][0], y = cmd.y + offs[i][1];
         const tx = Math.floor(x), ty = Math.floor(y);
         if (!inBounds(state.map, tx, ty) || !canPass(state.map, tx, ty, player.team, lay)) {
@@ -297,7 +296,7 @@ export function applyCommand(state: GameState, raw: Command): CommandResult {
       return { ok: true };
     }
     case 'advanceAge': return advanceAge(state, player, cmd.buildingId, cmd.minorGod);
-    case 'power': return usePower(state, player, cmd.power, cmd.x, cmd.y, cmd.targetId);
+    case 'power': return usePower(state, player, cmd.power, cmd.x, cmd.y, cmd.targetId, cmd.ids);
     case 'ability': return useAbility(state, player, cmd.unitId);
     case 'trade': {
       if (countBuildings(state, player.id, (b) => b.complete && !!BUILDINGS[b.type].trade) === 0) return { ok: false, reason: t('err.needMarket') };
@@ -358,6 +357,15 @@ export function canHireScholar(state: GameState, player: Player, b: Building): C
   return { ok: true };
 }
 
+/** O jogador tem o deus que libera esta unidade? (sem `god`: sempre) — a criatura do deus maior, a de um deus menor
+ *  escolhido ou uma unidade de um deus escolhido (Talos é de Hefesto). */
+export function godAllows(player: Player, unit: string): boolean {
+  const def = UNITS[unit];
+  if (!def?.god) return true;
+  const major = MAJOR_GODS[player.god];
+  return (!!major && major.mythUnit === unit) || def.god === player.god || player.minorGods.includes(def.god) || player.minorGods.some((g) => MINOR_GODS[g]?.mythUnit === unit);
+}
+
 export function canTrain(state: GameState, player: Player, b: Building, unit: string): CommandResult {
   const def = UNITS[unit];
   if (!def || !b.complete) return { ok: false };
@@ -367,11 +375,9 @@ export function canTrain(state: GameState, player: Player, b: Building, unit: st
   const bdef = BUILDINGS[b.type];
   if (!bdef.trains || !bdef.trains.includes(unit)) return { ok: false, reason: t('err.notTrained') };
   if (def.age > player.age) return { ok: false, reason: t('err.requiresAge', { age: AGES[def.age].name }) };
-  if (def.god) {
-    const major = MAJOR_GODS[player.god];
-    const allowed = (major && major.mythUnit === unit) || player.minorGods.some((g) => MINOR_GODS[g]?.mythUnit === unit) || (def.god === player.god);
-    if (!allowed) return { ok: false, reason: t('err.requiresGod') };
-  }
+  if (def.god && !godAllows(player, unit)) return { ok: false, reason: t('err.requiresGod') };
+  const up = MYTH_UPGRADES[unit];   // E6: o Colosso vira Talos na Era VII
+  if (up && player.age >= up.age) return { ok: false, reason: t('err.mythUpgraded', { name: def.plural, to: UNITS[up.to].plural }) };
   if (def.unique) {
     if (player.respawns.some((r) => r.type === unit)) return { ok: false, reason: t('err.alreadyRespawning', { name: def.name }) };   // E7: Mausoléu
     for (const u of state.units.values()) if (u.owner === player.id && !u.dead && u.type === unit) return { ok: false, reason: t('err.alreadyAlive', { name: def.name }) };
@@ -418,6 +424,7 @@ export function canResearch(state: GameState, player: Player, b: Building, tech:
   if (!def || !b.complete) return { ok: false };
   if (def.building !== b.type) return { ok: false };
   if (def.evolve && !unitLinesOn(state)) return { ok: false, reason: t('err.legacyRoster') };
+  if (def.blessing && !eraMythOn(state)) return { ok: false, reason: t('err.classicMyth') };   // E6
   const forbid = forbiddenReason(state, player.id, 'techs', tech); if (forbid) return { ok: false, reason: forbid };   // G6
   if (player.techs.includes(tech)) return { ok: false, reason: t('err.researched') };
   if (def.age > player.age) return { ok: false, reason: t('err.requiresAge', { age: AGES[def.age].name }) };

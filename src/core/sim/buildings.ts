@@ -11,7 +11,8 @@ import { findSpawnTile, recomputePop, spawnUnit } from './entities';
 import { giveOrder } from './units';
 import { entityById } from './queries';
 import { t } from '../../i18n';
-import { layerOf } from '../map/naval';
+import { unitLayer } from './naval';
+import { applyMythUpgrades, mythUpgradeOf } from './myth';
 
 /** E7: quantos itens da fila andam juntos (Biblioteca de Alexandria = 2 nas Bibliotecas; resto = 1). */
 export function studySlotsOf(state: GameState, b: Building): number {
@@ -59,9 +60,9 @@ function completeQueueItem(state: GameState, b: Building, item: QueueItem): void
   const player = state.players[b.owner];
   switch (item.kind) {
     case 'unit': {
-      const type = trainTypeOf(state, player, item.id); const def = UNITS[type];   // E3: o item da fila sai no degrau atual
+      const type = mythUpgradeOf(trainTypeOf(state, player, item.id), player.age); const def = UNITS[type];   // E3: degrau atual; E6: Talos
       const toward = b.rallyX >= 0 ? b.rallyX : undefined;
-      const spot = findSpawnTile(state, b, toward, b.rallyY >= 0 ? b.rallyY : undefined, layerOf(def));
+      const spot = findSpawnTile(state, b, toward, b.rallyY >= 0 ? b.rallyY : undefined, unitLayer(state, def));
       const u = spawnUnit(state, b.owner, type, spot.x, spot.y);
       player.stats.unitsTrained++;
       recomputePop(state, player);
@@ -98,6 +99,7 @@ function completeQueueItem(state: GameState, b: Building, item: QueueItem): void
         const power = MINOR_GODS[minor].power;
         if (!player.powers.some((p) => p.id === power)) player.powers.push({ id: power, used: false });
       }
+      applyMythUpgrades(state, player);   // E6: Colosso → Talos
       recomputeMods(state, player);
       refreshMaxHp(state, player);
       state.territoryDirty = true;

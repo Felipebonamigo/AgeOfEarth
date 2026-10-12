@@ -5,7 +5,7 @@ import { RNG } from '../rng';
 import type { Command, GameConfig, GameState, Player } from '../types';
 import { generateMap, resetNodeSeq } from '../map/mapgen';
 import { mapFromData } from '../map/fixed';
-import { layerOf } from '../map/naval';
+import { unitLayer } from './naval';
 import { canPlaceBuilding, openTile, placeBuilding, recomputePop, removeBuildingNow, removeUnitNow, spawnUnit } from './entities';
 import { defaultMods, recomputeMods } from './modifiers';
 import { recomputeTerritory } from './territory';
@@ -173,7 +173,7 @@ export function createGame(config: GameConfig): GameState {
         // prefere região com ≥ 8 tiles (não nasce presa); tile ocupado → espiral no referencial do tile voltado ao centro do mapa
         // (antes: o norte primeiro, e a mesma entidade espelhada no arquivo nascia em tiles não espelhados)
         const f = centerFrame(map, e.x + 0.5, e.y + 0.5);
-        const lay = layerOf(UNITS[e.type]);   // E4: navio posto pelo editor nasce na água
+        const lay = unitLayer(state, UNITS[e.type]);   // E4: navio posto pelo editor nasce na água
         const t = spiralSearchFrame(e.x, e.y, 6, (a, b) => openTile(state, a, b, lay), f) ?? nearestFreeTile(map, e.x, e.y, 6, f, lay);
         if (!t) continue;
         const u = spawnUnit(state, e.owner, e.type, t.x + 0.5, t.y + 0.5);

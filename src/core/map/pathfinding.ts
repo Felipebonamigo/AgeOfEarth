@@ -1,7 +1,7 @@
 // A* em grade com 8 direções, sem cortar cantos, heap binário e suavização por linha de visada.
 import type { GameMap } from '../types';
 import { idx, inBounds, lineClear, isPassable, frameOffset, IDENTITY_FRAME, type Frame } from './grid';
-import { navalBlocked, type Layer } from './naval';
+import { layerBlocked, type Layer } from './naval';
 
 class MinHeap {
   keys: number[] = []; vals: number[] = [];
@@ -73,8 +73,9 @@ export function findPath(map: GameMap, sx: number, sy: number, goal: PathGoal, a
 
 /** Como findPath, mas informa se o caminho chegou de fato ao objetivo (false = parcial por orçamento ou inalcançável). */
 export function findPathEx(map: GameMap, sx: number, sy: number, goal: PathGoal, adjacent = false, maxNodes = 6000, team = -1, layer: Layer = 'land'): { path: number[] | null; complete: boolean } {
-  const nb = layer === 'naval' ? navalBlocked(map) : null;
-  const pass = nb ? (i: number) => nb[i] === 0 : (i: number) => map.blocked[i] === 0 || (team >= 0 && map.gateTeam[i] === team);
+  const nb = layer === 'land' ? null : layerBlocked(map, layer);
+  const pass = !nb ? (i: number) => map.blocked[i] === 0 || (team >= 0 && map.gateTeam[i] === team)
+    : layer === 'amphibious' ? (i: number) => nb[i] === 0 || (team >= 0 && map.gateTeam[i] === team) : (i: number) => nb[i] === 0;
   const n = map.w * map.h;
   ensureBuffers(n);
   stamp++;

@@ -4,11 +4,12 @@
 import { UNITS, BUILDINGS } from '../data';
 import type { Building, GameMap, GameState, Unit } from '../types';
 import type { ResourceType } from '../constants';
-import { centerFrame, distToRect, dist, frameCompare, isPassable, spiralSearchFrame, towardFrame } from '../map/grid';
+import { centerFrame, distToRect, dist, frameCompare, idx, isPassable, spiralSearchFrame, towardFrame } from '../map/grid';
 import { componentAt, rectReachable } from '../map/components';
-import { type Layer } from '../map/naval';
+import { isOpenWater, layerOf, type Layer } from '../map/naval';
 import { centerDist2, nearestDropoff, nodeAccessTiles } from './queries';
 import { openTile } from './entities';
+import { navalOn } from './restrictions';
 
 /** Desempate justo entre dois candidatos à mesma distância: o mais perto do centro do mapa; depois frameCompare no
  *  referencial de `ref` voltado ao centro. true = `a` ganha de `b`. */
@@ -55,6 +56,19 @@ export function shoreTileNear(map: GameMap, sx: number, sy: number, x: number, y
   return best;
 }
 
+/** E6: camada de uma unidade nesta partida — anfíbia só com navios ligados (na campanha, Oceano anda só em terra; D15). */
+export function unitLayer(state: GameState, def: { naval?: boolean; amphibious?: boolean }): Layer {
+  if (def.amphibious && !navalOn(state)) return 'land';
+  return layerOf(def);
+}
+/** E6: em que meio a unidade está agora (terra × mar): naval no mar; anfíbia pelo tile (água aberta = mar; baixio = terra). */
+export function mediumOf(state: GameState, u: Unit): 'land' | 'sea' {
+  const lay = unitLayer(state, UNITS[u.type]);
+  if (lay === 'naval') return 'sea';
+  if (lay === 'amphibious') { const m = state.map; const tx = Math.floor(u.x), ty = Math.floor(u.y); return tx >= 0 && ty >= 0 && tx < m.w && ty < m.h && isOpenWater(m.terrain[idx(m, tx, ty)]) ? 'sea' : 'land'; }
+  return 'land';
+}
+
 /** Lugar que a unidade ocupa a bordo: a população dela, no mínimo 1 (milícia, rei e Sombras têm pop 0 e não podem
  *  lotar um transporte infinito). */
 export const seatsOf = (type: string): number => Math.max(1, UNITS[type].pop);
@@ -69,7 +83,7 @@ export function cargoPop(state: GameState, ship: Unit): number {
 export function canBoard(state: GameState, u: Unit, ship: Unit): boolean {
   const d = UNITS[u.type], sd = UNITS[ship.type];
   if (!sd.capacity || ship.dead || u.dead || u.id === ship.id || ship.owner !== u.owner || u.inside !== -1 || ship.inside !== -1) return false;
-  if (d.naval || d.flying || d.immobile || d.tags.includes('titan')) return false;
+  if (d.naval || d.amphibious || d.flying || d.immobile || d.tags.includes('titan')) return false;
   if (state.relics.some((r) => r.carrier === u.id)) return false;
   return cargoPop(state, ship) + seatsOf(u.type) <= sd.capacity;
 }

@@ -1,6 +1,6 @@
 // Utilitários de grade. Sem funções trigonométricas: a simulação precisa ser determinística entre máquinas.
 import type { GameMap } from '../types';
-import { navalBlocked, type Layer } from './naval';
+import { amphibBlocked, layerBlocked, type Layer } from './naval';
 
 export const idx = (map: { w: number }, x: number, y: number): number => y * map.w + x;
 export const inBounds = (map: { w: number; h: number }, x: number, y: number): boolean => x >= 0 && y >= 0 && x < map.w && y < map.h;
@@ -32,13 +32,14 @@ export function circleOffsets(r: number): Int16Array {
 export function isPassable(map: GameMap, x: number, y: number, layer: Layer = 'land'): boolean {
   if (!inBounds(map, x, y)) return false;
   const i = idx(map, x, y);
-  return layer === 'naval' ? navalBlocked(map)[i] === 0 : map.blocked[i] === 0;
+  return layer === 'land' ? map.blocked[i] === 0 : layerBlocked(map, layer)[i] === 0;
 }
 /** Passável para uma unidade de determinado time (portões do próprio time são atravessáveis). */
 export function canPass(map: GameMap, x: number, y: number, team: number, layer: Layer = 'land'): boolean {
   if (!inBounds(map, x, y)) return false;
   const i = idx(map, x, y);
-  if (layer === 'naval') return navalBlocked(map)[i] === 0;   // no mar não há portão
+  if (layer === 'naval') return layerBlocked(map, 'naval')[i] === 0;   // no mar não há portão
+  if (layer === 'amphibious') return amphibBlocked(map)[i] === 0 || (team >= 0 && map.gateTeam[i] === team);
   return map.blocked[i] === 0 || (team >= 0 && map.gateTeam[i] === team);
 }
 

@@ -17,8 +17,10 @@ export const MAX_PLAYERS = 4;
  * transporte, navios I–VIII, mapas com mar; a mesma semente em mapa terrestre dá a mesma partida, mas o hash agora inclui inside/cargo.
  * 8 = comércio (E5): caravanas com rotas automáticas, IA treina caravanas.
  * 9 = maravilhas (E7): 20 maravilhas únicas no mapa, pontos de maravilha, IA disputa maravilhas.
+ * 10 = mitologia nas Eras (E6): deuses menores V–VII, 9 poderes, escala dos poderes por Era, Bênçãos, Talos, Titãs
+ * reforçados e camada anfíbia fora de cenário; a campanha não muda.
  */
-export const SIM_VERSION = 9;
+export const SIM_VERSION = 10;
 export const DEFAULT_QUEUE_MAX = 10;   // itens na fila de um edifício sem queueMax
 
 // E2: ordem = a da barra do topo e a de todo literal de recursos (a ida e volta do save mantém a ordem das chaves)

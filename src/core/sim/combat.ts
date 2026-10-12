@@ -8,6 +8,9 @@ import { invalidateComponents } from '../map/components';
 import { getBuildingStats, getUnitStats, unitMaxHp, unitRank } from './modifiers';
 import { queueHeroRespawn, footprint } from './wonders';
 import { setNavalOpen } from '../map/naval';
+import { mediumOf, unitLayer } from './naval';
+import { POWER_TUNING } from './divine';
+import { springRaise } from './myth';
 import { getRuntime } from './runtime';
 import { distanceTo, isEnemy } from './queries';
 import { recomputePop, spawnUnit, ejectGarrison } from './entities';
@@ -32,12 +35,14 @@ export function canTarget(state: GameState, attacker: Unit | Building, target: U
   if (target.dead) return false;
   if (target.kind === 'unit' && target.inside !== -1) return false;   // dentro de um edifício: protegido
   if (!isEnemy(state, attacker.owner, target.owner)) return false;
+  if (attacker.kind === 'unit' && state.tick < (attacker.fearUntil ?? 0)) return false;   // E6: Pânico
   if (!state.players[target.owner].alive) return false;
-  if (target.kind === 'unit' && UNITS[target.type].flying && isMelee(state, attacker)) return false;
-  // E4: corpo a corpo não alcança o outro meio (terra × mar); os titãs alcançam (golpe gigante, Oceano na margem)
-  if (attacker.kind === 'unit' && isMelee(state, attacker) && !UNITS[attacker.type].tags.includes('titan')) {
-    const an = !!UNITS[attacker.type].naval, tn = target.kind === 'unit' && !!UNITS[target.type].naval;
-    if (an !== tn) return false;
+  if (target.kind === 'unit' && UNITS[target.type].flying && isMelee(state, attacker) && !(attacker.kind === 'unit' && UNITS[attacker.type].flying)) return false;   // E6: voador corpo a corpo luta no ar
+  // E4/E6: corpo a corpo não alcança o outro meio (terra × mar); titãs, voadores e anfíbios alcançam
+  if (attacker.kind === 'unit' && isMelee(state, attacker)) {
+    const ad = UNITS[attacker.type];
+    const other = target.kind === 'unit' ? mediumOf(state, target) : 'land';
+    if (!ad.tags.includes('titan') && !ad.flying && unitLayer(state, ad) !== 'amphibious' && mediumOf(state, attacker) !== other) return false;
   }
   if (attacker.kind === 'unit' && UNITS[attacker.type].attack <= 0) return false;
   return true;
@@ -88,6 +93,7 @@ export function computeDamage(state: GameState, attacker: Unit | Building, targe
     if (def.special === 'heads') attack *= 1 + 0.2 * (attacker.heads - 1);
     if (def.tags.includes('military') && !def.tags.includes('titan')) attack *= 1 + VETERAN_BONUS * unitRank(state, attacker);   // veterania
     if (state.tick < attacker.buffUntil) attack *= attacker.buffAttack;   // Grito dos Argonautas
+    if (state.tick < (state.players[attacker.owner].nikeUntil ?? 0)) attack *= POWER_TUNING.nike.mult;   // E6: Vitória Alada
     if (attacker.chargeUntil > state.tick) attack *= ABILITIES[UNITS[attacker.type].ability ?? '']?.power ?? 3;   // Golpe Titânico
   } else {
     const st = getBuildingStats(state, state.players[attacker.owner], attacker.type);
@@ -135,6 +141,8 @@ export function applyDamage(state: GameState, target: Unit | Building, dmg: numb
     if (target.kind === 'unit') killUnit(state, target, attackerOwner, attacker);
     else destroyBuilding(state, target, attackerOwner, attacker);
   }
+  // E6 (Retribuição): parte do dano volta para quem atacou — sem `attacker` na volta, então não ricocheteia de novo
+  if (attacker && attacker.kind === 'unit' && target.kind === 'unit' && !attacker.dead && attacker.owner !== target.owner && state.tick < (victim.nemesisUntil ?? 0)) applyDamage(state, attacker, dmg * POWER_TUNING.nemesis.reflect, target.owner);
 }
 
 export function performAttack(state: GameState, attacker: Unit | Building, target: Unit | Building): void {
@@ -158,6 +166,7 @@ export function performAttack(state: GameState, attacker: Unit | Building, targe
   }
   const dmg = computeDamage(state, attacker, target);
   applyDamage(state, target, dmg, attacker.owner, attacker);
+  if (attacker.kind === 'unit' && !attacker.dead && UNITS[attacker.type].special === 'drain') attacker.hp = Math.min(attacker.maxHp, attacker.hp + dmg * POWER_TUNING.drain);   // E6: Empusa
   // Dano em área (Quimera, Titãs, Golpe Titânico)
   if (attacker.kind === 'unit') {
     const charged = attacker.chargeUntil > state.tick;
@@ -182,6 +191,13 @@ export function killUnit(state: GameState, u: Unit, killerOwner: number, killer?
   // G9: com piso de vida, morte instantânea causada por inimigo (Raio, Maldição, atrito) só o leva até o piso;
   // kill do roteiro e dispensar (dono -1) continuam matando
   if (u.hpFloor && u.hpFloor > 0 && killerOwner >= 0 && killerOwner !== u.owner) { u.hp = Math.max(Math.min(u.hp, u.maxHp * u.hpFloor), Math.min(u.maxHp * u.hpFloor, 1)); u.lastDamageTick = state.tick; return; }
+  // E6: a Fênix renasce uma vez quando morta por um inimigo (dispensar ou roteiro, dono −1, matam de vez)
+  if (UNITS[u.type].special === 'rebirth' && !u.reborn && killerOwner >= 0 && killerOwner !== u.owner) {
+    u.reborn = true; u.hp = Math.max(1, Math.round(u.maxHp * POWER_TUNING.rebirthHp)); u.lastDamageTick = state.tick;
+    state.effects.push({ type: 'divine', x: u.x, y: u.y, ttl: 30, total: 30, data: 1.5, src: 'phoenix', owner: u.owner });
+    if (!state.players[u.owner].isAI) state.events.push({ tick: state.tick, type: 'reborn', player: u.owner, x: u.x, y: u.y, text: t('ev.reborn', { name: UNITS[u.type].name }) });
+    return;
+  }
   const drowned = u.inside !== -1 && state.units.has(u.inside);   // E4: passageiro de um navio que afundou
   u.dead = true; u.hp = 0;
   if (u.inside !== -1) { const g = state.buildings.get(u.inside); if (g) g.garrison = g.garrison.filter((id) => id !== u.id); const sh = state.units.get(u.inside); if (sh) sh.cargo = sh.cargo.filter((id) => id !== u.id); u.inside = -1; }
@@ -212,6 +228,7 @@ export function killUnit(state: GameState, u: Unit, killerOwner: number, killer?
     s.stance = 'aggressive';
     state.effects.push({ type: 'spawn', x: u.x, y: u.y, ttl: 12, total: 12 });
   }
+  springRaise(state, u, killerOwner);   // E6: Primavera de Perséfone
   recomputePop(state, victim);
   if (u.cargo.length) {   // E4: o navio afundou com a tropa
     for (const id of u.cargo) {

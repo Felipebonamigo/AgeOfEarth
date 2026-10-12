@@ -1,6 +1,7 @@
 // Modificadores de jogador: agrega bônus de deus, tecnologias, maravilhas e idade em multiplicadores,
 // e calcula os atributos finais de unidades e edifícios (com cache por versão).
-import { RESOURCES, DIFFICULTIES, VETERAN_BONUS, rankOf, type ResourceType } from '../constants';
+import { RESOURCES, DIFFICULTIES, VETERAN_BONUS, TITAN_ERA_ATTACK, TITAN_ERA_HP, rankOf, type ResourceType } from '../constants';
+import { eraMythOn } from './restrictions';
 import type { Unit } from '../types';
 import { BUILDINGS, MAJOR_GODS, RARES, TECHS, UNITS } from '../data';
 import type { Effect, EffectMatch, GameState, Player, PlayerMods, PlayerStat } from '../types';
@@ -23,6 +24,8 @@ export function recomputeMods(state: GameState, player: Player): void {
   const effects: Effect[] = [];
   const god = MAJOR_GODS[player.god];
   if (god) effects.push(...god.bonuses);
+  // E6: os Titãs chegam na Era VIII diante de exércitos de pólvora e aço (docs/eras/E6, D20); campanha e cenários sem isso
+  if (eraMythOn(state)) effects.push({ type: 'unit', match: { tags: ['titan'] }, stat: 'hp', mult: TITAN_ERA_HP }, { type: 'unit', match: { tags: ['titan'] }, stat: 'attack', mult: TITAN_ERA_ATTACK });
   for (const t of player.techs) { const def = TECHS[t]; if (def) effects.push(...def.effects); }
   for (const r of player.rares ?? []) { const d = RARES[r]; if (d) effects.push(...d.effects); }   // E2: raros ocupados por um Mercador
   // Maravilhas concluídas (efeitos nos dados: BuildingDef.wonderEffects)

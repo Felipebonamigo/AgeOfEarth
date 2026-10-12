@@ -3,7 +3,7 @@
 import { DIFFICULTIES, TICK_RATE, NODE_RESOURCE, NOT_GATHERED, SHIP_NODES, WELL_NODES, RESOURCES, MARKET_TRADE_LOT, OIL_FROM_AGE, MERCHANT_MAX_AI, CARAVAN_TARGET_AI, MERCHANT_SHIP_TARGET_AI, type ResourceType } from '../constants';
 import { rectReachable, wouldSeal } from '../map/components';
 import { findPathEx, nearestFreeTile } from '../map/pathfinding';
-import { AGES, BUILD_MENU, BUILDINGS, LINES, LINE_ORDER, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS } from '../data';
+import { AGES, BLESSING_IDS, BUILD_MENU, BUILDINGS, LINES, LINE_ORDER, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS } from '../data';
 import type { Building, GameState, Player, ResourceNode, Unit, UnitDef } from '../types';
 import { idx, inBounds, isPassable, dist, dist2, centerFrame, frameOffset, frameCompare, type Frame } from '../map/grid';
 import { applyCommand, canAdvanceAge, canResearch, canTrain, academyTechCount } from './commands';
@@ -18,7 +18,7 @@ import { isMilitary, isEnemy, nearestEnemyBuilding, nearestNode, nearestNodeBy, 
 import { getBuildingStats, getUnitStats, techCost } from './modifiers';
 import { canAfford } from './economy';
 import { t } from '../../i18n';
-import { buildingAgeOf, isForbidden, maxAgeOf, navalOn } from './restrictions';
+import { buildingAgeOf, eraMythOn, isForbidden, maxAgeOf, navalOn } from './restrictions';
 import { wonderVictoryMode } from './wonders';
 
 // uma posição por Era (tests/eras.test.ts confere)
@@ -84,6 +84,7 @@ export function aiThink(state: GameState, player: Player): void {
   manageBuilding(state, player, snap);
   manageTraining(state, player, snap);
   manageNavy(state, player, snap);
+  trainSeaMyths(state, player, snap);
   manageResearch(state, player, snap);
   manageArmy(state, player, snap);
   manageTrade(state, player, snap);
@@ -767,7 +768,9 @@ function manageResearch(state: GameState, player: Player, snap: Snapshot): void 
   const godTechs: string[] = [];
   for (const g of player.minorGods) godTechs.push(...(MINOR_GODS[g]?.techs ?? []));
   const users = lineUsers(snap);
-  const list = [...RESEARCH_PRIORITY.slice(0, 13), ...godTechs, ...evolutionPriority(state, player, users), ...RESEARCH_PRIORITY.slice(13)];
+  const blessed = snap.military.filter((u) => UNITS[u.type].tags.includes('myth') || UNITS[u.type].tags.includes('hero')).length;
+  const blessings = eraMythOn(state) && blessed >= 3 ? BLESSING_IDS : [];   // E6: só com 3+ míticas/heróis em campo
+  const list = [...RESEARCH_PRIORITY.slice(0, 13), ...godTechs, ...blessings, ...evolutionPriority(state, player, users), ...RESEARCH_PRIORITY.slice(13)];
   let researchedThisThink = 0;
   for (const t of list) {
     if (researchedThisThink >= 2) break;
@@ -1005,6 +1008,17 @@ function invasionTarget(state: GameState, player: Player, snap: Snapshot): Build
   }
   return best;
 }
+/** E6: criaturas do Estaleiro (Escila, Hipocampo, Ceto) — só quem já tem frota (≥ 2 navios de guerra) e Favor. */
+function trainSeaMyths(state: GameState, player: Player, snap: Snapshot): void {
+  if (!navalOn(state) || player.resources.favor <= 40) return;
+  // frota de verdade: Hipocampo e Escila também são `naval` (estão em snap.ships), mas não contam como navio de guerra
+  if (snap.ships.filter((u) => isMilitary(u) && !UNITS[u.type].tags.includes('myth')).length < 2) return;
+  for (const b of snap.byType.get('shipyard') ?? []) {
+    if (!b.complete || b.queue.length > 0) continue;
+    const opts = (BUILDINGS.shipyard.trains ?? []).filter((u) => UNITS[u].tags.includes('myth') && canTrain(state, player, b, u).ok);
+    if (opts.length > 0) { applyCommand(state, { type: 'train', player: player.id, buildingId: b.id, unit: opts[opts.length - 1] }); return; }
+  }
+}
 function manageNavy(state: GameState, player: Player, snap: Snapshot): void {
   if (!navalOn(state) || !snap.tc) return;
   const age = player.age, tc = snap.tc;
@@ -1026,7 +1040,7 @@ function manageNavy(state: GameState, player: Player, snap: Snapshot): void {
   }
   if (!yard) return;
   const boats = snap.ships.filter((u) => UNITS[u.type].canGather);
-  const war = snap.ships.filter((u) => isMilitary(u));
+  const war = snap.ships.filter((u) => isMilitary(u) && !UNITS[u.type].tags.includes('myth'));
   const trans = snap.ships.filter((u) => (UNITS[u.type].capacity ?? 0) > 0);
   const queued = (pred: (d: UnitDef) => boolean) => yard.queue.filter((q) => q.kind === 'unit' && pred(UNITS[q.id])).length;
   // 2) Treino: um item por pensamento, fila de no máximo 2
@@ -1038,7 +1052,7 @@ function manageNavy(state: GameState, player: Player, snap: Snapshot): void {
     let c: TrainChoice | undefined;   // tipo da E3 (src/core/sim/lines.ts)
     if (boats.length + queued((d) => !!d.canGather) < fishTarget) c = pick((d) => !!d.canGather);
     else if (island && trans.length + queued((d) => !!d.capacity) < TRANSPORTS) c = pick((d) => !!d.capacity);
-    else if (war.length + queued((d) => d.tags.includes('military')) < warTarget && !savingForAge(state, player)) c = pick((d) => d.tags.includes('military'));
+    else if (war.length + queued((d) => d.tags.includes('military') && !d.tags.includes('myth')) < warTarget && !savingForAge(state, player)) c = pick((d) => d.tags.includes('military') && !d.tags.includes('myth'));
     if (c) applyCommand(state, { type: 'train', player: player.id, buildingId: yard.id, unit: c.send });
   }
   // 3a) Atum (raro do mar, D7): se nenhum barco meu está nele, o primeiro barco ocioso ocupa o atum livre mais perto do Estaleiro
@@ -1139,7 +1153,7 @@ function managePowers(state: GameState, player: Player, snap: Snapshot): void {
     const near = rt.hash.query(b.x, b.y, 10).filter((u) => isEnemy(state, player.id, u.owner) && !u.dead && UNITS[u.type].attack > 0);
     if (near.length > clumpN) { clumpN = near.length; clumpX = near.reduce((s, u) => s + u.x, 0) / near.length; clumpY = near.reduce((s, u) => s + u.y, 0) / near.length; }
   }
-  const use = (power: string, x?: number, y?: number, targetId?: number) => applyCommand(state, { type: 'power', player: player.id, power, x, y, targetId }).ok;
+  const use = (power: string, x?: number, y?: number, targetId?: number, ids?: number[]) => applyCommand(state, { type: 'power', player: player.id, power, x, y, targetId, ids }).ok;
   // pontos ao redor do CC no referencial voltado ao centro do mapa (antes: sudeste/sudoeste absolutos)
   const frame = centerFrame(state.map, tc.x, tc.y);
   const aroundTc = (a: number, b: number) => frameOffset(frame, tc.x, tc.y, a, b);
@@ -1165,6 +1179,23 @@ function managePowers(state: GameState, player: Player, snap: Snapshot): void {
       case 'curse': case 'lightning_storm': if (clumpN >= 6) { use(p, clumpX, clumpY); return; } break;
       case 'pestilence': case 'earthquake': {
         if (player.ai!.attackTarget !== -1) { const t = state.buildings.get(player.ai!.attackTarget); if (t) { use(p, t.x, t.y); return; } }
+        break;
+      }
+      // ---- E6 ----
+      case 'panic': case 'spring': case 'sun_chariot': case 'tidal_wave': if (clumpN >= 6) { use(p, clumpX, clumpY); return; } break;
+      case 'gale': if (defending && clumpN >= 5) { use(p, clumpX, clumpY); return; } break;
+      case 'retribution': if (defending && clumpN >= 8) { use(p); return; } break;
+      case 'winged_victory': if (player.ai!.attackTarget !== -1 || (defending && clumpN >= 6)) { use(p); return; } break;
+      case 'divine_harvest': if (snap.villagers.length >= 30) { use(p); return; } break;
+      case 'crossroads': {
+        // leva o exército para perto do alvo do ataque, pelo lado de onde ele vem (vetor alvo → exército; nada de rumo absoluto)
+        const tid = player.ai!.attackTarget, tgt = tid !== -1 ? state.buildings.get(tid) : undefined;
+        const army = snap.military.filter((u) => { const d = UNITS[u.type]; return !d.naval && !d.immobile && !d.tags.includes('titan'); });
+        if (!tgt || tgt.dead || army.length < 8) break;
+        const cx = army.reduce((a, u) => a + u.x, 0) / army.length, cy = army.reduce((a, u) => a + u.y, 0) / army.length;
+        const dx = cx - tgt.x, dy = cy - tgt.y, d = Math.sqrt(dx * dx + dy * dy);
+        if (d < 30) break;   // já está perto
+        if (use(p, tgt.x + (dx / d) * 8, tgt.y + (dy / d) * 8, undefined, army.map((u) => u.id))) return;
         break;
       }
     }

@@ -4,13 +4,14 @@
 // Portões contam como passáveis (otimista para inimigos; o A* por time decide o caminho real).
 import type { GameMap } from '../types';
 import { idx, inBounds } from './grid';
-import { invalidateNaval, isOpenWater, navalBlocked, MIN_DOCK_WATER, type Layer } from './naval';
+import { amphibBlocked, invalidateNaval, isOpenWater, navalBlocked, MIN_DOCK_WATER, type Layer } from './naval';
 
 interface Components { labels: Int32Array; sizes: number[] }
 const cache = new WeakMap<GameMap, Components>();
 const navalCache = new WeakMap<GameMap, Components>();   // E4: regiões do mar
+const amphStore = new WeakMap<GameMap, Components>();   // E6: regiões da camada anfíbia
 
-export function invalidateComponents(map: GameMap): void { cache.delete(map); navalCache.delete(map); invalidateNaval(map); }
+export function invalidateComponents(map: GameMap): void { cache.delete(map); navalCache.delete(map); amphStore.delete(map); invalidateNaval(map); }
 
 const passable = (map: GameMap, i: number): boolean => map.blocked[i] === 0 || map.gateTeam[i] >= 0;
 
@@ -39,10 +40,11 @@ function compute(map: GameMap, pass: (i: number) => boolean): Components {
 }
 
 function get(map: GameMap, layer: Layer = 'land'): Components {
-  const store = layer === 'naval' ? navalCache : cache;
+  const store = layer === 'naval' ? navalCache : layer === 'amphibious' ? amphStore : cache;
   let c = store.get(map);
   if (!c) {
     if (layer === 'naval') { const nb = navalBlocked(map); c = compute(map, (i) => nb[i] === 0); }
+    else if (layer === 'amphibious') { const ab = amphibBlocked(map); c = compute(map, (i) => ab[i] === 0 || map.gateTeam[i] !== -1); }
     else c = compute(map, (i) => passable(map, i));
     store.set(map, c);
   }

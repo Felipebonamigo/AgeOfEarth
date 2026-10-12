@@ -161,6 +161,7 @@ export function sanitizeCommand(state: GameState, raw: unknown): Command | null 
         cmd.x = x; cmd.y = y;
       }
       if (!absent(raw.targetId)) { if (!isId(raw.targetId)) return null; cmd.targetId = raw.targetId; }
+      if (!absent(raw.ids)) { const ids = idList(raw.ids); if (!ids) return null; cmd.ids = ids; }   // E6: Encruzilhada
       return cmd;
     }
     case 'trade': {

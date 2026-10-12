@@ -9,6 +9,7 @@ import { territoryOwnerAt } from './territory';
 import { getUnitStats, recomputeMods, refreshMaxHp, techCost } from './modifiers';
 import { extractorNode, isEnemy } from './queries';
 import { clampToFloor, killUnit } from './combat';
+import { powerScale } from './divine';
 import { AGES } from '../data';
 import { SCHOLAR_COST } from '../constants';
 
@@ -64,7 +65,7 @@ export function economySecond(state: GameState): void {
       const gain = b.scholars * KNOWLEDGE_PER_SCHOLAR * p.mods.player.knowledgeRate * p.mods.gather.knowledge;
       p.resources.knowledge += gain; p.stats.gathered.knowledge += gain;
     }
-    if (def.plenty) { p.resources.food += 1.5; p.resources.wood += 1.5; p.resources.gold += 1.5; }
+    if (def.plenty) { const k = 1.5 * powerScale(state, p, 'plenty'); p.resources.food += k; p.resources.wood += k; p.resources.gold += k; }   // E6: cresce com a Era
     if (def.extract) {
       const n = extractorNode(map, b.tx, b.ty, b.w, b.h, def.extract.node);
       if (n) {

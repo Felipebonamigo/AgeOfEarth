@@ -6,8 +6,9 @@ import type { Building, GameState, Order, ResourceNode, Unit } from '../types';
 import { distToRect, idx, inBounds, canPass, canStep, dist, isPassable, towardFrame, centerFrame } from '../map/grid';
 import { componentAt, componentSize, nearestLargeComponentTile, rectReachable } from '../map/components';
 import { findPathEx, nearestFreeTile, type PathGoal } from '../map/pathfinding';
-import { layerOf, type Layer } from '../map/naval';
-import { approachTile, boardShip, canBoard, dropCargo, dropoffFor, shoreTileNear } from './naval';
+import { type Layer } from '../map/naval';
+import { galeFactor, harvestMult } from './divine';
+import { approachTile, boardShip, canBoard, dropCargo, dropoffFor, mediumOf, shoreTileNear, unitLayer } from './naval';
 import { removeNode } from '../map/mapgen';
 import { getBuildingStats, getUnitStats } from './modifiers';
 import { getRuntime, type Runtime } from './runtime';
@@ -135,7 +136,7 @@ export function updateUnit(state: GameState, rt: Runtime, u: Unit, dt: number): 
   const def = UNITS[u.type];
   const player = state.players[u.owner];
   const stats = getUnitStats(state, player, u.type);
-  const spd = (state.tick < u.buffUntil ? stats.speed * u.buffSpeed : stats.speed) * enemyTerritorySpeed(state, u);   // Astúcia; Labirinto (E7)
+  const spd = (state.tick < u.buffUntil ? stats.speed * u.buffSpeed : stats.speed) * enemyTerritorySpeed(state, u) * galeFactor(state, u);   // Astúcia; Labirinto (E7); Vendaval (E6)
 
   switch (u.state) {
     case 'idle': case 'hold': {
@@ -210,8 +211,9 @@ export function updateUnit(state: GameState, rt: Runtime, u: Unit, dt: number): 
       // Alvo adquirido sozinho que não conseguimos golpear há 10 s (fugindo, atrás de obstáculo): desiste e evita-o por um tempo
       if (!u.order && state.tick - Math.max(u.orderTick, u.attackTick) > 10 * TICK_RATE) { giveUpTarget(state, u, t.id); return; }
       // E4: alvo no outro meio: vai ao tile do SEU meio de onde o alcança (o fim do caminho guarda esse tile entre repaths)
-      const layer = layerOf(def), tLayer = t.kind === 'unit' ? layerOf(UNITS[t.type]) : 'land';
-      if (layer !== tLayer && !def.flying) {   // voador vai em linha reta pelo caminho de sempre (a E6 cuida de voador × navio)
+      const layer = unitLayer(state, def);
+      const tLayer: Layer = t.kind === 'unit' ? (mediumOf(state, t) === 'sea' ? 'naval' : 'land') : 'land';
+      if (!def.flying && layer !== 'amphibious' && layer !== tLayer) {   // voador vai em linha reta pelo caminho de sempre (a E6 cuida de voador × navio)
         let ax: number, ay: number;
         if (u.path && u.path.length >= 2 && state.tick < u.repathAt) { ax = u.path[u.path.length - 2]; ay = u.path[u.path.length - 1]; }
         else {
@@ -265,7 +267,7 @@ function moveTowards(state: GameState, rt: Runtime, u: Unit, step: number, tx: n
   const def = UNITS[u.type];
   const map = state.map;
   const team = state.players[u.owner].team;
-  const layer = layerOf(def);   // E4: navios andam pela camada naval
+  const layer = unitLayer(state, def);   // E4: navios andam pela camada naval; E6: anfíbios pela anfíbia
   const goalDist = (): number => rectTarget && goal ? distToRect(u.x, u.y, goal.tx, goal.ty, goal.w, goal.h) : dist(u.x, u.y, tx, ty);
   const dNow = goalDist();
   if (dNow <= stopDist) { u.path = null; return 'arrived'; }
@@ -396,7 +398,7 @@ export function applySeparation(state: GameState, rt: Runtime): void {
     });
     if (px !== 0 || py !== 0) {
       const nx = u.x + px, ny = u.y + py;
-      if (canStep(map, u.x, u.y, nx, ny, state.players[u.owner].team, layerOf(def))) { u.x = nx; u.y = ny; }
+      if (canStep(map, u.x, u.y, nx, ny, state.players[u.owner].team, unitLayer(state, def))) { u.x = nx; u.y = ny; }
     }
   }
 }
@@ -424,7 +426,7 @@ function updateGather(state: GameState, rt: Runtime, u: Unit, dt: number, speed:
       if (!findNewSource(state, u, 'food')) fallbackIdle(state, u, t('ev.farmBusy'));
       return;
     }
-    const rate = GATHER_RATES.farm * player.mods.gather.food * player.mods.gather.farm;
+    const rate = GATHER_RATES.farm * player.mods.gather.food * player.mods.gather.farm * harvestMult(state, player);   // E6: Colheita Divina
     gatherInto(u, 'food', rate * dt);
     return;
   }
@@ -463,6 +465,7 @@ function updateGather(state: GameState, rt: Runtime, u: Unit, dt: number, speed:
   let rate = GATHER_RATES[node.type] * player.mods.gather[res];
   if (HUNT_TYPES.has(node.type)) rate *= player.mods.gather.hunt;
   if (node.type === 'fish') rate *= player.mods.gather.fish;
+  rate *= harvestMult(state, player);   // E6: Colheita Divina
   const take = Math.min(rate * dt, node.amount, CARRY_CAPACITY - u.carryAmt);
   node.amount -= take;
   gatherInto(u, res, take);
