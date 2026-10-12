@@ -34,7 +34,7 @@ for (const locale of ['pt', 'en']) {
   await page.evaluate(() => { window.aoe.session.paused = true; });
   const setup = await page.evaluate(() => {
     const a = window.aoe, s = a.session, st = s.state, p = s.player;
-    p.age = 6; p.minorGods = ['athena', 'apollo', 'hera', 'pan', 'aeolus', 'helios'];
+    p.age = 6; p.minorGods = ['athena', 'apollo', 'hera', 'hephaestus', 'pan', 'aeolus', 'helios'];
     for (const r of ['food', 'wood', 'stone', 'gold', 'oil', 'knowledge', 'favor']) p.resources[r] = 99999;
     p.visibility.fill(2);
     const ids = ['panic', 'crossroads', 'spring', 'gale', 'tidal_wave', 'divine_harvest', 'sun_chariot', 'winged_victory', 'retribution'];
