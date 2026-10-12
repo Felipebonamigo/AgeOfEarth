@@ -18,6 +18,828 @@ Estados: `pendente` · `em andamento` · `feito` · `feito com pendências` · `
 | E4 | feito | 11/10/2026 | E4-A…H | SIM_VERSION 7; baixio = terreno 6 (anda-se e navega-se, não se constrói); camada naval derivada (`src/core/map/naval.ts`), navios desligados em cenário e Horda (`config.naval`/`navalOn`); `rare_fish` fora de `RARE_NODES`; Estaleiro, pesca, transporte (`embark`/`unload`), 10 navios, linha `warship` I–VIII, IA naval com desembarque nas Ilhas; mapas Costeiro/Ilhas/Mediterrâneo e Egeu navegável; Estreito sem mudança. Verificação: smoke, balance terrestre, Horda, missões (as 36 linhas) e fairness do Estreito idênticos à base; naval sem PARADA (Eras ≤ ~2 min depois das terrestres); fairness do Egeu DENTRO (posição 50 %, índice 56 %); **Ilhas FORA** por posição (68 %: 29 de 32 partidas sem vencedor aos 45 min — à frente início 1 × 2 = 9 × 19; por índice 52 %): o mapa gerado não é simétrico e a conquista só por mar é lenta; fica registrado para a E10. G6 não precisou mudar números. Achado na verificação: o modo ilha da IA não estava preso a `navalOn` (m9 fácil mudava de 19m55 para 21m50) — corrigido |
 | E5 — comércio | feito | 11/10/2026 | E5-A…G | SIM_VERSION 8; comando `route` + `src/core/sim/trade.ts` (casa = ponto próprio mais perto, destino do time a ≥ 16 tiles, ouro = 0,5 × distância ×  bônus, +25 % aliado); `caravan` no Mercado (Era II, `C`), `merchant_ship` no Estaleiro (Era III, `M`, 0,7/tile); IA treina até `CARAVAN_TARGET_AI`/`MERCHANT_SHIP_TARGET_AI` fora de cenário (a IA não ergue 2º Estaleiro: fica para a E10); Mercador da E2 intacto. balance 35 1,2,3: Eras iguais às de antes (±1 min) e 5–6 caravanas nas IAs que chegam à Era V; o fuzz passou a usar a semente 20260927 (a antiga caía numa partida degenerada ao entrar `route`). Verificação: missões idênticas à base (36 linhas), Horda igual, smoke estável; fairness: Egeu 1–16 DENTRO (56 % posição, 63 % índice), Estreito 1–16 deu 66 % por índice (base 63 %, o resíduo conhecido) e a confirmação 101–132 ficou DENTRO (55 % posição, 58 % índice) |
 | E7 — maravilhas | feito | 12/10/2026 | E7-A…N | SIM_VERSION 9; as 20 maravilhas em `BUILDINGS` com `wonderEffects` (as 3 antigas passam a Eras II/II/III com `scenarioAge: 3`), lógica em `src/core/sim/wonders.ts`, única no mapa (obra perdida desaba com reembolso), vitória por pontos (meta pela Era final, 120 s) com `hold`/`off` na partida rápida e no lobby (`wonderVictory`, relay `cleanSettings`), regras clássicas em cenário (`allWondersOn`, campanha idêntica: `missions.ts` igual à base nas 36 linhas), `charges`/`powerReady` criados aqui (Trono), Fase M feita (`setNavalOpen` abre o istmo do Canal à camada naval; reaberto no `deserialize`). balance 35 1,2,3: Eras iguais às da E5 e uma IA com 1 maravilha aos 35 min (nenhuma partida acaba por maravilha antes dos 25 min); smoke igual ao da E5 (ninguém ergue maravilha em 20 min). Fairness: Egeu com `--mirror-ai` DENTRO (63 % posição, 56 % índice) e Estreito DENTRO (59 %). A IA constrói a maravilha só depois do resto (~5–7 min com recursos de sobra no teste). `vite.config.ts`: `testTimeout` 90 s (os testes de `art:check` passam de 30 s com o atlas maior). `npm test`: 1027 passam; o worker do vitest acusa `Timeout calling onTaskUpdate` (código de saída 1) por causa dos arquivos de missões de ~5 min — problema antigo, sem teste falhando |
+| E6 — mitologia | feito | 12/10/2026 | E6-A…I | SIM_VERSION 10; 9 deuses menores (Pã, Hécate, Perséfone; Éolo, Tritão, Deméter; Hélio, Nice, Nêmesis) com 6 pares por deus maior (D1), `eraMyth` desligado em cenário (`eraMythOn`); 9 poderes novos e escala +15 %/Era acima da Era do poder (`powerScale`); 12 criaturas por alias de arte; camada anfíbia (Ceto; Oceano só com navios ligados); Talos automático na Era VII; 7 Bênçãos; Titãs ×2 vida/×1,5 ataque fora de cenário; IA com os poderes, `trainSeaMyths` e Bênçãos. Verificação: smoke 20 42 com o mesmo hash nas duas execuções e igual ao pré-E6; balance 35 e 60 sem PARADA e Eras nos mesmos minutos; Horda igual; fairness: Egeu `--mirror-ai` DENTRO (56 % posição, 60 % índice) e Estreito DENTRO; `npm test` 1051 passam (mais o erro de worker do vitest já conhecido); playtest-myth, PT e EN, ok. **Missões: 35 das 36 linhas idênticas à base**; a exceção é m7_aquiles [hard] (vitória 27m31 em vez de 27m26, dentro da janela): nessa partida um jogador chega à Era V aos ~26 min e passa a poder escolher Pã/Hécate (os pares V–VII são dados, não regra de Era; mesma nota da Horda no guia); a causa foi isolada com bisect (aparece só com `temple.trains` ampliado) |
+| E8 | pendente | | | |
+| E9 — interface | pendente | | | |
+| E10 — balanceamento | pendente | | | |
+
+---
+
+## E1 — 8 Eras e Biblioteca (com o painel e a árvore da E9)
+
+Guia: `docs/eras/E1-eras-biblioteca.md`
+
+Bloco 0 — Preparação
+- [x] 0.1 Conferir o ponto de partida (`SIM_VERSION = 3`, 5 Idades)
+- [x] 0.2 Registrar o "antes" (balance 35, build, playtest)
+
+Bloco A — Dados das Eras
+- [x] A1 `ages.ts`: as 8 Eras e as constantes `ERA`, `ERA_TITANS`, `clampEra`…
+- [x] A2 `data/index.ts`: reexportar as constantes novas
+- [x] A3 Titãs e Portal dos Titãs na Era 7
+- [x] A4 `techs.ts`: `ROMAN`, `LINE_LEVELS` e linhas com 8 níveis
+- [x] A5 Biblioteca (`academy`) e descrições nos dados (faça antes o B1)
+- [x] A6 `en-data.ts`: Eras, linhas, Biblioteca e perks em inglês
+- [x] A7 `data.test.ts`: 8 Eras
+
+Bloco B — Biblioteca no núcleo
+- [x] B1 `types.ts`: `library`, `queueMax`, `perCity`, `visualEraMax`
+- [x] B2 `constants.ts`: `DEFAULT_QUEUE_MAX`
+- [x] B3 `commands.ts`: fila por edifício, `canHireScholar`, avanço de Era na Biblioteca
+- [x] B4 `restrictions.ts`: `isScenarioConfig` e `endAgeReason`
+- [x] B5 `entities.ts`: limite de uma Biblioteca por cidade
+- [x] B6 `strings.ts`: chaves renomeadas e novas
+- [x] B7 Testes do núcleo que avançavam no Centro Cívico
+
+Bloco C — Era inicial, Era final e `visualEraMax`
+- [x] C1 `game.ts`: `grantStartingEras` e Era inicial
+- [x] C2 `schema.ts`: `visualEraMax` e stat `studies`
+- [x] C3 `compile.ts`: `studies` e `visualEraMax`
+- [x] C4 Testes de Era inicial/final e de cenário
+
+Bloco D — IA
+- [x] D1 Tabelas da IA com 8 posições (exportadas)
+- [x] D2 `RESEARCH_PRIORITY` exportada, níveis 6–8 no fim
+- [x] D3 Plano de construção: Biblioteca na Era I, Portal, 2ª Biblioteca
+- [x] D4 `tryAdvanceAge` na Biblioteca
+- [x] D5 `budgetOf` genérico (todos os recursos)
+- [x] D6 `scripts/loadtest.ts`: Biblioteca e avanço nela
+- [x] D7 `SIM_VERSION = 4` (smoke 20 42: hash 6bad7445 nas duas rodadas)
+- [x] D8 `position-fairness`: 33/11 e testes da IA
+
+Bloco E — Save de versão antiga
+- [x] E1 `serialize.ts`: `SAVE_VERSION = 2` e `saveVersionOf`
+- [x] E2 `main.ts`: `hasSave`/`hasOldSave`/apagar save antigo
+- [x] E3 `menu.ts`: aviso e botão do save antigo
+
+Bloco F — Campanha
+- [x] F1 Configs `maxAge 3`/`visualEraMax 2` nas missões
+- [x] F2 Textos "Idade/Academia" → "Era/Biblioteca" nas missões
+- [x] F3 Apagar as falas do Portal (m4, m6)
+- [x] F4 Prometeu por roteiro (m3, m8, m12) e harness
+- [x] F5 m1: dica da Biblioteca (TS e JSON)
+- [ ] F6 Testes de campanha e `scripts/missions.ts`
+
+Bloco G — Renderização, ícones e conquistas
+- [x] G1 `ageTier`/`visualEra` no renderizador
+- [x] G2 Ícones das 8 Eras (`AGE_ICONS` + `npm run art:hud`)
+- [x] G3 Conquistas (`titans` = Era 7) e planilha da Steam
+
+Bloco H — Interface
+- [x] H1 Textos que mudam em `strings.ts`
+- [x] H2 `src/ui/studytree.ts` (novo)
+- [x] H3 CSS da árvore
+- [x] H4 `hud.ts`: painel da Biblioteca, árvore, menu, atalhos
+- [x] H5 `input.ts`: F3 e E
+- [x] H6 `src/ui/era-select.ts` (novo)
+- [x] H7 Partida rápida: seletores de Era
+- [x] H8 Lobby e relay: Era inicial/final
+- [x] H9 Editor (Testar): seletores de Era
+- [x] H10 Testes de interface
+- [x] H11 Playtests (`playtest.mjs` e `playtest-library.mjs`)
+
+Bloco I — Ferramentas de medição
+- [x] I1 `scripts/maps/fairness.ts` com N Eras
+
+Bloco J — Verificação e documentação
+- [x] J1 Seção "Verificação" inteira
+- [x] J2 Seção "Ao terminar"
+
+---
+
+## E2 — Pedra, petróleo e recursos raros
+
+Guia: `docs/eras/E2-recursos.md`
+
+Fase A — núcleo dos recursos
+- [x] 1 Pré-voo (E1 pronta) e linha de base
+- [x] 2 Recursos e constantes (`stone`, `oil`)
+- [x] 3 Save, hash e relatório de dessincronia
+- [x] 4 Cenários (stats e `give`)
+- [x] 5 Fuzz (`'marble'` como recurso inválido)
+- [x] 6 Nós novos (10 tipos)
+- [x] 7 Buscas e regra de quem trabalha cada nó (`canWorkNode`)
+- [x] 8 Coleta com a regra nova (Mercador)
+- [x] 9 Edifícios, unidade `merchant` e atalhos (`hotkeyGroup`)
+- [x] 10 Poço de Petróleo: colocação e extração
+- [x] 11 Raros e Mercador (`rares.ts`, renda por nó)
+- [x] 12 Pesquisas novas e custos de Era
+- [x] 13 Mercado (petróleo só da Era IV)
+- [x] 14 `SIM_VERSION` +1
+
+Fase B — mapas e editor
+- [x] 15 Tabela de recursos por início
+- [x] 16 Editor (`isNodeType`, paleta, tabela) — antes do 18 e do 19
+- [x] 17 Gerador aleatório (`placeEraResources`)
+- [x] 18 Mapas oficiais (Estreito e Egeu)
+- [x] 19 Mapas fixos da campanha (pedra) e pedra inicial das missões
+
+Fase C — IA
+- [x] 20 Economia da IA (pedra, petróleo, loadtest)
+- [x] 21 Construção da IA (Pedreira, poços, Refinaria)
+- [x] 22 Mercadores da IA (`manageMerchants`)
+
+Fase D — interface, textos e arte provisória
+- [x] 23 Textos PT/EN
+- [x] 24 HUD (barra de 7 recursos, raros, mercado)
+- [x] 25 Arte provisória por alias (`src/render/art/alias.ts`)
+- [x] 26 Nós no renderizador (procedural)
+- [x] 27 Ícones do HUD (`res/stone`, `res/oil`) + `art:hud`
+
+Fase E — testes, calibração e documentação
+- [x] 28 Teste novo `tests/resources-e2.test.ts`
+- [x] 29 Verificação completa
+- [x] 30 Campanha: harness com pedra e `scripts/missions.ts`
+- [x] 31 Documentação e commit ("Ao terminar")
+
+---
+
+## E3 — Linhas de unidade I–VIII com evolução na Biblioteca
+
+Guia: `docs/eras/E3-linhas-de-unidade.md`
+
+Bloco 0 — Preparação
+- [x] 0.1 Conferir as pré-condições (E1 e E2)
+- [x] 0.2 Registrar o "antes" (balance 60, missions, horde, smoke)
+
+Bloco A — Tipos e dados
+- [x] A1 `types.ts`: `line`, `tier`, `lineOnly`, `attackInterval`, `evolve`, `unitLines`
+- [x] A2 `src/core/data/lines.ts` (novo)
+- [x] A3 `data/index.ts`: exportar `lines`
+- [x] A4 `units.ts`: `line`/`tier` nas 12 de hoje e as 41 novas
+- [x] A5 `techs.ts`: `evolutions()` (50 estudos)
+- [x] A6 `en-data.ts`: inglês das unidades, linhas e estudos
+- [x] A7 `i18n/index.ts`: `EN_LINES` no `setLocale`
+- [x] A8 `strings.ts`: 4 chaves novas
+- [x] A9 Testes de dados
+
+Bloco B — Núcleo
+- [x] B1 `src/core/sim/lines.ts` (novo)
+- [x] B2 `commands.ts`: treino pela linha
+- [x] B3 `buildings.ts`: item resolvido ao nascer e `applyEvolution`
+- [x] B4 `helpers.ts`: `grantTech` transforma
+- [x] B5 `combat.ts`: `attackInterval`
+- [x] B6 `game.ts`: `grantStartingEvolutions`, kit e `evo=`
+- [x] B7 Cenário: `config.unitLines`
+- [x] B8 `SIM_VERSION` +1
+- [x] B9 `tests/unit-lines.test.ts` (dados e núcleo)
+
+Bloco C — IA
+- [x] C1 Imports da IA
+- [x] C2 Treino do exército por `trainChoices`
+- [x] C3 Evoluções em `manageResearch`
+- [x] C4 Teste da IA e smoke
+
+Bloco D — Renderização provisória
+- [x] D1 Alias das 41 unidades
+- [x] D2 `TextureCache.unit` desenha o alias
+- [x] D3 Efeito `evolve`
+- [x] D4 Projétil do sifão (`fireball`)
+- [x] D5 Testes de efeitos
+
+Bloco E — Ícones do HUD
+- [x] E1 `catalog.mjs`: ícones `evo_<linha>`
+- [x] E2 `icons.ts`: `techIconName` para `evo_*`
+- [x] E3 Gerar o atlas (`art:hud`) e `art:check`
+
+Bloco F — Interface
+- [x] F1 `hud.ts`: botões por linha, cartão, atalhos, fila
+- [x] F2 `input.ts`: atalho de treino por `trainChoices`
+- [x] F3 `studytree.ts`: uma linha da árvore por linha de unidade
+- [x] F4 Testes da interface
+
+Bloco G — Playtest
+- [x] G1 `scripts/playtest-lines.mjs` (novo)
+- [x] G2 Rodar no build e olhar as 3 capturas
+
+Bloco H — Verificação e documentação
+- [x] H1 Seção "Verificação" inteira
+- [x] H2 `docs/EDITOR.md`: `unitLines`
+- [x] H3 "Ao terminar"
+
+---
+
+## E4 — Naval
+
+Guia: `docs/eras/E4-naval.md`
+
+Bloco 0 — Preparação
+- [x] 01 Pré-voo (E1–E3 prontas)
+- [x] 02 Linha de base (smoke, balance, missions, fairness)
+
+Bloco A — Terreno, camada naval e regiões
+- [x] A1 Constantes e tipos (baixio, nós de peixe, tipos de mapa)
+- [x] A2 `src/core/map/naval.ts` (novo)
+- [x] A3 `grid.ts` com camada
+- [x] A4 `pathfinding.ts` com camada
+- [x] A5 `components.ts`: regiões navais e `shoreOk`
+- [x] A6 Bloqueio terrestre pela regra única
+
+Bloco B — Dados
+- [x] B1 Unidades (10 navios)
+- [x] B2 Linhas `fishing`, `transport`, `warship`
+- [x] B3 Estudos (`evolutions()` com linhas de tipo fixo) e pesquisas do Estaleiro
+- [x] B4 Estaleiro, Poseidon e `rare_fish`
+- [x] B5 Textos PT/EN
+- [x] B6 Testes da E3 que contam linhas, degraus e estudos
+
+Bloco C — Núcleo
+- [x] C1 `src/core/sim/naval.ts` (novo)
+- [x] C2 `queries.ts` pela camada do nó
+- [x] C3 `entities.ts`: Estaleiro, spawn, guarnição
+- [x] C4 `completeQueueItem`: navio nasce na água
+- [x] C5 Movimento pela camada
+- [x] C6 `combat.ts`: navios, afundamento
+- [x] C7 Ataque entre meios
+- [x] C8 Coleta e entrega de navio
+- [x] C9 Ordens `embark`/`unload`
+- [x] C9b Barco de pesca não reza nem cultiva
+- [x] C10 `commands.ts`: `move` por camada, `embark`, `unload`
+- [x] C11 `restrictions.ts`: `navalOn`
+- [x] C12 Resto do núcleo (economia, poderes, createGame, debugSpawn…)
+
+Bloco D — Mapas e editor
+- [x] D1 `generateMap`: Costeiro, Ilhas, Mediterrâneo
+- [x] D2 `placeNavalResources`
+- [x] D3 `fixed.ts`: validação e tabela por início
+- [x] D4 Egeu navegável
+- [x] D5 `mapcheck` e `export-map`
+- [x] D6 Editor — terreno
+- [x] D7 Editor — painel e tipos
+- [x] D8 Renderizador do editor (sobreposição do mar)
+- [x] D9 `docs/EDITOR.md`
+
+Bloco E — IA naval
+- [x] E1 Snapshot (`ships`) e evoluções navais só com Estaleiro
+- [x] E2 Guardas no treino e no exército
+- [x] E3 Funções (`manageNavy`, `manageInvasion`, modo ilha)
+
+Bloco F — Renderização, áudio, interface e ícones
+- [x] F1 Terreno (baixio)
+- [x] F2 Nós (peixe, atum)
+- [x] F3 Navio procedural (`drawShip`)
+- [x] F4 Efeitos (esteira)
+- [x] F5 Áudio
+- [x] F6 Interface (carga, desembarque)
+- [x] F7 Ícones (`SHIP_ICONS` + `art:hud`)
+- [x] F8 Testes de arte (navios fora do "tudo assado")
+
+Bloco G — Testes, playtest e calibração
+- [x] G1 `tests/naval.test.ts` (novo)
+- [x] G2 Fuzz com `embark`/`unload`
+- [x] G3 Testes que mudam (modes, editor, data, fairness)
+- [x] G4 `scripts/playtest-editor.mjs`
+- [x] G5 `scripts/playtest-naval.mjs` (novo)
+- [x] G6 Calibração
+
+Bloco H — Verificação e documentação
+- [x] H1 Seção "Verificação" inteira
+- [x] H2 Seção "Ao terminar"
+
+---
+
+## E5 — Comércio por caravanas (Parte 1)
+
+Guia: `docs/eras/E5-E7-comercio-maravilhas.md`
+
+Fase 0 — Preparação
+- [ ] 0.1 Pré-requisitos
+- [ ] 0.2 Conferir o Mercador da E2
+- [x] 0.3 "Antes" (smoke e balance)
+
+Fase A — Dados e tipos
+- [ ] A1 `types.ts`: `trader`, `tradeRoute`, rota, comando `route`
+- [ ] A2 Constantes do comércio
+- [ ] A3 `modifiers.ts`: `tradeIncome`, `seaTradeIncome`
+- [ ] A4 Dados: `caravan`, pontos de comércio
+- [ ] A5 Arte provisória (alias `kataskopos`)
+- [ ] A6 Textos PT/EN
+
+Fase B — Núcleo
+- [ ] B1 `src/core/sim/trade.ts` (novo)
+- [ ] B2 Campos da unidade e `deserialize`
+- [ ] B3 Caravana sem guarnição
+- [ ] B4 Movimento da rota (`updateRoute`)
+- [ ] B5 Validação do comando
+- [ ] B6 Comando `route`
+- [ ] B7 Ponto de encontro num ponto de comércio vira rota
+- [ ] B8 Relatório de dessincronia
+- [ ] B9 `SIM_VERSION` +1
+
+Fase C — IA
+- [x] C1 `manageCaravans`
+- [x] C2 `scripts/balance.ts`: `caravanas=`
+
+Fase D — Interface
+- [x] D1 `issueChecked` da rota
+- [x] D2 Clique direito de caravana
+- [x] D3 Cartão da caravana
+- [x] D4 Ganchos dos playtests (nada a criar)
+- [x] D5 `scripts/playtest-trade.mjs` (novo)
+
+Fase E — Testes
+- [x] T1 `tests/trade-e5.test.ts` (novo)
+- [x] T2 Fuzz com `route`
+
+Fase F — Navio mercante (com a E4)
+- [x] F0 Pré-condição (E4 pronta)
+- [x] F1 Dados do `merchant_ship` e ícone
+- [x] F2 Alcance no mar
+- [x] F3 IA com navios mercantes
+- [x] F4 Teste da rota marítima
+
+Fase G — Verificação e commit
+- [ ] G1 "Verificação" (itens da E5)
+- [ ] G2 "Ao terminar" da E5 e commit
+
+---
+
+## E7 — As 20 maravilhas e a vitória por pontos (Parte 2)
+
+Guia: `docs/eras/E5-E7-comercio-maravilhas.md`
+
+Fase 0' — Preparação
+- [x] 0'.1 E5 commitada e "antes"
+- [x] 0'.2 Conferir `charges` (o normal é não achar)
+
+Fase H — Dados e tipos
+- [x] H1 `types.ts`: efeitos, `scenarioAge`, vitória, `respawns`, `charges`
+- [x] H2 Constantes das maravilhas
+- [x] H3 `modifiers.ts`: 5 stats novos
+- [x] H4 `buildings.ts`: 20 maravilhas e `CLASSIC_WONDERS`
+- [x] H5 Arte provisória (17 aliases)
+- [x] H6 Textos PT/EN e conquista `win_wonder`
+
+Fase I — Regras no núcleo
+- [x] I1 `restrictions.ts`: `allWondersOn`, `buildingAgeOf`
+- [x] I2 `buildingLimitOk`: única no mapa
+- [x] I3 `canPlaceBuilding` pela Era de cenário
+- [x] I4 `src/core/sim/wonders.ts` (novo)
+- [x] I5 Ganchos em `entities.ts` e `combat.ts`
+- [x] I6 `recomputeMods` com `wonderEffects`
+- [x] I7 Tick com `wonderSecond`
+- [x] I8 Vitória por maravilha (`wonderWinner`)
+- [x] I9 Estado do jogador e `deserialize`
+- [x] I10 `SIM_VERSION` +1
+
+Fase J — Efeitos com código
+- [x] J1 Labirinto (`enemySpeed`)
+- [x] J2 Epidauro (`territoryRegen`)
+- [x] J3 Estádio (`veteranRate`)
+- [x] J4 Biblioteca de Alexandria (`studySlots`)
+- [x] J5 Farol (`coastSight`)
+- [x] J6 Mausoléu no treino
+- [x] J7 Trono do Olimpo e usos extras (`powerReady`)
+- [x] J8 Canal de Corinto (passável)
+
+Fase K — IA
+- [x] K1 Escolha e plano das maravilhas
+- [x] K2 Ataque à maravilha em contagem
+
+Fase L — Interface
+- [x] L1 Painel e tecla `M`
+- [x] L2 Barra do topo
+- [x] L3 Cartão da maravilha
+- [x] L4 Opção na partida rápida e no lobby (relay)
+- [x] L5 Conquista (planilha da Steam)
+- [x] L6 `scripts/balance.ts`: `maravilhas=`
+- [x] L7 `scripts/playtest-wonders.mjs` (novo)
+
+Fase M — Ganchos navais (com a E4)
+- [x] M0 Conferir a E4
+- [x] M1 Tag dos navios
+- [x] M2 Passagem do Canal (`setNavalOpen`)
+- [x] M3 Teste do Canal
+
+Fase N — Testes, verificação e commit
+- [x] N1 `tests/wonders-e7.test.ts` (novo)
+- [x] N2 "Verificação" e "Ao terminar" da E7
+
+---
+
+## Resumo
+
+Estados: `pendente` · `em andamento` · `feito` · `feito com pendências` · `bloqueado`.
+
+| Etapa | Estado | Data | Commit | Notas |
+|---|---|---|---|---|
+| E1 + painel/árvore (E9) | feito | 10/10/2026 | 04f0080+ | SIM_VERSION 4, save v2; Prometeu por roteiro nas m3/m8/m12 |
+| E2 | feito | 11/10/2026 | E2-A…E | SIM_VERSION 5; pedra (Pedreira), nafta (Era IV, Poço de Nafta), jazidas (Era VII, Poço de Petróleo), 7 raros com Mercador; IA só planta onde a obra é alcançável (`findBuildSpot` com `findPathEx`); proporção de pedra/petróleo cai com estoque parado |
+| E3 | feito | 11/10/2026 | E3-A…H | SIM_VERSION 6; 10 linhas, 41 degraus novos e 50 estudos `evo_*`; elenco clássico nos cenários (`config.unitLines`); Sifão como linha técnica `greek_fire`; navios reservados para a E4; a IA só evolui linhas militares com o fundo da Era junto (ajuste 2) |
+| E4 | feito | 11/10/2026 | E4-A…H | SIM_VERSION 7; baixio = terreno 6 (anda-se e navega-se, não se constrói); camada naval derivada (`src/core/map/naval.ts`), navios desligados em cenário e Horda (`config.naval`/`navalOn`); `rare_fish` fora de `RARE_NODES`; Estaleiro, pesca, transporte (`embark`/`unload`), 10 navios, linha `warship` I–VIII, IA naval com desembarque nas Ilhas; mapas Costeiro/Ilhas/Mediterrâneo e Egeu navegável; Estreito sem mudança. Verificação: smoke, balance terrestre, Horda, missões (as 36 linhas) e fairness do Estreito idênticos à base; naval sem PARADA (Eras ≤ ~2 min depois das terrestres); fairness do Egeu DENTRO (posição 50 %, índice 56 %); **Ilhas FORA** por posição (68 %: 29 de 32 partidas sem vencedor aos 45 min — à frente início 1 × 2 = 9 × 19; por índice 52 %): o mapa gerado não é simétrico e a conquista só por mar é lenta; fica registrado para a E10. G6 não precisou mudar números. Achado na verificação: o modo ilha da IA não estava preso a `navalOn` (m9 fácil mudava de 19m55 para 21m50) — corrigido |
+| E5 — comércio | feito | 11/10/2026 | E5-A…G | SIM_VERSION 8; comando `route` + `src/core/sim/trade.ts` (casa = ponto próprio mais perto, destino do time a ≥ 16 tiles, ouro = 0,5 × distância ×  bônus, +25 % aliado); `caravan` no Mercado (Era II, `C`), `merchant_ship` no Estaleiro (Era III, `M`, 0,7/tile); IA treina até `CARAVAN_TARGET_AI`/`MERCHANT_SHIP_TARGET_AI` fora de cenário (a IA não ergue 2º Estaleiro: fica para a E10); Mercador da E2 intacto. balance 35 1,2,3: Eras iguais às de antes (±1 min) e 5–6 caravanas nas IAs que chegam à Era V; o fuzz passou a usar a semente 20260927 (a antiga caía numa partida degenerada ao entrar `route`). Verificação: missões idênticas à base (36 linhas), Horda igual, smoke estável; fairness: Egeu 1–16 DENTRO (56 % posição, 63 % índice), Estreito 1–16 deu 66 % por índice (base 63 %, o resíduo conhecido) e a confirmação 101–132 ficou DENTRO (55 % posição, 58 % índice) |
+| E7 — maravilhas | feito | 12/10/2026 | E7-A…N | SIM_VERSION 9; as 20 maravilhas em `BUILDINGS` com `wonderEffects` (as 3 antigas passam a Eras II/II/III com `scenarioAge: 3`), lógica em `src/core/sim/wonders.ts`, única no mapa (obra perdida desaba com reembolso), vitória por pontos (meta pela Era final, 120 s) com `hold`/`off` na partida rápida e no lobby (`wonderVictory`, relay `cleanSettings`), regras clássicas em cenário (`allWondersOn`, campanha idêntica: `missions.ts` igual à base nas 36 linhas), `charges`/`powerReady` criados aqui (Trono), Fase M feita (`setNavalOpen` abre o istmo do Canal à camada naval; reaberto no `deserialize`). balance 35 1,2,3: Eras iguais às da E5 e uma IA com 1 maravilha aos 35 min (nenhuma partida acaba por maravilha antes dos 25 min); smoke igual ao da E5 (ninguém ergue maravilha em 20 min). Fairness: Egeu com `--mirror-ai` DENTRO (63 % posição, 56 % índice) e Estreito DENTRO (59 %). A IA constrói a maravilha só depois do resto (~5–7 min com recursos de sobra no teste). `vite.config.ts`: `testTimeout` 90 s (os testes de `art:check` passam de 30 s com o atlas maior). `npm test`: 1027 passam; o worker do vitest acusa `Timeout calling onTaskUpdate` (código de saída 1) por causa dos arquivos de missões de ~5 min — problema antigo, sem teste falhando |
+| E6 | pendente | | | |
+| E8 | pendente | | | |
+| E9 — interface | pendente | | | |
+| E10 — balanceamento | pendente | | | |
+
+---
+
+## E1 — 8 Eras e Biblioteca (com o painel e a árvore da E9)
+
+Guia: `docs/eras/E1-eras-biblioteca.md`
+
+Bloco 0 — Preparação
+- [x] 0.1 Conferir o ponto de partida (`SIM_VERSION = 3`, 5 Idades)
+- [x] 0.2 Registrar o "antes" (balance 35, build, playtest)
+
+Bloco A — Dados das Eras
+- [x] A1 `ages.ts`: as 8 Eras e as constantes `ERA`, `ERA_TITANS`, `clampEra`…
+- [x] A2 `data/index.ts`: reexportar as constantes novas
+- [x] A3 Titãs e Portal dos Titãs na Era 7
+- [x] A4 `techs.ts`: `ROMAN`, `LINE_LEVELS` e linhas com 8 níveis
+- [x] A5 Biblioteca (`academy`) e descrições nos dados (faça antes o B1)
+- [x] A6 `en-data.ts`: Eras, linhas, Biblioteca e perks em inglês
+- [x] A7 `data.test.ts`: 8 Eras
+
+Bloco B — Biblioteca no núcleo
+- [x] B1 `types.ts`: `library`, `queueMax`, `perCity`, `visualEraMax`
+- [x] B2 `constants.ts`: `DEFAULT_QUEUE_MAX`
+- [x] B3 `commands.ts`: fila por edifício, `canHireScholar`, avanço de Era na Biblioteca
+- [x] B4 `restrictions.ts`: `isScenarioConfig` e `endAgeReason`
+- [x] B5 `entities.ts`: limite de uma Biblioteca por cidade
+- [x] B6 `strings.ts`: chaves renomeadas e novas
+- [x] B7 Testes do núcleo que avançavam no Centro Cívico
+
+Bloco C — Era inicial, Era final e `visualEraMax`
+- [x] C1 `game.ts`: `grantStartingEras` e Era inicial
+- [x] C2 `schema.ts`: `visualEraMax` e stat `studies`
+- [x] C3 `compile.ts`: `studies` e `visualEraMax`
+- [x] C4 Testes de Era inicial/final e de cenário
+
+Bloco D — IA
+- [x] D1 Tabelas da IA com 8 posições (exportadas)
+- [x] D2 `RESEARCH_PRIORITY` exportada, níveis 6–8 no fim
+- [x] D3 Plano de construção: Biblioteca na Era I, Portal, 2ª Biblioteca
+- [x] D4 `tryAdvanceAge` na Biblioteca
+- [x] D5 `budgetOf` genérico (todos os recursos)
+- [x] D6 `scripts/loadtest.ts`: Biblioteca e avanço nela
+- [x] D7 `SIM_VERSION = 4` (smoke 20 42: hash 6bad7445 nas duas rodadas)
+- [x] D8 `position-fairness`: 33/11 e testes da IA
+
+Bloco E — Save de versão antiga
+- [x] E1 `serialize.ts`: `SAVE_VERSION = 2` e `saveVersionOf`
+- [x] E2 `main.ts`: `hasSave`/`hasOldSave`/apagar save antigo
+- [x] E3 `menu.ts`: aviso e botão do save antigo
+
+Bloco F — Campanha
+- [x] F1 Configs `maxAge 3`/`visualEraMax 2` nas missões
+- [x] F2 Textos "Idade/Academia" → "Era/Biblioteca" nas missões
+- [x] F3 Apagar as falas do Portal (m4, m6)
+- [x] F4 Prometeu por roteiro (m3, m8, m12) e harness
+- [x] F5 m1: dica da Biblioteca (TS e JSON)
+- [ ] F6 Testes de campanha e `scripts/missions.ts`
+
+Bloco G — Renderização, ícones e conquistas
+- [x] G1 `ageTier`/`visualEra` no renderizador
+- [x] G2 Ícones das 8 Eras (`AGE_ICONS` + `npm run art:hud`)
+- [x] G3 Conquistas (`titans` = Era 7) e planilha da Steam
+
+Bloco H — Interface
+- [x] H1 Textos que mudam em `strings.ts`
+- [x] H2 `src/ui/studytree.ts` (novo)
+- [x] H3 CSS da árvore
+- [x] H4 `hud.ts`: painel da Biblioteca, árvore, menu, atalhos
+- [x] H5 `input.ts`: F3 e E
+- [x] H6 `src/ui/era-select.ts` (novo)
+- [x] H7 Partida rápida: seletores de Era
+- [x] H8 Lobby e relay: Era inicial/final
+- [x] H9 Editor (Testar): seletores de Era
+- [x] H10 Testes de interface
+- [x] H11 Playtests (`playtest.mjs` e `playtest-library.mjs`)
+
+Bloco I — Ferramentas de medição
+- [x] I1 `scripts/maps/fairness.ts` com N Eras
+
+Bloco J — Verificação e documentação
+- [x] J1 Seção "Verificação" inteira
+- [x] J2 Seção "Ao terminar"
+
+---
+
+## E2 — Pedra, petróleo e recursos raros
+
+Guia: `docs/eras/E2-recursos.md`
+
+Fase A — núcleo dos recursos
+- [x] 1 Pré-voo (E1 pronta) e linha de base
+- [x] 2 Recursos e constantes (`stone`, `oil`)
+- [x] 3 Save, hash e relatório de dessincronia
+- [x] 4 Cenários (stats e `give`)
+- [x] 5 Fuzz (`'marble'` como recurso inválido)
+- [x] 6 Nós novos (10 tipos)
+- [x] 7 Buscas e regra de quem trabalha cada nó (`canWorkNode`)
+- [x] 8 Coleta com a regra nova (Mercador)
+- [x] 9 Edifícios, unidade `merchant` e atalhos (`hotkeyGroup`)
+- [x] 10 Poço de Petróleo: colocação e extração
+- [x] 11 Raros e Mercador (`rares.ts`, renda por nó)
+- [x] 12 Pesquisas novas e custos de Era
+- [x] 13 Mercado (petróleo só da Era IV)
+- [x] 14 `SIM_VERSION` +1
+
+Fase B — mapas e editor
+- [x] 15 Tabela de recursos por início
+- [x] 16 Editor (`isNodeType`, paleta, tabela) — antes do 18 e do 19
+- [x] 17 Gerador aleatório (`placeEraResources`)
+- [x] 18 Mapas oficiais (Estreito e Egeu)
+- [x] 19 Mapas fixos da campanha (pedra) e pedra inicial das missões
+
+Fase C — IA
+- [x] 20 Economia da IA (pedra, petróleo, loadtest)
+- [x] 21 Construção da IA (Pedreira, poços, Refinaria)
+- [x] 22 Mercadores da IA (`manageMerchants`)
+
+Fase D — interface, textos e arte provisória
+- [x] 23 Textos PT/EN
+- [x] 24 HUD (barra de 7 recursos, raros, mercado)
+- [x] 25 Arte provisória por alias (`src/render/art/alias.ts`)
+- [x] 26 Nós no renderizador (procedural)
+- [x] 27 Ícones do HUD (`res/stone`, `res/oil`) + `art:hud`
+
+Fase E — testes, calibração e documentação
+- [x] 28 Teste novo `tests/resources-e2.test.ts`
+- [x] 29 Verificação completa
+- [x] 30 Campanha: harness com pedra e `scripts/missions.ts`
+- [x] 31 Documentação e commit ("Ao terminar")
+
+---
+
+## E3 — Linhas de unidade I–VIII com evolução na Biblioteca
+
+Guia: `docs/eras/E3-linhas-de-unidade.md`
+
+Bloco 0 — Preparação
+- [x] 0.1 Conferir as pré-condições (E1 e E2)
+- [x] 0.2 Registrar o "antes" (balance 60, missions, horde, smoke)
+
+Bloco A — Tipos e dados
+- [x] A1 `types.ts`: `line`, `tier`, `lineOnly`, `attackInterval`, `evolve`, `unitLines`
+- [x] A2 `src/core/data/lines.ts` (novo)
+- [x] A3 `data/index.ts`: exportar `lines`
+- [x] A4 `units.ts`: `line`/`tier` nas 12 de hoje e as 41 novas
+- [x] A5 `techs.ts`: `evolutions()` (50 estudos)
+- [x] A6 `en-data.ts`: inglês das unidades, linhas e estudos
+- [x] A7 `i18n/index.ts`: `EN_LINES` no `setLocale`
+- [x] A8 `strings.ts`: 4 chaves novas
+- [x] A9 Testes de dados
+
+Bloco B — Núcleo
+- [x] B1 `src/core/sim/lines.ts` (novo)
+- [x] B2 `commands.ts`: treino pela linha
+- [x] B3 `buildings.ts`: item resolvido ao nascer e `applyEvolution`
+- [x] B4 `helpers.ts`: `grantTech` transforma
+- [x] B5 `combat.ts`: `attackInterval`
+- [x] B6 `game.ts`: `grantStartingEvolutions`, kit e `evo=`
+- [x] B7 Cenário: `config.unitLines`
+- [x] B8 `SIM_VERSION` +1
+- [x] B9 `tests/unit-lines.test.ts` (dados e núcleo)
+
+Bloco C — IA
+- [x] C1 Imports da IA
+- [x] C2 Treino do exército por `trainChoices`
+- [x] C3 Evoluções em `manageResearch`
+- [x] C4 Teste da IA e smoke
+
+Bloco D — Renderização provisória
+- [x] D1 Alias das 41 unidades
+- [x] D2 `TextureCache.unit` desenha o alias
+- [x] D3 Efeito `evolve`
+- [x] D4 Projétil do sifão (`fireball`)
+- [x] D5 Testes de efeitos
+
+Bloco E — Ícones do HUD
+- [x] E1 `catalog.mjs`: ícones `evo_<linha>`
+- [x] E2 `icons.ts`: `techIconName` para `evo_*`
+- [x] E3 Gerar o atlas (`art:hud`) e `art:check`
+
+Bloco F — Interface
+- [x] F1 `hud.ts`: botões por linha, cartão, atalhos, fila
+- [x] F2 `input.ts`: atalho de treino por `trainChoices`
+- [x] F3 `studytree.ts`: uma linha da árvore por linha de unidade
+- [x] F4 Testes da interface
+
+Bloco G — Playtest
+- [x] G1 `scripts/playtest-lines.mjs` (novo)
+- [x] G2 Rodar no build e olhar as 3 capturas
+
+Bloco H — Verificação e documentação
+- [x] H1 Seção "Verificação" inteira
+- [x] H2 `docs/EDITOR.md`: `unitLines`
+- [x] H3 "Ao terminar"
+
+---
+
+## E4 — Naval
+
+Guia: `docs/eras/E4-naval.md`
+
+Bloco 0 — Preparação
+- [x] 01 Pré-voo (E1–E3 prontas)
+- [x] 02 Linha de base (smoke, balance, missions, fairness)
+
+Bloco A — Terreno, camada naval e regiões
+- [x] A1 Constantes e tipos (baixio, nós de peixe, tipos de mapa)
+- [x] A2 `src/core/map/naval.ts` (novo)
+- [x] A3 `grid.ts` com camada
+- [x] A4 `pathfinding.ts` com camada
+- [x] A5 `components.ts`: regiões navais e `shoreOk`
+- [x] A6 Bloqueio terrestre pela regra única
+
+Bloco B — Dados
+- [x] B1 Unidades (10 navios)
+- [x] B2 Linhas `fishing`, `transport`, `warship`
+- [x] B3 Estudos (`evolutions()` com linhas de tipo fixo) e pesquisas do Estaleiro
+- [x] B4 Estaleiro, Poseidon e `rare_fish`
+- [x] B5 Textos PT/EN
+- [x] B6 Testes da E3 que contam linhas, degraus e estudos
+
+Bloco C — Núcleo
+- [x] C1 `src/core/sim/naval.ts` (novo)
+- [x] C2 `queries.ts` pela camada do nó
+- [x] C3 `entities.ts`: Estaleiro, spawn, guarnição
+- [x] C4 `completeQueueItem`: navio nasce na água
+- [x] C5 Movimento pela camada
+- [x] C6 `combat.ts`: navios, afundamento
+- [x] C7 Ataque entre meios
+- [x] C8 Coleta e entrega de navio
+- [x] C9 Ordens `embark`/`unload`
+- [x] C9b Barco de pesca não reza nem cultiva
+- [x] C10 `commands.ts`: `move` por camada, `embark`, `unload`
+- [x] C11 `restrictions.ts`: `navalOn`
+- [x] C12 Resto do núcleo (economia, poderes, createGame, debugSpawn…)
+
+Bloco D — Mapas e editor
+- [x] D1 `generateMap`: Costeiro, Ilhas, Mediterrâneo
+- [x] D2 `placeNavalResources`
+- [x] D3 `fixed.ts`: validação e tabela por início
+- [x] D4 Egeu navegável
+- [x] D5 `mapcheck` e `export-map`
+- [x] D6 Editor — terreno
+- [x] D7 Editor — painel e tipos
+- [x] D8 Renderizador do editor (sobreposição do mar)
+- [x] D9 `docs/EDITOR.md`
+
+Bloco E — IA naval
+- [x] E1 Snapshot (`ships`) e evoluções navais só com Estaleiro
+- [x] E2 Guardas no treino e no exército
+- [x] E3 Funções (`manageNavy`, `manageInvasion`, modo ilha)
+
+Bloco F — Renderização, áudio, interface e ícones
+- [x] F1 Terreno (baixio)
+- [x] F2 Nós (peixe, atum)
+- [x] F3 Navio procedural (`drawShip`)
+- [x] F4 Efeitos (esteira)
+- [x] F5 Áudio
+- [x] F6 Interface (carga, desembarque)
+- [x] F7 Ícones (`SHIP_ICONS` + `art:hud`)
+- [x] F8 Testes de arte (navios fora do "tudo assado")
+
+Bloco G — Testes, playtest e calibração
+- [x] G1 `tests/naval.test.ts` (novo)
+- [x] G2 Fuzz com `embark`/`unload`
+- [x] G3 Testes que mudam (modes, editor, data, fairness)
+- [x] G4 `scripts/playtest-editor.mjs`
+- [x] G5 `scripts/playtest-naval.mjs` (novo)
+- [x] G6 Calibração
+
+Bloco H — Verificação e documentação
+- [x] H1 Seção "Verificação" inteira
+- [x] H2 Seção "Ao terminar"
+
+---
+
+## E5 — Comércio por caravanas (Parte 1)
+
+Guia: `docs/eras/E5-E7-comercio-maravilhas.md`
+
+Fase 0 — Preparação
+- [ ] 0.1 Pré-requisitos
+- [ ] 0.2 Conferir o Mercador da E2
+- [x] 0.3 "Antes" (smoke e balance)
+
+Fase A — Dados e tipos
+- [ ] A1 `types.ts`: `trader`, `tradeRoute`, rota, comando `route`
+- [ ] A2 Constantes do comércio
+- [ ] A3 `modifiers.ts`: `tradeIncome`, `seaTradeIncome`
+- [ ] A4 Dados: `caravan`, pontos de comércio
+- [ ] A5 Arte provisória (alias `kataskopos`)
+- [ ] A6 Textos PT/EN
+
+Fase B — Núcleo
+- [ ] B1 `src/core/sim/trade.ts` (novo)
+- [ ] B2 Campos da unidade e `deserialize`
+- [ ] B3 Caravana sem guarnição
+- [ ] B4 Movimento da rota (`updateRoute`)
+- [ ] B5 Validação do comando
+- [ ] B6 Comando `route`
+- [ ] B7 Ponto de encontro num ponto de comércio vira rota
+- [ ] B8 Relatório de dessincronia
+- [ ] B9 `SIM_VERSION` +1
+
+Fase C — IA
+- [x] C1 `manageCaravans`
+- [x] C2 `scripts/balance.ts`: `caravanas=`
+
+Fase D — Interface
+- [x] D1 `issueChecked` da rota
+- [x] D2 Clique direito de caravana
+- [x] D3 Cartão da caravana
+- [x] D4 Ganchos dos playtests (nada a criar)
+- [x] D5 `scripts/playtest-trade.mjs` (novo)
+
+Fase E — Testes
+- [x] T1 `tests/trade-e5.test.ts` (novo)
+- [x] T2 Fuzz com `route`
+
+Fase F — Navio mercante (com a E4)
+- [x] F0 Pré-condição (E4 pronta)
+- [x] F1 Dados do `merchant_ship` e ícone
+- [x] F2 Alcance no mar
+- [x] F3 IA com navios mercantes
+- [x] F4 Teste da rota marítima
+
+Fase G — Verificação e commit
+- [ ] G1 "Verificação" (itens da E5)
+- [ ] G2 "Ao terminar" da E5 e commit
+
+---
+
+## E7 — As 20 maravilhas e a vitória por pontos (Parte 2)
+
+Guia: `docs/eras/E5-E7-comercio-maravilhas.md`
+
+Fase 0' — Preparação
+- [x] 0'.1 E5 commitada e "antes"
+- [x] 0'.2 Conferir `charges` (o normal é não achar)
+
+Fase H — Dados e tipos
+- [x] H1 `types.ts`: efeitos, `scenarioAge`, vitória, `respawns`, `charges`
+- [x] H2 Constantes das maravilhas
+- [x] H3 `modifiers.ts`: 5 stats novos
+- [x] H4 `buildings.ts`: 20 maravilhas e `CLASSIC_WONDERS`
+- [x] H5 Arte provisória (17 aliases)
+- [x] H6 Textos PT/EN e conquista `win_wonder`
+
+Fase I — Regras no núcleo
+- [x] I1 `restrictions.ts`: `allWondersOn`, `buildingAgeOf`
+- [x] I2 `buildingLimitOk`: única no mapa
+- [x] I3 `canPlaceBuilding` pela Era de cenário
+- [x] I4 `src/core/sim/wonders.ts` (novo)
+- [x] I5 Ganchos em `entities.ts` e `combat.ts`
+- [x] I6 `recomputeMods` com `wonderEffects`
+- [x] I7 Tick com `wonderSecond`
+- [x] I8 Vitória por maravilha (`wonderWinner`)
+- [x] I9 Estado do jogador e `deserialize`
+- [x] I10 `SIM_VERSION` +1
+
+Fase J — Efeitos com código
+- [x] J1 Labirinto (`enemySpeed`)
+- [x] J2 Epidauro (`territoryRegen`)
+- [x] J3 Estádio (`veteranRate`)
+- [x] J4 Biblioteca de Alexandria (`studySlots`)
+- [x] J5 Farol (`coastSight`)
+- [x] J6 Mausoléu no treino
+- [x] J7 Trono do Olimpo e usos extras (`powerReady`)
+- [x] J8 Canal de Corinto (passável)
+
+Fase K — IA
+- [x] K1 Escolha e plano das maravilhas
+- [x] K2 Ataque à maravilha em contagem
+
+Fase L — Interface
+- [x] L1 Painel e tecla `M`
+- [x] L2 Barra do topo
+- [x] L3 Cartão da maravilha
+- [x] L4 Opção na partida rápida e no lobby (relay)
+- [x] L5 Conquista (planilha da Steam)
+- [x] L6 `scripts/balance.ts`: `maravilhas=`
+- [x] L7 `scripts/playtest-wonders.mjs` (novo)
+
+Fase M — Ganchos navais (com a E4)
+- [x] M0 Conferir a E4
+- [x] M1 Tag dos navios
+- [x] M2 Passagem do Canal (`setNavalOpen`)
+- [x] M3 Teste do Canal
+
+Fase N — Testes, verificação e commit
+- [x] N1 `tests/wonders-e7.test.ts` (novo)
+- [x] N2 "Verificação" e "Ao terminar" da E7
+
+---
+
+## Resumo
+
+Estados: `pendente` · `em andamento` · `feito` · `feito com pendências` · `bloqueado`.
+
+| Etapa | Estado | Data | Commit | Notas |
+|---|---|---|---|---|
+| E1 + painel/árvore (E9) | feito | 10/10/2026 | 04f0080+ | SIM_VERSION 4, save v2; Prometeu por roteiro nas m3/m8/m12 |
+| E2 | feito | 11/10/2026 | E2-A…E | SIM_VERSION 5; pedra (Pedreira), nafta (Era IV, Poço de Nafta), jazidas (Era VII, Poço de Petróleo), 7 raros com Mercador; IA só planta onde a obra é alcançável (`findBuildSpot` com `findPathEx`); proporção de pedra/petróleo cai com estoque parado |
+| E3 | feito | 11/10/2026 | E3-A…H | SIM_VERSION 6; 10 linhas, 41 degraus novos e 50 estudos `evo_*`; elenco clássico nos cenários (`config.unitLines`); Sifão como linha técnica `greek_fire`; navios reservados para a E4; a IA só evolui linhas militares com o fundo da Era junto (ajuste 2) |
+| E4 | feito | 11/10/2026 | E4-A…H | SIM_VERSION 7; baixio = terreno 6 (anda-se e navega-se, não se constrói); camada naval derivada (`src/core/map/naval.ts`), navios desligados em cenário e Horda (`config.naval`/`navalOn`); `rare_fish` fora de `RARE_NODES`; Estaleiro, pesca, transporte (`embark`/`unload`), 10 navios, linha `warship` I–VIII, IA naval com desembarque nas Ilhas; mapas Costeiro/Ilhas/Mediterrâneo e Egeu navegável; Estreito sem mudança. Verificação: smoke, balance terrestre, Horda, missões (as 36 linhas) e fairness do Estreito idênticos à base; naval sem PARADA (Eras ≤ ~2 min depois das terrestres); fairness do Egeu DENTRO (posição 50 %, índice 56 %); **Ilhas FORA** por posição (68 %: 29 de 32 partidas sem vencedor aos 45 min — à frente início 1 × 2 = 9 × 19; por índice 52 %): o mapa gerado não é simétrico e a conquista só por mar é lenta; fica registrado para a E10. G6 não precisou mudar números. Achado na verificação: o modo ilha da IA não estava preso a `navalOn` (m9 fácil mudava de 19m55 para 21m50) — corrigido |
+| E5 — comércio | feito | 11/10/2026 | E5-A…G | SIM_VERSION 8; comando `route` + `src/core/sim/trade.ts` (casa = ponto próprio mais perto, destino do time a ≥ 16 tiles, ouro = 0,5 × distância ×  bônus, +25 % aliado); `caravan` no Mercado (Era II, `C`), `merchant_ship` no Estaleiro (Era III, `M`, 0,7/tile); IA treina até `CARAVAN_TARGET_AI`/`MERCHANT_SHIP_TARGET_AI` fora de cenário (a IA não ergue 2º Estaleiro: fica para a E10); Mercador da E2 intacto. balance 35 1,2,3: Eras iguais às de antes (±1 min) e 5–6 caravanas nas IAs que chegam à Era V; o fuzz passou a usar a semente 20260927 (a antiga caía numa partida degenerada ao entrar `route`). Verificação: missões idênticas à base (36 linhas), Horda igual, smoke estável; fairness: Egeu 1–16 DENTRO (56 % posição, 63 % índice), Estreito 1–16 deu 66 % por índice (base 63 %, o resíduo conhecido) e a confirmação 101–132 ficou DENTRO (55 % posição, 58 % índice) |
+| E7 — maravilhas | feito | 12/10/2026 | E7-A…N | SIM_VERSION 9; as 20 maravilhas em `BUILDINGS` com `wonderEffects` (as 3 antigas passam a Eras II/II/III com `scenarioAge: 3`), lógica em `src/core/sim/wonders.ts`, única no mapa (obra perdida desaba com reembolso), vitória por pontos (meta pela Era final, 120 s) com `hold`/`off` na partida rápida e no lobby (`wonderVictory`, relay `cleanSettings`), regras clássicas em cenário (`allWondersOn`, campanha idêntica: `missions.ts` igual à base nas 36 linhas), `charges`/`powerReady` criados aqui (Trono), Fase M feita (`setNavalOpen` abre o istmo do Canal à camada naval; reaberto no `deserialize`). balance 35 1,2,3: Eras iguais às da E5 e uma IA com 1 maravilha aos 35 min (nenhuma partida acaba por maravilha antes dos 25 min); smoke igual ao da E5 (ninguém ergue maravilha em 20 min). Fairness: Egeu com `--mirror-ai` DENTRO (63 % posição, 56 % índice) e Estreito DENTRO (59 %). A IA constrói a maravilha só depois do resto (~5–7 min com recursos de sobra no teste). `vite.config.ts`: `testTimeout` 90 s (os testes de `art:check` passam de 30 s com o atlas maior). `npm test`: 1027 passam; o worker do vitest acusa `Timeout calling onTaskUpdate` (código de saída 1) por causa dos arquivos de missões de ~5 min — problema antigo, sem teste falhando |
 | E6 | pendente | | | |
 | E8 | pendente | | | |
 | E9 — interface | pendente | | | |
@@ -1159,6 +1981,8 @@ Bloco P — Capturas, loja e documentos
 - Relay de produção: atualizar `server/relay.mjs` (chaves `startAge`/`endAge` do lobby e, desde a E7, `wonderVictory`).
 - E7: aprovar as leituras da D19 (Meteora = edifícios +10 % de vida, Epidauro cura 1,5/s no território, Mausoléu renasce o herói em 30 s no Templo, Delfos = Oráculo de 20 s a cada 180 s, Trono recarrega os poderes com +1 uso) e a meta de pontos de maravilha / 120 s.
 - E5: o navio mercante só rende com 2 Estaleiros do time a ≥ 16 tiles; a IA não ergue um 2º Estaleiro (fica para a E10).
+- E6: aprovar os deuses e poderes novos e as decisões D6 (Encruzilhada pela seleção), D7 (direção do Carro do Sol), D14 (Escila e Ceto como criaturas do Poseidon) e D20 (reforço dos Titãs); olhar `docs/art/e6-*.png`.
+- E8: arte própria das 12 criaturas (saem do `UNIT_ART_ALIAS`), dos 9 poderes (sai o handler `divine`) e retratos definitivos; E10: números de `POWER_TUNING`, criaturas, Bênçãos e `TITAN_ERA_*`.
 - Dar uma olhada em `docs/art/eras-e1-arvore-pt.png`, `eras-e1-arvore-en.png` e `eras-e1-biblioteca.png`.
 ### E1 — ganchos para as próximas etapas
 - E2: somar pedra/petróleo aos custos das Eras; `need` da IA (`manageEconomy`); `libraryWoodHold` hoje só guarda madeira.
