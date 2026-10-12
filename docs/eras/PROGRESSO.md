@@ -16,8 +16,8 @@ Estados: `pendente` · `em andamento` · `feito` · `feito com pendências` · `
 | E2 | feito | 11/10/2026 | E2-A…E | SIM_VERSION 5; pedra (Pedreira), nafta (Era IV, Poço de Nafta), jazidas (Era VII, Poço de Petróleo), 7 raros com Mercador; IA só planta onde a obra é alcançável (`findBuildSpot` com `findPathEx`); proporção de pedra/petróleo cai com estoque parado |
 | E3 | feito | 11/10/2026 | E3-A…H | SIM_VERSION 6; 10 linhas, 41 degraus novos e 50 estudos `evo_*`; elenco clássico nos cenários (`config.unitLines`); Sifão como linha técnica `greek_fire`; navios reservados para a E4; a IA só evolui linhas militares com o fundo da Era junto (ajuste 2) |
 | E4 | feito | 11/10/2026 | E4-A…H | SIM_VERSION 7; baixio = terreno 6 (anda-se e navega-se, não se constrói); camada naval derivada (`src/core/map/naval.ts`), navios desligados em cenário e Horda (`config.naval`/`navalOn`); `rare_fish` fora de `RARE_NODES`; Estaleiro, pesca, transporte (`embark`/`unload`), 10 navios, linha `warship` I–VIII, IA naval com desembarque nas Ilhas; mapas Costeiro/Ilhas/Mediterrâneo e Egeu navegável; Estreito sem mudança. Verificação: smoke, balance terrestre, Horda, missões (as 36 linhas) e fairness do Estreito idênticos à base; naval sem PARADA (Eras ≤ ~2 min depois das terrestres); fairness do Egeu DENTRO (posição 50 %, índice 56 %); **Ilhas FORA** por posição (68 %: 29 de 32 partidas sem vencedor aos 45 min — à frente início 1 × 2 = 9 × 19; por índice 52 %): o mapa gerado não é simétrico e a conquista só por mar é lenta; fica registrado para a E10. G6 não precisou mudar números. Achado na verificação: o modo ilha da IA não estava preso a `navalOn` (m9 fácil mudava de 19m55 para 21m50) — corrigido |
-| E5 — comércio | feito | 11/10/2026 | E5-A…G | SIM_VERSION 8; comando `route` + `src/core/sim/trade.ts` (casa = ponto próprio mais perto, destino do time a ≥ 16 tiles, ouro = 0,5 × distância ×  bônus, +25 % aliado); `caravan` no Mercado (Era II, `C`), `merchant_ship` no Estaleiro (Era III, `M`, 0,7/tile); IA treina até `CARAVAN_TARGET_AI`/`MERCHANT_SHIP_TARGET_AI` fora de cenário (a IA não ergue 2º Estaleiro: fica para a E10); Mercador da E2 intacto. balance 35 1,2,3: Eras iguais às de antes (±1 min) e 5–6 caravanas nas IAs que chegam à Era V; o fuzz passou a usar a semente 20260927 (a antiga caía numa partida degenerada ao entrar `route`) |
-| E7 — maravilhas | pendente | | | |
+| E5 — comércio | feito | 11/10/2026 | E5-A…G | SIM_VERSION 8; comando `route` + `src/core/sim/trade.ts` (casa = ponto próprio mais perto, destino do time a ≥ 16 tiles, ouro = 0,5 × distância ×  bônus, +25 % aliado); `caravan` no Mercado (Era II, `C`), `merchant_ship` no Estaleiro (Era III, `M`, 0,7/tile); IA treina até `CARAVAN_TARGET_AI`/`MERCHANT_SHIP_TARGET_AI` fora de cenário (a IA não ergue 2º Estaleiro: fica para a E10); Mercador da E2 intacto. balance 35 1,2,3: Eras iguais às de antes (±1 min) e 5–6 caravanas nas IAs que chegam à Era V; o fuzz passou a usar a semente 20260927 (a antiga caía numa partida degenerada ao entrar `route`). Verificação: missões idênticas à base (36 linhas), Horda igual, smoke estável; fairness: Egeu 1–16 DENTRO (56 % posição, 63 % índice), Estreito 1–16 deu 66 % por índice (base 63 %, o resíduo conhecido) e a confirmação 101–132 ficou DENTRO (55 % posição, 58 % índice) |
+| E7 — maravilhas | feito | 12/10/2026 | E7-A…N | SIM_VERSION 9; as 20 maravilhas em `BUILDINGS` com `wonderEffects` (as 3 antigas passam a Eras II/II/III com `scenarioAge: 3`), lógica em `src/core/sim/wonders.ts`, única no mapa (obra perdida desaba com reembolso), vitória por pontos (meta pela Era final, 120 s) com `hold`/`off` na partida rápida e no lobby (`wonderVictory`, relay `cleanSettings`), regras clássicas em cenário (`allWondersOn`, campanha idêntica: `missions.ts` igual à base nas 36 linhas), `charges`/`powerReady` criados aqui (Trono), Fase M feita (`setNavalOpen` abre o istmo do Canal à camada naval; reaberto no `deserialize`). balance 35 1,2,3: Eras iguais às da E5 e uma IA com 1 maravilha aos 35 min (nenhuma partida acaba por maravilha antes dos 25 min); smoke igual ao da E5 (ninguém ergue maravilha em 20 min). Fairness: Egeu com `--mirror-ai` DENTRO (63 % posição, 56 % índice) e Estreito DENTRO (59 %). A IA constrói a maravilha só depois do resto (~5–7 min com recursos de sobra no teste). `vite.config.ts`: `testTimeout` 90 s (os testes de `art:check` passam de 30 s com o atlas maior). `npm test`: 1027 passam; o worker do vitest acusa `Timeout calling onTaskUpdate` (código de saída 1) por causa dos arquivos de missões de ~5 min — problema antigo, sem teste falhando |
 | E6 | pendente | | | |
 | E8 | pendente | | | |
 | E9 — interface | pendente | | | |
@@ -403,7 +403,7 @@ Fase L — Interface
 - [x] L4 Opção na partida rápida e no lobby (relay)
 - [x] L5 Conquista (planilha da Steam)
 - [x] L6 `scripts/balance.ts`: `maravilhas=`
-- [ ] L7 `scripts/playtest-wonders.mjs` (novo)
+- [x] L7 `scripts/playtest-wonders.mjs` (novo)
 
 Fase M — Ganchos navais (com a E4)
 - [x] M0 Conferir a E4
@@ -413,7 +413,7 @@ Fase M — Ganchos navais (com a E4)
 
 Fase N — Testes, verificação e commit
 - [x] N1 `tests/wonders-e7.test.ts` (novo)
-- [ ] N2 "Verificação" e "Ao terminar" da E7
+- [x] N2 "Verificação" e "Ao terminar" da E7
 
 ---
 
@@ -745,7 +745,9 @@ Bloco P — Capturas, loja e documentos
 - Ajustes além do guia (todos explicados em `docs/STORY.md` "Eras (E1)"): a IA guarda a madeira da 1ª Biblioteca (200) e o Conhecimento/ouro da Era seguinte (`libraryWoodHold`, filósofos e estudos só depois do fundo), razão de coleta da Era I com mais ouro; IAs inimigas das m3/m5/m6/m7 com `maxAge: 4`; `MissionScript.playerMaxAge` (m9); caça do Difícil da m5 a cada 50 s desde 150 s; `tests/art-military.test.ts` aceita a maravilha de Zeus em `.glb` (estava vermelho desde o Meshy).
 ### Pendências para o dono
 - Aprovar o Prometeu por roteiro (Fortaleza + 6 estudos + 500 de Favor, cobrados pelo gatilho) no lugar do Portal na campanha (D12).
-- Relay de produção: atualizar `server/relay.mjs` (chaves `startAge`/`endAge` do lobby).
+- Relay de produção: atualizar `server/relay.mjs` (chaves `startAge`/`endAge` do lobby e, desde a E7, `wonderVictory`).
+- E7: aprovar as leituras da D19 (Meteora = edifícios +10 % de vida, Epidauro cura 1,5/s no território, Mausoléu renasce o herói em 30 s no Templo, Delfos = Oráculo de 20 s a cada 180 s, Trono recarrega os poderes com +1 uso) e a meta de pontos de maravilha / 120 s.
+- E5: o navio mercante só rende com 2 Estaleiros do time a ≥ 16 tiles; a IA não ergue um 2º Estaleiro (fica para a E10).
 - Dar uma olhada em `docs/art/eras-e1-arvore-pt.png`, `eras-e1-arvore-en.png` e `eras-e1-biblioteca.png`.
 ### E1 — ganchos para as próximas etapas
 - E2: somar pedra/petróleo aos custos das Eras; `need` da IA (`manageEconomy`); `libraryWoodHold` hoje só guarda madeira.
