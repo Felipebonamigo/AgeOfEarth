@@ -51,7 +51,7 @@ describe('HUD sem emoji (Etapa 7)', () => {
   const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2300}-\u{23FF}]/u;
   const code = (f: string) => fs.readFileSync(path.join(ROOT, f), 'utf8').split('\n').map((l) => l.replace(/\/\/.*$/, '')).join('\n').replace(/\/\*[\s\S]*?\*\//g, '');
   it('o código da interface da partida não escreve emoji (só ícones do atlas e glifos)', () => {
-    for (const f of ['src/ui/hud.ts', 'src/ui/scenario-hud.ts', 'src/ui/icons.ts', 'src/ui/glyphs.ts', 'src/ui/studytree.ts']) {
+    for (const f of ['src/ui/hud.ts', 'src/ui/scenario-hud.ts', 'src/ui/icons.ts', 'src/ui/glyphs.ts', 'src/ui/studytree.ts', 'src/ui/encyclopedia.ts']) {
       const hits = code(f).split('\n').filter((l) => EMOJI.test(l) && !/tipHtml|⏱|👥/.test(l));
       expect(hits, f).toEqual([]);
     }
@@ -61,7 +61,7 @@ describe('HUD sem emoji (Etapa 7)', () => {
   });
   it('todo glifo pedido pelo HUD existe', () => {
     const used = new Set<string>();
-    for (const f of ['src/ui/hud.ts', 'src/ui/scenario-hud.ts', 'src/ui/studytree.ts']) for (const m of fs.readFileSync(path.join(ROOT, f), 'utf8').matchAll(/glyph\('([A-Za-z]+)'/g)) used.add(m[1]);
+    for (const f of ['src/ui/hud.ts', 'src/ui/scenario-hud.ts', 'src/ui/studytree.ts', 'src/ui/encyclopedia.ts']) for (const m of fs.readFileSync(path.join(ROOT, f), 'utf8').matchAll(/glyph\('([A-Za-z]+)'/g)) used.add(m[1]);
     for (const m of fs.readFileSync(path.join(ROOT, 'src/ui/hud.ts'), 'utf8').matchAll(/(?:line|box|column|wedge): '(f[A-Z][a-z]+)'/g)) used.add(m[1]);
     for (const g of ['mute', 'sound', 'aggressive', 'defensive', 'passive', 'check', 'cross', 'box', 'clock', 'people']) used.add(g);
     expect([...used].filter((g) => !GLYPHS.includes(g))).toEqual([]);

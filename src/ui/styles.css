@@ -422,3 +422,8 @@ html.pad-active #modal.tree { max-height: none; height: calc(86vh / var(--uiz, 1
 #menu .box, #modal.over { border: 16px solid rgba(106, 76, 30, 0.9); border-image-source: var(--frame-meander, none); border-image-slice: var(--frame-slice, 16); border-image-repeat: round; border-radius: 0; background-clip: padding-box; }
 #menu .box { padding: 22px 28px; }
 @media (max-height: 940px) { #menu .box { padding: 14px 22px; } }
+/* E9: enciclopédia */
+#modal .enc-filter { display: inline-flex; gap: 6px; align-items: center; margin: 2px 0 6px; font-size: 13px; }
+#modal .enc-note { color: #9aa5b8; font-size: 12px; margin: 4px 0; }
+#modal tr.enc-cur td { background: rgba(242, 193, 78, 0.12); }
+#modal td.enc-retired { color: #9aa5b8; font-style: italic; }

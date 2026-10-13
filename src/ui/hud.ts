@@ -4,7 +4,7 @@ import { RESOURCES, RESOURCE_ICONS, OIL_FROM_AGE, STANCES, TICK_RATE, MAX_SCHOLA
 const FORMATION_GLYPHS: Record<Formation, string> = { line: 'fLine', box: 'fBox', column: 'fColumn', wedge: 'fWedge' };
 import { teamNames } from '../core/sim/modes';
 import { relicsOf } from '../core/sim/relics';
-import { AGES, BUILDINGS, BUILD_MENU, LINES, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS, ACADEMY_LINES, ABILITIES } from '../core/data';
+import { AGES, BUILDINGS, BUILD_MENU, LINES, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS, ABILITIES } from '../core/data';
 import type { Building, GameEvent, Unit } from '../core/types';
 import { getUnitStats, getBuildingStats, techCost, unitRank } from '../core/sim/modifiers';
 import { powerReady } from '../core/sim/powers';
@@ -15,6 +15,7 @@ import { mythUpgradeOf } from '../core/sim/myth';
 import { studySlotsOf } from '../core/sim/buildings';
 import { godAllows, canTrain, canResearch, canAdvanceAge, canHireScholar, academyTechCount } from '../core/sim/commands';
 import { studyTreeModel, studyTreeHtml, studyTreeKey, studyNodeDetail, pickLibrary, librariesOf, type StudyNode } from './studytree';
+import { ENC_TABS, encyclopediaHtml, type EncTab } from './encyclopedia';
 import { canPlaceBuilding, buildingLimitOk } from '../core/sim/entities';
 import { trainChoices, trainTypeOf, unitLinesOn } from '../core/sim/lines';
 import { extractorNode, farmGatherers, isMilitary } from '../core/sim/queries';
@@ -659,6 +660,7 @@ export class HUD {
   canPlaceHere(type: string, tx: number, ty: number): boolean { const s = this.session!; return canPlaceBuilding(s.state, s.player, type, tx, ty).ok; }
 
   private treeKey = '';
+  private encEra: number | 'all' = 'all';   // E9: filtro "Era" da enciclopédia (só na memória)
   showStudyTree() { if (!this.session) return; this.renderStudyTree(true); }
   private renderStudyTree(first: boolean) {
     const s = this.session!;
@@ -854,16 +856,13 @@ export class HUD {
     this.modal.querySelector('#m-close')!.addEventListener('click', () => this.hideModal());
   }
 
-  showEncyclopedia(tab = 'units') {
-    const tabs = [['units', t('enc.units')], ['buildings', t('enc.buildings')], ['techs', t('enc.techs')], ['gods', t('enc.gods')], ['ages', t('enc.ages')]];
-    let body = '';
-    if (tab === 'units') body = `<table><tr><th>${t('enc.units')}</th><th>${t('enc.cost')}</th><th>${t('sel.hp')}</th><th>${t('sel.attack')}</th><th>${t('sel.armor')}</th><th>${t('sel.range')}</th><th>${t('sel.speed')}</th><th>${t('over.age')}</th><th>${t('enc.where')}</th><th>${t('enc.description')}</th></tr>${Object.values(UNITS).filter((u) => u.building || u.tags.includes('titan')).map((u) => `<tr><td>${ic.unit(u.id, undefined, 'sm')} ${u.name}</td><td>${fmtCost(u.cost as Record<string, number>) || '—'}</td><td>${u.hp}</td><td>${u.attack} ${u.attackType}</td><td>${Math.round(u.armor.hack * 100)}/${Math.round(u.armor.pierce * 100)}/${Math.round(u.armor.crush * 100)}</td><td>${u.range >= 1.6 ? u.range : t('sel.melee')}</td><td>${u.speed}</td><td>${AGES[u.age].short}</td><td>${u.building ? BUILDINGS[u.building].name : t('enc.gate')}${u.god ? ` (${(MINOR_GODS[u.god] ?? MAJOR_GODS[u.god]).name})` : ''}</td><td>${u.desc}</td></tr>`).join('')}</table>`;
-    else if (tab === 'buildings') body = `<table><tr><th>${t('enc.buildings')}</th><th>${t('enc.cost')}</th><th>${t('sel.hp')}</th><th>${t('enc.size')}</th><th>${t('over.age')}</th><th>${t('enc.description')}</th></tr>${Object.values(BUILDINGS).filter((b) => !b.notBuildable).map((b) => `<tr><td>${ic.bld(b.id, undefined, 'sm')} ${b.name}</td><td>${fmtCost(b.cost as Record<string, number>)}</td><td>${b.hp}</td><td>${b.w}×${b.h}</td><td>${AGES[b.age].short}</td><td>${b.desc}</td></tr>`).join('')}</table>`;
-    else if (tab === 'techs') body = `<table><tr><th>${t('modal.tech')}</th><th>${t('enc.buildings')}</th><th>${t('enc.cost')}</th><th>${t('over.age')}</th><th>${t('enc.effect')}</th></tr>${Object.values(TECHS).map((x) => `<tr><td>${ic.tech(x.id, 'sm')} ${x.name}${x.god ? ` <small>(${MINOR_GODS[x.god].name})</small>` : ''}</td><td>${BUILDINGS[x.building].name}</td><td>${fmtCost(x.cost as Record<string, number>)}</td><td>${AGES[x.age].short}</td><td>${x.desc}</td></tr>`).join('')}</table>`;
-    else if (tab === 'gods') body = Object.values(MAJOR_GODS).map((g) => `<h3>${ic.god(g.id, 'md')} ${g.name} — ${g.title}</h3><p>${g.desc}</p><ul>${g.perks.map((x) => `<li>${x}</li>`).join('')}</ul><p><b>${t('enc.minorGods')}:</b> ${g.minorGods.map((pair, i) => `${AGES[i + 1].short}: ${pair.map((m) => `${ic.god(m, 'sm')} ${MINOR_GODS[m].name}`).join(` ${t('enc.or')} `)}`).join(' · ')}</p>`).join('') + `<h3>${t('enc.minorGods')}</h3><table><tr><th>${t('enc.god')}</th><th>${t('over.age')}</th><th>${t('modal.power')}</th><th>${t('modal.creature')}</th><th>${t('enc.techs')}</th></tr>${Object.values(MINOR_GODS).map((m) => `<tr><td>${m.icon} ${m.name}<br><small>${m.title}</small></td><td>${AGES[m.age].short}</td><td>${POWERS[m.power].icon} ${POWERS[m.power].name}<br><small>${POWERS[m.power].desc}</small></td><td>${UNITS[m.mythUnit].icon} ${UNITS[m.mythUnit].name}</td><td>${m.techs.map((x) => `${TECHS[x].icon} ${TECHS[x].name}`).join('<br>')}</td></tr>`).join('')}</table>`;
-    else body = `<table><tr><th>${t('over.age')}</th><th>${t('enc.cost')}</th><th>${t('enc.requirements')}</th><th>${t('enc.description')}</th></tr>${AGES.map((a, n) => `<tr><td>${ic.age(n, 'sm')} ${a.name}</td><td>${fmtCost(a.cost as Record<string, number>) || '—'}</td><td>${a.requires.building ? BUILDINGS[a.requires.building].name : ''} ${a.requires.techCount ? t('enc.academyLines', { n: a.requires.techCount, lines: ACADEMY_LINES.map((l) => t(`line.${l}`)).join(', ') }) : ''}</td><td>${a.desc}</td></tr>`).join('')}</table>`;
-    this.showModal(`<h2>${t('enc.title')}</h2><div class="tabs">${tabs.map(([k, l]) => `<button class="btn ${k === tab ? 'active' : ''}" data-tab="${k}">${l}</button>`).join('')}</div><div style="max-height:60vh;overflow:auto">${body}</div><div class="actions"><button class="btn primary" id="m-close">${t('modal.close')}</button></div>`);
-    this.modal.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => this.showEncyclopedia((b as HTMLElement).dataset.tab!)));
+  showEncyclopedia(tab: string = 'units') {
+    const k: EncTab = (ENC_TABS as readonly string[]).includes(tab) ? (tab as EncTab) : 'units';
+    const s = this.session;
+    this.showModal(encyclopediaHtml(k, { era: this.encEra, state: s?.state ?? null, local: s?.local }));
+    this.modal.querySelectorAll<HTMLElement>('[data-tab]').forEach((b) => b.addEventListener('click', () => this.showEncyclopedia(b.dataset.tab!)));
+    this.modal.querySelector('#enc-era')?.addEventListener('change', (e) => { const v = (e.target as HTMLSelectElement).value; this.encEra = v === 'all' ? 'all' : Number(v); this.showEncyclopedia(k); });
+    this.modal.querySelector('#enc-tree')?.addEventListener('click', () => this.showStudyTree());
     this.modal.querySelector('#m-close')!.addEventListener('click', () => this.hideModal());
   }
 
