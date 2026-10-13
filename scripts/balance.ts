@@ -102,12 +102,13 @@ function runOne(seed: number): SeedRun {
       const min = state.tick / TICK_RATE / 60;
       for (const p of state.players) {
         if (!p.alive) continue;
-        let vill = 0, idle = 0;
-        for (const u of state.units.values()) if (u.owner === p.id && !u.dead && u.type === 'villager') { vill++; if (u.state === 'idle') idle++; }
+        let vill = 0, idle = 0, garrisoned = 0;
+        for (const u of state.units.values()) if (u.owner === p.id && !u.dead && u.type === 'villager') { vill++; if (u.state === 'idle') idle++; if (u.state === 'garrison') garrisoned++; }
         // sem Centro Cívico (ou com menos de 6 edifícios) a IA já perdeu a cidade (só os cidadãos a mantêm viva pela regra de eliminação): não é parada da IA,
         // é uma conquista quase completa — registra à parte (não reprova) e não avalia PARADA/TRAVADA
         let hasTc = false, nb = 0;
         for (const b of state.buildings.values()) if (b.owner === p.id && !b.dead && b.complete && !BUILDINGS[b.type].wall) { nb++; if (b.type === 'town_center') hasTc = true; }
+        if (garrisoned >= Math.max(5, vill * 0.4)) { flagsOut.push({ min, player: p.name, kind: 'SEM-CIDADE', detail: `sob cerco (${garrisoned}/${vill} cidadãos guardados)` }); delete lastCheck[p.id]; continue; }
         if (!hasTc || nb < 6) { flagsOut.push({ min, player: p.name, kind: 'SEM-CIDADE', detail: hasTc ? `cidade em ruínas (${nb} edifícios)` : `${vill} cidadãos, sem Centro Cívico` }); delete lastCheck[p.id]; continue; }
         const prev = lastCheck[p.id];
         const noWork = prev && p.stats.unitsTrained === prev.trained && p.stats.buildingsBuilt === prev.built && p.pop < p.popCap - 5;
