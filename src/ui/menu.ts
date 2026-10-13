@@ -1,7 +1,7 @@
 // Menu principal: configuração da partida (nome, deus, mapa, oponentes, dificuldade, semente).
 import { DIFFICULTIES, MAP_SIZES, GAME_MODES, MAP_TYPES, SIM_VERSION, WONDER_VICTORIES, type WonderVictory, type Difficulty, type MapSize, type GameMode, type MapType } from '../core/constants';
-import { MAJOR_GODS, MAJOR_GOD_LIST, MAX_AGE } from '../core/data';
-import { eraSelectsHtml, eraChoiceValid, eraConfig } from './era-select';
+import { MAJOR_GODS, MAJOR_GOD_LIST, MAX_AGE, ROMAN, clampEra } from '../core/data';
+import { eraSelectsHtml, eraChoiceValid, eraConfig, effectiveStartEra } from './era-select';
 import type { GameConfig } from '../core/types';
 import { hashString } from '../core/rng';
 import { CAMPAIGN, campaignMission } from '../core/scenario/campaign';
@@ -163,8 +163,13 @@ export class MainMenu {
     if (!this.browsing) return '';
     if (!this.roomList) return `<div style="font-size:12px;color:#9aa5b8;margin-top:6px">${t('mp.connecting')}</div>`;
     if (this.roomList.length === 0) return `<div style="font-size:12px;color:#9aa5b8;margin-top:6px">${t('mp.roomsNone')}</div>`;
+    const erasOf = (r: RoomSummary) => {
+      const a = effectiveStartEra(r.startAge ?? 'auto', r.mode as GameMode);   // 'auto' segue o modo (Deathmatch começa na II)
+      const b = r.endAge != null ? clampEra(Number(r.endAge)) : MAX_AGE;
+      return t('mp.roomEras', { from: ROMAN[a], to: ROMAN[b] });
+    };
     const modeName = (m: string) => (m === 'horde' ? t('mp.horde') : t(`mode.${m}`)).split(/[:(]/)[0].trim();
-    return `<div style="font-size:12px;color:#9aa5b8;margin-top:6px">${t('mp.roomsTitle')}</div><table style="width:100%;font-size:13px;border-collapse:collapse">${this.roomList.map((r) => `<tr><td><b>${esc(r.code)}</b></td><td style="color:#9aa5b8">${t('mp.roomInfo', { host: esc(r.host), n: r.players, mode: modeName(r.mode), map: r.fixedMap ? esc(r.fixedMap) : t(`map.${r.mapSize}`) })}${r.started ? ` · <span style="color:#f2c14e">${t('mp.roomStarted')}</span>` : ''}${r.spectators ? ` · ${glyph('eye')} ${r.spectators}` : ''}${r.sim !== undefined && r.sim !== SIM_VERSION ? ` · <span style="color:#ef4444">${t('mp.roomOtherVersion', { v: Number(r.sim) })}</span>` : ''}</td><td align="right" style="white-space:nowrap">${r.started ? '' : `<button class="btn" data-room="${esc(r.code)}" style="padding:2px 10px;font-size:12px">${t('mp.enter')}</button> `}<button class="btn" data-spectate="${esc(r.code)}" style="padding:2px 10px;font-size:12px">${t('mp.spectate')}</button></td></tr>`).join('')}</table>`;
+    return `<div style="font-size:12px;color:#9aa5b8;margin-top:6px">${t('mp.roomsTitle')}</div><table style="width:100%;font-size:13px;border-collapse:collapse">${this.roomList.map((r) => `<tr><td><b>${esc(r.code)}</b></td><td style="color:#9aa5b8">${t('mp.roomInfo', { host: esc(r.host), n: r.players, mode: modeName(r.mode), map: r.fixedMap ? esc(r.fixedMap) : t(`map.${r.mapSize}`) })}${r.mode !== 'horde' ? ` · ${erasOf(r)}` : ''}${r.wonderVictory && r.wonderVictory !== 'points' ? ` · ${esc(t(`wv.${r.wonderVictory}`))}` : ''}${r.started ? ` · <span style="color:#f2c14e">${t('mp.roomStarted')}</span>` : ''}${r.spectators ? ` · ${glyph('eye')} ${r.spectators}` : ''}${r.sim !== undefined && r.sim !== SIM_VERSION ? ` · <span style="color:#ef4444">${t('mp.roomOtherVersion', { v: Number(r.sim) })}</span>` : ''}</td><td align="right" style="white-space:nowrap">${r.started ? '' : `<button class="btn" data-room="${esc(r.code)}" style="padding:2px 10px;font-size:12px">${t('mp.enter')}</button> `}<button class="btn" data-spectate="${esc(r.code)}" style="padding:2px 10px;font-size:12px">${t('mp.spectate')}</button></td></tr>`).join('')}</table>`;
   }
   private bindRoomList(joinRoom: (room: string, spectate?: boolean) => Promise<void>) {
     this.el.querySelectorAll('[data-room]').forEach((b) => b.addEventListener('click', () => void joinRoom(String((b as HTMLElement).dataset.room))));

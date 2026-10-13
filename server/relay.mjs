@@ -47,7 +47,11 @@ const WORD = /^[A-Za-z0-9_-]{1,24}$/;
  */
 function cleanSettings(s) {
   const out = {};
-  for (const k of ['mapSize', 'difficulty', 'mode', 'mapType', 'teams', 'startAge', 'endAge', 'wonderVictory']) if (typeof s[k] === 'string' && WORD.test(s[k])) out[k] = s[k];
+  for (const k of ['mapSize', 'difficulty', 'mode', 'mapType', 'teams']) if (typeof s[k] === 'string' && WORD.test(s[k])) out[k] = s[k];
+  // Eras (0–7 = as 8 Eras do jogo; mude junto com AGES) e a regra de maravilha (E7): só valores conhecidos
+  if (typeof s.startAge === 'string' && /^(auto|[0-7])$/.test(s.startAge)) out.startAge = s.startAge;
+  if (typeof s.endAge === 'string' && /^[0-7]$/.test(s.endAge)) out.endAge = s.endAge;
+  if (typeof s.wonderVictory === 'string' && /^(points|hold|off)$/.test(s.wonderVictory)) out.wonderVictory = s.wonderVictory;
   if (Number.isInteger(s.ais) && s.ais >= 0 && s.ais <= 8) out.ais = s.ais;
   if (Number.isSafeInteger(s.seed) && s.seed >= 0) out.seed = s.seed;
   for (const k of ['horde', 'public']) if (typeof s[k] === 'boolean') out[k] = s[k];
@@ -144,7 +148,7 @@ wss.on('connection', (ws) => {
     }
     if (msg.t === 'list') {   // salas públicas abertas (antes de entrar em alguma)
       const open = [...rooms.entries()].filter(([, r]) => r.settings.public !== false && r.clients.size > 0);   // abertas (entrar) e em andamento (assistir)
-      return send(ws, { t: 'rooms', rooms: open.map(([code, r]) => ({ code, players: r.clients.size, host: r.clients.get(r.host)?.name ?? '?', mode: r.settings.horde ? 'horde' : (r.settings.mode ?? 'conquest'), mapSize: r.settings.mapSize, fixedMap: r.settings.fixedMap?.name ?? null, started: r.started, spectators: r.spectators.size, sim: r.sim })) });
+      return send(ws, { t: 'rooms', rooms: open.map(([code, r]) => ({ code, players: r.clients.size, host: r.clients.get(r.host)?.name ?? '?', mode: r.settings.horde ? 'horde' : (r.settings.mode ?? 'conquest'), mapSize: r.settings.mapSize, fixedMap: r.settings.fixedMap?.name ?? null, started: r.started, spectators: r.spectators.size, sim: r.sim, startAge: r.settings.startAge ?? null, endAge: r.settings.endAge ?? null, wonderVictory: r.settings.wonderVictory ?? null })) });
     }
     if (!room) return;
     switch (msg.t) {
