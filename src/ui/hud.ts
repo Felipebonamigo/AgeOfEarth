@@ -293,7 +293,7 @@ export class HUD {
     const adv = canAdvanceAge(s.state, p);
     const inProgress = [...s.state.buildings.values()].some((b) => b.owner === p.id && b.queue.some((q) => q.kind === 'age'));
     const capped = p.age < AGES.length - 1 && p.age >= maxAgeOf(s.state, p.id);   // G6: Idade máxima da missão (o tooltip diz o motivo)
-    const ageLbl = inProgress ? t('top.advancing') : p.age >= AGES.length - 1 ? t('top.maxAge') : `${glyph('up')} ${AGES[p.age + 1].name}`;
+    const ageLbl = inProgress ? esc(noEmoji(t('top.advancing'))) : p.age >= AGES.length - 1 ? esc(noEmoji(t('top.maxAge'))) : `${glyph('up')} ${AGES[p.age + 1].name}`;
     if (this.ageBtn.dataset.lbl !== ageLbl) { this.ageBtn.dataset.lbl = ageLbl; this.ageBtn.innerHTML = ageLbl; }
     (this.ageBtn as HTMLButtonElement).disabled = inProgress || p.age >= AGES.length - 1 || capped;
     this.ageBtn.dataset.tip = p.age >= AGES.length - 1 ? t('top.maxAgeTip') : `<b>${AGES[p.age + 1].name}</b><div class="cost">${fmtCost(AGES[p.age + 1].cost as Record<string, number>, p)}</div><div class="desc">${AGES[p.age + 1].desc}</div>${adv.ok ? '' : `<div style="color:#ef4444;margin-top:4px">${adv.reason ?? ''}</div>`}`;
