@@ -108,19 +108,21 @@ export function studyTreeKey(state: GameState, playerId: number): string {
   return `${p.age}|${p.techs.length}|${q}|${Object.values(p.resources).map((v) => Math.floor(v / 25)).join(',')}`;
 }
 
-export function studyTreeHtml(m: StudyTreeModel, _fmtCost?: (c: Record<string, number>) => string): string {
+export function studyTreeHtml(m: StudyTreeModel, _fmtCost?: (c: Record<string, number>) => string, opts: { autofocus?: boolean } = {}): string {
   const head = `<div class="tree-head"><h2>${glyph('scroll')} ${t('tree.title')}</h2><span class="tree-queue">${m.libraries ? t('tree.queue', { n: m.queueUsed, max: m.queueMax }) : t('tree.noLibrary')}</span></div>`;
   const eras = AGES.map((a, k) => `<div class="tree-era${k === m.era ? ' cur' : ''}">${ic.age(k, 'sm')} <b>${esc(a.short)}</b></div>`).join('');
-  const body = m.rows.map((r) => {
+  const all = m.rows.flatMap((r) => r.cells.flat());
+  const first = opts.autofocus ? (all.find((x) => x.status === 'available') ?? all.find((x) => x.status === 'active'))?.id : undefined;   // E9: foco inicial do controle
+  const body = m.rows.map((r, ri) => {
     const cells = r.cells.map((nodes) => `<div class="tree-cell">${nodes.map((x) => {
       const clickable = x.status === 'available' && !m.readOnly;
       const bar = x.status === 'active' ? `<span class="bar"><i style="width:${Math.round(x.progress * 100)}%"></i></span>` : '';
-      return `<button class="tree-node st-${x.status}" data-nav data-study="${esc(x.id)}"${clickable ? '' : ' aria-disabled="true"'}>${x.kind === 'age' ? ic.age(x.era, 'sm') : ic.tech(x.id, 'sm')}<span class="nm">${esc(x.name)}</span>${bar}</button>`;
+      return `<button class="tree-node st-${x.status}" data-nav data-study="${esc(x.id)}" data-era="${x.era}" data-row="${ri}"${x.id === first ? ' data-autofocus' : ''}${clickable ? '' : ' aria-disabled="true"'}>${x.kind === 'age' ? ic.age(x.era, 'sm') : ic.tech(x.id, 'sm')}<span class="nm">${esc(x.name)}</span>${bar}</button>`;
     }).join('')}</div>`).join('');
     return `<div class="tree-label">${esc(r.label)}</div>${cells}`;
   }).join('');
   const legend = (['done', 'active', 'queued', 'available', 'locked'] as StudyStatus[]).map((s) => `<span class="tree-chip st-${s}">${t(`tree.st.${s}`)}</span>`).join('');
-  return `${head}<div class="tree-body"><div class="tree-grid" style="grid-template-columns: 150px repeat(${AGES.length}, minmax(120px, 1fr))"><div class="tree-corner"></div>${eras}${body}</div></div>`
+  return `${head}<div class="tree-body" data-scroll><div class="tree-grid" style="grid-template-columns: 150px repeat(${AGES.length}, minmax(120px, 1fr))"><div class="tree-corner"></div>${eras}${body}</div></div>`
     + `<div class="tree-detail" id="tree-detail">${t('tree.hint')}</div><div class="tree-legend">${legend}</div>`
     + `<div class="actions"><button class="btn primary" id="m-close">${t('modal.close')}</button></div>`;
 }

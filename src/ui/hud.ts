@@ -669,7 +669,7 @@ export class HUD {
     const old = this.modal.querySelector('.tree-body') as HTMLElement | null;
     const scroll = !first && old ? [old.scrollLeft, old.scrollTop] : null;
     const focus = !first ? ((document.activeElement as HTMLElement | null)?.dataset?.study ?? null) : null;
-    const html = studyTreeHtml(m, fc);
+    const html = studyTreeHtml(m, fc, { autofocus: first });
     if (first) this.showModal(html); else this.modal.innerHTML = html;
     this.modal.classList.add('tree');   // depois do showModal, que zera className
     this.treeKey = studyTreeKey(s.state, s.local);
@@ -680,7 +680,7 @@ export class HUD {
     this.modal.querySelectorAll<HTMLElement>('[data-study]').forEach((el) => {
       const x = nodes.get(el.dataset.study!); if (!x) return;
       const show = () => { detail.innerHTML = studyNodeDetail(x, fc); };
-      el.addEventListener('mouseenter', show); el.addEventListener('focus', show);
+      el.addEventListener('mouseenter', show); el.addEventListener('focus', show); el.addEventListener('padfocus', show);
       el.addEventListener('click', () => this.studyClick(x, m.readOnly));
       if (focus && el.dataset.study === focus) el.focus();
     });
@@ -791,7 +791,7 @@ export class HUD {
     q('#m-load')?.addEventListener('click', () => { this.hideModal(); this.cb.onLoad(); });
     q('#m-help').addEventListener('click', () => this.showHelp());
     q('#m-enc').addEventListener('click', () => this.showEncyclopedia());
-    q('#m-tree').addEventListener('click', () => this.showStudyTree());
+    q('#m-tree').addEventListener('click', () => { this.menuOpen = false; s.paused = this.pausedBeforeMenu; this.showStudyTree(); });
     if (opts) bindOptions(this.modal, opts, () => this.showMenu());
     q('#m-ranges').addEventListener('change', (e) => { s.ui.showRanges = (e.target as HTMLInputElement).checked; });
     q('#m-diag').addEventListener('click', () => { this.cb.onDiagnostic?.(); });

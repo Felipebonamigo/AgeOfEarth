@@ -1,7 +1,7 @@
 // Controle (src/ui/gamepad.ts): lógica pura sem navegador — zona morta, curva, tabela de ações, repetição do D-pad,
 // prioridade mouse × controle, navegação espacial dos menus e configurações com padrões para saves antigos.
 import { describe, it, expect } from 'vitest';
-import { BTN, BUTTON_COUNT, ButtonMapper, DeviceArbiter, Repeater, SCHEMES, buttonsFor, cursorSpeed, CURSOR_SPEED, dirFrom, magnetStep, navPick, padDisplayName, padHelpRows, radialDeadzone, responseCurve, stick, triggerDown, type Rect } from '../src/ui/gamepad';
+import { BTN, BUTTON_COUNT, ButtonMapper, DeviceArbiter, Repeater, SCHEMES, buttonsFor, cursorSpeed, CURSOR_SPEED, dirFrom, magnetStep, navPick, treeJump, padDisplayName, padHelpRows, radialDeadzone, responseCurve, stick, triggerDown, type Rect } from '../src/ui/gamepad';
 import { DEFAULT_SETTINGS, PAD_SCHEMES, sanitizeSettings } from '../src/game/settings';
 import { STRINGS } from '../src/i18n/strings';
 
@@ -201,5 +201,21 @@ describe('controle: configurações', () => {
     expect(keys.length).toBeGreaterThan(40);
     for (const k of keys) expect((STRINGS.en as Record<string, string>)[k], k).toBeTruthy();
     for (const a of ['primary', 'context', 'attackMove', 'stop', 'modifier', 'groups', 'cycleType', 'idle', 'army', 'home', 'power', 'menu', 'overview', 'sameType', 'cursor', 'camera', 'menus']) expect((STRINGS.pt as Record<string, string>)[`pad.act.${a}`], a).toBeTruthy();
+  });
+});
+
+describe('E9 — árvore de estudos com o controle', () => {
+  it('treeJump: LB/RB pulam de Era, na mesma linha se houver', () => {
+    const n = [{ era: 0, row: 0 }, { era: 1, row: 0 }, { era: 1, row: 2 }, { era: 3, row: 2 }];
+    expect(treeJump(n, 0, 1)).toBe(1);
+    expect(treeJump(n, 2, 1)).toBe(3);
+    expect(treeJump(n, 1, -1)).toBe(0);
+    expect(treeJump(n, 0, -1)).toBe(0);
+    expect(treeJump(n, 3, 1)).toBe(3);
+    expect(treeJump(n, -1, 1)).toBe(1);
+    expect(treeJump([{ era: 0, row: 5 }, { era: 1, row: 1 }, { era: 1, row: 4 }], 0, 1)).toBe(2);
+    expect(treeJump([], 0, 1)).toBe(-1);
+    expect(STRINGS.pt['pad.hint.eras']).toBeTruthy();
+    expect(STRINGS.en['pad.hint.eras']).toBeTruthy();
   });
 });

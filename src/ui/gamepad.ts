@@ -177,6 +177,21 @@ export interface Rect { left: number; top: number; right: number; bottom: number
  * Navegação espacial (ordem visual): o próximo elemento na direção pedida, preferindo os alinhados (que se sobrepõem no
  * eixo perpendicular). Devolve -1 se não houver ninguém naquela direção; sem foco atual (from < 0), o primeiro.
  */
+/** Árvore de estudos (E9): LB/RB pulam para a coluna da Era anterior/seguinte que tenha nó, na mesma linha se houver;
+ *  senão, na linha mais próxima. `from` = índice do nó em foco (-1: nenhum, parte do primeiro). Sem coluna nessa direção: fica. */
+export function treeJump(nodes: { era: number; row: number }[], from: number, dir: -1 | 1): number {
+  if (!nodes.length) return -1;
+  const cur = nodes[from] ?? nodes[0];
+  const eras = [...new Set(nodes.map((n) => n.era))].sort((a, b) => a - b);
+  const target = eras[eras.indexOf(cur.era) + dir];
+  if (target === undefined) return Math.max(0, from);
+  const same = nodes.findIndex((n) => n.era === target && n.row === cur.row);
+  if (same >= 0) return same;
+  let best = -1, bestD = Infinity;
+  nodes.forEach((n, k) => { if (n.era !== target) return; const d = Math.abs(n.row - cur.row); if (d < bestD) { bestD = d; best = k; } });
+  return best;
+}
+
 export function navPick(rects: Rect[], from: number, dir: Dir): number {
   if (rects.length === 0) return -1;
   if (from < 0 || from >= rects.length) return 0;
@@ -578,6 +593,7 @@ export class GamepadController {
     const ds = e.dataset;
     if (ds.tab) return `tab:${ds.tab}`;
     if (ds.god) return `god:${ds.god}`;
+    if (ds.study) return `study:${ds.study}`;
     if (e.classList.contains('mission') && ds.id) return `mission:${ds.id}`;
     const card = e.closest('[data-id], [data-scn]') as HTMLElement | null;
     if (card && ds.act) return `act:${card.dataset.id ?? card.dataset.scn}:${ds.act}`;
@@ -606,6 +622,7 @@ export class GamepadController {
     const ring = e.closest('label') ?? e;
     ring.classList.add('pad-focus');
     ring.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    e.dispatchEvent(new CustomEvent('padfocus'));   // E9: o painel de detalhe da árvore escuta (o foco do navegador não muda)
     const root = this.focusRoot;
     if (root) this.focusKeys.set(root, this.keyOf(e, this.focusables(root)));
   }
@@ -659,24 +676,31 @@ export class GamepadController {
   /** LB/RB: abas do menu principal ou da enciclopédia. */
   private navTab(root: HTMLElement, dir: number): void {
     const tabs = [...root.querySelectorAll<HTMLElement>('.tabs [data-tab]')].filter((e) => e.getClientRects().length > 0);
-    if (tabs.length < 2) return;
+    if (tabs.length < 2) { if (root.querySelector('.tree-grid')) this.treeEra(root, dir < 0 ? -1 : 1); return; }
     const i = Math.max(0, tabs.findIndex((e) => e.classList.contains('active')));
     const next = tabs[(i + dir + tabs.length) % tabs.length];
     this.focusKeys.set(root, `tab:${next.dataset.tab}`);
     this.setFocus(null); this.focusRoot = root;
     this.activate_(next);
   }
+  /** Árvore de estudos: LB/RB = Era anterior/seguinte (treeJump). */
+  private treeEra(root: HTMLElement, dir: -1 | 1): void {
+    const list = [...root.querySelectorAll<HTMLElement>('.tree-node[data-era]')].filter((e) => e.getClientRects().length > 0);
+    const k = treeJump(list.map((e) => ({ era: Number(e.dataset.era), row: Number(e.dataset.row) })), this.focusEl ? list.indexOf(this.focusEl) : -1, dir);
+    if (k >= 0 && list[k]) { this.focusRoot = root; this.setFocus(list[k]); }
+  }
   private scrollBox(root: HTMLElement): HTMLElement | null {
-    if (root === this.d.hud.modal) { const inner = root.querySelector('[style*="overflow:auto"]') as HTMLElement | null; return inner && inner.scrollHeight > inner.clientHeight ? inner : root; }
+    if (root === this.d.hud.modal) { const inner = (root.querySelector('[data-scroll]') ?? root.querySelector('[style*="overflow:auto"]')) as HTMLElement | null; return inner && inner.scrollHeight > inner.clientHeight ? inner : root; }
     return root.querySelector('.box') as HTMLElement | null;
   }
   private navHints(root: HTMLElement): void {
     const sc = this.scheme;
     const it = (glyph: string, label: string) => `<span class="ph">${glyph}${label}</span>`;
     const tabs = root.querySelectorAll('.tabs [data-tab]').length > 1;
+    const tree = !tabs && !!root.querySelector('.tree-grid');
     const html = this.editingSelect
       ? [it(`<span class="pb pb-dp">${glyph('dpad')}</span>`, t('pad.hint.change')), it(padGlyph(sc.confirm), t('pad.hint.ok')), it(padGlyph(sc.back), t('pad.hint.cancel'))].join('')
-      : [it(`<span class="pb pb-dp">${glyph('dpad')}</span>`, t('pad.hint.move')), it(padGlyph(sc.confirm), t('pad.hint.confirm')), it(padGlyph(sc.back), t('pad.hint.back')), tabs ? it(`${padGlyph(BTN.LB)}${padGlyph(BTN.RB)}`, t('pad.hint.tabs')) : ''].join('');
+      : [it(`<span class="pb pb-dp">${glyph('dpad')}</span>`, t('pad.hint.move')), it(padGlyph(sc.confirm), t('pad.hint.confirm')), it(padGlyph(sc.back), t('pad.hint.back')), tabs ? it(`${padGlyph(BTN.LB)}${padGlyph(BTN.RB)}`, t('pad.hint.tabs')) : tree ? it(`${padGlyph(BTN.LB)}${padGlyph(BTN.RB)}`, t('pad.hint.eras')) : ''].join('');
     if (html !== this.hintKey) { this.navHintsEl.innerHTML = html; this.hintKey = html; }
     this.navHintsEl.classList.remove('hidden');
   }

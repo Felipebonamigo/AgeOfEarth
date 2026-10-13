@@ -81,3 +81,21 @@ describe('árvore de estudos', () => {
     expect(studyTreeModel(quickGame({ unitLines: false }), 0).rows.some((r) => r.id.startsWith('evo:'))).toBe(false);
   });
 });
+
+describe('E9 — atributos para o controle', () => {
+  it('nós com data-era/data-row, corpo rolável e foco inicial só com autofocus', () => {
+    const s = quickGame();
+    const tc = buildingsOf(s, 0).find((b) => b.type === 'town_center')!;
+    placeBuilding(s, 0, 'academy', tc.tx + 6, tc.ty, true);
+    for (const r of Object.keys(s.players[0].resources)) (s.players[0].resources as Record<string, number>)[r] = 99999;
+    const html = studyTreeHtml(studyTreeModel(s, 0));
+    const count = (h: string, n: string) => h.split(n).length - 1;
+    expect(count(html, 'class="tree-node')).toBe(count(html, 'data-era="'));
+    expect(count(html, 'data-row="')).toBe(count(html, 'data-study="'));
+    expect(html).toContain('class="tree-body" data-scroll');
+    expect(count(html, 'data-autofocus')).toBe(0);
+    const af = studyTreeHtml(studyTreeModel(s, 0), undefined, { autofocus: true });
+    expect(count(af, 'data-autofocus')).toBe(1);
+    expect(/class="tree-node st-(available|active)[^"]*"[^>]*data-autofocus/.test(af)).toBe(true);
+  });
+});

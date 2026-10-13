@@ -62,7 +62,7 @@ async function startedRoom(code: string): Promise<{ a: Peer; b: Peer }> {
   return { a, b };
 }
 /** Resposta do relay a `list` pedida por uma conexão nova (o processo segue de pé). */
-async function listRooms(): Promise<{ code: string; mapSize?: unknown; mode?: unknown }[]> {
+async function listRooms(): Promise<{ code: string; mapSize?: unknown; mode?: unknown; startAge?: unknown; endAge?: unknown; wonderVictory?: unknown }[]> {
   const c = new Peer(); await c.open(); c.send({ t: 'list' });
   const rooms = (await c.wait((m) => m.t === 'rooms')).rooms as { code: string }[];
   c.close();
@@ -249,6 +249,22 @@ describe('relay: anti-trapaça básico', () => {
     a.send({ t: 'settings', settings: { startAge: 'x y', endAge: '6' } });
     const l2 = await b.wait((m) => m.t === 'lobby' && (m.settings as { endAge?: string }).endAge === '6');
     expect((l2.settings as { startAge?: string }).startAge).toBe('2');   // 'x y' não passa na regex: fica o valor anterior
+    a.close(); b.close();
+  });
+
+  it('Eras e vitória por maravilha (E9): valores válidos passam, inválidos mantêm o anterior e a lista de salas os traz', async () => {
+    const a = new Peer(), b = new Peer();
+    await a.open(); await b.open();
+    a.send({ t: 'join', room: 'ERAS9', name: 'Ana', sim: SIM_VERSION }); await a.wait((m) => m.t === 'joined');
+    b.send({ t: 'join', room: 'ERAS9', name: 'Beto', sim: SIM_VERSION }); await b.wait((m) => m.t === 'joined');
+    a.send({ t: 'settings', settings: { startAge: '2', endAge: '5', wonderVictory: 'hold', public: true } });
+    const lobby = await b.wait((m) => m.t === 'lobby' && (m.settings as { startAge?: string }).startAge === '2');
+    expect(lobby.settings).toMatchObject({ startAge: '2', endAge: '5', wonderVictory: 'hold' });
+    a.send({ t: 'settings', settings: { startAge: 'banana', endAge: '9', wonderVictory: 'x', mapSize: 'small' } });
+    const l2 = await b.wait((m) => m.t === 'lobby' && (m.settings as { mapSize?: string }).mapSize === 'small');
+    expect(l2.settings).toMatchObject({ startAge: '2', endAge: '5', wonderVictory: 'hold' });
+    const room = (await listRooms()).find((r) => r.code === 'ERAS9') as { startAge?: string; endAge?: string; wonderVictory?: string } | undefined;
+    expect(room).toMatchObject({ startAge: '2', endAge: '5', wonderVictory: 'hold' });
     a.close(); b.close();
   });
 
