@@ -104,11 +104,11 @@ function runOne(seed: number): SeedRun {
         if (!p.alive) continue;
         let vill = 0, idle = 0;
         for (const u of state.units.values()) if (u.owner === p.id && !u.dead && u.type === 'villager') { vill++; if (u.state === 'idle') idle++; }
-        // sem Centro Cívico a IA já perdeu a cidade (só os cidadãos a mantêm viva pela regra de eliminação): não é parada da IA,
+        // sem Centro Cívico (ou com menos de 6 edifícios) a IA já perdeu a cidade (só os cidadãos a mantêm viva pela regra de eliminação): não é parada da IA,
         // é uma conquista quase completa — registra à parte (não reprova) e não avalia PARADA/TRAVADA
-        let hasTc = false;
-        for (const b of state.buildings.values()) if (b.owner === p.id && !b.dead && b.type === 'town_center') { hasTc = true; break; }
-        if (!hasTc) { flagsOut.push({ min, player: p.name, kind: 'SEM-CIDADE', detail: `${vill} cidadãos, sem Centro Cívico` }); delete lastCheck[p.id]; continue; }
+        let hasTc = false, nb = 0;
+        for (const b of state.buildings.values()) if (b.owner === p.id && !b.dead && b.complete && !BUILDINGS[b.type].wall) { nb++; if (b.type === 'town_center') hasTc = true; }
+        if (!hasTc || nb < 6) { flagsOut.push({ min, player: p.name, kind: 'SEM-CIDADE', detail: hasTc ? `cidade em ruínas (${nb} edifícios)` : `${vill} cidadãos, sem Centro Cívico` }); delete lastCheck[p.id]; continue; }
         const prev = lastCheck[p.id];
         const noWork = prev && p.stats.unitsTrained === prev.trained && p.stats.buildingsBuilt === prev.built && p.pop < p.popCap - 5;
         if (vill > 0 && idle === vill) flagsOut.push({ min, player: p.name, kind: 'PARADA', detail: `${vill} cidadãos, todos ociosos` });

@@ -43,7 +43,7 @@ export const AI_PACE_CLASSIC: AiPace = {
 /** Partida fora de cenário: o que a E10 ajusta (começa igual ao clássico). Arrays COPIADOS: ajuste escrevendo os
  *  valores neste literal (ex.: `villagerTarget: [20, 26, …]`); nunca mexa em VILLAGER_TARGET & cia., que são da campanha. */
 export const AI_PACE: AiPace = {
-  ...AI_PACE_CLASSIC, villagerTarget: [24, 34, 42, 44, 48, 52, 56, 60], farmLimit: [...FARM_LIMIT], armyAttack: [11, 16, 22, 24, 28, 32, 36, 40], minArmy: [6, 10, 8, 18, 22, 26, 30, 34],
+  ...AI_PACE_CLASSIC, villagerTarget: [24, 34, 42, 44, 48, 52, 56, 60], farmLimit: [8, ...FARM_LIMIT.slice(1)], armyAttack: [11, 16, 22, 24, 28, 32, 36, 40], minArmy: [6, 10, 8, 18, 22, 26, 30, 34],
   scholarsEarly: 5, armyFundCap: 1.2,
 };
 /** Limites de cada botão (tests/ai-pace.test.ts confere). */
