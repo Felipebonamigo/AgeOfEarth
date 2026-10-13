@@ -246,6 +246,8 @@ function manageEconomy(state: GameState, player: Player, snap: Snapshot): void {
   }
   const want: Record<string, number> = {};
   for (const r of AI_RES) want[r] = Math.round((ratio[r] / sum) * Math.min(n, target));
+  // E10: madeira esgotada (cidade arrasada, sem serraria nem como pagar outra) trava tudo — Biblioteca, casas, serraria: ao menos alguns cortam e entregam no Centro Cívico
+  if (!isScenarioConfig(state.config) && player.resources.wood < 150) want.wood = Math.max(want.wood, Math.min(6, Math.floor(n / 3)));
   const idle = snap.idleVillagers.slice();
   // Rebalanceamento suave: se um recurso está muito acima do desejado, libera um coletor
   if (idle.length === 0 && state.tick % (TICK_RATE * 8) < TICK_RATE * 2) {
