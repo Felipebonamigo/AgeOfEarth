@@ -1,0 +1,61 @@
+# Instaladores de teste (Windows e Linux): compila o jogo, empacota com o Electron e publica numa pré-release do GitHub.
+# Dispara à mão (Actions → Instaladores de teste → Run workflow), por tag `v*` ou quando este arquivo muda na branch de trabalho.
+name: Instaladores de teste
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+    branches: ['claude/ecstatic-albattani-atz7h5']
+    paths: ['.github/workflows/installer.yml']
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            script: dist:win:installer
+            files: |
+              desktop/release/AgeOfEarth-Setup-*.exe
+              desktop/release/AgeOfEarth-*-win-x64.zip
+          - os: ubuntu-latest
+            script: dist:linux:appimage
+            files: desktop/release/*.AppImage
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - run: npm run build
+      - run: npm ci
+        working-directory: desktop
+      - run: npm run ${{ matrix.script }}
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: age-of-earth-${{ matrix.os }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: dist-installers, merge-multiple: true }
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('teste-{0}', github.run_number) }}
+          name: Age of Earth — build de teste ${{ github.run_number }}
+          prerelease: true
+          target_commitish: ${{ github.sha }}
+          body: |
+            Build de teste (não assinada: o Windows pode avisar "editor desconhecido" — Mais informações → Executar assim mesmo).
+            - Windows: `AgeOfEarth-Setup-*.exe` (instalador) ou o `.zip` (portátil: extraia e rode `Age of Earth.exe`).
+            - Linux: `.AppImage` (`chmod +x` e execute).
+            Commit: ${{ github.sha }}
+          files: dist-installers/*

@@ -8,7 +8,9 @@
     "start": "electron .",
     "dist:win": "electron-builder --win --x64",
     "dist:linux": "electron-builder --linux --x64",
-    "dist:mac": "electron-builder --mac"
+    "dist:mac": "electron-builder --mac",
+    "dist:win:installer": "electron-builder --win nsis zip --x64",
+    "dist:linux:appimage": "electron-builder --linux AppImage --x64"
   },
   "devDependencies": {
     "electron": "^33.0.0",
@@ -21,13 +23,53 @@
     "appId": "com.ageofearth.game",
     "productName": "Age of Earth",
     "afterPack": "./after-pack.cjs",
-    "files": ["main.cjs", "preload.cjs", "cloud.cjs", "steam_appid.txt"],
-    "extraResources": [{ "from": "../dist", "to": "game" }, { "from": "../docs/THIRD_PARTY.md", "to": "THIRD_PARTY.md" }],
-    "directories": { "output": "release" },
-    "win": { "target": ["dir"], "icon": "icon.ico" },
-    "linux": { "target": ["dir"], "category": "Game", "executableName": "age-of-earth" },
-    "mac": { "target": ["dir"], "category": "public.app-category.games" },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "cloud.cjs",
+      "steam_appid.txt"
+    ],
+    "extraResources": [
+      {
+        "from": "../dist",
+        "to": "game"
+      },
+      {
+        "from": "../docs/THIRD_PARTY.md",
+        "to": "THIRD_PARTY.md"
+      }
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        "dir"
+      ]
+    },
+    "linux": {
+      "target": [
+        "dir"
+      ],
+      "category": "Game",
+      "executableName": "age-of-earth"
+    },
+    "mac": {
+      "target": [
+        "dir"
+      ],
+      "category": "public.app-category.games"
+    },
     "asar": true,
-    "asarUnpack": ["node_modules/steamworks.js/**"]
+    "asarUnpack": [
+      "node_modules/steamworks.js/**"
+    ],
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "artifactName": "AgeOfEarth-Setup-${version}.${ext}"
+    },
+    "artifactName": "AgeOfEarth-${version}-${os}-${arch}.${ext}"
   }
 }
