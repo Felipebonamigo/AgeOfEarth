@@ -231,6 +231,8 @@ function manageEconomy(state: GameState, player: Player, snap: Snapshot): void {
     food: (next.cost.food ?? 0) + 200, wood: (next.cost.wood ?? 0) + 350, stone: (next.cost.stone ?? 0) + 150, gold: (next.cost.gold ?? 0) + 150,
     oil: age >= OIL_FROM_AGE && !state.scenario ? (next.cost.oil ?? 0) : 0, favor: 0,
   };
+  // E10: a Fortaleza (exigida pela Era V) pede 400 de pedra: sem isso a IA ficava parada na Era IV com a pedra a zero e nenhum coletor nela
+  if (age >= 2 && age < 4 && !isScenarioConfig(state.config) && (snap.byType.get('fortress') ?? []).length === 0) need.stone = Math.max(need.stone, 450);
   // pedra e petróleo parados no estoque não pedem mais cidadãos (a pedra acumulava em milhares com o ouro em zero e a economia travava)
   for (const r of ['stone', 'oil'] as const) {
     const idleStock = Math.max(0, (player.resources[r] ?? 0) - need[r] - 300);
@@ -258,6 +260,17 @@ function manageEconomy(state: GameState, player: Player, snap: Snapshot): void {
   for (const v of idle) {
     let bestR = 'food', bestDef = -Infinity;
     for (const r of AI_RES) { const d = want[r] - counts[r]; if (d > bestDef) { bestDef = d; bestR = r; } }
+    // E10: se o recurso mais em falta não tem veio ao alcance (ouro esgotado), tenta os seguintes por falta antes de cair em comida/madeira
+    // (antes todo cidadão ocioso virava lenhador e a pedra/petróleo da Era nunca eram coletados)
+    if (!isScenarioConfig(state.config) && !assignGatherer(state, player, v, bestR, snap)) {
+      const order = AI_RES.filter((r) => r !== bestR && want[r] - counts[r] > 0).sort((a, b) => (want[b] - counts[b]) - (want[a] - counts[a]));
+      const got = order.find((r) => assignGatherer(state, player, v, r, snap));
+      if (got) { counts[got]++; continue; }
+      if (bestR !== 'food' && assignGatherer(state, player, v, 'food', snap)) counts.food++;
+      else if (assignGatherer(state, player, v, 'wood', snap)) counts.wood++;
+      continue;
+    }
+    if (!isScenarioConfig(state.config)) { counts[bestR]++; continue; }
     if (assignGatherer(state, player, v, bestR, snap)) counts[bestR]++;
     else if (bestR !== 'food' && assignGatherer(state, player, v, 'food', snap)) counts.food++;
     else if (assignGatherer(state, player, v, 'wood', snap)) counts.wood++;

@@ -1,0 +1,1946 @@
+{
+ "minutes": 60,
+ "seeds": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9,
+  10,
+  11,
+  12,
+  13,
+  14,
+  15,
+  16,
+  17,
+  18
+ ],
+ "diff": "normal",
+ "mapType": "continental",
+ "size": "medium",
+ "map": null,
+ "runs": [
+  {
+   "seed": 1,
+   "minutes": 40,
+   "ms": 47832,
+   "msPerTick": 0.9878562577447336,
+   "winner": "poseidon1",
+   "endMin": 40.3500000000007,
+   "at5": "zeus0 cidadãos=24 (ociosos 0) treinados=19 construídos=9 · poseidon1 cidadãos=24 (ociosos 0) treinados=19 construídos=11 · hades2 cidadãos=24 (ociosos 0) treinados=19 construídos=11",
+   "flags": [
+    {
+     "min": 20,
+     "player": "zeus0",
+     "kind": "SEM-CIDADE",
+     "detail": "12 cidadãos, sem Centro Cívico"
+    }
+   ],
+   "players": [
+    {
+     "name": "zeus0",
+     "alive": false,
+     "died": 26.9825,
+     "cityLost": 19.8,
+     "arrivals": [
+      0,
+      5.9,
+      10.9
+     ],
+     "age": 2,
+     "waves": 0,
+     "kills": 83,
+     "losses": 100,
+     "razed": 0,
+     "territory": 0,
+     "techs": 15,
+     "evo": 2,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    },
+    {
+     "name": "poseidon1",
+     "alive": true,
+     "died": null,
+     "cityLost": null,
+     "arrivals": [
+      0,
+      5.5,
+      10.5,
+      15.2,
+      19.9,
+      24.7,
+      30.3,
+      36.9
+     ],
+     "age": 7,
+     "waves": 11,
+     "kills": 499,
+     "losses": 399,
+     "razed": 111,
+     "territory": 2326,
+     "techs": 72,
+     "evo": 13,
+     "bless": 1,
+     "wonders": 3,
+     "titan": true,
+     "ships": 0,
+     "caravans": 6
+    },
+    {
+     "name": "hades2",
+     "alive": false,
+     "died": 40.34916666666666,
+     "cityLost": 40.2,
+     "arrivals": [
+      0,
+      5.9,
+      11.6,
+      16.9,
+      22.6,
+      27.3,
+      33.7
+     ],
+     "age": 6,
+     "waves": 8,
+     "kills": 445,
+     "losses": 528,
+     "razed": 26,
+     "territory": 0,
+     "techs": 59,
+     "evo": 7,
+     "bless": 1,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    }
+   ]
+  },
+  {
+   "seed": 2,
+   "minutes": 46,
+   "ms": 52303,
+   "msPerTick": 0.9509636363636363,
+   "winner": "poseidon1",
+   "endMin": 45.83333333335398,
+   "at5": "zeus0 cidadãos=24 (ociosos 0) treinados=19 construídos=9 · poseidon1 cidadãos=24 (ociosos 0) treinados=19 construídos=10 · hades2 cidadãos=24 (ociosos 0) treinados=20 construídos=11",
+   "flags": [
+    {
+     "min": 30,
+     "player": "zeus0",
+     "kind": "SEM-CIDADE",
+     "detail": "1 cidadãos, sem Centro Cívico"
+    },
+    {
+     "min": 40,
+     "player": "zeus0",
+     "kind": "SEM-CIDADE",
+     "detail": "1 cidadãos, sem Centro Cívico"
+    }
+   ],
+   "players": [
+    {
+     "name": "zeus0",
+     "alive": true,
+     "died": null,
+     "cityLost": 26.2,
+     "arrivals": [
+      0,
+      5.6,
+      10.8,
+      15.9,
+      23.6
+     ],
+     "age": 4,
+     "waves": 1,
+     "kills": 127,
+     "losses": 227,
+     "razed": 0,
+     "territory": 0,
+     "techs": 32,
+     "evo": 3,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    },
+    {
+     "name": "poseidon1",
+     "alive": true,
+     "died": null,
+     "cityLost": null,
+     "arrivals": [
+      0,
+      5.6,
+      10.6,
+      15.4,
+      20.4,
+      25.8,
+      31.4,
+      38.2
+     ],
+     "age": 7,
+     "waves": 7,
+     "kills": 441,
+     "losses": 117,
+     "razed": 135,
+     "territory": 2244,
+     "techs": 96,
+     "evo": 24,
+     "bless": 7,
+     "wonders": 3,
+     "titan": true,
+     "ships": 0,
+     "caravans": 6
+    },
+    {
+     "name": "hades2",
+     "alive": false,
+     "died": 30.4825,
+     "cityLost": 30.3,
+     "arrivals": [
+      0,
+      8.9,
+      14.4,
+      20.3,
+      26.6
+     ],
+     "age": 4,
+     "waves": 2,
+     "kills": 42,
+     "losses": 266,
+     "razed": 0,
+     "territory": 0,
+     "techs": 36,
+     "evo": 4,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    }
+   ]
+  },
+  {
+   "seed": 3,
+   "minutes": 29,
+   "ms": 38621,
+   "msPerTick": 1.117505787037037,
+   "winner": "zeus0",
+   "endMin": 28.799999999982937,
+   "at5": "zeus0 cidadãos=24 (ociosos 0) treinados=19 construídos=9 · poseidon1 cidadãos=24 (ociosos 3) treinados=19 construídos=8 · hades2 cidadãos=24 (ociosos 0) treinados=19 construídos=11",
+   "flags": [],
+   "players": [
+    {
+     "name": "zeus0",
+     "alive": true,
+     "died": null,
+     "cityLost": null,
+     "arrivals": [
+      0,
+      5.8,
+      11,
+      18.6,
+      23.6,
+      28.2
+     ],
+     "age": 5,
+     "waves": 7,
+     "kills": 325,
+     "losses": 107,
+     "razed": 93,
+     "territory": 1666,
+     "techs": 57,
+     "evo": 10,
+     "bless": 2,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 6
+    },
+    {
+     "name": "poseidon1",
+     "alive": false,
+     "died": 22.615833333333335,
+     "cityLost": 22.5,
+     "arrivals": [
+      0,
+      5.4,
+      10.2,
+      19.2
+     ],
+     "age": 3,
+     "waves": 0,
+     "kills": 73,
+     "losses": 238,
+     "razed": 0,
+     "territory": 0,
+     "techs": 16,
+     "evo": 2,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    },
+    {
+     "name": "hades2",
+     "alive": false,
+     "died": 28.799166666666668,
+     "cityLost": 27.5,
+     "arrivals": [
+      0,
+      5.4,
+      10.6,
+      15.7,
+      23.6
+     ],
+     "age": 4,
+     "waves": 5,
+     "kills": 189,
+     "losses": 242,
+     "razed": 20,
+     "territory": 0,
+     "techs": 40,
+     "evo": 3,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    }
+   ]
+  },
+  {
+   "seed": 4,
+   "minutes": 37,
+   "ms": 42559,
+   "msPerTick": 0.9646192203082502,
+   "winner": "poseidon1",
+   "endMin": 36.76666666665433,
+   "at5": "zeus0 cidadãos=24 (ociosos 1) treinados=19 construídos=11 · poseidon1 cidadãos=24 (ociosos 0) treinados=20 construídos=9 · hades2 cidadãos=24 (ociosos 0) treinados=19 construídos=9",
+   "flags": [],
+   "players": [
+    {
+     "name": "zeus0",
+     "alive": false,
+     "died": 31.399166666666666,
+     "cityLost": 30.7,
+     "arrivals": [
+      0,
+      8.9,
+      14.7,
+      20.4
+     ],
+     "age": 3,
+     "waves": 5,
+     "kills": 239,
+     "losses": 238,
+     "razed": 2,
+     "territory": 0,
+     "techs": 43,
+     "evo": 4,
+     "bless": 1,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    },
+    {
+     "name": "poseidon1",
+     "alive": true,
+     "died": null,
+     "cityLost": null,
+     "arrivals": [
+      0,
+      5.4,
+      10.5,
+      15.3,
+      20.5,
+      25.5,
+      31.1
+     ],
+     "age": 6,
+     "waves": 10,
+     "kills": 424,
+     "losses": 253,
+     "razed": 144,
+     "territory": 3293,
+     "techs": 73,
+     "evo": 8,
+     "bless": 2,
+     "wonders": 3,
+     "titan": false,
+     "ships": 0,
+     "caravans": 6
+    },
+    {
+     "name": "hades2",
+     "alive": false,
+     "died": 36.76583333333333,
+     "cityLost": 36.2,
+     "arrivals": [
+      0,
+      6.2,
+      11.4,
+      18.8,
+      29.3,
+      32.6
+     ],
+     "age": 5,
+     "waves": 2,
+     "kills": 194,
+     "losses": 366,
+     "razed": 2,
+     "territory": 0,
+     "techs": 45,
+     "evo": 3,
+     "bless": 1,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    }
+   ]
+  },
+  {
+   "seed": 5,
+   "minutes": 30,
+   "ms": 52254,
+   "msPerTick": 1.4450774336283185,
+   "winner": "poseidon1",
+   "endMin": 30.133333333315058,
+   "at5": "zeus0 cidadãos=24 (ociosos 0) treinados=19 construídos=11 · poseidon1 cidadãos=24 (ociosos 0) treinados=20 construídos=10 · hades2 cidadãos=24 (ociosos 0) treinados=20 construídos=11",
+   "flags": [],
+   "players": [
+    {
+     "name": "zeus0",
+     "alive": false,
+     "died": 26.899166666666666,
+     "cityLost": 26.8,
+     "arrivals": [
+      0,
+      6.2,
+      11.2,
+      16.2,
+      22
+     ],
+     "age": 4,
+     "waves": 1,
+     "kills": 75,
+     "losses": 170,
+     "razed": 15,
+     "territory": 0,
+     "techs": 37,
+     "evo": 5,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    },
+    {
+     "name": "poseidon1",
+     "alive": true,
+     "died": null,
+     "cityLost": null,
+     "arrivals": [
+      0,
+      6.1,
+      10.9,
+      17.2,
+      23.5,
+      27.4
+     ],
+     "age": 5,
+     "waves": 8,
+     "kills": 330,
+     "losses": 130,
+     "razed": 128,
+     "territory": 1651,
+     "techs": 59,
+     "evo": 7,
+     "bless": 1,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 6
+    },
+    {
+     "name": "hades2",
+     "alive": false,
+     "died": 30.1325,
+     "cityLost": null,
+     "arrivals": [
+      0,
+      5.9,
+      11.4,
+      16.2,
+      21.7,
+      26.3
+     ],
+     "age": 5,
+     "waves": 1,
+     "kills": 56,
+     "losses": 161,
+     "razed": 0,
+     "territory": 0,
+     "techs": 28,
+     "evo": 5,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    }
+   ]
+  },
+  {
+   "seed": 6,
+   "minutes": 41,
+   "ms": 51043,
+   "msPerTick": 1.0472507180960198,
+   "winner": "poseidon1",
+   "endMin": 40.61666666666834,
+   "at5": "zeus0 cidadãos=24 (ociosos 0) treinados=19 construídos=9 · poseidon1 cidadãos=24 (ociosos 0) treinados=19 construídos=8 · hades2 cidadãos=24 (ociosos 0) treinados=19 construídos=7",
+   "flags": [],
+   "players": [
+    {
+     "name": "zeus0",
+     "alive": false,
+     "died": 28.899166666666666,
+     "cityLost": 28.7,
+     "arrivals": [
+      0,
+      5.7,
+      10.9,
+      15.8,
+      20.5
+     ],
+     "age": 4,
+     "waves": 1,
+     "kills": 159,
+     "losses": 140,
+     "razed": 3,
+     "territory": 0,
+     "techs": 21,
+     "evo": 4,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    },
+    {
+     "name": "poseidon1",
+     "alive": true,
+     "died": null,
+     "cityLost": null,
+     "arrivals": [
+      0,
+      5.3,
+      10.1,
+      14.9,
+      20.3,
+      26.2,
+      31.8
+     ],
+     "age": 6,
+     "waves": 7,
+     "kills": 385,
+     "losses": 262,
+     "razed": 85,
+     "territory": 2449,
+     "techs": 63,
+     "evo": 6,
+     "bless": 0,
+     "wonders": 1,
+     "titan": false,
+     "ships": 0,
+     "caravans": 6
+    },
+    {
+     "name": "hades2",
+     "alive": false,
+     "died": 40.61583333333333,
+     "cityLost": 40.2,
+     "arrivals": [
+      0,
+      5.9,
+      11.1,
+      16.7,
+      25,
+      29.7,
+      38.1
+     ],
+     "age": 6,
+     "waves": 6,
+     "kills": 315,
+     "losses": 457,
+     "razed": 46,
+     "territory": 0,
+     "techs": 51,
+     "evo": 5,
+     "bless": 1,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    }
+   ]
+  },
+  {
+   "seed": 7,
+   "minutes": 60,
+   "ms": 84369,
+   "msPerTick": 1.1717916666666666,
+   "winner": null,
+   "endMin": null,
+   "at5": "zeus0 cidadãos=24 (ociosos 0) treinados=19 construídos=11 · poseidon1 cidadãos=24 (ociosos 0) treinados=19 construídos=9 · hades2 cidadãos=24 (ociosos 0) treinados=19 construídos=11",
+   "flags": [
+    {
+     "min": 30,
+     "player": "poseidon1",
+     "kind": "SEM-CIDADE",
+     "detail": "5 cidadãos, sem Centro Cívico"
+    },
+    {
+     "min": 40,
+     "player": "zeus0",
+     "kind": "ACUMULANDO",
+     "detail": "food=55190 wood=13501 stone=847 gold=6540"
+    },
+    {
+     "min": 40,
+     "player": "poseidon1",
+     "kind": "SEM-CIDADE",
+     "detail": "5 cidadãos, sem Centro Cívico"
+    },
+    {
+     "min": 50,
+     "player": "zeus0",
+     "kind": "ACUMULANDO",
+     "detail": "food=125565 wood=24841 stone=1459 gold=17179"
+    },
+    {
+     "min": 50,
+     "player": "poseidon1",
+     "kind": "SEM-CIDADE",
+     "detail": "5 cidadãos, sem Centro Cívico"
+    },
+    {
+     "min": 60,
+     "player": "zeus0",
+     "kind": "ACUMULANDO",
+     "detail": "food=195928 wood=36109 stone=1495 gold=27981"
+    },
+    {
+     "min": 60,
+     "player": "poseidon1",
+     "kind": "SEM-CIDADE",
+     "detail": "5 cidadãos, sem Centro Cívico"
+    }
+   ],
+   "players": [
+    {
+     "name": "zeus0",
+     "alive": true,
+     "died": null,
+     "cityLost": null,
+     "arrivals": [
+      0,
+      6,
+      11.1,
+      15.8,
+      20.9,
+      25.8,
+      31,
+      38.4
+     ],
+     "age": 7,
+     "waves": 9,
+     "kills": 422,
+     "losses": 182,
+     "razed": 123,
+     "territory": 2587,
+     "techs": 119,
+     "evo": 46,
+     "bless": 7,
+     "wonders": 0,
+     "titan": true,
+     "ships": 0,
+     "caravans": 6
+    },
+    {
+     "name": "poseidon1",
+     "alive": true,
+     "died": null,
+     "cityLost": 25.8,
+     "arrivals": [
+      0,
+      5.5,
+      10.6,
+      15.1
+     ],
+     "age": 3,
+     "waves": 2,
+     "kills": 147,
+     "losses": 302,
+     "razed": 1,
+     "territory": 0,
+     "techs": 38,
+     "evo": 3,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    },
+    {
+     "name": "hades2",
+     "alive": false,
+     "died": 32.049166666666665,
+     "cityLost": 31.7,
+     "arrivals": [
+      0,
+      5.9,
+      11.9,
+      16.6,
+      21.5,
+      26.5
+     ],
+     "age": 5,
+     "waves": 5,
+     "kills": 298,
+     "losses": 383,
+     "razed": 25,
+     "territory": 0,
+     "techs": 53,
+     "evo": 5,
+     "bless": 1,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    }
+   ]
+  },
+  {
+   "seed": 8,
+   "minutes": 34,
+   "ms": 31899,
+   "msPerTick": 0.777266081871345,
+   "winner": "poseidon1",
+   "endMin": 34.199999999978324,
+   "at5": "zeus0 cidadãos=24 (ociosos 0) treinados=19 construídos=11 · poseidon1 cidadãos=24 (ociosos 0) treinados=19 construídos=9 · hades2 cidadãos=24 (ociosos 0) treinados=19 construídos=10",
+   "flags": [],
+   "players": [
+    {
+     "name": "zeus0",
+     "alive": false,
+     "died": 25.949166666666667,
+     "cityLost": 25.7,
+     "arrivals": [
+      0,
+      6,
+      11.1,
+      18
+     ],
+     "age": 3,
+     "waves": 0,
+     "kills": 77,
+     "losses": 168,
+     "razed": 0,
+     "territory": 0,
+     "techs": 16,
+     "evo": 3,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    },
+    {
+     "name": "poseidon1",
+     "alive": true,
+     "died": null,
+     "cityLost": null,
+     "arrivals": [
+      0,
+      6.1,
+      11.5,
+      16.1,
+      21,
+      26.2,
+      30.5
+     ],
+     "age": 6,
+     "waves": 8,
+     "kills": 434,
+     "losses": 186,
+     "razed": 114,
+     "territory": 2522,
+     "techs": 62,
+     "evo": 6,
+     "bless": 0,
+     "wonders": 1,
+     "titan": false,
+     "ships": 0,
+     "caravans": 6
+    },
+    {
+     "name": "hades2",
+     "alive": false,
+     "died": 34.19916666666666,
+     "cityLost": 34,
+     "arrivals": [
+      0,
+      5.6,
+      10.9,
+      21,
+      27
+     ],
+     "age": 4,
+     "waves": 3,
+     "kills": 133,
+     "losses": 290,
+     "razed": 4,
+     "territory": 0,
+     "techs": 50,
+     "evo": 5,
+     "bless": 1,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    }
+   ]
+  },
+  {
+   "seed": 9,
+   "minutes": 38,
+   "ms": 39344,
+   "msPerTick": 0.8624287593160894,
+   "winner": "poseidon1",
+   "endMin": 38.01666666665888,
+   "at5": "zeus0 cidadãos=24 (ociosos 0) treinados=19 construídos=10 · poseidon1 cidadãos=24 (ociosos 0) treinados=19 construídos=9 · hades2 cidadãos=24 (ociosos 0) treinados=19 construídos=8",
+   "flags": [],
+   "players": [
+    {
+     "name": "zeus0",
+     "alive": false,
+     "died": 38.01583333333333,
+     "cityLost": 37.7,
+     "arrivals": [
+      0,
+      6.1,
+      11.1,
+      15.9,
+      20.8,
+      25.9,
+      32
+     ],
+     "age": 6,
+     "waves": 6,
+     "kills": 349,
+     "losses": 484,
+     "razed": 14,
+     "territory": 0,
+     "techs": 69,
+     "evo": 7,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    },
+    {
+     "name": "poseidon1",
+     "alive": true,
+     "died": null,
+     "cityLost": null,
+     "arrivals": [
+      0,
+      5.3,
+      10.2,
+      14.6,
+      20.5,
+      24.8,
+      29.2,
+      37
+     ],
+     "age": 7,
+     "waves": 12,
+     "kills": 601,
+     "losses": 369,
+     "razed": 116,
+     "territory": 2295,
+     "techs": 70,
+     "evo": 10,
+     "bless": 2,
+     "wonders": 1,
+     "titan": false,
+     "ships": 0,
+     "caravans": 6
+    },
+    {
+     "name": "hades2",
+     "alive": false,
+     "died": 23.8825,
+     "cityLost": 23.5,
+     "arrivals": [
+      0,
+      5.6,
+      10.7
+     ],
+     "age": 2,
+     "waves": 0,
+     "kills": 73,
+     "losses": 170,
+     "razed": 0,
+     "territory": 0,
+     "techs": 21,
+     "evo": 2,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    }
+   ]
+  },
+  {
+   "seed": 10,
+   "minutes": 60,
+   "ms": 100667,
+   "msPerTick": 1.3981527777777778,
+   "winner": null,
+   "endMin": null,
+   "at5": "zeus0 cidadãos=24 (ociosos 0) treinados=19 construídos=9 · poseidon1 cidadãos=24 (ociosos 0) treinados=19 construídos=13 · hades2 cidadãos=24 (ociosos 0) treinados=19 construídos=11",
+   "flags": [
+    {
+     "min": 30,
+     "player": "zeus0",
+     "kind": "SEM-CIDADE",
+     "detail": "15 cidadãos, sem Centro Cívico"
+    },
+    {
+     "min": 30,
+     "player": "poseidon1",
+     "kind": "TRAVADA",
+     "detail": "na Era 4 desde 15.1 min: Requer Fortaleza."
+    },
+    {
+     "min": 40,
+     "player": "zeus0",
+     "kind": "SEM-CIDADE",
+     "detail": "15 cidadãos, sem Centro Cívico"
+    },
+    {
+     "min": 50,
+     "player": "zeus0",
+     "kind": "SEM-CIDADE",
+     "detail": "15 cidadãos, sem Centro Cívico"
+    },
+    {
+     "min": 60,
+     "player": "zeus0",
+     "kind": "SEM-CIDADE",
+     "detail": "15 cidadãos, sem Centro Cívico"
+    },
+    {
+     "min": 60,
+     "player": "hades2",
+     "kind": "ACUMULANDO",
+     "detail": "food=88508 wood=31098 stone=598 gold=15267"
+    }
+   ],
+   "players": [
+    {
+     "name": "zeus0",
+     "alive": true,
+     "died": null,
+     "cityLost": 25.3,
+     "arrivals": [
+      0,
+      5.8,
+      11.1,
+      18.7
+     ],
+     "age": 3,
+     "waves": 0,
+     "kills": 38,
+     "losses": 131,
+     "razed": 0,
+     "territory": 0,
+     "techs": 13,
+     "evo": 2,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    },
+    {
+     "name": "poseidon1",
+     "alive": false,
+     "died": 33.69916666666667,
+     "cityLost": 33.5,
+     "arrivals": [
+      0,
+      5.6,
+      10.6,
+      15.1
+     ],
+     "age": 3,
+     "waves": 2,
+     "kills": 262,
+     "losses": 459,
+     "razed": 50,
+     "territory": 0,
+     "techs": 35,
+     "evo": 3,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    },
+    {
+     "name": "hades2",
+     "alive": true,
+     "died": null,
+     "cityLost": null,
+     "arrivals": [
+      0,
+      6.4,
+      12.2,
+      16.7,
+      21.7,
+      27.4,
+      33.2,
+      39.9
+     ],
+     "age": 7,
+     "waves": 7,
+     "kills": 426,
+     "losses": 136,
+     "razed": 82,
+     "territory": 2085,
+     "techs": 117,
+     "evo": 45,
+     "bless": 7,
+     "wonders": 2,
+     "titan": true,
+     "ships": 0,
+     "caravans": 6
+    }
+   ]
+  },
+  {
+   "seed": 11,
+   "minutes": 27,
+   "ms": 18577,
+   "msPerTick": 0.5643074119076549,
+   "winner": "poseidon1",
+   "endMin": 27.433333333317513,
+   "at5": "zeus0 cidadãos=24 (ociosos 0) treinados=19 construídos=10 · poseidon1 cidadãos=24 (ociosos 0) treinados=19 construídos=12 · hades2 cidadãos=22 (ociosos 0) treinados=19 construídos=11",
+   "flags": [],
+   "players": [
+    {
+     "name": "zeus0",
+     "alive": false,
+     "died": 22.749166666666667,
+     "cityLost": 22.5,
+     "arrivals": [
+      0,
+      5.3,
+      10.3,
+      15.5
+     ],
+     "age": 3,
+     "waves": 0,
+     "kills": 64,
+     "losses": 127,
+     "razed": 0,
+     "territory": 0,
+     "techs": 27,
+     "evo": 3,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    },
+    {
+     "name": "poseidon1",
+     "alive": true,
+     "died": null,
+     "cityLost": null,
+     "arrivals": [
+      0,
+      5.3,
+      10.1,
+      14.9,
+      20.1,
+      25.3
+     ],
+     "age": 5,
+     "waves": 8,
+     "kills": 253,
+     "losses": 108,
+     "razed": 108,
+     "territory": 1898,
+     "techs": 61,
+     "evo": 6,
+     "bless": 1,
+     "wonders": 1,
+     "titan": false,
+     "ships": 0,
+     "caravans": 6
+    },
+    {
+     "name": "hades2",
+     "alive": false,
+     "died": 27.4325,
+     "cityLost": 27,
+     "arrivals": [
+      0,
+      11.2,
+      17,
+      22.1
+     ],
+     "age": 3,
+     "waves": 0,
+     "kills": 49,
+     "losses": 131,
+     "razed": 0,
+     "territory": 0,
+     "techs": 25,
+     "evo": 3,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    }
+   ]
+  },
+  {
+   "seed": 12,
+   "minutes": 41,
+   "ms": 48907,
+   "msPerTick": 0.9968813697513249,
+   "winner": "poseidon1",
+   "endMin": 40.88333333333597,
+   "at5": "zeus0 cidadãos=24 (ociosos 0) treinados=19 construídos=14 · poseidon1 cidadãos=24 (ociosos 0) treinados=19 construídos=11 · hades2 cidadãos=24 (ociosos 0) treinados=19 construídos=7",
+   "flags": [],
+   "players": [
+    {
+     "name": "zeus0",
+     "alive": false,
+     "died": 32.365833333333335,
+     "cityLost": 32.2,
+     "arrivals": [
+      0,
+      7,
+      13,
+      17.6,
+      22.5,
+      27.5
+     ],
+     "age": 5,
+     "waves": 4,
+     "kills": 204,
+     "losses": 293,
+     "razed": 3,
+     "territory": 0,
+     "techs": 47,
+     "evo": 5,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    },
+    {
+     "name": "poseidon1",
+     "alive": true,
+     "died": null,
+     "cityLost": null,
+     "arrivals": [
+      0,
+      5.4,
+      10.5,
+      15.2,
+      19.9,
+      24.8,
+      29.6,
+      36.7
+     ],
+     "age": 7,
+     "waves": 10,
+     "kills": 737,
+     "losses": 362,
+     "razed": 164,
+     "territory": 2177,
+     "techs": 76,
+     "evo": 15,
+     "bless": 0,
+     "wonders": 0,
+     "titan": true,
+     "ships": 0,
+     "caravans": 6
+    },
+    {
+     "name": "hades2",
+     "alive": false,
+     "died": 40.8825,
+     "cityLost": null,
+     "arrivals": [
+      0,
+      5.8,
+      10.8,
+      16,
+      22.7,
+      28.1,
+      32.9
+     ],
+     "age": 6,
+     "waves": 5,
+     "kills": 293,
+     "losses": 579,
+     "razed": 4,
+     "territory": 0,
+     "techs": 58,
+     "evo": 6,
+     "bless": 1,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    }
+   ]
+  },
+  {
+   "seed": 13,
+   "minutes": 24,
+   "ms": 16858,
+   "msPerTick": 0.5940098661028893,
+   "winner": "hades2",
+   "endMin": 23.64999999998762,
+   "at5": "zeus0 cidadãos=21 (ociosos 0) treinados=21 construídos=14 · poseidon1 cidadãos=24 (ociosos 0) treinados=21 construídos=10 · hades2 cidadãos=24 (ociosos 0) treinados=19 construídos=11",
+   "flags": [
+    {
+     "min": 20,
+     "player": "zeus0",
+     "kind": "SEM-CIDADE",
+     "detail": "1 cidadãos, sem Centro Cívico"
+    }
+   ],
+   "players": [
+    {
+     "name": "zeus0",
+     "alive": false,
+     "died": 20.09916666666667,
+     "cityLost": 19,
+     "arrivals": [
+      0
+     ],
+     "age": 0,
+     "waves": 0,
+     "kills": 29,
+     "losses": 89,
+     "razed": 0,
+     "territory": 0,
+     "techs": 6,
+     "evo": 0,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    },
+    {
+     "name": "poseidon1",
+     "alive": false,
+     "died": 23.649166666666666,
+     "cityLost": 23.3,
+     "arrivals": [
+      0,
+      7.3,
+      12.1,
+      16.9,
+      22.4
+     ],
+     "age": 4,
+     "waves": 1,
+     "kills": 82,
+     "losses": 228,
+     "razed": 0,
+     "territory": 0,
+     "techs": 20,
+     "evo": 3,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    },
+    {
+     "name": "hades2",
+     "alive": true,
+     "died": null,
+     "cityLost": null,
+     "arrivals": [
+      0,
+      5.9,
+      11.2,
+      16,
+      23
+     ],
+     "age": 4,
+     "waves": 6,
+     "kills": 260,
+     "losses": 54,
+     "razed": 75,
+     "territory": 1909,
+     "techs": 49,
+     "evo": 5,
+     "bless": 1,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 5
+    }
+   ]
+  },
+  {
+   "seed": 14,
+   "minutes": 60,
+   "ms": 63252,
+   "msPerTick": 0.8785,
+   "winner": null,
+   "endMin": null,
+   "at5": "zeus0 cidadãos=24 (ociosos 0) treinados=19 construídos=10 · poseidon1 cidadãos=24 (ociosos 0) treinados=19 construídos=10 · hades2 cidadãos=24 (ociosos 0) treinados=19 construídos=11",
+   "flags": [
+    {
+     "min": 30,
+     "player": "zeus0",
+     "kind": "SEM-CIDADE",
+     "detail": "3 cidadãos, sem Centro Cívico"
+    },
+    {
+     "min": 40,
+     "player": "zeus0",
+     "kind": "SEM-CIDADE",
+     "detail": "3 cidadãos, sem Centro Cívico"
+    },
+    {
+     "min": 50,
+     "player": "zeus0",
+     "kind": "SEM-CIDADE",
+     "detail": "3 cidadãos, sem Centro Cívico"
+    },
+    {
+     "min": 50,
+     "player": "poseidon1",
+     "kind": "ACUMULANDO",
+     "detail": "food=92706 wood=20844 stone=644 gold=28058"
+    },
+    {
+     "min": 60,
+     "player": "zeus0",
+     "kind": "SEM-CIDADE",
+     "detail": "3 cidadãos, sem Centro Cívico"
+    },
+    {
+     "min": 60,
+     "player": "poseidon1",
+     "kind": "ACUMULANDO",
+     "detail": "food=151134 wood=30205 stone=644 gold=47235"
+    }
+   ],
+   "players": [
+    {
+     "name": "zeus0",
+     "alive": true,
+     "died": null,
+     "cityLost": 23.3,
+     "arrivals": [
+      0,
+      5.4,
+      11.5,
+      20.1
+     ],
+     "age": 3,
+     "waves": 0,
+     "kills": 82,
+     "losses": 92,
+     "razed": 0,
+     "territory": 0,
+     "techs": 12,
+     "evo": 2,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    },
+    {
+     "name": "poseidon1",
+     "alive": true,
+     "died": null,
+     "cityLost": null,
+     "arrivals": [
+      0,
+      5.5,
+      10.3,
+      16.6,
+      21.6,
+      25.8,
+      29.6,
+      36.9
+     ],
+     "age": 7,
+     "waves": 8,
+     "kills": 326,
+     "losses": 175,
+     "razed": 103,
+     "territory": 1913,
+     "techs": 122,
+     "evo": 48,
+     "bless": 7,
+     "wonders": 1,
+     "titan": true,
+     "ships": 0,
+     "caravans": 6
+    },
+    {
+     "name": "hades2",
+     "alive": false,
+     "died": 32.9325,
+     "cityLost": 31.5,
+     "arrivals": [
+      0,
+      5.8,
+      11.2,
+      18.7,
+      24.2
+     ],
+     "age": 4,
+     "waves": 4,
+     "kills": 185,
+     "losses": 326,
+     "razed": 15,
+     "territory": 0,
+     "techs": 47,
+     "evo": 5,
+     "bless": 1,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    }
+   ]
+  },
+  {
+   "seed": 15,
+   "minutes": 60,
+   "ms": 76542,
+   "msPerTick": 1.0630833333333334,
+   "winner": null,
+   "endMin": null,
+   "at5": "zeus0 cidadãos=23 (ociosos 0) treinados=20 construídos=10 · poseidon1 cidadãos=24 (ociosos 0) treinados=19 construídos=9 · hades2 cidadãos=24 (ociosos 0) treinados=19 construídos=11",
+   "flags": [
+    {
+     "min": 40,
+     "player": "hades2",
+     "kind": "SEM-CIDADE",
+     "detail": "2 cidadãos, sem Centro Cívico"
+    },
+    {
+     "min": 50,
+     "player": "poseidon1",
+     "kind": "ACUMULANDO",
+     "detail": "food=69614 wood=24174 stone=1381 gold=10040"
+    },
+    {
+     "min": 50,
+     "player": "hades2",
+     "kind": "SEM-CIDADE",
+     "detail": "2 cidadãos, sem Centro Cívico"
+    },
+    {
+     "min": 60,
+     "player": "poseidon1",
+     "kind": "ACUMULANDO",
+     "detail": "food=127388 wood=37758 stone=985 gold=18721"
+    },
+    {
+     "min": 60,
+     "player": "hades2",
+     "kind": "SEM-CIDADE",
+     "detail": "2 cidadãos, sem Centro Cívico"
+    }
+   ],
+   "players": [
+    {
+     "name": "zeus0",
+     "alive": false,
+     "died": 32.365833333333335,
+     "cityLost": 31.5,
+     "arrivals": [
+      0,
+      6,
+      11.3,
+      16.4,
+      23.1
+     ],
+     "age": 4,
+     "waves": 1,
+     "kills": 209,
+     "losses": 235,
+     "razed": 11,
+     "territory": 0,
+     "techs": 42,
+     "evo": 4,
+     "bless": 1,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    },
+    {
+     "name": "poseidon1",
+     "alive": true,
+     "died": null,
+     "cityLost": null,
+     "arrivals": [
+      0,
+      5.4,
+      10.2,
+      14.7,
+      20.3,
+      24.7,
+      29.8,
+      36.7
+     ],
+     "age": 7,
+     "waves": 12,
+     "kills": 483,
+     "losses": 292,
+     "razed": 114,
+     "territory": 2207,
+     "techs": 122,
+     "evo": 48,
+     "bless": 7,
+     "wonders": 3,
+     "titan": true,
+     "ships": 0,
+     "caravans": 6
+    },
+    {
+     "name": "hades2",
+     "alive": true,
+     "died": null,
+     "cityLost": 38.5,
+     "arrivals": [
+      0,
+      5.8,
+      11,
+      19.2,
+      23,
+      27.3,
+      31
+     ],
+     "age": 6,
+     "waves": 4,
+     "kills": 243,
+     "losses": 408,
+     "razed": 33,
+     "territory": 0,
+     "techs": 56,
+     "evo": 6,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    }
+   ]
+  },
+  {
+   "seed": 16,
+   "minutes": 60,
+   "ms": 53622,
+   "msPerTick": 0.74475,
+   "winner": null,
+   "endMin": null,
+   "at5": "zeus0 cidadãos=24 (ociosos 0) treinados=19 construídos=11 · poseidon1 cidadãos=24 (ociosos 1) treinados=21 construídos=10 · hades2 cidadãos=24 (ociosos 0) treinados=19 construídos=11",
+   "flags": [
+    {
+     "min": 30,
+     "player": "zeus0",
+     "kind": "SEM-CIDADE",
+     "detail": "2 cidadãos, sem Centro Cívico"
+    },
+    {
+     "min": 40,
+     "player": "zeus0",
+     "kind": "SEM-CIDADE",
+     "detail": "2 cidadãos, sem Centro Cívico"
+    },
+    {
+     "min": 40,
+     "player": "poseidon1",
+     "kind": "ACUMULANDO",
+     "detail": "food=46124 wood=12225 stone=592 gold=7817"
+    },
+    {
+     "min": 50,
+     "player": "zeus0",
+     "kind": "SEM-CIDADE",
+     "detail": "2 cidadãos, sem Centro Cívico"
+    },
+    {
+     "min": 50,
+     "player": "poseidon1",
+     "kind": "ACUMULANDO",
+     "detail": "food=104797 wood=23205 stone=604 gold=19267"
+    },
+    {
+     "min": 60,
+     "player": "zeus0",
+     "kind": "SEM-CIDADE",
+     "detail": "2 cidadãos, sem Centro Cívico"
+    },
+    {
+     "min": 60,
+     "player": "poseidon1",
+     "kind": "ACUMULANDO",
+     "detail": "food=164239 wood=33069 stone=604 gold=31546"
+    }
+   ],
+   "players": [
+    {
+     "name": "zeus0",
+     "alive": true,
+     "died": null,
+     "cityLost": 22.7,
+     "arrivals": [
+      0,
+      6.7,
+      12.1
+     ],
+     "age": 2,
+     "waves": 0,
+     "kills": 76,
+     "losses": 99,
+     "razed": 0,
+     "territory": 0,
+     "techs": 14,
+     "evo": 2,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    },
+    {
+     "name": "poseidon1",
+     "alive": true,
+     "died": null,
+     "cityLost": null,
+     "arrivals": [
+      0,
+      5.7,
+      10.7,
+      15.2,
+      19.8,
+      24.5,
+      29.7,
+      36.5
+     ],
+     "age": 7,
+     "waves": 7,
+     "kills": 224,
+     "losses": 103,
+     "razed": 79,
+     "territory": 2184,
+     "techs": 122,
+     "evo": 48,
+     "bless": 7,
+     "wonders": 1,
+     "titan": true,
+     "ships": 0,
+     "caravans": 6
+    },
+    {
+     "name": "hades2",
+     "alive": false,
+     "died": 28.532500000000002,
+     "cityLost": 28.2,
+     "arrivals": [
+      0,
+      5.9,
+      11.2,
+      16,
+      20.9
+     ],
+     "age": 4,
+     "waves": 3,
+     "kills": 171,
+     "losses": 269,
+     "razed": 44,
+     "territory": 0,
+     "techs": 44,
+     "evo": 5,
+     "bless": 1,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    }
+   ]
+  },
+  {
+   "seed": 17,
+   "minutes": 60,
+   "ms": 50258,
+   "msPerTick": 0.6980277777777778,
+   "winner": null,
+   "endMin": null,
+   "at5": "zeus0 cidadãos=24 (ociosos 0) treinados=19 construídos=12 · poseidon1 cidadãos=24 (ociosos 0) treinados=19 construídos=11 · hades2 cidadãos=24 (ociosos 0) treinados=20 construídos=13",
+   "flags": [
+    {
+     "min": 30,
+     "player": "hades2",
+     "kind": "SEM-CIDADE",
+     "detail": "18 cidadãos, sem Centro Cívico"
+    },
+    {
+     "min": 40,
+     "player": "poseidon1",
+     "kind": "ACUMULANDO",
+     "detail": "food=60690 wood=31153 stone=924 gold=9505"
+    },
+    {
+     "min": 40,
+     "player": "hades2",
+     "kind": "SEM-CIDADE",
+     "detail": "1 cidadãos, sem Centro Cívico"
+    },
+    {
+     "min": 50,
+     "player": "poseidon1",
+     "kind": "ACUMULANDO",
+     "detail": "food=126331 wood=48517 stone=1872 gold=19184"
+    },
+    {
+     "min": 50,
+     "player": "hades2",
+     "kind": "SEM-CIDADE",
+     "detail": "1 cidadãos, sem Centro Cívico"
+    },
+    {
+     "min": 60,
+     "player": "poseidon1",
+     "kind": "ACUMULANDO",
+     "detail": "food=191402 wood=61339 stone=562 gold=30517"
+    },
+    {
+     "min": 60,
+     "player": "hades2",
+     "kind": "SEM-CIDADE",
+     "detail": "1 cidadãos, sem Centro Cívico"
+    }
+   ],
+   "players": [
+    {
+     "name": "zeus0",
+     "alive": false,
+     "died": 22.899166666666666,
+     "cityLost": 22,
+     "arrivals": [
+      0,
+      6.1,
+      11.4,
+      16.6
+     ],
+     "age": 3,
+     "waves": 0,
+     "kills": 91,
+     "losses": 112,
+     "razed": 0,
+     "territory": 0,
+     "techs": 29,
+     "evo": 2,
+     "bless": 1,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    },
+    {
+     "name": "poseidon1",
+     "alive": true,
+     "died": null,
+     "cityLost": null,
+     "arrivals": [
+      0,
+      5.6,
+      10.6,
+      14.9,
+      19.3,
+      24,
+      29.2,
+      36
+     ],
+     "age": 7,
+     "waves": 10,
+     "kills": 284,
+     "losses": 151,
+     "razed": 119,
+     "territory": 2638,
+     "techs": 123,
+     "evo": 48,
+     "bless": 7,
+     "wonders": 2,
+     "titan": true,
+     "ships": 0,
+     "caravans": 6
+    },
+    {
+     "name": "hades2",
+     "alive": true,
+     "died": null,
+     "cityLost": 30,
+     "arrivals": [
+      0,
+      6.1,
+      12,
+      16.6,
+      21.2,
+      25.4
+     ],
+     "age": 5,
+     "waves": 2,
+     "kills": 120,
+     "losses": 232,
+     "razed": 3,
+     "territory": 0,
+     "techs": 53,
+     "evo": 7,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    }
+   ]
+  },
+  {
+   "seed": 18,
+   "minutes": 33,
+   "ms": 29780,
+   "msPerTick": 0.7448724362181091,
+   "winner": "poseidon1",
+   "endMin": 33.316666666645496,
+   "at5": "zeus0 cidadãos=24 (ociosos 0) treinados=19 construídos=10 · poseidon1 cidadãos=24 (ociosos 0) treinados=19 construídos=8 · hades2 cidadãos=24 (ociosos 0) treinados=19 construídos=14",
+   "flags": [],
+   "players": [
+    {
+     "name": "zeus0",
+     "alive": false,
+     "died": 22.3325,
+     "cityLost": 22.2,
+     "arrivals": [
+      0,
+      5.7,
+      10.7,
+      15.5
+     ],
+     "age": 3,
+     "waves": 0,
+     "kills": 73,
+     "losses": 142,
+     "razed": 0,
+     "territory": 0,
+     "techs": 22,
+     "evo": 4,
+     "bless": 0,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    },
+    {
+     "name": "poseidon1",
+     "alive": true,
+     "died": null,
+     "cityLost": null,
+     "arrivals": [
+      0,
+      5.6,
+      10.7,
+      15.3,
+      20.2,
+      24.7,
+      29.4
+     ],
+     "age": 6,
+     "waves": 10,
+     "kills": 402,
+     "losses": 171,
+     "razed": 118,
+     "territory": 2734,
+     "techs": 65,
+     "evo": 8,
+     "bless": 1,
+     "wonders": 3,
+     "titan": false,
+     "ships": 0,
+     "caravans": 6
+    },
+    {
+     "name": "hades2",
+     "alive": false,
+     "died": 33.31583333333334,
+     "cityLost": 32.5,
+     "arrivals": [
+      0,
+      6.4,
+      11.9,
+      17,
+      21.8,
+      26.9
+     ],
+     "age": 5,
+     "waves": 3,
+     "kills": 199,
+     "losses": 361,
+     "razed": 15,
+     "territory": 0,
+     "techs": 52,
+     "evo": 5,
+     "bless": 1,
+     "wonders": 0,
+     "titan": false,
+     "ships": 0,
+     "caravans": 0
+    }
+   ]
+  }
+ ]
+}
