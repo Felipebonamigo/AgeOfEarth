@@ -16,7 +16,7 @@ export const AGES: AgeDef[] = [
   { id: 3, name: 'Era Bizantina', short: 'Bizantina', icon: '🔱', cost: { food: 1000, gold: 1000, knowledge: 500, stone: 300 }, time: 90,
     requires: { techCount: 4 }, minorGod: true,
     desc: 'Constantinopla: criaturas colossais, maravilhas do mundo e poder divino. Requer 4 estudos das linhas da Biblioteca.' },
-  { id: 4, name: 'Era da Pólvora', short: 'Pólvora', icon: '💣', cost: { food: 1350, gold: 1350, knowledge: 900, stone: 360, oil: 135 }, time: 100,
+  { id: 4, name: 'Era da Pólvora', short: 'Pólvora', icon: '💣', cost: { food: 1500, gold: 1500, knowledge: 1000, stone: 400, oil: 150 }, time: 120,
     requires: { building: 'fortress', techCount: 7 }, minorGod: true,
     desc: 'A pólvora chega a Creta: fortes estrelados e couraças de aço. Requer uma Fortaleza e 7 estudos das linhas da Biblioteca.' },
   { id: 5, name: 'Era do Iluminismo', short: 'Iluminismo', icon: '📜', cost: { food: 1800, gold: 1800, knowledge: 1300, stone: 500, oil: 300 }, time: 130,
