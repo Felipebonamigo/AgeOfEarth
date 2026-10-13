@@ -851,7 +851,9 @@ function manageTrade(state: GameState, player: Player, snap: Snapshot): void {
   if (!(snap.byType.get('market') ?? []).some((b) => b.complete)) return;
   const r = player.resources;
   const tradeable: ResourceType[] = ['food', 'wood'];
-  const scarce = tradeable.find((k) => r[k] < 80);
+  // E10: a Fortaleza (exigida pela Era V) pede 300 de madeira: em mapa de ilhas os bosques acabam e a IA ficava na Era IV com a madeira em 144
+  const fortressPending = !isScenarioConfig(state.config) && player.age >= 2 && player.age < 4 && (snap.byType.get('fortress') ?? []).length === 0;
+  const scarce = tradeable.find((k) => r[k] < (k === 'wood' && fortressPending ? pace.fortressWood + 60 : 80));
   const abundant = ([...tradeable].sort((a, b) => r[b] - r[a]))[0];
   if (scarce) {
     const price = player.prices[scarce] * (1 + 0.3 * player.mods.player.tradeTax);

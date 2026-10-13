@@ -220,7 +220,7 @@ describe('produção, poderes e estado', () => {
     const p = s.players[0];
     const tc = buildingsOf(s, 0)[0];
     p.age = 6; p.minorGods = ['athena', 'apollo', 'hera', 'pan', 'aeolus', 'helios'];
-    p.techs = ['civic', 'commerce', 'military', 'science'].flatMap((l) => [1, 2, 3, 4].map((n) => `${l}${n}`));
+    p.techs = ['civic', 'commerce', 'military', 'science'].flatMap((l) => [1, 2, 3, 4, 5].map((n) => `${l}${n}`));
     for (const r of RESOURCES) p.resources[r] = 99999;
     const lib = placeBuilding(s, 0, 'academy', tc.tx - 6, tc.ty, true);
     const r = applyCommand(s, { type: 'advanceAge', player: 0, buildingId: lib.id, minorGod: 'artemis' });
