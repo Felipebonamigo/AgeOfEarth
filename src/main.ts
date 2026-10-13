@@ -22,7 +22,7 @@ import { MapEditor } from './editor/editor';
 import { EditorPanel, type TestOpts } from './editor/panel';
 import type { EditorView } from './editor/types';
 import { issueText } from './ui/menu';
-import type { Difficulty } from './core/constants';
+import { OIL_FROM_AGE, RESOURCES, type Difficulty } from './core/constants';
 import { NetworkScheduler, LocalScheduler } from './core/net/lockstep';
 import type { DesyncReport } from './core/net/desync';
 import type { NetClient } from './net/client';
@@ -41,7 +41,7 @@ import { exportText, importText } from './game/files';
 import { initCloud, storeSet, storeRemove } from './game/cloud';
 import { applyUiScale, initDisplay, isFullscreen, setFullscreen, desktop, setPresence } from './game/display';
 import type { OptionsContext } from './ui/options';
-import { MAJOR_GODS, MAJOR_GOD_LIST, AGES, MAX_AGE, UNITS } from './core/data';
+import { MAJOR_GODS, MAJOR_GOD_LIST, AGES, MAX_AGE, UNITS, BUILDINGS, LINES, ACADEMY_LINES } from './core/data';
 import { IDENTITY_FRAME } from './core/map/grid';
 import { eraConfig } from './ui/era-select';
 import { serialize, deserialize, SAVE_VERSION, saveVersionOf } from './core/serialize';
@@ -538,6 +538,13 @@ async function boot() {
   // Expõe para depuração/testes automatizados
   (window as unknown as { aoe: unknown }).aoe = { get session() { return session; }, renderer, hud, loading, pad, input, perf, settings, audio, applyQuality, startGame, loadGame, diagnostic, menu, startEditor, exitEditor, testFromEditor, startScenarioFile, get editor() { return editor; }, get editorPanel() { return editorPanel; }, mapData: () => (session ? mapToData(session.state.map) : null), debugSpawn: (owner: number, type: string, x: number, y: number) => { if (!session) return null; const t = nearestFreeTile(session.state.map, x, y, 12, IDENTITY_FRAME, layerOf(UNITS[type] ?? {})); return t ? spawnUnit(session.state, owner, type, t.x + 0.5, t.y + 0.5) : null; },
     // cenas de teste (scripts/artparade.mjs): edifício no canto (tx, ty) com a obra na fração `frac` (1 = completo); fora do lockstep, como debugSpawn
+    /** E9: nomes, degraus e requisitos para os playtests (scripts/playtest-eras.mjs), sem importar TypeScript; fora do lockstep. */
+    debugNames: () => ({
+      ages: AGES.map((a) => a.short), techCount: AGES.map((a) => a.requires.techCount ?? 0), reqBuilding: AGES.map((a) => a.requires.building ?? null), minorGod: AGES.map((a) => a.minorGod),
+      resources: [...RESOURCES], oilFromAge: OIL_FROM_AGE, academyLines: [...ACADEMY_LINES],
+      units: Object.fromEntries(Object.values(UNITS).map((u) => [u.id, u.name])), buildings: Object.fromEntries(Object.values(BUILDINGS).map((b) => [b.id, b.name])),
+      lines: Object.fromEntries(Object.values(LINES).map((l) => [l.id, l.steps])),
+    }),
     debugBuild: (owner: number, type: string, tx: number, ty: number, frac = 1) => { if (!session) return null; const st = session.state; if (!canPlaceBuilding(st, st.players[owner], type, tx, ty, true, true).ok) return null; const b = placeBuilding(st, owner, type, tx, ty, frac >= 1); if (frac < 1) b.progress = Math.max(0, frac) * getBuildingStats(st, st.players[owner], type).buildTime; return b; },
     // cenas de teste (scripts/artcity.mjs): derruba um edifício como se fosse destruído (colapso + escombros)
     debugDestroy: (id: number) => { if (!session) return false; const b = session.state.buildings.get(id); if (!b) return false; destroyBuilding(session.state, b, -1); return true; } };
