@@ -18,6 +18,10 @@ export const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'] as const
 /** Níveis de cada linha da Biblioteca (= número de Eras; tests/eras.test.ts confere). */
 export const LINE_LEVELS = 8;
 
+/** E10: multiplicador do custo de cada nível das linhas da Biblioteca (índice = nível − 1). Os níveis 1–4 são da
+ *  campanha e ficam 1 (tests/ai-pace.test.ts confere); o balanceamento das Eras V–VIII mexe nos níveis 5–8. */
+export const LINE_LEVEL_COST_MULT: readonly number[] = [1, 1, 1, 1, 1, 1, 1, 1];
+const scaleCost = (c: Cost, m: number): Cost => (m === 1 ? c : (Object.fromEntries(Object.entries(c).map(([k, v]) => [k, Math.round(((v ?? 0) * m) / 5) * 5])) as Cost));
 const line = (key: string, name: string, count: number, opts: LineOpts): Record<string, TechInput> => {
   const out: Record<string, TechInput> = {};
   for (let lvl = 1; lvl <= count; lvl++) {
@@ -25,7 +29,7 @@ const line = (key: string, name: string, count: number, opts: LineOpts): Record<
       name: `${name} ${ROMAN[lvl - 1]}`,
       building: 'academy', age: Math.max(0, lvl - 1), line: key, level: lvl,
       prereq: lvl > 1 ? [`${key}${lvl - 1}`] : [],
-      cost: opts.cost(lvl), time: opts.time(lvl), effects: opts.effects(lvl), icon: opts.icon, desc: opts.desc,
+      cost: scaleCost(opts.cost(lvl), LINE_LEVEL_COST_MULT[lvl - 1] ?? 1), time: opts.time(lvl), effects: opts.effects(lvl), icon: opts.icon, desc: opts.desc,
     };
   }
   return out;

@@ -18,13 +18,37 @@ import { isMilitary, isEnemy, nearestEnemyBuilding, nearestNode, nearestNodeBy, 
 import { getBuildingStats, getUnitStats, techCost } from './modifiers';
 import { canAfford } from './economy';
 import { t } from '../../i18n';
-import { buildingAgeOf, eraMythOn, isForbidden, maxAgeOf, navalOn } from './restrictions';
+import { buildingAgeOf, eraMythOn, isForbidden, isScenarioConfig, maxAgeOf, navalOn } from './restrictions';
 import { wonderVictoryMode } from './wonders';
 
 // uma posição por Era (tests/eras.test.ts confere)
 export const VILLAGER_TARGET = [18, 26, 34, 40, 44, 48, 52, 56];
 export const FARM_LIMIT = [4, 8, 12, 16, 18, 20, 22, 24];
 export const ARMY_ATTACK = [7, 12, 16, 20, 24, 28, 32, 36];
+export const MIN_ARMY = [6, 10, 14, 18, 22, 26, 30, 34];
+
+/** Ritmo da IA (E10, docs/eras/E9-E10-interface-balanceamento.md, tabela E10-3): os números que o balanceamento ajusta. */
+export interface AiPace {
+  villagerTarget: readonly number[]; farmLimit: readonly number[]; armyAttack: readonly number[]; minArmy: readonly number[];
+  advanceMinVillagers: number; templeVillagers: number; barracksVillagers: number; libraryVillagers: number;
+  fortressWood: number; scholarsEarly: number; armyFundCap: number; evoUsers: number; farSearch: number; sellLots: number;
+}
+/** Os valores de antes da E10: valem em cenário (campanha, Horda, cenários JSON) — o harness das missões depende deles.
+ *  `evoUsers` não é lido desde o ajuste 2 da E3 (a evolução passou a esperar o fundo da Era): fica só como botão reservado. */
+export const AI_PACE_CLASSIC: AiPace = {
+  villagerTarget: VILLAGER_TARGET, farmLimit: FARM_LIMIT, armyAttack: ARMY_ATTACK, minArmy: MIN_ARMY,
+  advanceMinVillagers: 12, templeVillagers: 8, barracksVillagers: 10, libraryVillagers: 9,
+  fortressWood: 300, scholarsEarly: 3, armyFundCap: 1.6, evoUsers: 4, farSearch: 70, sellLots: 4,
+};
+/** Partida fora de cenário: o que a E10 ajusta (começa igual ao clássico). Arrays COPIADOS: ajuste escrevendo os
+ *  valores neste literal (ex.: `villagerTarget: [20, 26, …]`); nunca mexa em VILLAGER_TARGET & cia., que são da campanha. */
+export const AI_PACE: AiPace = { ...AI_PACE_CLASSIC, villagerTarget: [...VILLAGER_TARGET], farmLimit: [...FARM_LIMIT], armyAttack: [...ARMY_ATTACK], minArmy: [...MIN_ARMY] };
+/** Limites de cada botão (tests/ai-pace.test.ts confere). */
+export const AI_PACE_LIMITS = {
+  advanceMinVillagers: [8, 14], templeVillagers: [5, 10], barracksVillagers: [7, 14], libraryVillagers: [5, 12], fortressWood: [250, 600],
+  scholarsEarly: [2, 5], armyFundCap: [1.2, 2.0], evoUsers: [2, 10], farSearch: [70, 120], sellLots: [2, 8],
+} as const;
+export function aiPace(state: GameState): AiPace { return isScenarioConfig(state.config) ? AI_PACE_CLASSIC : AI_PACE; }
 /** E4: barcos de pesca por Era (teto; também ≤ 2 por cardume a até 26 tiles do Estaleiro). */
 export const FISH_BOATS = [3, 5, 6, 6, 7, 7, 8, 8];
 /** E4: navios de guerra por Era no modo ilha (o inimigo só se alcança por mar) e no modo costa (há Estaleiro). */
@@ -186,8 +210,9 @@ function tradeFleet(state: GameState, player: Player, snap: Snapshot, kind: 'lan
 
 // ---------------- Economia ----------------
 function manageEconomy(state: GameState, player: Player, snap: Snapshot): void {
+  const pace = aiPace(state);
   const age = player.age;
-  const target = VILLAGER_TARGET[age];
+  const target = pace.villagerTarget[age];
   const n = Math.max(snap.villagers.length, 1);
   let ratio: Record<string, number>;
   // E2: pedra desde a Era I (Biblioteca, torres, Eras); petróleo só a partir da Era IV e fora de cenário
@@ -245,6 +270,7 @@ function gatherResourceOf(state: GameState, u: Unit): string | null {
 }
 
 function assignGatherer(state: GameState, player: Player, v: Unit, r: string, snap: Snapshot): boolean {
+  const pace = aiPace(state);
   const anchor = snap.tc ?? { x: v.x, y: v.y };
   if (r === 'favor') {
     const temple = (snap.byType.get('temple') ?? []).find((b) => b.complete);
@@ -263,7 +289,7 @@ function assignGatherer(state: GameState, player: Player, v: Unit, r: string, sn
     if (farm) { applyCommand(state, { type: 'gather', player: player.id, ids: [v.id], targetId: farm.id }); return true; }
     // constrói fazenda perto do ponto de entrega
     const farms = countBuildings(state, player.id, (b) => b.type === 'farm');
-    if (farms < FARM_LIMIT[player.age] && canAfford(player, BUILDINGS.farm.cost as Record<string, number>) && player.resources.wood - ((BUILDINGS.farm.cost as Record<string, number>).wood ?? 0) >= libraryWoodHold(player, snap)) {
+    if (farms < pace.farmLimit[player.age] && canAfford(player, BUILDINGS.farm.cost as Record<string, number>) && player.resources.wood - ((BUILDINGS.farm.cost as Record<string, number>).wood ?? 0) >= libraryWoodHold(player, snap)) {
       const near = (snap.byType.get('granary') ?? []).find((b) => b.complete) ?? snap.tc;
       if (near) {
         const spot = findBuildSpot(state, player, 'farm', near.x, near.y, 2, 9);
@@ -279,7 +305,7 @@ function assignGatherer(state: GameState, player: Player, v: Unit, r: string, sn
   const node = nearestNode(state, v.x, v.y, res, 24, -1, (n) => nodeHasRoom(state, n) && reach(n))
     ?? nearestNode(state, anchor.x, anchor.y, res, 34, -1, (n) => nodeHasRoom(state, n) && reach(n))
     ?? nearestNode(state, anchor.x, anchor.y, res, 34, -1, reach)
-    ?? nearestNode(state, anchor.x, anchor.y, res, 70, -1, (n) => nodeHasRoom(state, n) && reach(n));
+    ?? nearestNode(state, anchor.x, anchor.y, res, pace.farSearch, -1, (n) => nodeHasRoom(state, n) && reach(n));
   if (!node) return false;
   applyCommand(state, { type: 'gather', player: player.id, ids: [v.id], targetId: node.id });
   return true;
@@ -319,6 +345,7 @@ function neededDropoffs(state: GameState, player: Player, snap: Snapshot): { typ
 
 // ---------------- Construção ----------------
 function manageBuilding(state: GameState, player: Player, snap: Snapshot): void {
+  const pace = aiPace(state);
   if (!snap.tc) {
     // Sem centro cívico: tenta reconstruir se houver cidadãos
     const v = snap.villagers[0];
@@ -351,15 +378,15 @@ function manageBuilding(state: GameState, player: Player, snap: Snapshot): void 
   const houseAnchor = frameOffset(centerFrame(state.map, tc.x, tc.y), tc.x, tc.y, player.ai!.personality % 2 ? 7 : -7, player.ai!.personality % 3 ? 5 : -5);
   const plan: { type: string; anchorX: number; anchorY: number; minR: number; maxR: number; cond: boolean }[] = [
     { type: 'house', anchorX: houseAnchor.x, anchorY: houseAnchor.y, minR: 0, maxR: 14, cond: player.popCap - player.pop <= 6 && has('house') < 25 },
-    { type: 'temple', anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 12, cond: snap.villagers.length >= 8 && has('temple') === 0 },
-    { type: 'barracks', anchorX: tc.x + enemyDir.x * 6, anchorY: tc.y + enemyDir.y * 6, minR: 1, maxR: 10, cond: snap.villagers.length >= 10 && has('barracks') === 0 },
-    { type: 'academy', anchorX: tc.x, anchorY: tc.y, minR: 3, maxR: 16, cond: has('academy') === 0 && (age >= 1 || snap.villagers.length >= 9) },
+    { type: 'temple', anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 12, cond: snap.villagers.length >= pace.templeVillagers && has('temple') === 0 },
+    { type: 'barracks', anchorX: tc.x + enemyDir.x * 6, anchorY: tc.y + enemyDir.y * 6, minR: 1, maxR: 10, cond: snap.villagers.length >= pace.barracksVillagers && has('barracks') === 0 },
+    { type: 'academy', anchorX: tc.x, anchorY: tc.y, minR: 3, maxR: 16, cond: has('academy') === 0 && (age >= 1 || snap.villagers.length >= pace.libraryVillagers) },
     { type: 'stable', anchorX: tc.x + enemyDir.x * 6, anchorY: tc.y + enemyDir.y * 6, minR: 1, maxR: 10, cond: age >= 1 && has('stable') === 0 && snap.villagers.length >= 16 },
     { type: 'market', anchorX: tc.x, anchorY: tc.y, minR: 3, maxR: 16, cond: age >= 1 && has('market') === 0 && snap.villagers.length >= 14 },
     { type: 'tower', anchorX: tc.x + enemyDir.x * 8, anchorY: tc.y + enemyDir.y * 8, minR: 0, maxR: 6, cond: has('tower') < 1 + age && snap.villagers.length >= 12 && player.resources.stone > 150 },
     { type: 'barracks', anchorX: tc.x + enemyDir.x * 7, anchorY: tc.y + enemyDir.y * 7, minR: 1, maxR: 10, cond: age >= 2 && has('barracks') < 2 },
     { type: 'siege_workshop', anchorX: tc.x + enemyDir.x * 5, anchorY: tc.y + enemyDir.y * 5, minR: 1, maxR: 10, cond: age >= 2 && has('siege_workshop') === 0 },
-    { type: 'fortress', anchorX: tc.x + enemyDir.x * 9, anchorY: tc.y + enemyDir.y * 9, minR: 0, maxR: 8, cond: age >= 2 && has('fortress') === 0 && player.resources.wood > 300 && player.resources.stone > 400 },
+    { type: 'fortress', anchorX: tc.x + enemyDir.x * 9, anchorY: tc.y + enemyDir.y * 9, minR: 0, maxR: 8, cond: age >= 2 && has('fortress') === 0 && player.resources.wood > pace.fortressWood && player.resources.stone > 400 },
     { type: 'academy', anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 12, cond: age >= 2 && has('academy') < Math.min(2, has('town_center')) && player.resources.gold > 400 },
     ...(state.scenario
       ? [{ type: 'wonder_' + wonderChoice(player), anchorX: tc.x, anchorY: tc.y, minR: 4, maxR: 14, cond: age >= 3 && countBuildings(state, player.id, (b) => !!BUILDINGS[b.type].wonder) === 0 && player.resources.gold > 1500 && player.resources.wood > 1500 && player.resources.stone > 700 }]
@@ -614,10 +641,11 @@ export function findBuildSpot(state: GameState, player: Player, type: string, ax
 
 // ---------------- Treinamento ----------------
 function manageTraining(state: GameState, player: Player, snap: Snapshot): void {
+  const pace = aiPace(state);
   const saving = savingForAge(state, player);
   const budget = budgetOf(state, player);
   // Cidadãos
-  const target = VILLAGER_TARGET[player.age];
+  const target = pace.villagerTarget[player.age];
   const queuedV = snap.buildings.reduce((n, b) => n + b.queue.filter((q) => q.kind === 'unit' && q.id === 'villager').length, 0);
   if (snap.villagers.length + queuedV < target) {
     for (const tc of snap.byType.get('town_center') ?? []) {
@@ -629,13 +657,13 @@ function manageTraining(state: GameState, player: Player, snap: Snapshot): void 
   for (const ac of snap.byType.get('academy') ?? []) {
     if (!ac.complete || ac.queue.length > 0) continue;
     // na Era I a Biblioteca já existe (E1) e os primeiros filósofos não podem comer o ouro da Era II (300)
-    if ((ac.scholars < 3 && player.resources.gold >= 100 + (player.age === 0 ? budget.reserveGold : 0)) || (ac.scholars < 5 && player.resources.gold > budget.reserveGold + 150)) applyCommand(state, { type: 'hireScholar', player: player.id, buildingId: ac.id });
+    if ((ac.scholars < pace.scholarsEarly && player.resources.gold >= 100 + (player.age === 0 ? budget.reserveGold : 0)) || (ac.scholars < 5 && player.resources.gold > budget.reserveGold + 150)) applyCommand(state, { type: 'hireScholar', player: player.id, buildingId: ac.id });
   }
   const defending = state.tick - player.ai!.defending < 15 * TICK_RATE;
   const armyOk = snap.military.length >= budget.minArmy;
   const emergency = defending && snap.military.length < budget.minArmy * 0.6;
   // Só cresce o exército além do mínimo quando o fundo da próxima idade já está garantido (ou sob ataque)
-  if (!defending && snap.military.length >= budget.minArmy * 1.6 && !budget.fundMet) { void saving; return; }
+  if (!defending && snap.military.length >= budget.minArmy * pace.armyFundCap && !budget.fundMet) { void saving; return; }
   const academies = (snap.byType.get('academy') ?? []).filter((b) => b.complete);
   const scholars = academies.reduce((n, b) => n + b.scholars, 0);
   const goldReserve = (emergency ? 0 : budget.reserveGold) + (player.age >= 1 && (academies.length === 0 || scholars < 3) ? 120 : 40);
@@ -693,10 +721,10 @@ function armyMix(state: GameState, player: Player, snap: Snapshot): Record<strin
 
 // ---------------- Orçamento ----------------
 // uma posição por Era (tests/eras.test.ts confere)
-export const MIN_ARMY = [6, 10, 14, 18, 22, 26, 30, 34];
 interface Budget { surplus: Record<string, number>; fundMet: boolean; minArmy: number; reserveGold: number; reserveFood: number }
 /** Fundo para a próxima idade: sobra de recursos além do custo do avanço (com pequena reserva). */
 function budgetOf(state: GameState, player: Player): Budget {
+  const pace = aiPace(state);
   const diff = DIFFICULTIES[player.ai!.difficulty];
   const next = AGES[Math.min(AGES.length - 1, player.age + 1)];
   const done = player.age >= maxAgeOf(state, player.id);   // G6: na Idade máxima da missão não junta fundo para avançar
@@ -709,7 +737,7 @@ function budgetOf(state: GameState, player: Player): Budget {
   const reserveOn = !done && (player.age >= 1 || hasTemple);
   const reserveGold = reserveOn ? Math.min(player.resources.gold, ((next.cost as Record<string, number>).gold ?? 0)) : 0;
   const reserveFood = reserveOn ? Math.min(player.resources.food, ((next.cost as Record<string, number>).food ?? 0) * 0.6) : 0;
-  return { surplus, fundMet, minArmy: Math.round(MIN_ARMY[player.age] * diff.armyMult), reserveGold, reserveFood };
+  return { surplus, fundMet, minArmy: Math.round(pace.minArmy[player.age] * diff.armyMult), reserveGold, reserveFood };
 }
 
 // ---------------- Pesquisa e idades ----------------
@@ -721,7 +749,8 @@ function savingForAge(state: GameState, player: Player): boolean {
 }
 
 function tryAdvanceAge(state: GameState, player: Player, snap: Snapshot): void {
-  if (player.age === 0 && snap.villagers.length < 12) return;
+  const pace = aiPace(state);
+  if (player.age === 0 && snap.villagers.length < pace.advanceMinVillagers) return;
   // Biblioteca pronta com a menor fila (empate: menor id — são edifícios do próprio jogador, sem viés de posição);
   // o avanço pode entrar atrás de no máximo 1 estudo
   const lib = (snap.byType.get('academy') ?? []).filter((b) => b.complete && b.queue.length <= 1).sort((a, b) => a.queue.length - b.queue.length || a.id - b.id)[0];
@@ -802,6 +831,7 @@ function manageResearch(state: GameState, player: Player, snap: Snapshot): void 
 
 // ---------------- Mercado ----------------
 function manageTrade(state: GameState, player: Player, snap: Snapshot): void {
+  const pace = aiPace(state);
   if (!(snap.byType.get('market') ?? []).some((b) => b.complete)) return;
   const r = player.resources;
   const tradeable: ResourceType[] = ['food', 'wood'];
@@ -819,7 +849,7 @@ function manageTrade(state: GameState, player: Player, snap: Snapshot): void {
   let sold = 0;
   for (const k of [...tradeable].sort((a, b) => r[b] - r[a])) {
     const keep = Math.max(500, (nextCost[k] ?? 0) + 150);
-    while (goldShort > 0 && sold < 4 && r[k] - MARKET_TRADE_LOT >= keep) {
+    while (goldShort > 0 && sold < pace.sellLots && r[k] - MARKET_TRADE_LOT >= keep) {
       const g0 = r.gold;
       if (!applyCommand(state, { type: 'trade', player: player.id, action: 'sell', resource: k }).ok) break;
       goldShort -= r.gold - g0; sold++;
@@ -834,6 +864,7 @@ function manageTrade(state: GameState, player: Player, snap: Snapshot): void {
 
 // ---------------- Exército ----------------
 function manageArmy(state: GameState, player: Player, snap: Snapshot): void {
+  const pace = aiPace(state);
   const ai = player.ai!;
   const diff = DIFFICULTIES[ai.difficulty];
   const rt = getRuntime(state);
@@ -885,7 +916,7 @@ function manageArmy(state: GameState, player: Player, snap: Snapshot): void {
   }
   if (islandMode(state, player, snap)) return;   // E4: o inimigo só se alcança por mar: a invasão é do manageNavy
   // 2) Ataque em ondas
-  const threshold = Math.round(ARMY_ATTACK[player.age] * diff.armyMult);
+  const threshold = Math.round(pace.armyAttack[player.age] * diff.armyMult);
   const attackCooldown = Math.round(75 * diff.attackDelay * TICK_RATE);
   const attacking = ai.attackTarget !== -1;
   if (attacking) {
@@ -1088,6 +1119,7 @@ function manageNavy(state: GameState, player: Player, snap: Snapshot): void {
 }
 /** Desembarque no modo ilha — fase 0 parado, 1 embarcando, 2 navegando. Uma leva por vez. */
 function manageInvasion(state: GameState, player: Player, snap: Snapshot, trans: Unit[], war: Unit[]): void {
+  const pace = aiPace(state);
   const ai = player.ai!, diff = DIFFICULTIES[ai.difficulty];
   const nv = ai.navy ?? (ai.navy = { phase: 0, ship: -1, x: 0, y: 0, since: 0 });
   const ship = nv.ship >= 0 ? state.units.get(nv.ship) : undefined;
@@ -1095,7 +1127,7 @@ function manageInvasion(state: GameState, player: Player, snap: Snapshot, trans:
   if (nv.phase > 0 && (!ship || ship.dead)) { reset(); return; }
   if (nv.phase === 0) {
     const t = trans.find((s) => s.cargo.length === 0 && s.state === 'idle' && !s.order);
-    const threshold = Math.round(ARMY_ATTACK[player.age] * diff.armyMult * 0.6);   // levas menores que a onda por terra (o navio leva 20 de pop)
+    const threshold = Math.round(pace.armyAttack[player.age] * diff.armyMult * 0.6);   // levas menores que a onda por terra (o navio leva 20 de pop)
     if (!t || snap.military.length < threshold || state.tick - ai.lastAttack < Math.round(75 * diff.attackDelay * TICK_RATE)) return;
     const target = invasionTarget(state, player, snap);
     if (!target) return;
