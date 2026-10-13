@@ -28,7 +28,7 @@ export function missionArtUrl(id: string | undefined): string | null {
 
 export interface LoadingInfo { title: string; subtitle?: string; iconHtml?: string; /** fundo (padrão: o do menu) */ backdrop?: string | null }
 /** Quantidade de dicas `load.tip<n>` nos textos. */
-export const LOADING_TIPS = 12;
+export const LOADING_TIPS = 18;
 const TIP_MS = 6500;
 
 export class LoadingScreen {

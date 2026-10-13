@@ -4,7 +4,7 @@ import { RESOURCES, RESOURCE_ICONS, OIL_FROM_AGE, STANCES, TICK_RATE, MAX_SCHOLA
 const FORMATION_GLYPHS: Record<Formation, string> = { line: 'fLine', box: 'fBox', column: 'fColumn', wedge: 'fWedge' };
 import { teamNames } from '../core/sim/modes';
 import { relicsOf } from '../core/sim/relics';
-import { AGES, BUILDINGS, BUILD_MENU, LINES, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS, ABILITIES } from '../core/data';
+import { AGES, BUILDINGS, BUILD_MENU, LINES, MAJOR_GODS, MINOR_GODS, POWERS, TECHS, UNITS, ABILITIES, ROMAN, clampEra } from '../core/data';
 import type { Building, GameEvent, Unit } from '../core/types';
 import { getUnitStats, getBuildingStats, techCost, unitRank } from '../core/sim/modifiers';
 import { powerReady } from '../core/sim/powers';
@@ -30,7 +30,7 @@ import { scenarioWon } from '../core/scenario/runner';
 import type { GameState } from '../core/types';
 import type { ScenarioDef } from '../core/scenario/types';
 import { entityDisplayName, playerDisplayName } from '../core/scenario/text';
-import { maxAgeOf, navalOn } from '../core/sim/restrictions';
+import { isScenarioConfig, maxAgeOf, navalOn } from '../core/sim/restrictions';
 import { cargoPop } from '../core/sim/naval';
 import { canRoute, routeGold } from '../core/sim/trade';
 import { scenarioHudHtml } from './scenario-hud';
@@ -766,7 +766,10 @@ export class HUD {
     this.menuOpen = true;
     s.paused = true;
     const opts = this.cb.getOptions?.();
-    this.showModal(`<h2>${t('menu.title')}</h2>
+    const c = s.state.config;
+    const from = ROMAN[clampEra(c.startingAge ?? (c.mode === 'deathmatch' ? 1 : 0))], to = ROMAN[maxAgeOf(s.state, s.local)];
+    const matchInfo = isScenarioConfig(c) ? t('menu.matchInfoScenario', { from, to }) : t('menu.matchInfo', { from, to, victory: t(`wv.${wonderVictoryMode(c)}`) });
+    this.showModal(`<h2>${t('menu.title')}</h2><div class="enc-note" id="m-matchinfo">${esc(matchInfo)}</div>
       <div class="row" style="flex-direction:column">
         <button class="btn primary" id="m-continue">${t('menu.continue')}</button>
         ${this.testMode ? '' : `<button class="btn" id="m-save">${t('menu.save')}</button>
@@ -802,10 +805,14 @@ export class HUD {
 
   showHelp() {
     this.showModal(`<h2>${t('help.title')}</h2>
-      <h3>${t('help.goalTitle')}</h3><p>${t('help.goal', { min: WONDER_VICTORY_SECONDS / 60 })}</p>
+      <h3>${t('help.goalTitle')}</h3><p>${t('help.goal', { min: WONDER_VICTORY_SECONDS / 60, hold: WONDER_POINTS_HOLD_SECONDS / 60 })}</p>
+      <h3>${t('help.erasTitle')}</h3><p>${t('help.eras')}</p>
       <h3>${t('help.econTitle')}</h3><p>${t('help.econ')}</p>
+      <h3>${t('help.resourcesTitle')}</h3><p>${t('help.resources')}</p>
       <h3>${t('help.bordersTitle')}</h3><p>${t('help.borders')}</p>
       <h3>${t('help.combatTitle')}</h3><p>${t('help.combat')}</p>
+      <h3>${t('help.seaTitle')}</h3><p>${t('help.sea')}</p>
+      <h3>${t('help.wondersTitle')}</h3><p>${t('help.wonders')}</p>
       <h3>${t('help.controlsTitle')}</h3><p>${t('help.controls')} <button class="btn" id="m-hotkeys">${t('menu.hotkeys')}</button></p>
       <div class="actions"><button class="btn primary" id="m-close">${t('modal.close')}</button></div>`);
     this.modal.querySelector('#m-close')!.addEventListener('click', () => this.hideModal());

@@ -107,7 +107,7 @@ export const BUILDINGS: Record<string, BuildingDef> = {
   academy: { id: 'academy',
     name: 'Biblioteca', icon: '📚', cost: { wood: 200, gold: 100 }, hp: 1000, w: 3, h: 3, buildTime: 60, armor: BARMOR,
     age: 0, hotkey: 'Z', scholars: true, limit: 3, library: true, queueMax: 5, perCity: true,
-    desc: 'Biblioteca: avance as Eras e estude as linhas Cívica, Comercial, Militar e Científica, um estudo por vez (fila de até 5). Filósofos geram Conhecimento. Uma por Centro Cívico, até 3.',
+    desc: 'Avance as Eras e estude as linhas Cívica, Comercial, Militar e Científica, um estudo por vez (fila de até 5). Filósofos geram Conhecimento. Uma por Centro Cívico, até 3.',
   },
   tower: { id: 'tower',
     name: 'Torre de Vigia', icon: '🗼', cost: { wood: 50, stone: 100 }, hp: 700, w: 1, h: 1, buildTime: 35, armor: BARMOR,
