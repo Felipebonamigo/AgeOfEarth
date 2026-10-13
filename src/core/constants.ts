@@ -19,8 +19,10 @@ export const MAX_PLAYERS = 4;
  * 9 = maravilhas (E7): 20 maravilhas únicas no mapa, pontos de maravilha, IA disputa maravilhas.
  * 10 = mitologia nas Eras (E6): deuses menores V–VII, 9 poderes, escala dos poderes por Era, Bênçãos, Talos, Titãs
  * reforçados e camada anfíbia fora de cenário; a campanha não muda.
+ * 11 = ritmo da IA (E10): `AI_PACE` fora de cenário (cidadãos, estudiosos, fundo, ondas), compra de pedra/petróleo e venda do
+ * excedente no Mercado, custo/tempo das Eras V e VIII; a campanha não muda (`AI_PACE_CLASSIC`).
  */
-export const SIM_VERSION = 10;
+export const SIM_VERSION = 11;
 export const DEFAULT_QUEUE_MAX = 10;   // itens na fila de um edifício sem queueMax
 
 // E2: ordem = a da barra do topo e a de todo literal de recursos (a ida e volta do save mantém a ordem das chaves)

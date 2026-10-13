@@ -16,7 +16,7 @@ export const AGES: AgeDef[] = [
   { id: 3, name: 'Era Bizantina', short: 'Bizantina', icon: '🔱', cost: { food: 1000, gold: 1000, knowledge: 500, stone: 300 }, time: 90,
     requires: { techCount: 4 }, minorGod: true,
     desc: 'Constantinopla: criaturas colossais, maravilhas do mundo e poder divino. Requer 4 estudos das linhas da Biblioteca.' },
-  { id: 4, name: 'Era da Pólvora', short: 'Pólvora', icon: '💣', cost: { food: 1500, gold: 1500, knowledge: 1000, stone: 400, oil: 150 }, time: 120,
+  { id: 4, name: 'Era da Pólvora', short: 'Pólvora', icon: '💣', cost: { food: 1350, gold: 1350, knowledge: 900, stone: 360, oil: 135 }, time: 100,
     requires: { building: 'fortress', techCount: 7 }, minorGod: true,
     desc: 'A pólvora chega a Creta: fortes estrelados e couraças de aço. Requer uma Fortaleza e 7 estudos das linhas da Biblioteca.' },
   { id: 5, name: 'Era do Iluminismo', short: 'Iluminismo', icon: '📜', cost: { food: 1800, gold: 1800, knowledge: 1300, stone: 500, oil: 300 }, time: 130,
@@ -25,9 +25,9 @@ export const AGES: AgeDef[] = [
   { id: 6, name: 'Era Industrial', short: 'Industrial', icon: '🏭', cost: { food: 2100, gold: 2100, knowledge: 1600, stone: 600, oil: 450 }, time: 140,
     requires: { techCount: 13 }, minorGod: true,
     desc: 'Vapor, ferro e chaminés. Requer 13 estudos das linhas da Biblioteca.' },
-  { id: 7, name: 'Era Moderna', short: 'Moderna', icon: '🌋', cost: { food: 2400, gold: 2400, knowledge: 2000, favor: 300, stone: 800, oil: 600 }, time: 150,
-    requires: { techCount: 16 }, minorGod: false,
-    desc: 'Concreto e aço, e o clímax: abra o Portal dos Titãs e liberte um Titã. Requer 16 estudos das linhas da Biblioteca.' },
+  { id: 7, name: 'Era Moderna', short: 'Moderna', icon: '🌋', cost: { food: 3120, gold: 3120, knowledge: 2600, favor: 390, stone: 1040, oil: 780 }, time: 180,
+    requires: { techCount: 17 }, minorGod: false,
+    desc: 'Concreto e aço, e o clímax: abra o Portal dos Titãs e liberte um Titã. Requer 17 estudos das linhas da Biblioteca.' },
 ];
 export const MAX_AGE = AGES.length - 1;
 

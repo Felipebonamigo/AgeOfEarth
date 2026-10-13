@@ -325,7 +325,7 @@ export const EN_AGES: Record<string, TextOverlay> = {
   '4': { name: 'Gunpowder Era', short: 'Gunpowder', desc: 'Gunpowder reaches Crete: star forts and steel cuirasses. Requires a Fortress and 7 Library line studies.' },
   '5': { name: 'Enlightenment Era', short: 'Enlightenment', desc: 'Reason and the Greek revival in neoclassical stone. Requires 10 Library line studies.' },
   '6': { name: 'Industrial Era', short: 'Industrial', desc: 'Steam, iron and chimneys. Requires 13 Library line studies.' },
-  '7': { name: 'Modern Era', short: 'Modern', desc: 'Concrete and steel, and the climax: open the Titan Gate and free a Titan. Requires 16 Library line studies.' },
+  '7': { name: 'Modern Era', short: 'Modern', desc: 'Concrete and steel, and the climax: open the Titan Gate and free a Titan. Requires 17 Library line studies.' },
 };
 
 export const EN_ABILITIES: Record<string, TextOverlay> = {

@@ -862,6 +862,10 @@ function manageTrade(state: GameState, player: Player, snap: Snapshot): void {
       goldShort -= r.gold - g0; sold++;
     }
   }
+  // E10: estoque enorme de comida/madeira parado (a IA acumulava dezenas de milhares) vira ouro, que o exército e as Eras gastam
+  if (!isScenarioConfig(state.config)) for (const k of tradeable) {
+    if (r[k] > 4000 + (nextCost[k] ?? 0) && r.gold < 4000 && sold < pace.sellLots) { if (applyCommand(state, { type: 'trade', player: player.id, action: 'sell', resource: k }).ok) sold++; }
+  }
   // Recurso que trava a Idade com ouro sobrando: compra
   const buyable = ['food', 'wood', 'stone', ...(player.age >= OIL_FROM_AGE ? ['oil'] : [])] as ResourceType[];
   if (!budget.fundMet) for (const k of buyable) {

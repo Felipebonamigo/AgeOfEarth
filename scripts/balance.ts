@@ -19,7 +19,7 @@ const ERA_TARGET_MIN = [0, 4, 9, 14, 20, 26, 33, 40];
 const ERA_TOLERANCE_MIN = [0, 1, 1.5, 1.5, 2, 2, 2.5, 3];
 const ERA_MIN_REACH = [0, 0.8, 0.8, 0.8, 0.8, 0.7, 0.7, 0.6];
 
-interface PlayerRun { name: string; alive: boolean; died: number | null; arrivals: number[]; age: number; waves: number; kills: number; losses: number; razed: number; territory: number; techs: number; evo: number; bless: number; wonders: number; titan: boolean; ships: number; caravans: number }
+interface PlayerRun { name: string; alive: boolean; died: number | null; cityLost: number | null; arrivals: number[]; age: number; waves: number; kills: number; losses: number; razed: number; territory: number; techs: number; evo: number; bless: number; wonders: number; titan: boolean; ships: number; caravans: number }
 interface Flag { min: number; player: string; kind: 'PARADA' | 'TRAVADA' | 'TRAVADA-RECURSO' | 'ACUMULANDO' | 'SEM-ONDAS' | 'SEM-CIDADE'; detail: string }
 interface SeedRun { seed: number; minutes: number; ms: number; msPerTick: number; winner: string | null; endMin: number | null; at5: string; flags: Flag[]; players: PlayerRun[] }
 
@@ -70,6 +70,7 @@ function runOne(seed: number): SeedRun {
   const state = createGame({ seed, mapSize: size, mapType, map, players: gods.slice(0, nPlayers).map((g, i) => ({ name: `${g}${i}`, god: g, isAI: true, difficulty: diff })) });
   const arrivals: Record<number, number[]> = {}; for (const p of state.players) arrivals[p.id] = [0];
   const died: Record<number, number | null> = {}; for (const p of state.players) died[p.id] = null;
+  const cityLost: Record<number, number | null> = {}; for (const p of state.players) cityLost[p.id] = null;   // sem Centro Cívico (só os cidadãos a mantêm viva): para a medição já é derrota
   const lastCheck: Record<number, { acc: boolean; trained: number; built: number }> = {};
   const flagsOut: Flag[] = [];
   const t0 = Date.now();
@@ -80,6 +81,14 @@ function runOne(seed: number): SeedRun {
     for (const p of state.players) {
       while (arrivals[p.id].length <= p.age) arrivals[p.id].push(Math.round(state.time / 6) / 10);
       if (!p.alive && died[p.id] === null) died[p.id] = p.defeatedTick / TICK_RATE / 60;
+    }
+    if (state.tick % 200 === 0 && state.tick > 60 * TICK_RATE) {
+      for (const p of state.players) {
+        if (!p.alive || cityLost[p.id] !== null) continue;
+        let hasTc = false;
+        for (const b of state.buildings.values()) if (b.owner === p.id && !b.dead && b.type === 'town_center') { hasTc = true; break; }
+        if (!hasTc) cityLost[p.id] = Math.round(state.time / 6) / 10;
+      }
     }
     // aos 5 min: nenhuma IA pode estar parada (nada treinado/construído desde o início ou todos os cidadãos ociosos)
     if (state.tick === 5 * 60 * TICK_RATE) at5 = state.players.map((p) => {
@@ -127,7 +136,7 @@ function runOne(seed: number): SeedRun {
     let wonders = 0;
     for (const b of state.buildings.values()) if (b.owner === p.id && !b.dead && b.complete && BUILDINGS[b.type].wonder) wonders++;
     return {
-      name: p.name, alive: p.alive, died: died[p.id], arrivals: arrivals[p.id], age: p.age, waves: p.ai?.waves ?? 0, kills: p.stats.kills, losses: p.stats.losses, razed: p.stats.razed,
+      name: p.name, alive: p.alive, died: died[p.id], cityLost: cityLost[p.id], arrivals: arrivals[p.id], age: p.age, waves: p.ai?.waves ?? 0, kills: p.stats.kills, losses: p.stats.losses, razed: p.stats.razed,
       territory: p.territoryTiles, techs: p.techs.length, evo: p.techs.filter((x) => x.startsWith('evo_')).length, bless: p.techs.filter((x) => x.startsWith('blessing')).length,
       wonders, titan: !!p.titanSpawned, ships, caravans,
     };
@@ -187,12 +196,13 @@ if (stallsOnly) {
 let outOfPace = false;
 if (flags.has('targets')) {
   console.log('\n=== ritmo por Era (alvo ± tolerância; mediana das IAs que chegaram) ===');
-  const allP = results.flatMap((r) => r.players);
+  // partida que acabou (vencedor) antes de alvo + tolerância não diz nada sobre a Era: só conta quem chegou lá
+  const lastedTo = (r: SeedRun) => r.endMin ?? r.minutes;
   for (let k = 1; k <= 7; k++) {
     const target = ERA_TARGET_MIN[k], tol = ERA_TOLERANCE_MIN[k];
     if (target + tol > minutes) { console.log(`Era ${AGES[k].short.padEnd(8)} alvo ${target} ±${tol}: fora do tempo medido (${minutes} min)`); continue; }
-    const reached = allP.filter((p) => p.age >= k).map((p) => p.arrivals[k]);
-    const eligible = allP.filter((p) => p.age >= k || p.died === null || p.died > target + tol);
+    const reached = results.flatMap((r) => r.players).filter((p) => p.age >= k).map((p) => p.arrivals[k]);
+    const eligible = results.flatMap((r) => r.players.filter((p) => p.age >= k || (lastedTo(r) >= target + tol && (Math.min(p.died ?? Infinity, p.cityLost ?? Infinity) > target + tol))));
     const rate = eligible.length ? reached.length / eligible.length : 0;
     const med = median(reached);
     let status = 'OK';
