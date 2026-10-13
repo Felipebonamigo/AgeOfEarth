@@ -6,7 +6,7 @@
 // valem draw calls, MB e o custo de CPU, comparados antes/depois. Grava docs/perf/<data>.json e imprime uma tabela.
 // Exige `npm run preview` (porta 4173) ou a URL passada.
 // Uso: node scripts/renderperf.mjs [url] [minutosDeJogo=20] [--date AAAA-MM-DD] [--out docs/perf] [--units 260] [--label texto] [--baked on|off]
-//      [--quality medium|low|high] [--measure 4000]  (preset medido, padrão médio; ms de medição por cenário)
+//      [--quality medium|low|high] [--measure 4000] [--start-age N] [--types a,b,…]  (preset medido, padrão médio; ms de medição por cenário)
 //      [--reveal]  mapa revelado só no renderizador durante a medição: aos 20 min o jogador local (parado) já perdeu a
 //                  cidade para as 3 IAs e, sem isto, os cenários "cidade" e "aglomerado" medem quase só terreno e nós
 //      --baked off: mede com a arte assada desligada (visual procedural); padrão: a opção salva (ligada)
@@ -29,6 +29,8 @@ const minUnits = Number(opt('--units', 260));
 const label = opt('--label', '');
 const baked = opt('--baked', 'on') !== 'off';
 const reveal = args.includes('--reveal');
+const startAge = opt('--start-age', '') === '' ? undefined : Number(opt('--start-age', ''));  // E10: Era inicial (0-7)
+const fillTypes = opt('--types', 'hoplite').split(',').filter(Boolean);  // E10: tipos que completam até --units
 const SEED = 42, MEASURE_MS = Number(opt('--measure', 4000));
 const preset = opt('--quality', 'medium');
 const creatures = (opt('--creatures', '') ?? '').split(',').map((t) => t.trim()).filter(Boolean);
@@ -43,23 +45,23 @@ await page.addInitScript(([bakedArt, quality]) => { try { const k = 'aoe_setting
 await page.goto(url, { waitUntil: 'networkidle' });
 await page.mouse.move(800, 450);
 // Partida fixa (mesma configuração do menu, sem depender do DOM): 3 IAs Muito difícil, deuses pela semente
-await page.evaluate((seed) => {
+await page.evaluate(({ seed, startAge }) => {
   const gods = ['zeus', 'poseidon', 'hades'], names = ['Leônidas', 'Péricles', 'Agamenon', 'Odisseu', 'Temístocles', 'Alexandre'];
   const players = [{ name: 'Jogador', god: 'zeus', isAI: false, difficulty: 'brutal', team: 0 }];
   for (let i = 0; i < 3; i++) players.push({ name: `${names[(seed + i) % names.length]} (IA)`, god: gods[(seed + i * 7) % gods.length], isAI: true, difficulty: 'brutal', team: i + 1 });
-  window.aoe.startGame({ seed, mapSize: 'large', players, revealMap: false, mode: 'conquest', mapType: 'continental' });
+  window.aoe.startGame({ seed, mapSize: 'large', players, revealMap: false, mode: 'conquest', mapType: 'continental', ...(startAge !== undefined ? { startingAge: startAge } : {}) });
   window.aoe.session.paused = true;
-}, SEED);
+}, { seed: SEED, startAge });
 if (!(await page.evaluate(() => !!window.aoe.perf))) { console.error('window.aoe.perf ausente: a build não tem src/render/perf.ts'); process.exit(1); }
 // avança a simulação diretamente (sem renderizar) até `warm` minutos de jogo, em fatias para não travar a página
 for (let done = 0; done < warm * 60 * 20; done += 1200) await page.evaluate((n) => { const s = window.aoe.session; for (let i = 0; i < n; i++) s.scheduler.step(s.state); }, 1200);
 // completa até `minUnits` unidades com hoplitas em volta dos Centros Cívicos de cada jogador (alternando donos)
-const spawned = await page.evaluate((min) => {
+const spawned = await page.evaluate(({ min, fillTypes }) => {
   const s = window.aoe.session; const st = s.state; let n = 0;
   const tcs = [...st.buildings.values()].filter((b) => b.type === 'town_center');
-  for (let i = 0; st.units.size < min && i < 2000; i++) { const tc = tcs[i % tcs.length]; if (!tc) break; const r = 4 + (i % 7), a = (i * 2.399) % 6.283; if (window.aoe.debugSpawn(tc.owner, 'hoplite', tc.x + Math.cos(a) * r, tc.y + Math.sin(a) * r)) n++; }
+  for (let i = 0; st.units.size < min && i < 2000; i++) { const tc = tcs[i % tcs.length]; if (!tc) break; const r = 4 + (i % 7), a = (i * 2.399) % 6.283; if (window.aoe.debugSpawn(tc.owner, fillTypes[i % fillTypes.length], tc.x + Math.cos(a) * r, tc.y + Math.sin(a) * r)) n++; }
   return n;
-}, minUnits);
+}, { min: minUnits, fillTypes });
 // o preset automático mede o começo de cada partida mesmo com preset fixo e, sem GPU, rebaixa o 'medium' para 'low'
 // (defeito de main.ts anotado à parte): reaplica o preset escolhido para medir de fato no preset médio
 await page.evaluate((reveal) => { window.aoe.applyQuality?.(); if (reveal) window.aoe.renderer.revealAll = true; window.aoe.session.paused = false; window.aoe.session.speed = 1; }, reveal);

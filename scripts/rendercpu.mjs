@@ -28,6 +28,7 @@ const quality = opt('--quality', 'low');
 const warm = Number(opt('--minutes', 20));
 const label = opt('--label', 'cpu');
 const battle = Number(opt('--battle', 0));
+const startAge = opt('--start-age', '') === '' ? undefined : Number(opt('--start-age', ''));  // E10: Era inicial (0-7)
 // Etapa 6: `--types a,b,…` troca a composição da batalha (padrão: hoplita, toxota, peltasta, hipeu, hipaspista) — com
 // criaturas (minotaur, cyclops, hydra, chimera, centaur, cronus…) mede a CPU das vistas assadas das míticas contra o
 // procedural de antes (a `main` desenha as mesmas unidades pelo ProceduralSource)
@@ -44,13 +45,13 @@ page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
 await page.addInitScript((q) => { try { localStorage.setItem('aoe_settings_v1', JSON.stringify({ edgeScroll: false, quality: q, bakedArt: true })); } catch { /* ignore */ } }, quality);
 await page.goto(url, { waitUntil: 'networkidle' });
 await page.mouse.move(800, 450);
-await page.evaluate(() => {
+await page.evaluate((startAge) => {
   const gods = ['zeus', 'poseidon', 'hades'];
   const players = [{ name: 'Jogador', god: 'zeus', isAI: false, difficulty: 'brutal', team: 0 }];
   for (let i = 0; i < 3; i++) players.push({ name: `IA ${i + 1}`, god: gods[(42 + i * 7) % 3], isAI: true, difficulty: 'brutal', team: i + 1 });
-  window.aoe.startGame({ seed: 42, mapSize: 'large', players, revealMap: false, mode: 'conquest', mapType: 'continental' });
+  window.aoe.startGame({ seed: 42, mapSize: 'large', players, revealMap: false, mode: 'conquest', mapType: 'continental', ...(startAge !== undefined ? { startingAge: startAge } : {}) });
   window.aoe.session.paused = true;
-});
+}, startAge);
 for (let done = 0; done < warm * 60 * 20; done += 1200) await page.evaluate((n) => { const s = window.aoe.session; for (let i = 0; i < n; i++) s.scheduler.step(s.state); }, 1200);
 const info = await page.evaluate((min) => {
   const s = window.aoe.session; const st = s.state;
