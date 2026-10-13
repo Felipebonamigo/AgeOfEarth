@@ -7,17 +7,20 @@ import fs from 'node:fs';
 import { createGame, tick } from '../src/core/sim/game';
 import { MAP_SIZES, MAP_TYPES, TICK_RATE, type MapSize, type MapType } from '../src/core/constants';
 import { AGES, BUILDINGS, UNITS } from '../src/core/data';
+import { AI_PACE } from '../src/core/sim/ai';
 import { canAdvanceAge } from '../src/core/sim/commands';
 import { maxAgeOf } from '../src/core/sim/restrictions';
 import { t } from '../src/i18n';
 import { migrateMap, validateMap, type FixedMapData } from '../src/core/map/fixed';
 
+// AOE_PACE='{"villagerTarget":[24,26,…]}' sobrescreve campos do AI_PACE só nesta execução (experimentos da escada E10-4, sem editar o código)
+if (process.env.AOE_PACE) Object.assign(AI_PACE, JSON.parse(process.env.AOE_PACE));
 const ERA_TARGET_MIN = [0, 4, 9, 14, 20, 26, 33, 40];
 const ERA_TOLERANCE_MIN = [0, 1, 1.5, 1.5, 2, 2, 2.5, 3];
 const ERA_MIN_REACH = [0, 0.8, 0.8, 0.8, 0.8, 0.7, 0.7, 0.6];
 
 interface PlayerRun { name: string; alive: boolean; died: number | null; arrivals: number[]; age: number; waves: number; kills: number; losses: number; razed: number; territory: number; techs: number; evo: number; bless: number; wonders: number; titan: boolean; ships: number; caravans: number }
-interface Flag { min: number; player: string; kind: 'PARADA' | 'TRAVADA' | 'TRAVADA-RECURSO' | 'ACUMULANDO' | 'SEM-ONDAS'; detail: string }
+interface Flag { min: number; player: string; kind: 'PARADA' | 'TRAVADA' | 'TRAVADA-RECURSO' | 'ACUMULANDO' | 'SEM-ONDAS' | 'SEM-CIDADE'; detail: string }
 interface SeedRun { seed: number; minutes: number; ms: number; msPerTick: number; winner: string | null; endMin: number | null; at5: string; flags: Flag[]; players: PlayerRun[] }
 
 const USAGE = 'Uso: npm run balance [minutos] [sementes|1-18] -- [--map arquivo.map.json] [--jobs N] [--json saída] [--targets] [--stalls-only] [--diff easy|normal|hard|brutal] [--map-type tipo] [--size small|medium|large]';
@@ -92,6 +95,11 @@ function runOne(seed: number): SeedRun {
         if (!p.alive) continue;
         let vill = 0, idle = 0;
         for (const u of state.units.values()) if (u.owner === p.id && !u.dead && u.type === 'villager') { vill++; if (u.state === 'idle') idle++; }
+        // sem Centro Cívico a IA já perdeu a cidade (só os cidadãos a mantêm viva pela regra de eliminação): não é parada da IA,
+        // é uma conquista quase completa — registra à parte (não reprova) e não avalia PARADA/TRAVADA
+        let hasTc = false;
+        for (const b of state.buildings.values()) if (b.owner === p.id && !b.dead && b.type === 'town_center') { hasTc = true; break; }
+        if (!hasTc) { flagsOut.push({ min, player: p.name, kind: 'SEM-CIDADE', detail: `${vill} cidadãos, sem Centro Cívico` }); delete lastCheck[p.id]; continue; }
         const prev = lastCheck[p.id];
         const noWork = prev && p.stats.unitsTrained === prev.trained && p.stats.buildingsBuilt === prev.built && p.pop < p.popCap - 5;
         if (vill > 0 && idle === vill) flagsOut.push({ min, player: p.name, kind: 'PARADA', detail: `${vill} cidadãos, todos ociosos` });
@@ -174,7 +182,7 @@ const count = (k: Flag['kind']) => results.reduce((n, r) => n + r.flags.filter((
 const stalls = count('PARADA') + count('TRAVADA');
 if (stallsOnly) {
   for (const r of results) for (const x of r.flags) console.log(`semente ${r.seed}: ${x.kind} aos ${x.min} min — ${x.player}: ${x.detail}`);
-  console.log(`alertas: PARADA ${count('PARADA')} · TRAVADA ${count('TRAVADA')} · TRAVADA-RECURSO ${count('TRAVADA-RECURSO')} · ACUMULANDO ${count('ACUMULANDO')} · SEM-ONDAS ${count('SEM-ONDAS')}`);
+  console.log(`alertas: PARADA ${count('PARADA')} · TRAVADA ${count('TRAVADA')} · TRAVADA-RECURSO ${count('TRAVADA-RECURSO')} · ACUMULANDO ${count('ACUMULANDO')} · SEM-ONDAS ${count('SEM-ONDAS')} · SEM-CIDADE ${count('SEM-CIDADE')}`);
 }
 let outOfPace = false;
 if (flags.has('targets')) {
@@ -197,7 +205,7 @@ if (flags.has('targets')) {
   const ended = results.filter((r) => r.endMin !== null);
   const early = ended.filter((r) => (r.endMin ?? 0) < 30).length;
   console.log(`fim de partida: ${ended.length}/${results.length} com vencedor; antes de 30 min: ${early}; mediana ${ended.length ? f1(median(ended.map((r) => r.endMin as number))) : '—'} min`);
-  console.log(`alertas: PARADA ${count('PARADA')} · TRAVADA ${count('TRAVADA')} · TRAVADA-RECURSO ${count('TRAVADA-RECURSO')} · ACUMULANDO ${count('ACUMULANDO')} · SEM-ONDAS ${count('SEM-ONDAS')}`);
+  console.log(`alertas: PARADA ${count('PARADA')} · TRAVADA ${count('TRAVADA')} · TRAVADA-RECURSO ${count('TRAVADA-RECURSO')} · ACUMULANDO ${count('ACUMULANDO')} · SEM-ONDAS ${count('SEM-ONDAS')} · SEM-CIDADE ${count('SEM-CIDADE')}`);
   const fora = outOfPace || stalls > 0;
   console.log(`ritmo: ${fora ? 'FORA' : 'DENTRO'}`);
   if (fora) process.exitCode = 1;

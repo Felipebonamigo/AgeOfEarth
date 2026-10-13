@@ -42,7 +42,10 @@ export const AI_PACE_CLASSIC: AiPace = {
 };
 /** Partida fora de cenário: o que a E10 ajusta (começa igual ao clássico). Arrays COPIADOS: ajuste escrevendo os
  *  valores neste literal (ex.: `villagerTarget: [20, 26, …]`); nunca mexa em VILLAGER_TARGET & cia., que são da campanha. */
-export const AI_PACE: AiPace = { ...AI_PACE_CLASSIC, villagerTarget: [...VILLAGER_TARGET], farmLimit: [...FARM_LIMIT], armyAttack: [...ARMY_ATTACK], minArmy: [...MIN_ARMY] };
+export const AI_PACE: AiPace = {
+  ...AI_PACE_CLASSIC, villagerTarget: [24, 34, 42, 44, 48, 52, 56, 60], farmLimit: [...FARM_LIMIT], armyAttack: [11, 16, 22, 24, 28, 32, 36, 40], minArmy: [6, 10, 8, 18, 22, 26, 30, 34],
+  scholarsEarly: 5, armyFundCap: 1.2,
+};
 /** Limites de cada botão (tests/ai-pace.test.ts confere). */
 export const AI_PACE_LIMITS = {
   advanceMinVillagers: [8, 14], templeVillagers: [5, 10], barracksVillagers: [7, 14], libraryVillagers: [5, 12], fortressWood: [250, 600],
@@ -846,6 +849,10 @@ function manageTrade(state: GameState, player: Player, snap: Snapshot): void {
   const budget = budgetOf(state, player);
   const nextCost = (AGES[player.age + 1]?.cost ?? {}) as Record<string, number>;
   let goldShort = !budget.fundMet && budget.surplus.gold < 0 ? -budget.surplus.gold : (r.gold < 100 ? 100 - r.gold : 0);
+  // E10: pedra/petróleo que faltam para a Era (veios esgotados perto da cidade) também pedem ouro: o excedente de comida/madeira vira o ouro das compras abaixo
+  if (!isScenarioConfig(state.config) && !budget.fundMet) for (const k of ['stone', 'oil'] as const) {
+    if (budget.surplus[k] < 0 && (k !== 'oil' || player.age >= OIL_FROM_AGE)) goldShort += Math.ceil(-budget.surplus[k] / MARKET_TRADE_LOT) * player.prices[k] * 1.5;
+  }
   let sold = 0;
   for (const k of [...tradeable].sort((a, b) => r[b] - r[a])) {
     const keep = Math.max(500, (nextCost[k] ?? 0) + 150);
