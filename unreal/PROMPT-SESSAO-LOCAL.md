@@ -1,25 +1,32 @@
 # Prompt para a sessão local (cole na sessão do Claude que roda no PC do dono)
 
+Estado em 13/10/2026: o **U0** (ambiente, ponte e terreno) está pronto e foi respondido em `art/meshy/canal/respostas/0006.md`.
+O próximo é o **U1, a fatia bonita** (`art/meshy/canal/pedidos/0008-unreal-u1-fatia-bonita.md`). O dono exige um visual
+de jogo moderno, no nível do print de referência dele (Unreal 5, Lumen, materiais PBR), **nada pixelado**; pode usar
+Unreal ou Unity se for preciso, e o plano é Unreal. A simulação da nuvem já tem 8 Eras, 21 poderes, 25 criaturas
+(navais, voadoras e anfíbias), mar, comércio e 20 maravilhas.
+
 ```
-Você é a sessão LOCAL do projeto Age of Earth (RTS grego em TypeScript). A partir de agora cuida do projeto Unreal
-Engine 5 neste PC (RTX 4070 Ti, Windows). Faça nesta ordem, sem pedir confirmação a cada passo, e pare só se algo
-exigir o dono (login, licença, dinheiro):
+Você é a sessão LOCAL do projeto Age of Earth (RTS grego em TypeScript). Você cuida do projeto Unreal Engine 5 neste PC
+(RTX 4070 Ti, Windows). Faça nesta ordem, sem pedir confirmação a cada passo, e pare só se algo exigir o dono (login,
+licença, dinheiro):
 
 1. `git pull --rebase origin claude/ecstatic-albattani-atz7h5` na pasta do repositório.
-2. Leia `docs/UNREAL.md`, `unreal/README.md` e o pedido `art/meshy/canal/pedidos/0006-unreal-u0-ponte-e-terreno.md`.
-3. Rode `powershell -ExecutionPolicy Bypass -File unreal\scripts\setup-windows.ps1` e leia `unreal\setup-report.txt`.
-   - Se o Unreal Engine 5.5+ NÃO estiver instalado: o dono precisa abrir o Epic Games Launcher, entrar na conta e
-     clicar em Unreal Engine > Instalar Engine. Se tiver a habilidade de controle do computador, ajude a navegar,
-     mas NÃO digite senhas nem aceite licenças por ele: peça que ele faça esses cliques. Avise-o e espere.
-4. Com o Unreal instalado, execute o pedido 0006 inteiro (projeto em `unreal/AgeOfEarthUE/`, terreno importado,
-   céu/luz/água, ponte com caixas andando, clique direito = `move`, capturas em `unreal/capturas/`). Use a habilidade
-   do Unreal e scripts Python do editor sempre que possível.
+2. Leia `docs/UNREAL.md`, `unreal/README.md`, `art/meshy/canal/respostas/0006.md` (o que o U0 deixou pronto) e o pedido
+   `art/meshy/canal/pedidos/0008-unreal-u1-fatia-bonita.md`, que é a tarefa de agora.
+3. Se o `Fab` e o `Quixel Bridge` ainda não estiverem instalados no Launcher, peça ao dono (a conta é dele); não digite
+   senhas nem aceite licenças por ele.
+4. Execute o pedido 0008 inteiro (terreno com texturas reais, água com ondas, vegetação, cidade grega Arcaica/Clássica,
+   hoplitas e cidadãos animados, luz como no print de referência, medição no build empacotado, capturas e vídeo em
+   `unreal/capturas/u1-*.png`). Use a habilidade do Unreal e scripts Python do editor sempre que possível. A régua é: se
+   parecer o jogo web de hoje, não está pronto.
 5. Faça commit (mensagens em português) e push na branch `claude/ecstatic-albattani-atz7h5` e escreva
-   `art/meshy/canal/respostas/0006.md` (formato em `docs/MESHY_LOCAL.md` §8): o que ficou pronto, o que travou, versões,
-   e, em "Para o dono", o que só ele pode resolver.
+   `art/meshy/canal/respostas/0008.md` (formato em `docs/MESHY_LOCAL.md` §8): o que ficou pronto, o que travou, versões,
+   números de desempenho e, em "Para o dono", o que só ele pode resolver.
 6. Depois, deixe um `/loop 10m` verificando a branch: pedidos novos em `art/meshy/canal/pedidos/` (0004 e 0005 do Meshy
    também estão abertos; sem gastar créditos) e respostas para a nuvem.
 
 Regras: só mexa em `unreal/` e `art/meshy/`; a simulação (`src/`, `scripts/unreal/`) e os guias (`docs/`) são da nuvem —
 se precisar de algo lá, peça num arquivo de resposta. Nunca desative verificação de TLS nem coloque senhas no repositório.
+Só licenças CC0 ou CC BY 4.0 (ou as do Fab/Megascans que permitem uso comercial), registradas em `art/meshy/catalogo.json`.
 ```

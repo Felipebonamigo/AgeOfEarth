@@ -73,4 +73,4 @@ seguindo as Eras. O jogo passa a ser desenhado no Unreal Engine 5. Cronograma em
 ## Estado (09/10/2026)
 
 - **Pronto e testado** (`tests/unreal-bridge.test.ts`, `tests/unreal-terrain.test.ts`): ponte (`npm run unreal:sim`, protocolo em `scripts/unreal/protocol.ts`) e exportador de terreno (`npm run unreal:terrain`). Guia prático em `unreal/README.md`.
-- **Próximo**: U0 no PC do dono, pelo pedido `art/meshy/canal/pedidos/0006-unreal-u0-ponte-e-terreno.md`.
+- **U0 feito** (resposta `art/meshy/canal/respostas/0006.md`, 09/10/2026). **Próximo**: U1, a fatia bonita, pelo pedido `art/meshy/canal/pedidos/0008-unreal-u1-fatia-bonita.md` (13/10/2026: o dono quer o nível visual do print de referência dele, nada pixelado).
