@@ -21,7 +21,7 @@ Estados: `pendente` · `em andamento` · `feito` · `feito com pendências` · `
 | E6 — mitologia | feito | 12/10/2026 | E6-A…I | SIM_VERSION 10; 9 deuses menores (Pã, Hécate, Perséfone; Éolo, Tritão, Deméter; Hélio, Nice, Nêmesis) com 6 pares por deus maior (D1), `eraMyth` desligado em cenário (`eraMythOn`); 9 poderes novos e escala +15 %/Era acima da Era do poder (`powerScale`); 12 criaturas por alias de arte; camada anfíbia (Ceto; Oceano só com navios ligados); Talos automático na Era VII; 7 Bênçãos; Titãs ×2 vida/×1,5 ataque fora de cenário; IA com os poderes, `trainSeaMyths` e Bênçãos. Verificação: smoke 20 42 com o mesmo hash nas duas execuções e igual ao pré-E6; balance 35 e 60 sem PARADA e Eras nos mesmos minutos; Horda igual; fairness: Egeu `--mirror-ai` DENTRO (56 % posição, 60 % índice) e Estreito DENTRO; `npm test` 1051 passam (mais o erro de worker do vitest já conhecido); playtest-myth, PT e EN, ok. **Missões: 35 das 36 linhas idênticas à base**; a exceção é m7_aquiles [hard] (vitória 27m31 em vez de 27m26, dentro da janela): nessa partida um jogador chega à Era V aos ~26 min e passa a poder escolher Pã/Hécate (os pares V–VII são dados, não regra de Era; mesma nota da Horda no guia); a causa foi isolada com bisect (aparece só com `temple.trains` ampliado) |
 | E8 | pendente | | | |
 | E9 — interface | feito com pendências | 13/10/2026 | E9-A…F | Sem mudança na simulação (`smoke 20 42` com o mesmo hash 676fc595 antes e depois). Enciclopédia de 8 abas gerada dos dados (`src/ui/encyclopedia.ts`, filtro de Era, `tests/encyclopedia.test.ts`); ajuda com 4 seções novas, 18 dicas de carregamento, linha da partida no menu; `tests/i18n-eras.test.ts` (glossário, números, acento, termos proibidos) e planilha `docs/eras/textos-pt-en.md` (leitura humana só das primeiras ~350 linhas: interface, unidades e edifícios); relay com listas fechadas de Era e vitória por maravilha e lista de salas com as Eras; árvore de estudos pelo controle (LB/RB por Era, foco inicial, detalhe acompanha o foco); `window.aoe.debugNames()` e `scripts/playtest-eras.mjs` (as 8 Eras em PT e EN, ok). **Pendente:** os ajustes F3–F7 nos playtests antigos (`playtest.mjs`, `-noemoji`, `-i18n`, `-gamepad`, `-mp`, `-rooms`) e a leitura humana do resto da planilha |
-| E10 — balanceamento | pendente | | | |
+| E10 — balanceamento | feito com pendências | 13/10/2026 | E10 blocos H–O | SIM_VERSION 11; `AI_PACE` fora de cenário; IV–VIII no alvo (mediana de 54 IAs: IV 16,1 · V 21,6 · VI 26,7 · VII 31,6 · VIII 38,0), **II–IV ~2 min acima** (5,8 / 11,0 / 16,1 contra 4 / 9 / 14: escada esgotada, D18); nenhuma PARADA/TRAVADA em 60 min (4 dificuldades, Costeiro, Mediterrâneo*, Ilhas) nem em 75 min; campanha (57 linhas) e Horda idênticas à base; 1077 testes verdes; fairness Egeu 59 %, Estreito 53 %. *1 TRAVADA (Fortaleza sem lugar) no Mediterrâneo. N3 e P1–P3 dependem da E8 (pendência) |
 
 ---
 
@@ -678,55 +678,89 @@ Bloco G — Verificação e commit
 Guia: `docs/eras/E9-E10-interface-balanceamento.md`
 
 Bloco H — Base
-- [ ] H0 Pré-condições
-- [ ] H1 Medições de base (missions, smoke 60, perf)
-- [ ] H2 Valores congelados (`frozen.json`)
+- [x] H0 Pré-condições
+- [x] H1 Medições de base (missions, smoke 60, perf)
+- [x] H2 Valores congelados (`frozen.json`)
 
 Bloco I — Ferramentas de medição
-- [ ] I1 `scripts/balance.ts` estendido
-- [ ] I2 `scripts/perf.ts`
-- [ ] I3 `renderperf`/`rendercpu` com `--start-age`
-- [ ] I4 `scripts/profsum.mjs` (novo)
-- [ ] I5 Base do balance (18 sementes × 60 min)
+- [x] I1 `scripts/balance.ts` estendido
+- [x] I2 `scripts/perf.ts`
+- [x] I3 `renderperf`/`rendercpu` com `--start-age`
+- [x] I4 `scripts/profsum.mjs` (novo)
+- [x] I5 Base do balance (18 sementes × 60 min)
 
 Bloco J — `AI_PACE`
-- [ ] J1 `ai.ts`: `AI_PACE` e `aiPace`
-- [ ] J2 Trocar cada leitura pelo campo
-- [ ] J3 `techs.ts`: `LINE_LEVEL_COST_MULT`
-- [ ] J4 `tests/ai-pace.test.ts` (novo)
+- [x] J1 `ai.ts`: `AI_PACE` e `aiPace`
+- [x] J2 Trocar cada leitura pelo campo
+- [x] J3 `techs.ts`: `LINE_LEVEL_COST_MULT`
+- [x] J4 `tests/ai-pace.test.ts` (novo)
 
 Bloco K — Ajuste do ritmo
-- [ ] K1 Ler a base e escolher a Era mais cedo fora
-- [ ] K2 Rodadas da escada
-- [ ] K3 Aceitação
-- [ ] K4 `SIM_VERSION` +1
+- [x] K1 Ler a base e escolher a Era mais cedo fora
+- [x] K2 Rodadas da escada
+- [x] K3 Aceitação
+- [x] K4 `SIM_VERSION` +1
 
 Bloco L — IA em partidas longas
-- [ ] L1 Balance de 60 min nas 4 dificuldades
-- [ ] L2 Corrigir PARADA/TRAVADA
-- [ ] L3 Mapas com mar
-- [ ] L4 Smoke de 60 min (2×)
+- [x] L1 Balance de 60 min nas 4 dificuldades
+- [x] L2 Corrigir PARADA/TRAVADA
+- [x] L3 Mapas com mar
+- [x] L4 Smoke de 60 min (2×)
 
 Bloco M — Justiça de posição
-- [ ] M1 `tests/position-fairness.test.ts`
-- [ ] M2 Tabela E10-7 (fairness 60 min)
-- [ ] M3 Se o índice sair do critério
-- [ ] M4 Se só a posição de um mapa oficial sair
+- [x] M1 `tests/position-fairness.test.ts`
+- [x] M2 Tabela E10-7 (fairness 60 min)
+- [x] M3 Se o índice sair do critério
+- [x] M4 Se só a posição de um mapa oficial sair
 
 Bloco N — Desempenho
-- [ ] N1 Simulação (`perf.ts`)
-- [ ] N2 Rede (`loadtest`)
-- [ ] N3 Renderizador (com a E8)
+- [x] N1 Simulação (`perf.ts`)
+- [x] N2 Rede (`loadtest`)
+- [~] N3 Renderizador (com a E8)
 
 Bloco O — Campanha e Horda
-- [ ] O1 `scripts/missions.ts` igual à base
-- [ ] O2 Horda e testes das missões
+- [x] O1 `scripts/missions.ts` igual à base
+- [x] O2 Horda e testes das missões
 
 Bloco P — Capturas, loja e documentos
-- [ ] P1 `art:diff`
-- [ ] P2 Cenas novas em `scripts/storeshots.mjs`
-- [ ] P3 `docs/steam/LOJA.md` e `PRESSKIT.md`
-- [ ] P4 "Verificação" (itens da E10) e "Ao terminar"
+- [~] P1 `art:diff`
+- [~] P2 Cenas novas em `scripts/storeshots.mjs`
+- [~] P3 `docs/steam/LOJA.md` e `PRESSKIT.md`
+- [x] P4 "Verificação" (itens da E10) e "Ao terminar"
+
+
+### Rodadas de ajuste (E10-4)
+Mediana de chegada (min) com 12–18 sementes; sempre uma nova rodada sobre a anterior quando aceita.
+
+| # | Mudança (antes → depois) | Resultado |
+|---|---|---|
+| base | classico (18/26/34/40…; estudiosos 3; fundo 1,6) | II 6,4 · III 13,4 · IV 20,2 · V 27,4 · VI 35,6 · VII 41 · VIII 53,8 |
+| 1 | `villagerTarget` 18/26/34 → 24/34/42 (e +4 nas Eras IV–VIII), `scholarsEarly` 3 → 5, `armyFundCap` 1,6 → 1,2, `minArmy[2]` 14 → 8 (os degraus de II, III e IV de uma vez: os de limiar — `advanceMinVillagers`, `templeVillagers`, `libraryVillagers` — não mexem: o gargalo é o ouro, não o número de cidadãos) | II 5,8 · III 10,9 · IV 16,1 · V 22 |
+| 2–4 | `armyAttack` +4…+6 nas Eras I–III e +4 nas demais (ondas maiores e mais raras, os perdedores vivem mais) | VI e VII entram no alvo |
+| 3 | IA compra pedra/petróleo que faltam à Era no Mercado (vende o excedente de comida/madeira para pagar) | TRAVADA-RECURSO 4 → 1; Iluminismo OK |
+| 6 | IA vende estoque > 4000 de comida/madeira | ACUMULANDO 4 → 1 |
+| 8 | Era V `techCount` 7 → 6 | sem ganho (V 22,9): desfeito |
+| 9 | Era V custo ×0,9 e 100 s | ganho pequeno (22,9 → 22,6) e **vaza para a campanha** (o custo da próxima Era entra na economia da IA no `maxAge` 3): desfeito |
+| 10 | Era VIII custo ×1,3, 180 s, 17 estudos | VIII 35,8 → 37,5 (dentro) |
+| 11 | IA tenta o próximo recurso em falta quando o veio do 1º acabou (antes todo ocioso virava lenhador) | V OK; TRAVADA da Fortaleza (pedra) some |
+| 12 | `farmLimit[0]` 4 → 8; madeira < 150 → ≥ 6 lenhadores; compra madeira para a Fortaleza | IA presa na Era I (sem comida) e na Era IV (sem madeira; Ilhas) somem |
+
+Aceitação final (`npm run balance 60 1-18 -- --jobs 3 --targets`, `docs/perf/2026-10-13-e10-balance.json`): II 5,8 (LENTA +1,8) · III 11,0 (+2,0) · IV 16,1 (+2,1) · V 21,6 · VI 26,7 · VII 31,6 · VIII 38,0 (OK); PARADA 0 · TRAVADA 0–2 por execução (casos de cidade em ruínas, hoje tratados como SEM-CIDADE) · fim com vencedor 13/18, antes de 30 min: 1.
+
+### Medições da E10 — antes × depois
+- Detectores: na base, PARADA 14 e TRAVADA 15 eram quase todos jogadores já sem Centro Cívico (mantidos vivos por cidadãos); passaram a `SEM-CIDADE` (não reprova). Elegibilidade do `--targets`: partida que acabou antes de alvo+tolerância não conta e quem perdeu a cidade conta como derrotado.
+- `smoke 20 42`: hash `676fc595` → `aa9b59a0` (esperado: a IA mudou fora de cenário); `smoke 60 42`: `8c943ab9` (60 min sem vencedor) → `ccc4f421` (vencedor aos 39,6 min), idêntico nas 2 rodadas.
+- `perf.ts` (média/p95/pior): continental 60 min ~1,0 ms / ≤ 3,5 / **57 ms**; Mediterrâneo 60 ~0,9 / ≤ 3,3 / **67 ms**; Era IV inicial 40 min ~0,8 / ≤ 2,6 / 44 ms (DENTRO). Base antes: pior tick 70 ms. Picos de 1 tick > 50 ms persistem (não é GC; perfil plano), pendência.
+- `loadtest` 60 min, 4 bots, queda aos 45 min, espectador aos 50: **OK (sem dessincronização)**, 720 checkpoints, instantâneos 704–724 KB (< 4096).
+- `missions.ts`: 57 linhas **idênticas** à base. `horde.ts`: igual. `steam-achievements`/`licenses --check`: ok. `npm test`: 79 arquivos, 1077 testes (+2 avisos conhecidos do worker do vitest).
+- Justiça (60 min, 16 sementes × 2 ordens): Egeu 59 % posição e índice (DENTRO; `--mirror-ai` DENTRO); Estreito 53 % (DENTRO); Costeiro índice 53 % (posição 66 %); Mediterrâneo índice 50 % (8 sementes, 45 min); Ilhas índice 56 % (8 sementes, 45 min; 15 de 16 sem vencedor).
+
+### Pendências para o dono (E10)
+- **D18**: Eras II, III e IV ficam ~2 min acima do alvo (5,8 / 11 / 16 contra 4 / 9 / 14) depois de todos os degraus da escada. O gargalo é o ouro (Biblioteca 100 + avanço 300) e os dados dessas Eras são da campanha. Decidir: aceitar os números, ou mexer nos custos/tempos das Eras II–IV (isso muda a campanha e exige recalibrar `missions.ts`).
+- Fortaleza sem lugar em mapa pequeno de mar (Mediterrâneo semente 3; Ilhas semente 4 antes do ajuste de madeira): gerador deveria garantir um 4×4 livre (como `ensureShipyardSite`).
+- Pior tick da simulação de 57–67 ms em picos isolados (orçamento 50 ms); média e p95 muito abaixo.
+- Posição do Costeiro (66 %) e das Ilhas (69 %): mapas gerados não são simétricos; só o índice é critério.
+- N3 (render com Eras altas) e P1–P3 (`art:diff`, screenshots da loja, `LOJA.md`/`PRESSKIT.md` com os fatos de 8 Eras) esperam a E8/Unreal; os textos da loja ainda dizem 5 Idades.
 
 ---
 
@@ -755,4 +789,4 @@ Bloco P — Capturas, loja e documentos
 - E6: pares de deuses menores das Eras V–VII e `minorGod: true` em `AGES[4..6]`.
 - E8: kit de Era no lugar de `ageTier`; ícones definitivos `age/4..6`.
 - E9: botão "Abrir a árvore de estudos" na enciclopédia.
-- E10: ritmo das Eras (alvo II ~4, III ~9, IV ~14, V ~20, VI ~26, VII ~33, VIII ~40); hoje II ~5, III ~11, IV ~17, V ~24, VI ~30, VII ~34, VIII ~38.
+- E10 (feito em 13/10/2026): ver a seção E10.
