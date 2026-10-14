@@ -170,6 +170,12 @@ Contato: **[DONO: e-mail]** · Controlador: **[DONO: razão social, CNPJ]** · E
   uma): todo o acervo do Poly Haven é **CC0** (domínio público, uso comercial livre). No jogo: grama "Forest Ground 01" e
   terra "Dry Ground Rocks" (Rob Tuytel), areia "Dense Sand" (Dimitrios Savva) e calcário "Marble Cliff 06" (Amal Kumar),
   reduzidas e com a cor ajustada por `scripts/terrain-photos.ts`; creditadas na tela Créditos por cortesia.
+- **Unreal** (U1 e U2, 09 a 14/10/2026; lista `externos` de `art/meshy/catalogo.json`): 7 texturas PBR e 10 modelos glTF do
+  **Poly Haven** (CC0) no terreno, na vegetação rasteira e nas rochas; esqueleto e animações **Manny/Quinn** do modelo Third
+  Person da Epic (licença de conteúdo do Unreal Engine: só valem dentro de jogo feito no Unreal, nunca no cliente web); e os
+  rigs e animações do **Mesh2Motion** (Scott Petrovic e colaboradores; CC0, código MIT). Poly Haven e Mesh2Motion vão na tela
+  Créditos por cortesia; o aviso que o EULA do Unreal exige para o motor entra na tela Créditos do cliente Unreal (conferir o
+  texto exato no EULA antes do lançamento). O Mesh2Motion também tem cópia no acervo comum `Felipebonamigo/acervo-3d`.
 - **[DONO: ao adquirir fontes, música, SFX ou arte de terceiros (Fase 2), registrar licença, autor e escopo aqui e na tela Créditos]**
 
 ## 5. Créditos (no jogo)
