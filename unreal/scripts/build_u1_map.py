@@ -12,7 +12,7 @@ import unreal
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 TERRAIN_DIR = os.environ.get("AOE_TERRAIN_DIR", os.path.join(REPO, "unreal", "exports", "teste"))
 MAP_PATH = os.environ.get("AOE_MAP", "/Game/Maps/U1")
-AGUA = os.environ.get("AOE_AGUA", "custom")
+AGUA = os.environ.get("AOE_AGUA", "mar")   # mar = plano com M_Mar (ondas+espuma, u1_mar.py); custom/oceano = plugin Water
 SKIP = [k.lower() for k in os.environ.get("AOE_SKIP", "").split(",") if k]
 MAT_PATH = "/Game/Terreno/M_U1_Terreno"
 LAYER_DIR = "/Game/Terreno/Camadas"
@@ -251,6 +251,15 @@ def main():
             zona.set_editor_property("render_target_resolution", unreal.IntPoint(2048, 2048))
             mar = spawn(unreal.WaterBodyOcean, (center[0], center[1], 0), label="Mar")
             return mar
+        if AGUA == "mar":
+            plano = spawn(unreal.StaticMeshActor, (center[0], center[1], 0), label="Mar")
+            comp = plano.get_editor_property("static_mesh_component")
+            comp.set_editor_property("static_mesh", unreal.load_asset("/Engine/BasicShapes/Plane"))
+            comp.set_material(0, unreal.load_asset("/Game/Terreno/M_Mar"))
+            comp.set_editor_property("cast_shadow", False)
+            comp.set_collision_enabled(unreal.CollisionEnabled.NO_COLLISION)
+            plano.set_actor_scale3d(unreal.Vector(size_uu * 4.0 / 100.0, size_uu * 4.0 / 100.0, 1.0))
+            return plano
         sea = spawn(unreal.WaterBodyCustom, (center[0], center[1], 0), label="Mar")
         comp = sea.get_editor_property("water_body_component")
         comp.set_editor_property("water_mesh_override", unreal.load_asset("/Engine/BasicShapes/Plane"))
