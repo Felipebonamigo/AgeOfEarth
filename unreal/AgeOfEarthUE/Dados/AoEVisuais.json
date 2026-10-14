@@ -27,8 +27,7 @@
     },
     "lumber_camp": {
       "malhas": [
-        "edificios/lumber_camp__thatchwood-sawmill",
-        "edificios/lumber_camp__sawmill-serenity"
+        "edificios/lumber_camp__thatchwood-sawmill"
       ],
       "ajuste": 0.95
     },
@@ -570,9 +569,8 @@
   "nos": {
     "tree": {
       "malhas": [
-        "natureza/oak__oak-tree",
+        "/Game/Vegetacao/island_tree_02/island_tree_02/StaticMeshes/island_tree_02",
         "natureza/cypress__cypress-tree-chad",
-        "natureza/olive__ancient-olive-majesty",
         "natureza/cypress__cypress-tree-swaney"
       ],
       "altura": 680

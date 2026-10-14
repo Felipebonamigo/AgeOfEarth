@@ -104,6 +104,7 @@ def mestre(nome, mascara, vento):
 
 def main():
     folha = mestre("M_Vegetal", True, True)
+    mestre("M_Folha", True, False)   # folhas das árvores com Nanite: sem vento (Nanite + WPO travou a GPU), ver u2_arvore.py
     rocha = mestre("M_Rocha", False, False)
     n = 0
     for a in reg.get_assets_by_path("/Game/Vegetacao", recursive=True):
@@ -112,6 +113,8 @@ def main():
         try:
             mi = a.get_asset()
             pasta = str(a.package_name)
+            if "_tree_" in pasta:
+                continue   # árvores com Nanite: materiais em u2_arvore.py (sem vento)
             mi.set_editor_property("parent", rocha if "boulder" in pasta else folha)
             for tp in mi.get_editor_property("texture_parameter_values"):
                 nome = str(tp.parameter_info.name)

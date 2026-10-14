@@ -106,6 +106,29 @@ void AAoEBridgeActor::SpawnVitrine()
 		if (!bGigante) ++I;
 		else ++I;
 	}
+	{
+		// fila de edificios: cada tipo do catalogo, uma copia por variante de malha (para avaliar os modelos lado a lado)
+		TArray<FString> Bt; BuildingDefs.GetKeys(Bt); Bt.Sort();
+		float Bx = 6.f; int32 Bn = 0;
+		for (const FString& T : Bt)
+		{
+			const FAoEDef& Def = BuildingDefs[T];
+			if (Def.bField) continue;
+			const FIntPoint Sz = SizeOfBuilding(T);
+			for (int32 v = 0; v < FMath::Max(1, Def.Meshes.Num()); ++v)
+			{
+				FAoEDef One = Def; if (Def.Meshes.Num() > 0) One.Meshes = { Def.Meshes[v] };
+				const int32 Id = 960000 + Bn++;
+				FAoEVisual& V = Buildings.Add(Id);
+				V.bBuilding = true; V.Type = T; V.Dono = 0;
+				V.Actor = SpawnVisual(V, &One, Id, PlayerColor(0), FMath::Min(Sz.X, Sz.Y) * 200.f, FMath::Min(Sz.X, Sz.Y) * 100.f);
+				V.From = V.To = FVector2D(Bx + Sz.X * 0.5f, 6.f + (Bn % 2) * 7.f);
+				V.FromZ = V.ToZ = VitrineZ; V.Alpha = 1.f; V.Yaw = Def.Yaw; V.Progress = 1.f; V.Hp01 = 1.f;
+				if (Bn % 2 == 0) Bx += FMath::Max(Sz.X, 2) + 1.5f;
+				UE_LOG(LogTemp, Log, TEXT("AoE: vitrine edificio %s [%d] tile (%.1f, %.1f)"), *T, v, V.To.X, V.To.Y);
+			}
+		}
+	}
 	if (const FAoEDef* Hd = BuildingDefs.Find(TEXT("house")))
 		for (int32 k = 0; k < 3; ++k)
 		{
@@ -199,6 +222,14 @@ void AAoEBridgeActor::LoadCatalog()
 UStaticMesh* AAoEBridgeActor::LoadMesh(const FString& ShortPath)
 {
 	if (TObjectPtr<UStaticMesh>* Hit = MeshCache.Find(ShortPath)) return Hit->Get();
+	if (ShortPath.StartsWith(TEXT("/Game/")))
+	{
+		// caminho completo de pacote (ex.: /Game/Vegetacao/island_tree_02/island_tree_02/StaticMeshes/island_tree_02)
+		UStaticMesh* Full = LoadObject<UStaticMesh>(nullptr, *(ShortPath + TEXT(".") + FPackageName::GetShortName(ShortPath)));
+		if (!Full) UE_LOG(LogTemp, Warning, TEXT("AoE: malha nao encontrada: %s"), *ShortPath);
+		MeshCache.Add(ShortPath, Full);
+		return Full;
+	}
 	FString Folder, Name;
 	if (!ShortPath.Split(TEXT("/"), &Folder, &Name)) { MeshCache.Add(ShortPath, nullptr); return nullptr; }
 	const FString Underscored = Name.Replace(TEXT("-"), TEXT("_"));

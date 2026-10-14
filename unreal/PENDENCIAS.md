@@ -12,6 +12,9 @@ Decisão do dono em 14/10/2026: **seguir no Unreal**. Itens que a sessão local 
 - **Ciclo de dia e variação de céu**; ajuste fino de contraste dos campos.
 - **Nanite desligado** em folhagem/vento (73 malhas) por causa de travamento de GPU (`u1_nanite.py`); reavaliar em versão nova do motor.
 
+- **Modelos a rebaixar do Meshy (precisa da conta logada do dono)**: casa-taverna (`house__greek-tavern`) e serraria (`lumber_camp__sawmill-serenity`), as duas tiradas do catálogo em 14/10 por malha estragada na redução; com o original dá para reduzir a 200–300 mil triângulos sem `simplifySloppy` (o Unreal aguenta com Nanite). Celeiro (`granary__desert-oasis`) é estilizado (palmeiras, areia): buscar um celeiro/armazém grego realista na galeria CC0. O navegador embutido não está logado no Meshy; usar o Chrome do dono com o ok dele.
+- **Árvores do Meshy facetadas de perto** (oak/olive reduzidas com `simplifySloppy`): de longe passam; de perto parecem amassadas. Opções: originais do Meshy (mesma conta), árvores CC0 do Poly Haven (island_tree, 1,7–4,7 mi triângulos, pesadas) reduzidas no Blender, ou árvores próprias.
+
 ## Engenharia
 - Terreno do mapa médio exportado com 2 jogadores (`scripts/unreal/export-terrain.ts`, da nuvem): pedir `--players N` à nuvem.
 - Cook leva só pastas explícitas (`DirectoriesToAlwaysCook`); os control rigs/ABP do Third Person estão quebrados (apontam para outra pasta) e ficam de fora.
