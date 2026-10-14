@@ -218,3 +218,44 @@ return saturate(A * fiapo * borda * 1.1 * D);
 
 poeira()
 unreal.log("AOE_POEIRA ok")
+
+
+def fogo():
+    """Chamas para edifício danificado: aditivo, sem luz própria; ruído rolando para cima recorta línguas de fogo numa esfera
+    achatada (PerInstanceCustomData 0 = intensidade)."""
+    tex = unreal.load_asset(PASTA + "/T_Ruido")
+    mat = novo("M_Fogo")
+    mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_ADDITIVE)
+    mat.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+    mat.set_editor_property("used_with_instanced_static_meshes", True)
+    d0 = no(mat, unreal.MaterialExpressionPerInstanceCustomData, -1100, 300)
+    d0.set_editor_property("data_index", 0)
+    wp = no(mat, unreal.MaterialExpressionWorldPosition, -1100, 500)
+    lp = no(mat, unreal.MaterialExpressionLocalPosition, -1100, 650)
+    tm = no(mat, unreal.MaterialExpressionTime, -1100, 800)
+    fr = no(mat, unreal.MaterialExpressionFresnel, -1100, 150)
+    uv = custom(mat, "return float2(P.x * 0.006 + P.y * 0.004, P.z * 0.006 - T * 0.9);", ["P", "T"], unreal.CustomMaterialOutputType.CMOT_FLOAT2, -850, 600)
+    mel.connect_material_expressions(wp, "", uv, "P")
+    mel.connect_material_expressions(tm, "", uv, "T")
+    s = no(mat, unreal.MaterialExpressionTextureSample, -600, 600)
+    s.set_editor_property("texture", tex)
+    s.set_editor_property("sampler_type", unreal.MaterialSamplerType.SAMPLERTYPE_MASKS)
+    mel.connect_material_expressions(uv, "", s, "UVs")
+    c = custom(mat, """
+float alt = saturate(L.z / 50.0 * 0.5 + 0.5);           // 0 na base da esfera, 1 no topo
+float borda = pow(saturate(1.0 - F), 1.2);
+float chama = smoothstep(0.35 + alt * 0.45, 0.85, N) * borda * (1.0 - alt * 0.6);
+float3 cor = lerp(float3(1.0, 0.75, 0.25), float3(0.9, 0.22, 0.03), alt);
+return cor * chama * A * 6.0;
+""", ["L", "F", "N", "A"], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -300, 300)
+    mel.connect_material_expressions(lp, "", c, "L")
+    mel.connect_material_expressions(fr, "", c, "F")
+    mel.connect_material_expressions(s, "R", c, "N")
+    mel.connect_material_expressions(d0, "", c, "A")
+    mel.connect_material_property(c, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    mel.recompile_material(mat)
+    unreal.EditorAssetLibrary.save_loaded_asset(mat)
+
+
+fogo()
+unreal.log("AOE_FOGO ok")

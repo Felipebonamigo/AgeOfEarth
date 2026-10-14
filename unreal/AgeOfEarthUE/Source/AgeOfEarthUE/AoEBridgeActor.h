@@ -72,6 +72,7 @@ struct FAoEVisual
 	int32 AnimSeed = 0;          // sorteio fixo da variante de animacao desta unidade
 	FVector2D CenterOfs = FVector2D::ZeroVector;   // centro da malha esqueletica fora da origem (cavalo, raposa...), ja escalado (cm)
 	FVector GroundPoint = FVector::ZeroVector;      // ponto da simulacao no chao (onde vai o disco)
+	float FxT = 0.f;             // edificio: relogio dos efeitos de ambiente (chamine, fumaca de dano, poeira de obra)
 };
 
 /** Corpo que cai e some depois de uma morte. */
@@ -210,6 +211,8 @@ private:
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ArrowISM;
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> StoneISM;
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> PuffISM;
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> FireISM;
+	void AmbientFx(int32 Id, FAoEVisual& V, float Dt);
 	void HandleEffects(const TSharedPtr<FJsonObject>& O);
 	void TickEffects(float Dt);
 	void AddPuffs(const FVector& At, int32 N, float R0, float R1, float Dur, float Dark, float Spread);

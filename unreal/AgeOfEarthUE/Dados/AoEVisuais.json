@@ -10,7 +10,6 @@
     },
     "house": {
       "malhas": [
-        "edificios/house__greek-tavern",
         "edificios/house__kalliope-house"
       ],
       "ajuste": 0.95

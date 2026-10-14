@@ -103,6 +103,17 @@ void AAoEBridgeActor::SpawnVitrine()
 		if (!bGigante) ++I;
 		else ++I;
 	}
+	if (const FAoEDef* Hd = BuildingDefs.Find(TEXT("house")))
+		for (int32 k = 0; k < 3; ++k)
+		{
+			const int32 Id = 950000 + k;
+			FAoEVisual& V = Buildings.Add(Id);
+			V.bBuilding = true; V.Type = TEXT("house"); V.Dono = 0;
+			V.Actor = SpawnVisual(V, Hd, Id, PlayerColor(0), 400.f, 200.f);
+			V.From = V.To = FVector2D(26.f + k * 4.f, 20.f);
+			V.FromZ = V.ToZ = VitrineZ; V.Alpha = 1.f; V.Yaw = Hd->Yaw;
+			V.Progress = k == 0 ? 0.55f : 1.f; V.Hp01 = k == 2 ? 0.25f : 1.f;
+		}
 	UE_LOG(LogTemp, Log, TEXT("AoE: vitrine com %d tipos"), I);
 }
 
@@ -219,6 +230,7 @@ void AAoEBridgeActor::BeginPlay()
 		ArrowISM = MakeIsm(CylMesh, MastroMat, true, 0);
 		StoneISM = MakeIsm(Sphere, MastroMat, true, 0);
 		PuffISM = MakeIsm(Sphere, LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_Poeira.M_Poeira")), false, 2);
+		FireISM = MakeIsm(Sphere, LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_Fogo.M_Fogo")), false, 1);
 	}
 	if (FParse::Param(FCommandLine::Get(), TEXT("AoEVitrine"))) { SpawnVitrine(); return; }
 	Connect();
@@ -882,9 +894,11 @@ void AAoEBridgeActor::Tick(float Dt)
 			}
 		}
 	}
+	if (FireISM) FireISM->ClearInstances();
 	for (auto& P : Buildings)
 	{
 		UpdateVisual(P.Value, Dt);
+		AmbientFx(P.Key, P.Value, Dt);
 		if (UStaticMeshComponent* D = P.Value.Disc.Get())
 		{
 			// bandeira do dono no canto sudeste do edificio: mastro de 4 m e pano de 1,3 m x 0,8 m
@@ -913,6 +927,7 @@ void AAoEBridgeActor::Tick(float Dt)
 			if (UMaterialInstanceDynamic* M = P.Value.DiscMat.Get()) M->SetVectorParameterValue(TEXT("Color"), PlayerColor(P.Value.Dono) * (EstandarteMat ? 0.5f : 1.6f));
 		}
 	}
+	if (FireISM) FireISM->MarkRenderStateDirty();
 	for (int32 i = Dying.Num() - 1; i >= 0; --i)
 	{
 		FAoEDying& D = Dying[i];
@@ -1098,5 +1113,50 @@ void AAoEBridgeActor::TickEffects(float Dt)
 	{
 		PuffISM->AddInstances(Pt, false, true);
 		for (int32 i = 0; i < Pt.Num(); ++i) { PuffISM->SetCustomDataValue(i, 0, Data[i * 2], false); PuffISM->SetCustomDataValue(i, 1, Data[i * 2 + 1], i == Pt.Num() - 1); }
+	}
+}
+
+void AAoEBridgeActor::AmbientFx(int32 Id, FAoEVisual& V, float Dt)
+{
+	if (!PuffISM || !V.bBuilding || !V.Actor.IsValid()) return;
+	V.FxT += Dt;
+	const FVector Base(V.To.X * UuPerTile, V.To.Y * UuPerTile, V.ToZ);
+	const float Top = V.MeshHeight * 0.85f;
+	const float Seed = Hash01(Id, 21);
+	// obra: poeira baixa em volta da base
+	if (V.Progress < 1.f)
+	{
+		if (V.FxT > 0.9f + Seed * 0.5f) { V.FxT = 0.f; AddPuffs(Base, 1, 60.f, 200.f, 2.2f, 0.f, 180.f); }
+		return;
+	}
+	// dano: coluna de fumaca escura; abaixo de 40 % tambem fogo no telhado
+	if (V.Hp01 < 0.6f)
+	{
+		if (V.FxT > 0.35f + Seed * 0.2f)
+		{
+			V.FxT = 0.f;
+			FAoEPuff F; F.P = Base + FVector((Seed - 0.5f) * 120.f, (Hash01(Id, 22) - 0.5f) * 120.f, Top + 80.f);
+			F.V = FVector(35.f, 18.f, 120.f + 60.f * FMath::FRand()); F.R0 = 50.f; F.R1 = 230.f; F.Dur = 4.5f; F.Dark = FMath::Lerp(0.55f, 1.f, 1.f - V.Hp01);
+			if (Puffs.Num() < 400) Puffs.Add(F);
+		}
+		if (V.Hp01 < 0.4f && FireISM)
+		{
+			const float Fl = 0.8f + 0.2f * FMath::Sin(Clock * 13.f + Id) * FMath::Sin(Clock * 7.f + Id * 0.3f);
+			for (int32 k = 0; k < 3; ++k)
+			{
+				const FVector P = Base + FVector((Hash01(Id, 30 + k) - 0.5f) * 220.f, (Hash01(Id, 40 + k) - 0.5f) * 220.f, Top + 30.f);
+				const int32 I = FireISM->AddInstance(FTransform(FRotator::ZeroRotator, P, FVector(1.6f, 1.6f, 2.8f) * Fl));
+				FireISM->SetCustomDataValue(I, 0, FMath::Lerp(0.5f, 1.f, 1.f - V.Hp01 / 0.4f), false);
+			}
+		}
+		return;
+	}
+	// casa e Centro Civico prontos: um fio de fumaca clara de chamine, de vez em quando
+	if ((V.Type == TEXT("house") || V.Type == TEXT("town_center")) && V.FxT > 1.6f + Seed * 1.4f)
+	{
+		V.FxT = 0.f;
+		FAoEPuff F; F.P = Base + FVector((Seed - 0.5f) * 90.f, (Hash01(Id, 23) - 0.5f) * 90.f, Top + 40.f);
+		F.V = FVector(25.f, 12.f, 70.f); F.R0 = 18.f; F.R1 = 90.f; F.Dur = 3.2f; F.Dark = 0.35f;
+		if (Puffs.Num() < 400) Puffs.Add(F);
 	}
 }
