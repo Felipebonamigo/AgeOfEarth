@@ -109,6 +109,12 @@ void AAoEPlayerController::ContextOrder(float TileX, float TileY, bool bQueue)
 	AAoEBridgeActor* B = Bridge();
 	if (!B) return;
 	TArray<int32> Ids = B->GetSelected().Array();
+	if (Ids.Num() == 0 && B->SelBuilding != 0)
+	{
+		// edificio selecionado: o clique direito marca o ponto de encontro das unidades que ele treinar
+		B->SendCmd(TEXT("rally"), TArray<int32>(), FString::Printf(TEXT("\"buildingId\":%d,\"x\":%.2f,\"y\":%.2f"), B->SelBuilding, TileX, TileY), false);
+		return;
+	}
 	if (Ids.Num() == 0) return;   // sem selecao nao se manda ordem a ninguem (so o console AoEMove usa "todas")
 	int32 Target = 0; FString Kind;
 	if (B->PickTarget(TileX, TileY, Target, Kind))
@@ -195,6 +201,27 @@ void AAoEPlayerController::PlayerTick(float Dt)
 	// esquerdo: A armado = atacar-mover; senao clique seleciona e arrastar faz caixa
 	float MX = 0.f, MY = 0.f;
 	GetMousePosition(MX, MY);
+	// G: arma o proximo poder disponivel (G de novo passa ao seguinte); clique esquerdo no chao usa; Esc cancela
+	if (WasInputKeyJustPressed(EKeys::G) && !bCtrl)
+	{
+		TArray<FString> Prontos;
+		for (const AAoEBridgeActor::FAoEPower& Pw : B->Powers) if (!Pw.bUsed || Pw.Charges > 0) Prontos.Add(Pw.Id);
+		if (Prontos.Num() == 0) PowerArmed.Empty();
+		else { const int32 I = Prontos.IndexOfByKey(PowerArmed); PowerArmed = Prontos[(I + 1) % Prontos.Num()]; }
+	}
+	if (WasInputKeyJustPressed(EKeys::Escape)) PowerArmed.Empty();
+	// E na Biblioteca: avancar de Era; U num edificio: liberar a guarnicao; Delete: apagar a selecao (unidades ou o edificio)
+	if (B->SelBuilding != 0 && WasInputKeyJustPressed(EKeys::E) && B->SelBuildingType == TEXT("academy"))
+		B->SendCmd(TEXT("advanceAge"), TArray<int32>(), FString::Printf(TEXT("\"buildingId\":%d"), B->SelBuilding), false);
+	if (B->SelBuilding != 0 && WasInputKeyJustPressed(EKeys::U))
+		B->SendCmd(TEXT("ungarrison"), TArray<int32>(), FString::Printf(TEXT("\"buildingId\":%d"), B->SelBuilding), false);
+	if (WasInputKeyJustPressed(EKeys::Delete))
+	{
+		TArray<int32> Ids = B->GetSelected().Array();
+		if (B->SelBuilding != 0 && Ids.Num() == 0) Ids.Add(B->SelBuilding);
+		if (Ids.Num() > 0) B->SendCmd(TEXT("delete"), Ids, FString(), false);
+		B->SelBuilding = 0;
+	}
 	// minimapa: esquerdo (e arrastando) leva a camera; direito manda a selecao para la
 	if (AAoEHud* Hud = Cast<AAoEHud>(GetHUD()))
 	{
@@ -211,7 +238,20 @@ void AAoEPlayerController::PlayerTick(float Dt)
 	}
 	if (WasInputKeyJustPressed(EKeys::LeftMouseButton) && !bMouseOnMini)
 	{
-		if (!BuildPending.IsEmpty())
+		if (!PowerArmed.IsEmpty())
+		{
+			FHitResult Hit;
+			if (GetHitResultUnderCursor(ECC_Visibility, false, Hit))
+			{
+				int32 Alvo = 0; FString Kind;
+				const float Tx = Hit.ImpactPoint.X / B->UuPerTile, Ty = Hit.ImpactPoint.Y / B->UuPerTile;
+				FString Extra = FString::Printf(TEXT("\"power\":\"%s\",\"x\":%.2f,\"y\":%.2f"), *PowerArmed, Tx, Ty);
+				if (B->PickTarget(Tx, Ty, Alvo, Kind) && Kind == TEXT("attack")) Extra += FString::Printf(TEXT(",\"targetId\":%d"), Alvo);
+				B->SendCmd(TEXT("power"), B->GetSelected().Array(), Extra, false);
+			}
+			PowerArmed.Empty();
+		}
+		else if (!BuildPending.IsEmpty())
 		{
 			FHitResult Hit;
 			TArray<int32> Ids = B->GetSelected().Array();
@@ -301,13 +341,26 @@ void AAoEPlayerController::RunAutoTest(float Dt)
 			B->SendCmd(TEXT("train"), TArray<int32>(), FString::Printf(TEXT("\"buildingId\":%d,\"unit\":\"villager\""), Tc), false);
 			B->SendCmd(TEXT("build"), B->GetSelected().Array(), FString::Printf(TEXT("\"building\":\"house\",\"tx\":%d,\"ty\":%d"), (int32)B->MyCentroidTiles.X + 6, (int32)B->MyCentroidTiles.Y + 6), false);
 			UE_LOG(LogTemp, Log, TEXT("AOE_ORDER treino/construcao enviados (CC %d): cidadaos %d, casas %d"), Tc, OrderVill0, OrderHouse0);
+			// poder: o primeiro disponivel, no centro das nossas unidades (o mesmo caminho do G + clique)
+			FString Pw; for (const AAoEBridgeActor::FAoEPower& P : B->Powers) Pw += FString::Printf(TEXT("%s:%s "), *P.Id, P.bUsed ? TEXT("usado") : TEXT("pronto"));
+			UE_LOG(LogTemp, Log, TEXT("AOE_ORDER poderes antes: %s"), *Pw);
+			{
+				// alvo: a unidade inimiga mais proxima (raio, por exemplo, pede alvo), como o G + clique sobre ela
+				int32 Alvo = 0; FVector2D Pa = B->MyCentroidTiles; float Melhor = 1e9f;
+				for (const TPair<int32, FAoEVisual>& K : B->GetUnits()) if (K.Value.Dono != B->MyPlayer) { const float D = FVector2D::Distance(K.Value.To, B->MyCentroidTiles); if (D < Melhor) { Melhor = D; Alvo = K.Key; Pa = K.Value.To; } }
+				if (B->Powers.Num() > 0) B->SendCmd(TEXT("power"), TArray<int32>(), FString::Printf(TEXT("\"power\":\"%s\",\"x\":%.2f,\"y\":%.2f,\"targetId\":%d"), *B->Powers[0].Id, Pa.X, Pa.Y, Alvo), false);
+				UE_LOG(LogTemp, Log, TEXT("AOE_ORDER poder no alvo %d a %.1f tiles"), Alvo, Melhor);
+			}
+			if (Tc) B->SendCmd(TEXT("rally"), TArray<int32>(), FString::Printf(TEXT("\"buildingId\":%d,\"x\":%.2f,\"y\":%.2f"), Tc, B->MyCentroidTiles.X + 4.f, B->MyCentroidTiles.Y + 4.f), false);
 			OrderStage = 1; OrderT = 0.f;
 		}
 		else if (OrderStage == 1) { OrderT += Dt; if (OrderT > 40.f) {
 			int32 V = 0, Hs = 0;
 			for (const TPair<int32, FAoEVisual>& K : B->GetUnits()) if (K.Value.Dono == B->MyPlayer && K.Value.Type == TEXT("villager")) ++V;
 			for (const TPair<int32, FAoEVisual>& K : B->GetBuildings()) if (K.Value.Dono == B->MyPlayer && K.Value.Type == TEXT("house")) ++Hs;
-			UE_LOG(LogTemp, Log, TEXT("AOE_ORDER apos 40 s: cidadaos %d -> %d, casas %d -> %d"), OrderVill0, V, OrderHouse0, Hs); UE_LOG(LogTemp, Log, TEXT("AOE_ORDER distancia media final %.1f tiles (inicial %.1f)"), MeanDist(), OrderDist0); ConsoleCommand(TEXT("quit"), true); OrderStage = 2; } }
+			UE_LOG(LogTemp, Log, TEXT("AOE_ORDER apos 40 s: cidadaos %d -> %d, casas %d -> %d"), OrderVill0, V, OrderHouse0, Hs);
+			FString Pw; for (const AAoEBridgeActor::FAoEPower& P : B->Powers) Pw += FString::Printf(TEXT("%s:%s "), *P.Id, P.bUsed ? TEXT("usado") : TEXT("pronto"));
+			UE_LOG(LogTemp, Log, TEXT("AOE_ORDER poderes depois: %s"), *Pw); UE_LOG(LogTemp, Log, TEXT("AOE_ORDER distancia media final %.1f tiles (inicial %.1f)"), MeanDist(), OrderDist0); ConsoleCommand(TEXT("quit"), true); OrderStage = 2; } }
 		return;
 	}
 	if (Shots.Num() > 0)

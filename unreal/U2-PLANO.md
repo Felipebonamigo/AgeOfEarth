@@ -41,3 +41,5 @@ construir, treinar, pesquisar na Biblioteca, evoluir de Era, usar poderes, ver n
   **Pedido à nuvem** (precisa de `scripts/unreal/protocol.ts`): no `hello`, por tipo de edifício `age`, `cost`, `hotkey`, `trains[].cost`, `limit`; por
   tipo de unidade `cost`; e no `state` a fila de produção dos edifícios próprios e o progresso de pesquisa.
 - **U2c (névoa) e demais fatias** seguem como no plano acima.
+
+- **14/10, tarde**: poderes divinos (barra de ícones abaixo dos recursos; **G** arma/alterna, clique esquerdo usa no ponto ou na unidade inimiga sob o cursor; Esc cancela), **E** na Biblioteca avança de Era, **U** libera guarnição, **Delete** apaga a seleção, clique direito com edifício selecionado marca o **ponto de encontro**; painel do edifício mostra vida/obra e a fila. Efeitos de poder: raio (segmentos + clarão de luz), terremoto (anel de poeira), brilho divino (halo e coluna dourados). Teste automático: o raio usado pelo cliente gastou o poder (bolt: pronto → usado).

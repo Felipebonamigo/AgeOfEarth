@@ -259,3 +259,29 @@ return cor * chama * A * 6.0;
 
 fogo()
 unreal.log("AOE_FOGO ok")
+
+
+def raio():
+    """Raio de Zeus e brilho divino: aditivo, sem luz, cor por instância (PerInstanceCustomData 0..2 = RGB, 3 = intensidade)."""
+    mat = novo("M_Raio")
+    mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_ADDITIVE)
+    mat.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+    mat.set_editor_property("used_with_instanced_static_meshes", True)
+    ds = []
+    for i in range(4):
+        d = no(mat, unreal.MaterialExpressionPerInstanceCustomData, -900, 100 + i * 120)
+        d.set_editor_property("data_index", i)
+        ds.append(d)
+    fr = no(mat, unreal.MaterialExpressionFresnel, -900, -100)
+    c = custom(mat, "float nucleo = pow(saturate(1.0 - F), 2.5); return float3(R, G, B) * (0.25 + nucleo * 3.0) * I * 12.0;",
+               ["F", "R", "G", "B", "I"], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -500, 100)
+    mel.connect_material_expressions(fr, "", c, "F")
+    for nome, d in zip(("R", "G", "B", "I"), ds):
+        mel.connect_material_expressions(d, "", c, nome)
+    mel.connect_material_property(c, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    mel.recompile_material(mat)
+    unreal.EditorAssetLibrary.save_loaded_asset(mat)
+
+
+raio()
+unreal.log("AOE_RAIO ok")

@@ -268,6 +268,27 @@ void AAoEHud::DrawHUD()
 
 	DrawMinimap(B, K);
 
+	// ---- poderes divinos (abaixo da barra do topo, à esquerda): G arma/alterna, clique esquerdo usa
+	{
+		float Px = 18.f * K;
+		const float Py = BarH + 10.f * K, Ps = 46.f * K;
+		for (const AAoEBridgeActor::FAoEPower& Pw : B->Powers)
+		{
+			const bool bPronto = !Pw.bUsed || Pw.Charges > 0;
+			const bool bArmado = PC && PC->GetPowerArmed() == Pw.Id;
+			DrawRect(bArmado ? FLinearColor(0.95f, 0.75f, 0.3f, 0.9f) : FLinearColor(0.f, 0.f, 0.f, 0.55f), Px - 2.f, Py - 2.f, Ps + 4.f, Ps + 4.f);
+			Icon(TEXT("power/") + Pw.Id, Px, Py, Ps, bPronto ? FLinearColor::White : FLinearColor(0.35f, 0.35f, 0.35f, 0.8f));
+			if (Pw.Charges > 0) Text(FString::Printf(TEXT("%d"), Pw.Charges + (Pw.bUsed ? 0 : 1)), Px + Ps - 12.f * K, Py + Ps - 18.f * K, FMath::RoundToInt(13.f * K), Ouro);
+			Px += Ps + 8.f * K;
+		}
+		if (PC && !PC->GetPowerArmed().IsEmpty())
+		{
+			const FString* Nm = B->PowerNames.Find(PC->GetPowerArmed());
+			const FString S = FString::Printf(TEXT("Poder %s — clique no alvo · G: próximo · Esc: cancelar"), Nm ? **Nm : *PC->GetPowerArmed());
+			Text(S, (Sx - (float)Measure(S, FMath::RoundToInt(16.f * K)).X) * 0.5f, BarH + 16.f * K, FMath::RoundToInt(16.f * K), FLinearColor(0.95f, 0.8f, 0.45f));
+		}
+	}
+
 	// ---- caixa de seleção ----
 	FVector2D A, Bp;
 	if (PC && PC->GetDragRect(A, Bp))
@@ -310,6 +331,20 @@ void AAoEHud::DrawHUD()
 				Text(Keys[i], Bx + Bs - 16.f * K, By + Bs - 20.f * K, Small, Ouro);
 			}
 		else Text(TEXT("Este edifício não treina unidades"), PanX + 126.f * K, PanY + 70.f * K, Small, Apagado, false);
+		if (const FAoEVisual* Bv = B->GetBuildings().Find(B->SelBuilding))
+		{
+			// vida (ou obra) e fila, na coluna da direita do painel
+			const float Cx = PanX + PanW - 210.f * K, Cy = PanY + 40.f * K, Bw = 180.f * K;
+			const bool bObra = Bv->Progress < 1.f;
+			const float F = bObra ? Bv->Progress : FMath::Clamp(Bv->Hp01, 0.f, 1.f);
+			Text(bObra ? FString::Printf(TEXT("Em obra %d%%"), FMath::RoundToInt(F * 100.f)) : FString::Printf(TEXT("Vida %d%%"), FMath::RoundToInt(F * 100.f)), Cx, Cy, Small, Pergaminho, false);
+			DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.7f), Cx, Cy + 22.f * K, Bw, 8.f * K);
+			DrawRect(bObra ? FLinearColor(0.85f, 0.7f, 0.3f) : (F > 0.5f ? FLinearColor(0.35f, 0.8f, 0.3f) : FLinearColor(0.9f, 0.3f, 0.2f)), Cx, Cy + 22.f * K, Bw * F, 8.f * K);
+			if (Bv->Queue > 0) Text(FString::Printf(TEXT("Fila: %d"), Bv->Queue), Cx, Cy + 40.f * K, Small, Ouro);
+			FString Acoes = TEXT("Clique dir.: ponto de encontro · U: liberar guarnição");
+			if (B->SelBuildingType == TEXT("academy")) Acoes = TEXT("E: avançar de Era · ") + Acoes;
+			Text(Acoes, PanX + 126.f * K, PanY + PanH - 26.f * K, FMath::RoundToInt(12.f * K), Apagado, false);
+		}
 	}
 	else if (B->GetSelected().Num() > 0)
 	{

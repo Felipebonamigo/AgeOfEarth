@@ -1,4 +1,5 @@
 #include "AoEBridgeActor.h"
+#include "Components/PointLightComponent.h"
 #include "Engine/DecalActor.h"
 #include "Components/DecalComponent.h"
 #include "Misc/Base64.h"
@@ -265,6 +266,15 @@ void AAoEBridgeActor::BeginPlay()
 		StoneISM = MakeIsm(Sphere, MastroMat, true, 0);
 		PuffISM = MakeIsm(Sphere, LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_Poeira.M_Poeira")), false, 2);
 		FireISM = MakeIsm(Sphere, LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_Fogo.M_Fogo")), false, 1);
+		GlowISM = MakeIsm(CylMesh, LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_Raio.M_Raio")), false, 4);
+		FlashLight = NewObject<UPointLightComponent>(this);
+		FlashLight->SetMobility(EComponentMobility::Movable);
+		FlashLight->SetIntensity(0.f);
+		FlashLight->SetAttenuationRadius(4000.f);
+		FlashLight->SetLightColor(FLinearColor(0.75f, 0.85f, 1.f));
+		FlashLight->SetCastShadows(false);
+		FlashLight->SetupAttachment(GetRootComponent());
+		FlashLight->RegisterComponent();
 	}
 	if (FParse::Param(FCommandLine::Get(), TEXT("AoEVitrine"))) { SpawnVitrine(); return; }
 	Connect();
@@ -365,6 +375,14 @@ void AAoEBridgeActor::HandleHello(const TSharedPtr<FJsonObject>& O)
 		BuildingNames.Add(KV.Key, (*D)->GetStringField(TEXT("name")));
 		const TArray<TSharedPtr<FJsonValue>>* Tr = nullptr;
 		if ((*D)->TryGetArrayField(TEXT("trains"), Tr)) { TArray<FString> L; for (const TSharedPtr<FJsonValue>& U : *Tr) L.Add(U->AsString()); BuildingTrains.Add(KV.Key, L); }
+	}
+	PowerNames.Empty();
+	const TSharedPtr<FJsonObject>* HudGods = nullptr;
+	if (O->TryGetObjectField(TEXT("gods"), HudGods)) for (const TPair<FString, TSharedPtr<FJsonValue>>& KV : (*HudGods)->Values)
+	{
+		const TSharedPtr<FJsonObject>* D = nullptr;
+		FString Pw;
+		if (KV.Value->TryGetObject(D) && (*D)->TryGetStringField(TEXT("power"), Pw)) PowerNames.Add(Pw, (*D)->GetStringField(TEXT("name")));
 	}
 	const TSharedPtr<FJsonObject>* HudUT = nullptr;
 	if (O->TryGetObjectField(TEXT("unitTypes"), HudUT)) for (const TPair<FString, TSharedPtr<FJsonValue>>& KV : (*HudUT)->Values)
@@ -650,6 +668,17 @@ void AAoEBridgeActor::HandleState(const TSharedPtr<FJsonObject>& O)
 	{
 		const TSharedPtr<FJsonObject>* Res = nullptr;
 		if ((*MeObj)->TryGetObjectField(TEXT("resources"), Res)) for (const TPair<FString, TSharedPtr<FJsonValue>>& KV : (*Res)->Values) { const int32 Amount = (int32)KV.Value->AsNumber(); Resources.Add(KV.Key, Amount); }
+		Powers.Empty();
+		const TArray<TSharedPtr<FJsonValue>>* Pw = nullptr;
+		if ((*MeObj)->TryGetArrayField(TEXT("powers"), Pw))
+			for (const TSharedPtr<FJsonValue>& V : *Pw)
+			{
+				const TSharedPtr<FJsonObject>* PO = nullptr;
+				if (!V->TryGetObject(PO)) continue;
+				FAoEPower P; P.Id = (*PO)->GetStringField(TEXT("id")); (*PO)->TryGetBoolField(TEXT("used"), P.bUsed);
+				double Ch = 0; (*PO)->TryGetNumberField(TEXT("charges"), Ch); P.Charges = (int32)Ch;
+				Powers.Add(P);
+			}
 		Pop = (int32)(*MeObj)->GetNumberField(TEXT("pop")); PopCap = (int32)(*MeObj)->GetNumberField(TEXT("popCap")); Age = (int32)(*MeObj)->GetNumberField(TEXT("age"));
 		bool bAlive = true; (*MeObj)->TryGetBoolField(TEXT("alive"), bAlive); bGameOver = !bAlive;
 	}
@@ -791,6 +820,7 @@ void AAoEBridgeActor::HandleState(const TSharedPtr<FJsonObject>& O)
 				UE_LOG(LogTemp, Log, TEXT("AoE: edificio %s id %d dono %d tile (%.1f, %.1f) z %.0f escala %.2f altura %.0f"), *Vis->Type, Id, Dono, Center.X, Center.Y, Vis->ToZ, Vis->BaseScale, Vis->MeshHeight);
 			}
 			Vis->Progress = Prog;
+			{ double Q = 0; B->TryGetNumberField(TEXT("q"), Q); Vis->Queue = (int32)Q; }
 			double Hp = 1, Mhp = 1;
 			B->TryGetNumberField(TEXT("hp"), Hp); B->TryGetNumberField(TEXT("mhp"), Mhp);
 			Vis->Hp01 = Mhp > 0 ? (float)(Hp / Mhp) : 1.f;
@@ -920,8 +950,9 @@ void AAoEBridgeActor::Tick(float Dt)
 	if (FParse::Param(FCommandLine::Get(), TEXT("AoEVitrine")) && FMath::Fmod(Clock, 0.5f) < Dt)
 	{
 		// vitrine: rajada de efeitos de teste (flechas e pedras em arco, poeira de golpe e de desabamento) entre as fileiras
-		FAoEProj P; P.A = FVector(14.f * 200.f, 22.f * 200.f, VitrineZ + 150.f); P.B = FVector((16.f + FMath::FRand() * 20.f) * 200.f, 30.f * 200.f, VitrineZ + 90.f);
-		P.Dur = 1.0f; P.Apex = 500.f; P.bStone = FMath::FRand() < 0.3f; Projs.Add(P);
+		FAoEProj Pv; Pv.A = FVector(14.f * 200.f, 22.f * 200.f, VitrineZ + 150.f); Pv.B = FVector((16.f + FMath::FRand() * 20.f) * 200.f, 30.f * 200.f, VitrineZ + 90.f);
+		Pv.Dur = 1.0f; Pv.Apex = 500.f; Pv.bStone = FMath::FRand() < 0.3f; Projs.Add(Pv);
+		if (FMath::Fmod(Clock, 1.5f) < Dt) { AddBolt(FVector(36.f * 200.f, 20.f * 200.f, VitrineZ)); FAoEGlow Gw; Gw.P = FVector(42.f * 200.f, 20.f * 200.f, VitrineZ); Gw.Dur = 1.6f; Gw.Size = FVector(12.f, 12.f, 0.06f); Gw.Cor = FLinearColor(1.f, 0.78f, 0.35f) * 0.06f; /* halo dourado leve no chao */ Glows.Add(Gw); FAoEGlow Col = Gw; Col.Size = FVector(0.35f, 0.35f, 12.f); Col.P.Z += 600.f; Col.Cor = FLinearColor(1.f, 0.82f, 0.45f) * 0.35f; Glows.Add(Col); }
 		if (FMath::Fmod(Clock, 4.f) < Dt) { AddPuffs(FVector(30.f * 200.f, 30.f * 200.f, VitrineZ), 26, 90.f, 260.f, 3.8f, 0.15f, 300.f); AddPuffs(FVector(27.f * 200.f, 29.f * 200.f, VitrineZ), 2, 35.f, 110.f, 1.4f, 0.f, 40.f); }
 	}
 	Clock += Dt;
@@ -1139,6 +1170,22 @@ void AAoEBridgeActor::HandleEffects(const TSharedPtr<FJsonObject>& O)
 		else if (T == TEXT("death")) AddPuffs(FVector(X, Y, GroundZ(X, Y)), 2, 35.f, 110.f, 1.4f, 0.f, 40.f);
 		else if (T == TEXT("collapse")) AddPuffs(FVector(X, Y, GroundZ(X, Y)), 26, 90.f, 260.f, 3.8f, 0.15f, 300.f);
 		else if (T == TEXT("splash")) AddPuffs(FVector(X, Y, GroundZ(X, Y)), 3, 30.f, 120.f, 0.9f, -0.5f, 40.f);
+		else if (T == TEXT("bolt")) AddBolt(FVector(X, Y, GroundZ(X, Y)));
+		else if (T == TEXT("quake"))
+		{
+			double R = 7; E->TryGetNumberField(TEXT("data"), R);
+			const FVector G(X, Y, GroundZ(X, Y));
+			for (int32 i = 0; i < 18; ++i) { const float A = i / 18.f * 2.f * PI; AddPuffs(G + FVector(FMath::Cos(A), FMath::Sin(A), 0.f) * R * Uu * 0.6f, 1, 120.f, 380.f, 4.5f, 0.1f, 120.f); }
+		}
+		else if (T == TEXT("divine"))
+		{
+			double R = 3; E->TryGetNumberField(TEXT("data"), R);
+			FAoEGlow Gw; Gw.P = FVector(X, Y, GroundZ(X, Y)); Gw.Dur = 1.6f;
+			Gw.Size = FVector(R * Uu * 2.f / 100.f, R * Uu * 2.f / 100.f, 0.06f);
+			Gw.Cor = FLinearColor(1.f, 0.78f, 0.35f) * 0.06f; /* halo dourado leve no chao */
+			Glows.Add(Gw);
+			FAoEGlow Col = Gw; Col.Size = FVector(0.35f, 0.35f, 12.f); Col.P.Z += 600.f; Col.Cor = FLinearColor(1.f, 0.82f, 0.45f) * 0.35f; Col.Dur = 1.2f; Glows.Add(Col);
+		}
 	}
 }
 
@@ -1160,6 +1207,24 @@ void AAoEBridgeActor::TickEffects(float Dt)
 		else Arrows.Add(FTransform(FRotationMatrix::MakeFromZ(Dir).Rotator(), Pos, FVector(0.02f, 0.02f, 0.75f)));
 	}
 	ArrowISM->ClearInstances(); if (Arrows.Num()) ArrowISM->AddInstances(Arrows, false, true);
+	// brilhos de poder: aparecem forte e somem; o clarao do raio ilumina a cena por um instante
+	if (GlowISM)
+	{
+		GlowISM->ClearInstances();
+		for (int32 i = Glows.Num() - 1; i >= 0; --i)
+		{
+			FAoEGlow& G = Glows[i];
+			G.T += Dt;
+			if (G.T >= G.Dur) { Glows.RemoveAtSwap(i); continue; }
+			const float K = G.T / G.Dur;
+			const float I = FMath::Clamp((1.f - K) * (K < 0.08f ? K / 0.08f : 1.f), 0.f, 1.f) * (0.75f + 0.25f * FMath::Sin(G.T * 60.f));
+			const int32 N = GlowISM->AddInstance(FTransform(G.R, G.P, G.Size));
+			GlowISM->SetCustomDataValue(N, 0, G.Cor.R, false); GlowISM->SetCustomDataValue(N, 1, G.Cor.G, false);
+			GlowISM->SetCustomDataValue(N, 2, G.Cor.B, false); GlowISM->SetCustomDataValue(N, 3, I, false);
+		}
+		GlowISM->MarkRenderStateDirty();
+	}
+	if (FlashLight) { FlashT += Dt; FlashLight->SetIntensity(FlashT < 0.35f ? 600000.f * (1.f - FlashT / 0.35f) * (0.6f + 0.4f * FMath::Sin(FlashT * 90.f)) : 0.f); }
 	StoneISM->ClearInstances(); if (Stones.Num()) StoneISM->AddInstances(Stones, false, true);
 	// poeira: cresce, sobe, desacelera e some
 	PuffISM->ClearInstances();
@@ -1303,4 +1368,30 @@ void AAoEBridgeActor::TickBirds(float Dt)
 			B.NextFlap = B.bFlap ? FMath::FRandRange(1.2f, 2.5f) : FMath::FRandRange(B.bEagle ? 5.f : 2.5f, B.bEagle ? 10.f : 5.f);
 		}
 	}
+}
+
+void AAoEBridgeActor::AddBolt(const FVector& Ground)
+{
+	// raio: do alto ate o chao em 7 segmentos com desvio aleatorio, mais dois galhos; clarao de luz e poeira no impacto
+	FVector A = Ground + FVector(FMath::FRandRange(-300.f, 300.f), FMath::FRandRange(-300.f, 300.f), 4500.f);
+	const int32 Seg = 7;
+	for (int32 i = 0; i < Seg; ++i)
+	{
+		const float K = (i + 1.f) / Seg;
+		FVector B = FMath::Lerp(A, Ground, 1.f / (Seg - i));
+		if (i < Seg - 1) B += FVector(FMath::FRandRange(-220.f, 220.f), FMath::FRandRange(-220.f, 220.f), 0.f) * (1.f - K);
+		const FVector D = B - A;
+		FAoEGlow G; G.P = (A + B) * 0.5f; G.R = FRotationMatrix::MakeFromZ(D.GetSafeNormal()).Rotator();
+		G.Size = FVector(0.16f, 0.16f, D.Size() / 100.f); G.Cor = FLinearColor(0.7f, 0.82f, 1.f); G.Dur = 0.45f;
+		Glows.Add(G);
+		if (i == 2 || i == 4)
+		{
+			const FVector Br = B + FVector(FMath::FRandRange(-500.f, 500.f), FMath::FRandRange(-500.f, 500.f), -FMath::FRandRange(300.f, 700.f));
+			FAoEGlow Gb = G; Gb.P = (B + Br) * 0.5f; Gb.R = FRotationMatrix::MakeFromZ((Br - B).GetSafeNormal()).Rotator();
+			Gb.Size = FVector(0.08f, 0.08f, (Br - B).Size() / 100.f); Gb.Dur = 0.3f; Glows.Add(Gb);
+		}
+		A = B;
+	}
+	if (FlashLight) { FlashLight->SetWorldLocation(Ground + FVector(0, 0, 800.f)); FlashT = 0.f; }
+	AddPuffs(Ground, 6, 60.f, 260.f, 2.5f, 0.6f, 120.f);
 }

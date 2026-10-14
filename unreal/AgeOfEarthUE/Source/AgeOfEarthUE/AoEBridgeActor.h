@@ -72,7 +72,8 @@ struct FAoEVisual
 	int32 AnimSeed = 0;          // sorteio fixo da variante de animacao desta unidade
 	FVector2D CenterOfs = FVector2D::ZeroVector;   // centro da malha esqueletica fora da origem (cavalo, raposa...), ja escalado (cm)
 	FVector GroundPoint = FVector::ZeroVector;      // ponto da simulacao no chao (onde vai o disco)
-	float FxT = 0.f;             // edificio: relogio dos efeitos de ambiente (chamine, fumaca de dano, poeira de obra)
+	float FxT = 0.f;
+	int32 Queue = 0;             // edificio: itens na fila de producao (state.buildings[].q)             // edificio: relogio dos efeitos de ambiente (chamine, fumaca de dano, poeira de obra)
 };
 
 /** Corpo que cai e some depois de uma morte. */
@@ -122,6 +123,9 @@ public:
 	TArray<FString> AgeNames;
 	bool bGameOver = false;
 	// mapa do hello para o minimapa: TERRAIN do nucleo (0 grama, 1 agua, 2 montanha, 3 areia, 4 terra, 5 agua funda, 6 baixio)
+	struct FAoEPower { FString Id; bool bUsed = false; int32 Charges = 0; };
+	TArray<FAoEPower> Powers;                          // state.me.powers
+	TMap<FString, FString> PowerNames;                 // poder -> nome (hello.gods[].power)
 	int32 MapW = 0, MapH = 0;
 	TArray<uint8> MapTerrain;
 	int32 MapSerial = 0;                              // muda a cada hello (o HUD refaz a textura)
@@ -217,6 +221,13 @@ private:
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> StoneISM;
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> PuffISM;
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> FireISM;
+	// poderes: raio (segmentos em zigue-zague + clarão de luz), brilho divino (anel/coluna dourada que sobe)
+	struct FAoEGlow { FVector P; FVector Size; FLinearColor Cor; float T = 0.f, Dur = 0.5f; FRotator R = FRotator::ZeroRotator; };
+	TArray<FAoEGlow> Glows;
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> GlowISM;
+	UPROPERTY() TObjectPtr<class UPointLightComponent> FlashLight;
+	float FlashT = 9.f;
+	void AddBolt(const FVector& Ground);
 	void AmbientFx(int32 Id, FAoEVisual& V, float Dt);
 	// aves de ambiente (sem simulacao): gaivotas circulando sobre a agua perto da costa, aguias sobre a terra alta
 	struct FAoEBird { TWeakObjectPtr<USkeletalMeshComponent> K; FVector C; float R = 1000.f, Z = 1500.f, W = 0.3f, A = 0.f, NextFlap = 0.f; bool bFlap = false; bool bEagle = false; };

@@ -59,6 +59,10 @@ private:
 	bool bAttackMoveArmed = false;
 	bool bBuildMenu = false;
 	bool bMouseOnMini = false;
+	FString PowerArmed;                                // poder escolhido com G: o proximo clique esquerdo no chao o usa
+public:
+	const FString& GetPowerArmed() const { return PowerArmed; }
+private:
 	FString BuildPending;
 	// -AoEOrderTest: seleciona tudo, manda coletar o no mais proximo pelo caminho do clique direito e mede se as unidades chegaram perto
 	int32 OrderStage = 0; float OrderT = 0.f; int32 OrderNode = 0; FVector2D OrderTile = FVector2D::ZeroVector; float OrderDist0 = 0.f; int32 OrderVill0 = 0, OrderHouse0 = 0;
