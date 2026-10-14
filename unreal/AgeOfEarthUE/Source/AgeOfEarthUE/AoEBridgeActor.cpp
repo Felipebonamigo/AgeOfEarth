@@ -246,6 +246,7 @@ float AAoEBridgeActor::GroundZ(float X, float Y) const
 
 void AAoEBridgeActor::SpawnNode(int32 Id, const FString& Type, float X, float Y)
 {
+	NodeTile.Add(Id, FVector2D(X, Y));
 	const FAoEDef* Def = NodeDefs.Find(Type);
 	if (!Def || Def->Meshes.Num() == 0) return;
 	const FString& Short = Def->Meshes[(int32)(Hash01(Id, 1) * Def->Meshes.Num()) % Def->Meshes.Num()];
@@ -281,6 +282,7 @@ void AAoEBridgeActor::SpawnNode(int32 Id, const FString& Type, float X, float Y)
 
 void AAoEBridgeActor::RemoveNode(int32 Id)
 {
+	NodeTile.Remove(Id);
 	FNodeRef* R = NodeRefs.Find(Id);
 	if (!R) return;
 	if (UHierarchicalInstancedStaticMeshComponent* C = R->Comp.Get())
@@ -762,4 +764,44 @@ void AAoEBridgeActor::SendMove(const TArray<int32>& Ids, float TileX, float Tile
 	for (int32 i = 0; i < Ids.Num(); ++i) IdList += (i ? TEXT(",") : TEXT("")) + FString::FromInt(Ids[i]);
 	Socket->Send(FString::Printf(TEXT("{\"type\":\"cmd\",\"cmd\":{\"type\":\"move\",\"player\":%d,\"ids\":[%s],\"x\":%.2f,\"y\":%.2f}}"),
 		MyPlayer, *IdList, TileX, TileY));
+}
+
+void AAoEBridgeActor::SendCmd(const FString& Type, const TArray<int32>& Ids, const FString& Extra, bool bQueue)
+{
+	if (!Socket.IsValid() || !bConnected) return;
+	FString IdList;
+	for (int32 i = 0; i < Ids.Num(); ++i) IdList += (i ? TEXT(",") : TEXT("")) + FString::FromInt(Ids[i]);
+	FString Body = FString::Printf(TEXT("\"type\":\"%s\",\"player\":%d"), *Type, MyPlayer);
+	if (Ids.Num() > 0) Body += FString::Printf(TEXT(",\"ids\":[%s]"), *IdList);
+	if (!Extra.IsEmpty()) Body += TEXT(",") + Extra;
+	if (bQueue) Body += TEXT(",\"queue\":true");
+	Socket->Send(FString::Printf(TEXT("{\"type\":\"cmd\",\"cmd\":{%s}}"), *Body));
+}
+
+bool AAoEBridgeActor::PickTarget(float TileX, float TileY, int32& OutId, FString& OutKind) const
+{
+	const FVector2D P(TileX, TileY);
+	float Best = 1.0f * 1.0f;
+	bool bFound = false;
+	for (const TPair<int32, FAoEVisual>& K : Units)
+	{
+		if (K.Value.Dono == MyPlayer) continue;
+		const float D = FVector2D::DistSquared(FMath::Lerp(K.Value.From, K.Value.To, K.Value.Alpha), P);
+		if (D < Best) { Best = D; OutId = K.Key; OutKind = TEXT("attack"); bFound = true; }
+	}
+	if (bFound) return true;
+	for (const TPair<int32, FAoEVisual>& K : Buildings)
+	{
+		if (K.Value.Dono == MyPlayer) continue;
+		const FIntPoint* S = BuildingSize.Find(K.Value.Type);
+		const float Hw = (S ? S->X : 2) * 0.5f + 0.3f, Hh = (S ? S->Y : 2) * 0.5f + 0.3f;
+		if (FMath::Abs(P.X - K.Value.To.X) <= Hw && FMath::Abs(P.Y - K.Value.To.Y) <= Hh) { OutId = K.Key; OutKind = TEXT("attack"); return true; }
+	}
+	Best = 0.9f * 0.9f;
+	for (const TPair<int32, FVector2D>& K : NodeTile)
+	{
+		const float D = FVector2D::DistSquared(K.Value, P);
+		if (D < Best) { Best = D; OutId = K.Key; OutKind = TEXT("gather"); bFound = true; }
+	}
+	return bFound;
 }

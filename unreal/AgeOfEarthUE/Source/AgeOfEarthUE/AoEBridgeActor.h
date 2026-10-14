@@ -96,6 +96,12 @@ public:
 	void SetSelected(const TSet<int32>& Ids) { Selected = Ids; }
 	const TSet<int32>& GetSelected() const { return Selected; }
 	void SendMove(const TArray<int32>& Ids, float TileX, float TileY);
+	/** Comando generico por tipo: Extra e o miolo JSON ja formatado (ex.: "\"x\":3,\"y\":4"). Ids vazio = so o extra. */
+	void SendCmd(const FString& Type, const TArray<int32>& Ids, const FString& Extra, bool bQueue);
+	/** O que ha sob o ponto (em tiles)? Prioridade: unidade inimiga > edificio inimigo > no de recurso. Kind: "attack" ou "gather". */
+	bool PickTarget(float TileX, float TileY, int32& OutId, FString& OutKind) const;
+	const TMap<int32, FAoEVisual>& GetUnits() const { return Units; }
+	const TMap<int32, FVector2D>& GetNodeTiles() const { return NodeTile; }
 	/** Altura do chao (Landscape) em uu, ou 0 se nao houver. */
 	float GroundZ(float X, float Y) const;
 
@@ -145,6 +151,7 @@ private:
 	// nos de recurso: uma malha instanciada por variante
 	struct FNodeRef { TWeakObjectPtr<UHierarchicalInstancedStaticMeshComponent> Comp; int32 Index = -1; };
 	TMap<int32, FNodeRef> NodeRefs;
+	TMap<int32, FVector2D> NodeTile;            // posicao (tiles) de cada no, mesmo sem malha, para o clique direito
 	UPROPERTY() TMap<FString, TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> NodeComps;
 	UPROPERTY() TMap<FString, TObjectPtr<UStaticMesh>> MeshCache;
 	UPROPERTY() TObjectPtr<UAnimSequence> AnimIdle;
