@@ -974,7 +974,8 @@ void AAoEBridgeActor::Tick(float Dt)
 			AActor* A = P.Value.Actor.Get();
 			if (A)
 			{
-				const FVector Base(P.Value.To.X * UuPerTile + Fp * 0.5f, P.Value.To.Y * UuPerTile + Fp * 0.5f, P.Value.ToZ);
+				// mastro no canto, um pouco para fora da pegada (em torre/edificio alto o pano nao entra na parede)
+				const FVector Base(P.Value.To.X * UuPerTile + Fp * 0.5f + 35.f, P.Value.To.Y * UuPerTile + Fp * 0.5f + 35.f, GroundZ(P.Value.To.X * UuPerTile + Fp * 0.5f + 35.f, P.Value.To.Y * UuPerTile + Fp * 0.5f + 35.f));
 				const float Sway = FMath::Sin(Clock * 2.2f + P.Key) * 4.f;
 				if (UStaticMeshComponent* Po = P.Value.Pole.Get()) { Po->SetWorldScale3D(MastroMat ? FVector(0.06f, 0.06f, 4.4f) : FVector(0.07f, 0.07f, 4.2f)); Po->SetWorldLocation(Base + FVector(0, 0, 220.f)); Po->SetWorldRotation(FRotator::ZeroRotator); }
 				if (EstandarteMat)
