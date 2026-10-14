@@ -1086,7 +1086,8 @@ void AAoEBridgeActor::Tick(float Dt)
 		AmbientFx(P.Key, P.Value, Dt);
 		if (UStaticMeshComponent* D = P.Value.Disc.Get())
 		{
-			// bandeira do dono no canto sudeste do edificio: mastro de 4 m e pano de 1,3 m x 0,8 m
+			// bandeira do dono no canto sudeste do edificio: mastro so um pouco acima do telhado (2,6-5,2 m; os de 4,4 m em toda
+			// casa viravam um paliteiro de longe) e pano de 0,85 m x 0,55 m perto do topo
 			const FIntPoint* Sz = BuildingSize.Find(P.Value.Type);
 			const float Fp = (Sz ? FMath::Min(Sz->X, Sz->Y) : 2) * (float)UuPerTile;
 			AActor* A = P.Value.Actor.Get();
@@ -1095,18 +1096,19 @@ void AAoEBridgeActor::Tick(float Dt)
 				// mastro no canto, um pouco para fora da pegada (em torre/edificio alto o pano nao entra na parede)
 				const FVector Base(P.Value.To.X * UuPerTile + Fp * 0.5f + 35.f, P.Value.To.Y * UuPerTile + Fp * 0.5f + 35.f, GroundZ(P.Value.To.X * UuPerTile + Fp * 0.5f + 35.f, P.Value.To.Y * UuPerTile + Fp * 0.5f + 35.f));
 				const float Sway = FMath::Sin(Clock * 2.2f + P.Key) * 4.f;
-				if (UStaticMeshComponent* Po = P.Value.Pole.Get()) { Po->SetWorldScale3D(MastroMat ? FVector(0.06f, 0.06f, 4.4f) : FVector(0.07f, 0.07f, 4.2f)); Po->SetWorldLocation(Base + FVector(0, 0, 220.f)); Po->SetWorldRotation(FRotator::ZeroRotator); }
+				const float Hm = FMath::Clamp(P.Value.MeshHeight + 60.f, 260.f, 520.f);
+				if (UStaticMeshComponent* Po = P.Value.Pole.Get()) { Po->SetWorldScale3D(FVector(0.06f, 0.06f, Hm / 100.f)); Po->SetWorldLocation(Base + FVector(0, 0, Hm * 0.5f)); Po->SetWorldRotation(FRotator::ZeroRotator); }
 				if (EstandarteMat)
 				{
 					// plano em pe (Roll 90): X = comprimento do pano a partir do mastro, Y = altura; o vento esta no material
 					D->SetWorldScale3D(FVector(0.85f, 0.55f, 1.f));
 					D->SetWorldRotation(FRotator(0.f, 35.f, 90.f));
-					D->SetWorldLocation(Base + FRotator(0.f, 35.f, 0.f).RotateVector(FVector(45.f, 0.f, 0.f)) + FVector(0, 0, 400.f));
+					D->SetWorldLocation(Base + FRotator(0.f, 35.f, 0.f).RotateVector(FVector(45.f, 0.f, 0.f)) + FVector(0, 0, Hm - 40.f));
 				}
 				else
 				{
 					D->SetWorldScale3D(FVector(0.03f, 1.3f, 0.8f));
-					D->SetWorldLocation(Base + FVector(Sway, -70.f, 360.f));
+					D->SetWorldLocation(Base + FVector(Sway, -70.f, Hm - 40.f));
 					D->SetWorldRotation(FRotator(0.f, Sway * 0.6f, 0.f));
 				}
 			}
