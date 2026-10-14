@@ -121,6 +121,11 @@ public:
 	int32 Pop = 0, PopCap = 0, Age = 0;
 	TArray<FString> AgeNames;
 	bool bGameOver = false;
+	// mapa do hello para o minimapa: TERRAIN do nucleo (0 grama, 1 agua, 2 montanha, 3 areia, 4 terra, 5 agua funda, 6 baixio)
+	int32 MapW = 0, MapH = 0;
+	TArray<uint8> MapTerrain;
+	int32 MapSerial = 0;                              // muda a cada hello (o HUD refaz a textura)
+	FLinearColor ColorOf(int32 Dono) const { return PlayerColor(Dono); }
 	TMap<FString, TArray<FString>> BuildingTrains;   // tipo de edificio -> tipos de unidade que treina
 	TMap<FString, FString> UnitNames, BuildingNames;
 	int32 SelBuilding = 0;                            // edificio proprio selecionado (0 = nenhum)

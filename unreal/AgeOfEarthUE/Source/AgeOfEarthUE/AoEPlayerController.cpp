@@ -1,6 +1,7 @@
 #include "AoEPlayerController.h"
 
 #include "AoEBridgeActor.h"
+#include "AoEHud.h"
 #include "UnrealClient.h"
 #include "EngineUtils.h"
 #include "Camera/CameraComponent.h"
@@ -194,7 +195,21 @@ void AAoEPlayerController::PlayerTick(float Dt)
 	// esquerdo: A armado = atacar-mover; senao clique seleciona e arrastar faz caixa
 	float MX = 0.f, MY = 0.f;
 	GetMousePosition(MX, MY);
-	if (WasInputKeyJustPressed(EKeys::LeftMouseButton))
+	// minimapa: esquerdo (e arrastando) leva a camera; direito manda a selecao para la
+	if (AAoEHud* Hud = Cast<AAoEHud>(GetHUD()))
+	{
+		FVector2D Tile;
+		const FVector2D Mouse(MX, MY);
+		if (Hud->MiniToTile(Mouse, Tile) && !bDragging)
+		{
+			if (IsInputKeyDown(EKeys::LeftMouseButton) && GetPawn())
+				GetPawn()->SetActorLocation(FVector(Tile.X * B->UuPerTile, Tile.Y * B->UuPerTile, B->GroundZ(Tile.X * B->UuPerTile, Tile.Y * B->UuPerTile)));
+			if (WasInputKeyJustPressed(EKeys::RightMouseButton)) ContextOrder(Tile.X, Tile.Y, bShift);
+			bMouseOnMini = true;
+		}
+		else bMouseOnMini = false;
+	}
+	if (WasInputKeyJustPressed(EKeys::LeftMouseButton) && !bMouseOnMini)
 	{
 		if (!BuildPending.IsEmpty())
 		{
@@ -249,7 +264,7 @@ void AAoEPlayerController::PlayerTick(float Dt)
 		B->SetSelected(Sel);
 	}
 	// direito: ordem contextual
-	if (WasInputKeyJustPressed(EKeys::RightMouseButton))
+	if (WasInputKeyJustPressed(EKeys::RightMouseButton) && !bMouseOnMini)
 	{
 		bAttackMoveArmed = false;
 		FHitResult Hit;

@@ -58,6 +58,7 @@ private:
 	// U2a: A + clique = atacar-mover; caixa de selecao arrastando o esquerdo; Ctrl+1..9 grava grupo, 1..9 chama
 	bool bAttackMoveArmed = false;
 	bool bBuildMenu = false;
+	bool bMouseOnMini = false;
 	FString BuildPending;
 	// -AoEOrderTest: seleciona tudo, manda coletar o no mais proximo pelo caminho do clique direito e mede se as unidades chegaram perto
 	int32 OrderStage = 0; float OrderT = 0.f; int32 OrderNode = 0; FVector2D OrderTile = FVector2D::ZeroVector; float OrderDist0 = 0.f; int32 OrderVill0 = 0, OrderHouse0 = 0;

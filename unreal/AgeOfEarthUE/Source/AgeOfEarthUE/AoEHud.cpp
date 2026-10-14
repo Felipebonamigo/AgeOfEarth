@@ -122,6 +122,108 @@ bool AAoEHud::Icon(const FString& Key, float X, float Y, float Size, const FLine
 	return true;
 }
 
+bool AAoEHud::MiniToTile(const FVector2D& S, FVector2D& OutTile) const
+{
+	if (!MiniRect.bIsValid || MiniW <= 0 || !MiniRect.IsInside(S)) return false;
+	const FVector2D Sz = MiniRect.GetSize();
+	OutTile = FVector2D((S.X - MiniRect.Min.X) / Sz.X * MiniW, (S.Y - MiniRect.Min.Y) / Sz.Y * MiniH);
+	return true;
+}
+
+void AAoEHud::BuildMinimap(AAoEBridgeActor* B)
+{
+	MiniSerial = B->MapSerial;
+	MiniW = B->MapW; MiniH = B->MapH;
+	if (MiniW <= 0 || B->MapTerrain.Num() != MiniW * MiniH) { MiniTex = nullptr; return; }
+	// cores do mundo (tons do terreno e do mar no Unreal) com sombreamento de relevo pela altura do chao
+	TArray<float> Alt; Alt.SetNumZeroed(MiniW * MiniH);
+	const float Uu = (float)B->UuPerTile;
+	for (int32 y = 0; y < MiniH; ++y) for (int32 x = 0; x < MiniW; ++x) Alt[y * MiniW + x] = B->GroundZ((x + 0.5f) * Uu, (y + 0.5f) * Uu);
+	MiniTex = UTexture2D::CreateTransient(MiniW, MiniH, PF_B8G8R8A8);
+	if (!MiniTex) return;
+	MiniTex->Filter = TF_Bilinear;
+	MiniTex->SRGB = true;
+	FTexture2DMipMap& Mip = MiniTex->GetPlatformData()->Mips[0];
+	FColor* Px = static_cast<FColor*>(Mip.BulkData.Lock(LOCK_READ_WRITE));
+	for (int32 y = 0; y < MiniH; ++y) for (int32 x = 0; x < MiniW; ++x)
+	{
+		const uint8 T = B->MapTerrain[y * MiniW + x];
+		FLinearColor C;
+		switch (T)
+		{
+		case 1: C = FLinearColor(0.10f, 0.42f, 0.55f); break;        // agua
+		case 5: C = FLinearColor(0.04f, 0.20f, 0.36f); break;        // agua funda
+		case 6: C = FLinearColor(0.25f, 0.62f, 0.62f); break;        // baixio
+		case 2: C = FLinearColor(0.52f, 0.49f, 0.44f); break;        // montanha
+		case 3: C = FLinearColor(0.80f, 0.73f, 0.55f); break;        // areia
+		case 4: C = FLinearColor(0.50f, 0.40f, 0.27f); break;        // terra
+		default: C = FLinearColor(0.42f, 0.50f, 0.27f); break;       // grama
+		}
+		if (T != 1 && T != 5 && T != 6)
+		{
+			const float Gx = Alt[y * MiniW + FMath::Min(x + 1, MiniW - 1)] - Alt[y * MiniW + FMath::Max(x - 1, 0)];
+			const float Gy = Alt[FMath::Min(y + 1, MiniH - 1) * MiniW + x] - Alt[FMath::Max(y - 1, 0) * MiniW + x];
+			C *= FMath::Clamp(1.f + (-Gx - Gy) * 0.0018f, 0.65f, 1.3f);   // luz vinda do noroeste
+		}
+		Px[y * MiniW + x] = C.ToFColor(true);
+	}
+	Mip.BulkData.Unlock();
+	MiniTex->UpdateResource();
+}
+
+void AAoEHud::DrawMinimap(AAoEBridgeActor* B, float K)
+{
+	if (MiniSerial != B->MapSerial) BuildMinimap(B);
+	if (!MiniTex || MiniW <= 0) { MiniRect = FBox2D(ForceInit); return; }
+	const float Sx = Canvas->SizeX, Sy = Canvas->SizeY;
+	const float S = 250.f * K, Pad = 14.f * K;
+	const float Pw = S + 2 * Pad, Ph = S + 2 * Pad + 16.f * K;
+	const float X0 = Sx - Pw - 20.f * K, Y0 = Sy - Ph - 44.f * K;
+	Panel(X0, Y0, Pw, Ph);
+	const float Mx = X0 + Pad, My = Y0 + Pad + 16.f * K;
+	MiniRect = FBox2D(FVector2D(Mx, My), FVector2D(Mx + S, My + S));
+	FCanvasTileItem T(FVector2D(Mx, My), MiniTex->GetResource(), FVector2D(S, S), FLinearColor::White);
+	Canvas->DrawItem(T);
+	const float Fx = S / MiniW, Fy = S / MiniH;
+	// edificios (quadrados) e unidades (pontos) na cor do dono
+	for (const TPair<int32, FAoEVisual>& K2 : B->GetBuildings())
+	{
+		const FIntPoint Sz = B->SizeOfBuilding(K2.Value.Type);
+		const float W = FMath::Max(3.f, Sz.X * Fx), H = FMath::Max(3.f, Sz.Y * Fy);
+		DrawRect(FLinearColor::Black, Mx + K2.Value.To.X * Fx - W * 0.5f - 1.f, My + K2.Value.To.Y * Fy - H * 0.5f - 1.f, W + 2.f, H + 2.f);
+		DrawRect(B->ColorOf(K2.Value.Dono), Mx + K2.Value.To.X * Fx - W * 0.5f, My + K2.Value.To.Y * Fy - H * 0.5f, W, H);
+	}
+	for (const TPair<int32, FAoEVisual>& U : B->GetUnits())
+	{
+		const FVector2D P = FMath::Lerp(U.Value.From, U.Value.To, FMath::Clamp(U.Value.Alpha, 0.f, 1.f));
+		const float D = B->GetSelected().Contains(U.Key) ? 3.5f : 2.5f;
+		DrawRect(B->GetSelected().Contains(U.Key) ? FLinearColor::White : B->ColorOf(U.Value.Dono), Mx + P.X * Fx - D * 0.5f, My + P.Y * Fy - D * 0.5f, D, D);
+	}
+	// o que a camera ve: os 4 cantos da tela projetados no plano do chao
+	if (APlayerController* PC = GetOwningPlayerController())
+	{
+		const float Gz = PC->GetPawn() ? PC->GetPawn()->GetActorLocation().Z : 0.f;
+		FVector2D Q[4]; bool bOk = true;
+		const FVector2D Cs[4] = { FVector2D(0, 0), FVector2D(Sx, 0), FVector2D(Sx, Sy), FVector2D(0, Sy) };
+		for (int32 i = 0; i < 4; ++i)
+		{
+			FVector O, D;
+			if (!PC->DeprojectScreenPositionToWorld(Cs[i].X, Cs[i].Y, O, D) || D.Z > -0.02f) { bOk = false; break; }
+			const FVector Hit = O + D * ((Gz - O.Z) / D.Z);
+			Q[i] = FVector2D(Mx + Hit.X / B->UuPerTile * Fx, My + Hit.Y / B->UuPerTile * Fy);
+		}
+		if (bOk)
+			for (int32 i = 0; i < 4; ++i)
+			{
+				const FVector2D A = Q[i], C = Q[(i + 1) % 4];
+				FCanvasLineItem L(FVector2D(FMath::Clamp(A.X, Mx, Mx + S), FMath::Clamp(A.Y, My, My + S)), FVector2D(FMath::Clamp(C.X, Mx, Mx + S), FMath::Clamp(C.Y, My, My + S)));
+				L.SetColor(FLinearColor(0.97f, 0.9f, 0.7f)); L.LineThickness = 1.5f;
+				Canvas->DrawItem(L);
+			}
+	}
+	Text(TEXT("Mapa"), X0 + Pad + 2.f, Y0 + Pad - 4.f * K, FMath::RoundToInt(13.f * K), Ouro);
+}
+
 void AAoEHud::DrawHUD()
 {
 	Super::DrawHUD();
@@ -163,6 +265,8 @@ void AAoEHud::DrawHUD()
 	Icon(TEXT("unit/villager"), PopX - IconS - 4.f * K, (BarH - IconS) * 0.5f + 3.f * K, IconS);
 	Text(Pop, PopX, Ty, FMath::RoundToInt(17.f * K), B->Pop >= B->PopCap ? FLinearColor(1.f, 0.45f, 0.35f) : Pergaminho);
 	if (B->bGameOver) { const FString D = TEXT("Derrota"); Text(D, (Sx - (float)Measure(D, 44).X) * 0.5f, Sy * 0.3f, 44, FLinearColor(0.9f, 0.25f, 0.2f)); }
+
+	DrawMinimap(B, K);
 
 	// ---- caixa de seleção ----
 	FVector2D A, Bp;

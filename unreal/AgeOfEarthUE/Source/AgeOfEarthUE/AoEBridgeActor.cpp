@@ -1,4 +1,5 @@
 #include "AoEBridgeActor.h"
+#include "Misc/Base64.h"
 #include "Components/InstancedStaticMeshComponent.h"
 
 #include "WebSocketsModule.h"
@@ -306,6 +307,18 @@ void AAoEBridgeActor::HandleHello(const TSharedPtr<FJsonObject>& O)
 	for (auto& P : NodeComps) if (P.Value) P.Value->ClearInstances();
 	Units.Empty(); Buildings.Empty(); Dying.Empty(); ActorToUnit.Empty(); Selected.Empty(); NodeRefs.Empty();
 	MyPlayer = (int32)O->GetNumberField(TEXT("player"));
+	{
+		const TSharedPtr<FJsonObject>* M = nullptr;
+		MapTerrain.Empty(); MapW = MapH = 0;
+		if (O->TryGetObjectField(TEXT("map"), M))
+		{
+			MapW = (int32)(*M)->GetNumberField(TEXT("w")); MapH = (int32)(*M)->GetNumberField(TEXT("h"));
+			FString T64;
+			if ((*M)->TryGetStringField(TEXT("terrain"), T64)) FBase64::Decode(T64, MapTerrain);
+			if (MapTerrain.Num() != MapW * MapH) { MapTerrain.Empty(); }
+		}
+		++MapSerial;
+	}
 	UuPerTile = (int32)O->GetNumberField(TEXT("uuPerTile"));
 	const double TickRate = FMath::Max(1.0, O->GetNumberField(TEXT("tickRate")));
 	StateInterval = (float)(O->GetNumberField(TEXT("stateEvery")) / TickRate);

@@ -31,6 +31,17 @@ private:
 	FVector2D Measure(const FString& S, int32 Size, bool bBold = true);
 	FSlateFontInfo FontOf(int32 Size, bool bBold);
 	AAoEBridgeActor* FindBridge();
+	void DrawMinimap(AAoEBridgeActor* B, float K);
+	void BuildMinimap(AAoEBridgeActor* B);
+public:
+	/** Retangulo do minimapa na tela (para o controlador: clique move a camera, direito manda ordem). */
+	FBox2D MiniRect = FBox2D(ForceInit);
+	/** Ponto da tela dentro do minimapa -> tile; falso se fora. */
+	bool MiniToTile(const FVector2D& Screen, FVector2D& OutTile) const;
+private:
+	UPROPERTY() TObjectPtr<UTexture2D> MiniTex;
+	int32 MiniSerial = -1;
+	int32 MiniW = 0, MiniH = 0;
 
 	bool bArtTried = false;
 	UPROPERTY() TObjectPtr<UTexture2D> IconTex;
