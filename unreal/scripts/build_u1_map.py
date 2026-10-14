@@ -252,7 +252,7 @@ def main():
             mar = spawn(unreal.WaterBodyOcean, (center[0], center[1], 0), label="Mar")
             return mar
         if AGUA == "mar":
-            plano = spawn(unreal.StaticMeshActor, (center[0], center[1], 0), label="Mar")
+            plano = spawn(unreal.StaticMeshActor, (center[0], center[1], -70), label="Mar")   # 70 cm abaixo de 0: há terra de cultivo a -0,5 m que o mar cobria
             comp = plano.get_editor_property("static_mesh_component")
             comp.set_editor_property("static_mesh", unreal.load_asset("/Engine/BasicShapes/Plane"))
             comp.set_material(0, unreal.load_asset("/Game/Terreno/M_Mar"))
