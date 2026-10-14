@@ -198,12 +198,13 @@ def main():
     step("SkyAtmosphere", lambda: spawn(unreal.SkyAtmosphere, label="Atmosfera"))
 
     def sun():
-        d = spawn(unreal.DirectionalLight, (center[0], center[1], 6000), (-34, 58, 0), "Sol")
+        d = spawn(unreal.DirectionalLight, (center[0], center[1], 6000), (-27, 58, 0), "Sol")
         c = d.get_component_by_class(unreal.DirectionalLightComponent)
         c.set_mobility(unreal.ComponentMobility.MOVABLE)
         c.set_editor_property("atmosphere_sun_light", True)
         c.set_editor_property("intensity", 6.4)
         c.set_editor_property("light_source_angle", 0.5)
+        c.set_editor_property("light_color", unreal.Color(255, 236, 208, 255))
     step("DirectionalLight", sun)
 
     def sky():

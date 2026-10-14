@@ -452,6 +452,29 @@
         "criaturas/cyclops__cyclopean-sentinel"
       ],
       "altura": 800
+    },
+    "merchant": {
+      "malhas": [
+        "unidades/villager__peasant-maiden",
+        "unidades/villager__peasant-girl"
+      ],
+      "altura": 165,
+      "esqueletos": [
+        "/Game/Unidades/SK_CidadaB"
+      ],
+      "yaw": -90
+    },
+    "caravan": {
+      "malhas": [
+        "unidades/villager__peasant-maiden",
+        "unidades/villager__peasant-girl"
+      ],
+      "altura": 165,
+      "esqueletos": [
+        "/Game/Unidades/SK_CidadaA",
+        "/Game/Unidades/SK_CidadaB"
+      ],
+      "yaw": -90
     }
   },
   "nos": {
