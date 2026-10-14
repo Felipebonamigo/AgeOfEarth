@@ -1,6 +1,6 @@
 ---
 name: capturar-e-olhar
-description: Ver o jogo web do Age of Earth de verdade: build, preview na porta 4173, captura no Chromium headless (actionshot ou o playtest do assunto) e olhar a imagem com a ferramenta Read antes de afirmar qualquer coisa visual. Use ao mudar HUD, menu, renderizador, arte ou efeito, ou quando o Felipe pedir "tira um print", "mostra como ficou", "roda o playtest".
+description: 'Ver o jogo web do Age of Earth de verdade: build, preview na porta 4173, captura no Chromium headless (actionshot ou o playtest do assunto) e olhar a imagem com a ferramenta Read antes de afirmar qualquer coisa visual. Use ao mudar HUD, menu, renderizador, arte ou efeito, ou quando o Felipe pedir "tira um print", "mostra como ficou", "roda o playtest".'
 ---
 # Capturar e olhar
 
