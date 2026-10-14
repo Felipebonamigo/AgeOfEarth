@@ -87,6 +87,8 @@ def mestre(nome, vento, obra=False):
     # as árvores são instâncias (HISM); sem este flag o material cai no padrão (cinza) no jogo
     mat.set_editor_property("used_with_instanced_static_meshes", True)
     mat.set_editor_property("used_with_skeletal_mesh", True)   # as unidades animadas (SkeletalMesh) usam os mesmos mestres
+    # edifícios com Nanite: sem a flag o jogo usa o material padrão. Nunca no de vento: Nanite + WPO trava a GPU (DEVICE_HUNG)
+    mat.set_editor_property("used_with_nanite", not vento)
     st = unreal.MaterialSamplerType
     cor = param_tex(mat, "BaseColorTexture", "/Engine/EngineResources/WhiteSquareTexture", st.SAMPLERTYPE_COLOR, -900, 0)
     nor = param_tex(mat, "NormalTexture", "/Engine/EngineMaterials/DefaultNormal", st.SAMPLERTYPE_NORMAL, -900, 300)
@@ -118,6 +120,54 @@ def mestre(nome, vento, obra=False):
         mel.connect_material_expressions(wpo, "", corte, "P")
         mel.connect_material_expressions(cz, "", corte, "Z")
         mel.connect_material_property(corte, "", unreal.MaterialProperty.MP_OPACITY_MASK)
+        # tampa do corte: a malha do Meshy é uma casca; pelo recorte se via o avesso das paredes (e pisos soltos). Dupla face, e o
+        # avesso sai como pedra de obra com a normal para cima (normal em espaço de mundo): de cima parece parede maciça cortada
+        mat.set_editor_property("two_sided", True)
+        mat.set_editor_property("tangent_space_normal", False)
+        lado = no(mat, unreal.MaterialExpressionTwoSidedSign, -900, 2000)
+        nmundo = no(mat, unreal.MaterialExpressionTransform, -650, 300)
+        nmundo.set_editor_property("transform_source_type", unreal.MaterialVectorCoordTransformSource.TRANSFORMSOURCE_TANGENT)
+        nmundo.set_editor_property("transform_type", unreal.MaterialVectorCoordTransform.TRANSFORM_WORLD)
+        mel.connect_material_expressions(nor, "RGB", nmundo, "")
+        ruido = no(mat, unreal.MaterialExpressionTextureSample, -900, 2150)
+        ruido.set_editor_property("texture", unreal.load_asset("/Game/Time/T_Ruido"))
+        ruido.set_editor_property("sampler_type", st.SAMPLERTYPE_MASKS)
+        uvr = no(mat, unreal.MaterialExpressionCustom, -1100, 2150)
+        uvr.set_editor_property("code", "return P.xy / 140.0;")
+        uvr.set_editor_property("output_type", unreal.CustomMaterialOutputType.CMOT_FLOAT2)
+        ci = unreal.CustomInput()
+        ci.set_editor_property("input_name", "P")
+        uvr.set_editor_property("inputs", [ci])
+        mel.connect_material_expressions(wpo, "", uvr, "P")
+        mel.connect_material_expressions(uvr, "", ruido, "UVs")
+        tampa = no(mat, unreal.MaterialExpressionCustom, -350, 2000)
+        tampa.set_editor_property("code", """
+// S > 0: face de fora (textura do modelo); S < 0: avesso visto pelo corte = pedra de obra, normal para cima
+if (S > 0.0) { Cor = C; Nor = normalize(N); return 1.0; }
+Cor = float3(0.47, 0.43, 0.37) * (0.78 + 0.44 * R);
+Nor = float3(0.0, 0.0, 1.0);
+return 0.0;
+""")
+        tampa.set_editor_property("output_type", unreal.CustomMaterialOutputType.CMOT_FLOAT1)
+        ins = []
+        for n in ("S", "C", "N", "R"):
+            ci = unreal.CustomInput()
+            ci.set_editor_property("input_name", n)
+            ins.append(ci)
+        tampa.set_editor_property("inputs", ins)
+        saidas = []
+        for n, t in (("Cor", unreal.CustomMaterialOutputType.CMOT_FLOAT3), ("Nor", unreal.CustomMaterialOutputType.CMOT_FLOAT3)):
+            o = unreal.CustomOutput()
+            o.set_editor_property("output_name", n)
+            o.set_editor_property("output_type", t)
+            saidas.append(o)
+        tampa.set_editor_property("additional_outputs", saidas)
+        mel.connect_material_expressions(lado, "", tampa, "S")
+        mel.connect_material_expressions(cor, "RGB", tampa, "C")
+        mel.connect_material_expressions(nmundo, "", tampa, "N")
+        mel.connect_material_expressions(ruido, "R", tampa, "R")
+        mel.connect_material_property(tampa, "Cor", unreal.MaterialProperty.MP_BASE_COLOR)
+        mel.connect_material_property(tampa, "Nor", unreal.MaterialProperty.MP_NORMAL)
     if vento:
         mat.set_editor_property("two_sided", True)
         mat.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_TWO_SIDED_FOLIAGE)   # copas translúcidas à contraluz
@@ -193,4 +243,5 @@ def main():
     unreal.log("AOE_MAT %d materiais trocados" % trocados)
 
 
-main()
+if __name__ == "__main__":   # importado (u2_obra_corte.py) não troca os pais de todos os MIs
+    main()

@@ -14,8 +14,7 @@ Decisão do dono em 14/10/2026: **seguir no Unreal**. Itens que a sessão local 
 
 - **Modelos a rebaixar do Meshy (precisa da conta logada do dono)**: casa-taverna (`house__greek-tavern`) e serraria (`lumber_camp__sawmill-serenity`), as duas tiradas do catálogo em 14/10 por malha estragada na redução; com o original dá para reduzir a 200–300 mil triângulos sem `simplifySloppy` (o Unreal aguenta com Nanite). Celeiro (`granary__desert-oasis`) é estilizado (palmeiras, areia): buscar um celeiro/armazém grego realista na galeria CC0. O navegador embutido não está logado no Meshy; usar o Chrome do dono com o ok dele.
 - ~~Árvores do Meshy facetadas de perto~~: resolvido em 14/10 com a island_tree_02 do Poly Haven (CC0, Nanite, folhas sem vento). Falta variedade: uma segunda espécie realista (oliveira, pinheiro-manso) no mesmo esquema.
-- **Canteiro de obras** (referência do Rise of Kingdoms, 14/10): andaime de madeira, blocos de pedra, obra subindo de baixo para cima e estradas de terra entre os edifícios já existem. Faltam carroças/guindaste de madeira (*polispastos*) e cidadãos carregando blocos. Casas por dentro: no recorte aparece um piso cinza liso (a malha do Meshy não tem paredes internas); dá para tampar com uma laje de obra na altura do corte.
-- **Decais sem normal**: com o mapa de normais a praça ficava escura e azulada (14/10). Entender o porquê (espaço tangente do decal com UV de mundo?) e devolver o relevo das lajotas.
+- **Canteiro de obras** (referência do Rise of Kingdoms, 14/10): andaime de madeira, blocos de pedra, obra subindo de baixo para cima com a tampa de pedra no corte, guindaste grego com bloco subindo e descendo e carroça (obras de 3+ tiles), estradas de terra. Falta: cidadãos carregando blocos até a obra.
 - **Muralhas e portões** não têm andaime (a pegada em zigue-zague deixava postes soltos); só sobem pelo recorte.
 
 ## Engenharia

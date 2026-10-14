@@ -11,9 +11,11 @@ mel = unreal.MaterialEditingLibrary
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 TEX = "/Game/Terreno/Texturas/"
 PASTA = "/Game/Time"
-# sem normal nos decais: com o mapa de normais a praça saía escura e azulada até ao sol (só a luz do céu chegava; medido
-# em 14/10 trocando só isto). O relevo das lajotas fica no próprio difuso (juntas escuras).
-COM_NORMAL = False
+# normal dos decais em espaço de MUNDO (normal_mundo): em espaço tangente a praça saía escura e azulada até ao sol (medido em
+# 14/10). False = sem relevo nenhum (só o difuso).
+COM_NORMAL = True
+# o mar fica em z = -70 (u1_mar.py): praça e estrada da beira somem entre -30 e +10 (não pintam o fundo visto pela água)
+AGUA_Z = "-30.0"
 
 
 def no(mat, cls, x, y):
@@ -42,6 +44,15 @@ def amostra(mat, tex, tipo, uv, x, y):
     return s
 
 
+def normal_mundo(mat, nor):
+    # a normal em espaço tangente do decal saía escura e azulada (medido em 14/10); como a textura é amostrada em X/Y do
+    # mundo, o mapa (GL: verde = +V = +Y) vira normal de mundo direto, sem passar pela base do decal
+    mat.set_editor_property("tangent_space_normal", False)
+    nw = custom(mat, "return normalize(float3(N.x, N.y, max(N.z, 0.3)));", ["N"], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -500, 150)
+    mel.connect_material_expressions(nor, "RGB", nw, "N")
+    mel.connect_material_property(nw, "", unreal.MaterialProperty.MP_NORMAL)
+
+
 def novo(nome):
     caminho = PASTA + "/" + nome
     if unreal.EditorAssetLibrary.does_asset_exist(caminho):
@@ -68,17 +79,18 @@ def praca():
 float2 b = min(UV, 1.0 - UV);
 float d = min(b.x, b.y);                       // 0 na borda, 0.5 no centro
 float limite = 0.06 + N * 0.10;                 // borda irregular
-return saturate((d - limite * 0.5) / max(limite, 0.01));
-""", ["UV", "N"], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -500, 600)
+return saturate((d - limite * 0.5) / max(limite, 0.01)) * saturate((P.z - AGUA_Z) / 40.0);   // some abaixo da linha d'água
+""".replace("AGUA_Z", AGUA_Z), ["UV", "N", "P"], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -500, 600)
     mel.connect_material_expressions(uv0, "", borda, "UV")
     mel.connect_material_expressions(ruido, "R", borda, "N")
+    mel.connect_material_expressions(wp, "", borda, "P")
     # tom: lajota um pouco mais quente e clara (pedra de calcário ao sol), com sujeira nas juntas pela variação do ruído
     tom = custom(mat, "return C * float3(1.24, 1.13, 0.94) * (0.88 + 0.24 * N);   // calcário claro e quente (sem estourar no branco ao sol)", ["C", "N"], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -500, -200)
     mel.connect_material_expressions(cor, "RGB", tom, "C")
     mel.connect_material_expressions(ruido, "R", tom, "N")
     mel.connect_material_property(tom, "", unreal.MaterialProperty.MP_BASE_COLOR)
     if COM_NORMAL:
-        mel.connect_material_property(nor, "RGB", unreal.MaterialProperty.MP_NORMAL)
+        normal_mundo(mat, nor)
     mel.connect_material_property(rug, "R", unreal.MaterialProperty.MP_ROUGHNESS)
     mel.connect_material_property(borda, "", unreal.MaterialProperty.MP_OPACITY)
     mel.recompile_material(mat)
@@ -106,10 +118,11 @@ def estrada():
 float a = abs(UV.y - 0.5) * 2.0;                        // 0 no meio do caminho, 1 na beira da faixa
 float lado = saturate((1.0 - a) / (0.30 + 0.35 * N));    // beira irregular, some na grama
 float pontas = saturate(min(UV.x, 1.0 - UV.x) * 10.0);   // as pontas ficam sob as pracas
-return lado * pontas * 0.92;
-""", ["UV", "N"], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -500, 600)
+return lado * pontas * 0.92 * saturate((P.z - AGUA_Z) / 40.0);   // some abaixo da linha d'água
+""".replace("AGUA_Z", AGUA_Z), ["UV", "N", "P"], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -500, 600)
     mel.connect_material_expressions(uv0, "", borda, "UV")
     mel.connect_material_expressions(ruido, "R", borda, "N")
+    mel.connect_material_expressions(wp, "", borda, "P")
     tom = custom(mat, """
 float a = abs(UV.y - 0.5) * 2.0;
 float sulco = 1.0 - 0.22 * exp(-pow((a - 0.42) / 0.09, 2.0));   // duas trilhas de roda mais escuras
@@ -120,7 +133,7 @@ return C * float3(1.10, 1.02, 0.90) * sulco * (0.90 + 0.20 * N);   // terra bati
     mel.connect_material_expressions(ruido, "R", tom, "N")
     mel.connect_material_property(tom, "", unreal.MaterialProperty.MP_BASE_COLOR)
     if COM_NORMAL:
-        mel.connect_material_property(nor, "RGB", unreal.MaterialProperty.MP_NORMAL)
+        normal_mundo(mat, nor)
     mel.connect_material_property(rug, "R", unreal.MaterialProperty.MP_ROUGHNESS)
     mel.connect_material_property(borda, "", unreal.MaterialProperty.MP_OPACITY)
     mel.recompile_material(mat)
@@ -188,7 +201,7 @@ def pedra():
         s.set_editor_property("sampler_type", st.SAMPLERTYPE_COLOR)
         mel.connect_material_expressions(u, "", s, "UVs")
         uvs.append(s)
-    mix = custom(mat, "float3 w = abs(N); w /= (w.x + w.y + w.z); return (A * w.z + B * w.y + C * w.x) * float3(1.12, 1.07, 0.97);",
+    mix = custom(mat, "float3 w = abs(N); w /= (w.x + w.y + w.z); return (A * w.z + B * w.y + C * w.x) * float3(0.92, 0.85, 0.72);   // calcário amarelado (branco demais ao sol)",
                  ["A", "B", "C", "N"], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -450, 0)
     for nome, s in zip(("A", "B", "C"), uvs):
         mel.connect_material_expressions(s, "RGB", mix, nome)

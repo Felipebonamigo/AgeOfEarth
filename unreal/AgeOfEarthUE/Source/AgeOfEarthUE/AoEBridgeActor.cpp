@@ -970,6 +970,17 @@ void AAoEBridgeActor::UpdateVisual(FAoEVisual& V, float Dt)
 			if (V.CorteMids.Num() > 0) SetObraMats(V, false);
 			Z += V.Lift - (ObraMat ? 0.f : (1.f - V.Progress) * V.MeshHeight * 0.97f);
 		}
+		if (V.Obra.IsValid() && V.GuinCarga.IsValid() && V.GuinCorda.IsValid())
+		{
+			// o bloco sobe devagar do chao ate perto do topo da obra e desce de novo (~14 s por ciclo)
+			const float Sobe = 0.5f - 0.5f * FMath::Cos(Clock * 0.45f + V.GuinFase);
+			const float Zb = 30.f + Sobe * V.GuinAlt * 0.8f;
+			const FVector T = V.GuinTopo;
+			const float Pend = 3.f * FMath::Sin(Clock * 1.3f + V.GuinFase);   // balanco leve
+			V.GuinCarga->UpdateInstanceTransform(0, FTransform(FRotator(0.f, Pend * 4.f, 0.f), FVector(T.X, Pend, Zb), FVector(0.6f, 0.5f, 0.42f)), false, true, true);
+			const float Len = FMath::Max(10.f, T.Z - (Zb + 21.f));
+			V.GuinCorda->UpdateInstanceTransform(0, FTransform(FRotator::ZeroRotator, FVector(T.X, Pend * 0.5f, Zb + 21.f + Len * 0.5f), FVector(0.025f, 0.025f, Len / 100.f)), false, true, true);
+		}
 	}
 	else
 	{
@@ -1552,6 +1563,38 @@ AActor* AAoEBridgeActor::SpawnObra(const FAoEVisual& V, int32 Id)
 	{
 		const float Ox = (k % 3) * 62.f, Oy = ((k / 3) % 2) * 52.f, Oz = (k / 6) * 42.f;
 		Bloco->AddInstance(FTransform(FRotator(0.f, Hash01(Id, 50 + k) * 12.f - 6.f, 0.f), Pilha + FVector(Ox, Oy, 21.f + Oz), FVector(0.58f, 0.48f, 0.42f)));
+	}
+	if (S.X >= 3 || S.Y >= 3)
+	{
+		// obra grande: guindaste grego de cavalete (dois paus inclinados sobre a obra, estais para tras, corda com um bloco
+		// que sobe e desce) e uma carroca com blocos ao lado da pilha. Referencia do dono: templo em obra do Rise of Kingdoms
+		auto Viga = [&](UInstancedStaticMeshComponent* I, const FVector& P0, const FVector& P1, float D)
+		{
+			const FVector Dv = P1 - P0;
+			I->AddInstance(FTransform(FRotationMatrix::MakeFromZ(Dv).Rotator(), (P0 + P1) * 0.5f, FVector(D, D, Dv.Size() / 100.f)));
+		};
+		const float H = Alt * 1.45f;
+		const FVector Topo(-Hx + 70.f, 0.f, H);
+		for (const float Ly : { -110.f, 110.f }) Viga(Pau, FVector(-Hx - 170.f, Ly, 0.f), Topo, 0.22f);
+		Viga(Pau, FVector(-Hx - 170.f, -110.f, 90.f), FVector(-Hx - 170.f, 110.f, 90.f), 0.10f);   // travessa do pe
+		UInstancedStaticMeshComponent* Corda = Ism(CylMesh, MastroMat);
+		for (const float Ly : { -60.f, 60.f }) Viga(Corda, Topo, FVector(-Hx - 520.f, Ly, 0.f), 0.025f);   // estais
+		// corda de carga e o bloco: instancia 0 de cada, reposicionadas no Tick
+		UInstancedStaticMeshComponent* Carga = Ism(CubeMesh, PedraMat ? PedraMat.Get() : MastroMat.Get());
+		UInstancedStaticMeshComponent* CordaCarga = Ism(CylMesh, MastroMat);
+		Carga->AddInstance(FTransform(FVector(Topo.X, 0.f, 60.f)));
+		CordaCarga->AddInstance(FTransform(FVector(Topo.X, 0.f, H * 0.5f)));
+		FAoEVisual* Vm = Buildings.Find(Id);
+		if (Vm) { Vm->GuinCorda = CordaCarga; Vm->GuinCarga = Carga; Vm->GuinTopo = Topo; Vm->GuinFase = Hash01(Id, 60) * 6.28f; Vm->GuinAlt = Alt; }
+		// carroca: leito de tabuas, duas rodas, varal, dois blocos em cima
+		const FVector Ca(Hx + 120.f, Hy + 40.f, 0.f);
+		Tabua->AddInstance(FTransform(FRotator::ZeroRotator, Ca + FVector(0.f, 0.f, 62.f), FVector(1.7f, 0.95f, 0.10f)));
+		for (const float Ly : { -55.f, 55.f })
+			Pau->AddInstance(FTransform(FRotator(0.f, 0.f, 90.f), Ca + FVector(-10.f, Ly, 42.f), FVector(0.84f, 0.84f, 0.10f)));   // rodas (eixo em Y)
+		Viga(Pau, Ca + FVector(85.f, -25.f, 58.f), Ca + FVector(230.f, -18.f, 22.f), 0.06f);
+		Viga(Pau, Ca + FVector(85.f, 25.f, 58.f), Ca + FVector(230.f, 18.f, 22.f), 0.06f);
+		Bloco->AddInstance(FTransform(FRotator(0.f, 4.f, 0.f), Ca + FVector(-35.f, 0.f, 88.f), FVector(0.62f, 0.5f, 0.42f)));
+		Bloco->AddInstance(FTransform(FRotator(0.f, -7.f, 0.f), Ca + FVector(35.f, 5.f, 88.f), FVector(0.55f, 0.48f, 0.42f)));
 	}
 	return A;
 }

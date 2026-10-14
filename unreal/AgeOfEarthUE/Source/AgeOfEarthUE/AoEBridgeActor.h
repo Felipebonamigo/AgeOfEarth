@@ -78,6 +78,10 @@ struct FAoEVisual
 	int32 Queue = 0;             // edificio: itens na fila de producao (state.buildings[].q)
 	TWeakObjectPtr<AActor> Plaza;     // edificio: decal de lajotas sob ele
 	TWeakObjectPtr<AActor> Obra;      // edificio em obra: andaime de madeira e blocos de pedra (some quando fica pronto)
+	// guindaste da obra grande (polispasto): corda e bloco animados subindo e descendo; topo relativo ao ator da obra
+	TWeakObjectPtr<UInstancedStaticMeshComponent> GuinCorda, GuinCarga;
+	FVector GuinTopo = FVector::ZeroVector;
+	float GuinFase = 0.f, GuinAlt = 0.f;
 	// obra revelada de baixo para cima: materiais trocados por M_MeshyObra (recorte em CorteZ) enquanto Progress < 1
 	TArray<TWeakObjectPtr<UMaterialInterface>> OrigMats;
 	TArray<TWeakObjectPtr<UMaterialInstanceDynamic>> CorteMids;             // edificio: relogio dos efeitos de ambiente (chamine, fumaca de dano, poeira de obra)

@@ -381,7 +381,12 @@ void AAoEPlayerController::RunAutoTest(float Dt)
 				float Maior = -1.f;
 				const FAoEVisual* Obra = nullptr;
 				for (const TPair<int32, FAoEVisual>& K : B->GetBuildings())
-					if (K.Value.Progress > 0.25f && K.Value.Progress < 0.6f && K.Value.Plaza.IsValid() && K.Value.MeshHeight > Maior) { Maior = K.Value.MeshHeight; Alvo = K.Value.To; Obra = &K.Value; }
+				{
+					// a maior pegada primeiro (obra grande tem guindaste e carroca), depois a altura
+					const FIntPoint Sz = B->SizeOfBuilding(K.Value.Type);
+					const float Nota = Sz.X * Sz.Y * 10000.f + K.Value.MeshHeight;
+					if (K.Value.Progress > 0.25f && K.Value.Progress < 0.6f && K.Value.Plaza.IsValid() && Nota > Maior) { Maior = Nota; Alvo = K.Value.To; Obra = &K.Value; }
+				}
 				if (Maior < 0.f) Alvo = B->MyCentroidTiles;   // nenhuma obra agora: a base do jogador
 				FBox Cx(ForceInit);
 				if (Obra && Obra->Body.IsValid()) Cx = Obra->Body->Bounds.GetBox();
