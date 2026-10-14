@@ -192,6 +192,12 @@ def conferir_cabecalho(caminho, texto, limpo, modulo, achados):
                     achados.append(('NOTA', caminho, linha_de(limpo, abre + f.start()), f'{nome}::{nomef.group(1)} é {esp.strip()}: o .cpp define {nomef.group(1)}_Implementation' + (' e _Validate' if 'WithValidation' in esp else '')))
 
 
+# Objetos que normalmente têm dono que os segura (ator, árvore de widgets): ponteiro cru para eles é aviso, não erro.
+WIDGETS_COM_DONO = {'UWidget', 'UUserWidget', 'UTextBlock', 'URichTextBlock', 'UBorder', 'UImage', 'UButton', 'UCheckBox',
+                    'UVerticalBox', 'UHorizontalBox', 'USizeBox', 'UCanvasPanel', 'UOverlay', 'UProgressBar', 'UScrollBox',
+                    'UGridPanel', 'UUniformGridPanel', 'UWrapBox', 'UEditableText', 'UEditableTextBox', 'USpacer',
+                    'UScaleBox', 'USlider', 'UComboBoxString', 'UWidgetSwitcher', 'UPanelWidget'}
+
 MEMBRO_PONTEIRO = re.compile(r'^\s*(?:mutable\s+)?(?:class\s+)?((?:TObjectPtr\s*<\s*)?[UA][A-Z]\w*\s*>?\s*\*?)\s+\*?\s*(\w+)\s*(?:=[^;]*)?;\s*$')
 MEMBRO_CONTAINER = re.compile(r'^\s*(T(?:Array|Map|Set)\s*<[^;]*\b(?:TObjectPtr\s*<\s*)?[UA][A-Z]\w*\s*>?\s*\*?[^;]*>)\s+(\w+)\s*(?:=[^;]*)?;\s*$')
 
@@ -212,8 +218,8 @@ def conferir_membros(caminho, limpo, abre, fecha, nome_classe, achados):
                 m = MEMBRO_PONTEIRO.match(linha) or MEMBRO_CONTAINER.match(linha)
                 if m and ('*' in m.group(1) or 'TObjectPtr' in m.group(1)) and 'UPROPERTY' not in anterior and 'static' not in linha:
                     tipo = re.findall(r'[UA][A-Z]\w*', m.group(1))[-1]
-                    if tipo.startswith('A') or tipo.endswith('Component'):
-                        achados.append(('AVISO', caminho, linha_de(limpo, inicio_linha), f'{nome_classe}::{m.group(2)} aponta {tipo} sem UPROPERTY(): o ponteiro não zera quando o objeto é destruído (use UPROPERTY() ou TWeakObjectPtr se ele pode sumir antes)'))
+                    if tipo.startswith('A') or tipo.endswith('Component') or tipo in WIDGETS_COM_DONO:
+                        achados.append(('AVISO', caminho, linha_de(limpo, inicio_linha), f'{nome_classe}::{m.group(2)} aponta {tipo} sem UPROPERTY(): só fica vivo enquanto o dono (o ator ou a árvore de widgets) o segura, e o ponteiro não zera quando ele é destruído (use UPROPERTY() ou TWeakObjectPtr se ele pode sumir antes)'))
                     else:
                         achados.append(('ERRO', caminho, linha_de(limpo, inicio_linha), f'{nome_classe}::{m.group(2)} guarda {tipo} sem UPROPERTY(): o coletor de lixo pode apagá-lo (use UPROPERTY() ou TWeakObjectPtr)'))
                 anterior = linha
