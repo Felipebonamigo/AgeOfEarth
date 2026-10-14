@@ -3,6 +3,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 class UInstancedStaticMeshComponent;
+#include "Tasks/Pipe.h"
+#include "Containers/Queue.h"
 #include "AoEBridgeActor.generated.h"
 
 class IWebSocket;
@@ -166,6 +168,12 @@ private:
 	void PlayAnim(FAoEVisual& V, UAnimSequence* A, bool bLoop, float Rate, float StartFrac = 0.f);
 
 	TSharedPtr<IWebSocket> Socket;
+	// o JSON de cada state (centenas de unidades) levava 10-14 ms na thread do jogo: agora e lido numa fila sequencial em
+	// outra thread e so o resultado volta para o Tick (a ordem das mensagens se mantem)
+	TSharedPtr<UE::Tasks::FPipe> JsonPipe;
+	TQueue<TSharedPtr<FJsonObject>, EQueueMode::Spsc> Parsed;
+	TSharedPtr<std::atomic<double>> JsonMsMax;
+	void Dispatch(const TSharedPtr<FJsonObject>& O);
 	FTimerHandle ReconnectTimer;
 	bool bConnected = false;
 	float StateInterval = 0.1f;
@@ -176,6 +184,8 @@ private:
 	double PerfAcc = 0.0, PerfWorst = 0.0, PerfSumFps = 0.0, PerfSumGpu = 0.0;
 	int32 PerfFrames = 0, PerfWindows = 0;
 	FString PerfFile;
+	TArray<float> PerfFrames95;
+	double PerfJson = 0.0, PerfState = 0.0, PerfFx = 0.0, PerfUnits = 0.0, PerfBld = 0.0;   // pior custo (ms) de cada parte na janela   // tempos de quadro da janela atual (ms), para o p95
 	TMap<int32, uint32> PlayerColors;           // 0xRRGGBB por dono
 	TMap<FString, float> UnitRadius;            // em tiles, por tipo
 	TMap<FString, FIntPoint> BuildingSize;      // w,h em tiles por tipo

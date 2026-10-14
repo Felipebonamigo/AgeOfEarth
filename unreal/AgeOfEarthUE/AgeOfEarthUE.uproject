@@ -15,7 +15,10 @@
 		{ "Name": "Water", "Enabled": true },
 		{ "Name": "PythonScriptPlugin", "Enabled": true },
 		{ "Name": "EditorScriptingUtilities", "Enabled": true },
-		{ "Name": "Niagara", "Enabled": true }
+		{ "Name": "Niagara", "Enabled": true },
+		{ "Name": "GameFeatures", "Enabled": true },
+		{ "Name": "ModelContextProtocol", "Enabled": true, "TargetAllowList": [ "Editor" ] },
+		{ "Name": "AllToolsets", "Enabled": true, "TargetAllowList": [ "Editor" ] }
 	],
 	"TargetPlatforms": [ "Windows" ]
 }

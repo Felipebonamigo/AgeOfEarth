@@ -31,6 +31,7 @@
 #include "Misc/DateTime.h"
 #include "HAL/PlatformMemory.h"
 #include "RHI.h"
+#include "RenderTimer.h"
 #include "Misc/PackageName.h"
 #include "Misc/Parse.h"
 
@@ -282,6 +283,7 @@ void AAoEBridgeActor::BeginPlay()
 
 void AAoEBridgeActor::EndPlay(const EEndPlayReason::Type Reason)
 {
+	if (JsonPipe.IsValid()) { while (JsonPipe->HasWork()) FPlatformProcess::Sleep(0.001f); }
 	GetWorldTimerManager().ClearTimer(ReconnectTimer);
 	if (Socket.IsValid())
 	{
@@ -332,12 +334,28 @@ void AAoEBridgeActor::OnClosed(int32 Status, const FString& Reason, bool bClean)
 
 void AAoEBridgeActor::OnMessage(const FString& Msg)
 {
-	TSharedPtr<FJsonObject> O;
-	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Msg), O) || !O.IsValid()) return;
+	if (!JsonPipe.IsValid()) { JsonPipe = MakeShared<UE::Tasks::FPipe>(TEXT("AoEJson")); JsonMsMax = MakeShared<std::atomic<double>>(0.0); }
+	// copia a mensagem para a tarefa; o resultado entra na fila e e despachado no Tick (thread do jogo)
+	TSharedPtr<std::atomic<double>> Ms = JsonMsMax;
+	TQueue<TSharedPtr<FJsonObject>, EQueueMode::Spsc>* Fila = &Parsed;
+	JsonPipe->Launch(TEXT("AoEJsonParse"), [Msg, Ms, Fila]()
+	{
+		const double T0 = FPlatformTime::Seconds();
+		TSharedPtr<FJsonObject> Obj;
+		if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Msg), Obj) || !Obj.IsValid()) return;
+		const double D = (FPlatformTime::Seconds() - T0) * 1000.0;
+		double Cur = Ms->load(); while (D > Cur && !Ms->compare_exchange_weak(Cur, D)) {}
+		Fila->Enqueue(Obj);
+	});
+}
+
+void AAoEBridgeActor::Dispatch(const TSharedPtr<FJsonObject>& O)
+{
+	const double T1 = FPlatformTime::Seconds();
 	FString Type;
 	if (!O->TryGetStringField(TEXT("type"), Type)) return;
 	if (Type == TEXT("hello")) HandleHello(O);
-	else if (Type == TEXT("state")) HandleState(O);
+	else if (Type == TEXT("state")) { HandleState(O); PerfState = FMath::Max(PerfState, (FPlatformTime::Seconds() - T1) * 1000.0); }
 	else if (Type == TEXT("over")) UE_LOG(LogTemp, Log, TEXT("AoE: fim de partida"));
 }
 
@@ -956,23 +974,35 @@ void AAoEBridgeActor::Tick(float Dt)
 		if (FMath::Fmod(Clock, 4.f) < Dt) { AddPuffs(FVector(30.f * 200.f, 30.f * 200.f, VitrineZ), 26, 90.f, 260.f, 3.8f, 0.15f, 300.f); AddPuffs(FVector(27.f * 200.f, 29.f * 200.f, VitrineZ), 2, 35.f, 110.f, 1.4f, 0.f, 40.f); }
 	}
 	Clock += Dt;
-	PerfAcc += Dt; ++PerfFrames; PerfWorst = FMath::Max(PerfWorst, (double)Dt);
+	PerfAcc += Dt; ++PerfFrames; PerfWorst = FMath::Max(PerfWorst, (double)Dt); PerfFrames95.Add(Dt * 1000.f);
 	if (PerfAcc >= 5.0)
 	{
 		const double Fps = PerfFrames / PerfAcc;
 		const double Gpu = FPlatformTime::ToMilliseconds(RHIGetGPUFrameCycles(0));
 		const FPlatformMemoryStats Mem = FPlatformMemory::GetStats();
-		const FString Linha = FString::Printf(TEXT("AOE_PERF t=%.0f fps=%.1f quadro_ms=%.2f pior_ms=%.1f gpu_ms=%.2f ram_mb=%.0f unidades=%d edificios=%d projeteis=%d poeira=%d"),
-			(double)Clock, Fps, 1000.0 / FMath::Max(Fps, 0.001), PerfWorst * 1000.0, Gpu, (double)Mem.UsedPhysical / (1024.0 * 1024.0), Units.Num(), Buildings.Num(), Projs.Num(), Puffs.Num());
+		PerfFrames95.Sort();
+		const float P95 = PerfFrames95.Num() ? PerfFrames95[FMath::Min(PerfFrames95.Num() - 1, (int32)(PerfFrames95.Num() * 0.95f))] : 0.f;
+		PerfFrames95.Reset();
+		const double J = PerfJson, Es = PerfState, Fx = PerfFx, Un = PerfUnits, Bd = PerfBld; PerfJson = PerfState = PerfFx = PerfUnits = PerfBld = 0.0;
+		const FString Linha = FString::Printf(TEXT("AOE_PERF t=%.0f fps=%.1f p95_ms=%.2f quadro_ms=%.2f pior_ms=%.1f gpu_ms=%.2f jogo_ms=%.2f render_ms=%.2f json_ms=%.1f estado_ms=%.1f fx_ms=%.1f unid_ms=%.1f edif_ms=%.1f ram_mb=%.0f unidades=%d edificios=%d projeteis=%d poeira=%d"),
+			(double)Clock, Fps, (double)P95, 1000.0 / FMath::Max(Fps, 0.001), PerfWorst * 1000.0, Gpu, FPlatformTime::ToMilliseconds(GGameThreadTime), FPlatformTime::ToMilliseconds(GRenderThreadTime), J, Es, Fx, Un, Bd, (double)Mem.UsedPhysical / (1024.0 * 1024.0), Units.Num(), Buildings.Num(), Projs.Num(), Puffs.Num());
 		UE_LOG(LogTemp, Log, TEXT("%s"), *Linha);
 		if (PerfFile.IsEmpty()) FParse::Value(FCommandLine::Get(), TEXT("AoEPerfLog="), PerfFile);
 		if (!PerfFile.IsEmpty()) FFileHelper::SaveStringToFile(Linha + LINE_TERMINATOR, *PerfFile, FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), FILEWRITE_Append);
 		PerfSumFps += Fps; PerfSumGpu += Gpu; ++PerfWindows;
 		PerfAcc = 0.0; PerfFrames = 0; PerfWorst = 0.0;
 	}
+	{
+		TSharedPtr<FJsonObject> Obj;
+		while (Parsed.Dequeue(Obj)) Dispatch(Obj);
+		if (JsonMsMax.IsValid()) PerfJson = FMath::Max(PerfJson, JsonMsMax->exchange(0.0));
+	}
+	double Tf = FPlatformTime::Seconds();
 	TickEffects(Dt);
+	PerfFx = FMath::Max(PerfFx, (FPlatformTime::Seconds() - Tf) * 1000.0);
 	if (BirdsSerial != MapSerial && MapW > 0) SpawnBirds();
 	TickBirds(Dt);
+	Tf = FPlatformTime::Seconds();
 	for (auto& P : Units)
 	{
 		UpdateVisual(P.Value, Dt);
@@ -992,6 +1022,8 @@ void AAoEBridgeActor::Tick(float Dt)
 			}
 		}
 	}
+	PerfUnits = FMath::Max(PerfUnits, (FPlatformTime::Seconds() - Tf) * 1000.0);
+	Tf = FPlatformTime::Seconds();
 	if (FireISM) FireISM->ClearInstances();
 	for (auto& P : Buildings)
 	{
@@ -1027,6 +1059,7 @@ void AAoEBridgeActor::Tick(float Dt)
 		}
 	}
 	if (FireISM) FireISM->MarkRenderStateDirty();
+	PerfBld = FMath::Max(PerfBld, (FPlatformTime::Seconds() - Tf) * 1000.0);
 	for (int32 i = Dying.Num() - 1; i >= 0; --i)
 	{
 		FAoEDying& D = Dying[i];
