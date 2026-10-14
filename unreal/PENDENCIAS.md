@@ -3,16 +3,13 @@
 Decisão do dono em 14/10/2026: **seguir no Unreal**. Itens que a sessão local não conseguiu fechar, para depois:
 
 ## Arte e animação
-- **Cavalaria, criaturas, heróis montados e navios sem esqueleto**: hoje só balançam ao andar e avançam no golpe. O Meshy gratuito
-  não traz rig. Caminhos: (a) Mixamo (animações humanas; exige login Adobe do dono) para heróis/centauros bípedes; (b) Blender com
-  auto-rig (Rigify/auto-skin) por espécie, preparado pela nuvem (`scripts/bake/`); (c) animação por vértices (shader) só para voadoras.
+- **Criaturas ainda estáticas**: hidra, fênix, harpia e Cronos (a pele por proximidade deforma mal nos esqueletos do Mesh2Motion); navios. Caminho: rig próprio no Blender (instalado: Blender 5.2) ou outro modelo. Cavalaria, heróis, felinos, gigantes, dragão e grifo já animam (Mesh2Motion, 14/10).
 - **Casa de telhado vermelho** (`edificios/house__greek-tavern.glb`): malha estilhaçada de perto (simplificada de 565 mil para
   87 mil triângulos com `simplifySloppy`). Baixar de novo o original do Meshy (URL em `art/meshy/catalogo.json`) e reduzir com
-  mais cuidado (200–300 mil, Nanite aguenta) ou trocar pela outra casa.
+  mais cuidado (200–300 mil, Nanite aguenta). **Fora do catálogo desde 14/10** (só a casa caiada aparece).
 - **Orientação das armas** (yaw −90 assumido): lanças/escudos de algumas unidades olham para o lado. Conferir tipo a tipo com captura de perto.
-- **Efeitos** (poeira, fogo, golpes, fumaça de obra): a ponte já manda `events`/`effects`; falta Niagara (sem API de Python prática, fazer no editor).
+- **Efeitos**: flechas, pedras, poeira, fumaça e fogo feitos por instâncias (14/10). Faltam faíscas de bronze, sangue não (regra do jogo), efeitos dos 21 poderes, respingo/rastro de navio.
 - **Ciclo de dia e variação de céu**; ajuste fino de contraste dos campos.
-- **Plantas à sombra** ficam escuras (folhagem sem translucência): material de folha com *subsurface*.
 - **Nanite desligado** em folhagem/vento (73 malhas) por causa de travamento de GPU (`u1_nanite.py`); reavaliar em versão nova do motor.
 
 ## Engenharia
