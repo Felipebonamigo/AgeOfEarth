@@ -192,6 +192,9 @@ void AAoEBridgeActor::HandleHello(const TSharedPtr<FJsonObject>& O)
 	const double TickRate = FMath::Max(1.0, O->GetNumberField(TEXT("tickRate")));
 	StateInterval = (float)(O->GetNumberField(TEXT("stateEvery")) / TickRate);
 	PlayerColors.Empty();
+	AgeNames.Empty();
+	const TArray<TSharedPtr<FJsonValue>>* AgesArr = nullptr;
+	if (O->TryGetArrayField(TEXT("ages"), AgesArr)) for (const TSharedPtr<FJsonValue>& A : *AgesArr) { const TSharedPtr<FJsonObject>* AO; if (A->TryGetObject(AO)) AgeNames.Add((*AO)->GetStringField(TEXT("name"))); }
 	const TArray<TSharedPtr<FJsonValue>>* Players = nullptr;
 	if (O->TryGetArrayField(TEXT("players"), Players))
 		for (const auto& V : *Players)
@@ -435,6 +438,14 @@ void AAoEBridgeActor::HandleState(const TSharedPtr<FJsonObject>& O)
 	++StateSerial;
 	bHaveState = true;
 	LastTick = (int32)O->GetNumberField(TEXT("tick"));
+	const TSharedPtr<FJsonObject>* MeObj = nullptr;
+	if (O->TryGetObjectField(TEXT("me"), MeObj) && MeObj && MeObj->IsValid())
+	{
+		const TSharedPtr<FJsonObject>* Res = nullptr;
+		if ((*MeObj)->TryGetObjectField(TEXT("resources"), Res)) for (const TPair<FString, TSharedPtr<FJsonValue>>& KV : (*Res)->Values) { const int32 Amount = (int32)KV.Value->AsNumber(); Resources.Add(KV.Key, Amount); }
+		Pop = (int32)(*MeObj)->GetNumberField(TEXT("pop")); PopCap = (int32)(*MeObj)->GetNumberField(TEXT("popCap")); Age = (int32)(*MeObj)->GetNumberField(TEXT("age"));
+		bool bAlive = true; (*MeObj)->TryGetBoolField(TEXT("alive"), bAlive); bGameOver = !bAlive;
+	}
 	const float Uu = (float)UuPerTile;
 	FVector2D Sum = FVector2D::ZeroVector;
 	int32 NMine = 0;
@@ -733,8 +744,8 @@ void AAoEBridgeActor::Tick(float Dt)
 		}
 		if (D.T > 6.5f) { A->Destroy(); Dying.RemoveAt(i); }
 	}
-	if (GEngine)
-		GEngine->AddOnScreenDebugMessage(101, 0.f, bConnected ? FColor::White : FColor::Red,
+	if (GEngine && !bConnected)
+		GEngine->AddOnScreenDebugMessage(101, 0.f, FColor::Red,
 			FString::Printf(TEXT("Age of Earth U1 | %s | tick %d | unidades %d | edificios %d | selecionadas %d"),
 				bConnected ? TEXT("ponte conectada") : TEXT("sem ponte (rode: npx tsx unreal/scripts/u1-servidor.ts)"), LastTick, Units.Num(), Buildings.Num(), Selected.Num()));
 }
