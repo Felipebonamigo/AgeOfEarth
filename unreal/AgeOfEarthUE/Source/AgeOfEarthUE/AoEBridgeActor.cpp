@@ -58,6 +58,84 @@ AAoEBridgeActor::AAoEBridgeActor()
 		if (UAnimSequence* A = Anim(P)) AnimDeath.Add(A);
 }
 
+void AAoEBridgeActor::SpawnVitrine()
+{
+	TArray<FString> Tipos;
+	for (const TPair<FString, FAoEDef>& K : UnitDefs) if (K.Value.Skeletons.Num() > 0) Tipos.Add(K.Key);
+	Tipos.Sort([&](const FString& A, const FString& B) { return UnitDefs[A].Familia + A < UnitDefs[B].Familia + B; });
+	MyPlayer = 0; UuPerTile = 200; bHaveState = true; MyCentroidTiles = FVector2D(30.f, 30.f);
+	VitrineZ = 30000.f;
+	{
+		// chao claro e plano sob a vitrine
+		FActorSpawnParameters Sp; Sp.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		AStaticMeshActor* Fl = GetWorld()->SpawnActor<AStaticMeshActor>(FVector(30.f * 200.f, 34.f * 200.f, VitrineZ - 2.f), FRotator::ZeroRotator, Sp);
+		Fl->GetStaticMeshComponent()->SetMobility(EComponentMobility::Movable);
+		Fl->GetStaticMeshComponent()->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane")));
+		Fl->SetActorScale3D(FVector(80.f, 80.f, 1.f));
+		if (UMaterialInstanceDynamic* Dm = UMaterialInstanceDynamic::Create(BoxMaterial, Fl)) { Dm->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.35f, 0.38f, 0.3f)); Fl->GetStaticMeshComponent()->SetMaterial(0, Dm); }
+	}
+	const float Uu = (float)UuPerTile;
+	int32 I = 0, Gi = 0;
+	for (const FString& T : Tipos)
+	{
+		const FAoEDef* Def = &UnitDefs[T];
+		const int32 Id = 900000 + I;
+		FAoEVisual& V = Units.Add(Id);
+		V.Type = T; V.Dono = 0; V.Familia = Def->Familia;
+		const bool bGigante = Def->Height >= 350.f;
+		FVector2D Pos;
+		if (bGigante) { Pos = FVector2D(14.f + Gi * 8.f, 52.f); ++Gi; }
+		else { Pos = FVector2D(14.f + (I % 8) * 3.2f, 26.f + (I / 8) * 3.6f); }
+		V.Actor = SpawnVisual(V, Def, Id, PlayerColor(0), 0.f, 60.f);
+		V.Yaw = Def->Yaw;
+		V.From = V.To = Pos;
+		V.FromZ = V.ToZ = GroundZ(Pos.X * Uu, Pos.Y * Uu);
+		V.Alpha = 1.f; V.Phase = I * 0.7f; V.AnimSeed = I * 37;
+		V.bMoving = (I % 3) == 1; V.Speed = V.bMoving ? 210.f : 0.f;
+		V.bAttacking = (I % 3) == 2; V.Serial = -1;
+		if (V.Actor.IsValid()) ActorToUnit.Add(V.Actor.Get(), Id);
+		if (!bGigante) ++I;
+		else ++I;
+	}
+	UE_LOG(LogTemp, Log, TEXT("AoE: vitrine com %d tipos"), I);
+}
+
+void AAoEBridgeActor::LoadFamilies(const TSharedPtr<FJsonObject>& Root)
+{
+	AnimSets.Empty(); AnimKeep.Empty();
+	const TSharedPtr<FJsonObject>* Fs = nullptr;
+	if (!Root->TryGetObjectField(TEXT("familias"), Fs)) return;
+	for (const TPair<FString, TSharedPtr<FJsonValue>>& KV : (*Fs)->Values)
+	{
+		const TSharedPtr<FJsonObject> F = KV.Value->AsObject();
+		if (!F.IsValid()) continue;
+		// cada familia: "pasta" (/Game/Anim/<pasta>), "arquivo" (nome do glb importado) e listas de nomes de animacao por papel;
+		// o caminho final e /Game/Anim/<pasta>/<arquivo>/SkeletalMeshes/<arquivo><NomeDaAnimacao>
+		FString Pasta, Arq; F->TryGetStringField(TEXT("pasta"), Pasta); F->TryGetStringField(TEXT("arquivo"), Arq);
+		FAnimSet S;
+		auto Ler = [&](const TCHAR* Chave, TArray<UAnimSequence*>& Dest)
+		{
+			const TArray<TSharedPtr<FJsonValue>>* L = nullptr;
+			if (!F->TryGetArrayField(Chave, L)) return;
+			for (const TSharedPtr<FJsonValue>& N : *L)
+			{
+				FString Nome = N->AsString();
+				// "outra/pasta:Nome" permite buscar numa pasta de outra familia (ex.: animacoes extras do humano)
+				FString P = Pasta, A = Arq;
+				FString Esq, Dir;
+				if (Nome.Split(TEXT(":"), &Esq, &Dir)) { Nome = Dir; Esq.Split(TEXT("/"), &P, &A); }
+				const FString Caminho = FString::Printf(TEXT("/Game/Anim/%s/%s/SkeletalMeshes/%s%s.%s%s"), *P, *A, *A, *Nome, *A, *Nome);
+				if (UAnimSequence* Q = LoadObject<UAnimSequence>(nullptr, *Caminho)) { Dest.Add(Q); AnimKeep.Add(Q); }
+				else UE_LOG(LogTemp, Warning, TEXT("AoE: animacao nao encontrada: %s"), *Caminho);
+			}
+		};
+		Ler(TEXT("idle"), S.Idle); Ler(TEXT("walk"), S.Walk); Ler(TEXT("run"), S.Run); Ler(TEXT("attack"), S.Attack); Ler(TEXT("death"), S.Death);
+		Ler(TEXT("gather_tree"), S.GatherTree); Ler(TEXT("gather_farm"), S.GatherFarm); Ler(TEXT("gather_mine"), S.GatherMine);
+		AnimSets.Add(KV.Key, S);
+		UE_LOG(LogTemp, Log, TEXT("AoE: familia %s: idle %d, andar %d, correr %d, golpe %d, morte %d"), *KV.Key, S.Idle.Num(), S.Walk.Num(), S.Run.Num(), S.Attack.Num(), S.Death.Num());
+	}
+}
+
 void AAoEBridgeActor::LoadCatalog()
 {
 	UnitDefs.Empty(); BuildingDefs.Empty(); NodeDefs.Empty();
@@ -83,6 +161,7 @@ void AAoEBridgeActor::LoadCatalog()
 			if (E->TryGetNumberField(TEXT("ajuste"), N)) D.Fit = (float)N;
 			if (E->TryGetNumberField(TEXT("altura"), N)) D.Height = (float)N;
 			if (E->TryGetNumberField(TEXT("yaw"), N)) D.Yaw = (float)N;
+			E->TryGetStringField(TEXT("familia"), D.Familia);
 			bool B = true;
 			if (E->TryGetBoolField(TEXT("anel"), B)) D.bRing = B;
 			if (E->TryGetBoolField(TEXT("campo"), B)) D.bField = B;
@@ -90,6 +169,7 @@ void AAoEBridgeActor::LoadCatalog()
 		}
 	};
 	const TSharedPtr<FJsonObject>* G = nullptr;
+	LoadFamilies(Root);
 	if (Root->TryGetObjectField(TEXT("construcoes"), G)) Ler(*G, BuildingDefs);
 	if (Root->TryGetObjectField(TEXT("unidades"), G)) Ler(*G, UnitDefs);
 	if (Root->TryGetObjectField(TEXT("nos"), G)) Ler(*G, NodeDefs);
@@ -115,6 +195,7 @@ void AAoEBridgeActor::BeginPlay()
 	FString Override;
 	if (FParse::Value(FCommandLine::Get(), TEXT("AoEUrl="), Override)) Url = Override;
 	LoadCatalog();
+	if (FParse::Param(FCommandLine::Get(), TEXT("AoEVitrine"))) { SpawnVitrine(); return; }
 	Connect();
 }
 
@@ -255,6 +336,7 @@ FLinearColor AAoEBridgeActor::PlayerColor(int32 Dono) const
 
 float AAoEBridgeActor::GroundZ(float X, float Y) const
 {
+	if (VitrineZ > -1e8f) return VitrineZ;
 	FHitResult Hit;
 	FCollisionObjectQueryParams Obj(ECC_WorldStatic);
 	if (GetWorld()->LineTraceSingleByObjectType(Hit, FVector(X, Y, 60000.f), FVector(X, Y, -60000.f), Obj))
@@ -265,6 +347,7 @@ float AAoEBridgeActor::GroundZ(float X, float Y) const
 void AAoEBridgeActor::SpawnNode(int32 Id, const FString& Type, float X, float Y)
 {
 	NodeTile.Add(Id, FVector2D(X, Y));
+	NodeKind.Add(Id, Type);
 	const FAoEDef* Def = NodeDefs.Find(Type);
 	if (!Def || Def->Meshes.Num() == 0) return;
 	const FString& Short = Def->Meshes[(int32)(Hash01(Id, 1) * Def->Meshes.Num()) % Def->Meshes.Num()];
@@ -339,6 +422,11 @@ AActor* AAoEBridgeActor::SpawnVisual(FAoEVisual& V, const FAoEDef* Def, int32 Id
 		const float MeshH = FMath::Max(1.f, SkM->GetBounds().BoxExtent.Z * 2.f);
 		const float S = (Def->Height > 0.f ? Def->Height : 185.f) / MeshH;
 		V.BaseScale = S;
+		{
+			// esqueletos de quadrupede tem os ossos fora da origem: o centro da malha volta para o ponto da unidade
+			const FVector O = SkM->GetBounds().Origin;
+			V.CenterOfs = FVector2D(O.X, O.Y) * S;
+		}
 		V.MeshHeight = Def->Height > 0.f ? Def->Height : 185.f;
 		V.Lift = 0.f;
 		K->SetWorldScale3D(FVector(S));
@@ -488,6 +576,8 @@ void AAoEBridgeActor::HandleState(const TSharedPtr<FJsonObject>& O)
 				AActor* A = SpawnVisual(*Vis, Def, Id, PlayerColor(Dono), 0.f, RadiusCm);
 				Vis->Actor = A;
 				Vis->Yaw = Def ? Def->Yaw : 0.f;
+				Vis->Familia = Def ? Def->Familia : FString();
+				Vis->AnimSeed = (int32)(Hash01(Id, 13) * 1000.f);
 				Vis->From = Pos;
 				Vis->FromZ = GroundZ(Pos.X * Uu, Pos.Y * Uu);
 				Vis->Alpha = 1.f;
@@ -518,6 +608,14 @@ void AAoEBridgeActor::HandleState(const TSharedPtr<FJsonObject>& O)
 				Vis->LastAtk = Atk;
 			}
 			Vis->bAttacking = St == TEXT("attack");
+			Vis->GatherKind = 0;
+			if (St == TEXT("gather"))
+			{
+				int32 Nid = -1; U->TryGetNumberField(TEXT("nid"), Nid);
+				const FString* Kd = NodeKind.Find(Nid);
+				const FString K = Kd ? *Kd : FString();
+				Vis->GatherKind = K.Contains(TEXT("tree")) || K.Contains(TEXT("olive")) ? 1 : (K.Contains(TEXT("berry")) || K.Contains(TEXT("wheat")) || K.Contains(TEXT("farm")) || K.Contains(TEXT("fruit"))) ? 2 : 3;
+			}
 			double Hp = 1, Mhp = 1;
 			U->TryGetNumberField(TEXT("hp"), Hp); U->TryGetNumberField(TEXT("mhp"), Mhp);
 			Vis->Hp01 = Mhp > 0 ? (float)(Hp / Mhp) : 1.f;
@@ -543,7 +641,9 @@ void AAoEBridgeActor::HandleState(const TSharedPtr<FJsonObject>& O)
 					if (USkeletalMeshComponent* K = It->Value.Skel.Get())
 					{
 						D.bSkel = true;
-						if (AnimDeath.Num() > 0) PlayAnim(It->Value, AnimDeath[It->Key % AnimDeath.Num()], false, 1.f);
+						const FAnimSet* FS = It->Value.Familia.IsEmpty() ? nullptr : AnimSets.Find(It->Value.Familia);
+						if (FS && FS->Death.Num() > 0) PlayAnim(It->Value, FAnimSet::Pick(FS->Death, It->Value.AnimSeed), false, 1.f);
+						else if (AnimDeath.Num() > 0) PlayAnim(It->Value, AnimDeath[It->Key % AnimDeath.Num()], false, 1.f);
 					}
 					Dying.Add(D);
 					if (UStaticMeshComponent* Dc = It->Value.Disc.Get()) Dc->SetVisibility(false);
@@ -623,10 +723,12 @@ void AAoEBridgeActor::DriveSkeletal(FAoEVisual& V, int32 /*Id*/)
 {
 	USkeletalMeshComponent* K = V.Skel.Get();
 	if (!K) return;
+	const FAnimSet* FS = V.Familia.IsEmpty() ? nullptr : AnimSets.Find(V.Familia);
 	const int32 Serie = (int32)(V.Phase * 7.f) & 0x7fffffff;
-	if (V.AttackT == 0.f && AnimAtk.Num() > 0)
+	const bool bTemAtaque = FS ? FS->Attack.Num() > 0 : AnimAtk.Num() > 0;
+	if (V.AttackT == 0.f && bTemAtaque)
 	{
-		UAnimSequence* A = AnimAtk[Serie % AnimAtk.Num()];
+		UAnimSequence* A = FS ? FAnimSet::Pick(FS->Attack, Serie) : AnimAtk[Serie % AnimAtk.Num()].Get();
 		PlayAnim(V, A, false, 1.25f);
 		V.AnimState = 3;
 		V.AnimUntil = Clock + A->GetPlayLength() / 1.25f;
@@ -634,10 +736,26 @@ void AAoEBridgeActor::DriveSkeletal(FAoEVisual& V, int32 /*Id*/)
 		return;
 	}
 	if (V.AnimState == 3 && Clock < V.AnimUntil) return;
-	int32 Want = V.bMoving ? (V.Speed > 260.f ? 2 : 1) : 0;
+	// estados: 0 ocioso, 1 andar, 2 correr, 4 coletar arvore, 5 lavoura, 6 mina
+	int32 Want = V.bMoving ? (V.Speed > (FS ? 330.f : 260.f) ? 2 : 1) : 0;
+	if (!V.bMoving && V.GatherKind > 0 && FS)
+	{
+		const TArray<UAnimSequence*>& G = V.GatherKind == 1 ? FS->GatherTree : (V.GatherKind == 2 ? FS->GatherFarm : FS->GatherMine);
+		if (G.Num() > 0) Want = 3 + V.GatherKind;
+	}
 	if (V.bAttacking && !V.bMoving) Want = 0;
 	if (Want == V.AnimState) return;
 	const float Ofs = Hash01((int32)(V.Phase * 100.f), 5);
+	if (FS)
+	{
+		const TArray<UAnimSequence*>* L = &FS->Idle; bool bLoop = true; float Rate = 1.f;
+		if (Want == 2) { L = FS->Run.Num() ? &FS->Run : &FS->Walk; Rate = FMath::Clamp(V.Speed / 480.f, 0.6f, 1.8f); }
+		else if (Want == 1) { L = &FS->Walk; Rate = FMath::Clamp(V.Speed / 190.f, 0.6f, 1.8f); }
+		else if (Want >= 4) L = Want == 4 ? &FS->GatherTree : (Want == 5 ? &FS->GatherFarm : &FS->GatherMine);
+		if (UAnimSequence* A = FAnimSet::Pick(*L, V.AnimSeed)) PlayAnim(V, A, bLoop, Rate, Ofs);
+		V.AnimState = Want;
+		return;
+	}
 	if (Want == 2) PlayAnim(V, AnimJog, true, FMath::Clamp(V.Speed / 420.f, 0.6f, 1.8f), Ofs);
 	else if (Want == 1) PlayAnim(V, AnimWalk, true, FMath::Clamp(V.Speed / 170.f, 0.6f, 1.8f), Ofs);
 	else PlayAnim(V, AnimIdle, true, 1.f, Ofs);
@@ -684,6 +802,8 @@ void AAoEBridgeActor::UpdateVisual(FAoEVisual& V, float Dt)
 			V.AttackT += Dt;
 		}
 	}
+	V.GroundPoint = FVector(P.X * UuPerTile, P.Y * UuPerTile, FMath::Lerp(V.FromZ, V.ToZ, FMath::Clamp(V.Alpha, 0.f, 1.f)));
+	if (V.Skel.IsValid() && !V.CenterOfs.IsNearlyZero()) Off -= FRotator(0.f, Rot.Yaw, 0.f).RotateVector(FVector(V.CenterOfs.X, V.CenterOfs.Y, 0.f));
 	A->SetActorLocationAndRotation(FVector(P.X * UuPerTile, P.Y * UuPerTile, Z) + Off, Rot);
 
 }
@@ -691,6 +811,8 @@ void AAoEBridgeActor::UpdateVisual(FAoEVisual& V, float Dt)
 void AAoEBridgeActor::Tick(float Dt)
 {
 	Super::Tick(Dt);
+	if (FParse::Param(FCommandLine::Get(), TEXT("AoEVitrine")))
+		for (TPair<int32, FAoEVisual>& K : Units) if (K.Value.bAttacking && K.Value.AttackT >= 4.f && FMath::Fmod(Clock + K.Key * 0.37f, 3.f) < Dt) K.Value.AttackT = 0.f;
 	Clock += Dt;
 	PerfAcc += Dt; ++PerfFrames; PerfWorst = FMath::Max(PerfWorst, (double)Dt);
 	if (PerfAcc >= 5.0)
@@ -716,7 +838,7 @@ void AAoEBridgeActor::Tick(float Dt)
 			const float R = P.Value.DiscRadius * (bSel ? 1.35f : 1.f);
 			D->SetWorldScale3D(FVector(R * 2.f / 100.f, R * 2.f / 100.f, 0.02f));
 			if (AActor* A = P.Value.Actor.Get())
-				D->SetWorldLocation(FVector(A->GetActorLocation().X, A->GetActorLocation().Y, FMath::Lerp(P.Value.FromZ, P.Value.ToZ, FMath::Clamp(P.Value.Alpha, 0.f, 1.f)) + 4.f));
+				D->SetWorldLocation(P.Value.Skel.IsValid() ? P.Value.GroundPoint + FVector(0, 0, 4.f) : FVector(A->GetActorLocation().X, A->GetActorLocation().Y, FMath::Lerp(P.Value.FromZ, P.Value.ToZ, FMath::Clamp(P.Value.Alpha, 0.f, 1.f)) + 4.f));
 			D->SetWorldRotation(FRotator::ZeroRotator);
 			if (UMaterialInstanceDynamic* M = P.Value.DiscMat.Get())
 				M->SetVectorParameterValue(TEXT("Color"), PlayerColor(P.Value.Dono) * (bSel ? 3.f : 1.f));
