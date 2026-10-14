@@ -48,4 +48,9 @@ private:
 	int32 AutoStage = 0;
 	bool bAutoTest = false;
 	FString ShotDir;
+	/** Lista de tomadas do teste automatico: nome:tileX:tileY:braco:pitch:yaw (separadas por virgula). */
+	struct FShot { FString Name; float X = 0, Y = 0, Arm = 6000, Pitch = -50, Yaw = -90; };
+	TArray<FShot> Shots;
+	int32 ShotIdx = 0;
+	float ShotT = 0.f;
 };

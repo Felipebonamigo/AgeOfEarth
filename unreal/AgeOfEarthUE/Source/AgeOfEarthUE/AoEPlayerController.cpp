@@ -56,6 +56,24 @@ void AAoEPlayerController::FocusCameraOnArmy()
 	UE_LOG(LogTemp, Log, TEXT("AoE: camera em %s (tile %.1f, %.1f), chao z=%.0f"), *P->GetActorLocation().ToString(), B->MyCentroidTiles.X, B->MyCentroidTiles.Y, B->GroundZ(X, Y));
 	bCameraPlaced = true;
 	bAutoTest = FParse::Param(FCommandLine::Get(), TEXT("AoEAutoTest"));
+	FString ShotSpec;
+	if (FParse::Value(FCommandLine::Get(), TEXT("AoEShots="), ShotSpec))
+	{
+		TArray<FString> Items;
+		ShotSpec.ParseIntoArray(Items, TEXT(";"));
+		for (const FString& It : Items)
+		{
+			TArray<FString> F;
+			It.ParseIntoArray(F, TEXT(":"));
+			if (F.Num() < 3) continue;
+			FShot S;
+			S.Name = F[0]; S.X = FCString::Atof(*F[1]); S.Y = FCString::Atof(*F[2]);
+			if (F.Num() > 3) S.Arm = FCString::Atof(*F[3]);
+			if (F.Num() > 4) S.Pitch = FCString::Atof(*F[4]);
+			if (F.Num() > 5) S.Yaw = FCString::Atof(*F[5]);
+			Shots.Add(S);
+		}
+	}
 	FParse::Value(FCommandLine::Get(), TEXT("AoEShotDir="), ShotDir);
 	FParse::Value(FCommandLine::Get(), TEXT("AoEDelay="), AutoDelay);
 	if (AAoECameraPawn* CamPawn = Cast<AAoECameraPawn>(P))
@@ -139,6 +157,29 @@ void AAoEPlayerController::RunAutoTest(float Dt)
 	AAoEBridgeActor* B = Bridge();
 	if (!B || !B->bHaveState) return;
 	AutoT += Dt;
+	if (Shots.Num() > 0)
+	{
+		// tomadas dirigidas: posiciona a camera, espera 2 s (a malha e a luz assentam) e fotografa
+		if (AutoT < AutoDelay) return;
+		ShotT += Dt;
+		AAoECameraPawn* Cam = Cast<AAoECameraPawn>(GetPawn());
+		if (ShotIdx >= Shots.Num()) { if (ShotT > 3.f) ConsoleCommand(TEXT("quit"), true); return; }
+		const FShot& S = Shots[ShotIdx];
+		if (Cam && ShotT < Dt * 1.5f + 0.001f)
+		{
+			const float Uu = (float)B->UuPerTile;
+			Cam->SetActorLocation(FVector(S.X * Uu, S.Y * Uu, B->GroundZ(S.X * Uu, S.Y * Uu)));
+			Cam->Arm->TargetArmLength = S.Arm;
+			Cam->Arm->SetRelativeRotation(FRotator(S.Pitch, S.Yaw, 0.f));
+		}
+		if (ShotT > 2.5f)
+		{
+			const FString Dir = ShotDir.IsEmpty() ? FPaths::ProjectSavedDir() : ShotDir;
+			ConsoleCommand(FString::Printf(TEXT("HighResShot 1920x1080 filename=\"%s/%s.png\""), *Dir, *S.Name), true);
+			++ShotIdx; ShotT = 0.f;
+		}
+		return;
+	}
 	auto Shot = [&](const TCHAR* Name)
 	{
 		const FString Dir = ShotDir.IsEmpty() ? FPaths::ProjectSavedDir() : ShotDir;
