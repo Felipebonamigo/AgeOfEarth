@@ -34,7 +34,7 @@ const pertoDeNo = (x, y, r) => {
 const pertoDeInicio = (x, y, r) => inicios.some((s) => (s.x - x) ** 2 + (s.y - y) ** 2 < r * r);
 
 const grupos = {
-  capim: { malhas: ['grass_medium_02/grass_medium_02_a', 'grass_medium_02/grass_medium_02_b', 'grass_medium_02/grass_medium_02_c', 'grass_medium_02/grass_medium_02_d', 'grass_medium_02/grass_medium_02_e', 'grass_bermuda_01/grass_bermuda_01_medium_a', 'grass_bermuda_01/grass_bermuda_01_medium_c', 'grass_bermuda_01/grass_bermuda_01_small_b'], pontos: [] },
+  capim: { malhas: ['grass_medium_02/grass_medium_02_a', 'grass_medium_02/grass_medium_02_b', 'grass_medium_02/grass_medium_02_c', 'grass_medium_02/grass_medium_02_d', 'grass_medium_02/grass_medium_02_e'], pontos: [] },   // a bermuda saiu: de longe as folhas viravam manchas pretas no chão, pontos: [] },
   flores: { malhas: ['flower_gazania/flower_gazania_a_LOD0', 'flower_gazania/flower_gazania_c_LOD0', 'flower_ursinia/flower_ursinia_a_LOD0', 'flower_ursinia/flower_ursinia_c_LOD0', 'flower_empodium/flower_empodium_b_LOD0', 'dandelion_01/dandelion_01_a_LOD0', 'dandelion_01/dandelion_01_c_LOD0'], pontos: [] },
   samambaias: { malhas: ['fern_02/fern_02_a', 'fern_02/fern_02_b', 'fern_02/fern_02_c', 'fern_02/fern_02_d'], pontos: [] },
   rochas: { malhas: ['namaqualand_boulder_04/namaqualand_boulder_04', 'namaqualand_boulder_05/namaqualand_boulder_05', 'boulder_01/boulder_01'], pontos: [] },
@@ -59,7 +59,7 @@ for (let gy = 0; gy < mundo; gy += passo) for (let gx = 0; gx < mundo; gx += pas
   } else if ((d > 0.3 || s > 0.4) && inclin < 0.4 && rnd() < 0.08) {
     pt.k = Math.floor(rnd() * grupos.capim.malhas.length); pt.e = 1.0 + rnd() * 0.8; grupos.capim.pontos.push(pt);
   }
-  if (g > 0.5 && inclin < 0.4 && rnd() < 0.05) {
+  if (g > 0.5 && inclin < 0.4 && rnd() < 0.03) {
     grupos.flores.pontos.push({ ...pt, k: Math.floor(rnd() * grupos.flores.malhas.length), e: 1.6 + rnd() * 1.2, yaw: rnd() * 360 });
   }
   if (g > 0.6 && inclin < 0.45 && rnd() < 0.018) {

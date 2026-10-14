@@ -888,6 +888,8 @@ void AAoEBridgeActor::Tick(float Dt)
 		PerfAcc = 0.0; PerfFrames = 0; PerfWorst = 0.0;
 	}
 	TickEffects(Dt);
+	if (BirdsSerial != MapSerial && MapW > 0) SpawnBirds();
+	TickBirds(Dt);
 	for (auto& P : Units)
 	{
 		UpdateVisual(P.Value, Dt);
@@ -1171,5 +1173,81 @@ void AAoEBridgeActor::AmbientFx(int32 Id, FAoEVisual& V, float Dt)
 		FAoEPuff F; F.P = Base + FVector((Seed - 0.5f) * 90.f, (Hash01(Id, 23) - 0.5f) * 90.f, Top + 40.f);
 		F.V = FVector(25.f, 12.f, 70.f); F.R0 = 18.f; F.R1 = 90.f; F.Dur = 3.2f; F.Dark = 0.35f;
 		if (Puffs.Num() < 400) Puffs.Add(F);
+	}
+}
+
+void AAoEBridgeActor::SpawnBirds()
+{
+	BirdsSerial = MapSerial;
+	for (FAoEBird& B : Birds) if (B.K.IsValid()) B.K->GetOwner()->Destroy();
+	Birds.Empty();
+	USkeletalMesh* Gull = LoadObject<USkeletalMesh>(nullptr, TEXT("/Game/Anim/aves/seagull/seagull/SkeletalMeshes/seagull.seagull"));
+	USkeletalMesh* Eagle = LoadObject<USkeletalMesh>(nullptr, TEXT("/Game/Anim/aves/eagle/eagle/SkeletalMeshes/eagle.eagle"));
+	if (!Gull || !Eagle || MapTerrain.Num() != MapW * MapH) return;
+	const float Uu = (float)UuPerTile;
+	auto Terra = [&](int32 x, int32 y) { if (x < 0 || y < 0 || x >= MapW || y >= MapH) return -1; return (int32)MapTerrain[y * MapW + x]; };
+	auto Agua = [&](int32 t) { return t == 1 || t == 5 || t == 6; };
+	// pontos de costa (agua com terra a ate 3 tiles) e de terra alta (montanha)
+	TArray<FIntPoint> Costa, Alto;
+	for (int32 y = 2; y < MapH - 2; y += 3) for (int32 x = 2; x < MapW - 2; x += 3)
+	{
+		const int32 T = Terra(x, y);
+		if (Agua(T)) { bool bPerto = false; for (int32 d = -3; d <= 3 && !bPerto; ++d) bPerto = !Agua(Terra(x + d, y)) || !Agua(Terra(x, y + d)); if (bPerto) Costa.Add(FIntPoint(x, y)); }
+		else if (T == 2) Alto.Add(FIntPoint(x, y));
+	}
+	FRandomStream R(MapW * 7919 + MapH);
+	FActorSpawnParameters Sp; Sp.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	auto Nova = [&](USkeletalMesh* M, const FIntPoint& P, bool bEagle)
+	{
+		ASkeletalMeshActor* A = GetWorld()->SpawnActor<ASkeletalMeshActor>(FVector::ZeroVector, FRotator::ZeroRotator, Sp);
+		USkeletalMeshComponent* K = A->GetSkeletalMeshComponent();
+		K->SetMobility(EComponentMobility::Movable);
+		K->SetSkeletalMesh(M);
+		K->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+		K->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		K->SetCastShadow(true);
+		const float Env = FMath::Max(1.f, M->GetBounds().BoxExtent.Y * 2.f);
+		K->SetWorldScale3D(FVector((bEagle ? 190.f : 120.f) / Env));   // envergadura em cm
+		FAoEBird B; B.K = K; B.bEagle = bEagle;
+		B.C = FVector((P.X + 0.5f) * Uu, (P.Y + 0.5f) * Uu, 0.f);
+		B.R = R.FRandRange(bEagle ? 1200.f : 500.f, bEagle ? 2400.f : 1300.f);
+		B.Z = GroundZ(B.C.X, B.C.Y) + R.FRandRange(bEagle ? 1300.f : 380.f, bEagle ? 2100.f : 750.f);   // abaixo da câmera de jogo (~4.000 cm)
+		B.W = (R.FRand() < 0.5f ? -1.f : 1.f) * R.FRandRange(0.18f, 0.32f) * (bEagle ? 0.6f : 1.f);
+		B.A = R.FRand() * 2.f * PI; B.NextFlap = R.FRand() * 3.f;
+		Birds.Add(B);
+	};
+	for (int32 i = 0; i < 9 && Costa.Num() > 0; ++i) Nova(Gull, Costa[R.RandRange(0, Costa.Num() - 1)], false);
+	for (int32 i = 0; i < 3 && Alto.Num() > 0; ++i) Nova(Eagle, Alto[R.RandRange(0, Alto.Num() - 1)], true);
+	UE_LOG(LogTemp, Log, TEXT("AoE: %d aves (costa %d pontos, alto %d)"), Birds.Num(), Costa.Num(), Alto.Num());
+	for (const FAoEBird& Bd : Birds) UE_LOG(LogTemp, Log, TEXT("AoE: ave %s centro tile (%.1f, %.1f) raio %.0f altura %.0f"), Bd.bEagle ? TEXT("aguia") : TEXT("gaivota"), Bd.C.X / Uu, Bd.C.Y / Uu, Bd.R, Bd.Z);
+}
+
+void AAoEBridgeActor::TickBirds(float Dt)
+{
+	const FAnimSet* S = AnimSets.Find(TEXT("ave"));
+	if (!S) return;
+	UAnimSequence* Flap = FAnimSet::Pick(S->Run, 0);
+	UAnimSequence* Glide = S->Attack.Num() > 1 ? S->Attack[1] : nullptr;
+	if (!Glide) { for (UAnimSequence* Q : S->Walk) if (Q && Q->GetName().Contains(TEXT("Glide"))) Glide = Q; }
+	if (!Glide) Glide = LoadObject<UAnimSequence>(nullptr, TEXT("/Game/Anim/bird/bird-animations/SkeletalMeshes/bird-animationsGlide.bird-animationsGlide"));
+	for (FAoEBird& B : Birds)
+	{
+		USkeletalMeshComponent* K = B.K.Get();
+		if (!K) continue;
+		B.A += B.W * Dt;
+		const float Bob = FMath::Sin(B.A * 3.f) * 40.f;
+		const FVector P = B.C + FVector(FMath::Cos(B.A) * B.R, FMath::Sin(B.A) * B.R, 0.f) + FVector(0, 0, B.Z + Bob);
+		const FVector Tan(-FMath::Sin(B.A) * FMath::Sign(B.W), FMath::Cos(B.A) * FMath::Sign(B.W), 0.f);
+		const float Bank = FMath::Sign(B.W) * (B.bEagle ? 18.f : 25.f);
+		K->GetOwner()->SetActorLocationAndRotation(P, FRotator(0.f, FMath::RadiansToDegrees(FMath::Atan2(Tan.Y, Tan.X)) - 90.f, -Bank));
+		// bate asa um pouco e plana um tempo (a aguia plana mais)
+		B.NextFlap -= Dt;
+		if (B.NextFlap <= 0.f)
+		{
+			B.bFlap = !B.bFlap;
+			UAnimSequence* Q = B.bFlap ? Flap : Glide;
+			if (Q) { K->PlayAnimation(Q, true); K->SetPlayRate(B.bFlap ? 1.1f : 1.f); }
+			B.NextFlap = B.bFlap ? FMath::FRandRange(1.2f, 2.5f) : FMath::FRandRange(B.bEagle ? 5.f : 2.5f, B.bEagle ? 10.f : 5.f);
+		}
 	}
 }

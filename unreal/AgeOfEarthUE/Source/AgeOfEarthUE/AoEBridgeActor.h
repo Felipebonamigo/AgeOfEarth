@@ -218,6 +218,12 @@ private:
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> PuffISM;
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> FireISM;
 	void AmbientFx(int32 Id, FAoEVisual& V, float Dt);
+	// aves de ambiente (sem simulacao): gaivotas circulando sobre a agua perto da costa, aguias sobre a terra alta
+	struct FAoEBird { TWeakObjectPtr<USkeletalMeshComponent> K; FVector C; float R = 1000.f, Z = 1500.f, W = 0.3f, A = 0.f, NextFlap = 0.f; bool bFlap = false; bool bEagle = false; };
+	TArray<FAoEBird> Birds;
+	int32 BirdsSerial = -1;
+	void SpawnBirds();
+	void TickBirds(float Dt);
 	void HandleEffects(const TSharedPtr<FJsonObject>& O);
 	void TickEffects(float Dt);
 	void AddPuffs(const FVector& At, int32 N, float R0, float R1, float Dur, float Dark, float Spread);

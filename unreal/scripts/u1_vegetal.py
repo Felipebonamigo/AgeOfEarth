@@ -49,7 +49,12 @@ def mestre(nome, mascara, vento):
     cor = param_tex(mat, "BaseColorTexture", "/Engine/EngineResources/WhiteSquareTexture", st.SAMPLERTYPE_COLOR, -900, 0)
     nor = param_tex(mat, "NormalTexture", "/Engine/EngineMaterials/DefaultNormal", st.SAMPLERTYPE_NORMAL, -900, 300)
     mr = param_tex(mat, "MetallicRoughnessTexture", "/Game/Meshy/T_BrancoLinear", st.SAMPLERTYPE_LINEAR_COLOR, -900, 600)
-    mel.connect_material_property(cor, "RGB", unreal.MaterialProperty.MP_BASE_COLOR)
+    # folhas das fotos são escuras à luz do jogo (manchas pretas no chão de longe): clareia e puxa um pouco para o amarelo-oliva
+    brilho = no(mat, unreal.MaterialExpressionVectorParameter, -700, -100)
+    brilho.set_editor_property("parameter_name", "Brilho")
+    brilho.set_editor_property("default_value", unreal.LinearColor(1.45, 1.5, 1.2, 1.0) if mascara else unreal.LinearColor(1.0, 1.0, 1.0, 1.0))
+    cor_b = mult(mat, cor, brilho, -450, -50, "RGB", "RGB")
+    mel.connect_material_property(cor_b, "", unreal.MaterialProperty.MP_BASE_COLOR)
     if mascara:
         mel.connect_material_property(cor, "A", unreal.MaterialProperty.MP_OPACITY_MASK)
     mel.connect_material_property(nor, "RGB", unreal.MaterialProperty.MP_NORMAL)
