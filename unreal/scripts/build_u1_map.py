@@ -14,8 +14,10 @@ TERRAIN_DIR = os.environ.get("AOE_TERRAIN_DIR", os.path.join(REPO, "unreal", "ex
 MAP_PATH = os.environ.get("AOE_MAP", "/Game/Maps/U1")
 AGUA = os.environ.get("AOE_AGUA", "mar")   # mar = plano com M_Mar (ondas+espuma, u1_mar.py); custom/oceano = plugin Water
 SKIP = [k.lower() for k in os.environ.get("AOE_SKIP", "").split(",") if k]
-MAT_PATH = "/Game/Terreno/M_U1_Terreno"
-LAYER_DIR = "/Game/Terreno/Camadas"
+# material e camadas por mapa: reconstruir um mapa não apaga o que o outro usa
+_SUFIXO = "" if MAP_PATH.endswith("/U1") else "_" + MAP_PATH.rsplit("/", 1)[-1]
+MAT_PATH = "/Game/Terreno/M_U1_Terreno" + _SUFIXO
+LAYER_DIR = "/Game/Terreno/Camadas" + _SUFIXO
 TEX = "/Game/Terreno/Texturas/"
 LAYERS = ["grass", "dirt", "sand", "rock"]
 # id do Poly Haven, metros que a foto cobre (ladrilho) e quanto escurecer/saturar (ajuste fino do tom mediterrâneo)
@@ -124,7 +126,7 @@ def build_material():
     tools = unreal.AssetToolsHelpers.get_asset_tools()
     if unreal.EditorAssetLibrary.does_asset_exist(MAT_PATH):
         unreal.EditorAssetLibrary.delete_asset(MAT_PATH)
-    mat = tools.create_asset("M_U1_Terreno", "/Game/Terreno", unreal.Material, unreal.MaterialFactoryNew())
+    mat = tools.create_asset(MAT_PATH.rsplit("/", 1)[-1], "/Game/Terreno", unreal.Material, unreal.MaterialFactoryNew())
     # máscara de baixa frequência (0..1) por senoides cruzadas: decide, ponto a ponto, qual das duas escalas aparece (some o ladrilhamento)
     wpn = no(mat, unreal.MaterialExpressionWorldPosition, -1700, -400)
     ru = ondas(mat, wpn, 0.0011, 0.0017, -1500, -400)
@@ -245,6 +247,21 @@ def main():
         s.set_editor_property("vignette_intensity", 0.25)
         s.set_editor_property("override_motion_blur_amount", True)
         s.set_editor_property("motion_blur_amount", 0.0)
+        # gradação de cor: luz de fim de manhã mediterrânea (um pouco mais quente), contraste leve e saturação contida
+        for nome, valor in (("white_temp", 6100.0), ("lumen_final_gather_quality", 2.0), ("lumen_scene_detail", 1.5),
+                            ("ambient_occlusion_intensity", 0.6), ("ambient_occlusion_radius", 120.0)):
+            try:
+                s.set_editor_property("override_" + nome, True)
+                s.set_editor_property(nome, valor)
+            except Exception as e:
+                unreal.log_warning("AOE pos-processamento sem %s: %s" % (nome, e))
+        for nome, valor in (("color_saturation", unreal.Vector4(0.95, 0.95, 0.95, 1.0)), ("color_contrast", unreal.Vector4(1.06, 1.06, 1.06, 1.0)),
+                            ("color_gain_highlights", unreal.Vector4(1.03, 1.0, 0.95, 1.0)), ("color_gamma_shadows", unreal.Vector4(0.98, 0.99, 1.04, 1.0))):
+            try:
+                s.set_editor_property("override_" + nome, True)
+                s.set_editor_property(nome, valor)
+            except Exception as e:
+                unreal.log_warning("AOE pos-processamento sem %s: %s" % (nome, e))
         p.set_editor_property("settings", s)
     step("PostProcessVolume", post)
 
