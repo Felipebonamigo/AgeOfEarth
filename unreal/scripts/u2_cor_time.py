@@ -120,7 +120,7 @@ return N * onda * UV.x * 9.0;
 
 def mastro():
     mat = novo("M_Mastro")
-    mel.connect_material_property(vec(mat, 0.16, 0.10, 0.055, -300, 0), "", unreal.MaterialProperty.MP_BASE_COLOR)
+    mel.connect_material_property(vec(mat, 0.40, 0.29, 0.17, -300, 0), "", unreal.MaterialProperty.MP_BASE_COLOR)
     mel.connect_material_property(const(mat, 0.75, -300, 150), "", unreal.MaterialProperty.MP_ROUGHNESS)
     mel.recompile_material(mat)
     unreal.EditorAssetLibrary.save_loaded_asset(mat)

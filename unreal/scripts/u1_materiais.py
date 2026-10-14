@@ -79,7 +79,7 @@ def textura_branca():
     return caminho
 
 
-def mestre(nome, vento):
+def mestre(nome, vento, obra=False):
     caminho = "/Game/Meshy/" + nome
     if unreal.EditorAssetLibrary.does_asset_exist(caminho):
         unreal.EditorAssetLibrary.delete_asset(caminho)
@@ -101,6 +101,23 @@ def mestre(nome, vento):
     mel.connect_material_property(rug, "", unreal.MaterialProperty.MP_ROUGHNESS)
     metal = mult(mat, mr, param_escalar(mat, "MetalMul", 0.0, -700, 800), -500, 800, "B", "")
     mel.connect_material_property(metal, "", unreal.MaterialProperty.MP_METALLIC)
+    if obra:
+        # edificio em obra: recortado de baixo para cima na altura CorteZ (mundo); o C++ troca o material durante a obra
+        mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_MASKED)
+        wpo = no(mat, unreal.MaterialExpressionWorldPosition, -900, 1700)
+        cz = param_escalar(mat, "CorteZ", 1e6, -900, 1850)
+        corte = no(mat, unreal.MaterialExpressionCustom, -600, 1750)
+        corte.set_editor_property("code", "return P.z < Z ? 1.0 : 0.0;")
+        corte.set_editor_property("output_type", unreal.CustomMaterialOutputType.CMOT_FLOAT1)
+        ins = []
+        for n in ("P", "Z"):
+            ci = unreal.CustomInput()
+            ci.set_editor_property("input_name", n)
+            ins.append(ci)
+        corte.set_editor_property("inputs", ins)
+        mel.connect_material_expressions(wpo, "", corte, "P")
+        mel.connect_material_expressions(cz, "", corte, "Z")
+        mel.connect_material_property(corte, "", unreal.MaterialProperty.MP_OPACITY_MASK)
     if vento:
         mat.set_editor_property("two_sided", True)
         mat.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_TWO_SIDED_FOLIAGE)   # copas translúcidas à contraluz
@@ -142,6 +159,7 @@ def mestre(nome, vento):
 
 def main():
     base = mestre("M_Meshy", False)
+    mestre("M_MeshyObra", False, obra=True)
     vento = mestre("M_Meshy_Vento", True)
     trocados = 0
     for a in reg.get_assets_by_path("/Game/Meshy", recursive=True):

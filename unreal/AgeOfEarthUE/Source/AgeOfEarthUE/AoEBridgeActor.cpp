@@ -56,6 +56,9 @@ AAoEBridgeActor::AAoEBridgeActor()
 	CylMesh = DiscMesh;
 	PlaneMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane"));
 	AnelMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_Anel.M_Anel"));
+	PracaMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_PracaDecal.M_PracaDecal"));
+	PedraMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_PedraTalhada.M_PedraTalhada"));
+	ObraMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Meshy/M_MeshyObra.M_MeshyObra"));
 	EstandarteMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_Estandarte.M_Estandarte"));
 	MastroMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_Mastro.M_Mastro"));
 	BoxMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
@@ -142,6 +145,18 @@ void AAoEBridgeActor::SpawnVitrine()
 			V.FromZ = V.ToZ = VitrineZ; V.Alpha = 1.f; V.Yaw = Hd->Yaw;
 			V.Progress = k == 0 ? 0.55f : 1.f; V.Hp01 = k == 2 ? 0.25f : 1.f;
 		}
+	if (const FAoEDef* Td = BuildingDefs.Find(TEXT("temple")))
+	{
+		// templo em obra na vitrine: andaime, blocos e a praca (referencia do canteiro do Rise of Kingdoms)
+		const int32 Id = 951000;
+		FAoEVisual& V = Buildings.Add(Id);
+		V.bBuilding = true; V.Type = TEXT("temple"); V.Dono = 0;
+		const FIntPoint Sz = SizeOfBuilding(V.Type);
+		V.Actor = SpawnVisual(V, Td, Id, PlayerColor(0), FMath::Min(Sz.X, Sz.Y) * 200.f, FMath::Min(Sz.X, Sz.Y) * 100.f);
+		V.From = V.To = FVector2D(44.f, 20.f); V.FromZ = V.ToZ = VitrineZ; V.Alpha = 1.f; V.Yaw = Td->Yaw;
+		V.Progress = 0.45f; V.Hp01 = 1.f;
+		V.Obra = SpawnObra(V, Id); V.Plaza = SpawnPlaza(V, Id);
+	}
 	UE_LOG(LogTemp, Log, TEXT("AoE: vitrine com %d tipos"), I);
 }
 
@@ -175,7 +190,7 @@ void AAoEBridgeActor::LoadFamilies(const TSharedPtr<FJsonObject>& Root)
 			}
 		};
 		Ler(TEXT("idle"), S.Idle); Ler(TEXT("walk"), S.Walk); Ler(TEXT("run"), S.Run); Ler(TEXT("attack"), S.Attack); Ler(TEXT("death"), S.Death);
-		Ler(TEXT("gather_tree"), S.GatherTree); Ler(TEXT("gather_farm"), S.GatherFarm); Ler(TEXT("gather_mine"), S.GatherMine);
+		Ler(TEXT("gather_tree"), S.GatherTree); Ler(TEXT("build"), S.Build); Ler(TEXT("gather_farm"), S.GatherFarm); Ler(TEXT("gather_mine"), S.GatherMine);
 		AnimSets.Add(KV.Key, S);
 		UE_LOG(LogTemp, Log, TEXT("AoE: familia %s: idle %d, andar %d, correr %d, golpe %d, morte %d"), *KV.Key, S.Idle.Num(), S.Walk.Num(), S.Run.Num(), S.Attack.Num(), S.Death.Num());
 	}
@@ -363,7 +378,7 @@ void AAoEBridgeActor::HandleHello(const TSharedPtr<FJsonObject>& O)
 {
 	// uma nova partida: apaga tudo o que havia
 	for (auto& P : Units) if (P.Value.Actor.IsValid()) P.Value.Actor->Destroy();
-	for (auto& P : Buildings) if (P.Value.Actor.IsValid()) P.Value.Actor->Destroy();
+	for (auto& P : Buildings) { if (P.Value.Actor.IsValid()) P.Value.Actor->Destroy(); if (P.Value.Plaza.IsValid()) P.Value.Plaza->Destroy(); if (P.Value.Obra.IsValid()) P.Value.Obra->Destroy(); }
 	for (auto& D : Dying) if (D.Actor.IsValid()) D.Actor->Destroy();
 	for (auto& P : NodeComps) if (P.Value) P.Value->ClearInstances();
 	Units.Empty(); Buildings.Empty(); Dying.Empty(); ActorToUnit.Empty(); Selected.Empty(); NodeRefs.Empty();
@@ -767,6 +782,7 @@ void AAoEBridgeActor::HandleState(const TSharedPtr<FJsonObject>& O)
 				const FString K = Kd ? *Kd : FString();
 				Vis->GatherKind = K.Contains(TEXT("tree")) || K.Contains(TEXT("olive")) ? 1 : (K.Contains(TEXT("berry")) || K.Contains(TEXT("wheat")) || K.Contains(TEXT("farm")) || K.Contains(TEXT("fruit"))) ? 2 : 3;
 			}
+			else if (St == TEXT("build")) Vis->GatherKind = 4;   // cidadao na obra: martela
 			double Hp = 1, Mhp = 1;
 			U->TryGetNumberField(TEXT("hp"), Hp); U->TryGetNumberField(TEXT("mhp"), Mhp);
 			Vis->Hp01 = Mhp > 0 ? (float)(Hp / Mhp) : 1.f;
@@ -835,9 +851,17 @@ void AAoEBridgeActor::HandleState(const TSharedPtr<FJsonObject>& O)
 				Vis->FromZ = Vis->ToZ = Zmax - 6.f;
 				Vis->Alpha = 1.f;
 				Vis->Yaw = Def ? Def->Yaw : 0.f;
+				if (!(Def && Def->bField) && Vis->Type != TEXT("wall") && Vis->Type != TEXT("gate")) Vis->Plaza = SpawnPlaza(*Vis, Id);
 				UE_LOG(LogTemp, Log, TEXT("AoE: edificio %s id %d dono %d tile (%.1f, %.1f) z %.0f escala %.2f altura %.0f"), *Vis->Type, Id, Dono, Center.X, Center.Y, Vis->ToZ, Vis->BaseScale, Vis->MeshHeight);
 			}
 			Vis->Progress = Prog;
+			// andaime: nao em lavoura nem em trecho de muralha/portao (uma fileira de andaimes vira um zigue-zague)
+			if (Prog < 1.f && !Vis->Obra.IsValid() && !(BuildingDefs.Find(Vis->Type) && BuildingDefs.Find(Vis->Type)->bField) && Vis->Type != TEXT("wall") && Vis->Type != TEXT("gate")) Vis->Obra = SpawnObra(*Vis, Id);
+			if (Prog >= 1.f && Vis->Obra.IsValid())
+			{
+				Vis->Obra->Destroy(); Vis->Obra = nullptr;
+				AddPuffs(FVector(Vis->To.X * Uu, Vis->To.Y * Uu, Vis->ToZ), 6, 80.f, 260.f, 2.5f, 0.f, 200.f);   // obra entregue: a poeira assenta
+			}
 			{ double Q = 0; B->TryGetNumberField(TEXT("q"), Q); Vis->Queue = (int32)Q; }
 			double Hp = 1, Mhp = 1;
 			B->TryGetNumberField(TEXT("hp"), Hp); B->TryGetNumberField(TEXT("mhp"), Mhp);
@@ -848,6 +872,8 @@ void AAoEBridgeActor::HandleState(const TSharedPtr<FJsonObject>& O)
 			if (It->Value.Serial != StateSerial)
 			{
 				if (It->Value.Actor.IsValid()) It->Value.Actor->Destroy();
+				if (It->Value.Plaza.IsValid()) It->Value.Plaza->Destroy();
+				if (It->Value.Obra.IsValid()) It->Value.Obra->Destroy();
 				It.RemoveCurrent();
 			}
 	}
@@ -892,7 +918,7 @@ void AAoEBridgeActor::DriveSkeletal(FAoEVisual& V, int32 /*Id*/)
 	int32 Want = V.bMoving ? (V.Speed > (FS ? 330.f : 260.f) ? 2 : 1) : 0;
 	if (!V.bMoving && V.GatherKind > 0 && FS)
 	{
-		const TArray<UAnimSequence*>& G = V.GatherKind == 1 ? FS->GatherTree : (V.GatherKind == 2 ? FS->GatherFarm : FS->GatherMine);
+		const TArray<UAnimSequence*>& G = V.GatherKind == 1 ? FS->GatherTree : (V.GatherKind == 2 ? FS->GatherFarm : (V.GatherKind == 4 ? FS->Build : FS->GatherMine));
 		if (G.Num() > 0) Want = 3 + V.GatherKind;
 	}
 	if (V.bAttacking && !V.bMoving) Want = 0;
@@ -903,7 +929,7 @@ void AAoEBridgeActor::DriveSkeletal(FAoEVisual& V, int32 /*Id*/)
 		const TArray<UAnimSequence*>* L = &FS->Idle; bool bLoop = true; float Rate = 1.f;
 		if (Want == 2) { L = FS->Run.Num() ? &FS->Run : &FS->Walk; Rate = FMath::Clamp(V.Speed / 480.f, 0.6f, 1.8f); }
 		else if (Want == 1) { L = &FS->Walk; Rate = FMath::Clamp(V.Speed / 190.f, 0.6f, 1.8f); }
-		else if (Want >= 4) L = Want == 4 ? &FS->GatherTree : (Want == 5 ? &FS->GatherFarm : &FS->GatherMine);
+		else if (Want >= 4) L = Want == 4 ? &FS->GatherTree : (Want == 5 ? &FS->GatherFarm : (Want == 7 ? &FS->Build : &FS->GatherMine));
 		if (UAnimSequence* A = FAnimSet::Pick(*L, V.AnimSeed)) PlayAnim(V, A, bLoop, Rate, Ofs);
 		V.AnimState = Want;
 		return;
@@ -927,7 +953,19 @@ void AAoEBridgeActor::UpdateVisual(FAoEVisual& V, float Dt)
 	if (V.bBuilding)
 	{
 		// em obra: a construcao sobe do chao (a parte enterrada some sob o terreno)
-		Z += V.Lift - (1.f - V.Progress) * V.MeshHeight * 0.97f;
+		if (ObraMat && V.Body.IsValid() && V.Progress < 1.f)
+		{
+			// obra: o edificio fica no lugar e aparece de baixo para cima (base e colunas primeiro), dentro do andaime
+			Z += V.Lift;
+			if (V.CorteMids.Num() == 0) SetObraMats(V, true);
+			const float Corte = Z - V.Lift + 4.f + FMath::Clamp(V.Progress, 0.f, 1.f) * V.MeshHeight * 1.02f;
+			for (TWeakObjectPtr<UMaterialInstanceDynamic>& M : V.CorteMids) if (M.IsValid()) M->SetScalarParameterValue(TEXT("CorteZ"), Corte);
+		}
+		else
+		{
+			if (V.CorteMids.Num() > 0) SetObraMats(V, false);
+			Z += V.Lift - (ObraMat ? 0.f : (1.f - V.Progress) * V.MeshHeight * 0.97f);
+		}
 	}
 	else
 	{
@@ -1427,4 +1465,110 @@ void AAoEBridgeActor::AddBolt(const FVector& Ground)
 	}
 	if (FlashLight) { FlashLight->SetWorldLocation(Ground + FVector(0, 0, 800.f)); FlashT = 0.f; }
 	AddPuffs(Ground, 6, 60.f, 260.f, 2.5f, 0.6f, 120.f);
+}
+
+AActor* AAoEBridgeActor::SpawnPlaza(const FAoEVisual& V, int32 Id)
+{
+	if (!PracaMat) return nullptr;
+	const FIntPoint S = SizeOfBuilding(V.Type);
+	const float Uu = (float)UuPerTile;
+	// praca um pouco maior que a pegada (o Centro Civico ganha um largo); meia-extensao em Y/Z, X = profundidade da projecao
+	const float Margem = V.Type == TEXT("town_center") ? 2.2f : 1.0f;
+	FActorSpawnParameters Sp; Sp.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	ADecalActor* DA = GetWorld()->SpawnActor<ADecalActor>(FVector(V.To.X * Uu, V.To.Y * Uu, V.ToZ), FRotator(-90.f, Hash01(Id, 31) < 0.5f ? 0.f : 90.f, 0.f), Sp);
+	UDecalComponent* DC = DA->GetDecal();
+	DC->SetMobility(EComponentMobility::Movable);
+	DC->SetDecalMaterial(PracaMat);
+	DC->DecalSize = FVector(400.f, (S.X * 0.5f + Margem) * Uu, (S.Y * 0.5f + Margem) * Uu);
+	DC->SortOrder = -1;   // a lavoura (decal do campo) fica por cima se encostar
+	DC->SetFadeScreenSize(0.f);
+	return DA;
+}
+
+AActor* AAoEBridgeActor::SpawnObra(const FAoEVisual& V, int32 Id)
+{
+	// canteiro: postes de madeira nos cantos e no meio dos lados, dois pisos de tabuas, escoras, e uma pilha de blocos de pedra ao lado
+	const FIntPoint S = SizeOfBuilding(V.Type);
+	const float Uu = (float)UuPerTile;
+	const float Hx = S.X * Uu * 0.5f + 20.f, Hy = S.Y * Uu * 0.5f + 20.f;
+	const float Alt = FMath::Clamp(V.MeshHeight * 1.05f, 300.f, 1400.f);
+	FActorSpawnParameters Sp; Sp.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AActor* A = GetWorld()->SpawnActor<AActor>(AActor::StaticClass(), FVector(V.To.X * Uu, V.To.Y * Uu, V.ToZ), FRotator::ZeroRotator, Sp);
+	USceneComponent* Root = NewObject<USceneComponent>(A); A->SetRootComponent(Root); Root->RegisterComponent();
+	A->SetActorLocation(FVector(V.To.X * Uu, V.To.Y * Uu, V.ToZ));
+	auto Ism = [&](UStaticMesh* M, UMaterialInterface* Mat)
+	{
+		UInstancedStaticMeshComponent* I = NewObject<UInstancedStaticMeshComponent>(A);
+		I->SetStaticMesh(M); if (Mat) I->SetMaterial(0, Mat);
+		I->SetMobility(EComponentMobility::Movable); I->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		I->SetReceivesDecals(false);
+		I->SetupAttachment(Root); I->RegisterComponent(); A->AddInstanceComponent(I);
+		return I;
+	};
+	UInstancedStaticMeshComponent* Pau = Ism(CylMesh, MastroMat);
+	UInstancedStaticMeshComponent* Tabua = Ism(CubeMesh, MastroMat);
+	UInstancedStaticMeshComponent* Bloco = Ism(CubeMesh, PedraMat ? PedraMat.Get() : MastroMat.Get());
+	const float Diam = 0.12f;
+	// postes: cantos + meio dos lados (lados maiores que 2 tiles ganham dois intermediarios)
+	TArray<FVector2D> Postes;
+	const int32 Nx = S.X >= 3 ? 3 : 2, Ny = S.Y >= 3 ? 3 : 2;
+	for (int32 i = 0; i <= Nx; ++i) { const float X = -Hx + 2.f * Hx * i / Nx; Postes.Add(FVector2D(X, -Hy)); Postes.Add(FVector2D(X, Hy)); }
+	for (int32 j = 1; j < Ny; ++j) { const float Y = -Hy + 2.f * Hy * j / Ny; Postes.Add(FVector2D(-Hx, Y)); Postes.Add(FVector2D(Hx, Y)); }
+	for (const FVector2D& P : Postes) Pau->AddInstance(FTransform(FRotator::ZeroRotator, FVector(P.X, P.Y, Alt * 0.5f), FVector(Diam, Diam, Alt / 100.f)));
+	// pisos de tabuas (faixa de 60 cm em volta) a 45 % e 85 % da altura
+	for (const float Nivel : { 0.45f, 0.85f })
+	{
+		const float Z = Alt * Nivel;
+		Tabua->AddInstance(FTransform(FRotator::ZeroRotator, FVector(0.f, -Hy, Z), FVector(Hx * 2.f / 100.f, 0.6f, 0.06f)));
+		Tabua->AddInstance(FTransform(FRotator::ZeroRotator, FVector(0.f, Hy, Z), FVector(Hx * 2.f / 100.f, 0.6f, 0.06f)));
+		Tabua->AddInstance(FTransform(FRotator::ZeroRotator, FVector(-Hx, 0.f, Z), FVector(0.6f, Hy * 2.f / 100.f, 0.06f)));
+		Tabua->AddInstance(FTransform(FRotator::ZeroRotator, FVector(Hx, 0.f, Z), FVector(0.6f, Hy * 2.f / 100.f, 0.06f)));
+	}
+	// escoras em X nas faces (vigas diagonais finas)
+	const float Dg = FMath::Sqrt(FMath::Square(2.f * Hx / Nx) + FMath::Square(Alt * 0.45f));
+	const float Ang = FMath::RadiansToDegrees(FMath::Atan2(2.f * Hx / Nx, Alt * 0.45f));
+	for (int32 i = 0; i < Nx; ++i)
+	{
+		const float Xm = -Hx + 2.f * Hx * (i + 0.5f) / Nx;
+		for (const float Yf : { -Hy, Hy })
+			Pau->AddInstance(FTransform(FRotator(Ang * ((i % 2) ? 1.f : -1.f), 0.f, 0.f), FVector(Xm, Yf, Alt * 0.225f), FVector(0.07f, 0.07f, Dg / 100.f)));
+	}
+	// pilha de blocos de pedra num canto de fora, e uma escada de tabuas encostada
+	const FVector Pilha(Hx + 90.f, -Hy + 60.f, 0.f);
+	for (int32 k = 0; k < 7; ++k)
+	{
+		const float Ox = (k % 3) * 62.f, Oy = ((k / 3) % 2) * 52.f, Oz = (k / 6) * 42.f;
+		Bloco->AddInstance(FTransform(FRotator(0.f, Hash01(Id, 50 + k) * 12.f - 6.f, 0.f), Pilha + FVector(Ox, Oy, 21.f + Oz), FVector(0.58f, 0.48f, 0.42f)));
+	}
+	return A;
+}
+
+void AAoEBridgeActor::SetObraMats(FAoEVisual& V, bool bOn)
+{
+	UStaticMeshComponent* C = V.Body.Get();
+	if (!C) return;
+	if (bOn)
+	{
+		V.OrigMats.Reset(); V.CorteMids.Reset();
+		for (int32 i = 0; i < C->GetNumMaterials(); ++i)
+		{
+			UMaterialInterface* O = C->GetMaterial(i);
+			V.OrigMats.Add(O);
+			UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(ObraMat, C);
+			// copia as texturas do material original (mesmos nomes de parametro do M_Meshy)
+			for (const TCHAR* P : { TEXT("BaseColorTexture"), TEXT("NormalTexture"), TEXT("MetallicRoughnessTexture") })
+			{
+				UTexture* T = nullptr;
+				if (O && O->GetTextureParameterValue(FHashedMaterialParameterInfo(P), T) && T) M->SetTextureParameterValue(P, T);
+			}
+			float Mm = 0.f; if (O && O->GetScalarParameterValue(FHashedMaterialParameterInfo(TEXT("MetalMul")), Mm)) M->SetScalarParameterValue(TEXT("MetalMul"), Mm);
+			C->SetMaterial(i, M);
+			V.CorteMids.Add(M);
+		}
+	}
+	else
+	{
+		for (int32 i = 0; i < V.OrigMats.Num(); ++i) if (V.OrigMats[i].IsValid()) C->SetMaterial(i, V.OrigMats[i].Get());
+		V.OrigMats.Reset(); V.CorteMids.Reset();
+	}
 }

@@ -645,6 +645,10 @@
       ],
       "gather_mine": [
         "Fixing_Kneeling"
+      ],
+      "build": [
+        "Fixing_Kneeling",
+        "Chop_Tree"
       ]
     },
     "soldado": {

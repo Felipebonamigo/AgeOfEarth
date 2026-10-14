@@ -22,7 +22,7 @@ class FJsonObject;
 /** Animacoes de uma familia de esqueleto (humano, cavalo, raposa...): listas de sequencias por papel; vazio = cai no que houver. */
 struct FAnimSet
 {
-	TArray<UAnimSequence*> Idle, Walk, Run, Attack, Death, GatherTree, GatherFarm, GatherMine;
+	TArray<UAnimSequence*> Idle, Walk, Run, Attack, Death, GatherTree, GatherFarm, GatherMine, Build;
 	static UAnimSequence* Pick(const TArray<UAnimSequence*>& L, int32 K) { return L.Num() ? L[(uint32)K % (uint32)L.Num()] : nullptr; }
 };
 
@@ -75,7 +75,12 @@ struct FAoEVisual
 	FVector2D CenterOfs = FVector2D::ZeroVector;   // centro da malha esqueletica fora da origem (cavalo, raposa...), ja escalado (cm)
 	FVector GroundPoint = FVector::ZeroVector;      // ponto da simulacao no chao (onde vai o disco)
 	float FxT = 0.f;
-	int32 Queue = 0;             // edificio: itens na fila de producao (state.buildings[].q)             // edificio: relogio dos efeitos de ambiente (chamine, fumaca de dano, poeira de obra)
+	int32 Queue = 0;             // edificio: itens na fila de producao (state.buildings[].q)
+	TWeakObjectPtr<AActor> Plaza;     // edificio: decal de lajotas sob ele
+	TWeakObjectPtr<AActor> Obra;      // edificio em obra: andaime de madeira e blocos de pedra (some quando fica pronto)
+	// obra revelada de baixo para cima: materiais trocados por M_MeshyObra (recorte em CorteZ) enquanto Progress < 1
+	TArray<TWeakObjectPtr<UMaterialInterface>> OrigMats;
+	TArray<TWeakObjectPtr<UMaterialInstanceDynamic>> CorteMids;             // edificio: relogio dos efeitos de ambiente (chamine, fumaca de dano, poeira de obra)
 };
 
 /** Corpo que cai e some depois de uma morte. */
@@ -239,6 +244,12 @@ private:
 	float FlashT = 9.f;
 	void AddBolt(const FVector& Ground);
 	void AmbientFx(int32 Id, FAoEVisual& V, float Dt);
+	AActor* SpawnPlaza(const FAoEVisual& V, int32 Id);
+	AActor* SpawnObra(const FAoEVisual& V, int32 Id);
+	UPROPERTY() TObjectPtr<UMaterialInterface> PracaMat;
+	UPROPERTY() TObjectPtr<UMaterialInterface> PedraMat;
+	UPROPERTY() TObjectPtr<UMaterialInterface> ObraMat;
+	void SetObraMats(FAoEVisual& V, bool bOn);
 	// aves de ambiente (sem simulacao): gaivotas circulando sobre a agua perto da costa, aguias sobre a terra alta
 	struct FAoEBird { TWeakObjectPtr<USkeletalMeshComponent> K; FVector C; float R = 1000.f, Z = 1500.f, W = 0.3f, A = 0.f, NextFlap = 0.f; bool bFlap = false; bool bEagle = false; };
 	TArray<FAoEBird> Birds;
