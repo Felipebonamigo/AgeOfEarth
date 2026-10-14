@@ -1,6 +1,9 @@
 #include "AoEMapTools.h"
 
 #include "Engine/World.h"
+#include "Engine/StaticMesh.h"
+#include "GameFramework/Actor.h"
+#include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Materials/MaterialInterface.h"
 
 #if WITH_EDITOR
@@ -76,4 +79,20 @@ ALandscape* UAoEMapTools::ImportLandscape(UWorld* World, const FString& R16Path,
 #else
 	return nullptr;
 #endif
+}
+
+int32 UAoEMapTools::AddInstancedMesh(AActor* Owner, UStaticMesh* Mesh, const TArray<FTransform>& Transforms, float CullEnd, bool bCastShadow)
+{
+	if (!Owner || !Mesh || !Owner->GetRootComponent()) return 0;
+	UHierarchicalInstancedStaticMeshComponent* C = NewObject<UHierarchicalInstancedStaticMeshComponent>(Owner);
+	C->SetStaticMesh(Mesh);
+	C->SetMobility(EComponentMobility::Static);
+	C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	C->SetCastShadow(bCastShadow);
+	C->SetCullDistances(0, FMath::RoundToInt(CullEnd));
+	C->AttachToComponent(Owner->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+	Owner->AddInstanceComponent(C);
+	C->RegisterComponent();
+	C->AddInstances(Transforms, false, true);
+	return Transforms.Num();
 }

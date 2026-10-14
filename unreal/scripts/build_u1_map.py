@@ -137,6 +137,11 @@ def build_material():
         cores[nome], ruges[nome], normais[nome] = c, r, n
         y += 700
 
+    # a foto da grama é amarelada à luz direta: puxa para o verde (só nesta camada)
+    tom = no(mat, unreal.MaterialExpressionConstant3Vector, 300, -80)
+    tom.set_editor_property("constant", unreal.LinearColor(0.80, 0.96, 0.62, 1.0))
+    cores["grass"] = mult(mat, cores["grass"], tom, 450, -40)
+
     def cadeia(dic, x, y0):
         prev = dic["grass"]
         for i, nome in enumerate(["dirt", "sand", "rock"]):
@@ -197,7 +202,7 @@ def main():
         c = d.get_component_by_class(unreal.DirectionalLightComponent)
         c.set_mobility(unreal.ComponentMobility.MOVABLE)
         c.set_editor_property("atmosphere_sun_light", True)
-        c.set_editor_property("intensity", 7.5)
+        c.set_editor_property("intensity", 6.4)
         c.set_editor_property("light_source_angle", 0.5)
     step("DirectionalLight", sun)
 
