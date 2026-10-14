@@ -29,3 +29,15 @@ construir, treinar, pesquisar na Biblioteca, evoluir de Era, usar poderes, ver n
 - HUD em UMG por script é trabalhoso: preferir C++ + Slate/UMG mínimo, ou HUD em WebView do cliente web (reuso do que existe). Decidir na U2a.
 - Animação de criaturas depende de rig externo (Meshy gratuito não entrega).
 - Cada mudança do núcleo que altere a ponte exige `SIM_VERSION` e atualização do catálogo `Dados/AoEVisuais.json`.
+
+## Andamento (14/10/2026, sessão local — feito sem esperar a aprovação formal, por pedido do dono de seguir com tudo que desse)
+- **U2a feito**: clique direito contextual (inimigo → `attack`, recurso → `gather`, senão `move`; Shift enfileira), A + clique =
+  `attackMove`, S = `stop`, arrastar = caixa de seleção, Ctrl+1..9 grava e 1..9 chama grupo, câmera WASD/roda. Teste automático:
+  `-AoEAutoTest -AoEOrderTest` (com `u1-servidor.ts --humano --avancar 0`): coletar levou as unidades de 12,4 a 9,8 tiles do nó em 40 s.
+- **U2b em versão mínima**: HUD em C++ (`AoEHud`): recursos, população, Era, caixa de seleção, barras de vida da seleção, dicas;
+  clicar num edifício próprio o seleciona e **Z X C V N M** treinam os tipos que ele treina (hello `buildingTypes.trains`); **B** abre o menu
+  de construção (lista fixa de 9), número escolhe, clique no chão posiciona. Teste: treinar um cidadão (+1) e construir uma casa (0→1) por esses comandos.
+- **Falta no U2b**: fantasma da construção, custo/Era/atalhos de cada edifício, Biblioteca (estudos) e avanço de Era, poderes, fila de treino visível.
+  **Pedido à nuvem** (precisa de `scripts/unreal/protocol.ts`): no `hello`, por tipo de edifício `age`, `cost`, `hotkey`, `trains[].cost`, `limit`; por
+  tipo de unidade `cost`; e no `state` a fila de produção dos edifícios próprios e o progresso de pesquisa.
+- **U2c (névoa) e demais fatias** seguem como no plano acima.

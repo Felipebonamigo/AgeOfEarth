@@ -95,6 +95,13 @@ void AAoEPlayerController::AoEMove(float TileX, float TileY)
 	B->SendMove(Ids, TileX, TileY);
 }
 
+const TArray<FString>& AAoEPlayerController::BuildList()
+{
+	// o protocolo ainda nao diz o que cada Era libera (pedido a nuvem em unreal/PENDENCIAS.md): lista fixa das construcoes de cidadao; o servidor recusa o que nao vale
+	static const TArray<FString> L = { TEXT("house"), TEXT("farm"), TEXT("granary"), TEXT("lumber_camp"), TEXT("mine"), TEXT("quarry"), TEXT("barracks"), TEXT("temple"), TEXT("market") };
+	return L;
+}
+
 void AAoEPlayerController::ContextOrder(float TileX, float TileY, bool bQueue)
 {
 	AAoEBridgeActor* B = Bridge();
@@ -167,12 +174,40 @@ void AAoEPlayerController::PlayerTick(float Dt)
 				B->SetSelected(Vivos);
 			}
 		}
+	// menu de construcao: B abre, 1..9 escolhe, clique no chao posiciona (Shift mantem), Esc cancela
+	if (WasInputKeyJustPressed(EKeys::B) && !bCtrl && B->GetSelected().Num() > 0) { bBuildMenu = !bBuildMenu; BuildPending.Empty(); }
+	if (bBuildMenu)
+	{
+		for (int32 G = 1; G <= 9 && G <= BuildList().Num(); ++G)
+			if (WasInputKeyJustPressed(NumKeys[G])) { BuildPending = BuildList()[G - 1]; bBuildMenu = false; }
+	}
+	if (WasInputKeyJustPressed(EKeys::Escape)) { bBuildMenu = false; BuildPending.Empty(); }
+	// treino no edificio selecionado: Z X C V N M = 1o a 6o tipo que ele treina
+	if (B->SelBuilding != 0)
+	{
+		static const FKey TrainKeys[6] = { EKeys::Z, EKeys::X, EKeys::C, EKeys::V, EKeys::N, EKeys::M };
+		const TArray<FString>* Tr = B->BuildingTrains.Find(B->SelBuildingType);
+		if (Tr) for (int32 i = 0; i < 6 && i < Tr->Num(); ++i)
+			if (WasInputKeyJustPressed(TrainKeys[i])) B->SendCmd(TEXT("train"), TArray<int32>(), FString::Printf(TEXT("\"buildingId\":%d,\"unit\":\"%s\""), B->SelBuilding, *(*Tr)[i]), false);
+	}
 	// esquerdo: A armado = atacar-mover; senao clique seleciona e arrastar faz caixa
 	float MX = 0.f, MY = 0.f;
 	GetMousePosition(MX, MY);
 	if (WasInputKeyJustPressed(EKeys::LeftMouseButton))
 	{
-		if (bAttackMoveArmed)
+		if (!BuildPending.IsEmpty())
+		{
+			FHitResult Hit;
+			TArray<int32> Ids = B->GetSelected().Array();
+			if (Ids.Num() > 0 && GetHitResultUnderCursor(ECC_Visibility, false, Hit))
+			{
+				const FIntPoint S = B->SizeOfBuilding(BuildPending);
+				const int32 Tx = FMath::FloorToInt(Hit.ImpactPoint.X / B->UuPerTile - S.X * 0.5f + 0.5f), Ty = FMath::FloorToInt(Hit.ImpactPoint.Y / B->UuPerTile - S.Y * 0.5f + 0.5f);
+				B->SendCmd(TEXT("build"), Ids, FString::Printf(TEXT("\"building\":\"%s\",\"tx\":%d,\"ty\":%d"), *BuildPending, Tx, Ty), bShift);
+			}
+			if (!bShift) BuildPending.Empty();
+		}
+		else if (bAttackMoveArmed)
 		{
 			FHitResult Hit;
 			TArray<int32> Ids = B->GetSelected().Array();
@@ -202,7 +237,13 @@ void AAoEPlayerController::PlayerTick(float Dt)
 			FHitResult Hit;
 			GetHitResultUnderCursor(ECC_Visibility, false, Hit);
 			int32 Id = 0, Dono = -1;
-			if (Hit.GetActor() && B->UnitIdOf(Hit.GetActor(), Id, Dono) && Dono == B->MyPlayer) Sel.Add(Id);
+			if (Hit.GetActor() && B->UnitIdOf(Hit.GetActor(), Id, Dono) && Dono == B->MyPlayer) { Sel.Add(Id); B->SelBuilding = 0; }
+			else
+			{
+				int32 BId = 0; FString BType;
+				if (B->PickOwnBuilding(Hit.ImpactPoint.X / B->UuPerTile, Hit.ImpactPoint.Y / B->UuPerTile, BId, BType)) { B->SelBuilding = BId; B->SelBuildingType = BType; }
+				else B->SelBuilding = 0;
+			}
 		}
 		B->SetSelected(Sel);
 	}
@@ -237,9 +278,20 @@ void AAoEPlayerController::RunAutoTest(float Dt)
 			const bool bPick = B->PickTarget(OrderTile.X, OrderTile.Y, T, Kind);
 			UE_LOG(LogTemp, Log, TEXT("AOE_ORDER pick=%d kind=%s id=%d (esperado no %d) distancia media inicial %.1f tiles"), bPick ? 1 : 0, *Kind, T, OrderNode, OrderDist0);
 			ContextOrder(OrderTile.X, OrderTile.Y, false);
+			int32 Tc = 0; for (const TPair<int32, FAoEVisual>& K : B->GetBuildings()) if (K.Value.Dono == B->MyPlayer && K.Value.Type == TEXT("town_center")) Tc = K.Key;
+			auto Count = [&](const TCHAR* Type) { int32 N = 0; for (const TPair<int32, FAoEVisual>& K : B->GetUnits()) if (K.Value.Dono == B->MyPlayer && K.Value.Type == Type) ++N; return N; };
+			auto CountB = [&](const TCHAR* Type) { int32 N = 0; for (const TPair<int32, FAoEVisual>& K : B->GetBuildings()) if (K.Value.Dono == B->MyPlayer && K.Value.Type == Type) ++N; return N; };
+			OrderVill0 = Count(TEXT("villager")); OrderHouse0 = CountB(TEXT("house"));
+			B->SendCmd(TEXT("train"), TArray<int32>(), FString::Printf(TEXT("\"buildingId\":%d,\"unit\":\"villager\""), Tc), false);
+			B->SendCmd(TEXT("build"), B->GetSelected().Array(), FString::Printf(TEXT("\"building\":\"house\",\"tx\":%d,\"ty\":%d"), (int32)B->MyCentroidTiles.X + 6, (int32)B->MyCentroidTiles.Y + 6), false);
+			UE_LOG(LogTemp, Log, TEXT("AOE_ORDER treino/construcao enviados (CC %d): cidadaos %d, casas %d"), Tc, OrderVill0, OrderHouse0);
 			OrderStage = 1; OrderT = 0.f;
 		}
-		else if (OrderStage == 1) { OrderT += Dt; if (OrderT > 20.f) { UE_LOG(LogTemp, Log, TEXT("AOE_ORDER distancia media final %.1f tiles (inicial %.1f)"), MeanDist(), OrderDist0); ConsoleCommand(TEXT("quit"), true); OrderStage = 2; } }
+		else if (OrderStage == 1) { OrderT += Dt; if (OrderT > 40.f) {
+			int32 V = 0, Hs = 0;
+			for (const TPair<int32, FAoEVisual>& K : B->GetUnits()) if (K.Value.Dono == B->MyPlayer && K.Value.Type == TEXT("villager")) ++V;
+			for (const TPair<int32, FAoEVisual>& K : B->GetBuildings()) if (K.Value.Dono == B->MyPlayer && K.Value.Type == TEXT("house")) ++Hs;
+			UE_LOG(LogTemp, Log, TEXT("AOE_ORDER apos 40 s: cidadaos %d -> %d, casas %d -> %d"), OrderVill0, V, OrderHouse0, Hs); UE_LOG(LogTemp, Log, TEXT("AOE_ORDER distancia media final %.1f tiles (inicial %.1f)"), MeanDist(), OrderDist0); ConsoleCommand(TEXT("quit"), true); OrderStage = 2; } }
 		return;
 	}
 	if (Shots.Num() > 0)

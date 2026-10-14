@@ -192,7 +192,22 @@ void AAoEBridgeActor::HandleHello(const TSharedPtr<FJsonObject>& O)
 	const double TickRate = FMath::Max(1.0, O->GetNumberField(TEXT("tickRate")));
 	StateInterval = (float)(O->GetNumberField(TEXT("stateEvery")) / TickRate);
 	PlayerColors.Empty();
-	AgeNames.Empty();
+	AgeNames.Empty(); BuildingTrains.Empty(); UnitNames.Empty(); BuildingNames.Empty(); SelBuilding = 0; SelBuildingType.Empty();
+	const TSharedPtr<FJsonObject>* HudBT = nullptr;
+	if (O->TryGetObjectField(TEXT("buildingTypes"), HudBT)) for (const TPair<FString, TSharedPtr<FJsonValue>>& KV : (*HudBT)->Values)
+	{
+		const TSharedPtr<FJsonObject>* D = nullptr;
+		if (!KV.Value->TryGetObject(D)) continue;
+		BuildingNames.Add(KV.Key, (*D)->GetStringField(TEXT("name")));
+		const TArray<TSharedPtr<FJsonValue>>* Tr = nullptr;
+		if ((*D)->TryGetArrayField(TEXT("trains"), Tr)) { TArray<FString> L; for (const TSharedPtr<FJsonValue>& U : *Tr) L.Add(U->AsString()); BuildingTrains.Add(KV.Key, L); }
+	}
+	const TSharedPtr<FJsonObject>* HudUT = nullptr;
+	if (O->TryGetObjectField(TEXT("unitTypes"), HudUT)) for (const TPair<FString, TSharedPtr<FJsonValue>>& KV : (*HudUT)->Values)
+	{
+		const TSharedPtr<FJsonObject>* D = nullptr;
+		if (KV.Value->TryGetObject(D)) UnitNames.Add(KV.Key, (*D)->GetStringField(TEXT("name")));
+	}
 	const TArray<TSharedPtr<FJsonValue>>* AgesArr = nullptr;
 	if (O->TryGetArrayField(TEXT("ages"), AgesArr)) for (const TSharedPtr<FJsonValue>& A : *AgesArr) { const TSharedPtr<FJsonObject>* AO; if (A->TryGetObject(AO)) AgeNames.Add((*AO)->GetStringField(TEXT("name"))); }
 	const TArray<TSharedPtr<FJsonValue>>* Players = nullptr;
@@ -815,4 +830,15 @@ bool AAoEBridgeActor::PickTarget(float TileX, float TileY, int32& OutId, FString
 		if (D < Best) { Best = D; OutId = K.Key; OutKind = TEXT("gather"); bFound = true; }
 	}
 	return bFound;
+}
+
+bool AAoEBridgeActor::PickOwnBuilding(float TileX, float TileY, int32& OutId, FString& OutType) const
+{
+	for (const TPair<int32, FAoEVisual>& K : Buildings)
+	{
+		if (K.Value.Dono != MyPlayer) continue;
+		const FIntPoint S = SizeOfBuilding(K.Value.Type);
+		if (FMath::Abs(TileX - K.Value.To.X) <= S.X * 0.5f && FMath::Abs(TileY - K.Value.To.Y) <= S.Y * 0.5f) { OutId = K.Key; OutType = K.Value.Type; return true; }
+	}
+	return false;
 }

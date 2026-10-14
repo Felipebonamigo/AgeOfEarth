@@ -106,7 +106,15 @@ public:
 	int32 Pop = 0, PopCap = 0, Age = 0;
 	TArray<FString> AgeNames;
 	bool bGameOver = false;
+	TMap<FString, TArray<FString>> BuildingTrains;   // tipo de edificio -> tipos de unidade que treina
+	TMap<FString, FString> UnitNames, BuildingNames;
+	int32 SelBuilding = 0;                            // edificio proprio selecionado (0 = nenhum)
+	FString SelBuildingType;
+	/** Edificio PROPRIO sob o ponto (tiles)? */
+	bool PickOwnBuilding(float TileX, float TileY, int32& OutId, FString& OutType) const;
+	FIntPoint SizeOfBuilding(const FString& Type) const { const FIntPoint* S = BuildingSize.Find(Type); return S ? *S : FIntPoint(2, 2); }
 	const TMap<int32, FVector2D>& GetNodeTiles() const { return NodeTile; }
+	const TMap<int32, FAoEVisual>& GetBuildings() const { return Buildings; }
 	/** Altura do chao (Landscape) em uu, ou 0 se nao houver. */
 	float GroundZ(float X, float Y) const;
 
