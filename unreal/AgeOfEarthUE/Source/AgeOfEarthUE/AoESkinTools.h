@@ -6,6 +6,8 @@
 
 class UStaticMesh;
 class USkeletalMesh;
+class UAnimationAsset;
+class USkeleton;
 
 /**
  * Ferramenta de editor chamada pelos scripts Python (unreal/scripts/u1_esqueletos.py): transforma um humanoide estatico do
@@ -27,4 +29,8 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "AoE")
 	static USkeletalMesh* BuildSkinnedFromStatic(UStaticMesh* Source, USkeletalMesh* Template, const FString& PackagePath, float YawDeg, float Suavidade);
+
+	/** Religa uma animacao ao esqueleto (as do modelo Third Person ficaram com o USkeleton nulo e o cook cai). So no editor. */
+	UFUNCTION(BlueprintCallable, Category = "AoE")
+	static bool SetAnimSkeleton(UAnimationAsset* Anim, USkeleton* Skeleton);
 };

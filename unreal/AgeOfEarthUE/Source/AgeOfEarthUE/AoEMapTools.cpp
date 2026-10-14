@@ -19,7 +19,7 @@
 #include "UObject/Package.h"
 #endif
 
-ALandscape* UAoEMapTools::ImportLandscape(UWorld* World, const FString& R16Path, int32 Resolution, float ScaleXY, float ScaleZ,
+AActor* UAoEMapTools::ImportLandscape(UWorld* World, const FString& R16Path, int32 Resolution, float ScaleXY, float ScaleZ,
 	UMaterialInterface* Material, const TArray<FString>& LayerNames, const TArray<FString>& LayerPngs, const FString& LayerInfoDir)
 {
 #if WITH_EDITOR

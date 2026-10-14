@@ -102,3 +102,19 @@ pitch, yaw)` — o script usa argumentos nomeados (com a ordem trocada o sol fic
 Teste automático com capturas: `-AoEAutoTest -AoEShotDir=<pasta> [-AoEDelay=30]` — tira `u0-caixas-1.png`, manda as
 unidades andarem pelo mesmo caminho do clique direito, tira `u0-caixas-2.png` e sai. Câmera:
 `-AoEArm=<uu> -AoEPitch=<graus> -AoETileX=<x> -AoETileY=<y>`. Capturas do U0 em `unreal/capturas/`.
+
+## 6. U1: fluxo de scripts (sessão local, 14/10/2026)
+Ordem para refazer tudo do zero (editor **fechado**; `unreal/scripts/ue.sh <script.py> [log]` roda um script Python no editor):
+1. `u1_importar.py` (texturas do terreno + `.glb` do Meshy; `AOE_VEG=1` importa as plantas Poly Haven de `Content/Fontes/vegetacao`),
+   `u1_materiais.py` (mestres `M_Meshy`/`M_Meshy_Vento`), `u1_vegetal.py` (`M_Vegetal`/`M_Rocha`), `u1_campo.py` (`M_Campo`),
+   `u1_normais.py`, `u1_consertar_anims.py` (religa as animações do Third Person ao esqueleto), `u1_esqueletos.py` (SkeletalMesh
+   por unidade humana), `u1_nanite.py` (Nanite desligado em vento/folhagem: travava a GPU).
+2. `build_u1_map.py` (mapa `/Game/Maps/U1`; apague `Content/Maps/U1*` e `Content/Terreno/{Camadas,M_U1_Terreno.uasset}` antes),
+   `node unreal/scripts/u1_plantas.mjs` + `u1_plantar.py` (vegetação rasteira e rochas por HISM).
+3. Catálogo de visuais em `unreal/AgeOfEarthUE/Dados/AoEVisuais.json` (tipo do jogo → malhas/esqueletos; ajuste, yaw, campo).
+4. Capturas no editor: `u1-rodar.sh "nome:tileX:tileY:braço:pitch:yaw;..." <pasta>`. Empacotar: `u1-empacotar.sh` (UAT +
+   cópia de `Dados/`; saída em `C:/Users/Felip/aoe-build`). Medir a build: `AVANCAR=15 TAMANHO=medium EXTRA_SERVIDOR="--ais 3"
+   ESCALA=2 u1-medir.sh <perf.log>`. A ponte para a build é `unreal/scripts/u1-servidor.ts` (todos sob IA, pré-corrida de N min;
+   reinicie sempre: um servidor velho continua jogando).
+Armadilhas: `Content/` está no `.gitignore`; `DefaultEngine.ini` ganha sozinho uma seção `AndroidFileServer` com `SecurityToken`
+(apague antes de commitar); só o que o mapa ou `DirectoriesToAlwaysCook` referencia é cozido (o catálogo carrega por caminho).

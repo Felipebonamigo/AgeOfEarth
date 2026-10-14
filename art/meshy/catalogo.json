@@ -1535,5 +1535,205 @@
     "wonder_corinth_canal",
     "wonder_panathenaic_stadium",
     "wonder_olympus_throne"
+  ],
+  "externos": [
+    {
+      "id": "rocky_terrain_02",
+      "tipo": "textura",
+      "titulo": "Textura PBR 1k",
+      "url": "https://polyhaven.com/a/rocky_terrain_02",
+      "autor": "Poly Haven (vários autores)",
+      "licenca": "CC0",
+      "origem": "polyhaven.com (API api.polyhaven.com)",
+      "baixadoEm": "2026-10-14",
+      "uso": "Terreno e campos do U1 no Unreal (unreal/AgeOfEarthUE/Content/Fontes/terreno, /Game/Terreno/Texturas)"
+    },
+    {
+      "id": "brown_mud_dry",
+      "tipo": "textura",
+      "titulo": "Textura PBR 1k",
+      "url": "https://polyhaven.com/a/brown_mud_dry",
+      "autor": "Poly Haven (vários autores)",
+      "licenca": "CC0",
+      "origem": "polyhaven.com (API api.polyhaven.com)",
+      "baixadoEm": "2026-10-14",
+      "uso": "Terreno e campos do U1 no Unreal (unreal/AgeOfEarthUE/Content/Fontes/terreno, /Game/Terreno/Texturas)"
+    },
+    {
+      "id": "dense_sand",
+      "tipo": "textura",
+      "titulo": "Textura PBR 1k",
+      "url": "https://polyhaven.com/a/dense_sand",
+      "autor": "Poly Haven (vários autores)",
+      "licenca": "CC0",
+      "origem": "polyhaven.com (API api.polyhaven.com)",
+      "baixadoEm": "2026-10-14",
+      "uso": "Terreno e campos do U1 no Unreal (unreal/AgeOfEarthUE/Content/Fontes/terreno, /Game/Terreno/Texturas)"
+    },
+    {
+      "id": "aerial_rocks_02",
+      "tipo": "textura",
+      "titulo": "Textura PBR 1k",
+      "url": "https://polyhaven.com/a/aerial_rocks_02",
+      "autor": "Poly Haven (vários autores)",
+      "licenca": "CC0",
+      "origem": "polyhaven.com (API api.polyhaven.com)",
+      "baixadoEm": "2026-10-14",
+      "uso": "Terreno e campos do U1 no Unreal (unreal/AgeOfEarthUE/Content/Fontes/terreno, /Game/Terreno/Texturas)"
+    },
+    {
+      "id": "forrest_ground_01",
+      "tipo": "textura",
+      "titulo": "Textura PBR 1k",
+      "url": "https://polyhaven.com/a/forrest_ground_01",
+      "autor": "Poly Haven (vários autores)",
+      "licenca": "CC0",
+      "origem": "polyhaven.com (API api.polyhaven.com)",
+      "baixadoEm": "2026-10-14",
+      "uso": "Terreno e campos do U1 no Unreal (unreal/AgeOfEarthUE/Content/Fontes/terreno, /Game/Terreno/Texturas)"
+    },
+    {
+      "id": "dry_ground_rocks",
+      "tipo": "textura",
+      "titulo": "Textura PBR 1k",
+      "url": "https://polyhaven.com/a/dry_ground_rocks",
+      "autor": "Poly Haven (vários autores)",
+      "licenca": "CC0",
+      "origem": "polyhaven.com (API api.polyhaven.com)",
+      "baixadoEm": "2026-10-14",
+      "uso": "Terreno e campos do U1 no Unreal (unreal/AgeOfEarthUE/Content/Fontes/terreno, /Game/Terreno/Texturas)"
+    },
+    {
+      "id": "marble_cliff_06",
+      "tipo": "textura",
+      "titulo": "Textura PBR 1k",
+      "url": "https://polyhaven.com/a/marble_cliff_06",
+      "autor": "Poly Haven (vários autores)",
+      "licenca": "CC0",
+      "origem": "polyhaven.com (API api.polyhaven.com)",
+      "baixadoEm": "2026-10-14",
+      "uso": "Terreno e campos do U1 no Unreal (unreal/AgeOfEarthUE/Content/Fontes/terreno, /Game/Terreno/Texturas)"
+    },
+    {
+      "id": "fern_02",
+      "tipo": "modelo",
+      "titulo": "Modelo glTF 1k",
+      "url": "https://polyhaven.com/a/fern_02",
+      "autor": "Poly Haven (vários autores)",
+      "licenca": "CC0",
+      "origem": "polyhaven.com (API api.polyhaven.com)",
+      "baixadoEm": "2026-10-14",
+      "uso": "Vegetação rasteira e rochas do U1 no Unreal (Content/Fontes/vegetacao, /Game/Vegetacao)"
+    },
+    {
+      "id": "flower_gazania",
+      "tipo": "modelo",
+      "titulo": "Modelo glTF 1k",
+      "url": "https://polyhaven.com/a/flower_gazania",
+      "autor": "Poly Haven (vários autores)",
+      "licenca": "CC0",
+      "origem": "polyhaven.com (API api.polyhaven.com)",
+      "baixadoEm": "2026-10-14",
+      "uso": "Vegetação rasteira e rochas do U1 no Unreal (Content/Fontes/vegetacao, /Game/Vegetacao)"
+    },
+    {
+      "id": "flower_ursinia",
+      "tipo": "modelo",
+      "titulo": "Modelo glTF 1k",
+      "url": "https://polyhaven.com/a/flower_ursinia",
+      "autor": "Poly Haven (vários autores)",
+      "licenca": "CC0",
+      "origem": "polyhaven.com (API api.polyhaven.com)",
+      "baixadoEm": "2026-10-14",
+      "uso": "Vegetação rasteira e rochas do U1 no Unreal (Content/Fontes/vegetacao, /Game/Vegetacao)"
+    },
+    {
+      "id": "flower_empodium",
+      "tipo": "modelo",
+      "titulo": "Modelo glTF 1k",
+      "url": "https://polyhaven.com/a/flower_empodium",
+      "autor": "Poly Haven (vários autores)",
+      "licenca": "CC0",
+      "origem": "polyhaven.com (API api.polyhaven.com)",
+      "baixadoEm": "2026-10-14",
+      "uso": "Vegetação rasteira e rochas do U1 no Unreal (Content/Fontes/vegetacao, /Game/Vegetacao)"
+    },
+    {
+      "id": "dandelion_01",
+      "tipo": "modelo",
+      "titulo": "Modelo glTF 1k",
+      "url": "https://polyhaven.com/a/dandelion_01",
+      "autor": "Poly Haven (vários autores)",
+      "licenca": "CC0",
+      "origem": "polyhaven.com (API api.polyhaven.com)",
+      "baixadoEm": "2026-10-14",
+      "uso": "Vegetação rasteira e rochas do U1 no Unreal (Content/Fontes/vegetacao, /Game/Vegetacao)"
+    },
+    {
+      "id": "grass_medium_02",
+      "tipo": "modelo",
+      "titulo": "Modelo glTF 1k",
+      "url": "https://polyhaven.com/a/grass_medium_02",
+      "autor": "Poly Haven (vários autores)",
+      "licenca": "CC0",
+      "origem": "polyhaven.com (API api.polyhaven.com)",
+      "baixadoEm": "2026-10-14",
+      "uso": "Vegetação rasteira e rochas do U1 no Unreal (Content/Fontes/vegetacao, /Game/Vegetacao)"
+    },
+    {
+      "id": "grass_bermuda_01",
+      "tipo": "modelo",
+      "titulo": "Modelo glTF 1k",
+      "url": "https://polyhaven.com/a/grass_bermuda_01",
+      "autor": "Poly Haven (vários autores)",
+      "licenca": "CC0",
+      "origem": "polyhaven.com (API api.polyhaven.com)",
+      "baixadoEm": "2026-10-14",
+      "uso": "Vegetação rasteira e rochas do U1 no Unreal (Content/Fontes/vegetacao, /Game/Vegetacao)"
+    },
+    {
+      "id": "namaqualand_boulder_04",
+      "tipo": "modelo",
+      "titulo": "Modelo glTF 1k",
+      "url": "https://polyhaven.com/a/namaqualand_boulder_04",
+      "autor": "Poly Haven (vários autores)",
+      "licenca": "CC0",
+      "origem": "polyhaven.com (API api.polyhaven.com)",
+      "baixadoEm": "2026-10-14",
+      "uso": "Vegetação rasteira e rochas do U1 no Unreal (Content/Fontes/vegetacao, /Game/Vegetacao)"
+    },
+    {
+      "id": "namaqualand_boulder_05",
+      "tipo": "modelo",
+      "titulo": "Modelo glTF 1k",
+      "url": "https://polyhaven.com/a/namaqualand_boulder_05",
+      "autor": "Poly Haven (vários autores)",
+      "licenca": "CC0",
+      "origem": "polyhaven.com (API api.polyhaven.com)",
+      "baixadoEm": "2026-10-14",
+      "uso": "Vegetação rasteira e rochas do U1 no Unreal (Content/Fontes/vegetacao, /Game/Vegetacao)"
+    },
+    {
+      "id": "boulder_01",
+      "tipo": "modelo",
+      "titulo": "Modelo glTF 1k",
+      "url": "https://polyhaven.com/a/boulder_01",
+      "autor": "Poly Haven (vários autores)",
+      "licenca": "CC0",
+      "origem": "polyhaven.com (API api.polyhaven.com)",
+      "baixadoEm": "2026-10-14",
+      "uso": "Vegetação rasteira e rochas do U1 no Unreal (Content/Fontes/vegetacao, /Game/Vegetacao)"
+    },
+    {
+      "id": "epic-mannequins",
+      "tipo": "modelo+animacoes",
+      "titulo": "Manny/Quinn e animações do modelo Third Person",
+      "url": "https://dev.epicgames.com/documentation/unreal-engine/third-person-template-in-unreal-engine",
+      "autor": "Epic Games",
+      "licenca": "Licença de conteúdo do Unreal Engine (uso livre em projetos feitos com o Unreal)",
+      "origem": "Modelo Third Person do Unreal Engine 5.8 (Launcher)",
+      "baixadoEm": "2026-10-09",
+      "uso": "Esqueleto e animações (idle, andar, correr, ataque, morte) aplicados às unidades do Meshy por pesos próprios (AoESkinTools); não é CC0 nem CC BY: vale só dentro do jogo no Unreal"
+    }
   ]
 }

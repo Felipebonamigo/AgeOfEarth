@@ -6,6 +6,7 @@
 
 #if WITH_EDITOR
 #include "Animation/Skeleton.h"
+#include "Animation/AnimationAsset.h"
 #include "ReferenceSkeleton.h"
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
@@ -188,5 +189,18 @@ USkeletalMesh* UAoESkinTools::BuildSkinnedFromStatic(UStaticMesh* Source, USkele
 	return Out;
 #else
 	return nullptr;
+#endif
+}
+
+bool UAoESkinTools::SetAnimSkeleton(UAnimationAsset* Anim, USkeleton* Skeleton)
+{
+#if WITH_EDITOR
+	if (!Anim || !Skeleton) return false;
+	Anim->Modify();
+	Anim->SetSkeleton(Skeleton);
+	Anim->MarkPackageDirty();
+	return true;
+#else
+	return false;
 #endif
 }
