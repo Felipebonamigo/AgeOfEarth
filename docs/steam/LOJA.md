@@ -3,45 +3,50 @@
 Rascunho do texto da página "Em breve" / Early Access, escrito a partir do que o jogo **já faz** (nada de promessa sem
 código). O dono revisa o tom, corta o que quiser e cola no Steamworks. Imagens: `docs/steam/*.jpg|png`
 (`npm run art:backdrop -- --steam`, `docs/STEAM.md` §5); screenshots 1920×1080 em `docs/steam/screens/` (PT) e
-`screens-en/` (EN), por `npm run store:shots`. Números conferidos no código em 28/09/2026; se o conteúdo
+`screens-en/` (EN), por `npm run store:shots`. Números conferidos no código em 14/10/2026; se o conteúdo
 mudar, atualize aqui (fontes entre parênteses).
 
 ## Descrição curta (≤ 300 caracteres)
 
 **PT-BR** (249):
-> Estratégia em tempo real na Grécia mítica: avance da Idade Arcaica à Idade dos Titãs, expanda fronteiras, escolha
-> deuses e desperte um Titã. Campanha da Titanomaquia em 12 missões, escaramuças contra a IA, Horda e multiplayer
-> online até 4 jogadores.
+> Estratégia em tempo real na Grécia mítica: avance da Era Arcaica à Era Moderna, expanda fronteiras, estude na Biblioteca,
+> domine o mar e desperte um Titã. Campanha da Titanomaquia em 12 missões, escaramuças, Horda e multiplayer online
+> até 4 jogadores.
 
 **EN** (257):
-> Real-time strategy in mythic Greece: rise from the Archaic Age to the Age of Titans, push your borders, choose your
-> gods and awaken a Titan. A 12-mission Titanomachy campaign, skirmishes against the AI, Horde mode and online
+> Real-time strategy in mythic Greece: rise from the Archaic Era to the Modern Era, push your borders, study at the
+> Library, rule the sea and awaken a Titan. A 12-mission Titanomachy campaign, skirmishes, Horde mode and online
 > multiplayer for up to 4 players.
 
 ## Sobre o jogo
 
 ### PT-BR
 
-**Age of Earth** é um RTS clássico com o território e as Idades de *Rise of Nations* e os deuses, heróis e criaturas
+**Age of Earth** é um RTS clássico com o território e as Eras de *Rise of Nations* e os deuses, heróis e criaturas
 de *Age of Mythology*, no panteão grego.
 
 **Território importa.** Só se constrói dentro das suas fronteiras, e tropas inimigas dentro delas sofrem atrito.
 Centros Cívicos, fortalezas, torres e templos empurram a fronteira — expandir é tão estratégico quanto lutar.
 
-**Cinco Idades, escolhas divinas.** Da Idade Arcaica à Idade dos Titãs: escolha Zeus, Poseidon ou Hades e, a cada
-Idade, um deus menor entre dois. Cada escolha traz um poder divino, uma criatura mítica e tecnologias próprias —
-doze poderes, do Raio de Zeus ao Terremoto de Ártemis.
+**Oito Eras, escolhas divinas.** Da Grécia arcaica à Era Moderna, passando por Alexandre, Bizâncio, a pólvora, o
+Iluminismo e a indústria: escolha Zeus, Poseidon ou Hades e, a cada Era da II à VII, um deus menor entre dois. Cada
+escolha traz um poder divino, uma criatura mítica e pesquisas próprias — 21 poderes que crescem com a Era, do Raio de
+Zeus ao Carro do Sol. Tudo se estuda na Biblioteca, um estudo por vez: as Eras, a evolução de cada tipo de unidade e as
+quatro grandes linhas do império.
 
-**Heróis, monstros e Titãs.** Hoplitas, arqueiros cretenses, cavalaria de hetairos e helépoles de cerco lutam ao
-lado de Aquiles, Héracles, Perseu, Jasão e Odisseu — cada um com a sua habilidade. Minotauros, hidras, Medusa,
-Cérbero e Pégaso respondem ao Favor dos deuses. No fim, um Portal dos Titãs desperta Prometeu, Oceano ou Cronos.
+**Exércitos de todas as Eras, heróis e Titãs.** As linhas de unidade evoluem Era a Era — do hoplita ao fuzileiro, do
+arqueiro cretense ao metralhador, dos hetairos ao tanque, do pentecôntero ao encouraçado — e as tropas que você já tem
+se transformam ao estudar a evolução. Aquiles, Héracles, Perseu, Jasão e Odisseu lutam ao lado delas; Minotauros,
+hidras, Fênix e Grifos respondem ao Favor dos deuses. Na Era Moderna, o Portal dos Titãs desperta Prometeu, Oceano ou
+Cronos.
 
 **Campanha da Titanomaquia.** Doze missões em três atos, com falas, chefes e mapas próprios: do cerco de
 Argos e de Prometeu acorrentado no Cáucaso à batalha final contra Cronos na planície da Tessália.
 
-**Do seu jeito.** Escaramuças contra até três IAs (Fácil a Muito difícil) em cinco tipos de terreno ou em mapas
-fixos; modos Conquista (com a vitória por Maravilha), Deathmatch, Regicídio e Rei da Colina; o **Modo Horda**,
-sozinho ou em cooperação; e o **editor** de mapas e cenários com gatilhos.
+**Do seu jeito.** Escaramuças contra até três IAs (Fácil a Muito difícil) em oito tipos de mapa — do Continental às Ilhas e
+ao Mediterrâneo — ou em mapas fixos, com a Era inicial e a final à sua escolha; modos Conquista (com a vitória por
+pontos entre 20 maravilhas únicas), Deathmatch, Regicídio e Rei da Colina; o **Modo Horda**, sozinho ou em cooperação;
+e o **editor** de mapas e cenários com gatilhos.
 
 **Multiplayer.** Partidas online até 4 jogadores, em times ou todos contra todos, com salas públicas, chat,
 espectadores e reconexão a uma partida em andamento. Replays das partidas; salvar e carregar nas partidas locais.
@@ -54,25 +59,30 @@ balanceamento e a dificuldade com os jogadores e para trocar a arte de cena por 
 
 ### EN
 
-**Age of Earth** is a classic RTS with the territory and Ages of *Rise of Nations* and the gods, heroes and creatures
+**Age of Earth** is a classic RTS with the territory and Eras of *Rise of Nations* and the gods, heroes and creatures
 of *Age of Mythology*, set in the Greek pantheon.
 
 **Territory matters.** You can only build inside your borders, and enemy troops inside them suffer attrition. Civic
 Centers, fortresses, towers and temples push the border out — expanding is as strategic as fighting.
 
-**Five Ages, divine choices.** From the Archaic Age to the Age of Titans: pick Zeus, Poseidon or Hades and, at every
-Age, one of two minor gods. Each choice brings a god power, a mythic creature and its own technologies — twelve
-powers, from Zeus's Bolt to Artemis's Earthquake.
+**Eight Eras, divine choices.** From archaic Greece to the Modern Era, through Alexander, Byzantium, gunpowder, the
+Enlightenment and industry: pick Zeus, Poseidon or Hades and, at every Era from II to VII, one of two minor gods. Each
+choice brings a god power, a mythic creature and its own technologies — 21 powers that grow with the Era, from Zeus's
+Bolt to the Sun Chariot. Everything is studied at the Library, one study at a time: the Eras, the evolution of each unit
+type and the empire's four great lines.
 
-**Heroes, monsters and Titans.** Hoplites, Cretan archers, Companion cavalry and helepolis siege towers fight
-alongside Achilles, Heracles, Perseus, Jason and Odysseus — each with a signature ability. Minotaurs, hydras, Medusa,
-Cerberus and Pegasus answer to the gods' Favor. In the end, a Titan Gate awakens Prometheus, Oceanus or Cronus.
+**Armies of every Era, heroes and Titans.** Unit lines evolve Era by Era — from hoplite to fusilier, from Cretan
+archer to machine gunner, from Companion cavalry to tank, from penteconter to battleship — and the troops you already
+have transform when you study the evolution. Achilles, Heracles, Perseus, Jason and Odysseus fight alongside them;
+Minotaurs, hydras, Phoenixes and Griffins answer to the gods' Favor. In the Modern Era, the Titan Gate awakens
+Prometheus, Oceanus or Cronus.
 
 **The Titanomachy campaign.** Twelve missions in three acts, with dialogue, bosses and custom maps: from the siege
 of Argos and Prometheus chained in the Caucasus to the final battle against Cronus on the plains of Thessaly.
 
-**Your way.** Skirmishes against up to three AIs (Easy to Very Hard) on five terrain types or on fixed maps;
-Conquest (with the Wonder victory), Deathmatch, Regicide and King of the Hill modes; **Horde mode**, solo or co-op; and the map and
+**Your way.** Skirmishes against up to three AIs (Easy to Very Hard) on eight map types — from Continental to Islands and the
+Mediterranean — or on fixed maps, with the starting and final Era of your choice; Conquest (with the points victory among
+20 unique wonders), Deathmatch, Regicide and King of the Hill modes; **Horde mode**, solo or co-op; and the map and
 scenario **editor** with triggers.
 
 **Multiplayer.** Online matches for up to 4 players, in teams or free-for-all, with public rooms, chat, spectators and

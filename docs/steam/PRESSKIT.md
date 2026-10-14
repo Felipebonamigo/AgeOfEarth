@@ -19,22 +19,22 @@ Ficha para imprensa, criadores de conteúdo e a página "Em breve". Os números 
 | Site / Steam | *links* | *links* |
 
 ## Em uma frase
-**PT:** Um RTS clássico na Grécia mítica que junta as fronteiras e Idades de *Rise of Nations* aos deuses, heróis e Titãs de
+**PT:** Um RTS clássico na Grécia mítica que junta as fronteiras e Eras de *Rise of Nations* aos deuses, heróis e Titãs de
 *Age of Mythology*.
-**EN:** A classic RTS in mythic Greece that brings the borders and Ages of *Rise of Nations* together with the gods, heroes
+**EN:** A classic RTS in mythic Greece that brings the borders and Eras of *Rise of Nations* together with the gods, heroes
 and Titans of *Age of Mythology*.
 
 ## Números
-- 5 Idades (Arcaica → Titãs); 3 deuses maiores (Zeus, Poseidon, Hades) e 9 menores; 12 poderes divinos.
-- 35 unidades: 19 humanas (com 5 heróis e o rei), 13 criaturas míticas, 3 Titãs (Prometeu, Oceano, Cronos); 21 edifícios.
+- 8 Eras (Arcaica → Moderna); 3 deuses maiores (Zeus, Poseidon, Hades) e 18 menores; 21 poderes divinos.
+- 101 unidades: 25 criaturas míticas, 3 Titãs (Prometeu, Oceano, Cronos) e 11 navios, em 13 linhas de unidade que evoluem por Era; 43 edifícios, 20 maravilhas.
 - Campanha da Titanomaquia: 12 missões em 3 atos, 6 mapas fixos próprios, ~250 falas.
-- 4 modos (Conquista com vitória por Maravilha, Deathmatch, Regicídio, Rei da Colina) + Modo Horda; 5 tipos de terreno.
+- 4 modos (Conquista com vitória por Maravilha, Deathmatch, Regicídio, Rei da Colina) + Modo Horda; 8 tipos de mapa (com mar).
 - Multiplayer online até 4 jogadores (lockstep determinístico: replays, espectadores, reconexão).
 - Editor de mapas e cenários com gatilhos; 40 conquistas; Steam Cloud; controle e Steam Deck.
 
 ## Destaques para a imprensa
 1. **Território de verdade**: só se constrói dentro das fronteiras; tropas inimigas nelas sofrem atrito.
-2. **Escolhas divinas por Idade** mudam poderes, criaturas e tecnologias — 24 combinações de panteão.
+2. **Escolhas divinas por Era** mudam poderes, criaturas e tecnologias — 192 combinações de panteão.
 3. **Titãs** despertados pelo Portal: Prometeu, Oceano e Cronos entram na batalha.
 4. **Campanha autoral** sobre a volta de Cronos, com lugares reais da Grécia (Argos, Náuplia, Tênaro, Ótris, Tessália).
 5. **Feito por uma pessoa com um agente de IA de programação**: *(o dono decide se e como comunicar isto; a Steam pede
