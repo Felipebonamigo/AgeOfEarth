@@ -1745,6 +1745,39 @@
       "origem": "repositório mesh2motion-app, pasta static/ (rigs/ e animations/)",
       "baixadoEm": "2026-10-14",
       "uso": "Animação v2 das unidades e criaturas no Unreal: Content/Fontes/animacoes/*-animations.glb → /Game/Anim (u1_anim_importar.py), malhas do Meshy costuradas nos esqueletos (u1_esqueletos2.py); copia no acervo-3d"
+    },
+    {
+      "id": "island_tree_02",
+      "tipo": "modelo",
+      "titulo": "Island Tree 02 (glTF 1k, 1,76 mi triângulos)",
+      "url": "https://polyhaven.com/a/island_tree_02",
+      "autor": "Poly Haven",
+      "licenca": "CC0",
+      "origem": "polyhaven.com (API)",
+      "baixadoEm": "2026-10-14",
+      "uso": "Árvore das florestas no Unreal (nós tree), com Nanite; Content/Fontes/vegetacao/island_tree_02"
+    },
+    {
+      "id": "rock_tile_floor",
+      "tipo": "textura",
+      "titulo": "Rock Tile Floor (PBR 2k)",
+      "url": "https://polyhaven.com/a/rock_tile_floor",
+      "autor": "Poly Haven",
+      "licenca": "CC0",
+      "origem": "polyhaven.com (API)",
+      "baixadoEm": "2026-10-14",
+      "uso": "Praças de lajotas sob os edifícios (M_PracaDecal) e blocos de pedra do canteiro (M_PedraTalhada)"
+    },
+    {
+      "id": "mesh2motion-aves",
+      "tipo": "modelo",
+      "titulo": "Mesh2Motion: gaivota e águia (com pele no esqueleto de ave)",
+      "url": "https://github.com/Mesh2Motion/mesh2motion-app",
+      "autor": "Mesh2Motion",
+      "licenca": "CC0",
+      "origem": "mesh2motion-app/static/models-variation/bird",
+      "baixadoEm": "2026-10-14",
+      "uso": "Aves de ambiente no Unreal (u2_aves.py); cópia no acervo-3d"
     }
   ]
 }
