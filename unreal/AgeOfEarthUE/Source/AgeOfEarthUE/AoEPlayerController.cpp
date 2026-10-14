@@ -95,6 +95,21 @@ void AAoEPlayerController::AoEMove(float TileX, float TileY)
 	B->SendMove(Ids, TileX, TileY);
 }
 
+void AAoEPlayerController::ContextOrder(float TileX, float TileY, bool bQueue)
+{
+	AAoEBridgeActor* B = Bridge();
+	if (!B) return;
+	TArray<int32> Ids = B->GetSelected().Array();
+	if (Ids.Num() == 0) return;   // sem selecao nao se manda ordem a ninguem (so o console AoEMove usa "todas")
+	int32 Target = 0; FString Kind;
+	if (B->PickTarget(TileX, TileY, Target, Kind))
+		B->SendCmd(Kind, Ids, FString::Printf(TEXT("\"targetId\":%d"), Target), bQueue);
+	else if (bQueue)
+		B->SendCmd(TEXT("move"), Ids, FString::Printf(TEXT("\"x\":%.2f,\"y\":%.2f"), TileX, TileY), true);
+	else
+		B->SendMove(Ids, TileX, TileY);
+}
+
 void AAoEPlayerController::PlayerTick(float Dt)
 {
 	Super::PlayerTick(Dt);
@@ -133,21 +148,71 @@ void AAoEPlayerController::PlayerTick(float Dt)
 		for (int32 Id : B->MyUnitIds()) All.Add(Id);
 		B->SetSelected(All);
 	}
+	const bool bShift = IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift);
+	const bool bCtrl = IsInputKeyDown(EKeys::LeftControl) || IsInputKeyDown(EKeys::RightControl);
+	if (WasInputKeyJustPressed(EKeys::A) && !bCtrl) bAttackMoveArmed = true;
+	if (WasInputKeyJustPressed(EKeys::S) && !bCtrl) B->SendCmd(TEXT("stop"), B->GetSelected().Array(), FString(), false);
+	if (WasInputKeyJustPressed(EKeys::Escape)) bAttackMoveArmed = false;
+	// grupos de controle
+	static const FKey NumKeys[10] = { EKeys::Zero, EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five, EKeys::Six, EKeys::Seven, EKeys::Eight, EKeys::Nine };
+	for (int32 G = 0; G < 10; ++G)
+		if (WasInputKeyJustPressed(NumKeys[G]))
+		{
+			if (bCtrl) Groups[G] = B->GetSelected();
+			else if (Groups[G].Num() > 0)
+			{
+				TSet<int32> Vivos;   // so os que ainda existem
+				for (int32 Id : Groups[G]) if (B->GetUnits().Contains(Id)) Vivos.Add(Id);
+				Groups[G] = Vivos;
+				B->SetSelected(Vivos);
+			}
+		}
+	// esquerdo: A armado = atacar-mover; senao clique seleciona e arrastar faz caixa
+	float MX = 0.f, MY = 0.f;
+	GetMousePosition(MX, MY);
 	if (WasInputKeyJustPressed(EKeys::LeftMouseButton))
 	{
-		FHitResult Hit;
-		GetHitResultUnderCursor(ECC_Visibility, false, Hit);
-		int32 Id = 0, Dono = -1;
-		TSet<int32> Sel = IsInputKeyDown(EKeys::LeftShift) ? B->GetSelected() : TSet<int32>();
-		if (Hit.GetActor() && B->UnitIdOf(Hit.GetActor(), Id, Dono) && Dono == B->MyPlayer) Sel.Add(Id);
+		if (bAttackMoveArmed)
+		{
+			FHitResult Hit;
+			TArray<int32> Ids = B->GetSelected().Array();
+			if (Ids.Num() > 0 && GetHitResultUnderCursor(ECC_Visibility, false, Hit))
+				B->SendCmd(TEXT("attackMove"), Ids, FString::Printf(TEXT("\"x\":%.2f,\"y\":%.2f"), Hit.ImpactPoint.X / B->UuPerTile, Hit.ImpactPoint.Y / B->UuPerTile), bShift);
+			bAttackMoveArmed = false;
+		}
+		else { bDragging = true; DragStart = FVector2D(MX, MY); }
+	}
+	if (bDragging && WasInputKeyJustReleased(EKeys::LeftMouseButton))
+	{
+		bDragging = false;
+		TSet<int32> Sel = bShift ? B->GetSelected() : TSet<int32>();
+		const FVector2D End(MX, MY);
+		if (FVector2D::Distance(DragStart, End) > 8.f)
+		{
+			const FVector2D Lo(FMath::Min(DragStart.X, End.X), FMath::Min(DragStart.Y, End.Y)), Hi(FMath::Max(DragStart.X, End.X), FMath::Max(DragStart.Y, End.Y));
+			for (const TPair<int32, FAoEVisual>& K : B->GetUnits())
+			{
+				if (K.Value.Dono != B->MyPlayer || !K.Value.Actor.IsValid()) continue;
+				FVector2D Sc;
+				if (ProjectWorldLocationToScreen(K.Value.Actor->GetActorLocation() + FVector(0, 0, 90.f), Sc) && Sc.X >= Lo.X && Sc.X <= Hi.X && Sc.Y >= Lo.Y && Sc.Y <= Hi.Y) Sel.Add(K.Key);
+			}
+		}
+		else
+		{
+			FHitResult Hit;
+			GetHitResultUnderCursor(ECC_Visibility, false, Hit);
+			int32 Id = 0, Dono = -1;
+			if (Hit.GetActor() && B->UnitIdOf(Hit.GetActor(), Id, Dono) && Dono == B->MyPlayer) Sel.Add(Id);
+		}
 		B->SetSelected(Sel);
 	}
-	// ordem de movimento
+	// direito: ordem contextual
 	if (WasInputKeyJustPressed(EKeys::RightMouseButton))
 	{
+		bAttackMoveArmed = false;
 		FHitResult Hit;
 		if (GetHitResultUnderCursor(ECC_Visibility, false, Hit))
-			AoEMove(Hit.ImpactPoint.X / B->UuPerTile, Hit.ImpactPoint.Y / B->UuPerTile);
+			ContextOrder(Hit.ImpactPoint.X / B->UuPerTile, Hit.ImpactPoint.Y / B->UuPerTile, bShift);
 	}
 	if (bAutoTest) RunAutoTest(Dt);
 }
@@ -157,6 +222,26 @@ void AAoEPlayerController::RunAutoTest(float Dt)
 	AAoEBridgeActor* B = Bridge();
 	if (!B || !B->bHaveState) return;
 	AutoT += Dt;
+	if (FParse::Param(FCommandLine::Get(), TEXT("AoEOrderTest")))
+	{
+		auto MeanDist = [&]() { float S = 0.f; int32 N = 0; for (const TPair<int32, FAoEVisual>& K : B->GetUnits()) if (K.Value.Dono == B->MyPlayer && B->GetSelected().Contains(K.Key)) { S += FVector2D::Distance(K.Value.To, OrderTile); ++N; } return N ? S / N : 0.f; };
+		if (OrderStage == 0 && AutoT > AutoDelay)
+		{
+			TSet<int32> All;
+			for (int32 Id : B->MyUnitIds()) All.Add(Id);
+			B->SetSelected(All);
+			float Best = 1e9f;
+			for (const TPair<int32, FVector2D>& K : B->GetNodeTiles()) { const float D = FVector2D::Distance(K.Value, B->MyCentroidTiles); if (D > 12.f && D < Best) { Best = D; OrderNode = K.Key; OrderTile = K.Value; } }
+			OrderDist0 = MeanDist();
+			int32 T = 0; FString Kind;
+			const bool bPick = B->PickTarget(OrderTile.X, OrderTile.Y, T, Kind);
+			UE_LOG(LogTemp, Log, TEXT("AOE_ORDER pick=%d kind=%s id=%d (esperado no %d) distancia media inicial %.1f tiles"), bPick ? 1 : 0, *Kind, T, OrderNode, OrderDist0);
+			ContextOrder(OrderTile.X, OrderTile.Y, false);
+			OrderStage = 1; OrderT = 0.f;
+		}
+		else if (OrderStage == 1) { OrderT += Dt; if (OrderT > 20.f) { UE_LOG(LogTemp, Log, TEXT("AOE_ORDER distancia media final %.1f tiles (inicial %.1f)"), MeanDist(), OrderDist0); ConsoleCommand(TEXT("quit"), true); OrderStage = 2; } }
+		return;
+	}
 	if (Shots.Num() > 0)
 	{
 		// tomadas dirigidas: posiciona a camera, espera 2 s (a malha e a luz assentam) e fotografa
