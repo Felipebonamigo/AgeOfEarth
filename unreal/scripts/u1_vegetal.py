@@ -42,6 +42,7 @@ def mestre(nome, mascara, vento):
     mat.set_editor_property("used_with_instanced_static_meshes", True)
     mat.set_editor_property("two_sided", True)
     if mascara:
+        mat.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_TWO_SIDED_FOLIAGE)   # luz que atravessa a folha: some o preto à sombra
         mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_MASKED)
         mat.set_editor_property("opacity_mask_clip_value", 0.45)
     st = unreal.MaterialSamplerType
@@ -52,6 +53,9 @@ def mestre(nome, mascara, vento):
     if mascara:
         mel.connect_material_property(cor, "A", unreal.MaterialProperty.MP_OPACITY_MASK)
     mel.connect_material_property(nor, "RGB", unreal.MaterialProperty.MP_NORMAL)
+    if mascara:
+        sub = mult(mat, cor, const(mat, 0.55, -500, -150), -300, -150, "RGB", "")
+        mel.connect_material_property(sub, "", unreal.MaterialProperty.MP_SUBSURFACE_COLOR)
     rug = no(mat, unreal.MaterialExpressionClamp, -500, 600)
     rug.set_editor_property("min_default", 0.45)
     rug.set_editor_property("max_default", 1.0)

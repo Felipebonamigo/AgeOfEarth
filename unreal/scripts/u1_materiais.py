@@ -103,6 +103,8 @@ def mestre(nome, vento):
     mel.connect_material_property(metal, "", unreal.MaterialProperty.MP_METALLIC)
     if vento:
         mat.set_editor_property("two_sided", True)
+        mat.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_TWO_SIDED_FOLIAGE)   # copas translúcidas à contraluz
+        mel.connect_material_property(mult(mat, cor, constante(mat, 0.5, -700, -150), -500, -150, "RGB", ""), "", unreal.MaterialProperty.MP_SUBSURFACE_COLOR)
         # vento: deslocamento horizontal que cresce com a altura acima da base do objeto, fase pela posição do objeto
         t = no(mat, unreal.MaterialExpressionTime, -900, 1100)
         obj = no(mat, unreal.MaterialExpressionObjectPositionWS, -900, 1250)
