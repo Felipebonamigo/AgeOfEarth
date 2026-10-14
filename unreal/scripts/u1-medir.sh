@@ -11,7 +11,7 @@ for i in $(seq 1 90); do grep -q "Ponte U1" /tmp/u1srv.log 2>/dev/null && break;
 head -2 /tmp/u1srv.log
 rm -f "$1"
 OUT="$(cygpath -m "$1")"
-MSYS_NO_PATHCONV=1 "$EXE" -windowed -ResX=1920 -ResY=1080 -AoEPerfLog="$OUT" -ExecCmds="sg.ViewDistanceQuality ${ESCALA:-2},sg.ShadowQuality ${ESCALA:-2},sg.PostProcessQuality ${ESCALA:-2},sg.GlobalIlluminationQuality ${ESCALA:-2},sg.ReflectionQuality ${ESCALA:-2},sg.TextureQuality ${ESCALA:-2},sg.EffectsQuality ${ESCALA:-2},sg.FoliageQuality ${ESCALA:-2}" -log > /tmp/medir-jogo.log 2>&1 &
+MSYS_NO_PATHCONV=1 "$EXE" ${MAPA} -windowed -ResX=1920 -ResY=1080 -AoEPerfLog="$OUT" -ExecCmds="${EXTRA_CMDS:+$EXTRA_CMDS,}sg.ViewDistanceQuality ${ESCALA:-2},sg.ShadowQuality ${ESCALA:-2},sg.PostProcessQuality ${ESCALA:-2},sg.GlobalIlluminationQuality ${ESCALA:-2},sg.ReflectionQuality ${ESCALA:-2},sg.TextureQuality ${ESCALA:-2},sg.EffectsQuality ${ESCALA:-2},sg.FoliageQuality ${ESCALA:-2}" -log > /tmp/medir-jogo.log 2>&1 &
 sleep $(( ${SEGUNDOS:-60} - 8 ))
 nvidia-smi --query-gpu=memory.used,memory.total,utilization.gpu --format=csv,noheader >> "$1.vram"
 sleep 8
