@@ -152,10 +152,11 @@
       ],
       "altura": 165,
       "esqueletos": [
-        "/Game/Unidades/SK_CidadaA",
-        "/Game/Unidades/SK_CidadaB"
+        "/Game/Unidades2/SK2_CidadaA",
+        "/Game/Unidades2/SK2_CidadaB"
       ],
-      "yaw": -90
+      "yaw": -90,
+      "familia": "civil"
     },
     "hoplite": {
       "malhas": [
@@ -164,10 +165,11 @@
       ],
       "altura": 185,
       "esqueletos": [
-        "/Game/Unidades/SK_HoplitaAteniense",
-        "/Game/Unidades/SK_HoplitaPenacho"
+        "/Game/Unidades2/SK2_HoplitaAteniense",
+        "/Game/Unidades2/SK2_HoplitaPenacho"
       ],
-      "yaw": -90
+      "yaw": -90,
+      "familia": "soldado"
     },
     "hypaspist": {
       "malhas": [
@@ -175,9 +177,10 @@
       ],
       "altura": 185,
       "esqueletos": [
-        "/Game/Unidades/SK_Hipaspista"
+        "/Game/Unidades2/SK2_Hipaspista"
       ],
-      "yaw": -90
+      "yaw": -90,
+      "familia": "soldado"
     },
     "myrmidon": {
       "malhas": [
@@ -185,9 +188,10 @@
       ],
       "altura": 188,
       "esqueletos": [
-        "/Game/Unidades/SK_Mirmidao"
+        "/Game/Unidades2/SK2_Mirmidao"
       ],
-      "yaw": -90
+      "yaw": -90,
+      "familia": "soldado"
     },
     "militia": {
       "malhas": [
@@ -195,9 +199,10 @@
       ],
       "altura": 175,
       "esqueletos": [
-        "/Game/Unidades/SK_Milicia"
+        "/Game/Unidades2/SK2_Milicia"
       ],
-      "yaw": -90
+      "yaw": -90,
+      "familia": "soldado"
     },
     "peltast": {
       "malhas": [
@@ -205,9 +210,10 @@
       ],
       "altura": 180,
       "esqueletos": [
-        "/Game/Unidades/SK_HoplitaPenacho"
+        "/Game/Unidades2/SK2_HoplitaPenacho"
       ],
-      "yaw": -90
+      "yaw": -90,
+      "familia": "soldado"
     },
     "toxotes": {
       "malhas": [
@@ -215,9 +221,10 @@
       ],
       "altura": 175,
       "esqueletos": [
-        "/Game/Unidades/SK_Milicia"
+        "/Game/Unidades2/SK2_Milicia"
       ],
-      "yaw": -90
+      "yaw": -90,
+      "familia": "arqueiro"
     },
     "cretan_archer": {
       "malhas": [
@@ -225,9 +232,10 @@
       ],
       "altura": 175,
       "esqueletos": [
-        "/Game/Unidades/SK_Milicia"
+        "/Game/Unidades2/SK2_Milicia"
       ],
-      "yaw": -90
+      "yaw": -90,
+      "familia": "arqueiro"
     },
     "basileus": {
       "malhas": [
@@ -235,9 +243,10 @@
       ],
       "altura": 195,
       "esqueletos": [
-        "/Game/Unidades/SK_Mirmidao"
+        "/Game/Unidades2/SK2_Mirmidao"
       ],
-      "yaw": -90
+      "yaw": -90,
+      "familia": "soldado"
     },
     "jason": {
       "malhas": [
@@ -245,9 +254,10 @@
       ],
       "altura": 195,
       "esqueletos": [
-        "/Game/Unidades/SK_Hipaspista"
+        "/Game/Unidades2/SK2_Hipaspista"
       ],
-      "yaw": -90
+      "yaw": -90,
+      "familia": "soldado"
     },
     "odysseus": {
       "malhas": [
@@ -255,9 +265,10 @@
       ],
       "altura": 190,
       "esqueletos": [
-        "/Game/Unidades/SK_Hipaspista"
+        "/Game/Unidades2/SK2_Hipaspista"
       ],
-      "yaw": -90
+      "yaw": -90,
+      "familia": "soldado"
     },
     "achilles": {
       "malhas": [
@@ -265,9 +276,10 @@
       ],
       "altura": 200,
       "esqueletos": [
-        "/Game/Unidades/SK_Mirmidao"
+        "/Game/Unidades2/SK2_Mirmidao"
       ],
-      "yaw": -90
+      "yaw": -90,
+      "familia": "soldado"
     },
     "perseus": {
       "malhas": [
@@ -275,9 +287,10 @@
       ],
       "altura": 195,
       "esqueletos": [
-        "/Game/Unidades/SK_Hipaspista"
+        "/Game/Unidades2/SK2_Hipaspista"
       ],
-      "yaw": -90
+      "yaw": -90,
+      "familia": "soldado"
     },
     "heracles": {
       "malhas": [
@@ -285,33 +298,54 @@
       ],
       "altura": 215,
       "esqueletos": [
-        "/Game/Unidades/SK_Heracles"
+        "/Game/Unidades2/SK2_Heracles"
       ],
-      "yaw": -90
+      "yaw": -90,
+      "familia": "soldado"
     },
     "hippeus": {
       "malhas": [
         "unidades/cataphract__armored-rider"
       ],
-      "altura": 250
+      "altura": 250,
+      "familia": "cavalo",
+      "esqueletos": [
+        "/Game/Unidades2/SK2_Catafracto"
+      ],
+      "yaw": -90
     },
     "hetairoi": {
       "malhas": [
         "unidades/cataphract__armored-rider"
       ],
-      "altura": 255
+      "altura": 255,
+      "familia": "cavalo",
+      "esqueletos": [
+        "/Game/Unidades2/SK2_Catafracto"
+      ],
+      "yaw": -90
     },
     "kataskopos": {
       "malhas": [
         "unidades/cataphract__armored-rider"
       ],
-      "altura": 240
+      "altura": 240,
+      "familia": "cavalo",
+      "esqueletos": [
+        "/Game/Unidades2/SK2_Catafracto"
+      ],
+      "yaw": -90
     },
     "cataphract": {
       "malhas": [
         "unidades/cataphract__armored-rider"
       ],
-      "altura": 260
+      "altura": 260,
+      "familia": "cavalo",
+      "esqueletos": [
+        "/Game/Unidades2/SK2_Catafracto"
+      ],
+      "yaw": -90
     },
     "petrobolos": {
       "malhas": [
@@ -348,14 +382,24 @@
       "malhas": [
         "criaturas/minotaur__tribal-attire"
       ],
-      "altura": 270
+      "altura": 270,
+      "familia": "kaiju",
+      "esqueletos": [
+        "/Game/Unidades2/SK2_Minotauro"
+      ],
+      "yaw": -90
     },
     "cyclops": {
       "malhas": [
         "criaturas/cyclops__cyclopean-guardian",
         "criaturas/cyclops__cyclopean-sentinel"
       ],
-      "altura": 340
+      "altura": 340,
+      "familia": "kaiju",
+      "esqueletos": [
+        "/Game/Unidades2/SK2_CiclopeSentinela"
+      ],
+      "yaw": -90
     },
     "pegasus": {
       "malhas": [
@@ -367,7 +411,12 @@
       "malhas": [
         "criaturas/manticore__winged"
       ],
-      "altura": 230
+      "altura": 230,
+      "familia": "raposa",
+      "esqueletos": [
+        "/Game/Unidades2/SK2_Manticora"
+      ],
+      "yaw": -90
     },
     "hydra": {
       "malhas": [
@@ -379,19 +428,34 @@
       "malhas": [
         "criaturas/nemean_lion__embermane"
       ],
-      "altura": 160
+      "altura": 160,
+      "familia": "raposa",
+      "esqueletos": [
+        "/Game/Unidades2/SK2_LeaoNemeu"
+      ],
+      "yaw": -90
     },
     "chimera": {
       "malhas": [
         "criaturas/chimera__lion-goat-serpent"
       ],
-      "altura": 240
+      "altura": 240,
+      "familia": "raposa",
+      "esqueletos": [
+        "/Game/Unidades2/SK2_Quimera"
+      ],
+      "yaw": -90
     },
     "cerberus": {
       "malhas": [
         "criaturas/cerberus__unleashed"
       ],
-      "altura": 200
+      "altura": 200,
+      "familia": "raposa",
+      "esqueletos": [
+        "/Game/Unidades2/SK2_Cerbero"
+      ],
+      "yaw": -90
     },
     "satyr": {
       "malhas": [
@@ -415,13 +479,23 @@
       "malhas": [
         "criaturas/griffin__lightbrown-griffin"
       ],
-      "altura": 220
+      "altura": 220,
+      "familia": "ave",
+      "esqueletos": [
+        "/Game/Unidades2/SK2_Grifo"
+      ],
+      "yaw": -90
     },
     "triptolemus_dragon": {
       "malhas": [
         "criaturas/dragon__emerald-dragon"
       ],
-      "altura": 300
+      "altura": 300,
+      "familia": "dragao",
+      "esqueletos": [
+        "/Game/Unidades2/SK2_Dragao"
+      ],
+      "yaw": -90
     },
     "hippocampus": {
       "malhas": [
@@ -433,13 +507,23 @@
       "malhas": [
         "criaturas/colossus__talos-bronze"
       ],
-      "altura": 560
+      "altura": 560,
+      "familia": "kaiju",
+      "esqueletos": [
+        "/Game/Unidades2/SK2_Colosso"
+      ],
+      "yaw": -90
     },
     "talos": {
       "malhas": [
         "criaturas/colossus__talos-bronze"
       ],
-      "altura": 560
+      "altura": 560,
+      "familia": "kaiju",
+      "esqueletos": [
+        "/Game/Unidades2/SK2_Colosso"
+      ],
+      "yaw": -90
     },
     "cronus": {
       "malhas": [
@@ -451,7 +535,12 @@
       "malhas": [
         "criaturas/cyclops__cyclopean-sentinel"
       ],
-      "altura": 800
+      "altura": 800,
+      "familia": "kaiju",
+      "esqueletos": [
+        "/Game/Unidades2/SK2_CiclopeSentinela"
+      ],
+      "yaw": -90
     },
     "merchant": {
       "malhas": [
@@ -460,9 +549,10 @@
       ],
       "altura": 165,
       "esqueletos": [
-        "/Game/Unidades/SK_CidadaB"
+        "/Game/Unidades2/SK2_CidadaB"
       ],
-      "yaw": -90
+      "yaw": -90,
+      "familia": "civil"
     },
     "caravan": {
       "malhas": [
@@ -471,10 +561,11 @@
       ],
       "altura": 165,
       "esqueletos": [
-        "/Game/Unidades/SK_CidadaA",
-        "/Game/Unidades/SK_CidadaB"
+        "/Game/Unidades2/SK2_CidadaA",
+        "/Game/Unidades2/SK2_CidadaB"
       ],
-      "yaw": -90
+      "yaw": -90,
+      "familia": "civil"
     }
   },
   "nos": {
@@ -524,6 +615,200 @@
         "natureza/olive__ancient-olive-majesty"
       ],
       "altura": 500
+    }
+  },
+  "familias": {
+    "civil": {
+      "pasta": "human_base",
+      "arquivo": "human-base-animations",
+      "idle": [
+        "Idle_A",
+        "Idle_FoldArms"
+      ],
+      "walk": [
+        "Walk"
+      ],
+      "run": [
+        "Jog"
+      ],
+      "attack": [
+        "Punch_Jab",
+        "Melee_Hook"
+      ],
+      "death": [
+        "Death_D",
+        "human_addon/human-addon-animations:Death_A",
+        "human_addon/human-addon-animations:Death_B"
+      ],
+      "gather_tree": [
+        "Chop_Tree"
+      ],
+      "gather_farm": [
+        "Farm_Harvest"
+      ],
+      "gather_mine": [
+        "Fixing_Kneeling"
+      ]
+    },
+    "soldado": {
+      "pasta": "human_base",
+      "arquivo": "human-base-animations",
+      "idle": [
+        "Idle_Sword",
+        "Idle_Shield"
+      ],
+      "walk": [
+        "Walk"
+      ],
+      "run": [
+        "Sprint"
+      ],
+      "attack": [
+        "Sword_Regular_A",
+        "Sword_Regular_B",
+        "Sword_Regular_C"
+      ],
+      "death": [
+        "Death_D",
+        "human_addon/human-addon-animations:Death_A",
+        "human_addon/human-addon-animations:Death_B",
+        "human_addon/human-addon-animations:Death_C"
+      ]
+    },
+    "arqueiro": {
+      "pasta": "human_base",
+      "arquivo": "human-base-animations",
+      "idle": [
+        "Idle_A"
+      ],
+      "walk": [
+        "Walk"
+      ],
+      "run": [
+        "Jog"
+      ],
+      "attack": [
+        "human_addon/human-addon-animations:Bow_Release",
+        "OverhandThrow"
+      ],
+      "death": [
+        "Death_D",
+        "human_addon/human-addon-animations:Death_B"
+      ]
+    },
+    "cavalo": {
+      "pasta": "horse",
+      "arquivo": "horse-animations",
+      "idle": [
+        "Idle"
+      ],
+      "walk": [
+        "Walk"
+      ],
+      "run": [
+        "Run"
+      ],
+      "attack": [
+        "Kick",
+        "Head_But",
+        "Rear"
+      ],
+      "death": [
+        "Death"
+      ]
+    },
+    "raposa": {
+      "pasta": "fox",
+      "arquivo": "fox-animations",
+      "idle": [
+        "Idle",
+        "Idle_Alert"
+      ],
+      "walk": [
+        "Walk"
+      ],
+      "run": [
+        "Run"
+      ],
+      "attack": [
+        "Bite"
+      ],
+      "death": [
+        "Death"
+      ]
+    },
+    "kaiju": {
+      "pasta": "kaiju",
+      "arquivo": "kaiju-animations",
+      "idle": [
+        "Idle"
+      ],
+      "walk": [
+        "Walk"
+      ],
+      "run": [
+        "Walk"
+      ],
+      "attack": [
+        "Attack",
+        "Tail_Attack"
+      ],
+      "death": [
+        "Death"
+      ]
+    },
+    "dragao": {
+      "pasta": "dragon",
+      "arquivo": "dragon-animations",
+      "idle": [
+        "Idle"
+      ],
+      "walk": [
+        "Walk"
+      ],
+      "run": [
+        "Fly_Flap"
+      ],
+      "attack": [
+        "Fly_Flap"
+      ],
+      "death": []
+    },
+    "ave": {
+      "pasta": "bird",
+      "arquivo": "bird-animations",
+      "idle": [
+        "Idle"
+      ],
+      "walk": [
+        "Walk"
+      ],
+      "run": [
+        "Flap"
+      ],
+      "attack": [
+        "Flap"
+      ],
+      "death": []
+    },
+    "serpente": {
+      "pasta": "snake",
+      "arquivo": "snake-animations",
+      "idle": [
+        "Idle"
+      ],
+      "walk": [
+        "Side_winding"
+      ],
+      "run": [
+        "Side_winding"
+      ],
+      "attack": [
+        "Bite"
+      ],
+      "death": [
+        "Death"
+      ]
     }
   }
 }

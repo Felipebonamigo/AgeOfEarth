@@ -16,8 +16,16 @@ class UAnimSequence;
 class FJsonObject;
 
 /** Como desenhar um tipo da simulacao (carregado de Config/AoEVisuais.json). */
+/** Animacoes de uma familia de esqueleto (humano, cavalo, raposa...): listas de sequencias por papel; vazio = cai no que houver. */
+struct FAnimSet
+{
+	TArray<UAnimSequence*> Idle, Walk, Run, Attack, Death, GatherTree, GatherFarm, GatherMine;
+	static UAnimSequence* Pick(const TArray<UAnimSequence*>& L, int32 K) { return L.Num() ? L[(uint32)K % (uint32)L.Num()] : nullptr; }
+};
+
 struct FAoEDef
 {
+	FString Familia;             // familia de animacao (chave de "familias" no catalogo); vazio = animacoes do Manny
 	TArray<FString> Skeletons;   // SkeletalMesh (/Game/Unidades/SK_*) animados pelas animacoes do Manny; tem precedencia sobre Meshes
 	TArray<FString> Meshes;      // caminhos curtos ("edificios/house__greek-tavern"); mais de um = variantes escolhidas pelo id
 	float Fit = 0.92f;           // edificio: fracao da pegada que a malha ocupa
@@ -58,6 +66,11 @@ struct FAoEVisual
 	float AttackT = 9.f;         // tempo desde o ultimo golpe
 	int32 LastAtk = -1;
 	int32 Serial = 0;
+	FString Familia;             // familia de animacao (vazio = Manny)
+	int32 GatherKind = 0;        // 0 nao coleta, 1 arvore, 2 lavoura, 3 mina
+	int32 AnimSeed = 0;          // sorteio fixo da variante de animacao desta unidade
+	FVector2D CenterOfs = FVector2D::ZeroVector;   // centro da malha esqueletica fora da origem (cavalo, raposa...), ja escalado (cm)
+	FVector GroundPoint = FVector::ZeroVector;      // ponto da simulacao no chao (onde vai o disco)
 };
 
 /** Corpo que cai e some depois de uma morte. */
@@ -167,6 +180,12 @@ private:
 	TMap<int32, FVector2D> NodeTile;            // posicao (tiles) de cada no, mesmo sem malha, para o clique direito
 	UPROPERTY() TMap<FString, TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> NodeComps;
 	UPROPERTY() TMap<FString, TObjectPtr<UStaticMesh>> MeshCache;
+	TMap<FString, FAnimSet> AnimSets;
+	UPROPERTY() TArray<TObjectPtr<UAnimSequence>> AnimKeep;   // mantem vivas as sequencias das familias (o GC nao ve FAnimSet)
+	TMap<int32, FString> NodeKind;                              // tipo do no de recurso (para escolher a animacao de coleta)
+	void LoadFamilies(const TSharedPtr<FJsonObject>& Root);
+	float VitrineZ = -1e9f;   // vitrine: chao plano proprio no alto (ignora o Landscape)
+	void SpawnVitrine();   // -AoEVitrine: uma de cada unidade do catalogo em grade (sem simulacao), para avaliar malha/animacao
 	UPROPERTY() TObjectPtr<UAnimSequence> AnimIdle;
 	UPROPERTY() TObjectPtr<UAnimSequence> AnimWalk;
 	UPROPERTY() TObjectPtr<UAnimSequence> AnimJog;

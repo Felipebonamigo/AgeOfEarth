@@ -30,6 +30,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AoE")
 	static USkeletalMesh* BuildSkinnedFromStatic(UStaticMesh* Source, USkeletalMesh* Template, const FString& PackagePath, float YawDeg, float Suavidade);
 
+	/**
+	 * Versao geral para qualquer esqueleto (humano, cavalo, raposa, dragao...). FitMode 0 = ajusta a ALTURA da malha ao esqueleto
+	 * (osso mais alto + Margem cm), 1 = ajusta o COMPRIMENTO em Y (de ponta a ponta dos ossos + Margem). A malha vai para o centro
+	 * XY dos ossos com os pes no menor Z. Margem negativa e valida.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "AoE")
+	static USkeletalMesh* BuildSkinnedGeneric(UStaticMesh* Source, USkeletalMesh* Template, const FString& PackagePath, float YawDeg, float Suavidade, int32 FitMode, float Margem);
+
 	/** Religa uma animacao ao esqueleto (as do modelo Third Person ficaram com o USkeleton nulo e o cook cai). So no editor. */
 	UFUNCTION(BlueprintCallable, Category = "AoE")
 	static bool SetAnimSkeleton(UAnimationAsset* Anim, USkeleton* Skeleton);

@@ -19,6 +19,11 @@
 
 USkeletalMesh* UAoESkinTools::BuildSkinnedFromStatic(UStaticMesh* Source, USkeletalMesh* Template, const FString& PackagePath, float YawDeg, float Suavidade)
 {
+	return BuildSkinnedGeneric(Source, Template, PackagePath, YawDeg, Suavidade, 0, 24.f);
+}
+
+USkeletalMesh* UAoESkinTools::BuildSkinnedGeneric(UStaticMesh* Source, USkeletalMesh* Template, const FString& PackagePath, float YawDeg, float Suavidade, int32 FitMode, float Margem)
+{
 #if WITH_EDITOR
 	if (!Source || !Template) return nullptr;
 	const FMeshDescription* SD = Source->GetMeshDescription(0);
@@ -46,14 +51,18 @@ USkeletalMesh* UAoESkinTools::BuildSkinnedFromStatic(UStaticMesh* Source, USkele
 			|| N.Contains(TEXT("weapon")) || N.Contains(TEXT("cam")) || N.Equals(TEXT("root")) || N.Contains(TEXT("_fk")));
 	};
 	// altura do Manny: do pe a ponta da cabeca (osso mais alto + 24 cm)
-	float ManTop = 0.f, ManBottom = 1e9f;
+	float ManTop = 0.f, ManBottom = 1e9f, YMin = 1e9f, YMax = -1e9f, XMin = 1e9f, XMax = -1e9f;
 	for (int32 i = 0; i < NB; ++i)
 	{
 		if (!Util(i)) continue;
 		ManTop = FMath::Max(ManTop, (float)Comp[i].GetLocation().Z);
 		ManBottom = FMath::Min(ManBottom, (float)Comp[i].GetLocation().Z);
+		YMin = FMath::Min(YMin, (float)Comp[i].GetLocation().Y); YMax = FMath::Max(YMax, (float)Comp[i].GetLocation().Y);
+		XMin = FMath::Min(XMin, (float)Comp[i].GetLocation().X); XMax = FMath::Max(XMax, (float)Comp[i].GetLocation().X);
 	}
-	const float ManHeight = (ManTop + 24.f) - FMath::Min(0.f, ManBottom);
+	const float ManHeight = (ManTop + Margem) - FMath::Min(0.f, ManBottom);
+	const float ManLength = (YMax - YMin) + Margem;
+	const FVector TplCenter((XMin + XMax) * 0.5, (YMin + YMax) * 0.5, FMath::Min(0.f, ManBottom));
 	struct FSeg { FVector A, B; int32 Bone; };
 	TArray<FSeg> Segs;
 	TArray<int32> Owners;
@@ -71,9 +80,10 @@ USkeletalMesh* UAoESkinTools::BuildSkinnedFromStatic(UStaticMesh* Source, USkele
 	FBox Box(ForceInit);
 	for (const FVertexID V : SD->Vertices().GetElementIDs()) Box += Rot.RotateVector(FVector(SPos[V]));
 	const float H = Box.Max.Z - Box.Min.Z;
-	const float Scale = ManHeight / FMath::Max(1.f, H);
+	const float L = Box.Max.Y - Box.Min.Y;
+	const float Scale = FitMode == 1 ? ManLength / FMath::Max(1.f, L) : ManHeight / FMath::Max(1.f, H);
 	const FVector Ctr((Box.Min.X + Box.Max.X) * 0.5, (Box.Min.Y + Box.Max.Y) * 0.5, Box.Min.Z);
-	auto ToManny = [&](const FVector3f& P) { return (Rot.RotateVector(FVector(P)) - Ctr) * Scale; };
+	auto ToManny = [&](const FVector3f& P) { return (Rot.RotateVector(FVector(P)) - Ctr) * Scale + TplCenter; };
 
 	// ---- nova descricao de malha ----------------------------------------------------------------------------------
 	FMeshDescription ND;
