@@ -7,17 +7,26 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Misc/FileHelper.h"
+#include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Engine.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
+#include "Animation/SkeletalMeshActor.h"
+#include "Animation/AnimSequence.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "TimerManager.h"
 #include "CollisionQueryParams.h"
 #include "Engine/World.h"
 #include "Misc/CommandLine.h"
+#include "Misc/DateTime.h"
+#include "HAL/PlatformMemory.h"
+#include "RHI.h"
+#include "Misc/PackageName.h"
 #include "Misc/Parse.h"
 
 namespace
@@ -39,13 +48,21 @@ AAoEBridgeActor::AAoEBridgeActor()
 	CubeMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
 	DiscMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 	BoxMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+	auto Anim = [](const TCHAR* P) { return LoadObject<UAnimSequence>(nullptr, P); };
+	AnimIdle = Anim(TEXT("/Game/Mannequins/Anims/Unarmed/MM_Idle.MM_Idle"));
+	AnimWalk = Anim(TEXT("/Game/Mannequins/Anims/Unarmed/Walk/MF_Unarmed_Walk_Fwd.MF_Unarmed_Walk_Fwd"));
+	AnimJog = Anim(TEXT("/Game/Mannequins/Anims/Unarmed/Jog/MF_Unarmed_Jog_Fwd.MF_Unarmed_Jog_Fwd"));
+	for (const TCHAR* P : { TEXT("/Game/Mannequins/Anims/Unarmed/Attack/MM_Attack_01.MM_Attack_01"), TEXT("/Game/Mannequins/Anims/Unarmed/Attack/MM_Attack_02.MM_Attack_02"), TEXT("/Game/Mannequins/Anims/Unarmed/Attack/MM_Attack_03.MM_Attack_03") })
+		if (UAnimSequence* A = Anim(P)) AnimAtk.Add(A);
+	for (const TCHAR* P : { TEXT("/Game/Mannequins/Anims/Death/MM_Death_Front_01.MM_Death_Front_01"), TEXT("/Game/Mannequins/Anims/Death/MM_Death_Back_01.MM_Death_Back_01"), TEXT("/Game/Mannequins/Anims/Death/MM_Death_Front_02.MM_Death_Front_02") })
+		if (UAnimSequence* A = Anim(P)) AnimDeath.Add(A);
 }
 
 void AAoEBridgeActor::LoadCatalog()
 {
 	UnitDefs.Empty(); BuildingDefs.Empty(); NodeDefs.Empty();
 	FString Txt;
-	const FString Path = FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("AoEVisuais.json"));
+	const FString Path = FPaths::Combine(FPaths::ProjectDir(), TEXT("Dados"), TEXT("AoEVisuais.json"));
 	if (!FFileHelper::LoadFileToString(Txt, *Path)) { UE_LOG(LogTemp, Warning, TEXT("AoE: sem %s"), *Path); return; }
 	TSharedPtr<FJsonObject> Root;
 	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Txt), Root) || !Root.IsValid()) { UE_LOG(LogTemp, Warning, TEXT("AoE: JSON invalido em %s"), *Path); return; }
@@ -58,6 +75,7 @@ void AAoEBridgeActor::LoadCatalog()
 			if (!E.IsValid()) continue;
 			FAoEDef D;
 			const TArray<TSharedPtr<FJsonValue>>* Ms = nullptr;
+			if (E->TryGetArrayField(TEXT("esqueletos"), Ms)) for (const auto& M : *Ms) D.Skeletons.Add(M->AsString());
 			if (E->TryGetArrayField(TEXT("malhas"), Ms)) for (const auto& M : *Ms) D.Meshes.Add(M->AsString());
 			FString Um;
 			if (E->TryGetStringField(TEXT("malha"), Um)) D.Meshes.Add(Um);
@@ -67,6 +85,7 @@ void AAoEBridgeActor::LoadCatalog()
 			if (E->TryGetNumberField(TEXT("yaw"), N)) D.Yaw = (float)N;
 			bool B = true;
 			if (E->TryGetBoolField(TEXT("anel"), B)) D.bRing = B;
+			if (E->TryGetBoolField(TEXT("campo"), B)) D.bField = B;
 			Out.Add(FString(KV.Key), D);
 		}
 	};
@@ -278,6 +297,64 @@ AActor* AAoEBridgeActor::SpawnVisual(FAoEVisual& V, const FAoEDef* Def, int32 Id
 {
 	FActorSpawnParameters Sp;
 	Sp.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	USkeletalMesh* SkM = nullptr;
+	if (Def && Def->Skeletons.Num() > 0 && !V.bBuilding)
+	{
+		const FString& Path = Def->Skeletons[(int32)(Hash01(Id, 7) * Def->Skeletons.Num()) % Def->Skeletons.Num()];
+		if (TObjectPtr<USkeletalMesh>* Hit = SkelCache.Find(Path)) SkM = Hit->Get();
+		else { SkM = LoadObject<USkeletalMesh>(nullptr, *(Path + TEXT(".") + FPackageName::GetShortName(Path))); SkelCache.Add(Path, SkM); if (!SkM) UE_LOG(LogTemp, Warning, TEXT("AoE: esqueleto nao encontrado: %s"), *Path); }
+	}
+	if (SkM)
+	{
+		ASkeletalMeshActor* SA = GetWorld()->SpawnActor<ASkeletalMeshActor>(FVector::ZeroVector, FRotator::ZeroRotator, Sp);
+		USkeletalMeshComponent* K = SA->GetSkeletalMeshComponent();
+		K->SetMobility(EComponentMobility::Movable);
+		K->SetSkeletalMesh(SkM);
+		K->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+		K->SetCollisionObjectType(ECC_WorldDynamic);
+		K->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		K->SetCollisionResponseToAllChannels(ECR_Ignore);
+		K->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+		K->SetCastShadow(true);
+		const float MeshH = FMath::Max(1.f, SkM->GetBounds().BoxExtent.Z * 2.f);
+		const float S = (Def->Height > 0.f ? Def->Height : 185.f) / MeshH;
+		V.BaseScale = S;
+		V.MeshHeight = Def->Height > 0.f ? Def->Height : 185.f;
+		V.Lift = 0.f;
+		K->SetWorldScale3D(FVector(S));
+		V.Skel = K;
+		V.AnimState = -1;
+		auto* Disc = NewObject<UStaticMeshComponent>(SA);
+		Disc->SetStaticMesh(DiscMesh);
+		Disc->SetMobility(EComponentMobility::Movable);
+		Disc->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Disc->SetCastShadow(false);
+		Disc->SetupAttachment(K);
+		Disc->RegisterComponent();
+		UMaterialInstanceDynamic* Dm = UMaterialInstanceDynamic::Create(BoxMaterial, SA);
+		Dm->SetVectorParameterValue(TEXT("Color"), Color);
+		Disc->SetMaterial(0, Dm);
+		V.Disc = Disc;
+		V.DiscMat = Dm;
+		V.DiscRadius = RadiusCm;
+		return SA;
+	}
+	if (Def && Def->bField && V.bBuilding)
+	{
+		AStaticMeshActor* FA = GetWorld()->SpawnActor<AStaticMeshActor>(FVector::ZeroVector, FRotator::ZeroRotator, Sp);
+		UStaticMeshComponent* FC = FA->GetStaticMeshComponent();
+		FC->SetMobility(EComponentMobility::Movable);
+		FC->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane")));
+		if (UMaterialInterface* Campo = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Meshy/M_Campo.M_Campo"))) FC->SetMaterial(0, Campo);
+		FC->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		FC->SetCastShadow(false);
+		FC->SetWorldScale3D(FVector(FootprintCm * Def->Fit / 100.f, FootprintCm * Def->Fit / 100.f, 1.f));
+		V.BaseScale = 1.f;
+		V.MeshHeight = 30.f;
+		V.Lift = 10.f;
+		V.Body = FC;
+		return FA;
+	}
 	AStaticMeshActor* A = GetWorld()->SpawnActor<AStaticMeshActor>(FVector::ZeroVector, FRotator::ZeroRotator, Sp);
 	UStaticMeshComponent* C = A->GetStaticMeshComponent();
 	C->SetMobility(EComponentMobility::Movable);
@@ -400,6 +477,7 @@ void AAoEBridgeActor::HandleState(const TSharedPtr<FJsonObject>& O)
 			Vis->ToZ = GroundZ(Pos.X * Uu, Pos.Y * Uu);
 			const FVector2D D = Vis->To - Vis->From;
 			Vis->bMoving = D.SizeSquared() > 2e-5f;
+			Vis->Speed = D.Size() * Uu / FMath::Max(StateInterval, 0.02f);
 			if (Vis->bMoving)
 			{
 				const FAoEDef* Def = UnitDefs.Find(Vis->Type);
@@ -431,7 +509,17 @@ void AAoEBridgeActor::HandleState(const TSharedPtr<FJsonObject>& O)
 				for (const auto& B : Buildings)
 					if (B.Value.Dono == It->Value.Dono && FVector2D::Distance(P, B.Value.To) < 3.2f) { bGuarnicao = true; break; }
 				if (bGuarnicao) A->Destroy();
-				else { FAoEDying D; D.Actor = A; D.Start = A->GetActorLocation(); D.Yaw = It->Value.Yaw; Dying.Add(D); if (UStaticMeshComponent* Dc = It->Value.Disc.Get()) Dc->SetVisibility(false); }
+				else
+				{
+					FAoEDying D; D.Actor = A; D.Start = A->GetActorLocation(); D.Yaw = It->Value.Yaw;
+					if (USkeletalMeshComponent* K = It->Value.Skel.Get())
+					{
+						D.bSkel = true;
+						if (AnimDeath.Num() > 0) PlayAnim(It->Value, AnimDeath[It->Key % AnimDeath.Num()], false, 1.f);
+					}
+					Dying.Add(D);
+					if (UStaticMeshComponent* Dc = It->Value.Disc.Get()) Dc->SetVisibility(false);
+				}
 			}
 			Selected.Remove(It->Key);
 			It.RemoveCurrent();
@@ -493,6 +581,41 @@ void AAoEBridgeActor::HandleState(const TSharedPtr<FJsonObject>& O)
 		}
 }
 
+void AAoEBridgeActor::PlayAnim(FAoEVisual& V, UAnimSequence* A, bool bLoop, float Rate, float StartFrac)
+{
+	USkeletalMeshComponent* K = V.Skel.Get();
+	if (!K || !A) return;
+	K->PlayAnimation(A, bLoop);
+	K->SetPlayRate(Rate);
+	if (StartFrac > 0.f) K->SetPosition(A->GetPlayLength() * StartFrac, false);
+}
+
+/** Escolhe a animacao do Manny pelo estado da simulacao: golpe (vai ate o fim), correr/andar pela velocidade medida, ocioso. */
+void AAoEBridgeActor::DriveSkeletal(FAoEVisual& V, int32 /*Id*/)
+{
+	USkeletalMeshComponent* K = V.Skel.Get();
+	if (!K) return;
+	const int32 Serie = (int32)(V.Phase * 7.f) & 0x7fffffff;
+	if (V.AttackT == 0.f && AnimAtk.Num() > 0)
+	{
+		UAnimSequence* A = AnimAtk[Serie % AnimAtk.Num()];
+		PlayAnim(V, A, false, 1.25f);
+		V.AnimState = 3;
+		V.AnimUntil = Clock + A->GetPlayLength() / 1.25f;
+		V.AttackT = 5.f;
+		return;
+	}
+	if (V.AnimState == 3 && Clock < V.AnimUntil) return;
+	int32 Want = V.bMoving ? (V.Speed > 260.f ? 2 : 1) : 0;
+	if (V.bAttacking && !V.bMoving) Want = 0;
+	if (Want == V.AnimState) return;
+	const float Ofs = Hash01((int32)(V.Phase * 100.f), 5);
+	if (Want == 2) PlayAnim(V, AnimJog, true, FMath::Clamp(V.Speed / 420.f, 0.6f, 1.8f), Ofs);
+	else if (Want == 1) PlayAnim(V, AnimWalk, true, FMath::Clamp(V.Speed / 170.f, 0.6f, 1.8f), Ofs);
+	else PlayAnim(V, AnimIdle, true, 1.f, Ofs);
+	V.AnimState = Want;
+}
+
 void AAoEBridgeActor::UpdateVisual(FAoEVisual& V, float Dt)
 {
 	AActor* A = V.Actor.Get();
@@ -511,7 +634,8 @@ void AAoEBridgeActor::UpdateVisual(FAoEVisual& V, float Dt)
 	else
 	{
 		Z += V.Lift;
-		if (V.bMoving)
+		if (V.Skel.IsValid()) { DriveSkeletal(V, 0); }
+		else if (V.bMoving)
 		{
 			V.Phase += Dt * 11.f;
 			Z += FMath::Abs(FMath::Sin(V.Phase)) * 5.f;
@@ -523,7 +647,7 @@ void AAoEBridgeActor::UpdateVisual(FAoEVisual& V, float Dt)
 			V.Phase += Dt * 6.f;
 			Rot.Pitch = 6.f * FMath::Sin(V.Phase);
 		}
-		if (V.AttackT < 0.45f)
+		if (!V.Skel.IsValid() && V.AttackT < 0.45f)
 		{
 			// golpe: avanca e se inclina
 			const float K = FMath::Sin(PI * V.AttackT / 0.45f);
@@ -540,6 +664,20 @@ void AAoEBridgeActor::Tick(float Dt)
 {
 	Super::Tick(Dt);
 	Clock += Dt;
+	PerfAcc += Dt; ++PerfFrames; PerfWorst = FMath::Max(PerfWorst, (double)Dt);
+	if (PerfAcc >= 5.0)
+	{
+		const double Fps = PerfFrames / PerfAcc;
+		const double Gpu = FPlatformTime::ToMilliseconds(RHIGetGPUFrameCycles(0));
+		const FPlatformMemoryStats Mem = FPlatformMemory::GetStats();
+		const FString Linha = FString::Printf(TEXT("AOE_PERF t=%.0f fps=%.1f quadro_ms=%.2f pior_ms=%.1f gpu_ms=%.2f ram_mb=%.0f unidades=%d edificios=%d"),
+			(double)Clock, Fps, 1000.0 / FMath::Max(Fps, 0.001), PerfWorst * 1000.0, Gpu, (double)Mem.UsedPhysical / (1024.0 * 1024.0), Units.Num(), Buildings.Num());
+		UE_LOG(LogTemp, Log, TEXT("%s"), *Linha);
+		if (PerfFile.IsEmpty()) FParse::Value(FCommandLine::Get(), TEXT("AoEPerfLog="), PerfFile);
+		if (!PerfFile.IsEmpty()) FFileHelper::SaveStringToFile(Linha + LINE_TERMINATOR, *PerfFile, FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), FILEWRITE_Append);
+		PerfSumFps += Fps; PerfSumGpu += Gpu; ++PerfWindows;
+		PerfAcc = 0.0; PerfFrames = 0; PerfWorst = 0.0;
+	}
 	for (auto& P : Units)
 	{
 		UpdateVisual(P.Value, Dt);
@@ -585,8 +723,12 @@ void AAoEBridgeActor::Tick(float Dt)
 		D.T += Dt;
 		const float K = FMath::Clamp(D.T / 0.55f, 0.f, 1.f);
 		const float Sink = FMath::Clamp((D.T - 4.f) / 2.f, 0.f, 1.f);
-		A->SetActorRotation(FRotator(-88.f * K * K, D.Yaw, 0.f));
-		A->SetActorLocation(D.Start + FVector(0.f, 0.f, -20.f * K - 150.f * Sink));
+		if (D.bSkel) A->SetActorLocation(D.Start + FVector(0.f, 0.f, -90.f * Sink));
+		else
+		{
+			A->SetActorRotation(FRotator(-88.f * K * K, D.Yaw, 0.f));
+			A->SetActorLocation(D.Start + FVector(0.f, 0.f, -20.f * K - 150.f * Sink));
+		}
 		if (D.T > 6.5f) { A->Destroy(); Dying.RemoveAt(i); }
 	}
 	if (GEngine)

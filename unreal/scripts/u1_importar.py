@@ -64,6 +64,28 @@ def modelos():
                 unreal.log_error("AOE_IMPORT FALHOU glb %s\n%s" % (nome, traceback.format_exc()))
 
 
-texturas()
-modelos()
+if not os.environ.get("AOE_VEG"):
+    texturas()
+    modelos()
 unreal.log("AOE_IMPORT_DONE")
+
+
+def vegetacao():
+    """Plantas e rochas CC0 do Poly Haven (Content/Fontes/vegetacao/<id>/<id>.gltf) -> /Game/Vegetacao/<id>."""
+    base = os.path.join(REPO, "unreal", "AgeOfEarthUE", "Content", "Fontes", "vegetacao")
+    for d in sorted(glob.glob(os.path.join(base, "*"))):
+        nome = os.path.basename(d)
+        if ONLY and not any(o in nome.lower() for o in ONLY):
+            continue
+        gltf = os.path.join(d, nome + ".gltf")
+        if not os.path.exists(gltf):
+            continue
+        try:
+            r = importar(gltf, "/Game/Vegetacao/" + nome, nome)
+            unreal.log("AOE_IMPORT veg %s -> %s" % (nome, r[:3]))
+        except Exception:
+            unreal.log_error("AOE_IMPORT FALHOU veg %s\n%s" % (nome, traceback.format_exc()))
+
+
+if os.environ.get("AOE_VEG"):
+    vegetacao()

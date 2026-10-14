@@ -1,0 +1,506 @@
+{
+  "_comentario": "Quais malhas do Meshy (art/meshy/*) desenham cada tipo da simulacao. Caminho curto = pasta/nome do .glb; ajuste = fracao da pegada; altura em cm; yaw = giro que leva a frente da malha ao +X.",
+  "construcoes": {
+    "town_center": {
+      "malhas": [
+        "edificios/town_center__stone-basilica",
+        "edificios/town_center__pantheon"
+      ],
+      "ajuste": 1
+    },
+    "house": {
+      "malhas": [
+        "edificios/house__greek-tavern",
+        "edificios/house__kalliope-house"
+      ],
+      "ajuste": 0.95
+    },
+    "farm": {
+      "campo": true,
+      "ajuste": 0.98,
+      "anel": false
+    },
+    "granary": {
+      "malhas": [
+        "edificios/granary__desert-oasis"
+      ],
+      "ajuste": 0.95
+    },
+    "lumber_camp": {
+      "malhas": [
+        "edificios/lumber_camp__thatchwood-sawmill",
+        "edificios/lumber_camp__sawmill-serenity"
+      ],
+      "ajuste": 0.95
+    },
+    "mine": {
+      "malhas": [
+        "edificios/mine__mine-entrance"
+      ],
+      "ajuste": 0.95
+    },
+    "quarry": {
+      "malhas": [
+        "edificios/mine__mine-entrance"
+      ],
+      "ajuste": 0.95
+    },
+    "naphtha_well": {
+      "malhas": [
+        "edificios/mine__mine-entrance"
+      ],
+      "ajuste": 0.8
+    },
+    "market": {
+      "malhas": [
+        "edificios/market__stall-toldo-vermelho",
+        "edificios/market__stall-lona"
+      ],
+      "ajuste": 0.8
+    },
+    "temple": {
+      "malhas": [
+        "edificios/temple__parthenon"
+      ],
+      "ajuste": 1.05
+    },
+    "academy": {
+      "malhas": [
+        "edificios/temple__erechtheion"
+      ],
+      "ajuste": 0.98
+    },
+    "barracks": {
+      "malhas": [
+        "edificios/barracks__roman-barracks"
+      ],
+      "ajuste": 1
+    },
+    "stable": {
+      "malhas": [
+        "edificios/stable__horse-stable"
+      ],
+      "ajuste": 1
+    },
+    "siege_workshop": {
+      "malhas": [
+        "edificios/siege_workshop__rustic-shelter"
+      ],
+      "ajuste": 1
+    },
+    "tower": {
+      "malhas": [
+        "edificios/tower__stone-watchtower",
+        "edificios/tower__thatched-timber-watchtower"
+      ],
+      "ajuste": 1
+    },
+    "wall": {
+      "malhas": [
+        "edificios/wall__stone-wall"
+      ],
+      "ajuste": 1
+    },
+    "gate": {
+      "malhas": [
+        "edificios/gate__stone-archway"
+      ],
+      "ajuste": 1
+    },
+    "fortress": {
+      "malhas": [
+        "edificios/fortress__akropolis"
+      ],
+      "ajuste": 1
+    },
+    "wonder_zeus": {
+      "malhas": [
+        "edificios/wonder_zeus__zeus-throne"
+      ],
+      "ajuste": 1
+    },
+    "wonder_colossus": {
+      "malhas": [
+        "edificios/wonder_colossus__classical-apollo"
+      ],
+      "ajuste": 0.8
+    },
+    "wonder_artemis": {
+      "malhas": [
+        "edificios/statue__artemis-huntress"
+      ],
+      "ajuste": 0.8
+    },
+    "wonder_parthenon": {
+      "malhas": [
+        "edificios/temple__parthenon"
+      ],
+      "ajuste": 1
+    },
+    "wonder_pharos": {
+      "malhas": [
+        "edificios/wonder_pharos__stormwatch-lighthouse"
+      ],
+      "ajuste": 0.8
+    }
+  },
+  "unidades": {
+    "villager": {
+      "malhas": [
+        "unidades/villager__peasant-maiden",
+        "unidades/villager__peasant-girl"
+      ],
+      "altura": 165,
+      "esqueletos": [
+        "/Game/Unidades/SK_CidadaA",
+        "/Game/Unidades/SK_CidadaB"
+      ],
+      "yaw": -90
+    },
+    "hoplite": {
+      "malhas": [
+        "unidades/hoplite__athenian-hoplite",
+        "unidades/hoplite__red-crested-hoplite"
+      ],
+      "altura": 185,
+      "esqueletos": [
+        "/Game/Unidades/SK_HoplitaAteniense",
+        "/Game/Unidades/SK_HoplitaPenacho"
+      ],
+      "yaw": -90
+    },
+    "hypaspist": {
+      "malhas": [
+        "unidades/hypaspist__spartan-red-cape"
+      ],
+      "altura": 185,
+      "esqueletos": [
+        "/Game/Unidades/SK_Hipaspista"
+      ],
+      "yaw": -90
+    },
+    "myrmidon": {
+      "malhas": [
+        "unidades/myrmidon__spartan-ultrarealistic"
+      ],
+      "altura": 188,
+      "esqueletos": [
+        "/Game/Unidades/SK_Mirmidao"
+      ],
+      "yaw": -90
+    },
+    "militia": {
+      "malhas": [
+        "unidades/militia__spear-infantry"
+      ],
+      "altura": 175,
+      "esqueletos": [
+        "/Game/Unidades/SK_Milicia"
+      ],
+      "yaw": -90
+    },
+    "peltast": {
+      "malhas": [
+        "unidades/hoplite__red-crested-hoplite"
+      ],
+      "altura": 180,
+      "esqueletos": [
+        "/Game/Unidades/SK_HoplitaPenacho"
+      ],
+      "yaw": -90
+    },
+    "toxotes": {
+      "malhas": [
+        "unidades/militia__spear-infantry"
+      ],
+      "altura": 175,
+      "esqueletos": [
+        "/Game/Unidades/SK_Milicia"
+      ],
+      "yaw": -90
+    },
+    "cretan_archer": {
+      "malhas": [
+        "unidades/militia__spear-infantry"
+      ],
+      "altura": 175,
+      "esqueletos": [
+        "/Game/Unidades/SK_Milicia"
+      ],
+      "yaw": -90
+    },
+    "basileus": {
+      "malhas": [
+        "unidades/myrmidon__spartan-ultrarealistic"
+      ],
+      "altura": 195,
+      "esqueletos": [
+        "/Game/Unidades/SK_Mirmidao"
+      ],
+      "yaw": -90
+    },
+    "jason": {
+      "malhas": [
+        "unidades/hypaspist__spartan-red-cape"
+      ],
+      "altura": 195,
+      "esqueletos": [
+        "/Game/Unidades/SK_Hipaspista"
+      ],
+      "yaw": -90
+    },
+    "odysseus": {
+      "malhas": [
+        "unidades/hypaspist__spartan-red-cape"
+      ],
+      "altura": 190,
+      "esqueletos": [
+        "/Game/Unidades/SK_Hipaspista"
+      ],
+      "yaw": -90
+    },
+    "achilles": {
+      "malhas": [
+        "unidades/myrmidon__spartan-ultrarealistic"
+      ],
+      "altura": 200,
+      "esqueletos": [
+        "/Game/Unidades/SK_Mirmidao"
+      ],
+      "yaw": -90
+    },
+    "perseus": {
+      "malhas": [
+        "unidades/hypaspist__spartan-red-cape"
+      ],
+      "altura": 195,
+      "esqueletos": [
+        "/Game/Unidades/SK_Hipaspista"
+      ],
+      "yaw": -90
+    },
+    "heracles": {
+      "malhas": [
+        "unidades/heracles__lion-warrior"
+      ],
+      "altura": 215,
+      "esqueletos": [
+        "/Game/Unidades/SK_Heracles"
+      ],
+      "yaw": -90
+    },
+    "hippeus": {
+      "malhas": [
+        "unidades/cataphract__armored-rider"
+      ],
+      "altura": 250
+    },
+    "hetairoi": {
+      "malhas": [
+        "unidades/cataphract__armored-rider"
+      ],
+      "altura": 255
+    },
+    "kataskopos": {
+      "malhas": [
+        "unidades/cataphract__armored-rider"
+      ],
+      "altura": 240
+    },
+    "cataphract": {
+      "malhas": [
+        "unidades/cataphract__armored-rider"
+      ],
+      "altura": 260
+    },
+    "petrobolos": {
+      "malhas": [
+        "unidades/petrobolos__wheeled-catapult"
+      ],
+      "altura": 230
+    },
+    "helepolis": {
+      "malhas": [
+        "unidades/petrobolos__siege-engine"
+      ],
+      "altura": 320
+    },
+    "field_gun": {
+      "malhas": [
+        "unidades/field_gun__cannon-on-cart"
+      ],
+      "altura": 150
+    },
+    "galleon": {
+      "malhas": [
+        "unidades/galleon__timber-galleon"
+      ],
+      "altura": 1100,
+      "anel": false
+    },
+    "centaur": {
+      "malhas": [
+        "criaturas/centaur__bearded-archer"
+      ],
+      "altura": 250
+    },
+    "minotaur": {
+      "malhas": [
+        "criaturas/minotaur__tribal-attire"
+      ],
+      "altura": 270
+    },
+    "cyclops": {
+      "malhas": [
+        "criaturas/cyclops__cyclopean-guardian",
+        "criaturas/cyclops__cyclopean-sentinel"
+      ],
+      "altura": 340
+    },
+    "pegasus": {
+      "malhas": [
+        "criaturas/pegasus__rearing-white"
+      ],
+      "altura": 300
+    },
+    "manticore": {
+      "malhas": [
+        "criaturas/manticore__winged"
+      ],
+      "altura": 230
+    },
+    "hydra": {
+      "malhas": [
+        "criaturas/hydra__snake-hydra"
+      ],
+      "altura": 300
+    },
+    "nemean_lion": {
+      "malhas": [
+        "criaturas/nemean_lion__embermane"
+      ],
+      "altura": 160
+    },
+    "chimera": {
+      "malhas": [
+        "criaturas/chimera__lion-goat-serpent"
+      ],
+      "altura": 240
+    },
+    "cerberus": {
+      "malhas": [
+        "criaturas/cerberus__unleashed"
+      ],
+      "altura": 200
+    },
+    "satyr": {
+      "malhas": [
+        "criaturas/satyr__satyr-spirit"
+      ],
+      "altura": 175
+    },
+    "harpy": {
+      "malhas": [
+        "criaturas/harpy__harpy-queen"
+      ],
+      "altura": 200
+    },
+    "phoenix": {
+      "malhas": [
+        "criaturas/phoenix__ember-phoenix"
+      ],
+      "altura": 240
+    },
+    "griffin": {
+      "malhas": [
+        "criaturas/griffin__lightbrown-griffin"
+      ],
+      "altura": 220
+    },
+    "triptolemus_dragon": {
+      "malhas": [
+        "criaturas/dragon__emerald-dragon"
+      ],
+      "altura": 300
+    },
+    "hippocampus": {
+      "malhas": [
+        "criaturas/hippocampus__sea-horse"
+      ],
+      "altura": 220
+    },
+    "colossus": {
+      "malhas": [
+        "criaturas/colossus__talos-bronze"
+      ],
+      "altura": 560
+    },
+    "talos": {
+      "malhas": [
+        "criaturas/colossus__talos-bronze"
+      ],
+      "altura": 560
+    },
+    "cronus": {
+      "malhas": [
+        "criaturas/cronus__ancient-stone-titan"
+      ],
+      "altura": 900
+    },
+    "prometheus": {
+      "malhas": [
+        "criaturas/cyclops__cyclopean-sentinel"
+      ],
+      "altura": 800
+    }
+  },
+  "nos": {
+    "tree": {
+      "malhas": [
+        "natureza/oak__oak-tree",
+        "natureza/cypress__cypress-tree-chad",
+        "natureza/olive__ancient-olive-majesty",
+        "natureza/cypress__cypress-tree-swaney"
+      ],
+      "altura": 680
+    },
+    "berry": {
+      "malhas": [
+        "natureza/berry__crimson-berry-bush"
+      ],
+      "altura": 130
+    },
+    "gold": {
+      "malhas": [
+        "natureza/gold__gold-ore",
+        "natureza/gold__ore-stone-metallic"
+      ],
+      "altura": 150
+    },
+    "limestone": {
+      "malhas": [
+        "natureza/crag__kaya3",
+        "natureza/crag__cracked-gray-rock-stack"
+      ],
+      "altura": 220
+    },
+    "deer": {
+      "malhas": [
+        "natureza/deer__stag"
+      ],
+      "altura": 160
+    },
+    "boar": {
+      "malhas": [
+        "natureza/boar__wild-boar"
+      ],
+      "altura": 85
+    },
+    "olive": {
+      "malhas": [
+        "natureza/olive__ancient-olive-majesty"
+      ],
+      "altura": 500
+    }
+  }
+}

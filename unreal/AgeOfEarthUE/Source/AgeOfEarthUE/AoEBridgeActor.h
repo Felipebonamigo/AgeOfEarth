@@ -10,15 +10,20 @@ class UStaticMeshComponent;
 class UHierarchicalInstancedStaticMeshComponent;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
+class USkeletalMeshComponent;
+class USkeletalMesh;
+class UAnimSequence;
 class FJsonObject;
 
 /** Como desenhar um tipo da simulacao (carregado de Config/AoEVisuais.json). */
 struct FAoEDef
 {
+	TArray<FString> Skeletons;   // SkeletalMesh (/Game/Unidades/SK_*) animados pelas animacoes do Manny; tem precedencia sobre Meshes
 	TArray<FString> Meshes;      // caminhos curtos ("edificios/house__greek-tavern"); mais de um = variantes escolhidas pelo id
 	float Fit = 0.92f;           // edificio: fracao da pegada que a malha ocupa
 	float Height = 0.f;          // unidade/no: altura final em cm (0 = pela pegada)
 	float Yaw = 0.f;             // giro que leva a "frente" da malha ao +X
+	bool bField = false;         // edificio plano (campo de cultivo): um plano com o material M_Campo
 	bool bRing = true;           // disco da cor do dono sob a malha
 };
 
@@ -29,6 +34,10 @@ struct FAoEVisual
 	TWeakObjectPtr<UStaticMeshComponent> Body;
 	TWeakObjectPtr<UStaticMeshComponent> Disc;
 	TWeakObjectPtr<UStaticMeshComponent> Pole;
+	TWeakObjectPtr<USkeletalMeshComponent> Skel;
+	int32 AnimState = -1;        // 0 ocioso, 1 andar, 2 correr, 3 golpe
+	float AnimUntil = 0.f;       // o golpe em curso so e interrompido depois deste instante
+	float Speed = 0.f;           // cm/s medidos entre dois states
 	TWeakObjectPtr<UMaterialInstanceDynamic> DiscMat;
 	FString Type;
 	int32 Dono = 0;
@@ -58,6 +67,7 @@ struct FAoEDying
 	float T = 0.f;
 	FVector Start = FVector::ZeroVector;
 	float Yaw = 0.f;
+	bool bSkel = false;
 };
 
 /**
@@ -109,6 +119,8 @@ private:
 	void RemoveNode(int32 Id);
 	FLinearColor PlayerColor(int32 Dono) const;
 	void UpdateVisual(FAoEVisual& V, float Dt);
+	void DriveSkeletal(FAoEVisual& V, int32 Id);
+	void PlayAnim(FAoEVisual& V, UAnimSequence* A, bool bLoop, float Rate, float StartFrac = 0.f);
 
 	TSharedPtr<IWebSocket> Socket;
 	FTimerHandle ReconnectTimer;
@@ -117,6 +129,10 @@ private:
 	int32 StateSerial = 0;
 	int32 LastTick = 0;
 	float Clock = 0.f;
+	// medidor de desempenho (log a cada 5 s; resumo ao sair)
+	double PerfAcc = 0.0, PerfWorst = 0.0, PerfSumFps = 0.0, PerfSumGpu = 0.0;
+	int32 PerfFrames = 0, PerfWindows = 0;
+	FString PerfFile;
 	TMap<int32, uint32> PlayerColors;           // 0xRRGGBB por dono
 	TMap<FString, float> UnitRadius;            // em tiles, por tipo
 	TMap<FString, FIntPoint> BuildingSize;      // w,h em tiles por tipo
@@ -131,6 +147,12 @@ private:
 	TMap<int32, FNodeRef> NodeRefs;
 	UPROPERTY() TMap<FString, TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> NodeComps;
 	UPROPERTY() TMap<FString, TObjectPtr<UStaticMesh>> MeshCache;
+	UPROPERTY() TObjectPtr<UAnimSequence> AnimIdle;
+	UPROPERTY() TObjectPtr<UAnimSequence> AnimWalk;
+	UPROPERTY() TObjectPtr<UAnimSequence> AnimJog;
+	UPROPERTY() TArray<TObjectPtr<UAnimSequence>> AnimAtk;
+	UPROPERTY() TArray<TObjectPtr<UAnimSequence>> AnimDeath;
+	UPROPERTY() TMap<FString, TObjectPtr<USkeletalMesh>> SkelCache;
 	UPROPERTY() TObjectPtr<UStaticMesh> DiscMesh;
 	UPROPERTY() TObjectPtr<UStaticMesh> CubeMesh;
 	UPROPERTY() TObjectPtr<UMaterialInterface> BoxMaterial;

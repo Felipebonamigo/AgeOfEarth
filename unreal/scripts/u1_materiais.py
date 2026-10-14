@@ -86,6 +86,7 @@ def mestre(nome, vento):
     mat = tools.create_asset(nome, "/Game/Meshy", unreal.Material, unreal.MaterialFactoryNew())
     # as árvores são instâncias (HISM); sem este flag o material cai no padrão (cinza) no jogo
     mat.set_editor_property("used_with_instanced_static_meshes", True)
+    mat.set_editor_property("used_with_skeletal_mesh", True)   # as unidades animadas (SkeletalMesh) usam os mesmos mestres
     st = unreal.MaterialSamplerType
     cor = param_tex(mat, "BaseColorTexture", "/Engine/EngineResources/WhiteSquareTexture", st.SAMPLERTYPE_COLOR, -900, 0)
     nor = param_tex(mat, "NormalTexture", "/Engine/EngineMaterials/DefaultNormal", st.SAMPLERTYPE_NORMAL, -900, 300)
