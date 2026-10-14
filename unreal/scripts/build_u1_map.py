@@ -240,7 +240,7 @@ def main():
         s.set_editor_property("override_auto_exposure_method", True)
         s.set_editor_property("auto_exposure_method", unreal.AutoExposureMethod.AEM_HISTOGRAM)
         s.set_editor_property("override_auto_exposure_bias", True)
-        s.set_editor_property("auto_exposure_bias", 0.0)
+        s.set_editor_property("auto_exposure_bias", -0.8)   # verdes e areia saturavam para o branco
         s.set_editor_property("override_bloom_intensity", True)
         s.set_editor_property("bloom_intensity", 0.35)
         s.set_editor_property("override_vignette_intensity", True)

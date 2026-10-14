@@ -1,4 +1,6 @@
 #include "AoEBridgeActor.h"
+#include "Engine/DecalActor.h"
+#include "Components/DecalComponent.h"
 #include "Misc/Base64.h"
 #include "Components/InstancedStaticMeshComponent.h"
 
@@ -463,6 +465,7 @@ AActor* AAoEBridgeActor::SpawnVisual(FAoEVisual& V, const FAoEDef* Def, int32 Id
 		USkeletalMeshComponent* K = SA->GetSkeletalMeshComponent();
 		K->SetMobility(EComponentMobility::Movable);
 		K->SetSkeletalMesh(SkM);
+		K->SetReceivesDecals(false);
 		K->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 		K->SetCollisionObjectType(ECC_WorldDynamic);
 		K->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
@@ -499,6 +502,23 @@ AActor* AAoEBridgeActor::SpawnVisual(FAoEVisual& V, const FAoEDef* Def, int32 Id
 	}
 	if (Def && Def->bField && V.bBuilding)
 	{
+		// decal projetado no chao (M_CampoDecal): segue o terreno em qualquer LOD; sem ele cai no plano antigo
+		if (UMaterialInterface* CampoD = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Meshy/M_CampoDecal.M_CampoDecal")))
+		{
+			ADecalActor* DA = GetWorld()->SpawnActor<ADecalActor>(FVector::ZeroVector, FRotator::ZeroRotator, Sp);
+			UDecalComponent* DC = DA->GetDecal();
+			DC->SetMobility(EComponentMobility::Movable);
+			DC->SetDecalMaterial(CampoD);
+			// tamanho do decal = meia-extensao; X e a profundidade da projecao (para baixo, por causa do pitch -90 do ator)
+			const float Half = FootprintCm * Def->Fit * 0.5f;
+			DC->DecalSize = FVector(300.f, Half, Half);
+			DC->SetFadeScreenSize(0.f);
+			DC->SetRelativeRotation(FRotator(-90.f, 0.f, 0.f));
+			V.BaseScale = 1.f;
+			V.MeshHeight = 30.f;
+			V.Lift = 0.f;
+			return DA;
+		}
 		AStaticMeshActor* FA = GetWorld()->SpawnActor<AStaticMeshActor>(FVector::ZeroVector, FRotator::ZeroRotator, Sp);
 		UStaticMeshComponent* FC = FA->GetStaticMeshComponent();
 		FC->SetMobility(EComponentMobility::Movable);
@@ -516,6 +536,7 @@ AActor* AAoEBridgeActor::SpawnVisual(FAoEVisual& V, const FAoEDef* Def, int32 Id
 	AStaticMeshActor* A = GetWorld()->SpawnActor<AStaticMeshActor>(FVector::ZeroVector, FRotator::ZeroRotator, Sp);
 	UStaticMeshComponent* C = A->GetStaticMeshComponent();
 	C->SetMobility(EComponentMobility::Movable);
+	C->SetReceivesDecals(false);
 	C->SetCollisionObjectType(ECC_WorldDynamic);
 	C->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	C->SetCollisionResponseToAllChannels(ECR_Ignore);
