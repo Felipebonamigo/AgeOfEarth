@@ -1734,6 +1734,17 @@
       "origem": "Modelo Third Person do Unreal Engine 5.8 (Launcher)",
       "baixadoEm": "2026-10-09",
       "uso": "Esqueleto e animações (idle, andar, correr, ataque, morte) aplicados às unidades do Meshy por pesos próprios (AoESkinTools); não é CC0 nem CC BY: vale só dentro do jogo no Unreal"
+    },
+    {
+      "id": "mesh2motion",
+      "tipo": "esqueletos+animacoes",
+      "titulo": "Mesh2Motion: rigs e bibliotecas de animação (humano, cavalo, raposa, kaiju, dragão, ave, serpente, aranha)",
+      "url": "https://github.com/Mesh2Motion/mesh2motion-app",
+      "autor": "Scott Petrovic e colaboradores (Mesh2Motion)",
+      "licenca": "CC0 (modelos, rigs e animações); código MIT",
+      "origem": "repositório mesh2motion-app, pasta static/ (rigs/ e animations/)",
+      "baixadoEm": "2026-10-14",
+      "uso": "Animação v2 das unidades e criaturas no Unreal: Content/Fontes/animacoes/*-animations.glb → /Game/Anim (u1_anim_importar.py), malhas do Meshy costuradas nos esqueletos (u1_esqueletos2.py); copia no acervo-3d"
     }
   ]
 }
