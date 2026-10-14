@@ -1,6 +1,7 @@
 #include "AoEPlayerController.h"
 
 #include "AoEBridgeActor.h"
+#include "UnrealClient.h"
 #include "EngineUtils.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -309,10 +310,19 @@ void AAoEPlayerController::RunAutoTest(float Dt)
 			Cam->Arm->TargetArmLength = S.Arm;
 			Cam->Arm->SetRelativeRotation(FRotator(S.Pitch, S.Yaw, 0.f));
 		}
+		// -AoESel=unidades|cc|construir: estado de interface para a captura (prova o HUD de seleção, do edifício e o menu)
+		if (ShotT < Dt * 1.5f + 0.001f)
+		{
+			FString Sel; FParse::Value(FCommandLine::Get(), TEXT("AoESel="), Sel);
+			if (Sel == TEXT("unidades") || Sel == TEXT("construir")) { TSet<int32> All; for (int32 Id : B->MyUnitIds()) All.Add(Id); B->SetSelected(All); B->SelBuilding = 0; bBuildMenu = Sel == TEXT("construir"); }
+			else if (Sel == TEXT("cc")) { B->SetSelected(TSet<int32>()); for (const TPair<int32, FAoEVisual>& K : B->GetBuildings()) if (K.Value.Dono == B->MyPlayer && K.Value.Type == TEXT("town_center")) { B->SelBuilding = K.Key; B->SelBuildingType = K.Value.Type; } }
+		}
 		if (ShotT > 2.5f)
 		{
 			const FString Dir = ShotDir.IsEmpty() ? FPaths::ProjectSavedDir() : ShotDir;
-			ConsoleCommand(FString::Printf(TEXT("HighResShot 1920x1080 filename=\"%s/%s.png\""), *Dir, *S.Name), true);
+			// captura do quadro como o jogador vê (com o HUD; o HighResShot não desenha as fontes Slate do HUD). -AoESemHUD: só a cena
+			if (FParse::Param(FCommandLine::Get(), TEXT("AoESemHUD"))) ConsoleCommand(FString::Printf(TEXT("HighResShot 1920x1080 filename=\"%s/%s.png\""), *Dir, *S.Name), true);
+			else FScreenshotRequest::RequestScreenshot(FString::Printf(TEXT("%s/%s.png"), *Dir, *S.Name), true, false);
 			++ShotIdx; ShotT = 0.f;
 		}
 		return;
