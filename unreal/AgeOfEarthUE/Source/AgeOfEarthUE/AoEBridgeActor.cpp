@@ -49,7 +49,7 @@ AAoEBridgeActor::AAoEBridgeActor()
 	DiscMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 	BoxMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 	auto Anim = [](const TCHAR* P) { return LoadObject<UAnimSequence>(nullptr, P); };
-	AnimIdle = Anim(TEXT("/Game/Mannequins/Anims/Unarmed/MM_Idle.MM_Idle"));
+	AnimIdle = Anim(TEXT("/Game/Mannequins/Anims/AoE/MM_Idle.MM_Idle"));
 	AnimWalk = Anim(TEXT("/Game/Mannequins/Anims/Unarmed/Walk/MF_Unarmed_Walk_Fwd.MF_Unarmed_Walk_Fwd"));
 	AnimJog = Anim(TEXT("/Game/Mannequins/Anims/Unarmed/Jog/MF_Unarmed_Jog_Fwd.MF_Unarmed_Jog_Fwd"));
 	for (const TCHAR* P : { TEXT("/Game/Mannequins/Anims/Unarmed/Attack/MM_Attack_01.MM_Attack_01"), TEXT("/Game/Mannequins/Anims/Unarmed/Attack/MM_Attack_02.MM_Attack_02"), TEXT("/Game/Mannequins/Anims/Unarmed/Attack/MM_Attack_03.MM_Attack_03") })
