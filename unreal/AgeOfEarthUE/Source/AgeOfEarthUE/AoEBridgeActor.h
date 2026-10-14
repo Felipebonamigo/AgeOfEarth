@@ -101,6 +101,11 @@ public:
 	/** O que ha sob o ponto (em tiles)? Prioridade: unidade inimiga > edificio inimigo > no de recurso. Kind: "attack" ou "gather". */
 	bool PickTarget(float TileX, float TileY, int32& OutId, FString& OutKind) const;
 	const TMap<int32, FAoEVisual>& GetUnits() const { return Units; }
+	// dados do jogador local para o HUD (vem em state.me)
+	TMap<FString, int32> Resources;
+	int32 Pop = 0, PopCap = 0, Age = 0;
+	TArray<FString> AgeNames;
+	bool bGameOver = false;
 	const TMap<int32, FVector2D>& GetNodeTiles() const { return NodeTile; }
 	/** Altura do chao (Landscape) em uu, ou 0 se nao houver. */
 	float GroundZ(float X, float Y) const;

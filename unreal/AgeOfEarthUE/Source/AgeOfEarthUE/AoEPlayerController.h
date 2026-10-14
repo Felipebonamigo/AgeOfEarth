@@ -37,6 +37,9 @@ public:
 	UFUNCTION(Exec) void AoEMove(float TileX, float TileY);
 	/** Clique direito contextual: atacar inimigo, coletar no de recurso, senao mover (Shift = enfileirar). */
 	void ContextOrder(float TileX, float TileY, bool bQueue);
+	/** Retangulo de selecao em curso (px de tela); falso se nao ha arrasto. */
+	bool GetDragRect(FVector2D& A, FVector2D& B) const;
+	bool IsAttackMoveArmed() const { return bAttackMoveArmed; }
 
 private:
 	AAoEBridgeActor* Bridge();

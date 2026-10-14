@@ -282,3 +282,12 @@ void AAoEPlayerController::RunAutoTest(float Dt)
 	else if (AutoStage == 2 && AutoT > AutoDelay + 6.f) { Shot(TEXT("u0-caixas-2")); AutoStage = 3; }
 	else if (AutoStage == 3 && AutoT > AutoDelay + 9.f) { ConsoleCommand(TEXT("quit"), true); AutoStage = 4; }
 }
+
+bool AAoEPlayerController::GetDragRect(FVector2D& A, FVector2D& B) const
+{
+	if (!bDragging) return false;
+	float MX = 0.f, MY = 0.f;
+	if (!GetMousePosition(MX, MY)) return false;
+	A = DragStart; B = FVector2D(MX, MY);
+	return FVector2D::Distance(A, B) > 8.f;
+}
