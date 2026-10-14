@@ -249,7 +249,24 @@ private:
 	UPROPERTY() TObjectPtr<UMaterialInterface> PracaMat;
 	UPROPERTY() TObjectPtr<UMaterialInterface> PedraMat;
 	UPROPERTY() TObjectPtr<UMaterialInterface> ObraMat;
+	UPROPERTY() TObjectPtr<UMaterialInterface> MadeiraMat;
 	void SetObraMats(FAoEVisual& V, bool bOn);
+	// caminhos de terra batida ligando os edificios de cada dono (arvore geradora minima a partir dos Centros Civicos);
+	// refeitos so quando o conjunto de edificios do dono muda (assinatura conferida a cada 2 s)
+	UPROPERTY() TObjectPtr<UMaterialInterface> EstradaMat;
+	TMap<int32, TArray<TWeakObjectPtr<AActor>>> Estradas;
+	TMap<int32, uint32> EstradaAssin;
+	double EstradaT = 0.0;
+	void AtualizaEstradas();
+	void RefazEstradas(int32 Dono, const TArray<int32>& Ids);
+	bool CaminhoSeco(const FVector2D& A, const FVector2D& B) const;
+	// o decal pinta tudo o que recebe decal na caixa: capim e flores sob praca/estrada ficavam brancos. As plantas do mapa
+	// (HISM estaticos do nivel) sob cada praca e estrada nova saem, em lote no Tick
+	struct FAoEZona { FVector2D C; FVector2D H; float Yaw = 0.f; };
+	TArray<FAoEZona> ZonasLimpar;
+	TArray<TWeakObjectPtr<UHierarchicalInstancedStaticMeshComponent>> Plantas;
+	bool bPlantasLidas = false;
+	void LimpaPlantas();
 	// aves de ambiente (sem simulacao): gaivotas circulando sobre a agua perto da costa, aguias sobre a terra alta
 	struct FAoEBird { TWeakObjectPtr<USkeletalMeshComponent> K; FVector C; float R = 1000.f, Z = 1500.f, W = 0.3f, A = 0.f, NextFlap = 0.f; bool bFlap = false; bool bEagle = false; };
 	TArray<FAoEBird> Birds;

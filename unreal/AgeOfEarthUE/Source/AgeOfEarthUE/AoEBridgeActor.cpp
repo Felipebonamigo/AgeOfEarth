@@ -1,6 +1,7 @@
 #include "AoEBridgeActor.h"
 #include "Components/PointLightComponent.h"
 #include "Engine/DecalActor.h"
+#include "EngineUtils.h"
 #include "Components/DecalComponent.h"
 #include "Misc/Base64.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -59,6 +60,8 @@ AAoEBridgeActor::AAoEBridgeActor()
 	PracaMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_PracaDecal.M_PracaDecal"));
 	PedraMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_PedraTalhada.M_PedraTalhada"));
 	ObraMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Meshy/M_MeshyObra.M_MeshyObra"));
+	MadeiraMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_MadeiraObra.M_MadeiraObra"));
+	EstradaMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_EstradaDecal.M_EstradaDecal"));
 	EstandarteMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_Estandarte.M_Estandarte"));
 	MastroMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_Mastro.M_Mastro"));
 	BoxMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
@@ -594,6 +597,7 @@ AActor* AAoEBridgeActor::SpawnVisual(FAoEVisual& V, const FAoEDef* Def, int32 Id
 			// tamanho do decal = meia-extensao; X e a profundidade da projecao (para baixo, por causa do pitch -90 do ator)
 			const float Half = FootprintCm * Def->Fit * 0.5f;
 			DC->DecalSize = FVector(300.f, Half, Half);
+			DC->MarkRenderStateDirty();   // o proxy do decal guarda o tamanho no registro: sem isto fica no padrao (5 m)
 			DC->SetFadeScreenSize(0.f);
 			DC->SetRelativeRotation(FRotator(-90.f, 0.f, 0.f));
 			V.BaseScale = 1.f;
@@ -1040,6 +1044,8 @@ void AAoEBridgeActor::Tick(float Dt)
 	PerfFx = FMath::Max(PerfFx, (FPlatformTime::Seconds() - Tf) * 1000.0);
 	if (BirdsSerial != MapSerial && MapW > 0) SpawnBirds();
 	TickBirds(Dt);
+	if (Clock - EstradaT >= 2.0) { EstradaT = Clock; AtualizaEstradas(); }
+	LimpaPlantas();
 	Tf = FPlatformTime::Seconds();
 	for (auto& P : Units)
 	{
@@ -1475,13 +1481,19 @@ AActor* AAoEBridgeActor::SpawnPlaza(const FAoEVisual& V, int32 Id)
 	// praca um pouco maior que a pegada (o Centro Civico ganha um largo); meia-extensao em Y/Z, X = profundidade da projecao
 	const float Margem = V.Type == TEXT("town_center") ? 2.2f : 1.0f;
 	FActorSpawnParameters Sp; Sp.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	ADecalActor* DA = GetWorld()->SpawnActor<ADecalActor>(FVector(V.To.X * Uu, V.To.Y * Uu, V.ToZ), FRotator(-90.f, Hash01(Id, 31) < 0.5f ? 0.f : 90.f, 0.f), Sp);
+	// pitch -90 e yaw 90: Y do decal = X do mundo, Z do decal = Y do mundo (a textura e o ruido vem da posicao no mundo,
+	// entao girar a caixa nao varia nada; so trocaria os lados de uma pegada retangular)
+	ADecalActor* DA = GetWorld()->SpawnActor<ADecalActor>(FVector(V.To.X * Uu, V.To.Y * Uu, V.ToZ), FRotator(-90.f, 90.f, 0.f), Sp);
 	UDecalComponent* DC = DA->GetDecal();
 	DC->SetMobility(EComponentMobility::Movable);
 	DC->SetDecalMaterial(PracaMat);
-	DC->DecalSize = FVector(400.f, (S.X * 0.5f + Margem) * Uu, (S.Y * 0.5f + Margem) * Uu);
+	const float Hx = (S.X * 0.5f + Margem) * Uu, Hy = (S.Y * 0.5f + Margem) * Uu;
+	DC->DecalSize = FVector(400.f, Hx, Hy);
+	DC->MarkRenderStateDirty();   // o proxy do decal guarda o tamanho no registro: sem isto fica no padrao (5 m)
 	DC->SortOrder = -1;   // a lavoura (decal do campo) fica por cima se encostar
 	DC->SetFadeScreenSize(0.f);
+	// plantas sob a praca saem (a borda esmaecida, ~0,3 tile, pode manter capim)
+	ZonasLimpar.Add({ FVector2D(V.To.X * Uu, V.To.Y * Uu), FVector2D(Hx - 0.3f * Uu, Hy - 0.3f * Uu), 0.f });
 	return DA;
 }
 
@@ -1505,8 +1517,9 @@ AActor* AAoEBridgeActor::SpawnObra(const FAoEVisual& V, int32 Id)
 		I->SetupAttachment(Root); I->RegisterComponent(); A->AddInstanceComponent(I);
 		return I;
 	};
-	UInstancedStaticMeshComponent* Pau = Ism(CylMesh, MastroMat);
-	UInstancedStaticMeshComponent* Tabua = Ism(CubeMesh, MastroMat);
+	UMaterialInterface* Madeira = MadeiraMat ? MadeiraMat.Get() : MastroMat.Get();
+	UInstancedStaticMeshComponent* Pau = Ism(CylMesh, Madeira);
+	UInstancedStaticMeshComponent* Tabua = Ism(CubeMesh, Madeira);
 	UInstancedStaticMeshComponent* Bloco = Ism(CubeMesh, PedraMat ? PedraMat.Get() : MastroMat.Get());
 	const float Diam = 0.12f;
 	// postes: cantos + meio dos lados (lados maiores que 2 tiles ganham dois intermediarios)
@@ -1565,10 +1578,150 @@ void AAoEBridgeActor::SetObraMats(FAoEVisual& V, bool bOn)
 			C->SetMaterial(i, M);
 			V.CorteMids.Add(M);
 		}
+		UE_LOG(LogTemp, Log, TEXT("AoE: obra %s com recorte: %d materiais, altura %.0f"), *V.Type, V.CorteMids.Num(), V.MeshHeight);
 	}
 	else
 	{
 		for (int32 i = 0; i < V.OrigMats.Num(); ++i) if (V.OrigMats[i].IsValid()) C->SetMaterial(i, V.OrigMats[i].Get());
 		V.OrigMats.Reset(); V.CorteMids.Reset();
 	}
+}
+
+void AAoEBridgeActor::AtualizaEstradas()
+{
+	// edificios com praca (fora lavoura, muralha e portao), em obra ou prontos, agrupados por dono
+	TMap<int32, TArray<int32>> PorDono;
+	for (const TPair<int32, FAoEVisual>& K : Buildings) if (K.Value.Plaza.IsValid()) PorDono.FindOrAdd(K.Value.Dono).Add(K.Key);
+	for (auto It = Estradas.CreateIterator(); It; ++It)
+		if (!PorDono.Contains(It->Key))
+		{
+			for (TWeakObjectPtr<AActor>& A : It->Value) if (A.IsValid()) A->Destroy();
+			EstradaAssin.Remove(It->Key);
+			It.RemoveCurrent();
+		}
+	for (TPair<int32, TArray<int32>>& P : PorDono)
+	{
+		P.Value.Sort();
+		uint32 H = GetTypeHash(P.Value.Num());
+		for (const int32 Id : P.Value) H = HashCombine(H, GetTypeHash(Id));
+		if (Estradas.Contains(P.Key) && EstradaAssin.FindRef(P.Key) == H) continue;
+		EstradaAssin.Add(P.Key, H);
+		RefazEstradas(P.Key, P.Value);
+	}
+}
+
+bool AAoEBridgeActor::CaminhoSeco(const FVector2D& A, const FVector2D& B) const
+{
+	// sem estrada atravessando agua (1 agua, 5 funda, 6 baixio) nem serra (2)
+	if (MapTerrain.Num() != MapW * MapH || MapW <= 0) return true;
+	const int32 N = FMath::Max(1, FMath::CeilToInt(FVector2D::Distance(A, B) * 2.f));
+	for (int32 k = 0; k <= N; ++k)
+	{
+		const FVector2D Q = FMath::Lerp(A, B, (float)k / N);
+		const int32 X = FMath::Clamp(FMath::FloorToInt(Q.X), 0, MapW - 1), Y = FMath::Clamp(FMath::FloorToInt(Q.Y), 0, MapH - 1);
+		const uint8 T = MapTerrain[Y * MapW + X];
+		if (T == 1 || T == 2 || T == 5 || T == 6) return false;
+	}
+	return true;
+}
+
+void AAoEBridgeActor::RefazEstradas(int32 Dono, const TArray<int32>& Ids)
+{
+	TArray<TWeakObjectPtr<AActor>>& L = Estradas.FindOrAdd(Dono);
+	for (TWeakObjectPtr<AActor>& A : L) if (A.IsValid()) A->Destroy();
+	L.Reset();
+	if (!EstradaMat || Ids.Num() < 2) return;
+	const float Uu = (float)UuPerTile;
+	TArray<FVector2D> P;
+	TArray<bool> Ligado;
+	int32 NLig = 0;
+	for (const int32 Id : Ids)
+	{
+		const FAoEVisual& V = Buildings[Id];
+		P.Add(V.To);
+		const bool bRaiz = V.Type == TEXT("town_center");
+		Ligado.Add(bRaiz); NLig += bRaiz ? 1 : 0;
+	}
+	if (NLig == 0) Ligado[0] = true;   // sem Centro Civico: a rede comeca pelo edificio mais antigo (menor id)
+	// Prim: a cada passo liga o edificio solto mais perto da rede (vira uma malha de ruas, nao uma estrela no Centro Civico)
+	const float MaxTiles = 16.f;
+	TArray<float> Melhor; Melhor.Init(1e9f, P.Num());
+	TArray<int32> De; De.Init(-1, P.Num());
+	auto Relaxa = [&](int32 j)
+	{
+		for (int32 i = 0; i < P.Num(); ++i)
+			if (!Ligado[i]) { const float D = FVector2D::Distance(P[i], P[j]); if (D < Melhor[i]) { Melhor[i] = D; De[i] = j; } }
+	};
+	for (int32 i = 0; i < P.Num(); ++i) if (Ligado[i]) Relaxa(i);
+	FActorSpawnParameters Sp; Sp.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	for (;;)
+	{
+		int32 Best = -1;
+		for (int32 i = 0; i < P.Num(); ++i) if (!Ligado[i] && (Best < 0 || Melhor[i] < Melhor[Best])) Best = i;
+		if (Best < 0 || Melhor[Best] > MaxTiles) break;
+		Ligado[Best] = true;
+		Relaxa(Best);
+		const FVector2D A = P[Best], B = P[De[Best]];
+		if (!CaminhoSeco(A, B)) continue;
+		const FVector2D D = B - A;
+		const float Len = D.Size();
+		if (Len < 0.5f) continue;
+		// a caixa do decal cobre o desnivel do caminho (decal comprido sobre morro)
+		float Zmin = 1e9f, Zmax = -1e9f;
+		for (int32 k = 0; k <= 8; ++k) { const FVector2D Q = A + D * (k / 8.f); const float Z = GroundZ(Q.X * Uu, Q.Y * Uu); Zmin = FMath::Min(Zmin, Z); Zmax = FMath::Max(Zmax, Z); }
+		const FVector2D M = (A + B) * 0.5f;
+		// pitch -90: X do decal aponta para baixo, Z do decal segue o yaw (comprimento), Y atravessa (largura)
+		ADecalActor* DA = GetWorld()->SpawnActor<ADecalActor>(FVector(M.X * Uu, M.Y * Uu, (Zmin + Zmax) * 0.5f), FRotator(-90.f, FMath::RadiansToDegrees(FMath::Atan2(D.Y, D.X)), 0.f), Sp);
+		if (!DA) continue;
+		UDecalComponent* DC = DA->GetDecal();
+		DC->SetMobility(EComponentMobility::Movable);
+		DC->SetDecalMaterial(EstradaMat);
+		DC->DecalSize = FVector(250.f + (Zmax - Zmin) * 0.5f, 0.42f * Uu, Len * 0.5f * Uu);
+		DC->MarkRenderStateDirty();
+		DC->SortOrder = -2;   // praca e lavoura por cima
+		DC->SetFadeScreenSize(0.f);
+		L.Add(DA);
+		ZonasLimpar.Add({ FVector2D(M.X * Uu, M.Y * Uu), FVector2D(Len * 0.5f * Uu, 0.32f * Uu), (float)FMath::Atan2(D.Y, D.X) });
+	}
+	UE_LOG(LogTemp, Log, TEXT("AoE: dono %d: %d edificios, %d trechos de estrada"), Dono, Ids.Num(), L.Num());
+}
+
+void AAoEBridgeActor::LimpaPlantas()
+{
+	if (ZonasLimpar.Num() == 0) return;
+	if (!bPlantasLidas)
+	{
+		// plantas do mapa = HISM estaticos de atores do nivel (arvores/nos, efeitos e canteiros sao do bridge e moveis)
+		bPlantasLidas = true;
+		for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+		{
+			if (*It == this) continue;
+			TInlineComponentArray<UHierarchicalInstancedStaticMeshComponent*> Cs(*It);
+			for (UHierarchicalInstancedStaticMeshComponent* C : Cs) if (C && C->Mobility == EComponentMobility::Static) Plantas.Add(C);
+		}
+		UE_LOG(LogTemp, Log, TEXT("AoE: %d grupos de plantas do mapa"), Plantas.Num());
+	}
+	int32 Total = 0;
+	for (TWeakObjectPtr<UHierarchicalInstancedStaticMeshComponent>& W : Plantas)
+	{
+		UHierarchicalInstancedStaticMeshComponent* C = W.Get();
+		if (!C || C->GetInstanceCount() == 0) continue;
+		TSet<int32> Rem;
+		for (const FAoEZona& Z : ZonasLimpar)
+		{
+			const float Co = FMath::Cos(Z.Yaw), Si = FMath::Sin(Z.Yaw);
+			const float Ex = FMath::Abs(Co) * Z.H.X + FMath::Abs(Si) * Z.H.Y, Ey = FMath::Abs(Si) * Z.H.X + FMath::Abs(Co) * Z.H.Y;
+			const FBox Caixa(FVector(Z.C.X - Ex, Z.C.Y - Ey, -1e6f), FVector(Z.C.X + Ex, Z.C.Y + Ey, 1e6f));
+			for (const int32 i : C->GetInstancesOverlappingBox(Caixa, true))
+			{
+				FTransform T;
+				if (!C->GetInstanceTransform(i, T, true)) continue;
+				const float Dx = T.GetLocation().X - Z.C.X, Dy = T.GetLocation().Y - Z.C.Y;
+				if (FMath::Abs(Dx * Co + Dy * Si) <= Z.H.X && FMath::Abs(-Dx * Si + Dy * Co) <= Z.H.Y) Rem.Add(i);
+			}
+		}
+		if (Rem.Num() > 0) { C->RemoveInstances(Rem.Array()); Total += Rem.Num(); }
+	}
+	if (Total > 0) UE_LOG(LogTemp, Log, TEXT("AoE: %d plantas tiradas de %d pracas/estradas"), Total, ZonasLimpar.Num());
+	ZonasLimpar.Reset();
 }

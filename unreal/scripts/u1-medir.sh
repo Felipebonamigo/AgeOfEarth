@@ -2,7 +2,6 @@
 # Mede fps/GPU/VRAM da build empacotada: sobe o servidor (pré-corrida de AVANCAR min), roda o exe 1920x1080 por SEGUNDOS s.
 # Uso: AVANCAR=14 SEGUNDOS=60 ESCALA=2 unreal/scripts/u1-medir.sh <saida-perf.log> [exe]
 matar() { for pid in $(netstat -ano | grep ":8790 .*LISTENING" | awk '{print $5}' | sort -u); do taskkill //PID "$pid" //F >/dev/null 2>&1; done; }
-grep AOE_PERF "$(dirname "$EXE")/AgeOfEarthUE/Saved/Logs/AgeOfEarthUE.log" | sed "s/^.*AOE_PERF/AOE_PERF/" > "$1"
 matar
 cd "$(dirname "$0")/../.."
 EXE="${2:-/c/Users/Felip/aoe-build/Windows/AgeOfEarthUE.exe}"

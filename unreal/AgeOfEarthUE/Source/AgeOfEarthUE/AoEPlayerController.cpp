@@ -374,7 +374,21 @@ void AAoEPlayerController::RunAutoTest(float Dt)
 		if (Cam && ShotT < Dt * 1.5f + 0.001f)
 		{
 			const float Uu = (float)B->UuPerTile;
-			Cam->SetActorLocation(FVector(S.X * Uu, S.Y * Uu, B->GroundZ(S.X * Uu, S.Y * Uu)));
+			FVector2D Alvo(S.X, S.Y);
+			if (S.X < 0.f)
+			{
+				// tomada "obra" (x negativo): o maior edificio em obra no comeco (25-60 %), para provar andaime e recorte
+				float Maior = -1.f;
+				const FAoEVisual* Obra = nullptr;
+				for (const TPair<int32, FAoEVisual>& K : B->GetBuildings())
+					if (K.Value.Progress > 0.25f && K.Value.Progress < 0.6f && K.Value.Plaza.IsValid() && K.Value.MeshHeight > Maior) { Maior = K.Value.MeshHeight; Alvo = K.Value.To; Obra = &K.Value; }
+				if (Maior < 0.f) Alvo = B->MyCentroidTiles;   // nenhuma obra agora: a base do jogador
+				FBox Cx(ForceInit);
+				if (Obra && Obra->Body.IsValid()) Cx = Obra->Body->Bounds.GetBox();
+				UE_LOG(LogTemp, Log, TEXT("AoE: tomada %s na obra em (%.1f, %.1f): %s progresso %.2f, chao %.0f, altura %.0f, malha z %.0f..%.0f"), *S.Name, Alvo.X, Alvo.Y,
+					Obra ? *Obra->Type : TEXT("-"), Obra ? Obra->Progress : 0.f, Obra ? Obra->ToZ : 0.f, Obra ? Obra->MeshHeight : 0.f, Cx.Min.Z, Cx.Max.Z);
+			}
+			Cam->SetActorLocation(FVector(Alvo.X * Uu, Alvo.Y * Uu, B->GroundZ(Alvo.X * Uu, Alvo.Y * Uu)));
 			Cam->Arm->TargetArmLength = S.Arm;
 			Cam->Arm->SetRelativeRotation(FRotator(S.Pitch, S.Yaw, 0.f));
 		}

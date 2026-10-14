@@ -204,7 +204,7 @@ def main():
     step("SkyAtmosphere", lambda: spawn(unreal.SkyAtmosphere, label="Atmosfera"))
 
     def sun():
-        d = spawn(unreal.DirectionalLight, (center[0], center[1], 6000), (-27, 58, 0), "Sol")
+        d = spawn(unreal.DirectionalLight, (center[0], center[1], 6000), (-50, 58, 0), "Sol")   # meio da manhã: sombra curta (a 27° a cidade ficava toda na sombra)
         c = d.get_component_by_class(unreal.DirectionalLightComponent)
         c.set_mobility(unreal.ComponentMobility.MOVABLE)
         c.set_editor_property("atmosphere_sun_light", True)
@@ -218,6 +218,7 @@ def main():
         c = s.get_component_by_class(unreal.SkyLightComponent)
         c.set_mobility(unreal.ComponentMobility.MOVABLE)
         c.set_editor_property("real_time_capture", True)
+        c.set_editor_property("intensity", 1.6)   # sombra clara, não preta (u2_luz.py aplica nos mapas prontos)
     step("SkyLight", sky)
 
     def fog():

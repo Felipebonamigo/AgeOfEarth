@@ -1,7 +1,9 @@
 # U2: praça calçada sob cada edifício (referência do dono: cidades do Rise of Kingdoms, edifícios sobre lajotas de pedra clara).
 #   /Game/Time/M_PracaDecal  decal no chão: lajotas de granito (Poly Haven rock_tile_floor, CC0) em coordenadas de mundo (sem emenda
 #                            entre praças vizinhas), borda irregular pelo ruído (some na grama em vez de recorte reto)
-#   /Game/Time/MI_Pedra      pedra talhada para o canteiro de obras (blocos empilhados), instanciável
+#   /Game/Time/M_EstradaDecal caminho de terra batida (Poly Haven brown_mud_dry, CC0) ligando os edifícios de cada dono
+#   /Game/Time/M_MadeiraObra  madeira gasta do andaime (veio procedural no eixo comprido de cada peça)
+#   /Game/Time/M_PedraTalhada pedra talhada para o canteiro de obras (blocos empilhados), instanciável
 # Editor FECHADO: unreal/scripts/ue.sh u2_praca.py /tmp/praca.log
 import unreal
 
@@ -9,6 +11,9 @@ mel = unreal.MaterialEditingLibrary
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 TEX = "/Game/Terreno/Texturas/"
 PASTA = "/Game/Time"
+# sem normal nos decais: com o mapa de normais a praça saía escura e azulada até ao sol (só a luz do céu chegava; medido
+# em 14/10 trocando só isto). O relevo das lajotas fica no próprio difuso (juntas escuras).
+COM_NORMAL = False
 
 
 def no(mat, cls, x, y):
@@ -46,8 +51,8 @@ def novo(nome):
 
 def praca():
     mat = novo("M_PracaDecal")
+    mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)   # antes do domínio: decal opaco não compila
     mat.set_editor_property("material_domain", unreal.MaterialDomain.MD_DEFERRED_DECAL)
-    mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
     st = unreal.MaterialSamplerType
     wp = no(mat, unreal.MaterialExpressionWorldPosition, -1400, 0)
     uvw = custom(mat, "return P.xy / 260.0;", ["P"], unreal.CustomMaterialOutputType.CMOT_FLOAT2, -1200, 0)
@@ -68,13 +73,100 @@ return saturate((d - limite * 0.5) / max(limite, 0.01));
     mel.connect_material_expressions(uv0, "", borda, "UV")
     mel.connect_material_expressions(ruido, "R", borda, "N")
     # tom: lajota um pouco mais quente e clara (pedra de calcário ao sol), com sujeira nas juntas pela variação do ruído
-    tom = custom(mat, "return C * float3(1.45, 1.36, 1.18) * (0.88 + 0.24 * N);   // calcário claro e quente", ["C", "N"], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -500, -200)
+    tom = custom(mat, "return C * float3(1.24, 1.13, 0.94) * (0.88 + 0.24 * N);   // calcário claro e quente (sem estourar no branco ao sol)", ["C", "N"], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -500, -200)
     mel.connect_material_expressions(cor, "RGB", tom, "C")
     mel.connect_material_expressions(ruido, "R", tom, "N")
     mel.connect_material_property(tom, "", unreal.MaterialProperty.MP_BASE_COLOR)
-    mel.connect_material_property(nor, "RGB", unreal.MaterialProperty.MP_NORMAL)
+    if COM_NORMAL:
+        mel.connect_material_property(nor, "RGB", unreal.MaterialProperty.MP_NORMAL)
     mel.connect_material_property(rug, "R", unreal.MaterialProperty.MP_ROUGHNESS)
     mel.connect_material_property(borda, "", unreal.MaterialProperty.MP_OPACITY)
+    mel.recompile_material(mat)
+    unreal.EditorAssetLibrary.save_loaded_asset(mat)
+
+
+def estrada():
+    # caminho de terra batida entre os edificios: faixa de decal girada no sentido do caminho (U ao longo, V atravessado),
+    # textura em coordenadas de mundo (sem esticar em caminho comprido), dois sulcos de roda e borda irregular pelo ruido
+    mat = novo("M_EstradaDecal")
+    mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)   # antes do domínio: decal opaco não compila
+    mat.set_editor_property("material_domain", unreal.MaterialDomain.MD_DEFERRED_DECAL)
+    st = unreal.MaterialSamplerType
+    wp = no(mat, unreal.MaterialExpressionWorldPosition, -1400, 0)
+    uvw = custom(mat, "return P.xy / 320.0;", ["P"], unreal.CustomMaterialOutputType.CMOT_FLOAT2, -1200, 0)
+    mel.connect_material_expressions(wp, "", uvw, "P")
+    cor = amostra(mat, "brown_mud_dry_Diffuse", st.SAMPLERTYPE_COLOR, uvw, -900, -200)
+    nor = amostra(mat, "brown_mud_dry_nor_gl", st.SAMPLERTYPE_NORMAL, uvw, -900, 100)
+    rug = amostra(mat, "brown_mud_dry_Rough", st.SAMPLERTYPE_MASKS, uvw, -900, 400)
+    uv0 = no(mat, unreal.MaterialExpressionTextureCoordinate, -1400, 600)
+    uvr = custom(mat, "return P.xy / 700.0;", ["P"], unreal.CustomMaterialOutputType.CMOT_FLOAT2, -1200, 750)
+    mel.connect_material_expressions(wp, "", uvr, "P")
+    ruido = amostra(mat, "/Game/Time/T_Ruido", st.SAMPLERTYPE_MASKS, uvr, -900, 700)
+    borda = custom(mat, """
+float a = abs(UV.y - 0.5) * 2.0;                        // 0 no meio do caminho, 1 na beira da faixa
+float lado = saturate((1.0 - a) / (0.30 + 0.35 * N));    // beira irregular, some na grama
+float pontas = saturate(min(UV.x, 1.0 - UV.x) * 10.0);   // as pontas ficam sob as pracas
+return lado * pontas * 0.92;
+""", ["UV", "N"], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -500, 600)
+    mel.connect_material_expressions(uv0, "", borda, "UV")
+    mel.connect_material_expressions(ruido, "R", borda, "N")
+    tom = custom(mat, """
+float a = abs(UV.y - 0.5) * 2.0;
+float sulco = 1.0 - 0.22 * exp(-pow((a - 0.42) / 0.09, 2.0));   // duas trilhas de roda mais escuras
+return C * float3(1.10, 1.02, 0.90) * sulco * (0.90 + 0.20 * N);   // terra batida clara e quente
+""", ["C", "UV", "N"], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -500, -200)
+    mel.connect_material_expressions(cor, "RGB", tom, "C")
+    mel.connect_material_expressions(uv0, "", tom, "UV")
+    mel.connect_material_expressions(ruido, "R", tom, "N")
+    mel.connect_material_property(tom, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    if COM_NORMAL:
+        mel.connect_material_property(nor, "RGB", unreal.MaterialProperty.MP_NORMAL)
+    mel.connect_material_property(rug, "R", unreal.MaterialProperty.MP_ROUGHNESS)
+    mel.connect_material_property(borda, "", unreal.MaterialProperty.MP_OPACITY)
+    mel.recompile_material(mat)
+    unreal.EditorAssetLibrary.save_loaded_asset(mat)
+
+
+def madeira():
+    # madeira do andaime (postes e tábuas são instâncias do cubo/cilindro do motor, esticadas): veio ao longo do eixo mais
+    # comprido de cada peça, tom gasto de madeira ao tempo e variação por instância
+    mat = novo("M_MadeiraObra")
+    mat.set_editor_property("used_with_instanced_static_meshes", True)
+    st = unreal.MaterialSamplerType
+    wp = no(mat, unreal.MaterialExpressionWorldPosition, -1600, 0)
+    eixos = []
+    for i, v in enumerate(((1, 0, 0), (0, 1, 0), (0, 0, 1))):
+        k = no(mat, unreal.MaterialExpressionConstant3Vector, -1800, 200 + i * 120)
+        k.set_editor_property("constant", unreal.LinearColor(v[0], v[1], v[2], 1.0))
+        t = no(mat, unreal.MaterialExpressionTransform, -1600, 200 + i * 120)
+        t.set_editor_property("transform_source_type", unreal.MaterialVectorCoordTransformSource.TRANSFORMSOURCE_LOCAL)
+        t.set_editor_property("transform_type", unreal.MaterialVectorCoordTransform.TRANSFORM_WORLD)
+        mel.connect_material_expressions(k, "", t, "")
+        eixos.append(t)
+    uv = custom(mat, """
+float lx = length(AX), ly = length(AY), lz = length(AZ);
+float3 g = (lx >= ly && lx >= lz) ? AX / lx : ((ly >= lz) ? AY / ly : AZ / lz);   // veio no eixo mais comprido da peça
+float ao = dot(P, g);
+float3 r = P - g * ao;
+return float2(ao / 420.0, (r.x + r.y * 1.37 + r.z * 0.71) / 7.0);
+""", ["P", "AX", "AY", "AZ"], unreal.CustomMaterialOutputType.CMOT_FLOAT2, -1300, 100)
+    mel.connect_material_expressions(wp, "", uv, "P")
+    for nome, t in zip(("AX", "AY", "AZ"), eixos):
+        mel.connect_material_expressions(t, "", uv, nome)
+    veio = amostra(mat, "/Game/Time/T_Ruido", st.SAMPLERTYPE_MASKS, uv, -1000, 100)
+    rnd = no(mat, unreal.MaterialExpressionPerInstanceRandom, -1000, 350)
+    cor = custom(mat, """
+float v = saturate(N * 1.3 - 0.15);
+float3 c = lerp(float3(0.20, 0.12, 0.06), float3(0.55, 0.39, 0.22), v);   // anel escuro / lenho claro
+c = lerp(c, float3(0.36, 0.33, 0.28), 0.10);                              // um pouco gasta ao tempo (cinza demais parecia metal)
+return c * (0.82 + 0.36 * R);
+""", ["N", "R"], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -650, 100)
+    mel.connect_material_expressions(veio, "R", cor, "N")
+    mel.connect_material_expressions(rnd, "", cor, "R")
+    mel.connect_material_property(cor, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    r = no(mat, unreal.MaterialExpressionConstant, -650, 300)
+    r.set_editor_property("r", 0.82)
+    mel.connect_material_property(r, "", unreal.MaterialProperty.MP_ROUGHNESS)
     mel.recompile_material(mat)
     unreal.EditorAssetLibrary.save_loaded_asset(mat)
 
@@ -110,5 +202,7 @@ def pedra():
 
 
 praca()
+estrada()
+madeira()
 pedra()
 unreal.log("AOE_PRACA ok")

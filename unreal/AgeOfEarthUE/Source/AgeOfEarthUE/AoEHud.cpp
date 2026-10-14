@@ -57,7 +57,7 @@ void AAoEHud::LoadArt()
 	{
 		RuntimeFont = NewObject<UFont>(this);
 		RuntimeFont->FontCacheType = EFontCacheType::Runtime;
-		RuntimeFont->CompositeFont = *FontBold;
+		RuntimeFont->GetMutableInternalCompositeFont() = *FontBold;
 		RuntimeFont->LegacyFontSize = 16;
 	}
 	if (FPaths::FileExists(Reg)) FontRegular = MakeShared<FCompositeFont>(FName(TEXT("CinzelRegular")), Reg, EFontHinting::Default, EFontLoadingPolicy::LazyLoad);
