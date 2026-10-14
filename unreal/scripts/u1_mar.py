@@ -98,7 +98,7 @@ def main():
     mel.connect_material_expressions(foam, "", cor2, "Alpha")
 
     op = no(mat, unreal.MaterialExpressionLinearInterpolate, 0, 700)
-    mel.connect_material_expressions(const(mat, 0.55, -200, 700), "", op, "A")
+    mel.connect_material_expressions(const(mat, 0.72, -200, 700), "", op, "A")
     mel.connect_material_expressions(const(mat, 0.96, -200, 780), "", op, "B")
     mel.connect_material_expressions(dcor, "", op, "Alpha")
     op2 = no(mat, unreal.MaterialExpressionMax, 200, 700)

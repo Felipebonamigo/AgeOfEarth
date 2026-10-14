@@ -195,4 +195,10 @@ private:
 	UPROPERTY() TObjectPtr<UStaticMesh> DiscMesh;
 	UPROPERTY() TObjectPtr<UStaticMesh> CubeMesh;
 	UPROPERTY() TObjectPtr<UMaterialInterface> BoxMaterial;
+	// cor de time (u2_cor_time.py): anel no chao, estandarte de pano e mastro de madeira; sem eles cai no disco/placa antigos
+	UPROPERTY() TObjectPtr<UStaticMesh> PlaneMesh;
+	UPROPERTY() TObjectPtr<UStaticMesh> CylMesh;
+	UPROPERTY() TObjectPtr<UMaterialInterface> AnelMat;
+	UPROPERTY() TObjectPtr<UMaterialInterface> EstandarteMat;
+	UPROPERTY() TObjectPtr<UMaterialInterface> MastroMat;
 };

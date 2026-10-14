@@ -139,8 +139,12 @@ def build_material():
 
     # a foto da grama é amarelada à luz direta: puxa para o verde (só nesta camada)
     tom = no(mat, unreal.MaterialExpressionConstant3Vector, 300, -80)
-    tom.set_editor_property("constant", unreal.LinearColor(0.80, 0.96, 0.62, 1.0))
-    cores["grass"] = mult(mat, cores["grass"], tom, 450, -40)
+    tom.set_editor_property("constant", unreal.LinearColor(0.80, 0.88, 0.58, 1.0))
+    # tom mediterrâneo: tira 35 % da saturação (o verde-limão da foto à luz direta parecia grama sintética) antes de tingir
+    dess = no(mat, unreal.MaterialExpressionDesaturation, 300, -200)
+    mel.connect_material_expressions(cores["grass"], "", dess, "")
+    mel.connect_material_expressions(constante(mat, 0.35, 150, -200), "", dess, "Fraction")
+    cores["grass"] = mult(mat, dess, tom, 450, -40)
 
     def cadeia(dic, x, y0):
         prev = dic["grass"]

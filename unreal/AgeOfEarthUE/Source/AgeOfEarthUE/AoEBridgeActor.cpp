@@ -47,6 +47,11 @@ AAoEBridgeActor::AAoEBridgeActor()
 	SetRootComponent(Root);
 	CubeMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
 	DiscMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+	CylMesh = DiscMesh;
+	PlaneMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane"));
+	AnelMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_Anel.M_Anel"));
+	EstandarteMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_Estandarte.M_Estandarte"));
+	MastroMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_Mastro.M_Mastro"));
 	BoxMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 	auto Anim = [](const TCHAR* P) { return LoadObject<UAnimSequence>(nullptr, P); };
 	AnimIdle = Anim(TEXT("/Game/Mannequins/Anims/AoE/MM_Idle.MM_Idle"));
@@ -433,13 +438,13 @@ AActor* AAoEBridgeActor::SpawnVisual(FAoEVisual& V, const FAoEDef* Def, int32 Id
 		V.Skel = K;
 		V.AnimState = -1;
 		auto* Disc = NewObject<UStaticMeshComponent>(SA);
-		Disc->SetStaticMesh(DiscMesh);
+		Disc->SetStaticMesh(AnelMat ? PlaneMesh.Get() : DiscMesh.Get());
 		Disc->SetMobility(EComponentMobility::Movable);
 		Disc->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		Disc->SetCastShadow(false);
 		Disc->SetupAttachment(K);
 		Disc->RegisterComponent();
-		UMaterialInstanceDynamic* Dm = UMaterialInstanceDynamic::Create(BoxMaterial, SA);
+		UMaterialInstanceDynamic* Dm = UMaterialInstanceDynamic::Create(AnelMat ? AnelMat.Get() : BoxMaterial.Get(), SA);
 		Dm->SetVectorParameterValue(TEXT("Color"), Color);
 		Disc->SetMaterial(0, Dm);
 		V.Disc = Disc;
@@ -509,25 +514,26 @@ AActor* AAoEBridgeActor::SpawnVisual(FAoEVisual& V, const FAoEDef* Def, int32 Id
 		{
 			// bandeira da cor do dono (mastro cinza + pano) no canto do edificio
 			UStaticMeshComponent* P = NewObject<UStaticMeshComponent>(A);
-			P->SetStaticMesh(CubeMesh);
+			P->SetStaticMesh(MastroMat ? CylMesh.Get() : CubeMesh.Get());
 			P->SetMobility(EComponentMobility::Movable);
 			P->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			P->SetupAttachment(C);
 			P->RegisterComponent();
-			UMaterialInstanceDynamic* Pm = UMaterialInstanceDynamic::Create(BoxMaterial, A);
-			Pm->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.12f, 0.1f, 0.08f));
-			P->SetMaterial(0, Pm);
+			if (MastroMat) P->SetMaterial(0, MastroMat);
+			else { UMaterialInstanceDynamic* Pm = UMaterialInstanceDynamic::Create(BoxMaterial, A); Pm->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.12f, 0.1f, 0.08f)); P->SetMaterial(0, Pm); }
 			V.Pole = P;
 		}
 		UStaticMeshComponent* D = NewObject<UStaticMeshComponent>(A);
-		D->SetStaticMesh(V.bBuilding ? CubeMesh : DiscMesh);
+		D->SetStaticMesh(V.bBuilding ? (EstandarteMat ? PlaneMesh.Get() : CubeMesh.Get()) : (AnelMat ? PlaneMesh.Get() : DiscMesh.Get()));
 		D->SetMobility(EComponentMobility::Movable);
 		D->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		D->SetCastShadow(false);
 		D->SetupAttachment(C);
 		D->RegisterComponent();
-		UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(BoxMaterial, A);
+		UMaterialInterface* Base = V.bBuilding ? (EstandarteMat ? EstandarteMat.Get() : BoxMaterial.Get()) : (AnelMat ? AnelMat.Get() : BoxMaterial.Get());
+		UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(Base, A);
 		M->SetVectorParameterValue(TEXT("Color"), Color);
+		if (V.bBuilding && EstandarteMat) D->SetCastShadow(true);
 		D->SetMaterial(0, M);
 		V.Disc = D;
 		V.DiscMat = M;
@@ -836,12 +842,15 @@ void AAoEBridgeActor::Tick(float Dt)
 		{
 			const bool bSel = Selected.Contains(P.Key);
 			const float R = P.Value.DiscRadius * (bSel ? 1.35f : 1.f);
-			D->SetWorldScale3D(FVector(R * 2.f / 100.f, R * 2.f / 100.f, 0.02f));
+			D->SetWorldScale3D(FVector(R * 2.f / 100.f, R * 2.f / 100.f, AnelMat ? 1.f : 0.02f));
 			if (AActor* A = P.Value.Actor.Get())
 				D->SetWorldLocation(P.Value.Skel.IsValid() ? P.Value.GroundPoint + FVector(0, 0, 4.f) : FVector(A->GetActorLocation().X, A->GetActorLocation().Y, FMath::Lerp(P.Value.FromZ, P.Value.ToZ, FMath::Clamp(P.Value.Alpha, 0.f, 1.f)) + 4.f));
 			D->SetWorldRotation(FRotator::ZeroRotator);
 			if (UMaterialInstanceDynamic* M = P.Value.DiscMat.Get())
-				M->SetVectorParameterValue(TEXT("Color"), PlayerColor(P.Value.Dono) * (bSel ? 3.f : 1.f));
+			{
+				M->SetVectorParameterValue(TEXT("Color"), PlayerColor(P.Value.Dono) * (AnelMat ? 1.f : (bSel ? 3.f : 1.f)));
+				M->SetScalarParameterValue(TEXT("Sel"), bSel ? 1.f : 0.f);
+			}
 		}
 	}
 	for (auto& P : Buildings)
@@ -857,12 +866,22 @@ void AAoEBridgeActor::Tick(float Dt)
 			{
 				const FVector Base(P.Value.To.X * UuPerTile + Fp * 0.5f, P.Value.To.Y * UuPerTile + Fp * 0.5f, P.Value.ToZ);
 				const float Sway = FMath::Sin(Clock * 2.2f + P.Key) * 4.f;
-				if (UStaticMeshComponent* Po = P.Value.Pole.Get()) { Po->SetWorldScale3D(FVector(0.07f, 0.07f, 4.2f)); Po->SetWorldLocation(Base + FVector(0, 0, 210.f)); Po->SetWorldRotation(FRotator::ZeroRotator); }
-				D->SetWorldScale3D(FVector(0.03f, 1.3f, 0.8f));
-				D->SetWorldLocation(Base + FVector(Sway, -70.f, 360.f));
-				D->SetWorldRotation(FRotator(0.f, Sway * 0.6f, 0.f));
+				if (UStaticMeshComponent* Po = P.Value.Pole.Get()) { Po->SetWorldScale3D(MastroMat ? FVector(0.06f, 0.06f, 4.4f) : FVector(0.07f, 0.07f, 4.2f)); Po->SetWorldLocation(Base + FVector(0, 0, 220.f)); Po->SetWorldRotation(FRotator::ZeroRotator); }
+				if (EstandarteMat)
+				{
+					// plano em pe (Roll 90): X = comprimento do pano a partir do mastro, Y = altura; o vento esta no material
+					D->SetWorldScale3D(FVector(0.85f, 0.55f, 1.f));
+					D->SetWorldRotation(FRotator(0.f, 35.f, 90.f));
+					D->SetWorldLocation(Base + FRotator(0.f, 35.f, 0.f).RotateVector(FVector(45.f, 0.f, 0.f)) + FVector(0, 0, 400.f));
+				}
+				else
+				{
+					D->SetWorldScale3D(FVector(0.03f, 1.3f, 0.8f));
+					D->SetWorldLocation(Base + FVector(Sway, -70.f, 360.f));
+					D->SetWorldRotation(FRotator(0.f, Sway * 0.6f, 0.f));
+				}
 			}
-			if (UMaterialInstanceDynamic* M = P.Value.DiscMat.Get()) M->SetVectorParameterValue(TEXT("Color"), PlayerColor(P.Value.Dono) * 1.6f);
+			if (UMaterialInstanceDynamic* M = P.Value.DiscMat.Get()) M->SetVectorParameterValue(TEXT("Color"), PlayerColor(P.Value.Dono) * (EstandarteMat ? 0.5f : 1.6f));
 		}
 	}
 	for (int32 i = Dying.Num() - 1; i >= 0; --i)
