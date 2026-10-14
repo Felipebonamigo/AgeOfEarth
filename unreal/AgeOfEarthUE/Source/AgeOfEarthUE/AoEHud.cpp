@@ -66,5 +66,25 @@ void AAoEHud::DrawHUD()
 		DrawText(FString::Printf(TEXT("%d selecionada(s)  |  clique dir: mover/atacar/coletar  |  A+clique: atacar-mover  |  S: parar  |  Ctrl+1..9: grupo"), B->GetSelected().Num()), FLinearColor(0.9f, 0.9f, 0.9f), 14.f, Canvas->SizeY - 28.f, Font, 1.0f);
 	else
 		DrawText(TEXT("arraste para selecionar  |  Q: todas as unidades  |  WASD/setas: camera  |  roda: zoom"), FLinearColor(0.7f, 0.7f, 0.7f), 14.f, Canvas->SizeY - 28.f, Font, 1.0f);
+	// painel de comandos: treino do edificio selecionado, menu de construcao
+	float Py = Canvas->SizeY - 60.f;
+	if (B->SelBuilding != 0)
+	{
+		const FString* Nm = B->BuildingNames.Find(B->SelBuildingType);
+		DrawText(FString::Printf(TEXT("[%s]"), Nm ? **Nm : *B->SelBuildingType), FLinearColor(0.95f, 0.85f, 0.5f), 14.f, Py - 22.f, Font, 1.0f);
+		const TArray<FString>* Tr = B->BuildingTrains.Find(B->SelBuildingType);
+		static const TCHAR* Keys[6] = { TEXT("Z"), TEXT("X"), TEXT("C"), TEXT("V"), TEXT("N"), TEXT("M") };
+		FString Linha;
+		if (Tr) for (int32 i = 0; i < 6 && i < Tr->Num(); ++i) { const FString* Un = B->UnitNames.Find((*Tr)[i]); Linha += FString::Printf(TEXT("%s treinar %s   "), Keys[i], Un ? **Un : *(*Tr)[i]); }
+		DrawText(Linha.IsEmpty() ? TEXT("(este edificio nao treina)") : *Linha, FLinearColor::White, 14.f, Py, Font, 1.0f);
+	}
+	if (PC && PC->IsBuildMenuOpen())
+	{
+		FString Linha = TEXT("CONSTRUIR:  ");
+		for (int32 i = 0; i < PC->BuildList().Num(); ++i) { const FString* Nm = B->BuildingNames.Find(PC->BuildList()[i]); Linha += FString::Printf(TEXT("%d %s   "), i + 1, Nm ? **Nm : *PC->BuildList()[i]); }
+		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), 8.f, Py - 4.f, Canvas->SizeX - 16.f, 26.f);
+		DrawText(Linha, FLinearColor(0.6f, 0.95f, 0.6f), 14.f, Py, Font, 1.0f);
+	}
+	if (PC && !PC->PendingBuild().IsEmpty()) DrawText(FString::Printf(TEXT("Posicionar %s: clique no chao (Shift = varias, Esc cancela)"), *PC->PendingBuild()), FLinearColor(0.6f, 0.95f, 0.6f), Sx * 0.5f - 230.f, 76.f, Font, 1.1f);
 	if (PC && PC->IsAttackMoveArmed()) DrawText(TEXT("ATACAR-MOVER: clique no destino (Esc cancela)"), FLinearColor(1.f, 0.5f, 0.3f), Sx * 0.5f - 200.f, 50.f, Font, 1.2f);
 }

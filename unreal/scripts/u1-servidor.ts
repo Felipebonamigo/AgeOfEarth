@@ -14,10 +14,10 @@ const arg = (n: string, d: string) => { const i = process.argv.indexOf('--' + n)
 const o = {
   port: Number(arg('port', '8790')), seed: Number(arg('seed', '42')), size: arg('size', 'small') as GameConfig['mapSize'],
   avancar: Number(arg('avancar', '8')), ais: Math.max(1, Math.min(3, Number(arg('ais', '1')))), age: Number(arg('age', '0')),
-  speed: Number(arg('speed', '1')), every: Math.max(1, Number(arg('every', '2'))), difficulty: arg('difficulty', 'hard') as 'easy' | 'normal' | 'hard' | 'expert',
+  speed: Number(arg('speed', '1')), every: Math.max(1, Number(arg('every', '2'))), difficulty: arg('difficulty', 'hard') as 'easy' | 'normal' | 'hard' | 'expert', humano: process.argv.includes('--humano'),
 };
 
-const players = Array.from({ length: o.ais + 1 }, (_, i) => ({ name: i === 0 ? 'Atenas' : `Rival ${i}`, god: GODS[i % GODS.length], isAI: true, difficulty: o.difficulty }));
+const players = Array.from({ length: o.ais + 1 }, (_, i) => ({ name: i === 0 ? 'Atenas' : `Rival ${i}`, god: GODS[i % GODS.length], isAI: !(o.humano && i === 0), difficulty: o.difficulty }));
 const state: GameState = createGame({ seed: o.seed, mapSize: o.size, players, startingAge: o.age || undefined });
 const opts: BridgeOptions = { player: 0, reveal: true, stateEvery: o.every };
 
