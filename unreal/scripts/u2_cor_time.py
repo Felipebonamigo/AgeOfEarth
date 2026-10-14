@@ -131,3 +131,90 @@ anel()
 estandarte()
 mastro()
 unreal.log("AOE_TIME ok")
+
+
+def ruido():
+    """Importa Content/Fontes/fx/T_Ruido.png (gerada por u2_ruido.mjs) como textura linear de máscara."""
+    import os
+    caminho = PASTA + "/T_Ruido"
+    arq = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "AgeOfEarthUE", "Content", "Fontes", "fx", "T_Ruido.png"))
+    tk = unreal.AssetImportTask()
+    tk.set_editor_property("filename", arq)
+    tk.set_editor_property("destination_path", PASTA)
+    tk.set_editor_property("destination_name", "T_Ruido")
+    tk.set_editor_property("automated", True)
+    tk.set_editor_property("replace_existing", True)
+    tk.set_editor_property("save", True)
+    tools.import_asset_tasks([tk])
+    tex = unreal.load_asset(caminho)
+    tex.set_editor_property("srgb", False)
+    tex.set_editor_property("compression_settings", unreal.TextureCompressionSettings.TC_MASKS)
+    unreal.EditorAssetLibrary.save_loaded_asset(tex)
+    return tex
+
+
+def poeira():
+    """Nuvem de poeira/fumaça (instâncias de esfera; PerInstanceCustomData 0 = opacidade, 1 = escuridão): ruído fBm em duas
+    escalas rolando com o tempo recorta a esfera em fiapos; borda pela fresnel e DepthFade no chão (sem corte duro)."""
+    tex = ruido()
+    mat = novo("M_Poeira")
+    mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
+    mat.set_editor_property("used_with_instanced_static_meshes", True)
+    d0 = no(mat, unreal.MaterialExpressionPerInstanceCustomData, -1100, 300)
+    d0.set_editor_property("data_index", 0)
+    d1 = no(mat, unreal.MaterialExpressionPerInstanceCustomData, -1100, 450)
+    d1.set_editor_property("data_index", 1)
+    fr = no(mat, unreal.MaterialExpressionFresnel, -1100, 150)
+    wp = no(mat, unreal.MaterialExpressionWorldPosition, -1100, 600)
+    tm = no(mat, unreal.MaterialExpressionTime, -1100, 750)
+    st = unreal.MaterialSamplerType
+    # duas amostras da mesma textura em escalas e direções diferentes (UV vindo da posição no mundo, plano XZ + YZ)
+    uv = custom(mat, "return float4(P.x * 0.0021 + P.z * 0.0013 + T * 0.020, P.y * 0.0021 - P.z * 0.0017, P.x * 0.0057 - T * 0.035, P.y * 0.0049 + P.z * 0.0041);", ["P", "T"], unreal.CustomMaterialOutputType.CMOT_FLOAT4, -850, 650)
+    mel.connect_material_expressions(wp, "", uv, "P")
+    mel.connect_material_expressions(tm, "", uv, "T")
+    m1 = no(mat, unreal.MaterialExpressionComponentMask, -650, 600)
+    for k in "rgba":
+        m1.set_editor_property(k, k in "rg")
+    mel.connect_material_expressions(uv, "", m1, "")
+    m2 = no(mat, unreal.MaterialExpressionComponentMask, -650, 750)
+    for k in "rgba":
+        m2.set_editor_property(k, k in "ba")
+    mel.connect_material_expressions(uv, "", m2, "")
+    s1 = no(mat, unreal.MaterialExpressionTextureSample, -450, 600)
+    s1.set_editor_property("texture", tex)
+    s1.set_editor_property("sampler_type", st.SAMPLERTYPE_MASKS)
+    mel.connect_material_expressions(m1, "", s1, "UVs")
+    s2 = no(mat, unreal.MaterialExpressionTextureSample, -450, 800)
+    s2.set_editor_property("texture", tex)
+    s2.set_editor_property("sampler_type", st.SAMPLERTYPE_MASKS)
+    mel.connect_material_expressions(m2, "", s2, "UVs")
+    df = no(mat, unreal.MaterialExpressionDepthFade, -450, 1000)
+    df.set_editor_property("fade_distance_default", 60.0)
+    mel.connect_material_expressions(const(mat, 1.0, -650, 1000), "", df, "InOpacity")
+    c = custom(mat, """
+float borda = pow(saturate(1.0 - F), 1.3);
+float n = N1 * 0.65 + N2 * 0.35;
+float fiapo = smoothstep(0.30 + (1.0 - borda) * 0.35, 0.75, n);
+return saturate(A * fiapo * borda * 1.1 * D);
+""", ["F", "A", "N1", "N2", "D"], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -200, 300)
+    mel.connect_material_expressions(fr, "", c, "F")
+    mel.connect_material_expressions(d0, "", c, "A")
+    mel.connect_material_expressions(s1, "R", c, "N1")
+    mel.connect_material_expressions(s2, "R", c, "N2")
+    mel.connect_material_expressions(df, "", c, "D")
+    cor = custom(mat, "return lerp(float3(0.52, 0.45, 0.35), float3(0.16, 0.15, 0.14), saturate(E)) * (0.85 + 0.3 * N);", ["E", "N"], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -200, 0)
+    mel.connect_material_expressions(d1, "", cor, "E")
+    mel.connect_material_expressions(s1, "R", cor, "N")
+    mel.connect_material_property(cor, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    mel.connect_material_property(c, "", unreal.MaterialProperty.MP_OPACITY)
+    mel.connect_material_property(const(mat, 1.0, 0, 400), "", unreal.MaterialProperty.MP_ROUGHNESS)
+    mel.recompile_material(mat)
+    unreal.EditorAssetLibrary.save_loaded_asset(mat)
+    m = unreal.load_asset(PASTA + "/M_Mastro")
+    m.set_editor_property("used_with_instanced_static_meshes", True)
+    mel.recompile_material(m)
+    unreal.EditorAssetLibrary.save_loaded_asset(m)
+
+
+poeira()
+unreal.log("AOE_POEIRA ok")

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+class UInstancedStaticMeshComponent;
 #include "AoEBridgeActor.generated.h"
 
 class IWebSocket;
@@ -201,4 +202,15 @@ private:
 	UPROPERTY() TObjectPtr<UMaterialInterface> AnelMat;
 	UPROPERTY() TObjectPtr<UMaterialInterface> EstandarteMat;
 	UPROPERTY() TObjectPtr<UMaterialInterface> MastroMat;
+	// efeitos (a ponte manda em state.effects): projeteis em arco e nuvens de poeira, tudo por instancias (um desenho por tipo)
+	struct FAoEProj { FVector A, B; float T = 0.f, Dur = 0.5f, Apex = 100.f; bool bStone = false; };
+	struct FAoEPuff { FVector P, V; float T = 0.f, Dur = 1.2f, R0 = 40.f, R1 = 160.f, Dark = 0.f; };
+	TArray<FAoEProj> Projs;
+	TArray<FAoEPuff> Puffs;
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> ArrowISM;
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> StoneISM;
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> PuffISM;
+	void HandleEffects(const TSharedPtr<FJsonObject>& O);
+	void TickEffects(float Dt);
+	void AddPuffs(const FVector& At, int32 N, float R0, float R1, float Dur, float Dark, float Spread);
 };

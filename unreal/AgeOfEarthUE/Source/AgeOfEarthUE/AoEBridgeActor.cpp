@@ -1,4 +1,5 @@
 #include "AoEBridgeActor.h"
+#include "Components/InstancedStaticMeshComponent.h"
 
 #include "WebSocketsModule.h"
 #include "IWebSocket.h"
@@ -200,6 +201,25 @@ void AAoEBridgeActor::BeginPlay()
 	FString Override;
 	if (FParse::Value(FCommandLine::Get(), TEXT("AoEUrl="), Override)) Url = Override;
 	LoadCatalog();
+	{
+		auto MakeIsm = [&](UStaticMesh* Mesh, UMaterialInterface* Mat, bool bShadow, int32 NumData)
+		{
+			UInstancedStaticMeshComponent* I = NewObject<UInstancedStaticMeshComponent>(this);
+			I->SetStaticMesh(Mesh);
+			if (Mat) I->SetMaterial(0, Mat);
+			I->SetMobility(EComponentMobility::Movable);
+			I->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			I->SetCastShadow(bShadow);
+			I->NumCustomDataFloats = NumData;
+			I->SetupAttachment(GetRootComponent());
+			I->RegisterComponent();
+			return I;
+		};
+		UStaticMesh* Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+		ArrowISM = MakeIsm(CylMesh, MastroMat, true, 0);
+		StoneISM = MakeIsm(Sphere, MastroMat, true, 0);
+		PuffISM = MakeIsm(Sphere, LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_Poeira.M_Poeira")), false, 2);
+	}
 	if (FParse::Param(FCommandLine::Get(), TEXT("AoEVitrine"))) { SpawnVitrine(); return; }
 	Connect();
 }
@@ -547,6 +567,7 @@ void AAoEBridgeActor::HandleState(const TSharedPtr<FJsonObject>& O)
 	++StateSerial;
 	bHaveState = true;
 	LastTick = (int32)O->GetNumberField(TEXT("tick"));
+	HandleEffects(O);
 	const TSharedPtr<FJsonObject>* MeObj = nullptr;
 	if (O->TryGetObjectField(TEXT("me"), MeObj) && MeObj && MeObj->IsValid())
 	{
@@ -819,6 +840,13 @@ void AAoEBridgeActor::Tick(float Dt)
 	Super::Tick(Dt);
 	if (FParse::Param(FCommandLine::Get(), TEXT("AoEVitrine")))
 		for (TPair<int32, FAoEVisual>& K : Units) if (K.Value.bAttacking && K.Value.AttackT >= 4.f && FMath::Fmod(Clock + K.Key * 0.37f, 3.f) < Dt) K.Value.AttackT = 0.f;
+	if (FParse::Param(FCommandLine::Get(), TEXT("AoEVitrine")) && FMath::Fmod(Clock, 0.5f) < Dt)
+	{
+		// vitrine: rajada de efeitos de teste (flechas e pedras em arco, poeira de golpe e de desabamento) entre as fileiras
+		FAoEProj P; P.A = FVector(14.f * 200.f, 22.f * 200.f, VitrineZ + 150.f); P.B = FVector((16.f + FMath::FRand() * 20.f) * 200.f, 30.f * 200.f, VitrineZ + 90.f);
+		P.Dur = 1.0f; P.Apex = 500.f; P.bStone = FMath::FRand() < 0.3f; Projs.Add(P);
+		if (FMath::Fmod(Clock, 4.f) < Dt) { AddPuffs(FVector(30.f * 200.f, 30.f * 200.f, VitrineZ), 26, 90.f, 260.f, 3.8f, 0.15f, 300.f); AddPuffs(FVector(27.f * 200.f, 29.f * 200.f, VitrineZ), 2, 35.f, 110.f, 1.4f, 0.f, 40.f); }
+	}
 	Clock += Dt;
 	PerfAcc += Dt; ++PerfFrames; PerfWorst = FMath::Max(PerfWorst, (double)Dt);
 	if (PerfAcc >= 5.0)
@@ -826,14 +854,15 @@ void AAoEBridgeActor::Tick(float Dt)
 		const double Fps = PerfFrames / PerfAcc;
 		const double Gpu = FPlatformTime::ToMilliseconds(RHIGetGPUFrameCycles(0));
 		const FPlatformMemoryStats Mem = FPlatformMemory::GetStats();
-		const FString Linha = FString::Printf(TEXT("AOE_PERF t=%.0f fps=%.1f quadro_ms=%.2f pior_ms=%.1f gpu_ms=%.2f ram_mb=%.0f unidades=%d edificios=%d"),
-			(double)Clock, Fps, 1000.0 / FMath::Max(Fps, 0.001), PerfWorst * 1000.0, Gpu, (double)Mem.UsedPhysical / (1024.0 * 1024.0), Units.Num(), Buildings.Num());
+		const FString Linha = FString::Printf(TEXT("AOE_PERF t=%.0f fps=%.1f quadro_ms=%.2f pior_ms=%.1f gpu_ms=%.2f ram_mb=%.0f unidades=%d edificios=%d projeteis=%d poeira=%d"),
+			(double)Clock, Fps, 1000.0 / FMath::Max(Fps, 0.001), PerfWorst * 1000.0, Gpu, (double)Mem.UsedPhysical / (1024.0 * 1024.0), Units.Num(), Buildings.Num(), Projs.Num(), Puffs.Num());
 		UE_LOG(LogTemp, Log, TEXT("%s"), *Linha);
 		if (PerfFile.IsEmpty()) FParse::Value(FCommandLine::Get(), TEXT("AoEPerfLog="), PerfFile);
 		if (!PerfFile.IsEmpty()) FFileHelper::SaveStringToFile(Linha + LINE_TERMINATOR, *PerfFile, FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), FILEWRITE_Append);
 		PerfSumFps += Fps; PerfSumGpu += Gpu; ++PerfWindows;
 		PerfAcc = 0.0; PerfFrames = 0; PerfWorst = 0.0;
 	}
+	TickEffects(Dt);
 	for (auto& P : Units)
 	{
 		UpdateVisual(P.Value, Dt);
@@ -982,4 +1011,92 @@ bool AAoEBridgeActor::PickOwnBuilding(float TileX, float TileY, int32& OutId, FS
 		if (FMath::Abs(TileX - K.Value.To.X) <= S.X * 0.5f && FMath::Abs(TileY - K.Value.To.Y) <= S.Y * 0.5f) { OutId = K.Key; OutType = K.Value.Type; return true; }
 	}
 	return false;
+}
+
+void AAoEBridgeActor::AddPuffs(const FVector& At, int32 N, float R0, float R1, float Dur, float Dark, float Spread)
+{
+	for (int32 i = 0; i < N && Puffs.Num() < 400; ++i)
+	{
+		FAoEPuff F;
+		const float Ang = FMath::FRand() * 2.f * PI;
+		F.P = At + FVector(FMath::Cos(Ang), FMath::Sin(Ang), 0.f) * Spread * FMath::FRand() + FVector(0, 0, R0 * 0.6f);
+		F.V = FVector(FMath::Cos(Ang) * 25.f, FMath::Sin(Ang) * 25.f, 30.f + FMath::FRand() * 40.f);
+		F.R0 = R0 * (0.7f + 0.6f * FMath::FRand()); F.R1 = R1 * (0.8f + 0.5f * FMath::FRand());
+		F.Dur = Dur * (0.8f + 0.4f * FMath::FRand()); F.Dark = Dark;
+		Puffs.Add(F);
+	}
+}
+
+void AAoEBridgeActor::HandleEffects(const TSharedPtr<FJsonObject>& O)
+{
+	const TArray<TSharedPtr<FJsonValue>>* Arr = nullptr;
+	if (!O->TryGetArrayField(TEXT("effects"), Arr)) return;
+	const float Uu = (float)UuPerTile;
+	for (const TSharedPtr<FJsonValue>& V : *Arr)
+	{
+		const TSharedPtr<FJsonObject> E = V->AsObject();
+		if (!E.IsValid()) continue;
+		const FString T = E->GetStringField(TEXT("type"));
+		const float X = (float)E->GetNumberField(TEXT("x")) * Uu, Y = (float)E->GetNumberField(TEXT("y")) * Uu;
+		if (T == TEXT("projectile"))
+		{
+			double Tx = 0, Ty = 0;
+			E->TryGetNumberField(TEXT("tx"), Tx); E->TryGetNumberField(TEXT("ty"), Ty);
+			FString Kind; E->TryGetStringField(TEXT("data"), Kind);
+			FAoEProj P;
+			P.A = FVector(X, Y, GroundZ(X, Y) + 150.f);
+			P.B = FVector(Tx * Uu, Ty * Uu, GroundZ(Tx * Uu, Ty * Uu) + 90.f);
+			const float Dist = FVector::Dist2D(P.A, P.B);
+			P.bStone = Kind.Contains(TEXT("stone")) || Kind.Contains(TEXT("siege")) || Kind.Contains(TEXT("boulder")) || Kind.Contains(TEXT("rock"));
+			P.Dur = FMath::Clamp(Dist / (P.bStone ? 1300.f : 2200.f), 0.3f, 1.6f);
+			P.Apex = FMath::Min(Dist * (P.bStone ? 0.35f : 0.18f), 900.f);
+			if (Projs.Num() < 600) Projs.Add(P);
+		}
+		else if (T == TEXT("hit")) AddPuffs(FVector(X, Y, GroundZ(X, Y)), 1, 25.f, 70.f, 0.8f, 0.f, 30.f);
+		else if (T == TEXT("death")) AddPuffs(FVector(X, Y, GroundZ(X, Y)), 2, 35.f, 110.f, 1.4f, 0.f, 40.f);
+		else if (T == TEXT("collapse")) AddPuffs(FVector(X, Y, GroundZ(X, Y)), 26, 90.f, 260.f, 3.8f, 0.15f, 300.f);
+		else if (T == TEXT("splash")) AddPuffs(FVector(X, Y, GroundZ(X, Y)), 3, 30.f, 120.f, 0.9f, -0.5f, 40.f);
+	}
+}
+
+void AAoEBridgeActor::TickEffects(float Dt)
+{
+	if (!ArrowISM || !PuffISM) return;
+	// projeteis: arco parabolico de A a B, orientados pela velocidade; o pouso levanta um pouco de poeira
+	TArray<FTransform> Arrows, Stones;
+	for (int32 i = Projs.Num() - 1; i >= 0; --i)
+	{
+		FAoEProj& P = Projs[i];
+		P.T += Dt;
+		const float K = FMath::Clamp(P.T / P.Dur, 0.f, 1.f);
+		auto At = [&](float S) { return FMath::Lerp(P.A, P.B, S) + FVector(0, 0, 4.f * P.Apex * S * (1.f - S)); };
+		const FVector Pos = At(K);
+		const FVector Dir = (At(FMath::Min(1.f, K + 0.02f)) - At(FMath::Max(0.f, K - 0.02f))).GetSafeNormal();
+		if (K >= 1.f) { if (P.bStone) AddPuffs(P.B - FVector(0, 0, 90.f), 3, 40.f, 150.f, 1.3f, 0.1f, 50.f); Projs.RemoveAtSwap(i); continue; }
+		if (P.bStone) Stones.Add(FTransform(FRotator::ZeroRotator, Pos, FVector(0.28f)));
+		else Arrows.Add(FTransform(FRotationMatrix::MakeFromZ(Dir).Rotator(), Pos, FVector(0.02f, 0.02f, 0.75f)));
+	}
+	ArrowISM->ClearInstances(); if (Arrows.Num()) ArrowISM->AddInstances(Arrows, false, true);
+	StoneISM->ClearInstances(); if (Stones.Num()) StoneISM->AddInstances(Stones, false, true);
+	// poeira: cresce, sobe, desacelera e some
+	PuffISM->ClearInstances();
+	TArray<FTransform> Pt;
+	TArray<float> Data;
+	for (int32 i = Puffs.Num() - 1; i >= 0; --i)
+	{
+		FAoEPuff& F = Puffs[i];
+		F.T += Dt;
+		if (F.T >= F.Dur) { Puffs.RemoveAtSwap(i); continue; }
+		const float K = F.T / F.Dur;
+		F.P += F.V * Dt; F.V *= FMath::Max(0.f, 1.f - Dt * 1.5f);
+		const float R = FMath::Lerp(F.R0, F.R1, 1.f - FMath::Square(1.f - K));
+		Pt.Add(FTransform(FRotator::ZeroRotator, F.P, FVector(R / 50.f)));
+		Data.Add(FMath::Clamp(K * 6.f, 0.f, 1.f) * (1.f - K));   // entra rapido, apaga devagar
+		Data.Add(FMath::Max(0.f, F.Dark));
+	}
+	if (Pt.Num())
+	{
+		PuffISM->AddInstances(Pt, false, true);
+		for (int32 i = 0; i < Pt.Num(); ++i) { PuffISM->SetCustomDataValue(i, 0, Data[i * 2], false); PuffISM->SetCustomDataValue(i, 1, Data[i * 2 + 1], i == Pt.Num() - 1); }
+	}
 }
