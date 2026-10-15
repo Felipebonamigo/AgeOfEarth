@@ -93,7 +93,12 @@ def mestre(nome, vento, obra=False):
     cor = param_tex(mat, "BaseColorTexture", "/Engine/EngineResources/WhiteSquareTexture", st.SAMPLERTYPE_COLOR, -900, 0)
     nor = param_tex(mat, "NormalTexture", "/Engine/EngineMaterials/DefaultNormal", st.SAMPLERTYPE_NORMAL, -900, 300)
     mr = param_tex(mat, "MetallicRoughnessTexture", textura_branca(), st.SAMPLERTYPE_LINEAR_COLOR, -900, 600)
-    mel.connect_material_property(cor, "RGB", unreal.MaterialProperty.MP_BASE_COLOR)
+    # Brilho (padrão 1): as texturas de várias unidades do Meshy têm mediana de luminância 0,02–0,03 e viravam silhuetas pretas;
+    # o valor por material vem de brilho_unidades.json (aplicado no fim do main)
+    brilho = param_escalar(mat, "Brilho", 1.0, -900, -200)
+    cor_b = mult(mat, cor, brilho, -600, -100, "RGB", "")
+    if not obra:
+        mel.connect_material_property(cor_b, "", unreal.MaterialProperty.MP_BASE_COLOR)
     mel.connect_material_property(nor, "RGB", unreal.MaterialProperty.MP_NORMAL)
     # rugosidade: canal G da textura, nunca abaixo de 0.35 (sem espelho) nem acima de 1
     rug = no(mat, unreal.MaterialExpressionClamp, -500, 600)
@@ -163,7 +168,7 @@ return 0.0;
             saidas.append(o)
         tampa.set_editor_property("additional_outputs", saidas)
         mel.connect_material_expressions(lado, "", tampa, "S")
-        mel.connect_material_expressions(cor, "RGB", tampa, "C")
+        mel.connect_material_expressions(cor_b, "", tampa, "C")
         mel.connect_material_expressions(nmundo, "", tampa, "N")
         mel.connect_material_expressions(ruido, "R", tampa, "R")
         mel.connect_material_property(tampa, "Cor", unreal.MaterialProperty.MP_BASE_COLOR)
@@ -241,6 +246,23 @@ def main():
         except Exception:
             unreal.log_error("AOE_MAT FALHOU %s\n%s" % (a.package_name, traceback.format_exc()))
     unreal.log("AOE_MAT %d materiais trocados" % trocados)
+    aplicar_brilho()
+
+
+def aplicar_brilho():
+    import json
+    import os
+    arq = os.path.join(os.path.dirname(os.path.abspath(__file__)), "brilho_unidades.json")
+    n = 0
+    for caminho, info in json.load(open(arq, encoding="utf-8"))["materiais"].items():
+        mi = unreal.load_asset(caminho)
+        if not mi:
+            unreal.log_warning("AOE_MAT sem material %s" % caminho)
+            continue
+        mel.set_material_instance_scalar_parameter_value(mi, "Brilho", float(info["brilho"]))
+        unreal.EditorAssetLibrary.save_loaded_asset(mi)
+        n += 1
+    unreal.log("AOE_MAT brilho em %d materiais de unidade" % n)
 
 
 if __name__ == "__main__":   # importado (u2_obra_corte.py) não troca os pais de todos os MIs

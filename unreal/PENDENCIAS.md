@@ -22,6 +22,9 @@ Decisão do dono em 14/10/2026: **seguir no Unreal**. Itens que a sessão local 
 - **Canteiro de obras** (referência do Rise of Kingdoms, 14/10): andaime de madeira, blocos de pedra, obra subindo de baixo para cima com a tampa de pedra no corte, guindaste grego com bloco subindo e descendo e carroça (obras de 3+ tiles), estradas de terra. Falta: cidadãos carregando blocos até a obra.
 - **Muralhas e portões** não têm andaime (a pegada em zigue-zague deixava postes soltos); só sobem pelo recorte.
 
+- **Unidades sem cor de time no corpo**: só o anel e o estandarte dizem de quem é a unidade. Caminho: máscara de pano por modelo
+  (pintar no Blender) ou tingir só as partes saturadas da textura (capa vermelha) com a cor do dono.
+
 ## Engenharia
 - Terreno do mapa médio exportado com 2 jogadores (`scripts/unreal/export-terrain.ts`, da nuvem): pedir `--players N` à nuvem.
 - Cook leva só pastas explícitas (`DirectoriesToAlwaysCook`); os control rigs/ABP do Third Person estão quebrados (apontam para outra pasta) e ficam de fora.
