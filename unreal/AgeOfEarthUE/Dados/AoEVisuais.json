@@ -346,24 +346,28 @@
       "yaw": -90
     },
     "petrobolos": {
+"movimento": "maquina",
       "malhas": [
         "unidades/petrobolos__wheeled-catapult"
       ],
       "altura": 230
     },
     "helepolis": {
+"movimento": "maquina",
       "malhas": [
         "unidades/petrobolos__siege-engine"
       ],
       "altura": 320
     },
     "field_gun": {
+"movimento": "maquina",
       "malhas": [
         "unidades/field_gun__cannon-on-cart"
       ],
       "altura": 150
     },
     "galleon": {
+"movimento": "barco",
       "malhas": [
         "unidades/galleon__timber-galleon"
       ],
@@ -400,6 +404,7 @@
       "yaw": -90
     },
     "pegasus": {
+"movimento": "voo",
       "malhas": [
         "criaturas/pegasus__rearing-white"
       ],
@@ -417,6 +422,7 @@
       "yaw": -135
     },
     "hydra": {
+"movimento": "serpente",
       "malhas": [
         "criaturas/hydra__snake-hydra"
       ],
@@ -462,12 +468,14 @@
       "altura": 175
     },
     "harpy": {
+"movimento": "voo",
       "malhas": [
         "criaturas/harpy__harpy-queen"
       ],
       "altura": 200
     },
     "phoenix": {
+"movimento": "voo",
       "malhas": [
         "criaturas/phoenix__ember-phoenix"
       ],
@@ -496,6 +504,7 @@
       "yaw": -90
     },
     "hippocampus": {
+"movimento": "barco",
       "malhas": [
         "criaturas/hippocampus__sea-horse"
       ],
@@ -524,6 +533,7 @@
       "yaw": -90
     },
     "cronus": {
+"movimento": "gigante",
       "malhas": [
         "criaturas/cronus__ancient-stone-titan"
       ],

@@ -78,7 +78,7 @@ AAoEBridgeActor::AAoEBridgeActor()
 void AAoEBridgeActor::SpawnVitrine()
 {
 	TArray<FString> Tipos;
-	for (const TPair<FString, FAoEDef>& K : UnitDefs) if (K.Value.Skeletons.Num() > 0) Tipos.Add(K.Key);
+	for (const TPair<FString, FAoEDef>& K : UnitDefs) if (K.Value.Skeletons.Num() > 0 || !K.Value.Movimento.IsEmpty()) Tipos.Add(K.Key);
 	Tipos.Sort([&](const FString& A, const FString& B) { return UnitDefs[A].Familia + A < UnitDefs[B].Familia + B; });
 	MyPlayer = 0; UuPerTile = 200; bHaveState = true; MyCentroidTiles = FVector2D(30.f, 30.f);
 	VitrineZ = 30000.f;
@@ -98,7 +98,7 @@ void AAoEBridgeActor::SpawnVitrine()
 		const FAoEDef* Def = &UnitDefs[T];
 		const int32 Id = 900000 + I;
 		FAoEVisual& V = Units.Add(Id);
-		V.Type = T; V.Dono = 0; V.Familia = Def->Familia;
+		V.Type = T; V.Dono = 0; V.Familia = Def->Familia; V.Movimento = Def->Movimento;
 		const bool bGigante = Def->Height >= 350.f;
 		FVector2D Pos;
 		if (bGigante) { Pos = FVector2D(14.f + Gi * 8.f, 52.f); ++Gi; }
@@ -228,6 +228,7 @@ void AAoEBridgeActor::LoadCatalog()
 			if (E->TryGetNumberField(TEXT("altura"), N)) D.Height = (float)N;
 			if (E->TryGetNumberField(TEXT("yaw"), N)) D.Yaw = (float)N;
 			E->TryGetStringField(TEXT("familia"), D.Familia);
+			E->TryGetStringField(TEXT("movimento"), D.Movimento);
 			bool B = true;
 			if (E->TryGetBoolField(TEXT("anel"), B)) D.bRing = B;
 			if (E->TryGetBoolField(TEXT("campo"), B)) D.bField = B;
@@ -761,6 +762,7 @@ void AAoEBridgeActor::HandleState(const TSharedPtr<FJsonObject>& O)
 				Vis->Actor = A;
 				Vis->Yaw = Def ? Def->Yaw : 0.f;
 				Vis->Familia = Def ? Def->Familia : FString();
+				Vis->Movimento = Def ? Def->Movimento : FString();
 				Vis->AnimSeed = (int32)(Hash01(Id, 13) * 1000.f);
 				Vis->From = Pos;
 				Vis->FromZ = GroundZ(Pos.X * Uu, Pos.Y * Uu);
@@ -1000,6 +1002,48 @@ void AAoEBridgeActor::UpdateVisual(FAoEVisual& V, float Dt)
 	{
 		Z += V.Lift;
 		if (V.Skel.IsValid()) { DriveSkeletal(V, 0); }
+		else if (!V.Movimento.IsEmpty())
+		{
+			// criaturas e maquinas sem esqueleto: movimento procedural por tipo (a fase avanca mais rapido andando)
+			const float Sd = Hash01(V.AnimSeed, 41) * 6.28f;
+			V.Phase += Dt * (V.bMoving ? 1.f : 0.45f);
+			const float Ph = V.Phase + Sd;
+			if (V.Movimento == TEXT("voo"))
+			{
+				// paira 2,5-3,5 m acima do chao, sobe e desce, inclina para a frente andando e balanca de lado
+				Z += 300.f + 45.f * FMath::Sin(Ph * 2.2f);
+				Rot.Pitch = (V.bMoving ? -10.f : 0.f) + 4.f * FMath::Sin(Ph * 2.2f + 1.2f);
+				Rot.Roll = 7.f * FMath::Sin(Ph * 1.3f);
+			}
+			else if (V.Movimento == TEXT("serpente"))
+			{
+				// corpo de serpente: ondula de lado e respira
+				Rot.Yaw += 7.f * FMath::Sin(Ph * 2.6f);
+				Rot.Roll = 3.f * FMath::Sin(Ph * 2.6f + 1.f);
+				Z += 6.f * FMath::Abs(FMath::Sin(Ph * 2.6f));
+			}
+			else if (V.Movimento == TEXT("gigante"))
+			{
+				// passada pesada e lenta; poeira a cada pisada quando anda
+				const float Pa = Ph * 3.2f;
+				Z += (V.bMoving ? 22.f : 4.f) * FMath::Abs(FMath::Sin(Pa));
+				Rot.Roll = (V.bMoving ? 3.f : 0.8f) * FMath::Sin(Pa);
+				if (V.bMoving && FMath::Sin(Pa) * FMath::Sin(Pa - Dt * 3.2f) <= 0.f && PuffISM)
+					AddPuffs(FVector(P.X * UuPerTile, P.Y * UuPerTile, Z - 20.f), 2, 70.f, 220.f, 1.8f, 0.f, 120.f);
+			}
+			else if (V.Movimento == TEXT("maquina"))
+			{
+				// madeira e rodas: so treme um pouco andando
+				if (V.bMoving) { Rot.Pitch = 1.2f * FMath::Sin(Ph * 17.f); Z += 2.f * FMath::Abs(FMath::Sin(Ph * 9.f)); }
+			}
+			else if (V.Movimento == TEXT("barco"))
+			{
+				// sobre a agua: balanco e arfagem lentos sempre, um pouco mais andando
+				Rot.Roll = 3.5f * FMath::Sin(Ph * 1.1f);
+				Rot.Pitch = 2.f * FMath::Sin(Ph * 0.8f + 0.7f) + (V.bMoving ? -1.5f : 0.f);
+				Z += 12.f * FMath::Sin(Ph * 1.4f);
+			}
+		}
 		else if (V.bMoving)
 		{
 			V.Phase += Dt * 11.f;

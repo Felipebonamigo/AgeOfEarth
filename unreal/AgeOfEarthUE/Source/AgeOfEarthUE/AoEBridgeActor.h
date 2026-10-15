@@ -29,6 +29,7 @@ struct FAnimSet
 struct FAoEDef
 {
 	FString Familia;             // familia de animacao (chave de "familias" no catalogo); vazio = animacoes do Manny
+	FString Movimento;           // malha sem esqueleto: "voo", "serpente", "gigante", "maquina", "barco" (movimento procedural)
 	TArray<FString> Skeletons;   // SkeletalMesh (/Game/Unidades/SK_*) animados pelas animacoes do Manny; tem precedencia sobre Meshes
 	TArray<FString> Meshes;      // caminhos curtos ("edificios/house__greek-tavern"); mais de um = variantes escolhidas pelo id
 	float Fit = 0.92f;           // edificio: fracao da pegada que a malha ocupa
@@ -70,6 +71,7 @@ struct FAoEVisual
 	int32 LastAtk = -1;
 	int32 Serial = 0;
 	FString Familia;             // familia de animacao (vazio = Manny)
+	FString Movimento;           // movimento procedural da malha sem esqueleto (ver FAoEDef)
 	int32 GatherKind = 0;        // 0 nao coleta, 1 arvore, 2 lavoura, 3 mina
 	int32 AnimSeed = 0;          // sorteio fixo da variante de animacao desta unidade
 	FVector2D CenterOfs = FVector2D::ZeroVector;   // centro da malha esqueletica fora da origem (cavalo, raposa...), ja escalado (cm)

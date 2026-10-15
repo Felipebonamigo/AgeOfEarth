@@ -3,7 +3,7 @@
 Decisão do dono em 14/10/2026: **seguir no Unreal**. Itens que a sessão local não conseguiu fechar, para depois:
 
 ## Arte e animação
-- **Criaturas ainda estáticas**: hidra, fênix, harpia e Cronos (a pele por proximidade deforma mal nos esqueletos do Mesh2Motion); navios. Caminho: rig próprio no Blender (instalado: Blender 5.2) ou outro modelo. Cavalaria, heróis, felinos, gigantes, dragão e grifo já animam (Mesh2Motion, 14/10).
+- **Criaturas sem esqueleto** (hidra, fênix, harpia, Pégaso, Cronos, máquinas, navios): desde 14/10 com movimento procedural por tipo (pairar, ondular, passada pesada, balanço no mar). Asas batendo e pescoços da hidra ainda pedem rig próprio. A hidra do Meshy vem com um pedestal de estátua embaixo: trocar de modelo. Caminho: rig próprio no Blender (instalado: Blender 5.2) ou outro modelo. Cavalaria, heróis, felinos, gigantes, dragão e grifo já animam (Mesh2Motion, 14/10).
 - **Casa de telhado vermelho** (`edificios/house__greek-tavern.glb`): malha estilhaçada de perto (simplificada de 565 mil para
   87 mil triângulos com `simplifySloppy`). Baixar de novo o original do Meshy (URL em `art/meshy/catalogo.json`) e reduzir com
   mais cuidado (200–300 mil, Nanite aguenta). **Fora do catálogo desde 14/10** (só a casa caiada aparece).
