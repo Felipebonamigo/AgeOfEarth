@@ -36,11 +36,22 @@ for nome in ARVORES:
     for a in reg.get_assets_by_path(base + "/StaticMeshes", recursive=False):
         m = unreal.load_asset(str(a.package_name))
         ns = m.get_editor_property("nanite_settings")
-        ns.set_editor_property("enabled", True)
-        try:
-            ns.set_editor_property("preserve_area", True)
-        except Exception:
-            pass
+        # SEM Nanite (15/10): as folhas no Nanite com sombras virtuais travavam a GPU (DXGI_ERROR_DEVICE_HUNG em
+        # RenderVirtualShadowMaps(Nanite)). A/B nas mesmas condições: folhas no Nanite = 8 travas em 17 rodadas; fora = 0 em 6.
+        # A árvore vira malha comum com LODs gerados aqui (a de 1,76-3,7 mi triângulos não cabe inteira em cena).
+        ns.set_editor_property("enabled", False)
         m.set_editor_property("nanite_settings", ns)
+        sub = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem)
+        opc = unreal.StaticMeshReductionOptions()
+        opc.set_editor_property("auto_compute_lod_screen_size", False)
+        niveis = []
+        for tela, frac in ((1.0, 0.12), (0.45, 0.04), (0.22, 0.012), (0.1, 0.004)):
+            r = unreal.StaticMeshReductionSettings()
+            r.set_editor_property("percent_triangles", frac)
+            r.set_editor_property("screen_size", tela)
+            niveis.append(r)
+        opc.set_editor_property("reduction_settings", niveis)
+        n = sub.set_lods(m, opc)
         unreal.EditorAssetLibrary.save_loaded_asset(m)
-        unreal.log("AOE_ARVORE Nanite em %s" % a.asset_name)
+        tri = [sub.get_number_verts(m, i) for i in range(sub.get_lod_count(m))]
+        unreal.log("AOE_ARVORE %s sem Nanite, %d LODs, vertices por LOD %s" % (a.asset_name, n, tri))

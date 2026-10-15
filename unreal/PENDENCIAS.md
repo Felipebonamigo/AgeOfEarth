@@ -11,12 +11,11 @@ Decisão do dono em 14/10/2026: **seguir no Unreal**. Itens que a sessão local 
 - **Efeitos**: flechas, pedras, poeira, fumaça e fogo por instâncias; cada poder com anel/faíscas/coluna próprios (14/10). Faltam: espuma clara (o `M_Poeira` só escurece; maremoto e vendaval saem cinza), faíscas de bronze no golpe, respingo/rastro de navio; Niagara de verdade pelo MCP numa sessão nova.
 - **Ciclo de dia e variação de céu**; ajuste fino de contraste dos campos.
 - **Nanite desligado** em folhagem/vento (73 malhas) por causa de travamento de GPU (`u1_nanite.py`); reavaliar em versão nova do motor.
-- **Risco: copas da island_tree no Nanite** (folhas mascaradas, `M_Folha` com "Used with Nanite" desde 14/10). Na build: 7 de 7
-  rodadas sem travar. No editor `-game`: uma trava (DXGI_ERROR_DEVICE_HUNG em `RenderVirtualShadowMaps(Nanite)`, nos primeiros
-  quadros, com o editor do Detonauto aberto ao mesmo tempo). Se travar na build: pôr `M_Folha` em `SEM_NANITE` no
-  `u2_nanite_uso.py` e rodar (volta às árvores sem folhas) ou tirar o Nanite da árvore e gerar LODs. Capturas: preferir
-  `EXE=<build> captura.sh`.
-
+- ~~Risco: copas no Nanite~~ **confirmado e resolvido em 15/10**: na build, vistas largas travavam a GPU
+  (DXGI_ERROR_DEVICE_HUNG, trilha em `RenderVirtualShadowMaps(Nanite)`). Teste A/B nas mesmas condições: folhas no Nanite = 8
+  travas em 17 rodadas (com e sem tesselação/raster programável, que não eram a causa); fora do Nanite = 0. As duas árvores
+  saíram do Nanite e ganharam 4 LODs gerados (`u2_arvore.py`); `M_Folha` sem a flag de Nanite (`AOE_SEM_NANITE`). Sombras
+  virtuais seguem ligadas (desligá-las derrubava o Épico para 29 fps).
 - **Modelos a rebaixar do Meshy (precisa da conta logada do dono)**: casa-taverna (`house__greek-tavern`) e serraria (`lumber_camp__sawmill-serenity`), as duas tiradas do catálogo em 14/10 por malha estragada na redução; com o original dá para reduzir a 200–300 mil triângulos sem `simplifySloppy` (o Unreal aguenta com Nanite). Celeiro (`granary__desert-oasis`) é estilizado (palmeiras, areia): buscar um celeiro/armazém grego realista na galeria CC0. O navegador embutido não está logado no Meshy; usar o Chrome do dono com o ok dele.
 - ~~Árvores do Meshy facetadas de perto~~: resolvido em 14/10 com a island_tree_02 do Poly Haven (CC0, Nanite, folhas sem vento). Falta variedade: uma segunda espécie realista (oliveira, pinheiro-manso) no mesmo esquema.
 - **Canteiro de obras** (referência do Rise of Kingdoms, 14/10): andaime de madeira, blocos de pedra, obra subindo de baixo para cima com a tampa de pedra no corte, guindaste grego com bloco subindo e descendo e carroça (obras de 3+ tiles), estradas de terra. Falta: cidadãos carregando blocos até a obra.

@@ -6,7 +6,8 @@
 # Idempotente. Editor FECHADO: unreal/scripts/ue.sh u2_nanite_uso.py /tmp/nanite.log
 import unreal
 
-SEM_NANITE = {"M_Vegetal", "M_Meshy_Vento", "M_Estandarte"}
+# M_Folha (folhas das árvores) também fora: no Nanite travava a GPU (A/B de 15/10, ver PENDENCIAS.md)
+SEM_NANITE = {"M_Vegetal", "M_Meshy_Vento", "M_Estandarte", "M_Folha"} | set(__import__("os").environ.get("AOE_SEM_NANITE", "").split(",")) - {""}
 
 reg = unreal.AssetRegistryHelpers.get_asset_registry()
 ligados = 0
