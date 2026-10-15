@@ -553,6 +553,16 @@ AActor* AAoEBridgeActor::SpawnVisual(FAoEVisual& V, const FAoEDef* Def, int32 Id
 		USkeletalMeshComponent* K = SA->GetSkeletalMeshComponent();
 		K->SetMobility(EComponentMobility::Movable);
 		K->SetSkeletalMesh(SkM);
+		if (Def->Familia == TEXT("civil") || Def->Familia == TEXT("soldado") || Def->Familia == TEXT("arqueiro") || Def->Familia == TEXT("cavalo"))
+		{
+			// cor do dono no pano vermelho do modelo (M_Meshy: CorTime/TingeTime); criaturas e edificios ficam com a cor propria
+			for (int32 i = 0; i < K->GetNumMaterials(); ++i)
+				if (UMaterialInstanceDynamic* Mt = K->CreateDynamicMaterialInstance(i))
+				{
+					Mt->SetVectorParameterValue(TEXT("CorTime"), Color);
+					Mt->SetScalarParameterValue(TEXT("TingeTime"), 1.f);
+				}
+		}
 		K->SetReceivesDecals(false);
 		K->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 		K->SetCollisionObjectType(ECC_WorldDynamic);

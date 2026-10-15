@@ -97,7 +97,35 @@ def mestre(nome, vento, obra=False):
     # o valor por material vem de brilho_unidades.json (aplicado no fim do main)
     brilho = param_escalar(mat, "Brilho", 1.0, -900, -200)
     cor_b = mult(mat, cor, brilho, -600, -100, "RGB", "")
-    if not obra:
+    if not obra and not vento:
+        # cor do time no corpo: o pano vermelho saturado do modelo (capa, penacho, saiote) vira a cor do dono, mantendo a luz e a
+        # trama da textura. Só liga onde o C++ põe TingeTime = 1 (unidades humanas); edifícios e criaturas ficam como estão
+        tt = no(mat, unreal.MaterialExpressionVectorParameter, -900, -380)
+        tt.set_editor_property("parameter_name", "CorTime")
+        tt.set_editor_property("default_value", unreal.LinearColor(0.8, 0.1, 0.08, 1.0))
+        tk = param_escalar(mat, "TingeTime", 0.0, -900, -300)
+        tinge = no(mat, unreal.MaterialExpressionCustom, -350, -250)
+        tinge.set_editor_property("code", """
+float mx = max(C.g, C.b);
+float sat = (C.r - mx) / max(C.r, 1e-4);                  // quanto o pixel é vermelho puro (pele ~0,3, capa ~0,7+)
+float m = saturate((sat - 0.45) / 0.2) * saturate(C.r * 12.0) * K;
+float lum = dot(C, float3(0.2126, 0.7152, 0.0722));
+float lt = max(dot(T.rgb, float3(0.2126, 0.7152, 0.0722)), 1e-3);
+float3 tinto = T.rgb * (lum / lt) * 1.6;                   // mesma luminância (um pouco mais viva) na cor do dono
+return lerp(C, min(tinto, 1.0), m);
+""")
+        tinge.set_editor_property("output_type", unreal.CustomMaterialOutputType.CMOT_FLOAT3)
+        ins = []
+        for n in ("C", "T", "K"):
+            ci = unreal.CustomInput()
+            ci.set_editor_property("input_name", n)
+            ins.append(ci)
+        tinge.set_editor_property("inputs", ins)
+        mel.connect_material_expressions(cor_b, "", tinge, "C")
+        mel.connect_material_expressions(tt, "", tinge, "T")
+        mel.connect_material_expressions(tk, "", tinge, "K")
+        mel.connect_material_property(tinge, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    elif not obra:
         mel.connect_material_property(cor_b, "", unreal.MaterialProperty.MP_BASE_COLOR)
     mel.connect_material_property(nor, "RGB", unreal.MaterialProperty.MP_NORMAL)
     # rugosidade: canal G da textura, nunca abaixo de 0.35 (sem espelho) nem acima de 1
