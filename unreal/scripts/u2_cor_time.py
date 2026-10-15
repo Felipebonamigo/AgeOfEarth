@@ -202,7 +202,7 @@ return saturate(A * fiapo * borda * 1.1 * D);
     mel.connect_material_expressions(s1, "R", c, "N1")
     mel.connect_material_expressions(s2, "R", c, "N2")
     mel.connect_material_expressions(df, "", c, "D")
-    cor = custom(mat, "return lerp(float3(0.52, 0.45, 0.35), float3(0.16, 0.15, 0.14), saturate(E)) * (0.85 + 0.3 * N);", ["E", "N"], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -200, 0)
+    cor = custom(mat, "float3 c = lerp(float3(0.52, 0.45, 0.35), float3(0.16, 0.15, 0.14), saturate(E)); c = lerp(c, float3(0.90, 0.94, 0.96), saturate(-E)); return c * (0.85 + 0.3 * N);   // E < 0: espuma/borrifo claro", ["E", "N"], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -200, 0)
     mel.connect_material_expressions(d1, "", cor, "E")
     mel.connect_material_expressions(s1, "R", cor, "N")
     mel.connect_material_property(cor, "", unreal.MaterialProperty.MP_BASE_COLOR)

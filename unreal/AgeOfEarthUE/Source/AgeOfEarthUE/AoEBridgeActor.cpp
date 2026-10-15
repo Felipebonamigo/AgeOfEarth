@@ -1354,7 +1354,7 @@ void AAoEBridgeActor::TickEffects(float Dt)
 		const float R = FMath::Lerp(F.R0, F.R1, 1.f - FMath::Square(1.f - K));
 		Pt.Add(FTransform(FRotator::ZeroRotator, F.P, FVector(R / 50.f)));
 		Data.Add(FMath::Clamp(K * 6.f, 0.f, 1.f) * (1.f - K));   // entra rapido, apaga devagar
-		Data.Add(FMath::Max(0.f, F.Dark));
+		Data.Add(FMath::Clamp(F.Dark, -1.f, 1.f));   // < 0 = espuma/borrifo claro (M_Poeira)
 	}
 	if (Pt.Num())
 	{
