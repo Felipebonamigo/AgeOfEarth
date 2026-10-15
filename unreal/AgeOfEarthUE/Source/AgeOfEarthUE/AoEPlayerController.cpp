@@ -375,7 +375,26 @@ void AAoEPlayerController::RunAutoTest(float Dt)
 		{
 			const float Uu = (float)B->UuPerTile;
 			FVector2D Alvo(S.X, S.Y);
-			if (S.X < 0.f)
+			if (S.X <= -1.5f)
+			{
+				// tomada "exercito" (x <= -2): a unidade militar com mais militares a ate 4 tiles (aglomerado), para ver armas de perto
+				int32 MaisVizinhos = -1;
+				TMap<FString, int32> Tipos;
+				for (const TPair<int32, FAoEVisual>& K : B->GetUnits())
+				{
+					if (K.Value.Familia == TEXT("civil") || K.Value.Familia.IsEmpty()) continue;
+					int32 N = 0;
+					for (const TPair<int32, FAoEVisual>& O : B->GetUnits())
+						if (O.Value.Familia != TEXT("civil") && FVector2D::DistSquared(O.Value.To, K.Value.To) < 16.f) ++N;
+					if (N > MaisVizinhos) { MaisVizinhos = N; Alvo = K.Value.To; }
+				}
+				for (const TPair<int32, FAoEVisual>& O : B->GetUnits())
+					if (O.Value.Familia != TEXT("civil") && FVector2D::DistSquared(O.Value.To, Alvo) < 16.f) Tipos.FindOrAdd(O.Value.Type)++;
+				FString Lista; for (const TPair<FString, int32>& T : Tipos) Lista += FString::Printf(TEXT("%s x%d "), *T.Key, T.Value);
+				if (MaisVizinhos < 0) Alvo = B->MyCentroidTiles;
+				UE_LOG(LogTemp, Log, TEXT("AoE: tomada %s no exercito em (%.1f, %.1f): %s"), *S.Name, Alvo.X, Alvo.Y, *Lista);
+			}
+			else if (S.X < 0.f)
 			{
 				// tomada "obra" (x negativo): o maior edificio em obra no comeco (25-60 %), para provar andaime e recorte
 				float Maior = -1.f;

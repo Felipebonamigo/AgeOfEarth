@@ -1758,6 +1758,17 @@
       "uso": "Árvore das florestas no Unreal (nós tree), com Nanite; Content/Fontes/vegetacao/island_tree_02"
     },
     {
+      "id": "island_tree_01",
+      "tipo": "modelo",
+      "titulo": "Island Tree 01 (glTF 1k, 3,73 mi triângulos)",
+      "url": "https://polyhaven.com/a/island_tree_01",
+      "autor": "Poly Haven (Rob Tuytel, Rico Cilliers)",
+      "licenca": "CC0",
+      "origem": "polyhaven.com (API)",
+      "baixadoEm": "2026-10-14",
+      "uso": "Segunda árvore das florestas no Unreal (nós tree), com Nanite; Content/Fontes/vegetacao/island_tree_01"
+    },
+    {
       "id": "rock_tile_floor",
       "tipo": "textura",
       "titulo": "Rock Tile Floor (PBR 2k)",
