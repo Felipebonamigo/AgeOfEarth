@@ -240,7 +240,29 @@ void AAoEBridgeActor::LoadCatalog()
 	if (Root->TryGetObjectField(TEXT("construcoes"), G)) Ler(*G, BuildingDefs);
 	if (Root->TryGetObjectField(TEXT("unidades"), G)) Ler(*G, UnitDefs);
 	if (Root->TryGetObjectField(TEXT("nos"), G)) Ler(*G, NodeDefs);
-	UE_LOG(LogTemp, Log, TEXT("AoE: catalogo visual: %d construcoes, %d unidades, %d nos"), BuildingDefs.Num(), UnitDefs.Num(), NodeDefs.Num());
+	// apelidos (Dados/apelidos.json, u2_apelidos.ts): tipo sem visual proprio usa o de outro (segue a cadeia ate achar um)
+	int32 Apelidados = 0;
+	FString ApTxt; TSharedPtr<FJsonObject> Ap;
+	if (FFileHelper::LoadFileToString(ApTxt, *FPaths::Combine(FPaths::ProjectDir(), TEXT("Dados"), TEXT("apelidos.json")))
+		&& FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(ApTxt), Ap) && Ap.IsValid())
+	{
+		auto Apelidar = [&](const TCHAR* Campo, TMap<FString, FAoEDef>& Defs)
+		{
+			const TSharedPtr<FJsonObject>* Mapa = nullptr;
+			if (!Ap->TryGetObjectField(Campo, Mapa)) return;
+			for (const auto& KV : (*Mapa)->Values)
+			{
+				const FString Tipo(KV.Key);
+				if (Defs.Contains(Tipo)) continue;
+				FString T = KV.Value->AsString();
+				for (int32 i = 0; i < 6 && !Defs.Contains(T); ++i) { FString Prox; if (!(*Mapa)->TryGetStringField(T, Prox)) break; T = Prox; }
+				if (const FAoEDef* Base = Defs.Find(T)) { const FAoEDef Copia = *Base; Defs.Add(Tipo, Copia); ++Apelidados; }
+			}
+		};
+		Apelidar(TEXT("construcoes"), BuildingDefs);
+		Apelidar(TEXT("unidades"), UnitDefs);
+	}
+	UE_LOG(LogTemp, Log, TEXT("AoE: catalogo visual: %d construcoes, %d unidades, %d nos (%d por apelido)"), BuildingDefs.Num(), UnitDefs.Num(), NodeDefs.Num(), Apelidados);
 }
 
 UStaticMesh* AAoEBridgeActor::LoadMesh(const FString& ShortPath)

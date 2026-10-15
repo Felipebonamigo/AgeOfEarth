@@ -24,6 +24,10 @@ Decisão do dono em 14/10/2026: **seguir no Unreal**. Itens que a sessão local 
 - **Cor de time no corpo** (14/10): o vermelho saturado da textura vira a cor do dono. Modelos sem pano vermelho (catafrata,
   cidadãs, arqueiros de branco) quase não mudam; para eles, máscara pintada no Blender.
 
+- **Modelos próprios** para os 78 tipos que usam visual emprestado (`Dados/apelidos.json`): prioridade navios (todos são o
+  galeão), maravilhas novas e as unidades da pólvora em diante (mosqueteiros, canhões, tanque). Precisa de modelos (Meshy com a
+  conta do dono ou CC0).
+
 ## Engenharia
 - ~~Terreno do mapa médio exportado com 2 jogadores~~ (15/10): `unreal/scripts/u2-exportar-terreno.ts --players N`; U1M refeito com 4.
   O cliente avisa se a ponte mandar outro terreno (`Dados/mapas.json`). **Para o jogo de verdade** (qualquer semente, tamanho e
