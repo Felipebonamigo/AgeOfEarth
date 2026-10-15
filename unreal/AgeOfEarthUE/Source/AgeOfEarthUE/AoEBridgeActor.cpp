@@ -106,10 +106,13 @@ void AAoEBridgeActor::SpawnVitrine()
 		V.Actor = SpawnVisual(V, Def, Id, PlayerColor(0), 0.f, 60.f);
 		V.Yaw = Def->Yaw;
 		V.From = V.To = Pos;
+		UE_LOG(LogTemp, Log, TEXT("AOE_VITRINE %s %.1f %.1f %.0f"), *T, Pos.X, Pos.Y, Def->Height);
 		V.FromZ = V.ToZ = GroundZ(Pos.X * Uu, Pos.Y * Uu);
 		V.Alpha = 1.f; V.Phase = I * 0.7f; V.AnimSeed = I * 37;
-		V.bMoving = (I % 3) == 1; V.Speed = V.bMoving ? 210.f : 0.f;
-		V.bAttacking = (I % 3) == 2; V.Serial = -1;
+		// -AoEVitrineAndar: todas andando para +X (yaw do catalogo = andar para +X no jogo); quem olhar para outro lado tem o yaw errado
+		const bool bAndar = FParse::Param(FCommandLine::Get(), TEXT("AoEVitrineAndar"));
+		V.bMoving = bAndar || (I % 3) == 1; V.Speed = V.bMoving ? 210.f : 0.f;
+		V.bAttacking = !bAndar && (I % 3) == 2; V.Serial = -1;
 		if (V.Actor.IsValid()) ActorToUnit.Add(V.Actor.Get(), Id);
 		if (!bGigante) ++I;
 		else ++I;

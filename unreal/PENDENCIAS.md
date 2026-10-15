@@ -7,7 +7,7 @@ Decisão do dono em 14/10/2026: **seguir no Unreal**. Itens que a sessão local 
 - **Casa de telhado vermelho** (`edificios/house__greek-tavern.glb`): malha estilhaçada de perto (simplificada de 565 mil para
   87 mil triângulos com `simplifySloppy`). Baixar de novo o original do Meshy (URL em `art/meshy/catalogo.json`) e reduzir com
   mais cuidado (200–300 mil, Nanite aguenta). **Fora do catálogo desde 14/10** (só a casa caiada aparece).
-- **Orientação das armas** (yaw −90 assumido): lanças/escudos de algumas unidades olham para o lado. Tentado em 14/10 com a tomada "exército" (`-AoEShots`, x ≤ −2) e com a vitrine: inconclusivo (no jogo os exércitos ficam entre árvores e telhados; na vitrine, de costas para a luz). Próximo passo: na vitrine, girar cada tipo para a câmera e capturar parado, um tipo por tomada.
+- ~~Orientação das unidades~~ (14/10): `-AoEVitrine -AoEVitrineAndar` põe os 31 tipos andando para +X; uma tomada por tipo (`AOE_VITRINE` no log dá a posição) com a câmera em +X. 30 de 31 andavam de frente; a **mantícora** andava de lado e foi para yaw −135 no catálogo. Armas ficam como vieram nos modelos.
 - **Efeitos**: flechas, pedras, poeira, fumaça e fogo feitos por instâncias (14/10). Faltam faíscas de bronze, sangue não (regra do jogo), efeitos dos 21 poderes, respingo/rastro de navio.
 - **Ciclo de dia e variação de céu**; ajuste fino de contraste dos campos.
 - **Nanite desligado** em folhagem/vento (73 malhas) por causa de travamento de GPU (`u1_nanite.py`); reavaliar em versão nova do motor.
