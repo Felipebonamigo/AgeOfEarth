@@ -39,5 +39,7 @@ Decisão do dono em 14/10/2026: **seguir no Unreal**. Itens que a sessão local 
 - Licenças para `docs/LEGAL.md` §4 (nuvem): Poly Haven (CC0) e Manny/Quinn + animações da Epic (só dentro de jogo feito no Unreal).
 
 ## Depende do dono
+- **DLSS (NVIDIA)**: o dono vai entrar no developer.nvidia.com, aceitar a licença e baixar o plugin do UE 5.8 em Downloads; instalar só no projeto como o FSR e medir.
+- **FSR**: instalado e desligado (ver REVISAO §13). Para recriar a pasta: baixar o zip da gpuopen.com, copiar `FSR-580/FSR` para `unreal/AgeOfEarthUE/Plugins/FSR` (extrair com `tar`, o `unzip` do Git Bash ignora as subpastas).
 - Aprovar o escopo do **U2** (`unreal/U2-PLANO.md`).
 - Conta do Fab/Megascans (opcional; hoje tudo vem do Poly Haven CC0).

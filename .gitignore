@@ -26,3 +26,6 @@ unreal/AgeOfEarthUE/DerivedDataCache/
 unreal/AgeOfEarthUE/Content/
 unreal/exports/*
 !unreal/exports/.gitkeep
+
+# plugin FSR da AMD (MIT, 1,1 GB): baixar de gpuopen.com/amd-fsr-upscaling e copiar para Plugins/FSR (ver unreal/PENDENCIAS.md)
+unreal/AgeOfEarthUE/Plugins/FSR/
