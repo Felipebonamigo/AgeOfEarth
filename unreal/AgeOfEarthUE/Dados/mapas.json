@@ -1,0 +1,19 @@
+{
+  "_comentario": "Terreno de origem de cada mapa do Unreal (u2-exportar-terreno.ts). O cliente compara com o hello da ponte e avisa se a simulação usar outro terreno (outra semente, tamanho ou número de jogadores).",
+  "/Game/Maps/U1M": {
+    "semente": 42,
+    "tamanho": "medium",
+    "jogadores": 4,
+    "w": 112,
+    "h": 112,
+    "hash": "4f1379fd"
+  },
+  "/Game/Maps/U1": {
+    "semente": 42,
+    "tamanho": "small",
+    "jogadores": 2,
+    "w": 80,
+    "h": 80,
+    "hash": "b96e0d86"
+  }
+}

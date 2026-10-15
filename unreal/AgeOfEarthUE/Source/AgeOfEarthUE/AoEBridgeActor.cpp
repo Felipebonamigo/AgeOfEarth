@@ -402,6 +402,32 @@ void AAoEBridgeActor::HandleHello(const TSharedPtr<FJsonObject>& O)
 			if (MapTerrain.Num() != MapW * MapH) { MapTerrain.Empty(); }
 		}
 		++MapSerial;
+		{
+			// o relevo do Unreal foi exportado de um terreno (Dados/mapas.json, u2-exportar-terreno.ts); se a ponte mandar outro
+			// (semente, tamanho ou numero de jogadores diferentes), edificios e unidades caem na agua ou no mato do mapa errado
+			uint32 Hs = 0x811c9dc5u;
+			for (const uint8 B : MapTerrain) { Hs ^= B; Hs *= 0x01000193u; }
+			const FString Mapa = GetWorld()->GetOutermost()->GetName().Replace(TEXT("UEDPIE_0_"), TEXT(""));
+			FString Txt; TSharedPtr<FJsonObject> J;
+			const FString Arq = FPaths::Combine(FPaths::ProjectDir(), TEXT("Dados/mapas.json"));
+			if (FFileHelper::LoadFileToString(Txt, *Arq) && FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Txt), J) && J.IsValid())
+			{
+				const TSharedPtr<FJsonObject>* E = nullptr;
+				if (J->TryGetObjectField(Mapa, E))
+				{
+					const FString Esperado = (*E)->GetStringField(TEXT("hash"));
+					const FString Veio = FString::Printf(TEXT("%08x"), Hs);
+					if (Esperado != Veio)
+					{
+						const FString Msg = FString::Printf(TEXT("AoE: TERRENO DIFERENTE: o mapa %s foi exportado de semente %d, %s, %d jogadores (hash %s); a ponte mandou %dx%d (hash %s)"),
+							*Mapa, (int32)(*E)->GetNumberField(TEXT("semente")), *(*E)->GetStringField(TEXT("tamanho")), (int32)(*E)->GetNumberField(TEXT("jogadores")), *Esperado, MapW, MapH, *Veio);
+						UE_LOG(LogTemp, Warning, TEXT("%s"), *Msg);
+						if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 30.f, FColor::Orange, Msg);
+					}
+					else UE_LOG(LogTemp, Log, TEXT("AoE: terreno da ponte confere com %s (hash %s)"), *Mapa, *Veio);
+				}
+			}
+		}
 	}
 	UuPerTile = (int32)O->GetNumberField(TEXT("uuPerTile"));
 	const double TickRate = FMath::Max(1.0, O->GetNumberField(TEXT("tickRate")));

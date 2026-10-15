@@ -25,7 +25,10 @@ Decisão do dono em 14/10/2026: **seguir no Unreal**. Itens que a sessão local 
   cidadãs, arqueiros de branco) quase não mudam; para eles, máscara pintada no Blender.
 
 ## Engenharia
-- Terreno do mapa médio exportado com 2 jogadores (`scripts/unreal/export-terrain.ts`, da nuvem): pedir `--players N` à nuvem.
+- ~~Terreno do mapa médio exportado com 2 jogadores~~ (15/10): `unreal/scripts/u2-exportar-terreno.ts --players N`; U1M refeito com 4.
+  O cliente avisa se a ponte mandar outro terreno (`Dados/mapas.json`). **Para o jogo de verdade** (qualquer semente, tamanho e
+  número de jogadores) o relevo tem de ser montado no Unreal em tempo de execução a partir do hello (heightmap + camadas), não por
+  mapa pré-construído: decisão de arquitetura para o U3.
 - Cook leva só pastas explícitas (`DirectoriesToAlwaysCook`); os control rigs/ABP do Third Person estão quebrados (apontam para outra pasta) e ficam de fora.
 - `-AoEPerfLog=` não grava arquivo na build (lê-se o log do jogo); VRAM por processo não medida (só `nvidia-smi` da placa).
 - Mouse/gameplay no Unreal (U2a/U2b, 14/10): seleção, ordens, construir (B), treinar, poderes (G), Era (E), grupos, HUD e minimapa feitos. Faltam a névoa de guerra e o custo no menu de construção (campos da ponte pedidos à nuvem na resposta 0009).
