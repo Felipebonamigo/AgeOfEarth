@@ -20,7 +20,7 @@ if [ "${SO_VERIFICAR:-0}" != "1" ]; then   # SO_VERIFICAR=1: só a conferência 
 # o mutex do UBT é do motor inteiro: outra sessão compilando Detonauto/TDFende bloqueia; tenta de novo até 10 vezes (1 min)
 for tentativa in $(seq 1 10); do
   MSYS_NO_PATHCONV=1 "$UE/Build/BatchFiles/RunUAT.bat" BuildCookRun -project="$P" -platform=Win64 -clientconfig=Development -build -cook -stage -pak -archive -archivedirectory="$SAIDA" -noP4 -utf8output -unattended -UbtArgs=-WaitMutex > /tmp/uat.log 2>&1
-  grep -qE "ConflictingInstance|Live Coding is active" /tmp/uat.log || break   # editor de outra sessao (ou captura fechando)
+  grep -qiE "ConflictingInstance|conflicting instance|Live Coding is active" /tmp/uat.log || break   # editor de outra sessao (ou captura fechando)
   echo "UBT ocupado (outra sessão ou Live Coding); nova tentativa em 60 s ($tentativa/10)"; sleep 60
 done
 grep -E "BUILD SUCCESSFUL|BUILD FAILED" /tmp/uat.log
