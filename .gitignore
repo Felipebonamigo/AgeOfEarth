@@ -29,3 +29,12 @@ unreal/exports/*
 
 # plugin FSR da AMD (MIT, 1,1 GB): baixar de gpuopen.com/amd-fsr-upscaling e copiar para Plugins/FSR (ver unreal/PENDENCIAS.md)
 unreal/AgeOfEarthUE/Plugins/FSR/
+unreal/AgeOfEarthUE/Plugins/DLSS/
+unreal/AgeOfEarthUE/Plugins/StreamlineNGXCommon/
+unreal/AgeOfEarthUE/Plugins/Streamline/
+unreal/AgeOfEarthUE/Plugins/StreamlineCore/
+unreal/AgeOfEarthUE/Plugins/StreamlineDLSSG/
+unreal/AgeOfEarthUE/Plugins/StreamlineDeepDVC/
+unreal/AgeOfEarthUE/Plugins/StreamlineReflex/
+unreal/AgeOfEarthUE/Plugins/NIS/
+unreal/AgeOfEarthUE/Plugins/DLSSMoviePipelineSupport/
