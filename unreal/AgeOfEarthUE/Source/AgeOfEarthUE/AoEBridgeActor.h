@@ -241,9 +241,12 @@ private:
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> PuffISM;
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> FireISM;
 	// poderes: raio (segmentos em zigue-zague + clarão de luz), brilho divino (anel/coluna dourada que sobe)
-	struct FAoEGlow { FVector P; FVector Size; FLinearColor Cor; float T = 0.f, Dur = 0.5f; FRotator R = FRotator::ZeroRotator; };
+	// brilho aditivo (M_Raio): V = deriva (faiscas subindo), Cresce = quanto o tamanho aumenta ate o fim (anel que se expande)
+	struct FAoEGlow { FVector P; FVector Size; FLinearColor Cor; float T = 0.f, Dur = 0.5f; FRotator R = FRotator::ZeroRotator; FVector V = FVector::ZeroVector; float Cresce = 0.f; bool bHalo = false; };
+	void PowerFx(const FString& Tipo, const FString& Fonte, const FVector& G, float RaioTiles, int32 Dono);
 	TArray<FAoEGlow> Glows;
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> GlowISM;
+	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> HaloISM;   // halos dos poderes no chao: plano com M_Halo (degrade radial)
 	UPROPERTY() TObjectPtr<class UPointLightComponent> FlashLight;
 	float FlashT = 9.f;
 	void AddBolt(const FVector& Ground);

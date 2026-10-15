@@ -88,7 +88,7 @@ void AAoEBridgeActor::SpawnVitrine()
 		AStaticMeshActor* Fl = GetWorld()->SpawnActor<AStaticMeshActor>(FVector(30.f * 200.f, 34.f * 200.f, VitrineZ - 2.f), FRotator::ZeroRotator, Sp);
 		Fl->GetStaticMeshComponent()->SetMobility(EComponentMobility::Movable);
 		Fl->GetStaticMeshComponent()->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane")));
-		Fl->SetActorScale3D(FVector(80.f, 80.f, 1.f));
+		Fl->SetActorScale3D(FVector(160.f, 160.f, 1.f));
 		if (UMaterialInstanceDynamic* Dm = UMaterialInstanceDynamic::Create(BoxMaterial, Fl)) { Dm->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.35f, 0.38f, 0.3f)); Fl->GetStaticMeshComponent()->SetMaterial(0, Dm); }
 	}
 	const float Uu = (float)UuPerTile;
@@ -289,6 +289,7 @@ void AAoEBridgeActor::BeginPlay()
 		PuffISM = MakeIsm(Sphere, LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_Poeira.M_Poeira")), false, 2);
 		FireISM = MakeIsm(Sphere, LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_Fogo.M_Fogo")), false, 1);
 		GlowISM = MakeIsm(CylMesh, LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_Raio.M_Raio")), false, 4);
+		if (UMaterialInterface* HaloMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Time/M_Halo.M_Halo"))) HaloISM = MakeIsm(PlaneMesh, HaloMat, false, 4);
 		FlashLight = NewObject<UPointLightComponent>(this);
 		FlashLight->SetMobility(EComponentMobility::Movable);
 		FlashLight->SetIntensity(0.f);
@@ -1039,6 +1040,13 @@ void AAoEBridgeActor::Tick(float Dt)
 		if (FMath::Fmod(Clock, 1.5f) < Dt) { AddBolt(FVector(36.f * 200.f, 20.f * 200.f, VitrineZ)); FAoEGlow Gw; Gw.P = FVector(42.f * 200.f, 20.f * 200.f, VitrineZ); Gw.Dur = 1.6f; Gw.Size = FVector(12.f, 12.f, 0.06f); Gw.Cor = FLinearColor(1.f, 0.78f, 0.35f) * 0.06f; /* halo dourado leve no chao */ Glows.Add(Gw); FAoEGlow Col = Gw; Col.Size = FVector(0.35f, 0.35f, 12.f); Col.P.Z += 600.f; Col.Cor = FLinearColor(1.f, 0.82f, 0.45f) * 0.35f; Glows.Add(Col); }
 		if (FMath::Fmod(Clock, 4.f) < Dt) { AddPuffs(FVector(30.f * 200.f, 30.f * 200.f, VitrineZ), 26, 90.f, 260.f, 3.8f, 0.15f, 300.f); AddPuffs(FVector(27.f * 200.f, 29.f * 200.f, VitrineZ), 2, 35.f, 110.f, 1.4f, 0.f, 40.f); }
 	}
+	// -AoEVitrinePoderes: uma fileira com cada efeito de poder, disparados juntos a cada 3 s (para conferir cor e forma)
+	if (FParse::Param(FCommandLine::Get(), TEXT("AoEVitrinePoderes")) && FMath::Fmod(Clock, 3.f) < Dt)
+	{
+		static const TCHAR* Nomes[] = { TEXT("heal"), TEXT("pestilence"), TEXT("curse"), TEXT("spawn"), TEXT("evolve"), TEXT("titanRise"), TEXT("ability"), TEXT("panic"), TEXT("retribution"), TEXT("crossroads"), TEXT("gale"), TEXT("tidal_wave"), TEXT("divine_harvest"), TEXT("sun_chariot"), TEXT("winged_victory"), TEXT("phoenix") };
+		for (int32 i = 0; i < UE_ARRAY_COUNT(Nomes); ++i)
+			PowerFx(TEXT("divine"), Nomes[i], FVector((8.f + (i % 6) * 8.f) * UuPerTile, (58.f + (i / 6) * 6.f) * UuPerTile, VitrineZ), 3.f, 0);
+	}
 	Clock += Dt;
 	PerfAcc += Dt; ++PerfFrames; PerfWorst = FMath::Max(PerfWorst, (double)Dt); PerfFrames95.Add(Dt * 1000.f);
 	if (PerfAcc >= 5.0)
@@ -1280,14 +1288,13 @@ void AAoEBridgeActor::HandleEffects(const TSharedPtr<FJsonObject>& O)
 			const FVector G(X, Y, GroundZ(X, Y));
 			for (int32 i = 0; i < 18; ++i) { const float A = i / 18.f * 2.f * PI; AddPuffs(G + FVector(FMath::Cos(A), FMath::Sin(A), 0.f) * R * Uu * 0.6f, 1, 120.f, 380.f, 4.5f, 0.1f, 120.f); }
 		}
-		else if (T == TEXT("divine"))
+		else
 		{
+			// poderes, cura, peste, maldicao, invocacao, evolucao, bronze, petrificacao, Tita, habilidade de heroi
 			double R = 3; E->TryGetNumberField(TEXT("data"), R);
-			FAoEGlow Gw; Gw.P = FVector(X, Y, GroundZ(X, Y)); Gw.Dur = 1.6f;
-			Gw.Size = FVector(R * Uu * 2.f / 100.f, R * Uu * 2.f / 100.f, 0.06f);
-			Gw.Cor = FLinearColor(1.f, 0.78f, 0.35f) * 0.06f; /* halo dourado leve no chao */
-			Glows.Add(Gw);
-			FAoEGlow Col = Gw; Col.Size = FVector(0.35f, 0.35f, 12.f); Col.P.Z += 600.f; Col.Cor = FLinearColor(1.f, 0.82f, 0.45f) * 0.35f; Col.Dur = 1.2f; Glows.Add(Col);
+			FString Fonte; E->TryGetStringField(TEXT("src"), Fonte);
+			double Dono = -1; E->TryGetNumberField(TEXT("owner"), Dono);
+			PowerFx(T, Fonte, FVector(X, Y, GroundZ(X, Y)), (float)R, (int32)Dono);
 		}
 	}
 }
@@ -1314,6 +1321,7 @@ void AAoEBridgeActor::TickEffects(float Dt)
 	if (GlowISM)
 	{
 		GlowISM->ClearInstances();
+		if (HaloISM) HaloISM->ClearInstances();
 		for (int32 i = Glows.Num() - 1; i >= 0; --i)
 		{
 			FAoEGlow& G = Glows[i];
@@ -1321,11 +1329,14 @@ void AAoEBridgeActor::TickEffects(float Dt)
 			if (G.T >= G.Dur) { Glows.RemoveAtSwap(i); continue; }
 			const float K = G.T / G.Dur;
 			const float I = FMath::Clamp((1.f - K) * (K < 0.08f ? K / 0.08f : 1.f), 0.f, 1.f) * (0.75f + 0.25f * FMath::Sin(G.T * 60.f));
-			const int32 N = GlowISM->AddInstance(FTransform(G.R, G.P, G.Size));
-			GlowISM->SetCustomDataValue(N, 0, G.Cor.R, false); GlowISM->SetCustomDataValue(N, 1, G.Cor.G, false);
-			GlowISM->SetCustomDataValue(N, 2, G.Cor.B, false); GlowISM->SetCustomDataValue(N, 3, I, false);
+			G.P += G.V * Dt;
+			UInstancedStaticMeshComponent* Alvo = (G.bHalo && HaloISM) ? HaloISM.Get() : GlowISM.Get();
+			const int32 N = Alvo->AddInstance(FTransform(G.R, G.P, G.Size * (1.f + G.Cresce * K)));
+			Alvo->SetCustomDataValue(N, 0, G.Cor.R, false); Alvo->SetCustomDataValue(N, 1, G.Cor.G, false);
+			Alvo->SetCustomDataValue(N, 2, G.Cor.B, false); Alvo->SetCustomDataValue(N, 3, I, false);
 		}
 		GlowISM->MarkRenderStateDirty();
+		if (HaloISM) HaloISM->MarkRenderStateDirty();
 	}
 	if (FlashLight) { FlashT += Dt; FlashLight->SetIntensity(FlashT < 0.35f ? 600000.f * (1.f - FlashT / 0.35f) * (0.6f + 0.4f * FMath::Sin(FlashT * 90.f)) : 0.f); }
 	StoneISM->ClearInstances(); if (Stones.Num()) StoneISM->AddInstances(Stones, false, true);
@@ -1782,4 +1793,166 @@ void AAoEBridgeActor::LimpaPlantas()
 	}
 	if (Total > 0) UE_LOG(LogTemp, Log, TEXT("AoE: %d plantas tiradas de %d pracas/estradas"), Total, ZonasLimpar.Num());
 	ZonasLimpar.Reset();
+}
+
+void AAoEBridgeActor::PowerFx(const FString& Tipo, const FString& Fonte, const FVector& G, float RaioTiles, int32 Dono)
+{
+	// cada poder com a sua cor e forma, feito so de brilhos aditivos (M_Raio) e da poeira (M_Poeira) que ja existem
+	const float Uu = (float)UuPerTile;
+	const float Rt = FMath::Clamp(RaioTiles, 0.5f, 12.f);
+	auto Brilho = [&](const FVector& P, const FVector& Size, const FLinearColor& C, float Dur, const FVector& Vel, float Cresce)
+	{
+		if (Glows.Num() >= 900) return;
+		FAoEGlow Gw; Gw.P = P; Gw.Size = Size; Gw.Cor = C; Gw.Dur = Dur; Gw.V = Vel; Gw.Cresce = Cresce; Glows.Add(Gw);
+	};
+	// halo no chao (disco achatado) que pode se expandir
+	auto HaloEm = [&](const FVector& P, float DiamUu, const FLinearColor& C, float Dur, float Cresce)
+	{
+		if (Glows.Num() >= 900) return;
+		FAoEGlow Gw; Gw.P = P + FVector(0, 0, 18.f); Gw.Size = FVector(DiamUu / 100.f, DiamUu / 100.f, 1.f); Gw.Cor = C * 4.f; Gw.Dur = Dur; Gw.Cresce = Cresce; Gw.bHalo = true;
+		Glows.Add(Gw);
+	};
+	auto Halo = [&](const FLinearColor& C, float Dur, float Cresce) { HaloEm(G, Rt * Uu * 2.f, C, Dur, Cresce); };
+	auto Coluna = [&](const FLinearColor& C, float Alt, float Larg, float Dur) { Brilho(G + FVector(0, 0, Alt * 0.5f), FVector(Larg, Larg, Alt / 100.f), C, Dur, FVector::ZeroVector, 0.f); };
+	// faiscas: N pontos no raio subindo
+	auto Faiscas = [&](int32 N, const FLinearColor& C, float Dur, float Vz, float Z0, float Tam)
+	{
+		for (int32 i = 0; i < N; ++i)
+		{
+			const float A = FMath::FRand() * 2.f * PI, D = FMath::Sqrt(FMath::FRand()) * Rt * Uu;
+			const FVector P = G + FVector(FMath::Cos(A) * D, FMath::Sin(A) * D, Z0 + FMath::FRand() * 60.f);
+			Brilho(P, FVector(Tam, Tam, Tam * 2.2f), C, Dur * (0.7f + 0.6f * FMath::FRand()),
+				FVector((FMath::FRand() - 0.5f) * 40.f, (FMath::FRand() - 0.5f) * 40.f, Vz * (0.7f + 0.6f * FMath::FRand())), 0.f);
+		}
+	};
+	// poeira espalhada no raio (Escuro < 0 = clara/espuma)
+	auto Nevoa = [&](int32 N, float R0, float R1, float Dur, float Escuro)
+	{
+		for (int32 i = 0; i < N; ++i)
+		{
+			const float A = FMath::FRand() * 2.f * PI, D = FMath::Sqrt(FMath::FRand()) * Rt * Uu;
+			AddPuffs(G + FVector(FMath::Cos(A) * D, FMath::Sin(A) * D, 0.f), 1, R0, R1, Dur, Escuro, 60.f);
+		}
+	};
+	const int32 Muitas = FMath::Clamp((int32)(Rt * 8.f), 12, 60);
+	const FString K = Tipo == TEXT("divine") ? Fonte : Tipo;
+
+	if (K == TEXT("heal") || K == TEXT("restoration") || K == TEXT("spring"))
+	{
+		// cura / primavera: anel verde-dourado e luzinhas subindo devagar
+		const FLinearColor C = K == TEXT("spring") ? FLinearColor(0.45f, 1.f, 0.35f) : FLinearColor(0.7f, 1.f, 0.45f);
+		Halo(C * 0.05f, 3.5f, 0.15f);
+		Faiscas(Muitas, C * 1.4f, 3.f, 110.f, 30.f, 0.12f);
+	}
+	else if (K == TEXT("pestilence"))
+	{
+		// peste: nevoa escura e baixa no raio, brilho doentio esverdeado por baixo
+		Nevoa(FMath::Clamp((int32)(Rt * 4.f), 8, 40), 120.f, 340.f, 6.f, 0.75f);
+		Halo(FLinearColor(0.35f, 0.55f, 0.08f) * 0.05f, 6.f, 0.f);
+	}
+	else if (K == TEXT("curse"))
+	{
+		Coluna(FLinearColor(0.55f, 0.15f, 1.f) * 0.5f, 380.f, 0.6f, 1.2f);
+		Faiscas(10, FLinearColor(0.6f, 0.2f, 1.f) * 1.5f, 1.4f, 60.f, 20.f, 0.1f);
+	}
+	else if (K == TEXT("spawn") || K == TEXT("lure") || K == TEXT("sentinel") || K == TEXT("plenty"))
+	{
+		// invocacao: clarao branco-azulado em coluna e anel que se abre
+		Coluna(FLinearColor(0.75f, 0.85f, 1.f) * 0.7f, 900.f, 0.9f, 0.9f);
+		HaloEm(G, 240.f, FLinearColor(0.7f, 0.85f, 1.f) * 0.12f, 1.2f, 1.2f);
+		AddPuffs(G, 5, 50.f, 180.f, 1.6f, 0.f, 160.f);
+	}
+	else if (K == TEXT("evolve"))
+	{
+		Coluna(FLinearColor(0.6f, 0.85f, 1.f) * 0.45f, 420.f, 0.7f, 1.4f);
+		Faiscas(14, FLinearColor(0.7f, 0.9f, 1.f) * 1.4f, 1.6f, 160.f, 20.f, 0.09f);
+	}
+	else if (K == TEXT("petrify"))
+	{
+		AddPuffs(G, 6, 40.f, 140.f, 2.f, 0.f, 80.f);
+		Coluna(FLinearColor(0.8f, 0.8f, 0.75f) * 0.3f, 250.f, 0.8f, 0.8f);
+	}
+	else if (K == TEXT("titanRise"))
+	{
+		// Tita surgindo: anel de poeira, brilho alaranjado de dentro da terra, brasas subindo
+		for (int32 i = 0; i < 24; ++i) { const float A = i / 24.f * 2.f * PI; AddPuffs(G + FVector(FMath::Cos(A), FMath::Sin(A), 0.f) * 4.f * Uu, 1, 160.f, 480.f, 6.f, 0.2f, 150.f); }
+		HaloEm(G, 800.f, FLinearColor(1.f, 0.45f, 0.1f) * 0.12f, 5.f, 0.5f);
+		Faiscas(40, FLinearColor(1.f, 0.5f, 0.15f) * 2.f, 3.f, 260.f, 10.f, 0.14f);
+	}
+	else if (K == TEXT("ability"))
+	{
+		// habilidade de heroi: anel dourado que se expande do heroi ate o raio
+		HaloEm(G, 100.f, FLinearColor(1.f, 0.8f, 0.35f) * 0.25f, 0.8f, Rt * Uu * 2.f / 100.f);
+		Faiscas(12, FLinearColor(1.f, 0.85f, 0.45f) * 1.5f, 1.f, 120.f, 30.f, 0.12f);
+	}
+	else if (K == TEXT("bronze"))
+	{
+		// pele de bronze: brilho dourado curto em cada unidade do dono
+		int32 N = 0;
+		for (const TPair<int32, FAoEVisual>& U : Units)
+		{
+			if (U.Value.Dono != Dono || N >= 120) continue;
+			Brilho(U.Value.GroundPoint + FVector(0, 0, 90.f), FVector(0.9f, 0.9f, 1.9f), FLinearColor(1.f, 0.62f, 0.25f) * 0.18f, 1.6f, FVector::ZeroVector, 0.f);
+			++N;
+		}
+	}
+	else if (K == TEXT("nodeGone")) AddPuffs(G, 3, 40.f, 140.f, 1.6f, 0.f, 70.f);
+	else if (K == TEXT("panic") || K == TEXT("retribution"))
+	{
+		const FLinearColor C = K == TEXT("panic") ? FLinearColor(0.9f, 0.2f, 0.35f) : FLinearColor(1.f, 0.15f, 0.08f);
+		Halo(C * 0.07f, 2.2f, 0.35f);
+		Faiscas(Muitas, C * 1.6f, 1.6f, 200.f, 30.f, 0.12f);
+	}
+	else if (K == TEXT("crossroads"))
+	{
+		Halo(FLinearColor(0.5f, 0.25f, 1.f) * 0.08f, 2.5f, 0.2f);
+		Coluna(FLinearColor(0.55f, 0.3f, 1.f) * 0.5f, 1100.f, 1.1f, 1.6f);
+	}
+	else if (K == TEXT("gale"))
+	{
+		// vendaval: rajadas de poeira clara varrendo o raio
+		for (int32 i = 0; i < FMath::Clamp((int32)(Rt * 4.f), 8, 36); ++i)
+		{
+			FAoEPuff F; const float A = FMath::FRand() * 2.f * PI, D = FMath::Sqrt(FMath::FRand()) * Rt * Uu;
+			F.P = G + FVector(FMath::Cos(A) * D, FMath::Sin(A) * D, 40.f);
+			F.V = FVector(900.f, 300.f, 60.f) * (0.6f + 0.6f * FMath::FRand()); F.R0 = 60.f; F.R1 = 260.f; F.Dur = 2.2f; F.Dark = -0.3f;
+			if (Puffs.Num() < 400) Puffs.Add(F);
+		}
+	}
+	else if (K == TEXT("tidal_wave"))
+	{
+		// maremoto: espuma e borrifo brancos no raio, brilho azul-esverdeado
+		Nevoa(FMath::Clamp((int32)(Rt * 5.f), 10, 45), 80.f, 260.f, 2.4f, -0.6f);
+		Halo(FLinearColor(0.15f, 0.6f, 0.75f) * 0.08f, 2.5f, 0.3f);
+	}
+	else if (K == TEXT("divine_harvest"))
+	{
+		Halo(FLinearColor(1.f, 0.82f, 0.3f) * 0.06f, 3.f, 0.1f);
+		Faiscas(Muitas, FLinearColor(1.f, 0.85f, 0.35f) * 1.4f, 2.6f, 90.f, 30.f, 0.12f);
+	}
+	else if (K == TEXT("sun_chariot"))
+	{
+		// carro do sol: chao queimando, brilho quente e o clarao da cena
+		Nevoa(10, 60.f, 200.f, 2.f, 0.35f);
+		Halo(FLinearColor(1.f, 0.55f, 0.15f) * 0.12f, 2.f, 0.25f);
+		Coluna(FLinearColor(1.f, 0.75f, 0.35f) * 0.6f, 1400.f, 1.4f, 1.f);
+		if (FlashLight) { FlashLight->SetWorldLocation(G + FVector(0, 0, 800.f)); FlashT = 0.f; }
+	}
+	else if (K == TEXT("winged_victory"))
+	{
+		Halo(FLinearColor(1.f, 0.95f, 0.75f) * 0.07f, 2.5f, 0.25f);
+		Faiscas(30, FLinearColor(1.f, 0.95f, 0.8f) * 1.6f, 2.f, 240.f, 30.f, 0.12f);
+	}
+	else if (K == TEXT("phoenix"))
+	{
+		AddPuffs(G, 4, 50.f, 180.f, 1.5f, 0.3f, 60.f);
+		Coluna(FLinearColor(1.f, 0.5f, 0.12f) * 0.7f, 700.f, 1.f, 1.2f);
+		Faiscas(24, FLinearColor(1.f, 0.55f, 0.15f) * 2.f, 1.8f, 220.f, 30.f, 0.12f);
+	}
+	else if (Tipo == TEXT("divine"))
+	{
+		// poder sem visual proprio: halo dourado e coluna de luz (o de antes)
+		Halo(FLinearColor(1.f, 0.78f, 0.35f) * 0.06f, 1.6f, 0.f);
+		Coluna(FLinearColor(1.f, 0.82f, 0.45f) * 0.35f, 1200.f, 0.35f, 1.2f);
+	}
 }

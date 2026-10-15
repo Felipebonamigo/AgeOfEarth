@@ -8,7 +8,7 @@ Decisão do dono em 14/10/2026: **seguir no Unreal**. Itens que a sessão local 
   87 mil triângulos com `simplifySloppy`). Baixar de novo o original do Meshy (URL em `art/meshy/catalogo.json`) e reduzir com
   mais cuidado (200–300 mil, Nanite aguenta). **Fora do catálogo desde 14/10** (só a casa caiada aparece).
 - ~~Orientação das unidades~~ (14/10): `-AoEVitrine -AoEVitrineAndar` põe os 31 tipos andando para +X; uma tomada por tipo (`AOE_VITRINE` no log dá a posição) com a câmera em +X. 30 de 31 andavam de frente; a **mantícora** andava de lado e foi para yaw −135 no catálogo. Armas ficam como vieram nos modelos.
-- **Efeitos**: flechas, pedras, poeira, fumaça e fogo feitos por instâncias (14/10). Faltam faíscas de bronze, sangue não (regra do jogo), efeitos dos 21 poderes, respingo/rastro de navio.
+- **Efeitos**: flechas, pedras, poeira, fumaça e fogo por instâncias; cada poder com anel/faíscas/coluna próprios (14/10). Faltam: espuma clara (o `M_Poeira` só escurece; maremoto e vendaval saem cinza), faíscas de bronze no golpe, respingo/rastro de navio; Niagara de verdade pelo MCP numa sessão nova.
 - **Ciclo de dia e variação de céu**; ajuste fino de contraste dos campos.
 - **Nanite desligado** em folhagem/vento (73 malhas) por causa de travamento de GPU (`u1_nanite.py`); reavaliar em versão nova do motor.
 - **Risco: copas da island_tree no Nanite** (folhas mascaradas, `M_Folha` com "Used with Nanite" desde 14/10). Na build: 7 de 7
