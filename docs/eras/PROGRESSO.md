@@ -758,7 +758,7 @@ Aceitação final (`npm run balance 60 1-18 -- --jobs 3 --targets`, `docs/perf/2
 ### Pendências para o dono (E10)
 - **D18**: Eras II, III e IV ficam ~2 min acima do alvo (5,8 / 11 / 16 contra 4 / 9 / 14) depois de todos os degraus da escada. O gargalo é o ouro (Biblioteca 100 + avanço 300) e os dados dessas Eras são da campanha. Decidir: aceitar os números, ou mexer nos custos/tempos das Eras II–IV (isso muda a campanha e exige recalibrar `missions.ts`).
 - Fortaleza sem lugar em mapa pequeno de mar (Mediterrâneo semente 3; Ilhas semente 4 antes do ajuste de madeira): gerador deveria garantir um 4×4 livre (como `ensureShipyardSite`).
-- Pior tick da simulação de 57–67 ms em picos isolados (orçamento 50 ms); média e p95 muito abaixo.
+- Pior tick da simulação de 57–67 ms em picos isolados (orçamento 50 ms); média e p95 muito abaixo. **16/10/2026:** perfil dos picos (inspector, 50 µs): 1) `nearestNodeBy` varria o quadrado inteiro a cada anel (O(R³)) — agora só o perímetro, mesma ordem de visita (hash do smoke inalterado); 2) `findPathEx` com o reteste de 40 000 nós em `moveTowards` (~20 ms num tick) — pendência (mexer no orçamento muda a partida, pede SIM_VERSION). Continental 30 min: 8 ticks > 25 ms (pior 57,7) → 4 (pior 43).
 - Posição do Costeiro (66 %) e das Ilhas (69 %): mapas gerados não são simétricos; só o índice é critério.
 - N3 (render com Eras altas) e P1–P3 (`art:diff`, screenshots da loja, `LOJA.md`/`PRESSKIT.md` com os fatos de 8 Eras) esperam a E8/Unreal; os textos da loja ainda dizem 5 Idades.
 

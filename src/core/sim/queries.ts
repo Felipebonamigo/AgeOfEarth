@@ -18,8 +18,8 @@ export function nearestNodeBy(state: GameState, x: number, y: number, match: (n:
   let best: ResourceNode | null = null, bestD = Infinity;
   for (let r = 0; r <= maxR; r++) {
     if (best && bestD < r - 1) break;
-    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-      if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+    // só o perímetro do anel (mesma ordem de visita de antes: dy crescente, dx crescente), não o quadrado inteiro
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx += (dy === -r || dy === r || r === 0) ? 1 : 2 * r) {
       const tx = cx + dx, ty = cy + dy;
       if (!inBounds(map, tx, ty)) continue;
       const id = map.nodeAt[idx(map, tx, ty)];
