@@ -86,6 +86,8 @@ void AAoETerreno::ConstruirMalha()
 	const int32 Quads = N - 1;
 	const int32 Nb = FMath::DivideAndRoundUp(Quads, Bloco);
 	int32 Sec = 0;
+	Malha->bUseAsyncCooking = true;   // a colisao (49 blocos de ~10 mil triangulos) era preparada na thread do jogo: 15 s de tela parada
+	const double T0 = FPlatformTime::Seconds();
 	for (int32 By = 0; By < Nb; ++By)
 		for (int32 Bx = 0; Bx < Nb; ++Bx)
 		{
@@ -115,6 +117,7 @@ void AAoETerreno::ConstruirMalha()
 			Malha->CreateMeshSection(Sec, V, Tri, Nrm, UV, TArray<FColor>(), Tan, true);
 			++Sec;
 		}
+	UE_LOG(LogTemp, Log, TEXT("AoE: malha criada em %.0f ms"), (FPlatformTime::Seconds() - T0) * 1000.0);
 	Malha->SetCollisionObjectType(ECC_WorldStatic);
 	Malha->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	Malha->SetCollisionResponseToAllChannels(ECR_Block);

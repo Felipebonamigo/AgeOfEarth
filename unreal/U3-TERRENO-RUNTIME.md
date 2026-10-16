@@ -51,3 +51,12 @@ Enquanto isso, os mapas `U1`/`U1M` seguem para testes, com a conferência de ter
   semente/tamanho/jogadores sem refazer mapa. `-AoESemRelevo` volta ao Landscape do mapa (U1/U1M, legado).
 - **Falta**: LOD do terreno para mapas enormes (12 jogadores), biomas (materiais e vegetação por bioma), árvores/florestas dos nós já
   vêm da ponte, tempo de montagem (~1–2 s) atrás da tela de carregamento, colisão mais leve.
+
+## Tempo de carregamento e dois defeitos achados (16/10/2026)
+- Servidor: relevo + plantas em 0,2–0,3 s (mapa grande incluso). Cliente: montar a malha levava **15,4 s** (colisão dos 49 blocos na
+  thread do jogo); com `bUseAsyncCooking` caiu para **1,3 s**. O fps em jogo é o do mapa antigo (altura do chão agora sem traço de raio).
+- O `M_TerrenoRT` não era cozido (só carregado por código): a build ficava com o material padrão cinza. `/Game/Terreno` entrou em
+  `DirectoriesToAlwaysCook` e a conferência do `u1-empacotar.sh` falha em "sem /Game/…".
+- As copas das árvores sumiam de longe (LODs com menos de ~10 % dos triângulos colapsam os cartões de folha; já no mapa antigo). LODs
+  agora 22 %/9 %/4,5 %/2,2 %: copas de volta, Épico ~75–80 fps (era ~105 sem copa de longe). Pendência: copa simplificada própria para a
+  distância (mais barata que reduzir a malha).

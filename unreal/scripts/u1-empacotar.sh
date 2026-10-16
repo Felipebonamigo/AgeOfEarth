@@ -37,7 +37,7 @@ if [ "${VERIFICAR:-1}" = "1" ]; then
   taskkill //IM AgeOfEarthUE.exe //F >/dev/null 2>&1; taskkill //IM AgeOfEarthUE-Win64-Development.exe //F >/dev/null 2>&1
   for pid in $(netstat -ano | grep ":8790 .*LISTENING" | awk '{print $5}' | sort -u); do taskkill //PID "$pid" //F >/dev/null 2>&1; done
   LOG="$SAIDA/Windows/AgeOfEarthUE/Saved/Logs/AgeOfEarthUE.log"
-  FALTAS=$(grep -iE "nao encontrad|sem visual no catalogo|Failed to load|Fatal error" "$LOG" | grep -vE "dlssd|NGXSecureLoadFeature|caravan|merchant|LogWindows: Failed to load .*.dll|SoundConcurrency" | sort | uniq -c)
+  FALTAS=$(grep -iE "nao encontrad|sem /Game/|sem visual no catalogo|Failed to load|Fatal error" "$LOG" | grep -vE "dlssd|NGXSecureLoadFeature|caravan|merchant|LogWindows: Failed to load .*.dll|SoundConcurrency" | sort | uniq -c)
   if [ -n "$FALTAS" ]; then echo "VERIFICAÇÃO FALHOU: assets faltando na build"; echo "$FALTAS" | head -20; exit 2; fi
   echo "verificação ok: nenhum asset faltando ($(grep -c AOE_PERF "$LOG") amostras de desempenho)"
 fi
