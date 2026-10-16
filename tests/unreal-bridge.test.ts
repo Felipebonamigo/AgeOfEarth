@@ -18,6 +18,11 @@ describe('protocolo da ponte', () => {
     expect(h.nodes.length).toBe(s.map.nodes.size);
     expect(h.unitTypes.hoplite.cls).toBe('infantry');
     expect(h.buildingTypes.town_center.w).toBe(3);
+    expect(h.buildingTypes.barracks.cost).toBeTruthy();
+    expect(h.buildingTypes.academy.library).toBe(true);
+    expect(typeof h.buildingTypes.town_center.desc).toBe('string');
+    expect(h.unitTypes.hoplite.cost).toBeTruthy();
+    expect(typeof h.unitTypes.hoplite.age).toBe('number');
   });
 
   it('state: o jogador vê as próprias unidades e edifícios; o inimigo longe fica de fora (sem reveal)', () => {

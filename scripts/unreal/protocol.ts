@@ -50,8 +50,8 @@ export function buildHello(state: GameState, opts: BridgeOptions) {
     players: state.players.map((p) => ({ id: p.id, name: p.name, color: p.color, team: p.team, god: p.god, isAI: p.isAI })),
     ages: AGES.map((a) => ({ id: a.id, name: a.name })),
     // dados mínimos dos tipos para o cliente escolher modelos e escalas sem importar o jogo inteiro
-    unitTypes: Object.fromEntries(Object.values(UNITS).map((u) => [u.id, { name: u.name, cls: u.cls, radius: u.radius, tags: u.tags, speed: u.speed, range: u.range, pop: u.pop }])),
-    buildingTypes: Object.fromEntries(Object.values(BUILDINGS).map((b) => [b.id, { name: b.name, w: b.w, h: b.h, trains: b.trains ?? [], wonder: !!b.wonder }])),
+    unitTypes: Object.fromEntries(Object.values(UNITS).map((u) => [u.id, { name: u.name, cls: u.cls, radius: u.radius, tags: u.tags, speed: u.speed, range: u.range, pop: u.pop, cost: u.cost, age: u.age, building: u.building, hotkey: u.hotkey ?? null, trainTime: u.trainTime }])),
+    buildingTypes: Object.fromEntries(Object.values(BUILDINGS).map((b) => [b.id, { name: b.name, w: b.w, h: b.h, trains: b.trains ?? [], wonder: !!b.wonder, age: b.age, cost: b.cost, hotkey: b.hotkey ?? null, limit: b.limit ?? null, desc: b.desc, buildTime: b.buildTime, library: !!b.library, queueMax: b.queueMax ?? null }])),
     gods: Object.fromEntries(Object.values(MAJOR_GODS).map((g) => [g.id, { name: g.name, power: g.power }])),
   };
 }
@@ -115,6 +115,8 @@ export class BridgeSession {
       buildings.push({
         id: b.id, t: b.type, o: b.owner, tx: b.tx, ty: b.ty, w: b.w, h: b.h, hp: Math.round(b.hp), mhp: Math.round(b.maxHp),
         c: b.complete ? 1 : 0, p: b.complete ? 1 : r2(def.buildTime > 0 ? Math.min(1, b.progress / def.buildTime) : 1), q: b.queue.length, v: vis, age: state.players[b.owner].age,
+        // fila de produção/pesquisa só dos edifícios do time (HUD de fila, Biblioteca e avanço de Era): item, tipo e progresso 0–1
+        ...(mine ? { queue: b.queue.map((it) => ({ k: it.kind, id: it.id, p: r2(it.total > 0 ? Math.min(1, it.elapsed / it.total) : 0) })) } : {}),
       });
     }
     // nós: só o que mudou desde a última vez (quantidade) e os que sumiram (-1)

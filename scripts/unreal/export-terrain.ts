@@ -162,14 +162,16 @@ if (process.argv[1] && /export-terrain\.ts$/.test(process.argv[1])) {
   const opt = (n: string, d?: string) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; };
   const mapFile = opt('--map');
   const seed = Number(opt('--seed', '42')), mapSize = (opt('--size', 'medium') as 'small' | 'medium' | 'large');
+  const nPlayers = Math.max(2, Math.min(4, Number(opt('--players', '2'))));   // a simulação de 4 jogadores difere em ~1,4 % dos tiles da de 2
+  const players = Array.from({ length: nPlayers }, (_, i) => ({ name: `p${i}`, god: 'zeus', isAI: false, difficulty: 'normal' as const }));
   let name = `seed${seed}-${mapSize}`;
   let map: GameMap;
   if (mapFile) {
     const data: FixedMapData = migrateMap(JSON.parse(fs.readFileSync(mapFile, 'utf8')));
     name = data.id ?? path.basename(mapFile).replace(/\.map\.json$/, '');
-    map = createGame({ seed, mapSize, players: [{ name: 'a', god: 'zeus', isAI: false, difficulty: 'normal' }, { name: 'b', god: 'zeus', isAI: false, difficulty: 'normal' }], map: data }).map;
+    map = createGame({ seed, mapSize, players, map: data }).map;
   } else {
-    map = createGame({ seed, mapSize, players: [{ name: 'a', god: 'zeus', isAI: false, difficulty: 'normal' }, { name: 'b', god: 'zeus', isAI: false, difficulty: 'normal' }] }).map;
+    map = createGame({ seed, mapSize, players }).map;
   }
   const out = path.resolve(opt('--out', `unreal/exports/${name}`)!);
   const t = buildTerrain(map, { size: Number(opt('--landscape', '1009')), name });
