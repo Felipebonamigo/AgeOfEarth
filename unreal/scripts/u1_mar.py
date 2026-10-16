@@ -97,8 +97,12 @@ def main():
         foam.set_editor_property(k, k == "a")
     mel.connect_material_expressions(c, "", foam, "")
 
-    raso = const3(mat, 0.03, 0.42, 0.48, -450, 400)
-    fundo = const3(mat, 0.008, 0.12, 0.20, -450, 500)   # azul do Egeu, um pouco menos marinho
+    raso = no(mat, unreal.MaterialExpressionVectorParameter, -450, 400)   # bioma: CorRaso / CorFundo
+    raso.set_editor_property("parameter_name", "CorRaso")
+    raso.set_editor_property("default_value", unreal.LinearColor(0.03, 0.42, 0.48, 1.0))
+    fundo = no(mat, unreal.MaterialExpressionVectorParameter, -450, 500)
+    fundo.set_editor_property("parameter_name", "CorFundo")
+    fundo.set_editor_property("default_value", unreal.LinearColor(0.008, 0.12, 0.20, 1.0))
     cor = no(mat, unreal.MaterialExpressionLinearInterpolate, -200, 400)
     mel.connect_material_expressions(raso, "", cor, "A")
     mel.connect_material_expressions(fundo, "", cor, "B")

@@ -1,0 +1,82 @@
+{
+  "_comentario": "Biomas do Unreal (U3). Cada um troca cores (tintas das 4 camadas do terreno, mar), luz e névoa; o resto do código é o mesmo. A ponte manda o id em relevo.cab.bioma. sol.intensidadeX = fator sobre a intensidade do mapa; NÃO sobrescrever a cor do sol (deixou a cena amarelada, 16/10).",
+  "biomas": {
+    "atica": {
+      "nome": "Ática",
+      "tom": {
+        "grass": [
+          1,
+          1,
+          1
+        ],
+        "dirt": [
+          1,
+          1,
+          1
+        ],
+        "sand": [
+          1,
+          1,
+          1
+        ],
+        "rock": [
+          1,
+          1,
+          1
+        ]
+      },
+      "mar": {
+        "raso": [
+          0.03,
+          0.42,
+          0.48
+        ],
+        "fundo": [
+          0.008,
+          0.12,
+          0.2
+        ]
+      }
+    },
+    "egeu": {
+      "nome": "Egeu",
+      "tom": {
+        "grass": [
+          1.35,
+          1.12,
+          0.55
+        ],
+        "dirt": [
+          1.3,
+          1.1,
+          0.8
+        ],
+        "sand": [
+          1.4,
+          1.35,
+          1.2
+        ],
+        "rock": [
+          1.4,
+          1.35,
+          1.25
+        ]
+      },
+      "mar": {
+        "raso": [
+          0.01,
+          0.62,
+          0.7
+        ],
+        "fundo": [
+          0.002,
+          0.14,
+          0.34
+        ]
+      },
+      "sol": {
+        "intensidadeX": 1.12
+      }
+    }
+  }
+}

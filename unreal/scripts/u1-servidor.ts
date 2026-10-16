@@ -36,7 +36,7 @@ const relevo = relevoN > 0 ? (() => {
 // o WebSocket do Unreal recusa mensagem grande (1009 "exceeded memory limit"): o relevo vai em pedacos de 120 KB, antes dos estados
 const relevoMensagens = (): object[] => {
   if (!relevo) return [];
-  const out: object[] = [{ type: 'relevo', cab: { n: relevo.n, zero: relevo.zero, porMetro: relevo.porMetro, zScale: relevo.zScale } }];
+  const out: object[] = [{ type: 'relevo', cab: { n: relevo.n, zero: relevo.zero, porMetro: relevo.porMetro, zScale: relevo.zScale, bioma: arg('bioma', 'atica') } }];
   for (const campo of ['altura', 'grama', 'terra', 'areia', 'rocha', 'agua'] as const) {
     const d = relevo[campo]; const PARTE = 120_000;
     for (let i = 0; i < d.length; i += PARTE) out.push({ type: 'relevo', campo, d: d.slice(i, i + PARTE) });

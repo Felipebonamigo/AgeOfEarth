@@ -2074,7 +2074,7 @@ void AAoEBridgeActor::MontarTerreno()
 	if (Terreno) Terreno->Destroy();
 	Terreno = GetWorld()->SpawnActor<AAoETerreno>(FVector::ZeroVector, FRotator::ZeroRotator);
 	if (!Terreno->Montar(R, (float)MapW * (float)UuPerTile)) { UE_LOG(LogTemp, Warning, TEXT("AoE: relevo invalido")); Terreno->Destroy(); Terreno = nullptr; }
-	else for (TActorIterator<AActor> It(GetWorld()); It; ++It) if (It->GetClass()->GetName().Contains(TEXT("Landscape"))) { It->SetActorHiddenInGame(true); It->SetActorEnableCollision(false); }
+	else { FString Bioma = TEXT("atica"); FString BiomaArg; if (FParse::Value(FCommandLine::Get(), TEXT("AoEBioma="), BiomaArg)) Bioma = BiomaArg; else RelevoCab->TryGetStringField(TEXT("bioma"), Bioma); Terreno->AplicarBioma(Bioma); for (TActorIterator<AActor> It(GetWorld()); It; ++It) if (It->GetClass()->GetName().Contains(TEXT("Landscape"))) { It->SetActorHiddenInGame(true); It->SetActorEnableCollision(false); } }
 	UE_LOG(LogTemp, Log, TEXT("AoE: terreno montado em %.0f ms (malha, textura, colisao)"), (FPlatformTime::Seconds() - TMontar) * 1000.0);
 	RelevoAcum.Empty();
 }

@@ -25,12 +25,15 @@ public:
 	float AlturaEm(float X, float Y) const;
 
 	bool Pronto() const { return N > 0; }
+	/** Bioma (Dados/biomas.json): tintas das camadas, cor do mar, sol e nevoa. Id desconhecido = "atica". */
+	void AplicarBioma(const FString& Id);
 
 private:
 	UPROPERTY() TObjectPtr<UProceduralMeshComponent> Malha;
 	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> Material;
 	UPROPERTY() TObjectPtr<UTexture2D> Pesos;
 	UPROPERTY() TObjectPtr<AActor> Mar;
+	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> MarMat;
 
 	int32 N = 0;                 // amostras por lado
 	float Lado = 0.f;            // tamanho do mapa em uu

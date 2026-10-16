@@ -5,6 +5,14 @@
 #include "Engine/StaticMeshActor.h"
 #include "Components/StaticMeshComponent.h"
 #include "Misc/Base64.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Serialization/JsonSerializer.h"
+#include "EngineUtils.h"
+#include "Engine/DirectionalLight.h"
+#include "Components/LightComponent.h"
+#include "Engine/ExponentialHeightFog.h"
+#include "Components/ExponentialHeightFogComponent.h"
 #include "Algo/MinElement.h"
 #include "Algo/MaxElement.h"
 
@@ -144,9 +152,43 @@ void AAoETerreno::ConstruirMar()
 	UStaticMeshComponent* C = P->GetStaticMeshComponent();
 	C->SetMobility(EComponentMobility::Movable);
 	C->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane")));
-	if (UMaterialInterface* Mat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Terreno/M_Mar.M_Mar"))) C->SetMaterial(0, Mat);
+	if (UMaterialInterface* Mat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Terreno/M_Mar.M_Mar"))) { MarMat = UMaterialInstanceDynamic::Create(Mat, this); C->SetMaterial(0, MarMat); }
 	C->SetCastShadow(false);
 	C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	P->SetActorScale3D(FVector(Lado * 4.f / 100.f, Lado * 4.f / 100.f, 1.f));
 	Mar = P;
+}
+
+void AAoETerreno::AplicarBioma(const FString& Id)
+{
+	if (FParse::Param(FCommandLine::Get(), TEXT("AoESemBioma"))) return;   // diagnostico: materiais com os padroes
+	FString Txt; TSharedPtr<FJsonObject> R;
+	if (!FFileHelper::LoadFileToString(Txt, *FPaths::Combine(FPaths::ProjectDir(), TEXT("Dados"), TEXT("biomas.json"))) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Txt), R) || !R.IsValid()) return;
+	const TSharedPtr<FJsonObject>* Todos = nullptr;
+	if (!R->TryGetObjectField(TEXT("biomas"), Todos)) return;
+	const TSharedPtr<FJsonObject>* B = nullptr;
+	if (!(*Todos)->TryGetObjectField(Id, B) && !(*Todos)->TryGetObjectField(TEXT("atica"), B)) return;
+	auto Cor = [](const TSharedPtr<FJsonObject>& O, const TCHAR* K, FLinearColor Pad) { const TArray<TSharedPtr<FJsonValue>>* A = nullptr; if (O->TryGetArrayField(K, A) && A->Num() >= 3) return FLinearColor((float)(*A)[0]->AsNumber(), (float)(*A)[1]->AsNumber(), (float)(*A)[2]->AsNumber()); return Pad; };
+	const TSharedPtr<FJsonObject>* O = nullptr;
+	if ((*B)->TryGetObjectField(TEXT("tom"), O) && Material)
+		for (const TCHAR* K : { TEXT("grass"), TEXT("dirt"), TEXT("sand"), TEXT("rock") }) Material->SetVectorParameterValue(*FString::Printf(TEXT("Tom_%s"), K), Cor(*O, K, FLinearColor::White));
+	if ((*B)->TryGetObjectField(TEXT("mar"), O) && MarMat)
+	{
+		MarMat->SetVectorParameterValue(TEXT("CorRaso"), Cor(*O, TEXT("raso"), FLinearColor(0.03f, 0.42f, 0.48f)));
+		MarMat->SetVectorParameterValue(TEXT("CorFundo"), Cor(*O, TEXT("fundo"), FLinearColor(0.008f, 0.12f, 0.2f)));
+	}
+	if ((*B)->TryGetObjectField(TEXT("sol"), O))
+		for (TActorIterator<ADirectionalLight> It(GetWorld()); It; ++It)
+		{
+			ULightComponent* L = It->GetLightComponent();
+			double V = 0; if ((*O)->TryGetNumberField(TEXT("intensidadeX"), V)) L->SetIntensity(L->Intensity * (float)V);
+		}
+	if ((*B)->TryGetObjectField(TEXT("nevoa"), O))
+		for (TActorIterator<AExponentialHeightFog> It(GetWorld()); It; ++It)
+		{
+			UExponentialHeightFogComponent* F = It->GetComponent();
+			F->SetFogInscatteringColor(Cor(*O, TEXT("cor"), FLinearColor(0.55f, 0.65f, 0.78f)));
+			double V = 0; if ((*O)->TryGetNumberField(TEXT("densidade"), V)) F->SetFogDensity((float)V);
+		}
+	UE_LOG(LogTemp, Log, TEXT("AoE: bioma %s aplicado"), *Id);
 }

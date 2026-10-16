@@ -60,3 +60,13 @@ Enquanto isso, os mapas `U1`/`U1M` seguem para testes, com a conferência de ter
 - As copas das árvores sumiam de longe (LODs com menos de ~10 % dos triângulos colapsam os cartões de folha; já no mapa antigo). LODs
   agora 22 %/9 %/4,5 %/2,2 %: copas de volta, Épico ~75–80 fps (era ~105 sem copa de longe). Pendência: copa simplificada própria para a
   distância (mais barata que reduzir a malha).
+
+## Biomas (16/10/2026): Ática e Egeu
+- `Dados/biomas.json`: cada bioma troca as tintas das 4 camadas do terreno (`Tom_grass/dirt/sand/rock` no `M_TerrenoRT`), as cores
+  do mar (`CorRaso/CorFundo` no `M_Mar`) e opcionalmente névoa e sol. A ponte manda o id em `relevo.cab.bioma`
+  (`u1-servidor.ts --bioma egeu`); `-AoEBioma=egeu` força no cliente; `-AoESemBioma` desliga (diagnóstico).
+- **Ática** = o visual de sempre (verde, tintas neutras). **Egeu** = seco e dourado, calcário claro, mar turquesa forte, sol ×1,12.
+- Armadilha: sobrescrever a COR do sol por `SetLightColor` deixou a cena toda amarelada/desbotada mesmo com o valor igual ao do mapa;
+  por isso o sol do bioma é só um fator de intensidade (`intensidadeX`).
+- Falta: Montanha, Creta árida/Egito e Submundo; vegetação por bioma (oliveiras no Egeu, pinheiros na montanha); escolha automática
+  pelo tipo de mapa e opção manual no menu de partida (U4).

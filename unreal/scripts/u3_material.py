@@ -54,6 +54,13 @@ def main():
     mel.connect_material_expressions(constante(mat, 0.35, 150, -200), "", dess, "Fraction")
     cores["grass"] = mult(mat, dess, tom, 450, -40)
 
+    # tintas do bioma (VectorParameter, padrao 1 = sem mudanca): multiplicam a cor de cada camada antes da mistura
+    for i, k in enumerate(("grass", "dirt", "sand", "rock")):
+        tp = no(mat, unreal.MaterialExpressionVectorParameter, 300, 700 * (i + 1) - 120)
+        tp.set_editor_property("parameter_name", "Tom_" + k)
+        tp.set_editor_property("default_value", unreal.LinearColor(1.0, 1.0, 1.0, 1.0))
+        cores[k] = mult(mat, cores[k], tp, 520, 700 * i)
+
     # pesos: textura (RGBA = terra, areia, rocha, grama) em coordenadas de mundo / LadoMapa
     lado = no(mat, unreal.MaterialExpressionScalarParameter, -1300, 1200)
     lado.set_editor_property("parameter_name", "LadoMapa")
