@@ -51,43 +51,47 @@
 		},
 		{
 			"Name": "FSR",
-			"Enabled": true
-		},
-		{
-			"Name": "StreamlineNGXCommon",
-			"Enabled": true
+			"Enabled": false
 		},
 		{
 			"Name": "DLSS",
-			"Enabled": true
+			"Enabled": false
+		},
+		{
+			"Name": "StreamlineNGXCommon",
+			"Enabled": false
 		},
 		{
 			"Name": "StreamlineCore",
-			"Enabled": true
-		},
-		{
-			"Name": "StreamlineDLSSG",
-			"Enabled": true
-		},
-		{
-			"Name": "StreamlineDeepDVC",
-			"Enabled": true
-		},
-		{
-			"Name": "StreamlineReflex",
-			"Enabled": true
+			"Enabled": false
 		},
 		{
 			"Name": "Streamline",
-			"Enabled": true
+			"Enabled": false
 		},
 		{
-			"Name": "NIS",
-			"Enabled": true
+			"Name": "StreamlineDLSSG",
+			"Enabled": false
+		},
+		{
+			"Name": "StreamlineDeepDVC",
+			"Enabled": false
+		},
+		{
+			"Name": "StreamlineReflex",
+			"Enabled": false
 		},
 		{
 			"Name": "DLSSMoviePipelineSupport",
-			"Enabled": true
+			"Enabled": false
+		},
+		{
+			"Name": "NIS",
+			"Enabled": false
+		},
+		{
+			"Name": "FSRMovieRenderPipeline",
+			"Enabled": false
 		}
 	],
 	"TargetPlatforms": [
