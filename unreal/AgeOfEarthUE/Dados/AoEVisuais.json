@@ -580,9 +580,7 @@
     "tree": {
       "malhas": [
         "/Game/Vegetacao/island_tree_02/island_tree_02/StaticMeshes/island_tree_02",
-        "/Game/Vegetacao/island_tree_01/island_tree_01/StaticMeshes/island_tree_01",
-        "natureza/cypress__cypress-tree-chad",
-        "natureza/cypress__cypress-tree-swaney"
+        "/Game/Vegetacao/island_tree_01/island_tree_01/StaticMeshes/island_tree_01"
       ],
       "altura": 680
     },
