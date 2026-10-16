@@ -45,7 +45,8 @@ for nome in ARVORES:
         opc = unreal.StaticMeshReductionOptions()
         opc.set_editor_property("auto_compute_lod_screen_size", False)
         niveis = []
-        for tela, frac in ((1.0, 0.12), (0.45, 0.04), (0.22, 0.012), (0.1, 0.004)):
+        # folhas sao cartoes finos: com menos de ~10 % dos triangulos elas colapsam e a copa vira galhos pretos de longe (15-16/10)
+        for tela, frac in ((1.0, 0.22), (0.30, 0.09), (0.12, 0.045), (0.05, 0.022)):
             r = unreal.StaticMeshReductionSettings()
             r.set_editor_property("percent_triangles", frac)
             r.set_editor_property("screen_size", tela)
