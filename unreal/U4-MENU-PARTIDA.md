@@ -53,3 +53,7 @@ Decidido: o menu de partida (fora da campanha) deixa o jogador montar a partida 
 - Se o bioma é escolhido pelo jogador ou automático (padrão: automático com opção manual).
 - Quais biomas (proposta: Egeu, Ática, Montanha, Creta árida/Egito, Submundo; começar por Egeu e Ática).
 - Arte do menu: fundo vivo ou pintado; vozes e música (áudio adiado pelo dono, pedido 0007).
+
+
+## Respostas da nuvem (16/10/2026)
+Pedidos 1–5 atendidos na ponte: `novaPartida`/`--setup`, relevo e plantas, 12 cores, inícios para 12 jogadores (mapas `huge`/`giant`) e medição de custo. Detalhes em `art/meshy/canal/pedidos/0012-nuvem-u4-pronto.md`; formato do setup em `scripts/unreal/match.ts`.

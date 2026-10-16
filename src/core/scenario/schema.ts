@@ -227,7 +227,7 @@ export function validateScenario(file: unknown, opts: ValidateScenarioOpts = {})
     if (!isObj(f.map)) err('map', 'esperado { gen } ou { data }');
     else if (isObj(f.map.gen)) {
       const g = f.map.gen;
-      if (typeof g.mapSize !== 'string' || !has(MAP_SIZES, g.mapSize)) err('map.gen.mapSize', "esperado 'small', 'medium' ou 'large'");
+      if (typeof g.mapSize !== 'string' || !['small', 'medium', 'large'].includes(g.mapSize)) err('map.gen.mapSize', "esperado 'small', 'medium' ou 'large'");
       if (g.mapType !== undefined && !MAP_TYPES.includes(g.mapType as MapType)) err('map.gen.mapType', `tipo de mapa desconhecido: '${String(g.mapType)}'`);
       if (!isInt(g.seed)) err('map.gen.seed', 'semente obrigatória (inteiro)');
       if (f.map.relics !== undefined) checkRelics(f.map.relics, typeof g.mapSize === 'string' && has(MAP_SIZES, g.mapSize) ? MAP_SIZES[g.mapSize as keyof typeof MAP_SIZES] : undefined, 'map.relics', err);   // G10

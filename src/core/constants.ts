@@ -2,7 +2,9 @@
 export const TILE = 32;              // pixels por tile no zoom 1
 export const TICK_RATE = 20;         // ticks de simulação por segundo
 export const DT = 1 / TICK_RATE;     // segundos por tick
-export const MAX_PLAYERS = 4;
+export const MAX_PLAYERS = 4;          // cenários, campanha e editor
+/** Partida rápida (e a ponte do Unreal, U4): até 12 jogadores, em mapa Enorme ou Gigante para os inícios não ficarem colados. */
+export const MAX_MATCH_PLAYERS = 12;
 /**
  * Versão da simulação: sobe quando a mesma semente + os mesmos comandos passam a dar outra partida (replays gravados antes
  * dessincronizariam; saves não, porque guardam o estado inteiro). 2 = correção do viés de posição (IA e buscas relativas ao
@@ -47,6 +49,15 @@ export const PLAYER_COLORS = [
   { name: 'Vermelho', hex: '#ef4444', num: 0xef4444 },
   { name: 'Verde', hex: '#22c55e', num: 0x22c55e },
   { name: 'Amarelo', hex: '#eab308', num: 0xeab308 },
+  // 5–12 (U4): escolhidas para ficarem distinguíveis entre si e das 4 primeiras, também para daltônicos (tests/colors.test.ts)
+  { name: 'Laranja', hex: '#f97316', num: 0xf97316 },
+  { name: 'Roxo', hex: '#6d28d9', num: 0x6d28d9 },
+  { name: 'Ciano', hex: '#22d3ee', num: 0x22d3ee },
+  { name: 'Rosa', hex: '#f472b6', num: 0xf472b6 },
+  { name: 'Marfim', hex: '#f1f5f9', num: 0xf1f5f9 },
+  { name: 'Marrom', hex: '#92400e', num: 0x92400e },
+  { name: 'Lima', hex: '#bef264', num: 0xbef264 },
+  { name: 'Grafite', hex: '#475569', num: 0x475569 },
 ];
 
 export const POP_CAP_MAX = 250;
@@ -118,6 +129,9 @@ export const MAP_SIZES = {
   small: { w: 80, h: 80, label: 'Pequeno' },
   medium: { w: 112, h: 112, label: 'Médio' },
   large: { w: 144, h: 144, label: 'Grande' },
+  // 5 a 12 jogadores (U4): inícios a 0,36 do tamanho em círculo — a distância entre inícios vizinhos fica em ~0,19 × o lado (12 jogadores: >= 45 tiles)
+  huge: { w: 208, h: 208, label: 'Enorme' },
+  giant: { w: 256, h: 256, label: 'Gigante' },
 } as const;
 export type MapSize = keyof typeof MAP_SIZES;
 

@@ -20,7 +20,7 @@ const pt = {
   'res.stone': 'Pedra', 'res.oil': 'Petróleo', 'rare.hint': 'Recurso raro: um Mercador nele rende {g} de ouro por segundo e o bônus vale para todo o império.', 'err.oilEra': 'O petróleo só pode ser coletado a partir da {age}.', 'err.wellOnly': 'Só um Poço de Petróleo explora esta jazida.', 'err.merchantOnly': 'Só um Mercador trabalha num recurso raro.', 'err.merchantRare': 'O Mercador só trabalha em recursos raros.', 'err.needsOilField': 'O Poço de Petróleo precisa encostar numa jazida de petróleo.', 'sel.extract': 'Jazida', 'top.rares': 'Raros: {n}', 'node.oilDrop': 'Entregue no Poço de Nafta ou na Refinaria (o Centro Cívico não recebe petróleo).', 'editor.resRare': 'Recursos raros (nós)',
 
   'diff.easy': 'Fácil', 'diff.normal': 'Normal', 'diff.hard': 'Difícil', 'diff.brutal': 'Muito difícil',
-  'map.small': 'Pequeno', 'map.medium': 'Médio', 'map.large': 'Grande',
+  'map.small': 'Pequeno', 'map.medium': 'Médio', 'map.large': 'Grande', 'map.huge': 'Enorme', 'map.giant': 'Gigante',
   'dmg.hack': 'corte', 'dmg.pierce': 'perfuração', 'dmg.crush': 'esmagamento', 'dmg.divine': 'divino',
   // barra superior
   'top.advance': '⬆ Avançar Era', 'top.advancing': '⏳ Avançando...', 'top.maxAge': '🌋 Era máxima', 'top.maxAgeTip': 'Você alcançou a Era Moderna.',
@@ -340,7 +340,7 @@ const en: Record<keyof typeof pt, string> = {
   'res.stone': 'Stone', 'res.oil': 'Oil', 'rare.hint': 'Rare resource: a Merchant here earns {g} gold per second and the bonus applies to your whole empire.', 'err.oilEra': 'Oil can only be gathered from the {age} on.', 'err.wellOnly': 'Only an Oil Well can tap this field.', 'err.merchantOnly': 'Only a Merchant can work a rare resource.', 'err.merchantRare': 'Merchants only work rare resources.', 'err.needsOilField': 'The Oil Well must touch an oil field.', 'sel.extract': 'Field', 'top.rares': 'Rares: {n}', 'node.oilDrop': 'Deliver to a Naphtha Well or a Refinery (the Town Center does not take oil).', 'editor.resRare': 'Rare resources (nodes)',
 
   'diff.easy': 'Easy', 'diff.normal': 'Normal', 'diff.hard': 'Hard', 'diff.brutal': 'Brutal',
-  'map.small': 'Small', 'map.medium': 'Medium', 'map.large': 'Large',
+  'map.small': 'Small', 'map.medium': 'Medium', 'map.large': 'Large', 'map.huge': 'Huge', 'map.giant': 'Giant',
   'dmg.hack': 'hack', 'dmg.pierce': 'pierce', 'dmg.crush': 'crush', 'dmg.divine': 'divine',
   'top.advance': '⬆ Advance Era', 'top.advancing': '⏳ Advancing...', 'top.maxAge': '🌋 Max Era', 'top.maxAgeTip': 'You have reached the Modern Era.',
   'top.pauseTip': 'Pause / resume (P)', 'top.muteTip': 'Sound on / mute (Ctrl+M)',

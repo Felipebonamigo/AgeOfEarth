@@ -1,5 +1,5 @@
 // Tipos centrais da simulação. Tudo aqui é serializável (salvar/carregar e replays).
-import type { ResourceType, NodeType, Stance, Difficulty, GameMode, MapType, Formation, WonderVictory } from './constants';
+import type { ResourceType, NodeType, Stance, Difficulty, GameMode, MapType, Formation, WonderVictory, MapSize } from './constants';
 import type { RNG } from './rng';
 
 export type Cost = Partial<Record<ResourceType, number>>;
@@ -198,7 +198,7 @@ export interface LocalText { pt: string; en?: string }
 export interface Forbid { buildings?: string[]; units?: string[]; techs?: string[] }
 
 export interface GameConfig {
-  seed: number; mapSize: 'small' | 'medium' | 'large';
+  seed: number; mapSize: MapSize;
   scenario?: string;
   // puppet: facção roteirizada de cenário (sem IA, só gatilhos); nameText (G8); maxAge/forbid (G6); personality: personalidade da IA
   players: { name: string; god: string; isAI: boolean; difficulty: Difficulty; team?: number; puppet?: boolean; nameText?: LocalText; maxAge?: number; forbid?: Forbid; personality?: number }[];

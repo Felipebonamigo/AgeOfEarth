@@ -146,7 +146,8 @@ export type ClientMessage =
   | { kind: 'cmd'; cmd: Command }
   | { kind: 'pause'; paused: boolean }
   | { kind: 'speed'; speed: number }
-  | { kind: 'ping'; t: number };
+  | { kind: 'ping'; t: number }
+  | { kind: 'novaPartida'; setup: unknown };
 
 /** Valida uma mensagem do cliente. O jogador do comando é SEMPRE o do cliente (ele não manda em outro). */
 export function parseClientMessage(state: GameState, opts: BridgeOptions, raw: unknown): ClientMessage | null {
@@ -160,6 +161,7 @@ export function parseClientMessage(state: GameState, opts: BridgeOptions, raw: u
     }
     case 'pause': return typeof m.paused === 'boolean' ? { kind: 'pause', paused: m.paused } : null;
     case 'speed': return typeof m.speed === 'number' && Number.isFinite(m.speed) ? { kind: 'speed', speed: Math.min(8, Math.max(0.25, m.speed)) } : null;
+    case 'novaPartida': return typeof m.setup === 'object' && m.setup !== null ? { kind: 'novaPartida', setup: m.setup } : null;
     case 'ping': return typeof m.t === 'number' ? { kind: 'ping', t: m.t } : null;
     default: return null;
   }

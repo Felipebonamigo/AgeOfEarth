@@ -1,7 +1,7 @@
 // Servidor da ponte simulação ↔ Unreal (docs/UNREAL.md): roda a partida (jogador 0 = o cliente, o resto IA) e fala com o
 // cliente Unreal por WebSocket em localhost. O protocolo está em scripts/unreal/protocol.ts.
 // Uso: npx tsx scripts/unreal/sim-server.ts [--port 8790] [--seed 42] [--size small|medium|large] [--map arquivo.map.json]
-//        [--ais 1] [--god zeus] [--difficulty normal] [--reveal] [--speed 1] [--every 2] [--age 0] [--paused]
+//        [--ais 1..11] [--god zeus] [--difficulty normal] [--reveal] [--speed 1] [--every 2] [--age 0] [--paused] [--relevo 505|0] [--setup partida.json]
 // (npm run unreal:sim -- --seed 7). Vários clientes se conectam e veem/comandam o mesmo jogador 0.
 import fs from 'node:fs';
 import { WebSocketServer, type WebSocket } from 'ws';
@@ -10,21 +10,26 @@ import { TICK_RATE } from '../../src/core/constants';
 import { migrateMap, validateMap, type FixedMapData } from '../../src/core/map/fixed';
 import type { Command, GameConfig, GameState } from '../../src/core/types';
 import { BridgeSession, buildHello, parseClientMessage, type BridgeOptions } from './protocol';
+import { relevoMensagens } from './relevo';
+import { configFromSetup } from './match';
+import type { MapSize } from '../../src/core/constants';
 
 export interface ServerOptions {
-  port: number; seed: number; mapSize: 'small' | 'medium' | 'large'; mapFile?: string; ais: number; god: string; difficulty: 'easy' | 'normal' | 'hard' | 'expert';
+  port: number; seed: number; mapSize: MapSize; mapFile?: string; ais: number; god: string; difficulty: 'easy' | 'normal' | 'hard' | 'expert';
   reveal: boolean; speed: number; every: number; age: number; paused: boolean;
+  /** resolução (n×n) do relevo enviado após o hello; 0/ausente = não envia */ relevo?: number;
+  /** partida descrita por um JSON de configuração (scripts/unreal/match.ts); vale no lugar de seed/size/ais/god */ setup?: unknown;
 }
 
 export function parseArgs(argv: string[]): ServerOptions {
-  const o: ServerOptions = { port: 8790, seed: 42, mapSize: 'medium', ais: 1, god: 'zeus', difficulty: 'normal', reveal: false, speed: 1, every: 2, age: 0, paused: false };
+  const o: ServerOptions = { port: 8790, seed: 42, mapSize: 'medium', ais: 1, god: 'zeus', difficulty: 'normal', reveal: false, speed: 1, every: 2, age: 0, paused: false, relevo: 505 };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i], next = () => argv[++i];
     if (a === '--port') o.port = Number(next());
     else if (a === '--seed') o.seed = Number(next());
     else if (a === '--size') o.mapSize = next() as ServerOptions['mapSize'];
     else if (a === '--map') o.mapFile = next();
-    else if (a === '--ais') o.ais = Math.max(1, Math.min(3, Number(next())));
+    else if (a === '--ais') o.ais = Math.max(1, Math.min(11, Number(next())));
     else if (a === '--god') o.god = next();
     else if (a === '--difficulty') o.difficulty = next() as ServerOptions['difficulty'];
     else if (a === '--reveal') o.reveal = true;
@@ -32,6 +37,8 @@ export function parseArgs(argv: string[]): ServerOptions {
     else if (a === '--every') o.every = Math.max(1, Number(next()));
     else if (a === '--age') o.age = Math.max(0, Number(next()));
     else if (a === '--paused') o.paused = true;
+    else if (a === '--relevo') o.relevo = Math.max(0, Number(next()));
+    else if (a === '--setup') o.setup = JSON.parse(fs.readFileSync(next(), 'utf8'));
     else { console.error(`opção desconhecida: ${a}`); process.exit(2); }
   }
   return o;
@@ -55,9 +62,11 @@ export function makeConfig(o: ServerOptions): GameConfig {
 
 /** Servidor reutilizável (os testes sobem um em porta 0). `step()` avança um tick; `start()` liga o relógio. */
 export function createBridgeServer(o: ServerOptions) {
-  const state: GameState = createGame(makeConfig(o));
+  const first = o.setup !== undefined ? configFromSetup(o.setup) : null;
+  if (first && !first.config) throw new Error(`partida inválida: ${first.errors.join('; ')}`);
+  let state: GameState = createGame(first?.config ?? makeConfig(o));
   const wss = new WebSocketServer({ port: o.port, host: '127.0.0.1', maxPayload: 256 * 1024 });
-  const opts: BridgeOptions = { player: 0, reveal: o.reveal, stateEvery: o.every };
+  const opts: BridgeOptions = { player: first?.human ?? 0, reveal: o.reveal, stateEvery: o.every };
   const clients = new Map<WebSocket, BridgeSession>();
   let queue: Command[] = [];
   let paused = o.paused, speed = o.speed;
@@ -65,17 +74,31 @@ export function createBridgeServer(o: ServerOptions) {
 
   const send = (ws: WebSocket, msg: object) => { if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg)); };
 
+  /** hello + relevo/plantas + primeiro state para um cliente (na conexão e depois de `novaPartida`) */
+  function introduce(ws: WebSocket, session: BridgeSession): void {
+    send(ws, buildHello(state, opts));
+    if (o.relevo) for (const m of relevoMensagens(state, { n: o.relevo })) send(ws, m);
+    for (const m of session.flush(state)) send(ws, m);
+  }
+
   wss.on('connection', (ws) => {
-    const session = new BridgeSession(opts);
+    let session = new BridgeSession(opts);
     clients.set(ws, session);
     send(ws, buildHello(state, opts));
+    if (o.relevo) for (const m of relevoMensagens(state, { n: o.relevo })) send(ws, m);
     for (const m of session.flush(state)) send(ws, m);   // primeiro state (e névoa) já com o estado atual
     ws.on('message', (data) => {
       let raw: unknown;
       try { raw = JSON.parse(String(data)); } catch { return; }
       const msg = parseClientMessage(state, opts, raw);
       if (!msg) return;
-      if (msg.kind === 'cmd') queue.push(msg.cmd);
+      if (msg.kind === 'novaPartida') {
+        const r = configFromSetup(msg.setup);
+        if (!r.config) { send(ws, { type: 'erro', code: 'setup', errors: r.errors }); return; }
+        state = createGame(r.config); opts.player = r.human; queue = [];
+        for (const [c] of clients) { const ns = new BridgeSession(opts); clients.set(c, ns); if (c === ws) session = ns; introduce(c, ns); }
+      }
+      else if (msg.kind === 'cmd') queue.push(msg.cmd);
       else if (msg.kind === 'pause') paused = msg.paused;
       else if (msg.kind === 'speed') speed = msg.speed;
       else if (msg.kind === 'ping') send(ws, { type: 'pong', t: msg.t, tick: state.tick });
@@ -107,7 +130,7 @@ export function createBridgeServer(o: ServerOptions) {
     return new Promise((res) => wss.close(() => res()));
   }
   const listening = new Promise<void>((res) => { if (wss.address()) res(); else wss.once('listening', () => res()); });
-  return { state, wss, step, start, close, listening, get port() { return (wss.address() as { port: number }).port; }, setPaused: (p: boolean) => { paused = p; } };
+  return { get state() { return state; }, wss, step, start, close, listening, get port() { return (wss.address() as { port: number }).port; }, setPaused: (p: boolean) => { paused = p; } };
 }
 
 // execução direta: `npx tsx scripts/unreal/sim-server.ts`

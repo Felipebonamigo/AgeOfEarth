@@ -17,6 +17,8 @@ export const NODE_AMOUNT: Record<NodeType, number> = {
 
 /** Pontos do círculo unitário (32 direções) usados por generateMap, placeStartResources e blankMap. */
 const CIRCLE32 = unitCircle(32);
+/** 96 direções (3,75° cada; constantes fixas, sem trigonometria na simulação): inícios de 5 a 12 jogadores, igualmente espaçados (96 é múltiplo de 6, 8 e 12). */
+const CIRCLE96: [number, number][] = (() => { const out: [number, number][] = []; const c = 0.9978589232386035, s = 0.06540312923014306; let x = 1, y = 0; for (let i = 0; i < 96; i++) { out.push([x, y]); const nx = x * c - y * s; y = x * s + y * c; x = nx; } return out; })();
 
 /** Parâmetros por tipo de mapa: limiares do ruído de elevação, densidade de bosques e terreno base. */
 const MAP_PRESETS: Record<MapType, { water: number; sand: number; dirt: number; mountain: number; forest: number; forestDensity: number; base: number; goldRoll: number }> = {
@@ -161,6 +163,13 @@ export function deriveDeepWater(map: GameMap, rect?: { x0: number; y0: number; x
 export function circleStarts(w: number, h: number, count: number, rot: number): { x: number; y: number }[] {
   const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.36;
   const out: { x: number; y: number }[] = [];
+  if (count > 4) {   // partida grande (até 12): círculo de 96 direções; de 1 a 4 jogadores nada muda (mesmos mapas de sempre)
+    for (let p = 0; p < count; p++) {
+      const k = Math.floor(((p / count) + rot) * 96) % 96;
+      out.push({ x: clampi(Math.round(cx + CIRCLE96[k][0] * R), 8, w - 9), y: clampi(Math.round(cy + CIRCLE96[k][1] * R), 8, h - 9) });
+    }
+    return out;
+  }
   for (let p = 0; p < count; p++) {
     const k = Math.floor(((p / count) + rot) * 32) % 32;
     const sx = Math.round(cx + CIRCLE32[k][0] * R), sy = Math.round(cy + CIRCLE32[k][1] * R);
