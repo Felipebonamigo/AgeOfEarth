@@ -204,7 +204,7 @@ export const EN_TECHS: Record<string, TextOverlay> = {
   harvest1: { name: 'Harvest I', desc: 'Food gathering +15%.' }, harvest2: { name: 'Harvest II', desc: 'Food gathering +15%.' }, harvest3: { name: 'Harvest III', desc: 'Food gathering +15%.' },
   irrigation: { name: 'Irrigation', desc: 'Farms yield 30% more.' },
   axes1: { name: 'Bronze Axes', desc: 'Woodcutting +15%.' }, axes2: { name: 'Iron Axes', desc: 'Woodcutting +15%.' }, axes3: { name: 'Saws', desc: 'Woodcutting +15%.' },
-  stone_wedges: { name: 'Bronze Wedges', desc: 'Stone gathering +15%.' }, stone_saws: { name: 'Sand Saw', desc: 'Stone gathering +15%.' }, stone_cranes: { name: 'Trispastos Crane', desc: 'Stone gathering +15% and building 10% faster.' },
+  stone_wedges: { name: 'Bronze Wedges', desc: 'Stone gathering +15%.' }, stone_saws: { name: 'Sand Saws', desc: 'Stone gathering +15%.' }, stone_cranes: { name: 'Trispastos Crane', desc: 'Stone gathering +15% and building 10% faster.' },
   bitumen_jars: { name: 'Bitumen Jars', desc: 'Oil gathering +15%.' }, distillation: { name: 'Distillation', desc: 'Oil gathering and extraction +20%.' }, cracking: { name: 'Cracking', desc: 'Oil gathering and extraction +25%.' },
   picks1: { name: 'Pickaxes', desc: 'Mining +15%.' }, picks2: { name: 'Galleries', desc: 'Mining +15%.' }, picks3: { name: 'Smelting', desc: 'Mining +15%.' },
   coinage: { name: 'Coinage', desc: 'Market fees 30% lower.' },

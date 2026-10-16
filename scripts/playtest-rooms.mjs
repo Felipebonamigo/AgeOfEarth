@@ -5,7 +5,7 @@ import { chromium } from 'playwright';
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const relay = process.argv[3] ?? 'ws://localhost:8787';   // relay em outra porta: node scripts/playtest-rooms.mjs <url> <ws>
 const browser = await chromium.launch({ env: { ...process.env, LANG: 'pt_BR.UTF-8', LANGUAGE: 'pt_BR' }, executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-const errors = [];
+const errors = [], fails = [];
 const room = 'LISTA' + Math.floor(Math.random() * 1000);
 const mk = async (name) => {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
@@ -19,9 +19,12 @@ const mk = async (name) => {
 const host = await mk('Anfitrião');
 await host.fill('#mp-room', room); await host.click('#mp-join'); await host.waitForTimeout(800);
 await host.selectOption('#mp-mode', 'regicide'); await host.waitForTimeout(300);
+await host.selectOption('#mp-startage', '2'); await host.waitForTimeout(150);
+await host.selectOption('#mp-endage', '4'); await host.waitForTimeout(300);
 const guest = await mk('Convidado');
 await guest.click('#mp-browse'); await guest.waitForTimeout(1000);
 const list = await guest.textContent('#mp-rooms');
+if (!list?.includes('Eras III–V')) fails.push(`a lista não mostra "Eras III–V": ${list?.replace(/\s+/g, ' ').trim().slice(0, 160)}`);
 console.log('lista no convidado:', list?.includes(room) && list.includes('Anfitrião') && list.includes('1/4') && list.includes('Regicídio') ? `ok (${list.replace(/\s+/g, ' ').trim().slice(0, 120)})` : `FALHOU (${list})`);
 await guest.click(`[data-room="${room}"]`); await guest.waitForTimeout(1000);
 console.log('entrou pela lista:', (await guest.textContent('#mp'))?.includes(room) && await guest.$('#mp-leave') ? 'ok' : 'FALHOU', '| jogadores na sala (anfitrião vê):', await host.$$eval('#mp table tr', (r) => r.length - 1));
@@ -41,4 +44,6 @@ await third.click('#mp-browse'); await third.waitForTimeout(1000);
 const startedRow = await third.evaluate((code) => ({ enter: !!document.querySelector(`[data-room="${code}"]`), spectate: !!document.querySelector(`[data-spectate="${code}"]`) }), room);
 console.log('sala iniciada só para assistir:', !startedRow.enter && startedRow.spectate ? 'ok' : `FALHOU (${JSON.stringify(startedRow)})`, '| partida rodando no convidado:', await guest.evaluate(() => !!window.aoe.session) ? 'ok' : 'FALHOU');
 console.log('errors:', errors.length ? errors.join('\n') : 'none');
+if (fails.length) console.log('FALHAS:\n' + fails.map((f) => ' - ' + f).join('\n'));
 await browser.close();
+process.exit(fails.length || errors.length ? 1 : 0);

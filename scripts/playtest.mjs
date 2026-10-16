@@ -4,7 +4,7 @@ const url = process.argv[2] ?? 'http://localhost:4173/';
 const out = process.argv[3] ?? '/tmp/pt';
 const browser = await chromium.launch({ env: { ...process.env, LANG: 'pt_BR.UTF-8', LANGUAGE: 'pt_BR' }, executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-const errors = [];
+const errors = [], fails = [];
 page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(`${m.type()}: ${m.text()}`); });
 await page.goto(url, { waitUntil: 'networkidle' });
@@ -80,7 +80,19 @@ if (cards.length) await cards[0].click();
 await page.waitForTimeout(300);
 st = await S(); console.log('avanço enfileirado, modo:', st.mode);
 // 5) enciclopédia e ajuda
-await page.keyboard.press('F2'); await page.waitForTimeout(400); await page.screenshot({ path: `${out}-4-enc.png` }); await page.keyboard.press('Escape');
+// árvore de estudos (F3): 8 colunas de Era
+await page.keyboard.press('F3'); await page.waitForTimeout(500);
+const treeEras = await page.evaluate(() => ({ open: !!document.querySelector('#modal.tree'), eras: document.querySelectorAll('#modal .tree-era').length }));
+console.log('árvore de estudos:', JSON.stringify(treeEras));
+if (!treeEras.open || treeEras.eras !== 8) fails.push(`árvore de estudos (F3): ${JSON.stringify(treeEras)}`);
+await page.keyboard.press('Escape'); await page.waitForTimeout(200);
+// enciclopédia (F2): 8 abas; clica em cada uma pelo id (cada clique redesenha o modal: os handles antigos ficariam soltos)
+await page.keyboard.press('F2'); await page.waitForTimeout(400); await page.screenshot({ path: `${out}-4-enc.png` });
+const tabIds = await page.$$eval('#modal [data-tab]', (els) => els.map((e) => e.dataset.tab));
+console.log('abas da enciclopédia:', tabIds.length);
+if (tabIds.length !== 8) fails.push(`enciclopédia (F2): ${tabIds.length} abas em vez de 8`);
+for (const id of tabIds) { await page.click('#modal [data-tab="' + id + '"]'); await page.waitForTimeout(250); }
+await page.keyboard.press('Escape');
 await page.keyboard.press('F1'); await page.waitForTimeout(300); await page.keyboard.press('Escape');
 // 6) poder divino Raio em um inimigo (cria um inimigo perto para o teste)
 await page.evaluate(() => { const s = window.aoe.session; const tc = [...s.state.buildings.values()].find((x) => x.owner === s.local && x.type === 'town_center'); window.aoe.testEnemy = tc; });
@@ -93,4 +105,6 @@ await page.keyboard.press('F9'); await page.waitForTimeout(800);
 st = await S(); console.log('após carregar: tick', st.tick, 'edifícios', st.buildings.length);
 await page.screenshot({ path: `${out}-5-final.png` });
 console.log('errors:', errors.length ? errors.join('\n') : 'none');
+if (fails.length) console.log('FALHAS:\n' + fails.map((f) => ' - ' + f).join('\n'));
 await browser.close();
+process.exit(fails.length || errors.length ? 1 : 0);

@@ -345,7 +345,7 @@ html.pad-active #modal { max-height: calc(82vh / var(--uiz, 1)); }
 #modal.tree .tree-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 #modal.tree .tree-body { flex: 1; overflow: auto; }
 #modal.tree .tree-grid { display: grid; gap: 6px; align-items: start; }
-#modal.tree .tree-era { position: sticky; top: 0; z-index: 1; background: var(--panel2); padding: 4px 6px; border-radius: 6px; text-align: center; }
+#modal.tree .tree-era { position: sticky; top: 0; z-index: 2; background: #1a2238; box-shadow: 0 0 0 6px #121a2e; padding: 4px 6px; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; overflow: hidden; }   /* opaco: com a árvore rolada o cabeçalho não deixa o texto de baixo aparecer por trás */
 #modal.tree .tree-era.cur { outline: 1px solid var(--gold); }
 #modal.tree .tree-label { position: sticky; left: 0; background: var(--panel2); padding: 6px; border-radius: 6px; color: var(--marble); font-weight: bold; }
 #modal.tree .tree-cell { display: flex; flex-direction: column; gap: 4px; }

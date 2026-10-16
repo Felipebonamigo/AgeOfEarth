@@ -101,7 +101,7 @@ const RAW: Record<string, TechInput> = {
       { type: 'player', stat: 'territory', add: 2 }, { type: 'player', stat: 'cityLimit', add: 1 },
       { type: 'player', stat: 'attrition', add: 0.25 }, { type: 'player', stat: 'popCap', add: 10 },
     ],
-    desc: 'Fronteiras +2, +1 Centro Cívico permitido, atrito +0.25/s, população +10.',
+    desc: 'Fronteiras +2, +1 Centro Cívico permitido, atrito +0,25/s, população +10.',
   }),
   ...line('commerce', 'Comércio', LINE_LEVELS, {
     icon: '⚖️', cost: (l) => ({ knowledge: 50 + 70 * l, gold: 30 + 50 * l }), time: (l) => 30 + 10 * l,

@@ -54,6 +54,16 @@ async function scan(page, where) {
 // ---------------- Etapa 8: menu principal, multiplayer e editor ----------------
 const relayUp = await new Promise((res) => { try { const ws = new WebSocket(relay); const t = setTimeout(() => { try { ws.close(); } catch { /* */ } res(false); }, 2500); ws.onopen = () => { clearTimeout(t); ws.close(); res(true); }; ws.onerror = () => { clearTimeout(t); res(false); }; } catch { res(false); } });
 if (!relayUp) console.log(`relay ${relay} fora do ar: lobby não verificado (npm run relay)`);
+// abas do modal (enciclopédia): clica pelo id (cada clique redesenha o modal e os handles antigos ficam soltos) e, onde houver o seletor
+// de Era (#enc-era), escaneia também a Era IV; falha se o modal tiver aba e alguma não abrir
+async function scanTabs(page, where, wait) {
+  const ids = await page.$$eval('#modal [data-tab]', (els) => els.map((e) => e.dataset.tab));
+  for (const id of ids) {
+    await page.click('#modal [data-tab="' + id + '"]').catch(() => failures.push(`[${where}] aba ${id} não abriu`));
+    await page.waitForTimeout(wait); await scan(page, where);
+    if (await page.$('#enc-era')) { await page.selectOption('#enc-era', '4').catch(() => {}); await page.waitForTimeout(wait); await scan(page, where); }
+  }
+}
 for (const locale of ['pt', 'en']) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   page.on('pageerror', (e) => errors.push(`menu ${locale}: ${e.message}`));
@@ -97,7 +107,7 @@ for (const locale of ['pt', 'en']) {
   for (const [sel, name] of [['#m-help', 'ajuda'], ['#m-enc', 'enciclopedia'], ['#m-credits', 'creditos']]) {
     await page.click(sel).catch(() => {}); await page.waitForTimeout(500);
     await scan(page, `${locale}/menu-${name}`);
-    for (const tb of await page.$$('#modal [data-tab]')) { await tb.click().catch(() => {}); await page.waitForTimeout(200); await scan(page, `${locale}/menu-${name}`); }
+    await scanTabs(page, `${locale}/menu-${name}`, 200);
     if (name === 'enciclopedia') await shot('menu-enciclopedia');
     await page.evaluate(() => window.aoe.hud?.hideModal?.()); await page.waitForTimeout(200);
   }
@@ -154,7 +164,7 @@ for (const locale of ['pt', 'en']) {
   await page.waitForFunction(() => document.querySelectorAll('#top .res img.hic').length >= 5, null, { timeout: 30000 }).catch(() => failures.push(`[${locale}] os ícones de recursos não carregaram`));
   await page.evaluate(() => {
     const s = window.aoe.session; const p = s.player;
-    p.age = 3; Object.assign(p.resources, { food: 9000, wood: 9000, gold: 9000, favor: 900, knowledge: 900 });
+    p.age = 7; for (const r of Object.keys(p.resources)) p.resources[r] = 9000;
   });
   await page.evaluate(() => {
     // edifício de teste perto do Centro Cívico: tenta posições em anel até caber (debugBuild recusa lugar ocupado)
@@ -185,13 +195,21 @@ for (const locale of ['pt', 'en']) {
   await step('quartel', () => { const b = window.__build('barracks'); if (b) window.aoe.session.select([b.id]); });
   await step('academia', () => { const b = window.__build('academy'); if (b) window.aoe.session.select([b.id]); });
   await step('mercado', () => { const b = window.__build('market'); if (b) window.aoe.session.select([b.id]); });
+  await step('poco', () => { const b = window.__build('naphtha_well'); if (b) window.aoe.session.select([b.id]); });
+  await step('refinaria', () => { const b = window.__build('refinery'); if (b) window.aoe.session.select([b.id]); });
+  await step('estaleiro', () => { const b = window.__build('shipyard'); if (b) window.aoe.session.select([b.id]); else console.log('estaleiro: sem costa perto nesta semente'); });
+  await step('maravilha', () => { const b = window.__build('wonder_parthenon'); if (b) window.aoe.session.select([b.id]); });
+  await step('arvore', () => { window.aoe.hud.showStudyTree(); });
+  await page.evaluate(() => { window.aoe.hud?.hideModal?.(); });
   // tooltips dos botões de comando
   const btns = await page.$$('#commands button.cmd');
   for (const b of btns.slice(0, 6)) { await b.hover().catch(() => {}); await page.waitForTimeout(120); }
   await scan(page, `${locale}/tooltips`);
   // escolha do deus menor (modal de avançar de Idade)
-  await step('deus-menor', () => { window.aoe.hud.showMinorGodChoice(['athena', 'hermes'], () => {}); });
-  await page.evaluate(() => window.aoe.hud?.hideModal?.());
+  await step('deus-menor', () => { window.aoe.session.player.age = 0; window.aoe.hud.showMinorGodChoice(['athena', 'hermes'], () => {}); });
+  await page.evaluate(() => { window.aoe.hud?.hideModal?.(); });
+  await step('deus-menor-v', () => { window.aoe.session.player.age = 3; window.aoe.hud.showMinorGodChoice(['pan', 'hecate'], () => {}); });
+  await page.evaluate(() => { window.aoe.hud?.hideModal?.(); window.aoe.session.player.age = 7; });
   // menu, ajuda, atalhos, enciclopédia
   await step('menu', () => { window.aoe.hud?.showMenu?.(); });
   for (const sel of ['#m-help', '#m-keys', '#m-enc', '#m-encyclopedia']) {
@@ -201,7 +219,7 @@ for (const locale of ['pt', 'en']) {
     await page.waitForTimeout(500);
     await scan(page, `${locale}/menu${sel}`);
     // abas da enciclopédia
-    for (const tab of await page.$$('#modal [data-tab]')) { await tab.click().catch(() => {}); await page.waitForTimeout(250); await scan(page, `${locale}/enciclopédia`); }
+    await scanTabs(page, `${locale}/enciclopédia`, 250);
     await page.evaluate(() => window.aoe.hud?.showMenu?.());
     await page.waitForTimeout(300);
   }

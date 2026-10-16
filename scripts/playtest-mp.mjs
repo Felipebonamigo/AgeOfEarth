@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const relay = process.argv[3] ?? 'ws://localhost:8787';   // relay em outra porta: node scripts/playtest-mp.mjs <url> <ws>
 const browser = await chromium.launch({ env: { ...process.env, LANG: 'pt_BR.UTF-8', LANGUAGE: 'pt_BR' }, executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-const errors = [];
+const errors = [], fails = [];
 const mk = async (name) => {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   page.on('pageerror', (e) => errors.push(`${name} pageerror: ${e.message}`));
@@ -30,11 +30,24 @@ console.log('chat no anfitrião:', chatHost.includes('olá do convidado') ? 'ok'
 // botão Remover só para o anfitrião e nunca sobre si mesmo
 console.log('botões remover: anfitrião', await host.$$eval('[data-kick]', (e) => e.length), '| convidado', await guest.$$eval('[data-kick]', (e) => e.length));
 await host.selectOption('#mp-ais', '1'); await host.waitForTimeout(300);
+// Eras da partida (E9): o anfitrião escolhe III–V; o convidado vê os dois seletores com esses valores, desabilitados
+await host.selectOption('#mp-startage', '2'); await host.waitForTimeout(200);
+await host.selectOption('#mp-endage', '4'); await host.waitForTimeout(700);
+const guestEras = await guest.evaluate(() => ({ s: document.querySelector('#mp-startage')?.value, e: document.querySelector('#mp-endage')?.value, sd: document.querySelector('#mp-startage')?.disabled, ed: document.querySelector('#mp-endage')?.disabled }));
+console.log('Eras no convidado:', JSON.stringify(guestEras));
+if (guestEras.s !== '2' || guestEras.e !== '4' || !guestEras.sd || !guestEras.ed) fails.push(`seletores de Era do convidado: ${JSON.stringify(guestEras)}`);
 await host.click('#mp-start');
 await host.waitForTimeout(3000);
 const info = async (p) => p.evaluate(() => { const s = window.aoe.session; return s ? { tick: s.state.tick, local: s.local, players: s.state.players.map((x) => x.name) } : null; });
 console.log('anfitrião:', JSON.stringify(await info(host)));
 console.log('convidado:', JSON.stringify(await info(guest)));
+// as Eras valem nos dois lados da partida e o menu mostra "Eras III–V"
+for (const [name, pg] of [['anfitrião', host], ['convidado', guest]]) {
+  const e = await pg.evaluate(() => { const s = window.aoe.session; window.aoe.hud?.showMenu?.(); const mi = document.querySelector('#m-matchinfo')?.textContent ?? ''; window.aoe.hud?.hideModal?.(); return { age: s.player.age, maxAge: s.state.config.maxAge, info: mi }; });
+  console.log(`Eras na partida (${name}):`, JSON.stringify(e));
+  if (e.age !== 2 || e.maxAge !== 4 || !e.info.includes('III–V')) fails.push(`${name}: Era inicial/final da partida ${JSON.stringify(e)}`);
+}
+await host.evaluate(() => { window.aoe.session.paused = false; }); await guest.evaluate(() => { window.aoe.session.paused = false; });
 // bate-papo na partida: Enter abre o campo, mensagem chega como aviso no outro lado
 await guest.keyboard.press('Enter'); await guest.waitForTimeout(150);
 console.log('campo de chat aberto no convidado:', await guest.evaluate(() => !document.getElementById('chat').classList.contains('hidden')));
@@ -68,6 +81,10 @@ if (a.tick !== b.tick) {
   a = await snap(host); b = await snap(guest);
   console.log('após nivelar → anfitrião:', JSON.stringify(a), 'convidado:', JSON.stringify(b));
 }
-console.log(a.tick === b.tick && a.hash === b.hash ? 'SINCRONIZADOS ✔' : 'DIVERGENTES ✘');
+const synced = a.tick === b.tick && a.hash === b.hash;
+console.log(synced ? 'SINCRONIZADOS ✔' : 'DIVERGENTES ✘');
+if (!synced) fails.push('estados divergentes');
 console.log('errors:', errors.length ? errors.join('\n') : 'none');
+if (fails.length) console.log('FALHAS:\n' + fails.map((f) => ' - ' + f).join('\n'));
 await browser.close();
+process.exit(fails.length || errors.length ? 1 : 0);

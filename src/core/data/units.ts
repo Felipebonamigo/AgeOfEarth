@@ -232,7 +232,7 @@ export const UNITS: Record<string, UnitDef> = {
     desc: 'Fundibulário de Rodes, de alcance longo. Forte contra infantaria, fraco contra cavalaria.',
   },
   byzantine_archer: { id: 'byzantine_archer',
-    name: 'Tocsota Bizantino', plural: 'Tocsotas Bizantinos', icon: '🏹', cls: 'archer',
+    name: 'Toxota Bizantino', plural: 'Toxotas Bizantinos', icon: '🏹', cls: 'archer',
     cost: { wood: 85, gold: 60 }, hp: 130, attack: 16, attackType: 'pierce',
     armor: { hack: 0.14, pierce: 0.24, crush: 0.09 }, range: 7, speed: 2.3, los: 10, trainTime: 18, pop: 2, radius: 0.28,
     tags: ['archer', 'human', 'military', 'ranged'], bonus: { infantry: 1.5 }, building: 'barracks', age: 3,

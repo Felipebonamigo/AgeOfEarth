@@ -208,6 +208,53 @@ const mouseBack = await page.evaluate(() => ({ active: document.documentElement.
 ok('mexer o mouse devolve o controle a ele', !mouseBack.active && !mouseBack.cursor && !mouseBack.hints, JSON.stringify(mouseBack));
 await tap(B.A);
 ok('usar o controle de novo o reativa', await page.evaluate(() => document.documentElement.classList.contains('pad-active')));
+// ---------------- Árvore de estudos pelo controle (E9, F6) ----------------
+// Biblioteca pronta e cofres cheios; Start abre o menu e a árvore vem pelo botão do menu
+await page.evaluate(() => {
+  const s = window.aoe.session; const tc = [...s.state.buildings.values()].find((b) => b.owner === s.local && b.type === 'town_center');
+  for (const r of Object.keys(s.player.resources)) s.player.resources[r] = 99999;
+  if (![...s.state.buildings.values()].some((b) => b.owner === s.local && b.type === 'academy' && !b.dead)) {
+    for (let r = 5; r < 18; r++) for (let k = 0; k < 16; k++) { const a = (k / 16) * Math.PI * 2; if (window.aoe.debugBuild(s.local, 'academy', Math.round(tc.x + Math.cos(a) * r), Math.round(tc.y + Math.sin(a) * r))) { r = 99; break; } }
+  }
+});
+await tap(B.START);
+ok('árvore: menu aberto', await page.evaluate(() => !!document.querySelector('#modal #m-tree')));
+ok('árvore: D-pad chega ao botão da árvore', await walkTo('m-tree', B.DOWN, B.RIGHT), String(await focused()));
+await tap(B.A); await waitFrames(4); await page.waitForTimeout(400);
+const treeFocus = () => page.evaluate(() => { const e = document.querySelector('#modal .pad-focus'); return e && e.matches('.tree-node') ? { study: e.dataset.study, era: Number(e.dataset.era), row: Number(e.dataset.row), cls: e.className } : null; });
+// a árvore se redesenha a cada mudança da fila e o anel volta no quadro seguinte (ensureFocus): relê até 6 quadros
+const treeFocusSoon = async () => { for (let i = 0; i < 6; i++) { const f = await treeFocus(); if (f) return f; await waitFrames(1); } return null; };
+const f0 = await treeFocusSoon();
+ok('árvore pelo controle: foco num estudo', !!f0 && !!f0.study, JSON.stringify(f0));
+ok('árvore: a partida segue rodando', await page.evaluate(() => window.aoe.session.paused === false));
+// A num estudo disponível (o foco inicial cai no primeiro) o enfileira; a fila muda e o foco continua num nó
+if (f0 && f0.cls.includes('st-available')) {
+  const q0 = await page.evaluate(() => document.querySelector('#modal .tree-queue')?.textContent ?? '');
+  await tap(B.A); await waitFrames(30); await page.waitForTimeout(500);
+  const q1 = await page.evaluate(() => document.querySelector('#modal .tree-queue')?.textContent ?? '');
+  const fd = await treeFocusSoon();
+  ok('árvore: A enfileira o estudo (a fila muda) e o foco continua num nó', q1 !== q0 && !!fd, `${f0.study}: ${q0} → ${q1}`);
+} else console.log('árvore: o foco inicial não é um estudo disponível (enfileirar pulado)');
+const det0 = await page.evaluate(() => document.getElementById('tree-detail')?.textContent ?? '');
+await tap(B.RIGHT); await waitFrames(2);
+const det1 = await page.evaluate(() => document.getElementById('tree-detail')?.textContent ?? '');
+ok('árvore: o detalhe muda com o foco (padfocus)', det1 !== det0 && det1.length > 0, det1.slice(0, 50));
+const fa = await treeFocusSoon();
+await tap(B.RB); await waitFrames(2);
+const fb = await treeFocusSoon();
+ok('árvore: RB vai à Era seguinte', !!fa && !!fb && fb.era > fa.era, `${fa?.era} → ${fb?.era}`);
+await tap(B.LB); await waitFrames(2);
+await waitFrames(3);
+const fc = await treeFocusSoon() ?? { era: -1, dbg: await page.evaluate(() => document.querySelector('.pad-focus')?.outerHTML.slice(0, 120) ?? 'sem foco') };
+ok('árvore: LB volta à Era anterior', !!fb && !!fc && fc.era < fb.era, `${fb?.era} → ${fc?.era}`);
+// o analógico de rolagem rola o corpo da árvore
+const sc0 = await page.evaluate(() => document.querySelector('#modal .tree-body')?.scrollTop ?? -1);
+await setAxes([0, 0, 0, 0.9]); await waitFrames(10); await setAxes([0, 0, 0, 0]); await waitFrames(2);
+const sc1 = await page.evaluate(() => document.querySelector('#modal .tree-body')?.scrollTop ?? -1);
+ok('árvore: analógico rola o corpo', sc1 > sc0, `${sc0} → ${sc1}`);
+await page.screenshot({ path: 'docs/art/eras-e9-arvore-controle.png' });
+await tap(B.B); await waitFrames(3);
+ok('árvore: B fecha', await page.evaluate(() => document.getElementById('modal-back').classList.contains('hidden')));
 // desconexão
 await page.evaluate(() => { window.__pad.connected = false; }); await waitFrames(3);
 ok('desconectar esconde o cursor e avisa', await page.evaluate(() => !document.documentElement.classList.contains('pad-active') && document.getElementById('messages').textContent.includes('desconectado')));

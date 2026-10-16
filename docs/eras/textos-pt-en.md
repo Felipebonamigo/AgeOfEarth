@@ -264,7 +264,7 @@
 | `fusilier` | **Fuzileiro** / Fuzileiros — Infantaria de linha de fuzil e baioneta. Forte contra cavalaria, fraca contra tiro. | **Fusilier** / Fusiliers — Line infantry with rifle and bayonet. Strong against cavalry, weak against missile troops. |
 | `modern_infantry` | **Infantaria** / Infantaria — Infantaria de capacete de aço com armas antitanque: dano dobrado contra cavalaria e tanques. | **Infantry** / Infantry — Steel-helmeted infantry with anti-tank weapons: double damage against cavalry and tanks. |
 | `rhodian_slinger` | **Fundibulário Ródio** / Fundibulários Ródios — Fundibulário de Rodes, de alcance longo. Forte contra infantaria, fraco contra cavalaria. | **Rhodian Slinger** / Rhodian Slingers — Rhodian slinger with long range. Strong against infantry, weak against cavalry. |
-| `byzantine_archer` | **Tocsota Bizantino** / Tocsotas Bizantinos — Arqueiro bizantino de arco composto. Forte contra infantaria, fraco contra cavalaria. | **Byzantine Archer** / Byzantine Archers — Byzantine composite-bow archer. Strong against infantry, weak against cavalry. |
+| `byzantine_archer` | **Toxota Bizantino** / Toxotas Bizantinos — Arqueiro bizantino de arco composto. Forte contra infantaria, fraco contra cavalaria. | **Byzantine Archer** / Byzantine Archers — Byzantine composite-bow archer. Strong against infantry, weak against cavalry. |
 | `arquebusier` | **Arcabuzeiro** / Arcabuzeiros — Atirador de arcabuz: tiros lentos e fortes. Forte contra infantaria, fraco contra cavalaria. | **Arquebusier** / Arquebusiers — Arquebus shooter: slow, heavy shots. Strong against infantry, weak against cavalry. |
 | `musketeer` | **Mosqueteiro** / Mosqueteiros — Mosqueteiro de linha. Forte contra infantaria, fraco contra cavalaria. | **Musketeer** / Musketeers — Line musketeer. Strong against infantry, weak against cavalry. |
 | `sharpshooter` | **Atirador** / Atiradores — Atirador de fuzil de precisão, de grande alcance. Forte contra infantaria, fraco contra cavalaria. | **Sharpshooter** / Sharpshooters — Precision rifleman with great range. Strong against infantry, weak against cavalry. |
@@ -349,13 +349,18 @@
 | `wonder_panathenaic` | **Estádio Panatenaico** — Maravilha da Era VII (7 pontos). Suas unidades ganham patentes de veterania duas vezes mais rápido. | **Panathenaic Stadium** — Era VII wonder (7 points). Your units earn veterancy ranks twice as fast. |
 | `wonder_olympus_throne` | **Trono do Olimpo** — Maravilha da Era VIII (8 pontos). Ao ficar pronta, recarrega todos os seus poderes divinos e dá +1 uso de cada. | **Throne of Olympus** — Era VIII wonder (8 points). When finished, it recharges all your divine powers and grants +1 use of each. |
 
-## Dados: tech (106)
+## Dados: tech (111)
 
 | id | PT | EN |
 |---|---|---|
-| `civic6` | **Civismo VI** — Fronteiras +2, +1 Centro Cívico permitido, atrito +0.25/s, população +10. | **Civics VI** — Borders +2, +1 Town Center allowed, attrition +0.25/s, population +10. |
-| `civic7` | **Civismo VII** — Fronteiras +2, +1 Centro Cívico permitido, atrito +0.25/s, população +10. | **Civics VII** — Borders +2, +1 Town Center allowed, attrition +0.25/s, population +10. |
-| `civic8` | **Civismo VIII** — Fronteiras +2, +1 Centro Cívico permitido, atrito +0.25/s, população +10. | **Civics VIII** — Borders +2, +1 Town Center allowed, attrition +0.25/s, population +10. |
+| `civic1` | **Civismo I** — Fronteiras +2, +1 Centro Cívico permitido, atrito +0,25/s, população +10. | **Civics I** — Borders +2, +1 Town Center allowed, attrition +0.25/s, population +10. |
+| `civic2` | **Civismo II** — Fronteiras +2, +1 Centro Cívico permitido, atrito +0,25/s, população +10. | **Civics II** — Borders +2, +1 Town Center allowed, attrition +0.25/s, population +10. |
+| `civic3` | **Civismo III** — Fronteiras +2, +1 Centro Cívico permitido, atrito +0,25/s, população +10. | **Civics III** — Borders +2, +1 Town Center allowed, attrition +0.25/s, population +10. |
+| `civic4` | **Civismo IV** — Fronteiras +2, +1 Centro Cívico permitido, atrito +0,25/s, população +10. | **Civics IV** — Borders +2, +1 Town Center allowed, attrition +0.25/s, population +10. |
+| `civic5` | **Civismo V** — Fronteiras +2, +1 Centro Cívico permitido, atrito +0,25/s, população +10. | **Civics V** — Borders +2, +1 Town Center allowed, attrition +0.25/s, population +10. |
+| `civic6` | **Civismo VI** — Fronteiras +2, +1 Centro Cívico permitido, atrito +0,25/s, população +10. | **Civics VI** — Borders +2, +1 Town Center allowed, attrition +0.25/s, population +10. |
+| `civic7` | **Civismo VII** — Fronteiras +2, +1 Centro Cívico permitido, atrito +0,25/s, população +10. | **Civics VII** — Borders +2, +1 Town Center allowed, attrition +0.25/s, population +10. |
+| `civic8` | **Civismo VIII** — Fronteiras +2, +1 Centro Cívico permitido, atrito +0,25/s, população +10. | **Civics VIII** — Borders +2, +1 Town Center allowed, attrition +0.25/s, population +10. |
 | `commerce6` | **Comércio VI** — Coleta de todos os recursos +8% e taxas do Mercado menores. | **Commerce VI** — All resource gathering +8% and lower Market fees. |
 | `commerce7` | **Comércio VII** — Coleta de todos os recursos +8% e taxas do Mercado menores. | **Commerce VII** — All resource gathering +8% and lower Market fees. |
 | `commerce8` | **Comércio VIII** — Coleta de todos os recursos +8% e taxas do Mercado menores. | **Commerce VIII** — All resource gathering +8% and lower Market fees. |
@@ -366,7 +371,7 @@
 | `science7` | **Ciência VII** — Conhecimento +15%, pesquisas 8% mais baratas e visão +1. | **Science VII** — Knowledge +15%, research 8% cheaper and line of sight +1. |
 | `science8` | **Ciência VIII** — Conhecimento +15%, pesquisas 8% mais baratas e visão +1. | **Science VIII** — Knowledge +15%, research 8% cheaper and line of sight +1. |
 | `stone_wedges` | **Cunhas de Bronze** — Coleta de pedra +15%. | **Bronze Wedges** — Stone gathering +15%. |
-| `stone_saws` | **Serra de Areia** — Coleta de pedra +15%. | **Sand Saw** — Stone gathering +15%. |
+| `stone_saws` | **Serra de Areia** — Coleta de pedra +15%. | **Sand Saws** — Stone gathering +15%. |
 | `stone_cranes` | **Guindaste Trispastos** — Coleta de pedra +15% e construção 10% mais rápida. | **Trispastos Crane** — Stone gathering +15% and building 10% faster. |
 | `bitumen_jars` | **Jarros de Betume** — Coleta de petróleo +15%. | **Bitumen Jars** — Oil gathering +15%. |
 | `distillation` | **Destilação** — Coleta e extração de petróleo +20%. | **Distillation** — Oil gathering and extraction +20%. |
@@ -397,7 +402,7 @@
 | `evo_heavy_infantry_8` | **Infantaria pesada: Infantaria** — Treina Infantaria no lugar do degrau anterior; as unidades da linha que você já tem se transformam (vida proporcional, patente e ordens mantidas). | **Heavy Infantry: Infantry** — Trains Infantry instead of the previous step; the line's units you already have are transformed (health in proportion, rank and orders kept). |
 | `evo_ranged_2` | **Tiro: Arqueiro Cretense** — Treina Arqueiros Cretenses no lugar do degrau anterior; as unidades da linha que você já tem se transformam (vida proporcional, patente e ordens mantidas). | **Missile Troops: Cretan Archer** — Trains Cretan Archers instead of the previous step; the line's units you already have are transformed (health in proportion, rank and orders kept). |
 | `evo_ranged_3` | **Tiro: Fundibulário Ródio** — Treina Fundibulários Ródios no lugar do degrau anterior; as unidades da linha que você já tem se transformam (vida proporcional, patente e ordens mantidas). | **Missile Troops: Rhodian Slinger** — Trains Rhodian Slingers instead of the previous step; the line's units you already have are transformed (health in proportion, rank and orders kept). |
-| `evo_ranged_4` | **Tiro: Tocsota Bizantino** — Treina Tocsotas Bizantinos no lugar do degrau anterior; as unidades da linha que você já tem se transformam (vida proporcional, patente e ordens mantidas). | **Missile Troops: Byzantine Archer** — Trains Byzantine Archers instead of the previous step; the line's units you already have are transformed (health in proportion, rank and orders kept). |
+| `evo_ranged_4` | **Tiro: Toxota Bizantino** — Treina Toxotas Bizantinos no lugar do degrau anterior; as unidades da linha que você já tem se transformam (vida proporcional, patente e ordens mantidas). | **Missile Troops: Byzantine Archer** — Trains Byzantine Archers instead of the previous step; the line's units you already have are transformed (health in proportion, rank and orders kept). |
 | `evo_ranged_5` | **Tiro: Arcabuzeiro** — Treina Arcabuzeiros no lugar do degrau anterior; as unidades da linha que você já tem se transformam (vida proporcional, patente e ordens mantidas). | **Missile Troops: Arquebusier** — Trains Arquebusiers instead of the previous step; the line's units you already have are transformed (health in proportion, rank and orders kept). |
 | `evo_ranged_6` | **Tiro: Mosqueteiro** — Treina Mosqueteiros no lugar do degrau anterior; as unidades da linha que você já tem se transformam (vida proporcional, patente e ordens mantidas). | **Missile Troops: Musketeer** — Trains Musketeers instead of the previous step; the line's units you already have are transformed (health in proportion, rank and orders kept). |
 | `evo_ranged_7` | **Tiro: Atirador** — Treina Atiradores no lugar do degrau anterior; as unidades da linha que você já tem se transformam (vida proporcional, patente e ordens mantidas). | **Missile Troops: Sharpshooter** — Trains Sharpshooters instead of the previous step; the line's units you already have are transformed (health in proportion, rank and orders kept). |
@@ -525,7 +530,7 @@
 | 4 | **Era da Pólvora** (Pólvora) — A pólvora chega a Creta: fortes estrelados e couraças de aço. Requer uma Fortaleza e 7 estudos das linhas da Biblioteca. | **Gunpowder Era** (Gunpowder) — Gunpowder reaches Crete: star forts and steel cuirasses. Requires a Fortress and 7 Library line studies. |
 | 5 | **Era do Iluminismo** (Iluminismo) — A razão e o renascimento grego em pedra neoclássica. Requer 10 estudos das linhas da Biblioteca. | **Enlightenment Era** (Enlightenment) — Reason and the Greek revival in neoclassical stone. Requires 10 Library line studies. |
 | 6 | **Era Industrial** (Industrial) — Vapor, ferro e chaminés. Requer 13 estudos das linhas da Biblioteca. | **Industrial Era** (Industrial) — Steam, iron and chimneys. Requires 13 Library line studies. |
-| 7 | **Era Moderna** (Moderna) — Concreto e aço, e o clímax: abra o Portal dos Titãs e liberte um Titã. Requer 16 estudos das linhas da Biblioteca. | **Modern Era** (Modern) — Concrete and steel, and the climax: open the Titan Gate and free a Titan. Requires 16 Library line studies. |
+| 7 | **Era Moderna** (Moderna) — Concreto e aço, e o clímax: abra o Portal dos Titãs e liberte um Titã. Requer 17 estudos das linhas da Biblioteca. | **Modern Era** (Modern) — Concrete and steel, and the climax: open the Titan Gate and free a Titan. Requires 17 Library line studies. |
 
 ## Missões (JSON) (19)
 
