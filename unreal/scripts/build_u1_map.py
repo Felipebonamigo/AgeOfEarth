@@ -295,4 +295,5 @@ def main():
     unreal.log("AOE_MAP_DONE")
 
 
-main()
+if __name__ == "__main__":   # importado (u3_material.py) so reaproveita as funcoes de material
+    main()

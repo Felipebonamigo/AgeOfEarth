@@ -28,6 +28,9 @@ Decisão do dono em 14/10/2026: **seguir no Unreal**. Itens que a sessão local 
   galeão), maravilhas novas e as unidades da pólvora em diante (mosqueteiros, canhões, tanque). Precisa de modelos (Meshy com a
   conta do dono ou CC0).
 
+- **U3 em andamento** (ver `U3-TERRENO-RUNTIME.md`): terreno, plantas e mar gerados na partida (`/Game/Maps/Partida`); pedir à nuvem que a ponte
+  oficial mande `relevo`/`plantas` como o `u1-servidor.ts`. Próximos: biomas, LOD para mapas enormes.
+
 ## Engenharia
 - ~~Terreno do mapa médio exportado com 2 jogadores~~ (15/10): `unreal/scripts/u2-exportar-terreno.ts --players N`; U1M refeito com 4.
   O cliente avisa se a ponte mandar outro terreno (`Dados/mapas.json`). **Para o jogo de verdade** (qualquer semente, tamanho e

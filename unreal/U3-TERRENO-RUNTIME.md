@@ -37,3 +37,17 @@ campo `heightmap` em base64, uint16, com `valuePerMeter`). A segunda é mais sim
    (alvo: perder no máximo 10 %).
 
 Enquanto isso, os mapas `U1`/`U1M` seguem para testes, com a conferência de terreno ligada.
+
+## Andamento (16/10/2026): opção B construída e funcionando
+- **Servidor** (`unreal/scripts/u1-servidor.ts`, meu): manda no início da partida o relevo e as camadas (`relevo`, 505² amostras) e a
+  vegetação rasteira e rochas (`plantas`), em pedaços de 120 KB (o WebSocket do Unreal recusa mensagem grande: 1009). O sorteio das
+  plantas é `unreal/scripts/u3-plantas.ts`, mesma regra do `u1_plantas.mjs`. **Pedido à nuvem**: o `sim-server.ts`/`protocol.ts`
+  passarem a mandar o mesmo (campos em `relevoMensagens()`), para a ponte oficial.
+- **Cliente** (`AoETerreno.cpp`, `AoEBridgeActor.cpp`): malha em 49 blocos de 72×72 quads (ProceduralMeshComponent) com colisão,
+  textura de pesos criada em memória, mar na cota −70, `GroundZ` pelo mapa de alturas (sem raio), plantas em HISM; material
+  `M_TerrenoRT` (`u3_material.py`): as mesmas fotos, tom e quebra de repetição do Landscape, mistura pelos pesos.
+- **Mapa** `/Game/Maps/Partida`: só céu, sol, névoa e pós-processamento (`AOE_SKIP="importar Landscape,material do terreno,Agua"`).
+- **Resultado**: mesma imagem do Landscape (lado a lado), prédios assentam certo, 104,8 fps no Épico (mínimo 89), qualquer
+  semente/tamanho/jogadores sem refazer mapa. `-AoESemRelevo` volta ao Landscape do mapa (U1/U1M, legado).
+- **Falta**: LOD do terreno para mapas enormes (12 jogadores), biomas (materiais e vegetação por bioma), árvores/florestas dos nós já
+  vêm da ponte, tempo de montagem (~1–2 s) atrás da tela de carregamento, colisão mais leve.

@@ -154,6 +154,13 @@ public:
 	const TMap<int32, FAoEVisual>& GetBuildings() const { return Buildings; }
 	/** Altura do chao (Landscape) em uu, ou 0 se nao houver. */
 	float GroundZ(float X, float Y) const;
+	TMap<FString, FString> RelevoAcum; TSharedPtr<FJsonObject> RelevoCab;   // relevo chega em pedacos depois do hello
+	void MontarTerreno();
+	void ReceberPlantas(const TSharedPtr<FJsonObject>& O);
+	TMap<FString, TArray<FString>> PlantasMalhas;   // grupo -> malhas "pasta/arquivo" (vem na 1a mensagem do grupo)
+	TMap<FString, TObjectPtr<class UHierarchicalInstancedStaticMeshComponent>> PlantasComps;   // "grupo/k" -> componente
+	UPROPERTY() TObjectPtr<AActor> PlantasAtor;
+	UPROPERTY() TObjectPtr<class AAoETerreno> Terreno;   // U3: terreno montado na partida (vazio = Landscape do mapa)
 
 protected:
 	virtual void BeginPlay() override;

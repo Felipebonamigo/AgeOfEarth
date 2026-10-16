@@ -2,6 +2,7 @@
 #include "Components/PointLightComponent.h"
 #include "Engine/DecalActor.h"
 #include "EngineUtils.h"
+#include "AoETerreno.h"
 #include "Components/DecalComponent.h"
 #include "Misc/Base64.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -401,6 +402,14 @@ void AAoEBridgeActor::Dispatch(const TSharedPtr<FJsonObject>& O)
 	if (!O->TryGetStringField(TEXT("type"), Type)) return;
 	if (Type == TEXT("hello")) HandleHello(O);
 	else if (Type == TEXT("state")) { HandleState(O); PerfState = FMath::Max(PerfState, (FPlatformTime::Seconds() - T1) * 1000.0); }
+	else if (Type == TEXT("relevo"))
+	{
+		const TSharedPtr<FJsonObject>* Cab = nullptr; FString Campo, Dados; bool bFim = false;
+		if (O->TryGetObjectField(TEXT("cab"), Cab)) RelevoCab = *Cab;
+		else if (O->TryGetStringField(TEXT("campo"), Campo) && O->TryGetStringField(TEXT("d"), Dados)) RelevoAcum.FindOrAdd(Campo) += Dados;
+		else if (O->TryGetBoolField(TEXT("fim"), bFim) && bFim) MontarTerreno();
+	}
+	else if (Type == TEXT("plantas")) ReceberPlantas(O);
 	else if (Type == TEXT("over")) UE_LOG(LogTemp, Log, TEXT("AoE: fim de partida"));
 }
 
@@ -424,6 +433,10 @@ void AAoEBridgeActor::HandleHello(const TSharedPtr<FJsonObject>& O)
 			if (MapTerrain.Num() != MapW * MapH) { MapTerrain.Empty(); }
 		}
 		++MapSerial;
+		{
+			// U3: com relevo no hello o terreno e montado aqui; o Landscape do mapa (se houver) fica escondido e sem colisao
+			RelevoAcum.Empty(); RelevoCab.Reset();   // novo hello: o relevo vem nas mensagens "relevo" seguintes
+		}
 		{
 			// o relevo do Unreal foi exportado de um terreno (Dados/mapas.json, u2-exportar-terreno.ts); se a ponte mandar outro
 			// (semente, tamanho ou numero de jogadores diferentes), edificios e unidades caem na agua ou no mato do mapa errado
@@ -527,6 +540,7 @@ FLinearColor AAoEBridgeActor::PlayerColor(int32 Dono) const
 float AAoEBridgeActor::GroundZ(float X, float Y) const
 {
 	if (VitrineZ > -1e8f) return VitrineZ;
+	if (Terreno && Terreno->Pronto()) return Terreno->AlturaEm(X, Y);
 	FHitResult Hit;
 	FCollisionObjectQueryParams Obj(ECC_WorldStatic);
 	if (GetWorld()->LineTraceSingleByObjectType(Hit, FVector(X, Y, 60000.f), FVector(X, Y, -60000.f), Obj))
@@ -1858,7 +1872,7 @@ void AAoEBridgeActor::LimpaPlantas()
 		{
 			if (*It == this) continue;
 			TInlineComponentArray<UHierarchicalInstancedStaticMeshComponent*> Cs(*It);
-			for (UHierarchicalInstancedStaticMeshComponent* C : Cs) if (C && C->Mobility == EComponentMobility::Static) Plantas.Add(C);
+			for (UHierarchicalInstancedStaticMeshComponent* C : Cs) if (C && (C->Mobility == EComponentMobility::Static || *It == PlantasAtor)) Plantas.Add(C);
 		}
 		UE_LOG(LogTemp, Log, TEXT("AoE: %d grupos de plantas do mapa"), Plantas.Num());
 	}
@@ -2046,5 +2060,72 @@ void AAoEBridgeActor::PowerFx(const FString& Tipo, const FString& Fonte, const F
 		// poder sem visual proprio: halo dourado e coluna de luz (o de antes)
 		Halo(FLinearColor(1.f, 0.78f, 0.35f) * 0.06f, 1.6f, 0.f);
 		Coluna(FLinearColor(1.f, 0.82f, 0.45f) * 0.35f, 1200.f, 0.35f, 1.2f);
+	}
+}
+
+void AAoEBridgeActor::MontarTerreno()
+{
+	// U3: terreno montado aqui a partir do relevo recebido; o Landscape do mapa (se houver) fica escondido e sem colisao
+	if (!RelevoCab.IsValid() || FParse::Param(FCommandLine::Get(), TEXT("AoESemRelevo"))) return;
+	TSharedPtr<FJsonObject> R = MakeShared<FJsonObject>();
+	for (const auto& KV : RelevoCab->Values) R->SetField(KV.Key, KV.Value);
+	for (const TPair<FString, FString>& KV : RelevoAcum) R->SetStringField(KV.Key, KV.Value);
+	if (Terreno) Terreno->Destroy();
+	Terreno = GetWorld()->SpawnActor<AAoETerreno>(FVector::ZeroVector, FRotator::ZeroRotator);
+	if (!Terreno->Montar(R, (float)MapW * (float)UuPerTile)) { UE_LOG(LogTemp, Warning, TEXT("AoE: relevo invalido")); Terreno->Destroy(); Terreno = nullptr; }
+	else for (TActorIterator<AActor> It(GetWorld()); It; ++It) if (It->GetClass()->GetName().Contains(TEXT("Landscape"))) { It->SetActorHiddenInGame(true); It->SetActorEnableCollision(false); }
+	RelevoAcum.Empty();
+}
+
+void AAoEBridgeActor::ReceberPlantas(const TSharedPtr<FJsonObject>& O)
+{
+	// U3: vegetacao rasteira e rochas sorteadas pelo servidor (u3-plantas.ts, mesma regra do u1_plantas.mjs), em lotes
+	bool bFim = false;
+	if (O->TryGetBoolField(TEXT("fim"), bFim) && bFim) { bPlantasLidas = false; UE_LOG(LogTemp, Log, TEXT("AoE: plantas recebidas")); return; }
+	if (FParse::Param(FCommandLine::Get(), TEXT("AoESemRelevo"))) return;
+	FString Grupo;
+	if (!O->TryGetStringField(TEXT("grupo"), Grupo)) return;
+	const TArray<TSharedPtr<FJsonValue>>* Ms = nullptr;
+	if (O->TryGetArrayField(TEXT("malhas"), Ms)) { TArray<FString>& L = PlantasMalhas.FindOrAdd(Grupo); L.Reset(); for (const auto& M : *Ms) L.Add(M->AsString()); }
+	const TArray<FString>* Malhas = PlantasMalhas.Find(Grupo);
+	const TArray<TSharedPtr<FJsonValue>>* P = nullptr;
+	if (!Malhas || !O->TryGetArrayField(TEXT("p"), P)) return;
+	if (!PlantasAtor)
+	{
+		PlantasAtor = GetWorld()->SpawnActor<AActor>(FVector::ZeroVector, FRotator::ZeroRotator);
+		USceneComponent* Raiz = NewObject<USceneComponent>(PlantasAtor); PlantasAtor->SetRootComponent(Raiz); Raiz->RegisterComponent();
+	}
+	const float DistFim = Grupo == TEXT("capim") ? 5500.f : Grupo == TEXT("flores") ? 6500.f : Grupo == TEXT("samambaias") ? 8000.f : 30000.f;
+	const bool bSombra = Grupo == TEXT("samambaias") || Grupo == TEXT("rochas");
+	TMap<int32, TArray<FTransform>> PorMalha;
+	for (int32 i = 0; i + 6 < P->Num(); i += 7)
+	{
+		const int32 K = FMath::Clamp((int32)(*P)[i + 4]->AsNumber(), 0, Malhas->Num() - 1);
+		const float E = (float)(*P)[i + 5]->AsNumber();
+		PorMalha.FindOrAdd(K).Add(FTransform(FRotator((float)(*P)[i + 6]->AsNumber(), (float)(*P)[i + 3]->AsNumber(), 0.f),
+			FVector((float)(*P)[i]->AsNumber(), (float)(*P)[i + 1]->AsNumber(), (float)(*P)[i + 2]->AsNumber()), FVector(E)));
+	}
+	for (TPair<int32, TArray<FTransform>>& KV : PorMalha)
+	{
+		const FString Chave = FString::Printf(TEXT("%s/%d"), *Grupo, KV.Key);
+		TObjectPtr<UHierarchicalInstancedStaticMeshComponent>* Achou = PlantasComps.Find(Chave);
+		UHierarchicalInstancedStaticMeshComponent* C = Achou ? Achou->Get() : nullptr;
+		if (!C)
+		{
+			FString Pasta, Nome; (*Malhas)[KV.Key].Split(TEXT("/"), &Pasta, &Nome);
+			UStaticMesh* Mesh = LoadMesh(FString::Printf(TEXT("/Game/Vegetacao/%s/%s/StaticMeshes/%s"), *Pasta, *Pasta, *Nome));
+			if (!Mesh) continue;
+			C = NewObject<UHierarchicalInstancedStaticMeshComponent>(PlantasAtor);
+			C->SetStaticMesh(Mesh);
+			C->SetMobility(EComponentMobility::Movable);
+			C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			C->SetCastShadow(bSombra);
+			C->SetCullDistances(0, (int32)DistFim);
+			C->AttachToComponent(PlantasAtor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+			PlantasAtor->AddInstanceComponent(C);
+			C->RegisterComponent();
+			PlantasComps.Add(Chave, C);
+		}
+		C->AddInstances(KV.Value, false, true);
 	}
 }

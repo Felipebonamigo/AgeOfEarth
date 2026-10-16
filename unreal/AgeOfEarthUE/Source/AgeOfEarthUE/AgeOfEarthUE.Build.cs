@@ -5,7 +5,7 @@ public class AgeOfEarthUE : ModuleRules
 	public AgeOfEarthUE(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "WebSockets", "Json", "JsonUtilities", "RHI", "RenderCore", "Slate", "SlateCore" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "WebSockets", "Json", "JsonUtilities", "RHI", "RenderCore", "Slate", "SlateCore", "ProceduralMeshComponent" });
 		if (Target.bBuildEditor)
 		{
 			// ferramentas de editor (importar o Landscape a partir dos scripts Python)

@@ -92,6 +92,10 @@
 		{
 			"Name": "FSRMovieRenderPipeline",
 			"Enabled": false
+		},
+		{
+			"Name": "ProceduralMeshComponent",
+			"Enabled": true
 		}
 	],
 	"TargetPlatforms": [
