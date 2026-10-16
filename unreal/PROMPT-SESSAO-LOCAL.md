@@ -30,3 +30,6 @@ Regras: só mexa em `unreal/` e `art/meshy/`; a simulação (`src/`, `scripts/un
 se precisar de algo lá, peça num arquivo de resposta. Nunca desative verificação de TLS nem coloque senhas no repositório.
 Só licenças CC0 ou CC BY 4.0 (ou as do Fab/Megascans que permitem uso comercial), registradas em `art/meshy/catalogo.json`.
 ```
+
+## Adendo (16/10/2026): referências de visual
+Leia `docs/REFERENCIAS-VISUAIS.md`. Além do que o pedido 0008 já exige, mostre na fatia: cidade Arcaica × Moderna com troca animada, cena parada viva por 10 s, zoom contínuo do mapa ao hoplita com fps, linha de marcha com brasão, névoa dissolvendo, uma habilidade de herói em Niagara e feedback de coleta/obra. Não use arte, nomes ou assets de outros jogos.
