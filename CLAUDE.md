@@ -3,6 +3,17 @@
 RTS (Rise of Nations + Age of Mythology, panteão grego) em TypeScript + PixiJS, empacotável com Electron para a Steam.
 Idioma da interface e dos comentários: português (Brasil). Código em inglês.
 
+## Princípio do estúdio: divertido e bonito
+
+Decisão do Felipe (16/10/2026): **todo jogo nosso tem que ser divertido e bonito, sempre**. Vale para toda tarefa, não só para as de arte.
+
+- **Divertido primeiro.** Se não prende no protótipo feio, arte e polimento não salvam. Antes de chamar um sistema de pronto, pergunte
+  se jogar ele dá vontade de "mais uma".
+- **Bonito é requisito, aprovado por captura** (nunca só por teste verde), e a captura é olhada antes de se afirmar qualquer coisa visual.
+- **Desempenho protege os dois:** quadro travado não é divertido nem bonito.
+- Ao fechar um bloco, diga em uma linha o que ele mudou na diversão e no visual. Se não mudou nada, diga isso.
+- Na dúvida entre "correto" e "gostoso de jogar", o Felipe decide jogando: leve a versão jogável para ele ver, não só o relatório.
+
 ## Comandos
 - `npm run demo` — **demo local com um comando** (`scripts/demo.mjs`: `--update` faz git pull, instala e compila só o que faltar, serve `dist/` em http://localhost:4173 e abre o navegador; `--dev`, `--port N`, `--no-open`, `--rebuild`)
 - `npm run dev` — Vite em http://localhost:5173 · `npm run build` — typecheck + bundle em `dist/` · `npm run preview` — serve `dist/` na porta 4173
