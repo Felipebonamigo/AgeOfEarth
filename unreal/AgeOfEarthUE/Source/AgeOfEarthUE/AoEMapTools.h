@@ -7,6 +7,8 @@
 class ALandscape;
 class UMaterialInterface;
 class UWorld;
+class AActor;
+class UStaticMesh;
 
 /**
  * Ferramentas de editor chamadas pelos scripts Python de unreal/scripts (o Python do editor nao expoe a importacao do
@@ -26,6 +28,10 @@ public:
 	 * @param LayerInfoDir pasta do conteudo onde criar os LayerInfo (ex.: /Game/Maps/U0_Layers)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "AoE")
-	static ALandscape* ImportLandscape(UWorld* World, const FString& R16Path, int32 Resolution, float ScaleXY, float ScaleZ,
+	static AActor* ImportLandscape(UWorld* World, const FString& R16Path, int32 Resolution, float ScaleXY, float ScaleZ,
 		UMaterialInterface* Material, const TArray<FString>& LayerNames, const TArray<FString>& LayerPngs, const FString& LayerInfoDir);
+
+	/** Acrescenta ao ator Owner um componente de instancias hierarquicas (HISM) com a malha e os transforms (vegetacao e rochas do U1). */
+	UFUNCTION(BlueprintCallable, Category = "AoE")
+	static int32 AddInstancedMesh(AActor* Owner, UStaticMesh* Mesh, const TArray<FTransform>& Transforms, float CullEnd, bool bCastShadow);
 };

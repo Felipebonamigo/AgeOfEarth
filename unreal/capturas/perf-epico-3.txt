@@ -1,0 +1,15 @@
+AOE_PERF t=5 fps=60.9 quadro_ms=16.42 pior_ms=400.0 gpu_ms=10.93 ram_mb=2030 unidades=229 edificios=205 projeteis=2 poeira=69
+AOE_PERF t=10 fps=74.5 quadro_ms=13.41 pior_ms=39.6 gpu_ms=12.20 ram_mb=2026 unidades=250 edificios=207 projeteis=2 poeira=63
+AOE_PERF t=15 fps=74.3 quadro_ms=13.45 pior_ms=28.1 gpu_ms=11.47 ram_mb=2031 unidades=246 edificios=207 projeteis=3 poeira=72
+AOE_PERF t=20 fps=76.8 quadro_ms=13.01 pior_ms=28.8 gpu_ms=11.33 ram_mb=2040 unidades=243 edificios=207 projeteis=4 poeira=69
+AOE_PERF t=25 fps=81.6 quadro_ms=12.25 pior_ms=24.5 gpu_ms=11.80 ram_mb=2042 unidades=236 edificios=209 projeteis=2 poeira=74
+AOE_PERF t=30 fps=72.5 quadro_ms=13.80 pior_ms=80.0 gpu_ms=11.47 ram_mb=2041 unidades=229 edificios=213 projeteis=0 poeira=74
+AOE_PERF t=35 fps=75.6 quadro_ms=13.22 pior_ms=73.5 gpu_ms=11.67 ram_mb=2048 unidades=236 edificios=215 projeteis=3 poeira=95
+AOE_PERF t=40 fps=80.1 quadro_ms=12.48 pior_ms=27.0 gpu_ms=11.80 ram_mb=2050 unidades=235 edificios=216 projeteis=4 poeira=88
+AOE_PERF t=45 fps=78.9 quadro_ms=12.68 pior_ms=29.6 gpu_ms=12.26 ram_mb=2050 unidades=236 edificios=215 projeteis=1 poeira=117
+AOE_PERF t=50 fps=78.7 quadro_ms=12.70 pior_ms=32.2 gpu_ms=12.23 ram_mb=2051 unidades=239 edificios=215 projeteis=2 poeira=89
+AOE_PERF t=55 fps=79.7 quadro_ms=12.55 pior_ms=27.8 gpu_ms=11.53 ram_mb=2037 unidades=243 edificios=213 projeteis=1 poeira=122
+AOE_PERF t=60 fps=71.6 quadro_ms=13.97 pior_ms=109.9 gpu_ms=12.43 ram_mb=2038 unidades=243 edificios=215 projeteis=0 poeira=94
+AOE_PERF t=65 fps=74.2 quadro_ms=13.48 pior_ms=39.7 gpu_ms=11.78 ram_mb=2032 unidades=251 edificios=214 projeteis=1 poeira=85
+AOE_PERF t=70 fps=75.2 quadro_ms=13.31 pior_ms=31.1 gpu_ms=11.79 ram_mb=2033 unidades=253 edificios=217 projeteis=0 poeira=109
+AOE_PERF t=75 fps=77.6 quadro_ms=12.89 pior_ms=30.7 gpu_ms=11.92 ram_mb=2034 unidades=253 edificios=217 projeteis=2 poeira=65

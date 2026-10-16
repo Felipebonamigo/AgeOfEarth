@@ -1,10 +1,11 @@
 # Prompt para a sessão local (cole na sessão do Claude que roda no PC do dono)
 
-Estado em 13/10/2026: o **U0** (ambiente, ponte e terreno) está pronto e foi respondido em `art/meshy/canal/respostas/0006.md`.
-O próximo é o **U1, a fatia bonita** (`art/meshy/canal/pedidos/0008-unreal-u1-fatia-bonita.md`). O dono exige um visual
-de jogo moderno, no nível do print de referência dele (Unreal 5, Lumen, materiais PBR), **nada pixelado**; pode usar
-Unreal ou Unity se for preciso, e o plano é Unreal. A simulação da nuvem já tem 8 Eras, 21 poderes, 25 criaturas
-(navais, voadoras e anfíbias), mar, comércio e 20 maravilhas.
+Estado em 14/10/2026: **U0** (0006) e **U1, a fatia bonita** (0008) entregues. O U1 é uma build empacotada que mede 75–92 fps
+com ~250 unidades a 1080p na RTX 4070 Ti; a recomendação registrada é seguir no Unreal (`art/meshy/canal/respostas/0008.md`,
+aguardando a decisão do dono). **Feito no U1**: terreno com fotos PBR CC0 (Poly Haven), mar Water, vegetação e rochas por HISM,
+cidade com os modelos do Meshy, 14 tipos humanos animados (esqueleto do Manny com pesos próprios), campos, bandeiras, medidor de fps.
+**Falta**: mar com ondas, cavalaria/criaturas/heróis/navios animados, visual de caravana/mercador, luz dourada, efeitos, ciclo de
+dia, MP4 (sem ffmpeg), orientação das armas. Fluxo e armadilhas: `unreal/README.md` §5–6. Próximo marco: U2 (Eras I–IV), se o dono aprovar.
 
 ```
 Você é a sessão LOCAL do projeto Age of Earth (RTS grego em TypeScript). Você cuida do projeto Unreal Engine 5 neste PC

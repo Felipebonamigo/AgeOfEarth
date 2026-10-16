@@ -8,14 +8,97 @@
 			"Name": "AgeOfEarthUE",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"AdditionalDependencies": [ "Engine", "CoreUObject" ]
+			"AdditionalDependencies": [
+				"Engine",
+				"CoreUObject"
+			]
 		}
 	],
 	"Plugins": [
-		{ "Name": "Water", "Enabled": true },
-		{ "Name": "PythonScriptPlugin", "Enabled": true },
-		{ "Name": "EditorScriptingUtilities", "Enabled": true },
-		{ "Name": "Niagara", "Enabled": true }
+		{
+			"Name": "Water",
+			"Enabled": true
+		},
+		{
+			"Name": "PythonScriptPlugin",
+			"Enabled": true
+		},
+		{
+			"Name": "EditorScriptingUtilities",
+			"Enabled": true
+		},
+		{
+			"Name": "Niagara",
+			"Enabled": true
+		},
+		{
+			"Name": "GameFeatures",
+			"Enabled": true
+		},
+		{
+			"Name": "ModelContextProtocol",
+			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			]
+		},
+		{
+			"Name": "AllToolsets",
+			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			]
+		},
+		{
+			"Name": "FSR",
+			"Enabled": false
+		},
+		{
+			"Name": "DLSS",
+			"Enabled": false
+		},
+		{
+			"Name": "StreamlineNGXCommon",
+			"Enabled": false
+		},
+		{
+			"Name": "StreamlineCore",
+			"Enabled": false
+		},
+		{
+			"Name": "Streamline",
+			"Enabled": false
+		},
+		{
+			"Name": "StreamlineDLSSG",
+			"Enabled": false
+		},
+		{
+			"Name": "StreamlineDeepDVC",
+			"Enabled": false
+		},
+		{
+			"Name": "StreamlineReflex",
+			"Enabled": false
+		},
+		{
+			"Name": "DLSSMoviePipelineSupport",
+			"Enabled": false
+		},
+		{
+			"Name": "NIS",
+			"Enabled": false
+		},
+		{
+			"Name": "FSRMovieRenderPipeline",
+			"Enabled": false
+		},
+		{
+			"Name": "ProceduralMeshComponent",
+			"Enabled": true
+		}
 	],
-	"TargetPlatforms": [ "Windows" ]
+	"TargetPlatforms": [
+		"Windows"
+	]
 }

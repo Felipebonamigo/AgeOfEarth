@@ -2,12 +2,14 @@
 
 #include "AoEBridgeActor.h"
 #include "AoEPlayerController.h"
+#include "AoEHud.h"
 #include "Engine/World.h"
 
 AAoEGameMode::AAoEGameMode()
 {
 	PlayerControllerClass = AAoEPlayerController::StaticClass();
 	DefaultPawnClass = AAoECameraPawn::StaticClass();
+	HUDClass = AAoEHud::StaticClass();
 }
 
 void AAoEGameMode::StartPlay()

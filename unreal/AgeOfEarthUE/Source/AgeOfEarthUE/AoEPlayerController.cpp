@@ -1,6 +1,8 @@
 #include "AoEPlayerController.h"
 
 #include "AoEBridgeActor.h"
+#include "AoEHud.h"
+#include "UnrealClient.h"
 #include "EngineUtils.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -56,6 +58,24 @@ void AAoEPlayerController::FocusCameraOnArmy()
 	UE_LOG(LogTemp, Log, TEXT("AoE: camera em %s (tile %.1f, %.1f), chao z=%.0f"), *P->GetActorLocation().ToString(), B->MyCentroidTiles.X, B->MyCentroidTiles.Y, B->GroundZ(X, Y));
 	bCameraPlaced = true;
 	bAutoTest = FParse::Param(FCommandLine::Get(), TEXT("AoEAutoTest"));
+	FString ShotSpec;
+	if (FParse::Value(FCommandLine::Get(), TEXT("AoEShots="), ShotSpec))
+	{
+		TArray<FString> Items;
+		ShotSpec.ParseIntoArray(Items, TEXT(";"));
+		for (const FString& It : Items)
+		{
+			TArray<FString> F;
+			It.ParseIntoArray(F, TEXT(":"));
+			if (F.Num() < 3) continue;
+			FShot S;
+			S.Name = F[0]; S.X = FCString::Atof(*F[1]); S.Y = FCString::Atof(*F[2]);
+			if (F.Num() > 3) S.Arm = FCString::Atof(*F[3]);
+			if (F.Num() > 4) S.Pitch = FCString::Atof(*F[4]);
+			if (F.Num() > 5) S.Yaw = FCString::Atof(*F[5]);
+			Shots.Add(S);
+		}
+	}
 	FParse::Value(FCommandLine::Get(), TEXT("AoEShotDir="), ShotDir);
 	FParse::Value(FCommandLine::Get(), TEXT("AoEDelay="), AutoDelay);
 	if (AAoECameraPawn* CamPawn = Cast<AAoECameraPawn>(P))
@@ -75,6 +95,34 @@ void AAoEPlayerController::AoEMove(float TileX, float TileY)
 	TArray<int32> Ids = B->GetSelected().Array();
 	if (Ids.Num() == 0) Ids = B->MyUnitIds();
 	B->SendMove(Ids, TileX, TileY);
+}
+
+const TArray<FString>& AAoEPlayerController::BuildList()
+{
+	// o protocolo ainda nao diz o que cada Era libera (pedido a nuvem em unreal/PENDENCIAS.md): lista fixa das construcoes de cidadao; o servidor recusa o que nao vale
+	static const TArray<FString> L = { TEXT("house"), TEXT("farm"), TEXT("granary"), TEXT("lumber_camp"), TEXT("mine"), TEXT("quarry"), TEXT("barracks"), TEXT("temple"), TEXT("market") };
+	return L;
+}
+
+void AAoEPlayerController::ContextOrder(float TileX, float TileY, bool bQueue)
+{
+	AAoEBridgeActor* B = Bridge();
+	if (!B) return;
+	TArray<int32> Ids = B->GetSelected().Array();
+	if (Ids.Num() == 0 && B->SelBuilding != 0)
+	{
+		// edificio selecionado: o clique direito marca o ponto de encontro das unidades que ele treinar
+		B->SendCmd(TEXT("rally"), TArray<int32>(), FString::Printf(TEXT("\"buildingId\":%d,\"x\":%.2f,\"y\":%.2f"), B->SelBuilding, TileX, TileY), false);
+		return;
+	}
+	if (Ids.Num() == 0) return;   // sem selecao nao se manda ordem a ninguem (so o console AoEMove usa "todas")
+	int32 Target = 0; FString Kind;
+	if (B->PickTarget(TileX, TileY, Target, Kind))
+		B->SendCmd(Kind, Ids, FString::Printf(TEXT("\"targetId\":%d"), Target), bQueue);
+	else if (bQueue)
+		B->SendCmd(TEXT("move"), Ids, FString::Printf(TEXT("\"x\":%.2f,\"y\":%.2f"), TileX, TileY), true);
+	else
+		B->SendMove(Ids, TileX, TileY);
 }
 
 void AAoEPlayerController::PlayerTick(float Dt)
@@ -115,21 +163,153 @@ void AAoEPlayerController::PlayerTick(float Dt)
 		for (int32 Id : B->MyUnitIds()) All.Add(Id);
 		B->SetSelected(All);
 	}
-	if (WasInputKeyJustPressed(EKeys::LeftMouseButton))
+	const bool bShift = IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift);
+	const bool bCtrl = IsInputKeyDown(EKeys::LeftControl) || IsInputKeyDown(EKeys::RightControl);
+	if (WasInputKeyJustPressed(EKeys::A) && !bCtrl) bAttackMoveArmed = true;
+	if (WasInputKeyJustPressed(EKeys::S) && !bCtrl) B->SendCmd(TEXT("stop"), B->GetSelected().Array(), FString(), false);
+	if (WasInputKeyJustPressed(EKeys::Escape)) bAttackMoveArmed = false;
+	// grupos de controle
+	static const FKey NumKeys[10] = { EKeys::Zero, EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five, EKeys::Six, EKeys::Seven, EKeys::Eight, EKeys::Nine };
+	for (int32 G = 0; G < 10; ++G)
+		if (WasInputKeyJustPressed(NumKeys[G]))
+		{
+			if (bCtrl) Groups[G] = B->GetSelected();
+			else if (Groups[G].Num() > 0)
+			{
+				TSet<int32> Vivos;   // so os que ainda existem
+				for (int32 Id : Groups[G]) if (B->GetUnits().Contains(Id)) Vivos.Add(Id);
+				Groups[G] = Vivos;
+				B->SetSelected(Vivos);
+			}
+		}
+	// menu de construcao: B abre, 1..9 escolhe, clique no chao posiciona (Shift mantem), Esc cancela
+	if (WasInputKeyJustPressed(EKeys::B) && !bCtrl && B->GetSelected().Num() > 0) { bBuildMenu = !bBuildMenu; BuildPending.Empty(); }
+	if (bBuildMenu)
 	{
-		FHitResult Hit;
-		GetHitResultUnderCursor(ECC_Visibility, false, Hit);
-		int32 Id = 0, Dono = -1;
-		TSet<int32> Sel = IsInputKeyDown(EKeys::LeftShift) ? B->GetSelected() : TSet<int32>();
-		if (Hit.GetActor() && B->UnitIdOf(Hit.GetActor(), Id, Dono) && Dono == B->MyPlayer) Sel.Add(Id);
+		for (int32 G = 1; G <= 9 && G <= BuildList().Num(); ++G)
+			if (WasInputKeyJustPressed(NumKeys[G])) { BuildPending = BuildList()[G - 1]; bBuildMenu = false; }
+	}
+	if (WasInputKeyJustPressed(EKeys::Escape)) { bBuildMenu = false; BuildPending.Empty(); }
+	// treino no edificio selecionado: Z X C V N M = 1o a 6o tipo que ele treina
+	if (B->SelBuilding != 0)
+	{
+		static const FKey TrainKeys[6] = { EKeys::Z, EKeys::X, EKeys::C, EKeys::V, EKeys::N, EKeys::M };
+		const TArray<FString>* Tr = B->BuildingTrains.Find(B->SelBuildingType);
+		if (Tr) for (int32 i = 0; i < 6 && i < Tr->Num(); ++i)
+			if (WasInputKeyJustPressed(TrainKeys[i])) B->SendCmd(TEXT("train"), TArray<int32>(), FString::Printf(TEXT("\"buildingId\":%d,\"unit\":\"%s\""), B->SelBuilding, *(*Tr)[i]), false);
+	}
+	// esquerdo: A armado = atacar-mover; senao clique seleciona e arrastar faz caixa
+	float MX = 0.f, MY = 0.f;
+	GetMousePosition(MX, MY);
+	// G: arma o proximo poder disponivel (G de novo passa ao seguinte); clique esquerdo no chao usa; Esc cancela
+	if (WasInputKeyJustPressed(EKeys::G) && !bCtrl)
+	{
+		TArray<FString> Prontos;
+		for (const AAoEBridgeActor::FAoEPower& Pw : B->Powers) if (!Pw.bUsed || Pw.Charges > 0) Prontos.Add(Pw.Id);
+		if (Prontos.Num() == 0) PowerArmed.Empty();
+		else { const int32 I = Prontos.IndexOfByKey(PowerArmed); PowerArmed = Prontos[(I + 1) % Prontos.Num()]; }
+	}
+	if (WasInputKeyJustPressed(EKeys::Escape)) PowerArmed.Empty();
+	// E na Biblioteca: avancar de Era; U num edificio: liberar a guarnicao; Delete: apagar a selecao (unidades ou o edificio)
+	if (B->SelBuilding != 0 && WasInputKeyJustPressed(EKeys::E) && B->SelBuildingType == TEXT("academy"))
+		B->SendCmd(TEXT("advanceAge"), TArray<int32>(), FString::Printf(TEXT("\"buildingId\":%d"), B->SelBuilding), false);
+	if (B->SelBuilding != 0 && WasInputKeyJustPressed(EKeys::U))
+		B->SendCmd(TEXT("ungarrison"), TArray<int32>(), FString::Printf(TEXT("\"buildingId\":%d"), B->SelBuilding), false);
+	if (WasInputKeyJustPressed(EKeys::Delete))
+	{
+		TArray<int32> Ids = B->GetSelected().Array();
+		if (B->SelBuilding != 0 && Ids.Num() == 0) Ids.Add(B->SelBuilding);
+		if (Ids.Num() > 0) B->SendCmd(TEXT("delete"), Ids, FString(), false);
+		B->SelBuilding = 0;
+	}
+	// minimapa: esquerdo (e arrastando) leva a camera; direito manda a selecao para la
+	if (AAoEHud* Hud = Cast<AAoEHud>(GetHUD()))
+	{
+		FVector2D Tile;
+		const FVector2D Mouse(MX, MY);
+		if (Hud->MiniToTile(Mouse, Tile) && !bDragging)
+		{
+			if (IsInputKeyDown(EKeys::LeftMouseButton) && GetPawn())
+				GetPawn()->SetActorLocation(FVector(Tile.X * B->UuPerTile, Tile.Y * B->UuPerTile, B->GroundZ(Tile.X * B->UuPerTile, Tile.Y * B->UuPerTile)));
+			if (WasInputKeyJustPressed(EKeys::RightMouseButton)) ContextOrder(Tile.X, Tile.Y, bShift);
+			bMouseOnMini = true;
+		}
+		else bMouseOnMini = false;
+	}
+	if (WasInputKeyJustPressed(EKeys::LeftMouseButton) && !bMouseOnMini)
+	{
+		if (!PowerArmed.IsEmpty())
+		{
+			FHitResult Hit;
+			if (GetHitResultUnderCursor(ECC_Visibility, false, Hit))
+			{
+				int32 Alvo = 0; FString Kind;
+				const float Tx = Hit.ImpactPoint.X / B->UuPerTile, Ty = Hit.ImpactPoint.Y / B->UuPerTile;
+				FString Extra = FString::Printf(TEXT("\"power\":\"%s\",\"x\":%.2f,\"y\":%.2f"), *PowerArmed, Tx, Ty);
+				if (B->PickTarget(Tx, Ty, Alvo, Kind) && Kind == TEXT("attack")) Extra += FString::Printf(TEXT(",\"targetId\":%d"), Alvo);
+				B->SendCmd(TEXT("power"), B->GetSelected().Array(), Extra, false);
+			}
+			PowerArmed.Empty();
+		}
+		else if (!BuildPending.IsEmpty())
+		{
+			FHitResult Hit;
+			TArray<int32> Ids = B->GetSelected().Array();
+			if (Ids.Num() > 0 && GetHitResultUnderCursor(ECC_Visibility, false, Hit))
+			{
+				const FIntPoint S = B->SizeOfBuilding(BuildPending);
+				const int32 Tx = FMath::FloorToInt(Hit.ImpactPoint.X / B->UuPerTile - S.X * 0.5f + 0.5f), Ty = FMath::FloorToInt(Hit.ImpactPoint.Y / B->UuPerTile - S.Y * 0.5f + 0.5f);
+				B->SendCmd(TEXT("build"), Ids, FString::Printf(TEXT("\"building\":\"%s\",\"tx\":%d,\"ty\":%d"), *BuildPending, Tx, Ty), bShift);
+			}
+			if (!bShift) BuildPending.Empty();
+		}
+		else if (bAttackMoveArmed)
+		{
+			FHitResult Hit;
+			TArray<int32> Ids = B->GetSelected().Array();
+			if (Ids.Num() > 0 && GetHitResultUnderCursor(ECC_Visibility, false, Hit))
+				B->SendCmd(TEXT("attackMove"), Ids, FString::Printf(TEXT("\"x\":%.2f,\"y\":%.2f"), Hit.ImpactPoint.X / B->UuPerTile, Hit.ImpactPoint.Y / B->UuPerTile), bShift);
+			bAttackMoveArmed = false;
+		}
+		else { bDragging = true; DragStart = FVector2D(MX, MY); }
+	}
+	if (bDragging && WasInputKeyJustReleased(EKeys::LeftMouseButton))
+	{
+		bDragging = false;
+		TSet<int32> Sel = bShift ? B->GetSelected() : TSet<int32>();
+		const FVector2D End(MX, MY);
+		if (FVector2D::Distance(DragStart, End) > 8.f)
+		{
+			const FVector2D Lo(FMath::Min(DragStart.X, End.X), FMath::Min(DragStart.Y, End.Y)), Hi(FMath::Max(DragStart.X, End.X), FMath::Max(DragStart.Y, End.Y));
+			for (const TPair<int32, FAoEVisual>& K : B->GetUnits())
+			{
+				if (K.Value.Dono != B->MyPlayer || !K.Value.Actor.IsValid()) continue;
+				FVector2D Sc;
+				if (ProjectWorldLocationToScreen(K.Value.Actor->GetActorLocation() + FVector(0, 0, 90.f), Sc) && Sc.X >= Lo.X && Sc.X <= Hi.X && Sc.Y >= Lo.Y && Sc.Y <= Hi.Y) Sel.Add(K.Key);
+			}
+		}
+		else
+		{
+			FHitResult Hit;
+			GetHitResultUnderCursor(ECC_Visibility, false, Hit);
+			int32 Id = 0, Dono = -1;
+			if (Hit.GetActor() && B->UnitIdOf(Hit.GetActor(), Id, Dono) && Dono == B->MyPlayer) { Sel.Add(Id); B->SelBuilding = 0; }
+			else
+			{
+				int32 BId = 0; FString BType;
+				if (B->PickOwnBuilding(Hit.ImpactPoint.X / B->UuPerTile, Hit.ImpactPoint.Y / B->UuPerTile, BId, BType)) { B->SelBuilding = BId; B->SelBuildingType = BType; }
+				else B->SelBuilding = 0;
+			}
+		}
 		B->SetSelected(Sel);
 	}
-	// ordem de movimento
-	if (WasInputKeyJustPressed(EKeys::RightMouseButton))
+	// direito: ordem contextual
+	if (WasInputKeyJustPressed(EKeys::RightMouseButton) && !bMouseOnMini)
 	{
+		bAttackMoveArmed = false;
 		FHitResult Hit;
 		if (GetHitResultUnderCursor(ECC_Visibility, false, Hit))
-			AoEMove(Hit.ImpactPoint.X / B->UuPerTile, Hit.ImpactPoint.Y / B->UuPerTile);
+			ContextOrder(Hit.ImpactPoint.X / B->UuPerTile, Hit.ImpactPoint.Y / B->UuPerTile, bShift);
 	}
 	if (bAutoTest) RunAutoTest(Dt);
 }
@@ -139,6 +319,120 @@ void AAoEPlayerController::RunAutoTest(float Dt)
 	AAoEBridgeActor* B = Bridge();
 	if (!B || !B->bHaveState) return;
 	AutoT += Dt;
+	if (FParse::Param(FCommandLine::Get(), TEXT("AoEOrderTest")))
+	{
+		auto MeanDist = [&]() { float S = 0.f; int32 N = 0; for (const TPair<int32, FAoEVisual>& K : B->GetUnits()) if (K.Value.Dono == B->MyPlayer && B->GetSelected().Contains(K.Key)) { S += FVector2D::Distance(K.Value.To, OrderTile); ++N; } return N ? S / N : 0.f; };
+		if (OrderStage == 0 && AutoT > AutoDelay)
+		{
+			TSet<int32> All;
+			for (int32 Id : B->MyUnitIds()) All.Add(Id);
+			B->SetSelected(All);
+			float Best = 1e9f;
+			for (const TPair<int32, FVector2D>& K : B->GetNodeTiles()) { const float D = FVector2D::Distance(K.Value, B->MyCentroidTiles); if (D > 12.f && D < Best) { Best = D; OrderNode = K.Key; OrderTile = K.Value; } }
+			OrderDist0 = MeanDist();
+			int32 T = 0; FString Kind;
+			const bool bPick = B->PickTarget(OrderTile.X, OrderTile.Y, T, Kind);
+			UE_LOG(LogTemp, Log, TEXT("AOE_ORDER pick=%d kind=%s id=%d (esperado no %d) distancia media inicial %.1f tiles"), bPick ? 1 : 0, *Kind, T, OrderNode, OrderDist0);
+			ContextOrder(OrderTile.X, OrderTile.Y, false);
+			int32 Tc = 0; for (const TPair<int32, FAoEVisual>& K : B->GetBuildings()) if (K.Value.Dono == B->MyPlayer && K.Value.Type == TEXT("town_center")) Tc = K.Key;
+			auto Count = [&](const TCHAR* Type) { int32 N = 0; for (const TPair<int32, FAoEVisual>& K : B->GetUnits()) if (K.Value.Dono == B->MyPlayer && K.Value.Type == Type) ++N; return N; };
+			auto CountB = [&](const TCHAR* Type) { int32 N = 0; for (const TPair<int32, FAoEVisual>& K : B->GetBuildings()) if (K.Value.Dono == B->MyPlayer && K.Value.Type == Type) ++N; return N; };
+			OrderVill0 = Count(TEXT("villager")); OrderHouse0 = CountB(TEXT("house"));
+			B->SendCmd(TEXT("train"), TArray<int32>(), FString::Printf(TEXT("\"buildingId\":%d,\"unit\":\"villager\""), Tc), false);
+			B->SendCmd(TEXT("build"), B->GetSelected().Array(), FString::Printf(TEXT("\"building\":\"house\",\"tx\":%d,\"ty\":%d"), (int32)B->MyCentroidTiles.X + 6, (int32)B->MyCentroidTiles.Y + 6), false);
+			UE_LOG(LogTemp, Log, TEXT("AOE_ORDER treino/construcao enviados (CC %d): cidadaos %d, casas %d"), Tc, OrderVill0, OrderHouse0);
+			// poder: o primeiro disponivel, no centro das nossas unidades (o mesmo caminho do G + clique)
+			FString Pw; for (const AAoEBridgeActor::FAoEPower& P : B->Powers) Pw += FString::Printf(TEXT("%s:%s "), *P.Id, P.bUsed ? TEXT("usado") : TEXT("pronto"));
+			UE_LOG(LogTemp, Log, TEXT("AOE_ORDER poderes antes: %s"), *Pw);
+			{
+				// alvo: a unidade inimiga mais proxima (raio, por exemplo, pede alvo), como o G + clique sobre ela
+				int32 Alvo = 0; FVector2D Pa = B->MyCentroidTiles; float Melhor = 1e9f;
+				for (const TPair<int32, FAoEVisual>& K : B->GetUnits()) if (K.Value.Dono != B->MyPlayer) { const float D = FVector2D::Distance(K.Value.To, B->MyCentroidTiles); if (D < Melhor) { Melhor = D; Alvo = K.Key; Pa = K.Value.To; } }
+				if (B->Powers.Num() > 0) B->SendCmd(TEXT("power"), TArray<int32>(), FString::Printf(TEXT("\"power\":\"%s\",\"x\":%.2f,\"y\":%.2f,\"targetId\":%d"), *B->Powers[0].Id, Pa.X, Pa.Y, Alvo), false);
+				UE_LOG(LogTemp, Log, TEXT("AOE_ORDER poder no alvo %d a %.1f tiles"), Alvo, Melhor);
+			}
+			if (Tc) B->SendCmd(TEXT("rally"), TArray<int32>(), FString::Printf(TEXT("\"buildingId\":%d,\"x\":%.2f,\"y\":%.2f"), Tc, B->MyCentroidTiles.X + 4.f, B->MyCentroidTiles.Y + 4.f), false);
+			OrderStage = 1; OrderT = 0.f;
+		}
+		else if (OrderStage == 1) { OrderT += Dt; if (OrderT > 40.f) {
+			int32 V = 0, Hs = 0;
+			for (const TPair<int32, FAoEVisual>& K : B->GetUnits()) if (K.Value.Dono == B->MyPlayer && K.Value.Type == TEXT("villager")) ++V;
+			for (const TPair<int32, FAoEVisual>& K : B->GetBuildings()) if (K.Value.Dono == B->MyPlayer && K.Value.Type == TEXT("house")) ++Hs;
+			UE_LOG(LogTemp, Log, TEXT("AOE_ORDER apos 40 s: cidadaos %d -> %d, casas %d -> %d"), OrderVill0, V, OrderHouse0, Hs);
+			FString Pw; for (const AAoEBridgeActor::FAoEPower& P : B->Powers) Pw += FString::Printf(TEXT("%s:%s "), *P.Id, P.bUsed ? TEXT("usado") : TEXT("pronto"));
+			UE_LOG(LogTemp, Log, TEXT("AOE_ORDER poderes depois: %s"), *Pw); UE_LOG(LogTemp, Log, TEXT("AOE_ORDER distancia media final %.1f tiles (inicial %.1f)"), MeanDist(), OrderDist0); ConsoleCommand(TEXT("quit"), true); OrderStage = 2; } }
+		return;
+	}
+	if (Shots.Num() > 0)
+	{
+		// tomadas dirigidas: posiciona a camera, espera 2 s (a malha e a luz assentam) e fotografa
+		if (AutoT < AutoDelay) return;
+		ShotT += Dt;
+		AAoECameraPawn* Cam = Cast<AAoECameraPawn>(GetPawn());
+		if (ShotIdx >= Shots.Num()) { if (ShotT > 3.f) ConsoleCommand(TEXT("quit"), true); return; }
+		const FShot& S = Shots[ShotIdx];
+		if (Cam && ShotT < Dt * 1.5f + 0.001f)
+		{
+			const float Uu = (float)B->UuPerTile;
+			FVector2D Alvo(S.X, S.Y);
+			if (S.X <= -1.5f)
+			{
+				// tomada "exercito" (x <= -2): a unidade militar com mais militares a ate 4 tiles (aglomerado), para ver armas de perto
+				int32 MaisVizinhos = -1;
+				TMap<FString, int32> Tipos;
+				for (const TPair<int32, FAoEVisual>& K : B->GetUnits())
+				{
+					if (K.Value.Familia == TEXT("civil") || K.Value.Familia.IsEmpty()) continue;
+					int32 N = 0;
+					for (const TPair<int32, FAoEVisual>& O : B->GetUnits())
+						if (O.Value.Familia != TEXT("civil") && FVector2D::DistSquared(O.Value.To, K.Value.To) < 16.f) ++N;
+					if (N > MaisVizinhos) { MaisVizinhos = N; Alvo = K.Value.To; }
+				}
+				for (const TPair<int32, FAoEVisual>& O : B->GetUnits())
+					if (O.Value.Familia != TEXT("civil") && FVector2D::DistSquared(O.Value.To, Alvo) < 16.f) Tipos.FindOrAdd(O.Value.Type)++;
+				FString Lista; for (const TPair<FString, int32>& T : Tipos) Lista += FString::Printf(TEXT("%s x%d "), *T.Key, T.Value);
+				if (MaisVizinhos < 0) Alvo = B->MyCentroidTiles;
+				UE_LOG(LogTemp, Log, TEXT("AoE: tomada %s no exercito em (%.1f, %.1f): %s"), *S.Name, Alvo.X, Alvo.Y, *Lista);
+			}
+			else if (S.X < 0.f)
+			{
+				// tomada "obra" (x negativo): o maior edificio em obra no comeco (25-60 %), para provar andaime e recorte
+				float Maior = -1.f;
+				const FAoEVisual* Obra = nullptr;
+				for (const TPair<int32, FAoEVisual>& K : B->GetBuildings())
+				{
+					// a maior pegada primeiro (obra grande tem guindaste e carroca), depois a altura
+					const FIntPoint Sz = B->SizeOfBuilding(K.Value.Type);
+					const float Nota = Sz.X * Sz.Y * 10000.f + K.Value.MeshHeight;
+					if (K.Value.Progress > 0.25f && K.Value.Progress < 0.6f && K.Value.Plaza.IsValid() && Nota > Maior) { Maior = Nota; Alvo = K.Value.To; Obra = &K.Value; }
+				}
+				if (Maior < 0.f) Alvo = B->MyCentroidTiles;   // nenhuma obra agora: a base do jogador
+				FBox Cx(ForceInit);
+				if (Obra && Obra->Body.IsValid()) Cx = Obra->Body->Bounds.GetBox();
+				UE_LOG(LogTemp, Log, TEXT("AoE: tomada %s na obra em (%.1f, %.1f): %s progresso %.2f, chao %.0f, altura %.0f, malha z %.0f..%.0f"), *S.Name, Alvo.X, Alvo.Y,
+					Obra ? *Obra->Type : TEXT("-"), Obra ? Obra->Progress : 0.f, Obra ? Obra->ToZ : 0.f, Obra ? Obra->MeshHeight : 0.f, Cx.Min.Z, Cx.Max.Z);
+			}
+			Cam->SetActorLocation(FVector(Alvo.X * Uu, Alvo.Y * Uu, B->GroundZ(Alvo.X * Uu, Alvo.Y * Uu)));
+			Cam->Arm->TargetArmLength = S.Arm;
+			Cam->Arm->SetRelativeRotation(FRotator(S.Pitch, S.Yaw, 0.f));
+		}
+		// -AoESel=unidades|cc|construir: estado de interface para a captura (prova o HUD de seleção, do edifício e o menu)
+		if (ShotT < Dt * 1.5f + 0.001f)
+		{
+			FString Sel; FParse::Value(FCommandLine::Get(), TEXT("AoESel="), Sel);
+			if (Sel == TEXT("unidades") || Sel == TEXT("construir")) { TSet<int32> All; for (int32 Id : B->MyUnitIds()) All.Add(Id); B->SetSelected(All); B->SelBuilding = 0; bBuildMenu = Sel == TEXT("construir"); }
+			else if (Sel == TEXT("cc")) { B->SetSelected(TSet<int32>()); for (const TPair<int32, FAoEVisual>& K : B->GetBuildings()) if (K.Value.Dono == B->MyPlayer && K.Value.Type == TEXT("town_center")) { B->SelBuilding = K.Key; B->SelBuildingType = K.Value.Type; } }
+		}
+		if (ShotT > 2.5f)
+		{
+			const FString Dir = ShotDir.IsEmpty() ? FPaths::ProjectSavedDir() : ShotDir;
+			// captura do quadro como o jogador vê (com o HUD; o HighResShot não desenha as fontes Slate do HUD). -AoESemHUD: só a cena
+			if (FParse::Param(FCommandLine::Get(), TEXT("AoESemHUD"))) ConsoleCommand(FString::Printf(TEXT("HighResShot 1920x1080 filename=\"%s/%s.png\""), *Dir, *S.Name), true);
+			else FScreenshotRequest::RequestScreenshot(FString::Printf(TEXT("%s/%s.png"), *Dir, *S.Name), true, false);
+			++ShotIdx; ShotT = 0.f;
+		}
+		return;
+	}
 	auto Shot = [&](const TCHAR* Name)
 	{
 		const FString Dir = ShotDir.IsEmpty() ? FPaths::ProjectSavedDir() : ShotDir;
@@ -155,4 +449,13 @@ void AAoEPlayerController::RunAutoTest(float Dt)
 	}
 	else if (AutoStage == 2 && AutoT > AutoDelay + 6.f) { Shot(TEXT("u0-caixas-2")); AutoStage = 3; }
 	else if (AutoStage == 3 && AutoT > AutoDelay + 9.f) { ConsoleCommand(TEXT("quit"), true); AutoStage = 4; }
+}
+
+bool AAoEPlayerController::GetDragRect(FVector2D& A, FVector2D& B) const
+{
+	if (!bDragging) return false;
+	float MX = 0.f, MY = 0.f;
+	if (!GetMousePosition(MX, MY)) return false;
+	A = DragStart; B = FVector2D(MX, MY);
+	return FVector2D::Distance(A, B) > 8.f;
 }

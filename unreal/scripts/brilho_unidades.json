@@ -1,0 +1,75 @@
+{
+  "_comentario": "Brilho por material de unidade (u1_materiais.py aplica no parâmetro Brilho do M_Meshy). Medido em 14/10/2026: mediana da luminância linear do difuso; muitas texturas do Meshy tinham mediana 0,02–0,03 e as unidades viravam silhuetas pretas. Brilho = 0,07 / mediana, entre 1 e 2,5. Refazer: exportar os difusos e rodar a medição de novo.",
+  "materiais": {
+    "/Game/Meshy/unidades/villager__peasant-maiden/Materials/villager__peasant-maiden_material_0": {
+      "brilho": 2.32,
+      "mediana": 0.03,
+      "tipos": "villager,caravan"
+    },
+    "/Game/Meshy/unidades/villager__peasant-girl/Materials/villager__peasant-girl_material_0": {
+      "brilho": 2.5,
+      "mediana": 0.026,
+      "tipos": "villager,merchant,caravan"
+    },
+    "/Game/Meshy/unidades/hoplite__athenian-hoplite/Materials/hoplite__athenian-hoplite_material_0": {
+      "brilho": 1.94,
+      "mediana": 0.036,
+      "tipos": "hoplite"
+    },
+    "/Game/Meshy/unidades/hoplite__red-crested-hoplite/Materials/hoplite__red-crested-hoplite_material_0": {
+      "brilho": 1.23,
+      "mediana": 0.057,
+      "tipos": "hoplite,peltast"
+    },
+    "/Game/Meshy/unidades/hypaspist__spartan-red-cape/Materials/hypaspist__spartan-red-cape_material_0": {
+      "brilho": 2.5,
+      "mediana": 0.023,
+      "tipos": "hypaspist,jason,odysseus,perseus"
+    },
+    "/Game/Meshy/unidades/myrmidon__spartan-ultrarealistic/Materials/myrmidon__spartan-ultrarealistic_material_0": {
+      "brilho": 2.5,
+      "mediana": 0.018,
+      "tipos": "myrmidon,basileus,achilles"
+    },
+    "/Game/Meshy/unidades/heracles__lion-warrior/Materials/heracles__lion-warrior_material_0": {
+      "brilho": 1.36,
+      "mediana": 0.051,
+      "tipos": "heracles"
+    },
+    "/Game/Meshy/unidades/cataphract__armored-rider/Materials/cataphract__armored-rider_material_0": {
+      "brilho": 2.5,
+      "mediana": 0.016,
+      "tipos": "hippeus,hetairoi,kataskopos,cataphract"
+    },
+    "/Game/Meshy/criaturas/minotaur__tribal-attire/Materials/minotaur__tribal-attire_material_0": {
+      "brilho": 2.16,
+      "mediana": 0.032,
+      "tipos": "minotaur"
+    },
+    "/Game/Meshy/criaturas/cyclops__cyclopean-sentinel/Materials/cyclops__cyclopean-sentinel_material_0": {
+      "brilho": 1.29,
+      "mediana": 0.054,
+      "tipos": "cyclops,prometheus"
+    },
+    "/Game/Meshy/criaturas/manticore__winged/Materials/manticore__winged_material_0": {
+      "brilho": 2.36,
+      "mediana": 0.03,
+      "tipos": "manticore"
+    },
+    "/Game/Meshy/criaturas/cerberus__unleashed/Materials/Material_0": {
+      "brilho": 2.45,
+      "mediana": 0.029,
+      "tipos": "cerberus"
+    },
+    "/Game/Meshy/criaturas/griffin__lightbrown-griffin/Materials/griffin__lightbrown-griffin_material_0": {
+      "brilho": 1.9,
+      "mediana": 0.037,
+      "tipos": "griffin"
+    },
+    "/Game/Meshy/criaturas/dragon__emerald-dragon/Materials/dragon__emerald-dragon_material_0": {
+      "brilho": 1.6,
+      "mediana": 0.044,
+      "tipos": "triptolemus_dragon"
+    }
+  }
+}
