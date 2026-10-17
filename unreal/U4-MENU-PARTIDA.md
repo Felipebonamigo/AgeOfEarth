@@ -65,3 +65,8 @@ Pedidos 1–5 atendidos na ponte: `novaPartida`/`--setup`, relevo e plantas, 12 
 - Ganchos de captura: `-AoEMenuTela=criar -AoEMenuVagas=N -AoEMenuTimes -AoEMenuTamanho=N -AoEMenuMapa=N -AoEMenuJogar`.
 - Falta: prévia do mapa, online, Campanha/Editor/Opções, fundo vivo, empacotar Node + simulação, escolha de bioma, ligar `-AoEMenu` por padrão na build.
 - Armadilha: dentro do Unreal `cmd /c npx ...` falha com "A sintaxe do comando está incorreta"; usar `node node_modules/tsx/dist/cli.mjs`, com diretório de trabalho em barras invertidas.
+
+## Visual v2 (17/10/2026)
+Menu refeito sem molduras de bronze: vidro escuro, filetes de ouro com losango, título com espaçamento entre letras, hover, retratos dos deuses (atlas `hud`), equipes pela cor, cartões de mapa tingidos pelo bioma com forma própria, tamanho em botões (os menores que o mínimo ficam apagados), faixa das 8 Eras com os ícones do jogo (clique leva a ponta mais próxima) e rodapé com resumo + Começar. Teste do clique: `-AoEMenuTeste` aperta Jogar e Começar pelo mesmo `MenuClick` do mouse (provado: partida de 12 em Lagos iniciou).
+
+Bloqueio de empacotamento: com outro editor aberto com Live Coding no mesmo motor (CitySample, TDFende, Zombie) o UAT recusa ("Unable to build while Live Coding is active"); `u1-empacotar.sh` tenta 10 vezes e desiste. Empacotar e medir fps da partida de 12 só quando esses editores fecharem. Pedidos à nuvem: `art/meshy/canal/pedidos/0013-unreal-menu-pronto-pedidos.md`.
