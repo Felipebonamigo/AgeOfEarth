@@ -70,3 +70,10 @@ Enquanto isso, os mapas `U1`/`U1M` seguem para testes, com a conferência de ter
   por isso o sol do bioma é só um fator de intensidade (`intensidadeX`).
 - Falta: Montanha, Creta árida/Egito e Submundo; vegetação por bioma (oliveiras no Egeu, pinheiros na montanha); escolha automática
   pelo tipo de mapa e opção manual no menu de partida (U4).
+
+## Pinheiro (17/10/2026)
+`pine_sapling_small` (Poly Haven, CC0, 3 variantes) importado com LODs, registrado no catálogo, acervo e doc do estúdio, mas **fora da mata**:
+com ele as medições deram 52–75 fps contra 74 sem ele, só que outra sessão disputava a GPU e uma rodada sem pinheiro também deu 26 fps.
+Para decidir: medir com a máquina livre (`nvidia-smi` < 5 %) e várias rodadas. Para ligar: acrescentar as 3 malhas
+`/Game/Vegetacao/pine_sapling_small/pine_sapling_small/StaticMeshes/pine_sapling_small_{a,b,c}` em `nos.tree.malhas`.
+`island_tree_03` (4,7 mi de triângulos) derrubou o editor ao gerar LODs: descartada.

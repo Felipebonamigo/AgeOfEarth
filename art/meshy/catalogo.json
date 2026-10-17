@@ -1769,6 +1769,17 @@
       "uso": "Segunda árvore das florestas no Unreal (nós tree), com Nanite; Content/Fontes/vegetacao/island_tree_01"
     },
     {
+      "id": "pine_sapling_small",
+      "tipo": "modelo",
+      "titulo": "Pine Sapling Small (3 variantes, glTF 1k)",
+      "url": "https://polyhaven.com/a/pine_sapling_small",
+      "autor": "Poly Haven",
+      "licenca": "CC0",
+      "origem": "polyhaven.com (API)",
+      "baixadoEm": "2026-10-17",
+      "uso": "Pinheiro nas florestas do Unreal (nós tree), com LODs gerados; Content/Fontes/vegetacao/pine_sapling_small"
+    },
+    {
       "id": "rock_tile_floor",
       "tipo": "textura",
       "titulo": "Rock Tile Floor (PBR 2k)",
