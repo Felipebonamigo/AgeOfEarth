@@ -39,7 +39,7 @@ Decisão do dono em 14/10/2026: **seguir no Unreal**. Itens que a sessão local 
 - Cook leva só pastas explícitas (`DirectoriesToAlwaysCook`); os control rigs/ABP do Third Person estão quebrados (apontam para outra pasta) e ficam de fora.
 - `-AoEPerfLog=` não grava arquivo na build (lê-se o log do jogo); VRAM por processo não medida (só `nvidia-smi` da placa).
 - Mouse/gameplay no Unreal (U2a/U2b, 14/10): seleção, ordens, construir (B), treinar, poderes (G), Era (E), grupos, HUD e minimapa feitos. Faltam a névoa de guerra e o custo no menu de construção (campos da ponte pedidos à nuvem na resposta 0009).
-- Licenças para `docs/LEGAL.md` §4 (nuvem): Poly Haven (CC0) e Manny/Quinn + animações da Epic (só dentro de jogo feito no Unreal).
+- ~~Licenças para `docs/LEGAL.md` §4 (nuvem): Poly Haven (CC0) e Manny/Quinn + animações da Epic~~ (já registradas em `docs/LEGAL.md` §4, conferido 17/10).
 
 ## Depende do dono
 - **DLSS (NVIDIA)**: o dono vai entrar no developer.nvidia.com, aceitar a licença e baixar o plugin do UE 5.8 em Downloads; instalar só no projeto como o FSR e medir.
