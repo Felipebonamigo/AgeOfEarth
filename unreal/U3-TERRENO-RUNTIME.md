@@ -77,3 +77,7 @@ com ele as medições deram 52–75 fps contra 74 sem ele, só que outra sessão
 Para decidir: medir com a máquina livre (`nvidia-smi` < 5 %) e várias rodadas. Para ligar: acrescentar as 3 malhas
 `/Game/Vegetacao/pine_sapling_small/pine_sapling_small/StaticMeshes/pine_sapling_small_{a,b,c}` em `nos.tree.malhas`.
 `island_tree_03` (4,7 mi de triângulos) derrubou o editor ao gerar LODs: descartada.
+
+## Terceiro bioma: Montanha (17/10/2026)
+`--bioma montanha`: grama verde-esmeralda fria, rocha e areia acinzentadas mais claras, mar azul fundo e frio, sol ×0,92, névoa mais densa.
+Captura `u3-bioma-montanha.png`. Faltam Creta árida/Egito e Submundo, vegetação por bioma e a escolha pelo menu (U4).
