@@ -84,3 +84,6 @@ Captura `u3-bioma-montanha.png`. Faltam Creta árida/Egito e Submundo, vegetaç�
 
 ## Quarto bioma: Deserto (17/10/2026)
 `deserto` (Egito, Creta árida): areia dourada, rocha de arenito, grama seca ocre-oliva, mar turquesa, sol ×1,22, névoa quente. Captura `u3-bioma-deserto.png` (mapa tipo `desert` com `-AoEBioma=deserto`). A ponte ainda manda `atica` para esse mapa e as árvores e o capim seguem verdes: pedido 0014 à nuvem. Falta só o Submundo.
+
+### Deserto com cara de Egito (17/10/2026)
+`nos.tree.malhasBioma.deserto` (AoEVisuais.json) troca as árvores por 2 tamareiras CC0 do Meshy (`natureza/palm__date-palm-*`; sem Nanite, 4 LODs e Brilho 2,3 por `u2_palmeira.py`); `AAoEBridgeActor::RespawnarNos` refaz os nós quando o bioma chega (o `hello` nasce antes do relevo); no deserto o capim/flores/samambaias do servidor são desbastados (`ReceberPlantas`); o menu deduz `deserto` do tipo de mapa (`BiomaMenu`). Captura `u3-bioma-egito.png`.

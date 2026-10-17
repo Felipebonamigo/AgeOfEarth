@@ -132,6 +132,7 @@ void AAoEHud::EnviarPartida()
 	}
 	const FString Setup = FString::Printf(TEXT("{\"jogadores\":[%s],\"mapa\":{\"tipo\":\"%s\",\"tamanho\":\"%s\",\"semente\":%d},\"regras\":{\"eraInicial\":%d,\"eraFinal\":%d,\"vitoria\":\"%s\",\"mapaRevelado\":%s}}"),
 		*Js, MapasId[MapaTipo], TamId[MapaTamanho], Semente, EraIni, EraFim, VitId[Vitoria], bRevelado ? TEXT("true") : TEXT("false"));
+	B->BiomaMenu = MapaTipo == 3 ? TEXT("deserto") : TEXT("");   // tipo desert = bioma deserto (Egito)
 	SerieAoEnviar = B->TerrenoSerial;
 	TCarregando = 0.f;
 	B->SendRaw(FString::Printf(TEXT("{\"type\":\"novaPartida\",\"setup\":%s}"), *Setup));

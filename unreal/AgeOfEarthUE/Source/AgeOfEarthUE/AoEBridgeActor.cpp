@@ -222,6 +222,12 @@ void AAoEBridgeActor::LoadCatalog()
 			const TArray<TSharedPtr<FJsonValue>>* Ms = nullptr;
 			if (E->TryGetArrayField(TEXT("esqueletos"), Ms)) for (const auto& M : *Ms) D.Skeletons.Add(M->AsString());
 			if (E->TryGetArrayField(TEXT("malhas"), Ms)) for (const auto& M : *Ms) D.Meshes.Add(M->AsString());
+			const TSharedPtr<FJsonObject>* PorBioma = nullptr;
+			if (E->TryGetObjectField(TEXT("malhasBioma"), PorBioma)) for (const auto& KB : (*PorBioma)->Values)
+			{
+				const TArray<TSharedPtr<FJsonValue>>* Lb = nullptr;
+				if (KB.Value->TryGetArray(Lb)) { TArray<FString> L; for (const auto& M : *Lb) L.Add(M->AsString()); D.MeshesBioma.Add(FString(KB.Key), L); }
+			}
 			FString Um;
 			if (E->TryGetStringField(TEXT("malha"), Um)) D.Meshes.Add(Um);
 			double N = 0;
@@ -423,7 +429,14 @@ void AAoEBridgeActor::Dispatch(const TSharedPtr<FJsonObject>& O)
 	else if (Type == TEXT("relevo"))
 	{
 		const TSharedPtr<FJsonObject>* Cab = nullptr; FString Campo, Dados; bool bFim = false;
-		if (O->TryGetObjectField(TEXT("cab"), Cab)) RelevoCab = *Cab;
+		if (O->TryGetObjectField(TEXT("cab"), Cab))
+		{
+			RelevoCab = *Cab;
+			FString Bm = TEXT("atica"); FString BmArg;
+			if (FParse::Value(FCommandLine::Get(), TEXT("AoEBioma="), BmArg)) Bm = BmArg; else RelevoCab->TryGetStringField(TEXT("bioma"), Bm);
+			if (!BiomaMenu.IsEmpty() && Bm == TEXT("atica") && !FParse::Param(FCommandLine::Get(), TEXT("AoEBioma"))) Bm = BiomaMenu;   // o menu sabe o tipo de mapa; a ponte ainda manda atica para o deserto (pedido 0014)
+			if (Bm != BiomaAtual) { BiomaAnterior = BiomaAtual; BiomaAtual = Bm; RespawnarNos(); }
+		}
 		else if (O->TryGetStringField(TEXT("campo"), Campo) && O->TryGetStringField(TEXT("d"), Dados)) RelevoAcum.FindOrAdd(Campo) += Dados;
 		else if (O->TryGetBoolField(TEXT("fim"), bFim) && bFim) MontarTerreno();
 	}
@@ -450,6 +463,7 @@ void AAoEBridgeActor::HandleHello(const TSharedPtr<FJsonObject>& O)
 	PlantasComps.Empty(); PlantasMalhas.Empty(); ZonasLimpar.Reset();
 	for (auto& E : Estradas) for (TWeakObjectPtr<AActor>& A : E.Value) if (A.IsValid()) A->Destroy();
 	Estradas.Empty();
+	BiomaAtual.Reset();
 	MyPlayer = (int32)O->GetNumberField(TEXT("player"));
 	{
 		const TSharedPtr<FJsonObject>* M = nullptr;
@@ -583,7 +597,9 @@ void AAoEBridgeActor::SpawnNode(int32 Id, const FString& Type, float X, float Y)
 	NodeKind.Add(Id, Type);
 	const FAoEDef* Def = NodeDefs.Find(Type);
 	if (!Def || Def->Meshes.Num() == 0) return;
-	const FString& Short = Def->Meshes[(int32)(Hash01(Id, 1) * Def->Meshes.Num()) % Def->Meshes.Num()];
+	const TArray<FString>* PorBioma = Def->MeshesBioma.Find(BiomaAtual);
+	const TArray<FString>& Lista = (PorBioma && PorBioma->Num() > 0) ? *PorBioma : Def->Meshes;
+	const FString& Short = Lista[(int32)(Hash01(Id, 1) * Lista.Num()) % Lista.Num()];
 	UStaticMesh* Mesh = LoadMesh(Short);
 	if (!Mesh) return;
 	TObjectPtr<UHierarchicalInstancedStaticMeshComponent>* Found = NodeComps.Find(Short);
@@ -612,6 +628,20 @@ void AAoEBridgeActor::SpawnNode(int32 Id, const FString& Type, float X, float Y)
 	Ref.Comp = Comp;
 	Ref.Index = Comp->AddInstance(T, true);
 	NodeRefs.Add(Id, Ref);
+}
+
+void AAoEBridgeActor::RespawnarNos()
+{
+	// as arvores do hello nasceram antes de o bioma chegar: remove as que tem malha por bioma e nasce de novo com a lista certa
+	TArray<TTuple<int32, FString, FVector2D>> Refazer;
+	for (const TPair<int32, FString>& K : NodeKind)
+	{
+		const FAoEDef* D = NodeDefs.Find(K.Value);
+		const FVector2D* T = NodeTile.Find(K.Key);
+		if (D && T && (D->MeshesBioma.Contains(BiomaAtual) || D->MeshesBioma.Contains(BiomaAnterior))) Refazer.Add(MakeTuple(K.Key, K.Value, *T));
+	}
+	for (const auto& R : Refazer) { RemoveNode(R.Get<0>()); SpawnNode(R.Get<0>(), R.Get<1>(), (float)R.Get<2>().X, (float)R.Get<2>().Y); }
+	UE_LOG(LogTemp, Log, TEXT("AoE: bioma %s: %d nos refeitos"), *BiomaAtual, Refazer.Num());
 }
 
 void AAoEBridgeActor::RemoveNode(int32 Id)
@@ -2103,7 +2133,7 @@ void AAoEBridgeActor::MontarTerreno()
 	if (Terreno) Terreno->Destroy();
 	Terreno = GetWorld()->SpawnActor<AAoETerreno>(FVector::ZeroVector, FRotator::ZeroRotator);
 	if (!Terreno->Montar(R, (float)MapW * (float)UuPerTile)) { UE_LOG(LogTemp, Warning, TEXT("AoE: relevo invalido")); Terreno->Destroy(); Terreno = nullptr; }
-	else { FString Bioma = TEXT("atica"); FString BiomaArg; if (FParse::Value(FCommandLine::Get(), TEXT("AoEBioma="), BiomaArg)) Bioma = BiomaArg; else RelevoCab->TryGetStringField(TEXT("bioma"), Bioma); Terreno->AplicarBioma(Bioma); for (TActorIterator<AActor> It(GetWorld()); It; ++It) if (It->GetClass()->GetName().Contains(TEXT("Landscape"))) { It->SetActorHiddenInGame(true); It->SetActorEnableCollision(false); } }
+	else { FString Bioma = BiomaAtual.IsEmpty() ? TEXT("atica") : BiomaAtual; Terreno->AplicarBioma(Bioma); for (TActorIterator<AActor> It(GetWorld()); It; ++It) if (It->GetClass()->GetName().Contains(TEXT("Landscape"))) { It->SetActorHiddenInGame(true); It->SetActorEnableCollision(false); } }
 	UE_LOG(LogTemp, Log, TEXT("AoE: terreno montado em %.0f ms (malha, textura, colisao)"), (FPlatformTime::Seconds() - TMontar) * 1000.0);
 	RelevoAcum.Empty();
 	++TerrenoSerial;
@@ -2130,8 +2160,11 @@ void AAoEBridgeActor::ReceberPlantas(const TSharedPtr<FJsonObject>& O)
 	const float DistFim = Grupo == TEXT("capim") ? 5500.f : Grupo == TEXT("flores") ? 6500.f : Grupo == TEXT("samambaias") ? 8000.f : 30000.f;
 	const bool bSombra = Grupo == TEXT("samambaias") || Grupo == TEXT("rochas");
 	TMap<int32, TArray<FTransform>> PorMalha;
+	// deserto: o capim, as flores e as samambaias do servidor ficariam verdes em cima da areia; sobra uma fracao do capim e das flores
+	const float Manter = BiomaAtual != TEXT("deserto") ? 1.f : Grupo == TEXT("capim") ? 0.14f : Grupo == TEXT("flores") ? 0.3f : Grupo == TEXT("samambaias") ? 0.f : 1.f;
 	for (int32 i = 0; i + 6 < P->Num(); i += 7)
 	{
+		if (Manter < 1.f && Hash01(i / 7 + Grupo.Len() * 7919, 11) >= Manter) continue;
 		const int32 K = FMath::Clamp((int32)(*P)[i + 4]->AsNumber(), 0, Malhas->Num() - 1);
 		const float E = (float)(*P)[i + 5]->AsNumber();
 		PorMalha.FindOrAdd(K).Add(FTransform(FRotator((float)(*P)[i + 6]->AsNumber(), (float)(*P)[i + 3]->AsNumber(), 0.f),

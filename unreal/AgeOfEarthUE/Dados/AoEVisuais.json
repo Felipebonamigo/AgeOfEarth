@@ -611,7 +611,13 @@
         "/Game/Vegetacao/island_tree_02/island_tree_02/StaticMeshes/island_tree_02",
         "/Game/Vegetacao/island_tree_01/island_tree_01/StaticMeshes/island_tree_01"
       ],
-      "altura": 680
+      "altura": 680,
+      "malhasBioma": {
+        "deserto": [
+          "natureza/palm__date-palm-joeogles",
+          "natureza/palm__date-palm-sutensaket"
+        ]
+      }
     },
     "berry": {
       "malhas": [

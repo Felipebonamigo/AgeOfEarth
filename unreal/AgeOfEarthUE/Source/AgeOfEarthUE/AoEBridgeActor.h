@@ -31,6 +31,7 @@ struct FAoEDef
 	FString Familia;             // familia de animacao (chave de "familias" no catalogo); vazio = animacoes do Manny
 	FString Movimento;           // malha sem esqueleto: "voo", "serpente", "gigante", "maquina", "barco" (movimento procedural)
 	TArray<FString> Skeletons;   // SkeletalMesh (/Game/Unidades/SK_*) animados pelas animacoes do Manny; tem precedencia sobre Meshes
+	TMap<FString, TArray<FString>> MeshesBioma;   // no: malhas que trocam as de Meshes num bioma ("deserto" = palmeiras)
 	TArray<FString> Meshes;      // caminhos curtos ("edificios/house__greek-tavern"); mais de um = variantes escolhidas pelo id
 	float Fit = 0.92f;           // edificio: fracao da pegada que a malha ocupa
 	float Height = 0.f;          // unidade/no: altura final em cm (0 = pela pegada)
@@ -156,6 +157,10 @@ public:
 	float GroundZ(float X, float Y) const;
 	TMap<FString, FString> RelevoAcum; TSharedPtr<FJsonObject> RelevoCab;   // relevo chega em pedacos depois do hello
 	void MontarTerreno();
+	FString BiomaMenu;             // bioma que o menu deduz do tipo de mapa (vale enquanto a ponte mandar "atica")
+	FString BiomaAnterior;
+	FString BiomaAtual;            // bioma da partida (relevo.cab.bioma ou -AoEBioma=); vazio ate o relevo chegar
+	void RespawnarNos();           // refaz os nos (arvores) quando o bioma troca as malhas
 	int32 TerrenoSerial = 0;       // sobe a cada terreno montado (o menu espera o da partida nova)
 	FString UltimoErro;            // mensagem "erro" da ponte (setup recusado), lida e limpa pelo menu
 	void SendRaw(const FString& Json);

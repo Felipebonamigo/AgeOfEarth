@@ -1393,6 +1393,38 @@
       "rig": false,
       "baixadoEm": "2026-10-17",
       "notas": "couracado cinza com torres duplas; reduzido de 674 mil triangulos como o trirreme; textura meio lavada de longe (Meshy 6 Preview); proa para -X (yaw 180); serve a battleship e ironclad"
+    },
+    {
+      "arquivo": "natureza/palm__date-palm-joeogles.glb",
+      "idJogo": "tree",
+      "titulo": "Palm Tree (joeogles)",
+      "url": "https://www.meshy.ai/3d-models/palm-tree-01949315-3089-7e1b-9deb-bea902a342fa",
+      "autor": "joeogles",
+      "autorUrl": "https://www.meshy.ai/@g115312353978019181845",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 16820,
+      "triangulos": 20999,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-17",
+      "notas": "tamareira alta e esbelta, ja leve (21 mil triangulos); so o bioma deserto usa (arvore dos nos); sem Nanite, 4 LODs gerados (u2_palmeira.py), Brilho 2,3"
+    },
+    {
+      "arquivo": "natureza/palm__date-palm-sutensaket.glb",
+      "idJogo": "tree",
+      "titulo": "Palm tree (sutensaket)",
+      "url": "https://www.meshy.ai/3d-models/Palm-tree-0193e9a8-2e0a-7a02-992c-30e66b610ed0",
+      "autor": "sutensaket",
+      "autorUrl": "",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 506808,
+      "triangulos": 44929,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-17",
+      "notas": "tamareira de copa densa, reduzida de 682 mil triangulos (weld sem normais + simplify do meshoptimizer, normais recalculadas); bioma deserto; sem Nanite, 4 LODs, Brilho 2,3"
     }
   ],
   "recusados": [
