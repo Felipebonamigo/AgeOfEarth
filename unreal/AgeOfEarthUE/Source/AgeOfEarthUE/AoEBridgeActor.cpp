@@ -324,7 +324,24 @@ void AAoEBridgeActor::BeginPlay()
 		FlashLight->RegisterComponent();
 	}
 	if (FParse::Param(FCommandLine::Get(), TEXT("AoEVitrine"))) { SpawnVitrine(); return; }
-	Connect();
+	if (FParse::Param(FCommandLine::Get(), TEXT("AoEMenu"))) IniciarServidor();
+	Connect();   // sem servidor ainda (menu abrindo o processo), o OnError tenta de novo a cada 2 s
+}
+
+void AAoEBridgeActor::SendRaw(const FString& Json)
+{
+	if (Socket.IsValid() && Socket->IsConnected()) Socket->Send(Json);
+}
+
+void AAoEBridgeActor::IniciarServidor()
+{
+	// atalho: o servidor e o do repositorio rodado por npx (maquina de desenvolvimento); a build empacotada leva Node + simulacao
+	FString Repo = TEXT("C:/Users/Felip/source/repos/AgeOfEarth");
+	FParse::Value(FCommandLine::Get(), TEXT("AoERepo="), Repo);
+	// node direto (sem cmd/npx: dentro do Unreal o npx.cmd falhava com "sintaxe incorreta"); tsx vem do node_modules do repositorio
+	const FString Args = TEXT("node_modules/tsx/dist/cli.mjs scripts/unreal/sim-server.ts --port 8790 --paused --ais 1");
+	ServidorProc = FPlatformProcess::CreateProc(TEXT("C:/Program Files/nodejs/node.exe"), *Args, false, true, true, nullptr, 0, *Repo.Replace(TEXT("/"), TEXT("\\")), nullptr);
+	UE_LOG(LogTemp, Log, TEXT("AoE: servidor da simulacao %s (%s) cmd %s"), ServidorProc.IsValid() ? TEXT("aberto") : TEXT("NAO abriu"), *Repo, *Args);
 }
 
 void AAoEBridgeActor::EndPlay(const EEndPlayReason::Type Reason)
@@ -338,6 +355,7 @@ void AAoEBridgeActor::EndPlay(const EEndPlayReason::Type Reason)
 		Socket->Close();
 		Socket.Reset();
 	}
+	if (ServidorProc.IsValid()) { FPlatformProcess::TerminateProc(ServidorProc, true); FPlatformProcess::CloseProc(ServidorProc); }
 	Super::EndPlay(Reason);
 }
 
@@ -410,6 +428,12 @@ void AAoEBridgeActor::Dispatch(const TSharedPtr<FJsonObject>& O)
 		else if (O->TryGetBoolField(TEXT("fim"), bFim) && bFim) MontarTerreno();
 	}
 	else if (Type == TEXT("plantas")) ReceberPlantas(O);
+	else if (Type == TEXT("erro"))
+	{
+		const TArray<TSharedPtr<FJsonValue>>* Es = nullptr; UltimoErro = TEXT("Configuração recusada pela simulação.");
+		if (O->TryGetArrayField(TEXT("errors"), Es) && Es->Num() > 0) { UltimoErro.Reset(); for (const auto& E : *Es) UltimoErro += (UltimoErro.IsEmpty() ? TEXT("") : TEXT("; ")) + E->AsString(); }
+		UE_LOG(LogTemp, Warning, TEXT("AoE: ponte recusou a partida: %s"), *UltimoErro);
+	}
 	else if (Type == TEXT("over")) UE_LOG(LogTemp, Log, TEXT("AoE: fim de partida"));
 }
 
@@ -421,6 +445,11 @@ void AAoEBridgeActor::HandleHello(const TSharedPtr<FJsonObject>& O)
 	for (auto& D : Dying) if (D.Actor.IsValid()) D.Actor->Destroy();
 	for (auto& P : NodeComps) if (P.Value) P.Value->ClearInstances();
 	Units.Empty(); Buildings.Empty(); Dying.Empty(); ActorToUnit.Empty(); Selected.Empty(); NodeRefs.Empty();
+	// partida nova sobre a anterior (menu): plantas, estradas e zonas de limpeza da partida velha saem
+	if (PlantasAtor) { PlantasAtor->Destroy(); PlantasAtor = nullptr; }
+	PlantasComps.Empty(); PlantasMalhas.Empty(); ZonasLimpar.Reset();
+	for (auto& E : Estradas) for (TWeakObjectPtr<AActor>& A : E.Value) if (A.IsValid()) A->Destroy();
+	Estradas.Empty();
 	MyPlayer = (int32)O->GetNumberField(TEXT("player"));
 	{
 		const TSharedPtr<FJsonObject>* M = nullptr;
@@ -2077,6 +2106,7 @@ void AAoEBridgeActor::MontarTerreno()
 	else { FString Bioma = TEXT("atica"); FString BiomaArg; if (FParse::Value(FCommandLine::Get(), TEXT("AoEBioma="), BiomaArg)) Bioma = BiomaArg; else RelevoCab->TryGetStringField(TEXT("bioma"), Bioma); Terreno->AplicarBioma(Bioma); for (TActorIterator<AActor> It(GetWorld()); It; ++It) if (It->GetClass()->GetName().Contains(TEXT("Landscape"))) { It->SetActorHiddenInGame(true); It->SetActorEnableCollision(false); } }
 	UE_LOG(LogTemp, Log, TEXT("AoE: terreno montado em %.0f ms (malha, textura, colisao)"), (FPlatformTime::Seconds() - TMontar) * 1000.0);
 	RelevoAcum.Empty();
+	++TerrenoSerial;
 }
 
 void AAoEBridgeActor::ReceberPlantas(const TSharedPtr<FJsonObject>& O)

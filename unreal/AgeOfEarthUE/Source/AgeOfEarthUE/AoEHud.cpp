@@ -14,6 +14,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "ImageUtils.h"
 #include "Misc/FileHelper.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Rendering/SlateRenderer.h"
 #include "Serialization/JsonReader.h"
@@ -229,6 +231,8 @@ void AAoEHud::DrawHUD()
 	Super::DrawHUD();
 	if (!Canvas) return;
 	if (!bArtTried) LoadArt();
+	if (!bMenuVerificado) { bMenuVerificado = true; if (FParse::Param(FCommandLine::Get(), TEXT("AoEMenu"))) IniciarMenu(); }
+	if (bMenu) { DrawMenu(); return; }
 	AAoEBridgeActor* B = FindBridge();
 	if (!B || !B->bHaveState) return;
 	const float Sx = Canvas->SizeX, Sy = Canvas->SizeY;

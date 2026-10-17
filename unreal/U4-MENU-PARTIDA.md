@@ -57,3 +57,11 @@ Decidido: o menu de partida (fora da campanha) deixa o jogador montar a partida 
 
 ## Respostas da nuvem (16/10/2026)
 Pedidos 1–5 atendidos na ponte: `novaPartida`/`--setup`, relevo e plantas, 12 cores, inícios para 12 jogadores (mapas `huge`/`giant`) e medição de custo. Detalhes em `art/meshy/canal/pedidos/0012-nuvem-u4-pronto.md`; formato do setup em `scripts/unreal/match.ts`.
+
+## Estado (17/10/2026): menu v1 funcionando
+- `-AoEMenu` abre o menu (Principal e Criar partida) sobre o jogo; a ponte abre o `sim-server.ts` oficial sozinha (node direto, `-AoERepo=` muda o repositório) e fecha no EndPlay.
+- Criar partida: até 12 lugares (Você/Bot/Fechada, deus, equipe, dificuldade), predefinições de equipe, 8 tipos de mapa, 5 tamanhos (sobe sozinho ao mínimo dos jogadores), semente, eras, vitória, mapa revelado. "Começar" manda `novaPartida` e `pause false`; terreno, plantas e estradas da partida anterior são trocados no hello.
+- Provado: 12 jogadores em 2 equipes, mapa Gigante, partida iniciada pelo menu (capturas `menu.png`, `partida.png`).
+- Ganchos de captura: `-AoEMenuTela=criar -AoEMenuVagas=N -AoEMenuTimes -AoEMenuTamanho=N -AoEMenuMapa=N -AoEMenuJogar`.
+- Falta: prévia do mapa, online, Campanha/Editor/Opções, fundo vivo, empacotar Node + simulação, escolha de bioma, ligar `-AoEMenu` por padrão na build.
+- Armadilha: dentro do Unreal `cmd /c npx ...` falha com "A sintaxe do comando está incorreta"; usar `node node_modules/tsx/dist/cli.mjs`, com diretório de trabalho em barras invertidas.

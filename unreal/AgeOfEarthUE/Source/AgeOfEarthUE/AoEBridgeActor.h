@@ -156,6 +156,12 @@ public:
 	float GroundZ(float X, float Y) const;
 	TMap<FString, FString> RelevoAcum; TSharedPtr<FJsonObject> RelevoCab;   // relevo chega em pedacos depois do hello
 	void MontarTerreno();
+	int32 TerrenoSerial = 0;       // sobe a cada terreno montado (o menu espera o da partida nova)
+	FString UltimoErro;            // mensagem "erro" da ponte (setup recusado), lida e limpa pelo menu
+	void SendRaw(const FString& Json);
+	FProcHandle ServidorProc;      // sim-server aberto pelo menu (-AoEMenu); fechado no EndPlay
+	void IniciarServidor();
+	bool PonteConectada() const { return bConnected; }
 	void ReceberPlantas(const TSharedPtr<FJsonObject>& O);
 	TMap<FString, TArray<FString>> PlantasMalhas;   // grupo -> malhas "pasta/arquivo" (vem na 1a mensagem do grupo)
 	TMap<FString, TObjectPtr<class UHierarchicalInstancedStaticMeshComponent>> PlantasComps;   // "grupo/k" -> componente

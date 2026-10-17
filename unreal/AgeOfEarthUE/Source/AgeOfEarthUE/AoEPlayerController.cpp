@@ -125,9 +125,30 @@ void AAoEPlayerController::ContextOrder(float TileX, float TileY, bool bQueue)
 		B->SendMove(Ids, TileX, TileY);
 }
 
+static bool bAutoTest0() { return FParse::Param(FCommandLine::Get(), TEXT("AoEAutoTest")); }
+
 void AAoEPlayerController::PlayerTick(float Dt)
 {
 	Super::PlayerTick(Dt);
+	if (AAoEHud* H = Cast<AAoEHud>(GetHUD()))
+	{
+		if (H->MenuAtivo())
+		{
+			bShowMouseCursor = true;
+			if (WasInputKeyJustPressed(EKeys::LeftMouseButton)) { float Mx = 0, My = 0; if (GetMousePosition(Mx, My)) H->MenuClick(Mx, My); }
+			// captura do proprio menu (-AoEAutoTest -AoEDelay=N): um quadro depois do atraso e fecha; nao vale com -AoEMenuJogar (ai a captura e do jogo)
+			static float MenuT = 0.f; static int32 MenuEst = 0;
+			if (bAutoTest0() && !FParse::Param(FCommandLine::Get(), TEXT("AoEMenuJogar")))
+			{
+				MenuT += Dt;
+				float Atraso = 20.f; FParse::Value(FCommandLine::Get(), TEXT("AoEDelay="), Atraso);
+				FString Dir; FParse::Value(FCommandLine::Get(), TEXT("AoEShotDir="), Dir);
+				if (MenuEst == 0 && MenuT > Atraso) { FScreenshotRequest::RequestScreenshot(FString::Printf(TEXT("%s/menu.png"), *Dir), true, false); MenuEst = 1; }
+				else if (MenuEst == 1 && MenuT > Atraso + 3.f) { ConsoleCommand(TEXT("quit"), true); MenuEst = 2; }
+			}
+			return;   // o jogo (camera, selecao, ordens) so vale depois do Jogar
+		}
+	}
 	AAoEBridgeActor* B = Bridge();
 	if (!B) return;
 	if (!bCameraPlaced) { FocusCameraOnArmy(); }
