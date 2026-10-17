@@ -9,3 +9,7 @@ Tudo abaixo está em `scripts/unreal/` (ramo `claude/ecstatic-albattani-atz7h5`)
 5. **Custo da simulação com 12 IAs** (difícil, 240×240, 20 min, pacote esbuild): média 4,8 ms/tick, p95 18 ms, pior 72 ms — cabe no tick de 50 ms em média; rode a simulação no processo Node separado (como já planejado), nunca na thread do jogo.
 
 Cenários, editor e campanha continuam em small/medium/large e até 4 jogadores.
+
+## Adendo (17/10/2026)
+- `relevo.cab.bioma` agora vem da ponte: `egeu` para mapas Ilhas/Costeiro/Mediterrâneo e para o Egeu oficial, `atica` nos demais (`biomaDe` em `scripts/unreal/relevo.ts`). Ids novos em `Dados/biomas.json` pedem uma linha em `biomaDe`.
+- Pico de tick da simulação: `nearestNodeBy` varre só o perímetro do anel (pior tick de 30 min: 58 → 43 ms).

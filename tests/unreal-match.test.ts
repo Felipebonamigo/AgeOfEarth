@@ -72,3 +72,11 @@ describe('ponte: relevo e novaPartida', () => {
     ws.close(); await srv.close();
   }, 20000);
 });
+
+describe('relevo: bioma', () => {
+  it('o cabeçalho leva o bioma (egeu nos mapas de mar, atica nos demais)', () => {
+    const mk = (mapType: 'islands' | 'continental') => createGame({ seed: 3, mapSize: 'small', mapType, players: [{ name: 'A', god: 'zeus', isAI: false, difficulty: 'normal' }, { name: 'B', god: 'hades', isAI: true, difficulty: 'normal' }] });
+    expect((relevoMensagens(mk('islands'), { n: 253, plantas: false })[0] as any).cab.bioma).toBe('egeu');
+    expect((relevoMensagens(mk('continental'), { n: 253, plantas: false })[0] as any).cab.bioma).toBe('atica');
+  });
+});
