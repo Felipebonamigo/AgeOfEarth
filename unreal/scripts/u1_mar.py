@@ -35,6 +35,19 @@ return float4(n, foam);
 """
 
 
+LAVA = """
+float2 p = P.xy;
+float2 u1 = p / 1100.0 + t_ * float2(0.0035, 0.0018);
+float2 u2 = p / 520.0 + t_ * float2(-0.0028, 0.0046);
+float n = Texture2DSample(Ruido, RuidoSampler, u1).r * 0.6 + Texture2DSample(Ruido, RuidoSampler, u2).r * 0.4;
+float veia = pow(saturate(1.0 - abs(n - 0.5) * 4.2), 5.0);     // veios de lava onde o ruido cruza o meio
+float respira = 0.82 + 0.18 * sin(t_ * 1.4 + n * 14.0);
+float3 crosta = float3(0.07, 0.005, 0.0);
+float3 quente = float3(2.6, 0.5, 0.03);
+return lerp(crosta, quente, veia) * respira;
+""".replace("t_", "T")
+
+
 def no(mat, cls, x, y):
     return mel.create_material_expression(mat, cls, x, y)
 
@@ -127,8 +140,20 @@ def main():
     bm = no(mat, unreal.MaterialExpressionScalarParameter, 0, 900)
     bm.set_editor_property("parameter_name", "BrilhoMar")
     bm.set_editor_property("default_value", 0.0)
+    lv = no(mat, unreal.MaterialExpressionCustom, -200, 1000)
+    lv.set_editor_property("code", LAVA)
+    lv.set_editor_property("output_type", unreal.CustomMaterialOutputType.CMOT_FLOAT3)
+    ent = []
+    for nome in ("P", "T", "Ruido"):
+        ci = unreal.CustomInput()
+        ci.set_editor_property("input_name", nome)
+        ent.append(ci)
+    lv.set_editor_property("inputs", ent)
+    mel.connect_material_expressions(wp, "", lv, "P")
+    mel.connect_material_expressions(tm, "", lv, "T")
+    mel.connect_material_expressions(rt, "", lv, "Ruido")
     emi = no(mat, unreal.MaterialExpressionMultiply, 200, 900)
-    mel.connect_material_expressions(cor, "", emi, "A")
+    mel.connect_material_expressions(lv, "", emi, "A")
     mel.connect_material_expressions(bm, "", emi, "B")
     mel.connect_material_property(emi, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     mel.connect_material_property(nrm, "", unreal.MaterialProperty.MP_NORMAL)
