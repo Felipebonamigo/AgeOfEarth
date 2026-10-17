@@ -499,7 +499,7 @@
       "textura": 1024,
       "rig": false,
       "baixadoEm": "2026-10-05",
-      "notas": "galpão de serraria de madeira; o telhado ficou esfarrapado na redução; reduzido com simplifySloppy (o simplify topológico travava); normais recalculadas suaves; textura 1024; retorno da nuvem (0004): idem quartel",
+      "notas": "galpão de serraria de madeira; o telhado ficou esfarrapado na redução; reduzido com simplifySloppy (o simplify topológico travava); normais recalculadas suaves; textura 1024; retorno da nuvem (0004): idem quartel; reavaliada em 17/10/2026 a 150 mil triangulos com simplify topologico + simplifySloppy parcial e textura 2048: o telhado continua em cacos (a malha original de 3,5 milhoes e sopa de triangulos); descartada de vez",
       "status": "avaliado, perdeu para o procedural"
     },
     {
@@ -1313,6 +1313,38 @@
       "rig": false,
       "baixadoEm": "2026-10-09",
       "notas": "Torre de farol de pedra clara em dois andares com ameias, lanterna de cúpula vermelha; mais medieval do que helenístico; serve de Farol de Alexandria provisório (maravilha da Era III); sem base; reduzido soldando sem normais + simplify do meshoptimizer, normais recalculadas suaves, texturas JPEG q85 a 2048"
+    },
+    {
+      "arquivo": "edificios/house__greek-tavern_hq.glb",
+      "idJogo": "house",
+      "titulo": "Greek Tavern",
+      "url": "https://www.meshy.ai/3d-models/Greek-Tavern-0198611e-89d4-7c76-982e-c0063529bc59",
+      "autor": "Kava",
+      "autorUrl": "https://www.meshy.ai/@s1736362928d6492",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 565770,
+      "triangulos": 130000,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-17",
+      "notas": "versao de alta qualidade a partir do original (700 mil triangulos): soldada sem normais + simplify topologico do meshoptimizer a 130 mil, normais recalculadas, textura 2048 em JPEG; so o cliente Unreal usa (o cliente web segue com o arquivo antigo de 87 mil)"
+    },
+    {
+      "arquivo": "edificios/lumber_camp__thatchwood-sawmill_hq.glb",
+      "idJogo": "lumber_camp",
+      "titulo": "Thatchwood Sawmill Fort",
+      "url": "https://www.meshy.ai/3d-models/x-019f9578-cd89-7ea4-9264-70b0e873ff16",
+      "autor": "NomoreSJP",
+      "autorUrl": "https://www.meshy.ai/@nomoresjp",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 943060,
+      "triangulos": 130000,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-17",
+      "notas": "versao de alta qualidade a partir do original (1,7 milhao de triangulos): soldada sem normais + simplify topologico a 130 mil, normais recalculadas, textura 2048 em JPEG (cor, normal, metal/rugosidade); so o cliente Unreal usa"
     }
   ],
   "recusados": [
