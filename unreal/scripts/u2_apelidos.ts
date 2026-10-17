@@ -9,9 +9,9 @@ import { BUILDINGS } from '../../src/core/data/buildings';
 import { UNITS } from '../../src/core/data/units';
 
 const UNREAL_UNIDADES: Record<string, string> = {
-  // navios: todos no galeão até haver modelos (o balanço no mar vem do movimento "barco")
-  fishing_boat: 'galleon', transport_ship: 'galleon', merchant_ship: 'galleon', penteconter: 'galleon', trireme: 'galleon',
-  quinquereme: 'galleon', dromon: 'galleon', ship_of_the_line: 'galleon', ironclad: 'galleon', battleship: 'galleon',
+  // navios (17/10/2026): trireme, barco de pesca e couracado tem malha propria; os demais usam a mais proxima (o balanço no mar vem do movimento "barco")
+  transport_ship: 'trireme', merchant_ship: 'fishing_boat', penteconter: 'trireme',
+  quinquereme: 'trireme', dromon: 'trireme', ship_of_the_line: 'galleon', ironclad: 'battleship',
   medusa: 'hydra', sentinel: 'colossus', shade: 'myrmidon', oceanus: 'cronus',
 };
 const UNREAL_CONSTRUCOES: Record<string, string> = { titan_gate: 'wonder_zeus', cornucopia: 'temple' };

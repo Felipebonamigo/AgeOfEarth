@@ -373,7 +373,8 @@
         "unidades/galleon__timber-galleon"
       ],
       "altura": 1100,
-      "anel": false
+      "anel": false,
+      "yaw": 180
     },
     "centaur": {
       "malhas": [
@@ -575,6 +576,33 @@
       ],
       "yaw": -90,
       "familia": "civil"
+    },
+    "trireme": {
+      "movimento": "barco",
+      "malhas": [
+        "unidades/trireme__trireme-model"
+      ],
+      "altura": 590,
+      "anel": false,
+      "yaw": 180
+    },
+    "fishing_boat": {
+      "movimento": "barco",
+      "malhas": [
+        "unidades/fishing_boat__fishing-boat-nets"
+      ],
+      "altura": 330,
+      "anel": false,
+      "yaw": 180
+    },
+    "battleship": {
+      "movimento": "barco",
+      "malhas": [
+        "unidades/battleship__battleship-majesty"
+      ],
+      "altura": 420,
+      "anel": false,
+      "yaw": 180
     }
   },
   "nos": {
