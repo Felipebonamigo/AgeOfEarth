@@ -31,7 +31,7 @@ Decisão do dono em 14/10/2026: **seguir no Unreal**. Itens que a sessão local 
 - **U3 em andamento** (ver `U3-TERRENO-RUNTIME.md`): terreno, plantas e mar gerados na partida (`/Game/Maps/Partida`); pedir à nuvem que a ponte
   oficial mande `relevo`/`plantas` como o `u1-servidor.ts`. Próximos: biomas, LOD para mapas enormes.
 
-- **CitySample** (projeto da Epic no PC do dono: `C:UsersFelipOneDriveDocumentsUnreal ProjectsCitySample`; licença Epic, só para jogo feito no Unreal): cidade moderna
+- **CitySample** (projeto da Epic no PC do dono: `D:CitySample (movido pelo dono em 17/10; antes no OneDrive)`; licença Epic, só para jogo feito no Unreal): cidade moderna
   (Megascans: prédios modulares, asfalto, hidrantes). Pouco serve para o jogo grego. Candidatos: `Surfaces` (Stucco_Wall, Stone_Tiles_Facade,
   Patterned_Stone_Tiles, Gravel, sand, Wooden_Planks, Damaged_Wall_Plaster) para materiais e entulho (`Concrete_Rubble`, `Broken_*`) para
   ruínas. Migrar só o necessário (Content Browser > Migrate), nunca o projeto inteiro (OneDrive, muitos GB).
