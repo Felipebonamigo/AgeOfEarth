@@ -81,3 +81,6 @@ Para decidir: medir com a máquina livre (`nvidia-smi` < 5 %) e várias rodadas.
 ## Terceiro bioma: Montanha (17/10/2026)
 `--bioma montanha`: grama verde-esmeralda fria, rocha e areia acinzentadas mais claras, mar azul fundo e frio, sol ×0,92, névoa mais densa.
 Captura `u3-bioma-montanha.png`. Faltam Creta árida/Egito e Submundo, vegetação por bioma e a escolha pelo menu (U4).
+
+## Quarto bioma: Deserto (17/10/2026)
+`deserto` (Egito, Creta árida): areia dourada, rocha de arenito, grama seca ocre-oliva, mar turquesa, sol ×1,22, névoa quente. Captura `u3-bioma-deserto.png` (mapa tipo `desert` com `-AoEBioma=deserto`). A ponte ainda manda `atica` para esse mapa e as árvores e o capim seguem verdes: pedido 0014 à nuvem. Falta só o Submundo.
