@@ -138,7 +138,7 @@ void AAoEPlayerController::PlayerTick(float Dt)
 			if (WasInputKeyJustPressed(EKeys::LeftMouseButton)) { float Mx = 0, My = 0; if (GetMousePosition(Mx, My)) H->MenuClick(Mx, My); }
 			// captura do proprio menu (-AoEAutoTest -AoEDelay=N): um quadro depois do atraso e fecha; nao vale com -AoEMenuJogar (ai a captura e do jogo)
 			static float MenuT = 0.f; static int32 MenuEst = 0;
-			if (bAutoTest0() && !FParse::Param(FCommandLine::Get(), TEXT("AoEMenuJogar")))
+			if (bAutoTest0() && !FParse::Param(FCommandLine::Get(), TEXT("AoEMenuJogar")) && !FParse::Param(FCommandLine::Get(), TEXT("AoEMenuTeste")))
 			{
 				MenuT += Dt;
 				float Atraso = 20.f; FParse::Value(FCommandLine::Get(), TEXT("AoEDelay="), Atraso);

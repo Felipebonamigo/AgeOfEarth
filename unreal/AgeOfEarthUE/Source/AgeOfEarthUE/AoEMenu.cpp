@@ -142,6 +142,14 @@ void AAoEHud::EnviarPartida()
 
 void AAoEHud::DrawMenu()
 {
+	// teste do caminho do clique (-AoEMenuTeste): aperta Jogar e depois Comecar pelo mesmo MenuClick do mouse, no centro do botao desenhado
+	if (FParse::Param(FCommandLine::Get(), TEXT("AoEMenuTeste")) && Tela != ETela::Carregando)
+	{
+		static float TT = 0.f; static float Ult = 0.f; TT += 0.016f;
+		const int32 Alvo = Tela == ETela::Principal ? IdJogar : IdComecar;
+		if (TT > 8.f && TT - Ult > 3.f && FindBridge() && FindBridge()->bHaveState && FindBridge()->PonteConectada())
+			for (const FHit& H : Hits) if (H.Id == Alvo) { Ult = TT; const FVector2D C = (H.R.Min + H.R.Max) * 0.5; UE_LOG(LogTemp, Log, TEXT("AoE: teste do menu clica em %d (%.0f, %.0f)"), Alvo, C.X, C.Y); MenuClick((float)C.X, (float)C.Y); break; }
+	}
 	Hits.Reset();
 	const float Sx = Canvas->SizeX, Sy = Canvas->SizeY;
 	const float K = FMath::Clamp(FMath::Min(Sx / 1920.f, Sy / 1080.f), 0.6f, 2.f);
