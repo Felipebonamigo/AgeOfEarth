@@ -176,19 +176,32 @@ void AAoETerreno::AplicarBioma(const FString& Id)
 	{
 		MarMat->SetVectorParameterValue(TEXT("CorRaso"), Cor(*O, TEXT("raso"), FLinearColor(0.03f, 0.42f, 0.48f)));
 		MarMat->SetVectorParameterValue(TEXT("CorFundo"), Cor(*O, TEXT("fundo"), FLinearColor(0.008f, 0.12f, 0.2f)));
+		double Br = 0; (*O)->TryGetNumberField(TEXT("brilho"), Br);   // lava: o mar emite a propria cor (BrilhoMar, u1_mar.py)
+		MarMat->SetScalarParameterValue(TEXT("BrilhoMar"), (float)Br);
 	}
-	if ((*B)->TryGetObjectField(TEXT("sol"), O))
-		for (TActorIterator<ADirectionalLight> It(GetWorld()); It; ++It)
-		{
-			ULightComponent* L = It->GetLightComponent();
-			double V = 0; if ((*O)->TryGetNumberField(TEXT("intensidadeX"), V)) L->SetIntensity(L->Intensity * (float)V);
-		}
-	if ((*B)->TryGetObjectField(TEXT("nevoa"), O))
-		for (TActorIterator<AExponentialHeightFog> It(GetWorld()); It; ++It)
-		{
-			UExponentialHeightFogComponent* F = It->GetComponent();
-			F->SetFogInscatteringColor(Cor(*O, TEXT("cor"), FLinearColor(0.55f, 0.65f, 0.78f)));
-			double V = 0; if ((*O)->TryGetNumberField(TEXT("densidade"), V)) F->SetFogDensity((float)V);
-		}
+	// sol e nevoa voltam ao padrao do mapa antes de cada bioma: a luz e a nevoa sao do mapa e sobrevivem entre partidas (o fator do bioma anterior se acumulava)
+	static TMap<TWeakObjectPtr<ULightComponent>, float> SolBase;
+	static TMap<TWeakObjectPtr<UExponentialHeightFogComponent>, TPair<FLinearColor, float>> NevoaBase;
+	double FatorSol = 1.0;
+	const TSharedPtr<FJsonObject>* OSol = nullptr;
+	if ((*B)->TryGetObjectField(TEXT("sol"), OSol)) (*OSol)->TryGetNumberField(TEXT("intensidadeX"), FatorSol);
+	for (TActorIterator<ADirectionalLight> It(GetWorld()); It; ++It)
+	{
+		ULightComponent* L = It->GetLightComponent();
+		float* Base = SolBase.Find(L);
+		if (!Base) Base = &SolBase.Add(L, L->Intensity);
+		L->SetIntensity(*Base * (float)FatorSol);
+	}
+	const TSharedPtr<FJsonObject>* ONev = nullptr;
+	const bool bNevoa = (*B)->TryGetObjectField(TEXT("nevoa"), ONev);
+	for (TActorIterator<AExponentialHeightFog> It(GetWorld()); It; ++It)
+	{
+		UExponentialHeightFogComponent* F = It->GetComponent();
+		TPair<FLinearColor, float>* Base = NevoaBase.Find(F);
+		if (!Base) Base = &NevoaBase.Add(F, TPair<FLinearColor, float>(F->FogInscatteringLuminance, F->FogDensity));
+		F->SetFogInscatteringColor(bNevoa ? Cor(*ONev, TEXT("cor"), Base->Key) : Base->Key);
+		double V = Base->Value; if (bNevoa) (*ONev)->TryGetNumberField(TEXT("densidade"), V);
+		F->SetFogDensity((float)V);
+	}
 	UE_LOG(LogTemp, Log, TEXT("AoE: bioma %s aplicado"), *Id);
 }

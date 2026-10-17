@@ -157,6 +157,7 @@ public:
 	float GroundZ(float X, float Y) const;
 	TMap<FString, FString> RelevoAcum; TSharedPtr<FJsonObject> RelevoCab;   // relevo chega em pedacos depois do hello
 	void MontarTerreno();
+	bool bBiomaMenuForca = false;   // escolha explicita no menu: vale mesmo que a ponte mande outro bioma
 	FString BiomaMenu;             // bioma que o menu deduz do tipo de mapa (vale enquanto a ponte mandar "atica")
 	FString BiomaAnterior;
 	FString BiomaAtual;            // bioma da partida (relevo.cab.bioma ou -AoEBioma=); vazio ate o relevo chegar

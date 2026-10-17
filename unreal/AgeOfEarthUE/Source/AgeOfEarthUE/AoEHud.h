@@ -38,7 +38,7 @@ private:
 	bool bMenu = false, bMenuVerificado = false, bAutoJogar = false;
 	ETela Tela = ETela::Principal;
 	TArray<FVaga> Vagas;
-	int32 MapaTipo = 0, MapaTamanho = 1, Semente = 42, EraIni = 0, EraFim = 7, Vitoria = 0;
+	int32 BiomaSel = 0, MapaTipo = 0, MapaTamanho = 1, Semente = 42, EraIni = 0, EraFim = 7, Vitoria = 0;
 	bool bRevelado = false;
 	int32 SerieAoEnviar = -1;
 	float TCarregando = 0.f;

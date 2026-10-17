@@ -5,7 +5,7 @@ import unreal
 reg = unreal.AssetRegistryHelpers.get_asset_registry()
 sub = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem)
 for a in reg.get_assets_by_path("/Game/Meshy/natureza", recursive=True):
-    if str(a.asset_class_path.asset_name) != "StaticMesh" or "palm__" not in str(a.asset_name):
+    if str(a.asset_class_path.asset_name) != "StaticMesh" or not ("palm__" in str(a.asset_name) or "tree_dead__" in str(a.asset_name)):
         continue
     m = unreal.load_asset(str(a.package_name))
     ns = m.get_editor_property("nanite_settings")
@@ -27,8 +27,8 @@ for a in reg.get_assets_by_path("/Game/Meshy/natureza", recursive=True):
 # folhas escuras de longe (textura de baixa luminancia, como as das unidades): Brilho do M_Meshy_Vento
 mel = unreal.MaterialEditingLibrary
 for a in reg.get_assets_by_path("/Game/Meshy/natureza", recursive=True):
-    if "palm__" in str(a.package_name) and str(a.asset_class_path.asset_name) == "MaterialInstanceConstant":
+    if ("palm__" in str(a.package_name) or "tree_dead__" in str(a.package_name)) and str(a.asset_class_path.asset_name) == "MaterialInstanceConstant":
         mi = unreal.load_asset(str(a.package_name))
-        mel.set_material_instance_scalar_parameter_value(mi, "Brilho", 2.3)
+        mel.set_material_instance_scalar_parameter_value(mi, "Brilho", 1.5 if "tree_dead__" in str(a.package_name) else 2.3)
         unreal.EditorAssetLibrary.save_loaded_asset(mi)
         unreal.log("AOE_PALMEIRA brilho %s" % a.asset_name)

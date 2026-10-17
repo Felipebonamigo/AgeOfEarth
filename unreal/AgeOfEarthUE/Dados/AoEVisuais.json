@@ -616,6 +616,11 @@
         "deserto": [
           "natureza/palm__date-palm-joeogles",
           "natureza/palm__date-palm-sutensaket"
+        ],
+        "submundo": [
+          "natureza/tree_dead__burnt-ember-tree",
+          "natureza/tree_dead__desert-dead-tree",
+          "natureza/tree_dead__burnt-ember-tree"
         ]
       }
     },

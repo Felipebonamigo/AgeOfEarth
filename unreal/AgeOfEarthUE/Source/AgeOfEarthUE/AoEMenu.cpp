@@ -29,13 +29,15 @@ namespace
 	const TCHAR* const VitId[] = { TEXT("conquista"), TEXT("maravilhas"), TEXT("posse") };
 	const TCHAR* const VitNome[] = { TEXT("Conquista"), TEXT("Maravilhas"), TEXT("Posse") };
 	const TCHAR* const EraNome[] = { TEXT("Arcaica"), TEXT("Clássica"), TEXT("Helenística"), TEXT("Bizantina"), TEXT("da Pólvora"), TEXT("Industrial"), TEXT("Moderna"), TEXT("dos Titãs") };
+	const TCHAR* const BiomaId[] = { TEXT(""), TEXT("atica"), TEXT("egeu"), TEXT("montanha"), TEXT("deserto"), TEXT("submundo") };
+	const TCHAR* const BiomaNome[] = { TEXT("Automático"), TEXT("Ática"), TEXT("Egeu"), TEXT("Montanha"), TEXT("Deserto"), TEXT("Submundo") };
 	// as 12 cores da simulacao (PLAYER_COLORS), na ordem dos lugares abertos
 	const uint32 Cores[12] = { 0x3b82f6, 0xef4444, 0x22c55e, 0xeab308, 0xf97316, 0x6d28d9, 0x22d3ee, 0xf472b6, 0xf1f5f9, 0x92400e, 0xbef264, 0x475569 };
 	FLinearColor Cor(int32 I) { const uint32 V = Cores[FMath::Clamp(I, 0, 11)]; return FLinearColor::FromSRGBColor(FColor((V >> 16) & 0xFF, (V >> 8) & 0xFF, V & 0xFF)); }
 	constexpr int32 MaxVagas = 12;
 	// ids dos botoes
 	enum : int32 { IdJogar = 1, IdSair = 2, IdVagasMenos = 20, IdVagasMais = 21, IdSemente = 32, IdRev = 43, IdPresetTodos = 50, IdPresetDuplas = 51, IdPresetUmContraTodos = 52,
-		IdComecar = 90, IdVoltar = 91, IdTipo = 100, IdDeus = 200, IdEquipe = 300, IdDif = 400, IdEra = 500, IdMapa = 600, IdTam = 700, IdVit = 800 };
+		IdComecar = 90, IdVoltar = 91, IdTipo = 100, IdDeus = 200, IdEquipe = 300, IdDif = 400, IdEra = 500, IdMapa = 600, IdTam = 700, IdVit = 800, IdBioma = 900 };
 }
 
 void AAoEHud::IniciarMenu()
@@ -48,6 +50,7 @@ void AAoEHud::IniciarMenu()
 	int32 N = 0; if (FParse::Value(FCommandLine::Get(), TEXT("AoEMenuVagas="), N) && N >= 2) MenuInstalarRapido(FMath::Min(N, MaxVagas), FParse::Param(FCommandLine::Get(), TEXT("AoEMenuTimes")));
 	int32 T = 0; if (FParse::Value(FCommandLine::Get(), TEXT("AoEMenuTamanho="), T)) MapaTamanho = FMath::Clamp(T, TamanhoMinimo(AbertasCount()), 4);
 	int32 Mp = 0; if (FParse::Value(FCommandLine::Get(), TEXT("AoEMenuMapa="), Mp)) MapaTipo = FMath::Clamp(Mp, 0, 7);
+	int32 Bi = 0; if (FParse::Value(FCommandLine::Get(), TEXT("AoEMenuBioma="), Bi)) BiomaSel = FMath::Clamp(Bi, 0, 5);
 	if (FParse::Param(FCommandLine::Get(), TEXT("AoEMenuJogar"))) { Tela = ETela::Criar; bAutoJogar = true; }
 }
 
@@ -84,6 +87,7 @@ void AAoEHud::MenuAcao(int32 Id)
 	}
 	if (Tela == ETela::Carregando) return;
 	// ---- Criar partida ----
+	if (Id >= IdBioma) { BiomaSel = (BiomaSel + 1) % 6; return; }
 	if (Id >= IdVit) { Vitoria = FMath::Clamp(Id - IdVit, 0, 2); return; }
 	if (Id >= IdTam) { MapaTamanho = FMath::Clamp(Id - IdTam, TamanhoMinimo(AbertasCount()), 4); return; }
 	if (Id >= IdMapa) { MapaTipo = FMath::Clamp(Id - IdMapa, 0, 7); return; }
@@ -132,7 +136,8 @@ void AAoEHud::EnviarPartida()
 	}
 	const FString Setup = FString::Printf(TEXT("{\"jogadores\":[%s],\"mapa\":{\"tipo\":\"%s\",\"tamanho\":\"%s\",\"semente\":%d},\"regras\":{\"eraInicial\":%d,\"eraFinal\":%d,\"vitoria\":\"%s\",\"mapaRevelado\":%s}}"),
 		*Js, MapasId[MapaTipo], TamId[MapaTamanho], Semente, EraIni, EraFim, VitId[Vitoria], bRevelado ? TEXT("true") : TEXT("false"));
-	B->BiomaMenu = MapaTipo == 3 ? TEXT("deserto") : TEXT("");   // tipo desert = bioma deserto (Egito)
+	B->bBiomaMenuForca = BiomaSel > 0;
+	B->BiomaMenu = BiomaSel > 0 ? BiomaId[BiomaSel] : MapaTipo == 3 ? TEXT("deserto") : TEXT("");   // automatico: tipo desert = bioma deserto (Egito)
 	SerieAoEnviar = B->TerrenoSerial;
 	TCarregando = 0.f;
 	B->SendRaw(FString::Printf(TEXT("{\"type\":\"novaPartida\",\"setup\":%s}"), *Setup));
@@ -402,13 +407,18 @@ void AAoEHud::DrawMenu()
 		TextoCx(TamNome[i], Tx, 446.f, 142.f, 46.f, 15.f, bSel ? FLinearColor(0.08f, 0.06f, 0.03f) : bOk ? Marfim : FLinearColor(0.38f, 0.36f, 0.32f));
 	}
 	if (Min > 0) TextoEsq(FString::Printf(TEXT("%d jogadores pedem pelo menos o mapa %s"), Abertas, TamNome[Min]), Rx, 496.f, 24.f, 13.f, Mudo, false);
-	// semente
+	// semente e bioma
 	Trilha(TEXT("SEMENTE"), Rx, 540.f, 15.f, Ouro, 4.f);
+	Trilha(TEXT("BIOMA"), Rx + 376.f, 540.f, 15.f, Ouro, 4.f);
 	{
-		const bool S = Hit(Rx, 566.f, 726.f, 44.f, IdSemente);
-		Rect(Rx, 566.f, 726.f, 44.f, S ? FLinearColor(1.f, 1.f, 1.f, 0.12f) : Vidro); Borda(Rx, 566.f, 726.f, 44.f, FLinearColor(1.f, 1.f, 1.f, S ? 0.45f : 0.18f));
+		const bool S = Hit(Rx, 566.f, 350.f, 44.f, IdSemente);
+		Rect(Rx, 566.f, 350.f, 44.f, S ? FLinearColor(1.f, 1.f, 1.f, 0.12f) : Vidro); Borda(Rx, 566.f, 350.f, 44.f, FLinearColor(1.f, 1.f, 1.f, S ? 0.45f : 0.18f));
 		TextoEsq(FString::FromInt(Semente), Rx + 16.f, 566.f, 44.f, 19.f, Marfim);
-		TextoEsq(TEXT("SORTEAR OUTRO MUNDO"), Rx + 470.f, 566.f, 44.f, 13.f, S ? OuroBr : Mudo);
+		TextoEsq(TEXT("SORTEAR"), Rx + 240.f, 566.f, 44.f, 13.f, S ? OuroBr : Mudo);
+		const bool Sb = Hit(Rx + 376.f, 566.f, 350.f, 44.f, IdBioma);
+		Rect(Rx + 376.f, 566.f, 350.f, 44.f, Sb ? FLinearColor(1.f, 1.f, 1.f, 0.12f) : Vidro); Borda(Rx + 376.f, 566.f, 350.f, 44.f, FLinearColor(1.f, 1.f, 1.f, Sb ? 0.45f : 0.18f));
+		TextoEsq(BiomaNome[BiomaSel], Rx + 392.f, 566.f, 44.f, 19.f, BiomaSel ? OuroBr : Marfim);
+		TextoEsq(TEXT("TROCAR"), Rx + 610.f, 566.f, 44.f, 13.f, Sb ? OuroBr : Mudo);
 	}
 	// eras
 	Trilha(TEXT("ERAS"), Rx, 636.f, 15.f, Ouro, 4.f);

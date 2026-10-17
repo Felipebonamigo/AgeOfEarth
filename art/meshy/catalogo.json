@@ -1425,6 +1425,38 @@
       "rig": false,
       "baixadoEm": "2026-10-17",
       "notas": "tamareira de copa densa, reduzida de 682 mil triangulos (weld sem normais + simplify do meshoptimizer, normais recalculadas); bioma deserto; sem Nanite, 4 LODs, Brilho 2,3"
+    },
+    {
+      "arquivo": "natureza/tree_dead__burnt-ember-tree.glb",
+      "idJogo": "tree",
+      "titulo": "Burnt ember tree",
+      "url": "https://www.meshy.ai/3d-models/This-tree-is-dark-and-as-its-mostly-been-burnt-In-the-trunk-of-the-tree-the-bark-depicts-features-like-as-i-the-bark-is-a-face-that-is-evil-looking-The-tree-itself-is-suitable-for-fantasy-art-0199400a-fc26-7eec-915c-b013533be8b4",
+      "autor": "crit",
+      "autorUrl": "",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 408925,
+      "triangulos": 24978,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-17",
+      "notas": "arvore queimada com brasas e rosto no tronco, base de folhas queimadas; reduzida de 637 mil (weld sem normais + simplify do meshoptimizer); bioma submundo; sem Nanite, 4 LODs, Brilho 1,5; a emissao das brasas nao e usada (M_Meshy_Vento so tem cor)"
+    },
+    {
+      "arquivo": "natureza/tree_dead__desert-dead-tree.glb",
+      "idJogo": "tree",
+      "titulo": "Desert dead tree",
+      "url": "https://www.meshy.ai/3d-models/desert-dead-tree-01979075-fa01-77c9-965e-381f46b057d8",
+      "autor": "6404342001122",
+      "autorUrl": "",
+      "licenca": "CC0",
+      "origem": "galeria",
+      "verticesOriginal": 8946,
+      "triangulos": 10000,
+      "textura": 2048,
+      "rig": false,
+      "baixadoEm": "2026-10-17",
+      "notas": "arvore seca clara de galhos finos, ja leve (10 mil triangulos); bioma submundo (e serve ao deserto); sem Nanite, 4 LODs, Brilho 1,5"
     }
   ],
   "recusados": [

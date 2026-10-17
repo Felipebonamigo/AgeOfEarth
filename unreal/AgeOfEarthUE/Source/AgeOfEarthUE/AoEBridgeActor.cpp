@@ -434,7 +434,7 @@ void AAoEBridgeActor::Dispatch(const TSharedPtr<FJsonObject>& O)
 			RelevoCab = *Cab;
 			FString Bm = TEXT("atica"); FString BmArg;
 			if (FParse::Value(FCommandLine::Get(), TEXT("AoEBioma="), BmArg)) Bm = BmArg; else RelevoCab->TryGetStringField(TEXT("bioma"), Bm);
-			if (!BiomaMenu.IsEmpty() && Bm == TEXT("atica") && !FParse::Param(FCommandLine::Get(), TEXT("AoEBioma"))) Bm = BiomaMenu;   // o menu sabe o tipo de mapa; a ponte ainda manda atica para o deserto (pedido 0014)
+			if (!BiomaMenu.IsEmpty() && (bBiomaMenuForca || Bm == TEXT("atica")) && BmArg.IsEmpty()) Bm = BiomaMenu;   // o menu sabe o tipo de mapa; a ponte ainda manda atica para o deserto (pedido 0014)
 			if (Bm != BiomaAtual) { BiomaAnterior = BiomaAtual; BiomaAtual = Bm; RespawnarNos(); }
 		}
 		else if (O->TryGetStringField(TEXT("campo"), Campo) && O->TryGetStringField(TEXT("d"), Dados)) RelevoAcum.FindOrAdd(Campo) += Dados;
@@ -2161,7 +2161,8 @@ void AAoEBridgeActor::ReceberPlantas(const TSharedPtr<FJsonObject>& O)
 	const bool bSombra = Grupo == TEXT("samambaias") || Grupo == TEXT("rochas");
 	TMap<int32, TArray<FTransform>> PorMalha;
 	// deserto: o capim, as flores e as samambaias do servidor ficariam verdes em cima da areia; sobra uma fracao do capim e das flores
-	const float Manter = BiomaAtual != TEXT("deserto") ? 1.f : Grupo == TEXT("capim") ? 0.14f : Grupo == TEXT("flores") ? 0.3f : Grupo == TEXT("samambaias") ? 0.f : 1.f;
+	const bool bDeserto = BiomaAtual == TEXT("deserto"), bSub = BiomaAtual == TEXT("submundo");
+	const float Manter = !(bDeserto || bSub) ? 1.f : Grupo == TEXT("capim") ? (bSub ? 0.05f : 0.14f) : Grupo == TEXT("flores") ? (bSub ? 0.f : 0.3f) : Grupo == TEXT("samambaias") ? 0.f : 1.f;
 	for (int32 i = 0; i + 6 < P->Num(); i += 7)
 	{
 		if (Manter < 1.f && Hash01(i / 7 + Grupo.Len() * 7919, 11) >= Manter) continue;
