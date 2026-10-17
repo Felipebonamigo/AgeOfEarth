@@ -1523,6 +1523,10 @@
     {
       "url": "https://www.meshy.ai/pt-BR/tags/stadium",
       "motivo": "wonder_stadium: só há estádios de futebol, e a \"Ruined Circular Arena\" é uma arena circular pequena"
+    },
+    {
+      "url": "https://www.meshy.ai/3d-models/Greek-Warehouse-019c953b-4ea4-7ca4-a4a9-1433f1d66e37",
+      "motivo": "armazem grego de pedra com pithoi (CC0, hibtyler) e bonito no visualizador, mas a malha de 3 milhoes de triangulos tem as ilhas de UV picadas: a 130 mil, 300 mil (10 %) e com simplify que pesa UV a textura sai em cacos; original guardado em meshy-originais; so serve com Nanite e o arquivo inteiro (118 MB), fora do limite do repositorio"
     }
   ],
   "faltando": [
