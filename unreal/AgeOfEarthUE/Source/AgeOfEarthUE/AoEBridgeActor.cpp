@@ -345,7 +345,8 @@ void AAoEBridgeActor::IniciarServidor()
 	FString Repo = TEXT("C:/Users/Felip/source/repos/AgeOfEarth");
 	FParse::Value(FCommandLine::Get(), TEXT("AoERepo="), Repo);
 	// node direto (sem cmd/npx: dentro do Unreal o npx.cmd falhava com "sintaxe incorreta"); tsx vem do node_modules do repositorio
-	const FString Args = TEXT("node_modules/tsx/dist/cli.mjs scripts/unreal/sim-server.ts --port 8790 --paused --ais 1");
+	FString Extra; FParse::Value(FCommandLine::Get(), TEXT("AoEServidorArgs="), Extra);   // ex.: -AoEServidorArgs="--speed 8" para medir a partida adiantada
+	const FString Args = FString::Printf(TEXT("node_modules/tsx/dist/cli.mjs scripts/unreal/sim-server.ts --port 8790 --paused --ais 1 %s"), *Extra.TrimQuotes());
 	ServidorProc = FPlatformProcess::CreateProc(TEXT("C:/Program Files/nodejs/node.exe"), *Args, false, true, true, nullptr, 0, *Repo.Replace(TEXT("/"), TEXT("\\")), nullptr);
 	UE_LOG(LogTemp, Log, TEXT("AoE: servidor da simulacao %s (%s) cmd %s"), ServidorProc.IsValid() ? TEXT("aberto") : TEXT("NAO abriu"), *Repo, *Args);
 }
